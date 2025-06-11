@@ -59,6 +59,11 @@ return [
             'throw' => false,
             'report' => false,
         ],
+        'general' => [
+            'driver' => 'local',
+            'root' => storage_path('app'),
+            'throw' => false,
+        ],
 
     ],
 

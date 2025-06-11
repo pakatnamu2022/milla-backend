@@ -3,28 +3,26 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Auth\LoginRequest;
-use App\Models\User;
-use Illuminate\Support\Facades\Auth;
+use App\Http\Services\AuthService;
 
 class AuthController extends Controller
 {
+    protected AuthService $authService;
+
+    public function __construct(AuthService $authService)
+    {
+        $this->authService = $authService;
+    }
+
     public function login(LoginRequest $request)
     {
-        $credentials = $request->only('username', 'password');
-
-        if (Auth::attempt($credentials)) {
-            $user = Auth::user();
-            $token = $user->createToken('AuthToken', expiresAt: now()->addDays(7));
-
-            $user = User::with('person')->find($user->id);
-
-            return response()->json([
-                'access_token' => $token->plainTextToken,
-//                'user' => UserResource::make($user),
-                'user' => $user,
-            ]);
-        } else {
-            return response()->json(['message' => 'Credenciales Inválidades'], 422);
-        }
+        return $this->authService->login($request);
     }
+
+    public function authenticate()
+    {
+        return $this->authService->authenticate();
+
+    }
+
 }
