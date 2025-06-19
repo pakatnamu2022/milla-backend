@@ -22,7 +22,11 @@ class AuthController extends Controller
     public function authenticate()
     {
         return $this->authService->authenticate();
+    }
 
+    public function permissions()
+    {
+        return $this->authService->permissions();
     }
 
 }
