@@ -18,10 +18,12 @@ class AuthService
             $token = $user->createToken('AuthToken', expiresAt: now()->addDays(7));
 
             $user = User::with('person')->find($user->id);
+            $permissions = $this->permissions();
 
             return response()->json([
                 'access_token' => $token->plainTextToken,
                 'user' => UserResource::make($user),
+                'permissions' => $permissions['opcionesMenu'],
             ]);
         } else {
             return response()->json(['message' => 'Credenciales Inválidades'], 422);
@@ -34,8 +36,10 @@ class AuthService
 
         if ($user) {
             $user = User::with('person')->find($user->id);
+            $permissions = $this->permissions();
             return response()->json([
                 'user' => UserResource::make($user),
+                'permissions' => $permissions['opcionesMenu'],
             ]);
         } else {
             return response()->json(['message' => 'No autenticado'], 401);
@@ -57,17 +61,55 @@ class AuthService
     {
         $userId = Auth::id();
 
-        $vistas = $this->getAllVistas();
+        $vistas = $this->getAllVistasConEmpresa();
         $permitidas = $this->getVistasPermitidas($userId);
-        $vistasFiltradas = $this->filtrarVistas($vistas, $permitidas);
-        $menu = $this->construirArbol($vistasFiltradas);
 
-        return ['opcionesMenu' => $menu];
+        $vistasFiltradas = $this->filtrarVistas($vistas, $permitidas);
+
+        $agrupadasPorEmpresa = $this->agruparPorEmpresa($vistasFiltradas);
+
+        $menuPorEmpresa = [];
+
+        foreach ($agrupadasPorEmpresa as $empresaId => $grupo) {
+            $menu = $this->construirArbolUnico($grupo);
+
+            if (count($menu)) {
+                $menuPorEmpresa[] = [
+                    'empresa_id' => $empresaId,
+                    'empresa_nombre' => $grupo[0]->empresa_nombre,
+                    'menu' => $menu,
+                ];
+            }
+        }
+
+
+        return ['opcionesMenu' => $menuPorEmpresa];
     }
 
-    private function getAllVistas()
+    private function getAllVistasConEmpresa()
     {
-        return DB::select("SELECT * FROM config_vista WHERE status_deleted = 1");
+        return DB::table('config_vista as cv')
+            ->leftJoin('companies as c', 'cv.company_id', '=', 'c.id')
+            ->where('cv.status_deleted', 1)
+            ->whereNotNull('cv.company_id')
+            ->select(
+                'cv.*',
+                'c.id as empresa_id',
+                'c.name as empresa_nombre'
+            )
+            ->get();
+    }
+
+    private function agruparPorEmpresa($vistas)
+    {
+        $agrupadas = [];
+
+        foreach ($vistas as $vista) {
+            $empresaId = $vista->empresa_id ?? 0; // puedes usar 0 para "sin empresa"
+            $agrupadas[$empresaId][] = $vista;
+        }
+
+        return $agrupadas;
     }
 
     private function getVistasPermitidas($userId)
@@ -85,39 +127,44 @@ class AuthService
 
     private function filtrarVistas($vistas, $permitidas)
     {
-        return array_filter($vistas, function ($vista) use ($permitidas) {
-            $esRaiz = is_null($vista->idPadre) && is_null($vista->idSubPadre) && is_null($vista->idHijo);
-            $sinRuta = empty($vista->ruta);
-            return $esRaiz || $sinRuta || in_array($vista->id, $permitidas);
-        });
+        $idsPermitidos = collect($vistas)
+            ->filter(fn($vista) => in_array($vista->id, $permitidas))
+            ->pluck('id')
+            ->toArray();
+
+        return $vistas->filter(function ($vista) use ($idsPermitidos) {
+            return in_array($vista->id, $idsPermitidos) || $vista->parent_id === null;
+        })->values(); // <-- devuelve una colección limpia
     }
 
-    private function construirArbol($vistas)
+
+    private function construirArbolUnico($vistas)
     {
-        $padres = [];
+        $agrupadas = [];
 
         foreach ($vistas as $vista) {
-            if (is_null($vista->idPadre) && is_null($vista->idSubPadre) && is_null($vista->idHijo)) {
-                $padres[] = $vista;
+            $agrupadas[$vista->parent_id ?? 0][] = $vista;
+        }
+
+        $construir = function ($parentId) use (&$construir, $agrupadas) {
+            $items = $agrupadas[$parentId] ?? [];
+
+            $resultado = [];
+
+            foreach ($items as $item) {
+                $item->children = $construir($item->id);
+
+                // incluir solo si tiene ruta o hijos visibles
+                if (!empty($item->ruta) || count($item->children)) {
+                    $resultado[] = $item;
+                }
             }
-        }
 
-        foreach ($padres as &$padre) {
-            $padre->subpadres = array_values(array_filter(array_map(function ($subpadre) use ($padre, $vistas) {
-                if ($subpadre->idPadre !== $padre->id) return null;
+            return $resultado;
+        };
 
-                $subpadre->hijos = array_values(array_filter(array_map(function ($hijo) use ($subpadre, $vistas) {
-                    if ($hijo->idSubPadre !== $subpadre->id) return null;
-
-                    $hijo->hijos = array_values(array_filter($vistas, fn($subhijo) => $subhijo->idHijo === $hijo->id && !empty($subhijo->ruta)));
-                    return (!empty($hijo->ruta) || count($hijo->hijos)) ? $hijo : null;
-                }, $vistas)));
-
-                return (!empty($subpadre->ruta) || count($subpadre->hijos)) ? $subpadre : null;
-            }, $vistas)));
-        }
-
-        return array_values(array_filter($padres, fn($padre) => !empty($padre->ruta) || count($padre->subpadres ?? [])));
+        return $construir(0);
     }
+
 
 }
