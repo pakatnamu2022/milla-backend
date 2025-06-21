@@ -127,14 +127,24 @@ class AuthService
 
     private function filtrarVistas($vistas, $permitidas)
     {
-        $idsPermitidos = collect($vistas)
-            ->filter(fn($vista) => in_array($vista->id, $permitidas))
-            ->pluck('id')
-            ->toArray();
+        $permitidasSet = collect($permitidas)->flip(); // para acceso rápido
+        $vistasPorId = collect($vistas)->keyBy('id');
 
-        return $vistas->filter(function ($vista) use ($idsPermitidos) {
-            return in_array($vista->id, $idsPermitidos) || $vista->parent_id === null;
-        })->values(); // <-- devuelve una colección limpia
+        $idsFinales = collect();
+
+        foreach ($vistas as $vista) {
+            if (isset($permitidasSet[$vista->id])) {
+                $actual = $vista;
+                while ($actual) {
+                    $idsFinales->push($actual->id);
+                    $actual = $vistasPorId->get($actual->parent_id);
+                }
+            }
+        }
+
+        $idsFinales = $idsFinales->unique()->values();
+
+        return collect($vistas)->filter(fn($vista) => $idsFinales->contains($vista->id))->values();
     }
 
 
@@ -153,8 +163,17 @@ class AuthService
 
             foreach ($items as $item) {
                 $item->children = $construir($item->id);
+            }
 
-                // incluir solo si tiene ruta o hijos visibles
+            // Reordenamos: primero los que tienen hijos
+            usort($items, function ($a, $b) {
+                $aHasChildren = count($a->children ?? []) > 0;
+                $bHasChildren = count($b->children ?? []) > 0;
+
+                return $aHasChildren === $bHasChildren ? 0 : ($aHasChildren ? -1 : 1);
+            });
+
+            foreach ($items as $item) {
                 if (!empty($item->ruta) || count($item->children)) {
                     $resultado[] = $item;
                 }
