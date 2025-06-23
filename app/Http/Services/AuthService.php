@@ -23,7 +23,7 @@ class AuthService
             return response()->json([
                 'access_token' => $token->plainTextToken,
                 'user' => UserResource::make($user),
-//                'permissions' => $permissions['opcionesMenu'],
+                'permissions' => $permissions['opcionesMenu'],
             ]);
         } else {
             return response()->json(['message' => 'Credenciales Inválidades'], 422);
@@ -39,7 +39,7 @@ class AuthService
             $permissions = $this->permissions();
             return response()->json([
                 'user' => UserResource::make($user),
-//                'permissions' => $permissions['opcionesMenu'],
+                'permissions' => $permissions['opcionesMenu'],
             ]);
         } else {
             return response()->json(['message' => 'No autenticado'], 401);
