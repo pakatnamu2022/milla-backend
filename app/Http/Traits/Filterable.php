@@ -14,7 +14,14 @@ trait Filterable
             $value = $request->query($paramName);
 
             if ($value !== null) {
-                if (strpos($filter, '.') !== false) {
+                if ($filter === 'search') {
+                    $fields = $operator;
+                    $query->where(function ($q) use ($fields, $value) {
+                        foreach ($fields as $field) {
+                            $q->orWhere($field, 'like', '%' . $value . '%');
+                        }
+                    });
+                } elseif (strpos($filter, '.') !== false) {
                     [$relation, $relationFilter] = explode('.', $filter);
 
                     $query->whereHas($relation, function ($q) use ($relationFilter, $operator, $value) {
@@ -28,6 +35,7 @@ trait Filterable
 
         return $query;
     }
+
 
     protected function applyFilterCondition($query, $filter, $operator, $value)
     {

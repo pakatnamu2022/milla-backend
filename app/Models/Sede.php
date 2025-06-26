@@ -15,4 +15,9 @@ class Sede extends BaseModel
         //return $this->belongsTo(Area::class);
         return $this->hasMany(Area::class, 'sede_id', 'id');
     }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'empresa_id', 'id');
+    }
 }

@@ -19,6 +19,8 @@ class EquipmentResource extends JsonResource
             'status' => $this->status ? $this->status->estado : null,
             'estado_uso' => $this->estado_uso,
             'detalle' => $this->detalle,
+            'sede' => $this->sede ? $this->sede->suc_abrev : null,
+            'empresa' => $this->sede?->company ? $this->sede->company->name : null,
 
 //            DETALLES
             'ram' => $this->ram,
@@ -32,8 +34,6 @@ class EquipmentResource extends JsonResource
             'sede_id' => $this->sede_id,
             'status_id' => $this->status_id,
             'status_deleted' => $this->status_deleted,
-
-
         ];
     }
 }

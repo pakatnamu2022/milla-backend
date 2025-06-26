@@ -28,22 +28,19 @@ class Equipment extends BaseModel
 
     const filters = [
         'id' => '=',
-        'equipo' => 'like',
+        'search' => ['equipo', 'marca_modelo', 'serie', 'detalle'],
         'tipo_equipo_id' => '=',
-        'marca_modelo' => 'like',
-        'serie' => 'like',
-        'detalle' => 'like',
-
+        'sede_id' => '=',
     ];
 
     const sorts = [
-        'id',
-        'sede_id',
-        'tipo_equipo_id',
-        'serial',
-        'activo',
-        'created_at',
-        'updated_at'
+        'id' => 'asc',
+        'equipo' => 'asc',
+        'marca_modelo' => 'asc',
+        'serie' => 'asc',
+        'status_id' => 'asc',
+        'estado_uso' => 'asc',
+        'stock_actual' => 'asc',
     ];
 
     public function sede()
@@ -60,11 +57,5 @@ class Equipment extends BaseModel
     {
         return $this->hasOne(EquipmentType::class, 'id', 'tipo_equipo_id');
     }
-
-//    public function getActivitylogOptions(): LogOptions
-//    {
-//        return LogOptions::defaults()
-//            ->logAll();
-//    }
 
 }
