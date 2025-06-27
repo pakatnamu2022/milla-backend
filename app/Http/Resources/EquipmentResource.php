@@ -20,7 +20,7 @@ class EquipmentResource extends JsonResource
             'estado_uso' => $this->estado_uso,
             'detalle' => $this->detalle,
             'sede' => $this->sede ? $this->sede->suc_abrev : null,
-            'empresa' => $this->sede?->company ? $this->sede->company->name : null,
+            'empresa' => $this->sede?->company ? $this->sede->company->abbreviation . ' - ' . $this->sede->suc_abrev : null,
 
 //            DETALLES
             'ram' => $this->ram,
