@@ -4,16 +4,23 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Sede\StoreSedeRequest;
 use App\Http\Requests\Sede\UpdateSedeRequest;
+use App\Http\Services\SedeService;
 use App\Models\Sede;
 
 class SedeController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+
+    protected SedeService $sedeService;
+
+    public function __construct(SedeService $sedeService)
+    {
+        $this->sedeService = $sedeService;
+    }
+
+
     public function index()
     {
-        //
+        return $this->sedeService->list(request());
     }
 
     /**

@@ -2,19 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Services\EquipmentTypeService;
 use App\Models\EquipmentType;
 use App\Http\Requests\StoreEquipmentTypeRequest;
 use App\Http\Requests\UpdateEquipmentTypeRequest;
 
 class EquipmentTypeController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    protected EquipmentTypeService $equipmentTypeService;
+
+    public function __construct(EquipmentTypeService $equipmentTypeService)
+    {
+        $this->equipmentTypeService = $equipmentTypeService;
+    }
+
     public function index()
     {
-        $equipmentTypes = EquipmentType::all();
-        return response()->json($equipmentTypes);
+        return $this->equipmentTypeService->list(request());
     }
 
     /**

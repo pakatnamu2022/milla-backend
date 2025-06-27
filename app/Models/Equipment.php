@@ -23,15 +23,22 @@ class Equipment extends BaseModel
         'sede_id',
         'status_id',
         'pertenece_sede',
+        'tipo_adquisicion', // CONTRATO, COMPRA
+        'factura',
+        'contrato',
+        'proveedor',
+        'fecha_adquisicion',
+        'fecha_garantia',
         'status_deleted'
     ];
 
     const filters = [
         'id' => '=',
-        'search' => ['equipo', 'marca_modelo', 'serie', 'detalle'],
+        'search' => ['equipo', 'marca_modelo', 'serie', 'detalle', 'factura', 'contrato'],
         'tipo_equipo_id' => '=',
         'sede_id' => '=',
         'status_id' => '=',
+        'tipo_adquisicion' => '=',
     ];
 
     const sorts = [

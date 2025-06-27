@@ -29,6 +29,14 @@ class EquipmentResource extends JsonResource
             'stock_actual' => $this->stock_actual,
             'pertenece_sede' => $this->pertenece_sede,
 
+//            ADQUISICION
+            'tipo_adquisicion' => $this->tipo_adquisicion,
+            'factura' => $this->factura,
+            'contrato' => $this->contrato,
+            'proveedor' => $this->proveedor,
+            'fecha_adquisicion' => $this->fecha_adquisicion,
+            'fecha_garantia' => $this->fecha_garantia,
+
 //            FOREIGN KEYS
             'tipo_equipo_id' => $this->tipo_equipo_id,
             'sede_id' => $this->sede_id,

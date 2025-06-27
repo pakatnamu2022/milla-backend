@@ -9,9 +9,27 @@ class EquipmentType extends BaseModel
     protected $table = "help_tipo_equipo";
     protected $primaryKey = 'id';
 
-//    public function getActivitylogOptions(): LogOptions
-//    {
-//        return LogOptions::defaults()
-//            ->logAll();
-//    }
+    protected $fillable = [
+        'equipo',
+        'name',
+        'status_deleted'
+    ];
+
+    const filters = [
+        'id' => '=',
+        'search' => ['equipo'],
+        'status_deleted' => '='
+    ];
+
+    const sorts = [
+        'id',
+        'equipo',
+        'status_deleted'
+    ];
+
+    public function equipments()
+    {
+        return $this->hasMany(Equipment::class, 'tipo_equipo_id', 'id');
+    }
+
 }
