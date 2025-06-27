@@ -18,4 +18,10 @@ class EquipmentService extends BaseService
             EquipmentResource::class,
         );
     }
+
+    public function store($data)
+    {
+        $equipment = Equipment::create($data);
+        return new EquipmentResource(Equipment::find($equipment->id));
+    }
 }

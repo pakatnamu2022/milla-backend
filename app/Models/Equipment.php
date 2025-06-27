@@ -31,6 +31,7 @@ class Equipment extends BaseModel
         'search' => ['equipo', 'marca_modelo', 'serie', 'detalle'],
         'tipo_equipo_id' => '=',
         'sede_id' => '=',
+        'status_id' => '=',
     ];
 
     const sorts = [

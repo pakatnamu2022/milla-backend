@@ -13,7 +13,8 @@ class EquipmentTypeController extends Controller
      */
     public function index()
     {
-        //
+        $equipmentTypes = EquipmentType::all();
+        return response()->json($equipmentTypes);
     }
 
     /**
