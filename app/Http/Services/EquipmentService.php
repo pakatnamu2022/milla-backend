@@ -20,8 +20,17 @@ class EquipmentService extends BaseService
         );
     }
 
+    private function enrichEquipmentData(array $data): array
+    {
+        $data['equipo'] = trim(($data['marca'] ?? '') . ' ' . ($data['modelo'] ?? '') . ' ' . ($data['serie'] ?? ''));
+        $data['marca_modelo'] = trim(($data['marca'] ?? '') . ' ' . ($data['modelo'] ?? ''));
+        return $data;
+    }
+
+
     public function store($data)
     {
+        $data = $this->enrichEquipmentData($data);
         $equipment = Equipment::create($data);
         return new EquipmentResource(Equipment::find($equipment->id));
     }
@@ -44,6 +53,7 @@ class EquipmentService extends BaseService
     public function update($data)
     {
         $equipment = $this->find($data['id']);
+        $data = $this->enrichEquipmentData($data);
         $equipment->update($data);
         return new EquipmentResource($equipment);
     }

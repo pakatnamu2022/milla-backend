@@ -12,6 +12,8 @@ class Equipment extends BaseModel
     protected $fillable = [
         'equipo',
         'tipo_equipo_id',
+        'marca',
+        'modelo',
         'marca_modelo',
         'serie',
         'detalle',
@@ -39,6 +41,7 @@ class Equipment extends BaseModel
         'sede_id' => '=',
         'status_id' => '=',
         'tipo_adquisicion' => '=',
+        'estado_uso' => '=',
     ];
 
     const sorts = [

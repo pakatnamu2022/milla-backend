@@ -15,6 +15,8 @@ class EquipmentResource extends JsonResource
             'equipo' => $this->equipo,
             'tipo_equipo' => $this->equipmentType ? $this->equipmentType->name : null,
             'marca_modelo' => $this->marca_modelo,
+            'marca' => $this->marca,
+            'modelo' => $this->modelo,
             'serie' => $this->serie,
             'status' => $this->status ? $this->status->estado : null,
             'estado_uso' => $this->estado_uso,
