@@ -76,6 +76,7 @@ class AuthService
             if (count($menu)) {
                 $menuPorEmpresa[] = [
                     'empresa_id' => $empresaId,
+                    'empresa_abreviatura' => $grupo[0]->abbreviation ?? 'NA',
                     'empresa_nombre' => $grupo[0]->empresa_nombre,
                     'menu' => $menu,
                 ];
@@ -95,9 +96,13 @@ class AuthService
             ->select(
                 'cv.*',
                 'c.id as empresa_id',
-                'c.name as empresa_nombre'
+                'c.name as empresa_nombre',
+                DB::raw('LOWER(c.abbreviation) as abbreviation'),
             )
-            ->get();
+            ->get()->map(function ($item) {
+                $item->submodule = (bool)$item->submodule;
+                return $item;
+            });
     }
 
     private function agruparPorEmpresa($vistas)
