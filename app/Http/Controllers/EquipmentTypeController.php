@@ -6,6 +6,7 @@ use App\Http\Services\EquipmentTypeService;
 use App\Models\EquipmentType;
 use App\Http\Requests\StoreEquipmentTypeRequest;
 use App\Http\Requests\UpdateEquipmentTypeRequest;
+use Illuminate\Http\Request;
 
 class EquipmentTypeController extends Controller
 {
@@ -16,38 +17,21 @@ class EquipmentTypeController extends Controller
         $this->equipmentTypeService = $equipmentTypeService;
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        return $this->equipmentTypeService->list(request());
+        return $this->equipmentTypeService->list($request);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(StoreEquipmentTypeRequest $request)
     {
-        //
+
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(EquipmentType $equipmentType)
     {
         //
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(EquipmentType $equipmentType)
     {
         //
