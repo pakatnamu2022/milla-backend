@@ -18,7 +18,14 @@ trait Filterable
                     $fields = $operator;
                     $query->where(function ($q) use ($fields, $value) {
                         foreach ($fields as $field) {
-                            $q->orWhere($field, 'like', '%' . $value . '%');
+                            if (str_contains($field, '.')) {
+                                [$relation, $relationField] = explode('.', $field);
+                                $q->orWhereHas($relation, function ($relQuery) use ($relationField, $value) {
+                                    $relQuery->where($relationField, 'like', '%' . $value . '%');
+                                });
+                            } else {
+                                $q->orWhere($field, 'like', '%' . $value . '%');
+                            }
                         }
                     });
                 } elseif (strpos($filter, '.') !== false) {
