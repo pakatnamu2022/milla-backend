@@ -2,10 +2,13 @@
 
 namespace App\Http\Services;
 
+use App\DTO\ServiceResponse;
 use App\Http\Resources\EvaluationCompetenceResource;
 use App\Models\EvaluationCompetence;
+use App\Models\EvaluationSubCompetence;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class EvaluationCompetenceService extends BaseService
 {
@@ -20,11 +23,44 @@ class EvaluationCompetenceService extends BaseService
         );
     }
 
-    public function store($data)
+    public function store(array $data): ServiceResponse
     {
-        $evaluationMetric = EvaluationCompetence::create($data);
-        return new EvaluationCompetenceResource(EvaluationCompetence::find($evaluationMetric->id));
+        DB::beginTransaction();
+
+        try {
+            $data['status_delete'] = 0; // Ensure status_delete is set to 0 for new records
+            $data['grupo_cargos_id'] = 1; // Ensure status_delete is set to 0 for new records
+
+            $competence = EvaluationCompetence::create($data);
+
+            $subCompetences = $data['subCompetences'] ?? [];
+
+            foreach ($subCompetences as $subData) {
+                $subCompetence = [
+                    'competencia_id' => $competence->id,
+                    'nombre' => $subData['nombre'] ?? null,
+                    'definicion' => $subData['definicion'] ?? null,
+                    'status_delete' => 0,
+                    'level1' => $subData['level1'] ?? null,
+                    'level2' => $subData['level2'] ?? null,
+                    'level3' => $subData['level3'] ?? null,
+                    'level4' => $subData['level4'] ?? null,
+                    'level5' => $subData['level5'] ?? null,
+                ];
+
+                EvaluationSubCompetence::create($subCompetence);
+            }
+
+            DB::commit();
+
+            return ServiceResponse::success(new EvaluationCompetenceResource($competence));
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return ServiceResponse::error('Error al crear: ' . $e->getMessage());
+        }
     }
+
 
     public function find($id)
     {
@@ -36,16 +72,45 @@ class EvaluationCompetenceService extends BaseService
         return $evaluationMetric;
     }
 
-    public function show($id)
+    public function show($id): ServiceResponse
     {
-        return new EvaluationCompetenceResource($this->find($id));
+        try {
+            $evaluationMetric = $this->find($id);
+            return ServiceResponse::success(new EvaluationCompetenceResource($evaluationMetric));
+        } catch (Exception $e) {
+            return ServiceResponse::error($e->getMessage());
+        }
     }
 
     public function update($data)
     {
-        $evaluationMetric = $this->find($data['id']);
-        $evaluationMetric->update($data);
-        return new EvaluationCompetenceResource($evaluationMetric);
+        try {
+            $evaluationMetric = $this->find($data['id']);
+
+            $evaluationMetric->update($data);
+
+            // Update subcompetences if provided
+            if (isset($data['subCompetences'])) {
+                foreach ($data['subCompetences'] as $subData) {
+                    $subCompetence = EvaluationSubCompetence::find($subData['id']);
+                    if ($subCompetence) {
+                        $subCompetence->update([
+                            'nombre' => $subData['nombre'] ?? null,
+                            'definicion' => $subData['definicion'] ?? null,
+                            'level1' => $subData['level1'] ?? null,
+                            'level2' => $subData['level2'] ?? null,
+                            'level3' => $subData['level3'] ?? null,
+                            'level4' => $subData['level4'] ?? null,
+                            'level5' => $subData['level5'] ?? null,
+                        ]);
+                    }
+                }
+            }
+
+            return ServiceResponse::success(new EvaluationCompetenceResource($evaluationMetric));
+        } catch (Exception $e) {
+            return ServiceResponse::error('Error al actualizar: ' . $e->getMessage());
+        }
     }
 
     public function destroy($id)

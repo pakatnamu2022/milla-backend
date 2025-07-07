@@ -22,30 +22,25 @@ class EvaluationCompetenceController extends Controller
         return $this->evaluationCompetenceService->list($request);
     }
 
+
     public function store(StoreEvaluationCompetenceRequest $request)
     {
         $data = $request->validated();
-        return response()->json($this->evaluationCompetenceService->store($data));
+        $response = $this->evaluationCompetenceService->store($data);
+        return $this->apiResponse($response);
     }
 
     public function show(int $id)
     {
-        try {
-            return response()->json($this->evaluationCompetenceService->show($id));
-        } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], 404);
-        }
+        $response = $this->evaluationCompetenceService->show($id);
+        return $this->apiResponse($response);
     }
 
     public function update(UpdateEvaluationCompetenceRequest $request, int $id)
     {
-        try {
-            $data = $request->validated();
-            $data['id'] = $id; // Add the ID to the data for updating
-            return response()->json($this->evaluationCompetenceService->update($data));
-        } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], 404);
-        }
+        $data = $request->validated();
+        $data['id'] = $id; // Add the ID to the data for updating
+        return $this->apiResponse($this->evaluationCompetenceService->update($data));
     }
 
     public function destroy(int $id)

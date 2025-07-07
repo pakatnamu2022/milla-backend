@@ -2,27 +2,21 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
-
-class UpdateEvaluationCompetenceRequest extends FormRequest
+class UpdateEvaluationCompetenceRequest extends StoreRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return false;
-    }
-
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
-            //
+            'nombre' => 'required|string|max:255',
+            'subCompetences' => 'array|required|min:1',
+            'subCompetences.*.id' => 'required|integer|exists:evaluation_sub_competences,id',
+            'subCompetences.*.nombre' => 'required|string|max:255',
+            'subCompetences.*.definicion' => 'nullable|string|max:500',
+            'subCompetences.*.level1' => 'nullable|string|max:255',
+            'subCompetences.*.level2' => 'nullable|string|max:255',
+            'subCompetences.*.level3' => 'nullable|string|max:255',
+            'subCompetences.*.level4' => 'nullable|string|max:255',
+            'subCompetences.*.level5' => 'nullable|string|max:255',
         ];
     }
 }

@@ -12,6 +12,7 @@ class EvaluationCompetenceResource extends JsonResource
         return [
             'id' => $this->id,
             'nombre' => $this->nombre,
+            'subcompetences' => EvaluationSubCompetenceResource::collection($this->subCompetences),
         ];
     }
 }
