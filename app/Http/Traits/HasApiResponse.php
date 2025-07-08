@@ -2,29 +2,19 @@
 
 namespace App\Http\Traits;
 
-use App\DTO\ServiceResponse;
 use Illuminate\Http\JsonResponse;
 
 trait HasApiResponse
 {
-    public function apiResponse(ServiceResponse $response): JsonResponse
+
+    public function success(mixed $data = null): JsonResponse
     {
-        return response()->json(
-            $response->status !== 200
-                ? ['message' => $response->message]
-                : $response->data,
-            $response->status
-        );
+        return response()->json($data);
     }
 
-    public function success(mixed $data = null, int $status = 200): JsonResponse
+    public function error(string $message): JsonResponse
     {
-        return response()->json($data, $status);
-    }
-
-    public function error(string $message, int $status = 500): JsonResponse
-    {
-        return response()->json(['message' => $message], $status);
+        return response()->json(['message' => $message], 500);
     }
 }
 
