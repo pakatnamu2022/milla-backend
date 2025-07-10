@@ -29,7 +29,7 @@ class RoleController extends Controller
     public function store(StoreRoleRequest $request)
     {
         try {
-            return $this->success($this->service->store($request));
+            return $this->success($this->service->store($request->validated()));
         } catch (\Throwable $th) {
             return $this->error($th->getMessage());
         }

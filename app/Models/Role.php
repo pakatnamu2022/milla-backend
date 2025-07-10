@@ -2,9 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-
 class Role extends BaseModel
 {
     protected $table = 'config_roles';
@@ -41,5 +38,10 @@ class Role extends BaseModel
     public function updaterUser()
     {
         return $this->belongsTo(User::class, 'updater_user');
+    }
+
+    public function users()
+    {
+        return $this->hasMany(UserRole::class, 'role_id')->where('status_deleted', 1);
     }
 }

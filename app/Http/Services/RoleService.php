@@ -22,6 +22,7 @@ class RoleService extends BaseService
 
     private function enrichRoleData(array $data): array
     {
+        $data['updater_user'] = auth()->user()->id;
         return $data;
     }
 
@@ -30,7 +31,7 @@ class RoleService extends BaseService
         $view = Role::where('id', $id)
             ->where('status_deleted', 1)->first();
         if (!$view) {
-            throw new Exception('Vista no encontrado');
+            throw new Exception('Rol no encontrado');
         }
         return $view;
     }
@@ -38,6 +39,7 @@ class RoleService extends BaseService
     public function store($data)
     {
         $data = $this->enrichRoleData($data);
+        $data['creator_user'] = auth()->user()->id;
         $view = Role::create($data);
         return new RoleResource(Role::find($view->id));
     }
@@ -60,6 +62,6 @@ class RoleService extends BaseService
         $view = $this->find($id);
         $view->status_deleted = 0;
         $view->save();
-        return response()->json(['message' => 'Vista eliminada correctamente']);
+        return response()->json(['message' => 'Rol eliminado correctamente']);
     }
 }

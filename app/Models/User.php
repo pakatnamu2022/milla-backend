@@ -35,7 +35,13 @@ class User extends Authenticatable
         ];
     }
 
-    public function person(){
+    public function person()
+    {
         return $this->hasOne(Person::class, 'id', 'partner_id');
+    }
+
+    public function role()
+    {
+        return $this->hasOne(Role::class, 'id', 'role_id');
     }
 }
