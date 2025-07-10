@@ -12,17 +12,17 @@ use function response;
 class ViewController extends Controller
 {
 
-    protected ViewService $viewService;
+    protected ViewService $service;
 
-    public function __construct(ViewService $viewService)
+    public function __construct(ViewService $service)
     {
-        $this->viewService = $viewService;
+        $this->service = $service;
     }
 
     public function index(IndexViewRequest $request)
     {
         try {
-            return $this->viewService->list($request);
+            return $this->service->list($request);
         } catch (\Throwable $th) {
             return $this->error($th->getMessage());
         }
@@ -31,7 +31,7 @@ class ViewController extends Controller
     public function store(StoreViewRequest $request)
     {
         try {
-            return $this->success($this->viewService->store($request->validated()));
+            return $this->success($this->service->store($request->validated()));
         } catch (\Throwable $th) {
             return $this->error($th->getMessage());
         }
@@ -40,7 +40,7 @@ class ViewController extends Controller
     public function show($id)
     {
         try {
-            return response()->json($this->viewService->show($id));
+            return response()->json($this->service->show($id));
         } catch (\Throwable $th) {
             return $this->error($th->getMessage());
         }
@@ -51,7 +51,7 @@ class ViewController extends Controller
         try {
             $data = $request->validated();
             $data['id'] = $id;
-            return $this->success($this->viewService->update($data));
+            return $this->success($this->service->update($data));
         } catch (\Throwable $th) {
             return $this->error($th->getMessage());
         }
@@ -60,7 +60,7 @@ class ViewController extends Controller
     public function destroy(int $id)
     {
         try {
-            return $this->viewService->destroy($id);
+            return $this->service->destroy($id);
         } catch (\Throwable $th) {
             return $this->error($th->getMessage());
         }

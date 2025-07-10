@@ -9,28 +9,28 @@ use Illuminate\Http\Request;
 
 class EquipmentController extends Controller
 {
-    protected EquipmentService $equipmentService;
+    protected EquipmentService $service;
 
-    public function __construct(EquipmentService $equipmentService)
+    public function __construct(EquipmentService $service)
     {
-        $this->equipmentService = $equipmentService;
+        $this->service = $service;
     }
 
     public function index(Request $request)
     {
-        return $this->equipmentService->list($request);
+        return $this->service->list($request);
     }
 
     public function store(StoreEquipmentRequest $request)
     {
         $data = $request->validated();
-        return response()->json($this->equipmentService->store($data));
+        return response()->json($this->service->store($data));
     }
 
     public function show($id)
     {
         try {
-            return response()->json($this->equipmentService->show($id));
+            return response()->json($this->service->show($id));
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 404);
         }
@@ -41,7 +41,7 @@ class EquipmentController extends Controller
         try {
             $data = $request->validated();
             $data['id'] = $id; // Add the ID to the data for updating
-            return response()->json($this->equipmentService->update($data));
+            return response()->json($this->service->update($data));
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 404);
         }
@@ -50,7 +50,7 @@ class EquipmentController extends Controller
     public function destroy($id)
     {
         try {
-            return $this->equipmentService->destroy($id);
+            return $this->service->destroy($id);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 404);
         }
@@ -59,14 +59,14 @@ class EquipmentController extends Controller
     public function useStateGraph()
     {
         return response()->json(
-            $this->equipmentService->useStateGraph()
+            $this->service->useStateGraph()
         );
     }
 
     public function sedeGraph()
     {
         return response()->json(
-            $this->equipmentService->sedeGraph()
+            $this->service->sedeGraph()
         );
     }
 }

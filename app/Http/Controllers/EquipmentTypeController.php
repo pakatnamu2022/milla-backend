@@ -10,16 +10,16 @@ use Illuminate\Http\Request;
 
 class EquipmentTypeController extends Controller
 {
-    protected EquipmentTypeService $equipmentTypeService;
+    protected EquipmentTypeService $service;
 
-    public function __construct(EquipmentTypeService $equipmentTypeService)
+    public function __construct(EquipmentTypeService $service)
     {
-        $this->equipmentTypeService = $equipmentTypeService;
+        $this->service = $service;
     }
 
     public function index(Request $request)
     {
-        return $this->equipmentTypeService->list($request);
+        return $this->service->list($request);
     }
 
     public function store(StoreEquipmentTypeRequest $request)

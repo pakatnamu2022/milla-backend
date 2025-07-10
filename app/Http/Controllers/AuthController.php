@@ -7,26 +7,26 @@ use App\Http\Services\AuthService;
 
 class AuthController extends Controller
 {
-    protected AuthService $authService;
+    protected AuthService $service;
 
-    public function __construct(AuthService $authService)
+    public function __construct(AuthService $service)
     {
-        $this->authService = $authService;
+        $this->service = $service;
     }
 
     public function login(LoginRequest $request)
     {
-        return $this->authService->login($request);
+        return $this->service->login($request);
     }
 
     public function authenticate()
     {
-        return $this->authService->authenticate();
+        return $this->service->authenticate();
     }
 
     public function permissions()
     {
-        return $this->authService->permissions();
+        return $this->service->permissions();
     }
 
 }

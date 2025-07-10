@@ -9,29 +9,29 @@ use Illuminate\Http\Request;
 
 class EvaluationMetricController extends Controller
 {
-    protected EvaluationMetricService $evaluationMetricService;
+    protected EvaluationMetricService $service;
 
-    public function __construct(EvaluationMetricService $evaluationMetricService)
+    public function __construct(EvaluationMetricService $service)
     {
-        $this->evaluationMetricService = $evaluationMetricService;
+        $this->service = $service;
     }
 
 
     public function index(Request $request)
     {
-        return $this->evaluationMetricService->list($request);
+        return $this->service->list($request);
     }
 
     public function store(StoreEvaluationMetricRequest $request)
     {
         $data = $request->validated();
-        return response()->json($this->evaluationMetricService->store($data));
+        return response()->json($this->service->store($data));
     }
 
     public function show(int $id)
     {
         try {
-            return response()->json($this->evaluationMetricService->show($id));
+            return response()->json($this->service->show($id));
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 404);
         }
@@ -42,7 +42,7 @@ class EvaluationMetricController extends Controller
         try {
             $data = $request->validated();
             $data['id'] = $id; // Add the ID to the data for updating
-            return response()->json($this->evaluationMetricService->update($data));
+            return response()->json($this->service->update($data));
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 404);
         }
@@ -51,7 +51,7 @@ class EvaluationMetricController extends Controller
     public function destroy($id)
     {
         try {
-            return $this->evaluationMetricService->destroy($id);
+            return $this->service->destroy($id);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 404);
         }

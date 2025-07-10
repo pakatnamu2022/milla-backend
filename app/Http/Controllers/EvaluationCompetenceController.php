@@ -10,29 +10,29 @@ use App\Http\Requests\UpdateEvaluationCompetenceRequest;
 
 class EvaluationCompetenceController extends Controller
 {
-    protected EvaluationCompetenceService $evaluationCompetenceService;
+    protected EvaluationCompetenceService $service;
 
-    public function __construct(EvaluationCompetenceService $evaluationCompetenceService)
+    public function __construct(EvaluationCompetenceService $service)
     {
-        $this->evaluationCompetenceService = $evaluationCompetenceService;
+        $this->service = $service;
     }
 
     public function index(IndexEvaluationCompetenceRequest $request)
     {
-        return $this->evaluationCompetenceService->list($request);
+        return $this->service->list($request);
     }
 
 
     public function store(StoreEvaluationCompetenceRequest $request)
     {
         $data = $request->validated();
-        $response = $this->evaluationCompetenceService->store($data);
+        $response = $this->service->store($data);
         return $this->apiResponse($response);
     }
 
     public function show(int $id)
     {
-        $response = $this->evaluationCompetenceService->show($id);
+        $response = $this->service->show($id);
         return $this->apiResponse($response);
     }
 
@@ -40,13 +40,13 @@ class EvaluationCompetenceController extends Controller
     {
         $data = $request->validated();
         $data['id'] = $id; // Add the ID to the data for updating
-        return $this->apiResponse($this->evaluationCompetenceService->update($data));
+        return $this->apiResponse($this->service->update($data));
     }
 
     public function destroy(int $id)
     {
         try {
-            return $this->evaluationCompetenceService->destroy($id);
+            return $this->service->destroy($id);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 404);
         }

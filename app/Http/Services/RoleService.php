@@ -22,8 +22,6 @@ class RoleService extends BaseService
 
     private function enrichRoleData(array $data): array
     {
-        $data['vista'] = trim(($data['marca'] ?? '') . ' ' . ($data['modelo'] ?? '') . ' ' . ($data['serie'] ?? ''));
-        $data['marca_modelo'] = trim(($data['marca'] ?? '') . ' ' . ($data['modelo'] ?? ''));
         return $data;
     }
 
@@ -63,27 +61,5 @@ class RoleService extends BaseService
         $view->status_deleted = 0;
         $view->save();
         return response()->json(['message' => 'Vista eliminada correctamente']);
-    }
-
-//    GRAFICOS
-
-    public function useStateGraph()
-    {
-        return Role::query()
-            ->selectRaw("estado_uso, COUNT(*) as total")
-            ->where('status_deleted', 1)
-            ->groupBy('estado_uso')
-            ->get();
-    }
-
-    public function sedeGraph()
-    {
-        return Role::selectRaw('companies.abbreviation as sede, COUNT(*) as total')
-            ->join('config_sede', 'config_sede.id', '=', 'help_vistas.sede_id')
-            ->join('companies', 'companies.id', '=', 'config_sede.empresa_id')
-            ->where('help_vistas.status_deleted', 1)
-            ->groupBy('companies.abbreviation')
-            ->orderByDesc('total')
-            ->get();
     }
 }

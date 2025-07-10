@@ -11,18 +11,18 @@ use App\Http\Requests\UpdateCompanyRequest;
 class CompanyController extends Controller
 {
 
-    protected CompanyService $companyService;
+    protected CompanyService $service;
 
-    public function __construct(CompanyService $companyService)
+    public function __construct(CompanyService $service)
     {
-        $this->companyService = $companyService;
+        $this->service = $service;
     }
 
 
     public function index(IndexCompanyRequest $request)
     {
         try {
-            return $this->companyService->list($request);
+            return $this->service->list($request);
         } catch (\Throwable $th) {
             return $this->error($th->getMessage());
         }

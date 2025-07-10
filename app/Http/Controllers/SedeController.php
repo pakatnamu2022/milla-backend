@@ -10,17 +10,17 @@ use App\Models\Sede;
 class SedeController extends Controller
 {
 
-    protected SedeService $sedeService;
+    protected SedeService $service;
 
-    public function __construct(SedeService $sedeService)
+    public function __construct(SedeService $service)
     {
-        $this->sedeService = $sedeService;
+        $this->service = $service;
     }
 
 
     public function index()
     {
-        return $this->sedeService->list(request());
+        return $this->service->list(request());
     }
 
     /**

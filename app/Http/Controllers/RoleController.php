@@ -10,63 +10,57 @@ use App\Http\Requests\UpdateRoleRequest;
 
 class RoleController extends Controller
 {
-    protected RoleService $roleService;
+    protected RoleService $service;
 
-    public function __construct(RoleService $roleService)
+    public function __construct(RoleService $service)
     {
-        $this->roleService = $roleService;
+        $this->service = $service;
     }
 
     public function index(IndexRoleRequest $request)
     {
-        return $this->roleService->list($request);
+        try {
+            return $this->service->list($request);
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(StoreRoleRequest $request)
     {
-        //
+        try {
+            return $this->success($this->service->store($request));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Role $role)
+    public function show(int $id)
     {
-        //
+        try {
+            return response()->json($this->service->show($id));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Role $role)
+    public function update(UpdateRoleRequest $request, int $id)
     {
-        //
+        try {
+            $data = $request->validated();
+            $data['id'] = $id;
+            return $this->success($this->service->update($data));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(UpdateRoleRequest $request, Role $role)
+    public function destroy(int $id)
     {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Role $role)
-    {
-        //
+        try {
+            return $this->service->destroy($id);
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 }
