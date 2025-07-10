@@ -20,6 +20,35 @@ class Company extends BaseModel
         'city'
     ];
 
+    const filters = [
+        'serach' => [
+            'name',
+            'businessName',
+            'email',
+            'website',
+            'phone',
+            'address',
+            'city'
+        ],
+        'name' => 'like',
+        'businessName' => 'like',
+        'email' => 'like',
+        'website' => 'like',
+        'phone' => 'like',
+        'address' => 'like',
+        'city' => 'like',
+    ];
+
+    const sorts = [
+        'name' => 'asc',
+        'businessName' => 'asc',
+        'email' => 'asc',
+        'website' => 'asc',
+        'phone' => 'asc',
+        'address' => 'asc',
+        'city' => 'asc',
+    ];
+
     public function sedes()
     {
         return $this->hasMany(Sede::class, 'empresa_id', 'id');

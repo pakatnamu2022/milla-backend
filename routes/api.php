@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccessController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\EquipmentTypeController;
 use App\Http\Controllers\EvaluationCompetenceController;
@@ -20,6 +21,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 //    GENERAL
 //    SEDE
+    Route::resource('company', CompanyController::class)->only([
+        'index', 'show', 'store', 'update', 'destroy'
+    ]);
+
     Route::resource('sede', SedeController::class)->only([
         'index', 'show', 'store', 'update', 'destroy'
     ]);
