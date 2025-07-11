@@ -4,10 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\IndexViewRequest;
 use App\Http\Services\ViewService;
-use App\Models\View;
 use App\Http\Requests\StoreViewRequest;
 use App\Http\Requests\UpdateViewRequest;
-use function response;
 
 class ViewController extends Controller
 {

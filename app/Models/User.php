@@ -27,6 +27,19 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    const filters = [
+        'search' => ['name', 'username'],
+        'id' => '=',
+        'name' => 'like',
+        'username' => 'like',
+    ];
+
+    const sorts = [
+        'id' => 'asc',
+        'name' => 'asc',
+        'username' => 'asc',
+    ];
+
     protected function casts(): array
     {
         return [

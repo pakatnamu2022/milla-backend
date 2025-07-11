@@ -2,22 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\IndexEvaluationCompetenceRequest;
-use App\Http\Services\EvaluationCompetenceService;
-use App\Models\EvaluationCompetence;
-use App\Http\Requests\StoreEvaluationCompetenceRequest;
-use App\Http\Requests\UpdateEvaluationCompetenceRequest;
+use App\Http\Requests\IndexUserRequest;
+use App\Http\Requests\StoreUserRequest;
+use App\Http\Requests\UpdateUserRequest;
+use App\Http\Services\UserService;
 
-class EvaluationCompetenceController extends Controller
+class UserController extends Controller
 {
-    protected EvaluationCompetenceService $service;
 
-    public function __construct(EvaluationCompetenceService $service)
+    protected UserService $service;
+
+    public function __construct(UserService $service)
     {
         $this->service = $service;
     }
 
-    public function index(IndexEvaluationCompetenceRequest $request)
+    public function index(IndexUserRequest $request)
     {
         try {
             return $this->service->list($request);
@@ -26,8 +26,7 @@ class EvaluationCompetenceController extends Controller
         }
     }
 
-
-    public function store(StoreEvaluationCompetenceRequest $request)
+    public function store(StoreUserRequest $request)
     {
         try {
             return $this->success($this->service->store($request->validated()));
@@ -39,13 +38,13 @@ class EvaluationCompetenceController extends Controller
     public function show(int $id)
     {
         try {
-            return $this->success($this->service->show($id));
+            return response()->json($this->service->show($id));
         } catch (\Throwable $th) {
             return $this->error($th->getMessage());
         }
     }
 
-    public function update(UpdateEvaluationCompetenceRequest $request, int $id)
+    public function update(UpdateUserRequest $request, int $id)
     {
         try {
             $data = $request->validated();

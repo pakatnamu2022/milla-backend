@@ -2,7 +2,6 @@
 
 namespace App\Http\Services;
 
-use App\DTO\ServiceResponse;
 use App\Http\Resources\EvaluationCompetenceResource;
 use App\Models\EvaluationCompetence;
 use App\Models\EvaluationSubCompetence;
@@ -23,7 +22,17 @@ class EvaluationCompetenceService extends BaseService
         );
     }
 
-    public function store(array $data): ServiceResponse
+    public function find($id)
+    {
+        $evaluationCompetence = EvaluationCompetence::where('id', $id)
+            ->where('status_delete', 0)->first();
+        if (!$evaluationCompetence) {
+            throw new Exception('Competencia de evaluación no encontrada');
+        }
+        return $evaluationCompetence;
+    }
+
+    public function store(array $data)
     {
         DB::beginTransaction();
 
@@ -53,45 +62,32 @@ class EvaluationCompetenceService extends BaseService
 
             DB::commit();
 
-            return ServiceResponse::success(new EvaluationCompetenceResource($competence));
+            return new EvaluationCompetenceResource($competence);
         } catch (\Throwable $e) {
             DB::rollBack();
-
-            return ServiceResponse::error('Error al crear: ' . $e->getMessage());
+            throw new Exception($e->getMessage());
         }
     }
 
-
-    public function find($id)
+    public function show($id)
     {
-        $evaluationMetric = EvaluationCompetence::where('id', $id)
-            ->where('status_delete', 0)->first();
-        if (!$evaluationMetric) {
-            throw new Exception('Compentencia no encontrada');
-        }
-        return $evaluationMetric;
-    }
-
-    public function show($id): ServiceResponse
-    {
-        try {
-            $evaluationMetric = $this->find($id);
-            return ServiceResponse::success(new EvaluationCompetenceResource($evaluationMetric));
-        } catch (Exception $e) {
-            return ServiceResponse::error($e->getMessage());
-        }
+        return new EvaluationCompetenceResource($this->find($id));
     }
 
     public function update($data)
     {
+        DB::beginTransaction();
+
         try {
-            $evaluationMetric = $this->find($data['id']);
+            $evaluationCompetence = $this->find($data['id']);
+            $data['status_delete'] = 0; // Ensure status_delete is set to 0 for updates
+            $evaluationCompetence->update($data);
 
-            $evaluationMetric->update($data);
-
-            // Update subcompetences if provided
-            if (isset($data['subCompetences'])) {
-                foreach ($data['subCompetences'] as $subData) {
+            // Update sub-competences
+            $subCompetences = $data['subCompetences'] ?? [];
+            foreach ($subCompetences as $subData) {
+                if (isset($subData['id'])) {
+                    // Update existing sub-competence
                     $subCompetence = EvaluationSubCompetence::find($subData['id']);
                     if ($subCompetence) {
                         $subCompetence->update([
@@ -104,20 +100,41 @@ class EvaluationCompetenceService extends BaseService
                             'level5' => $subData['level5'] ?? null,
                         ]);
                     }
+                } else {
+                    // Create new sub-competence
+                    EvaluationSubCompetence::create([
+                        'competencia_id' => $evaluationCompetence->id,
+                        'nombre' => $subData['nombre'] ?? null,
+                        'definicion' => $subData['definicion'] ?? null,
+                        'status_delete' => 0,
+                        'level1' => $subData['level1'] ?? null,
+                        'level2' => $subData['level2'] ?? null,
+                        'level3' => $subData['level3'] ?? null,
+                        'level4' => $subData['level4'] ?? null,
+                        'level5' => $subData['level5'] ?? null,
+                    ]);
                 }
             }
 
-            return ServiceResponse::success(new EvaluationCompetenceResource($evaluationMetric));
-        } catch (Exception $e) {
-            return ServiceResponse::error('Error al actualizar: ' . $e->getMessage());
+            DB::commit();
+
+            return new EvaluationCompetenceResource($evaluationCompetence);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            throw new Exception($e->getMessage());
         }
     }
 
     public function destroy($id)
     {
-        $evaluationMetric = $this->find($id);
-        $evaluationMetric->status_deleted = 1; // Mark as deleted
-        $evaluationMetric->save();
-        return response()->json(['message' => 'Métrica de evaluación eliminada correctamente']);
+        $evaluationCompetence = $this->find($id);
+        $evaluationCompetence->status_delete = 1; // Mark as deleted
+        $evaluationCompetence->save();
+
+        // Also mark related sub-competences as deleted
+        EvaluationSubCompetence::where('competencia_id', $id)
+            ->update(['status_delete' => 1]);
+
+        return response()->json(['message' => 'Competencia de evaluación eliminada correctamente']);
     }
 }
