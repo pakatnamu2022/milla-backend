@@ -5,7 +5,7 @@ namespace Database\Factories;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\EvaluationCompetence>
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\gp\gestionhumana\evaluacion\EvaluationCompetence>
  */
 class EvaluationCompetenceFactory extends Factory
 {

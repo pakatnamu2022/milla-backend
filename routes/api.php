@@ -1,16 +1,16 @@
 <?php
 
-use App\Http\Controllers\AccessController;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\CompanyController;
-use App\Http\Controllers\EquipmentController;
-use App\Http\Controllers\EquipmentTypeController;
-use App\Http\Controllers\EvaluationCompetenceController;
-use App\Http\Controllers\EvaluationMetricController;
-use App\Http\Controllers\RoleController;
-use App\Http\Controllers\SedeController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\ViewController;
+use App\Http\Controllers\gp\gestionhumana\EvaluationCompetenceController;
+use App\Http\Controllers\gp\gestionhumana\EvaluationMetricController;
+use App\Http\Controllers\gp\gestionsistema\AccessController;
+use App\Http\Controllers\gp\gestionsistema\CompanyController;
+use App\Http\Controllers\gp\gestionsistema\RoleController;
+use App\Http\Controllers\gp\gestionsistema\SedeController;
+use App\Http\Controllers\gp\gestionsistema\UserController;
+use App\Http\Controllers\gp\gestionsistema\ViewController;
+use App\Http\Controllers\gp\tics\EquipmentController;
+use App\Http\Controllers\gp\tics\EquipmentTypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login'])->name('login');

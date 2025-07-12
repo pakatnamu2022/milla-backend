@@ -2,8 +2,8 @@
 
 namespace App\Http\Services;
 
-use App\Http\Resources\UserResource;
-use App\Models\User;
+use App\Http\Resources\gp\gestionsistema\UserResource;
+use App\Models\gp\gestionsistema\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
