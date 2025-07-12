@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Http\Services\gp\gestionhumana;
+namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
-use App\Http\Resources\EvaluationMetricResource;
+use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationMetricResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationMetric;
 use Exception;

@@ -3,7 +3,7 @@
 namespace App\Http\Services;
 
 use App\Http\Resources\gp\gestionsistema\UserResource;
-use App\Models\gp\gestionsistema\User;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 

@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Http\Controllers\gp\gestionhumana;
+namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreEvaluationSubCompetenceRequest;
-use App\Http\Requests\UpdateEvaluationSubCompetenceRequest;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationSubCompetence;
+use App\Http\Requests\StoreEvaluationPeriodRequest;
+use App\Http\Requests\UpdateEvaluationPeriodRequest;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPeriod;
 
-class EvaluationSubCompetenceController extends Controller
+class EvaluationPeriodController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -28,7 +28,7 @@ class EvaluationSubCompetenceController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreEvaluationSubCompetenceRequest $request)
+    public function store(StoreEvaluationPeriodRequest $request)
     {
         //
     }
@@ -36,7 +36,7 @@ class EvaluationSubCompetenceController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(EvaluationSubCompetence $evaluationSubCompetence)
+    public function show(EvaluationPeriod $evaluationPeriod)
     {
         //
     }
@@ -44,7 +44,7 @@ class EvaluationSubCompetenceController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(EvaluationSubCompetence $evaluationSubCompetence)
+    public function edit(EvaluationPeriod $evaluationPeriod)
     {
         //
     }
@@ -52,7 +52,7 @@ class EvaluationSubCompetenceController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateEvaluationSubCompetenceRequest $request, EvaluationSubCompetence $evaluationSubCompetence)
+    public function update(UpdateEvaluationPeriodRequest $request, EvaluationPeriod $evaluationPeriod)
     {
         //
     }
@@ -60,7 +60,7 @@ class EvaluationSubCompetenceController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(EvaluationSubCompetence $evaluationSubCompetence)
+    public function destroy(EvaluationPeriod $evaluationPeriod)
     {
         //
     }

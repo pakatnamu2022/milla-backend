@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Http\Controllers\gp\gestionhumana;
+namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\IndexEvaluationCompetenceRequest;
 use App\Http\Requests\StoreEvaluationCompetenceRequest;
 use App\Http\Requests\UpdateEvaluationCompetenceRequest;
-use App\Http\Services\gp\gestionhumana\EvaluationCompetenceService;
+use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationCompetenceService;
 
 class EvaluationCompetenceController extends Controller
 {

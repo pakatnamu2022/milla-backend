@@ -1,7 +1,9 @@
 <?php
 
-namespace App\Models\gp\gestionsistema;
+namespace App\Models;
 
+use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionsistema\Role;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;

@@ -3,7 +3,7 @@
 namespace App\Policies\gp\gestionsistema;
 
 use App\Models\gp\gestionsistema\Access;
-use App\Models\gp\gestionsistema\User;
+use App\Models\User;
 
 class AccessPolicy
 {

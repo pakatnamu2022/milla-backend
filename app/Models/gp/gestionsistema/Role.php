@@ -3,6 +3,7 @@
 namespace App\Models\gp\gestionsistema;
 
 use App\Models\BaseModel;
+use App\Models\User;
 
 class Role extends BaseModel
 {

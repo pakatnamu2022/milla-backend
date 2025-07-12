@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Http\Controllers\gp\gestionhumana;
+namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreEvaluationMetricRequest;
 use App\Http\Requests\UpdateEvaluationMetricRequest;
-use App\Http\Services\gp\gestionhumana\EvaluationMetricService;
+use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationMetricService;
 use Illuminate\Http\Request;
 
 class EvaluationMetricController extends Controller

@@ -2,8 +2,8 @@
 
 namespace App\Policies\gp\gestionsistema;
 
-use App\Models\gp\gestionsistema\User;
 use App\Models\gp\gestionsistema\View;
+use App\Models\User;
 
 class ViewPolicy
 {

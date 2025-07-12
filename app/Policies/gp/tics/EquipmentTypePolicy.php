@@ -2,8 +2,8 @@
 
 namespace App\Policies\gp\tics;
 
-use App\Models\gp\gestionsistema\User;
 use App\Models\gp\tics\EquipmentType;
+use App\Models\User;
 
 class EquipmentTypePolicy
 {

@@ -1,8 +1,8 @@
 <?php
 
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\gp\gestionhumana\EvaluationCompetenceController;
-use App\Http\Controllers\gp\gestionhumana\EvaluationMetricController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCompetenceController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationMetricController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
 use App\Http\Controllers\gp\gestionsistema\RoleController;

@@ -5,7 +5,6 @@ namespace App\Http\Resources\gp\gestionsistema;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
-use function dd;
 
 class UserResource extends JsonResource
 {

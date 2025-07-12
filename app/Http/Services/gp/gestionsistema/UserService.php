@@ -4,7 +4,7 @@ namespace App\Http\Services\gp\gestionsistema;
 
 use App\Http\Resources\gp\gestionsistema\UserResource;
 use App\Http\Services\BaseService;
-use App\Models\gp\gestionsistema\User;
+use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;

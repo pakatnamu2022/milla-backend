@@ -2,8 +2,8 @@
 
 namespace App\Policies\gp\gestionsistema;
 
-use App\Models\gp\gestionsistema\User;
 use App\Models\gp\gestionsistema\UserRole;
+use App\Models\User;
 
 class UserRolePolicy
 {

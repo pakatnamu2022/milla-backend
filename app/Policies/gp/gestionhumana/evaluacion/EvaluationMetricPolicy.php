@@ -3,7 +3,7 @@
 namespace App\Policies\gp\gestionhumana\evaluacion;
 
 use App\Models\gp\gestionhumana\evaluacion\EvaluationMetric;
-use App\Models\gp\gestionsistema\User;
+use App\Models\User;
 
 class EvaluationMetricPolicy
 {

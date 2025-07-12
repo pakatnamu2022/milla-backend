@@ -1,13 +1,12 @@
 <?php
 
-namespace App\Http\Controllers\gp\gestionhumana;
+namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreEvaluationPeriodRequest;
-use App\Http\Requests\UpdateEvaluationPeriodRequest;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationPeriod;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
+use Illuminate\Http\Request;
 
-class EvaluationPeriodController extends Controller
+class EvaluationCycleController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -28,7 +27,7 @@ class EvaluationPeriodController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreEvaluationPeriodRequest $request)
+    public function store(Request $request)
     {
         //
     }
@@ -36,7 +35,7 @@ class EvaluationPeriodController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(EvaluationPeriod $evaluationPeriod)
+    public function show(EvaluationCycle $evaluationCycle)
     {
         //
     }
@@ -44,7 +43,7 @@ class EvaluationPeriodController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(EvaluationPeriod $evaluationPeriod)
+    public function edit(EvaluationCycle $evaluationCycle)
     {
         //
     }
@@ -52,7 +51,7 @@ class EvaluationPeriodController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateEvaluationPeriodRequest $request, EvaluationPeriod $evaluationPeriod)
+    public function update(Request $request, EvaluationCycle $evaluationCycle)
     {
         //
     }
@@ -60,7 +59,7 @@ class EvaluationPeriodController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(EvaluationPeriod $evaluationPeriod)
+    public function destroy(EvaluationCycle $evaluationCycle)
     {
         //
     }
