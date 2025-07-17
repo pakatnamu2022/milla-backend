@@ -3,7 +3,6 @@
 namespace App\Http\Services\gp\gestionsistema;
 
 use App\Http\Resources\gp\gestionsistema\CompanyResource;
-use App\Http\Resources\gp\tics\EquipmentResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionsistema\Company;
 use Exception;
@@ -22,28 +21,31 @@ class CompanyService extends BaseService
         );
     }
 
-    public function store($data)
-    {
-        $sede = Company::create($data);
-        return new CompanyResource(Company::find($sede->id));
-    }
-
     public function find($id)
     {
-        $sede = Company::find($id);
-        if (!$sede) {
-            throw new Exception('Company no encontrada');
+        $view = Company::where('id', $id)
+            ->where('status_deleted', 1)->first();
+        if (!$view) {
+            throw new Exception('Empresa no encontrada');
         }
-        return new CompanyResource($sede);
+        return $view;
+    }
+
+    public function store($data)
+    {
+        $company = Company::create($data);
+        return new CompanyResource($company);
+    }
+
+    public function show($id)
+    {
+        return new CompanyResource($this->find($id));
     }
 
     public function update($data)
     {
-        $equipment = Company::find($data['id']);
-        if (!$equipment) {
-            throw new Exception('Company no encontrada');
-        }
-        $equipment->update($data);
-        return new EquipmentResource($equipment);
+        $company = $this->find($data['id']);
+        $company->update($data);
+        return new CompanyResource($company);
     }
 }

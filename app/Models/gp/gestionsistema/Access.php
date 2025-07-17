@@ -20,6 +20,17 @@ class Access extends Model
         'status_deleted',
     ];
 
+    const filters = [
+        'role_id' => '=',
+        'vista_id' => '=',
+    ];
+
+    const sorts = [
+        'id',
+        'role_id',
+        'vista_id',
+    ];
+
     protected $casts = [
         'crear' => 'boolean',
         'ver' => 'boolean',
