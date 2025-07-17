@@ -19,7 +19,10 @@ trait Filterable
                     $query->where(function ($q) use ($fields, $value) {
                         foreach ($fields as $field) {
                             if (str_contains($field, '.')) {
-                                [$relation, $relationField] = explode('.', $field);
+                                $parts = explode('.', $field);
+                                $relation = implode('.', array_slice($parts, 0, -1));
+                                $relationField = end($parts);
+
                                 $q->orWhereHas($relation, function ($relQuery) use ($relationField, $value) {
                                     $relQuery->where($relationField, 'like', '%' . $value . '%');
                                 });
@@ -28,11 +31,13 @@ trait Filterable
                             }
                         }
                     });
-                } elseif (strpos($filter, '.') !== false) {
-                    [$relation, $relationFilter] = explode('.', $filter);
+                } elseif (str_contains($filter, '.')) {
+                    $parts = explode('.', $filter);
+                    $relation = implode('.', array_slice($parts, 0, -1));
+                    $relationField = end($parts);
 
-                    $query->whereHas($relation, function ($q) use ($relationFilter, $operator, $value) {
-                        $this->applyFilterCondition($q, $relationFilter, $operator, $value);
+                    $query->whereHas($relation, function ($q) use ($relationField, $operator, $value) {
+                        $this->applyFilterCondition($q, $relationField, $operator, $value);
                     });
                 } else {
                     $this->applyFilterCondition($query, $filter, $operator, $value);

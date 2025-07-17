@@ -34,7 +34,7 @@ class UserResource extends JsonResource
             'empresa' => $this->person?->sede?->razon_social,
             'sede' => $this->person?->sede?->suc_abrev,
             'fecha_ingreso' => $this->person?->fecha_inicio,
-
+            'role' => $this->role?->nombre,
         ];
     }
 }

@@ -14,7 +14,9 @@ class UserService extends BaseService
     public function list(Request $request)
     {
         return $this->getFilteredResults(
-            User::where('status_deleted', 1),
+            User::where('status_deleted', 1)->whereHas('person', function ($query) {
+                $query->where('status_deleted', 1)->where('status_id', 22);
+            }),
             $request,
             User::filters,
             User::sorts,

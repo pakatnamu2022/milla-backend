@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionsistema\Role;
+use App\Models\gp\gestionsistema\UserRole;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -30,10 +31,12 @@ class User extends Authenticatable
     ];
 
     const filters = [
-        'search' => ['name', 'username'],
+        'search' => ['name', 'username', 'person.position.name', 'person.sede.razon_social', 'person.sede.suc_abrev', 'role.nombre'],
         'id' => '=',
         'name' => 'like',
         'username' => 'like',
+        'person.position.name' => 'like',
+        'role.nombre' => 'like',
     ];
 
     const sorts = [
@@ -57,6 +60,13 @@ class User extends Authenticatable
 
     public function role()
     {
-        return $this->hasOne(Role::class, 'id', 'role_id');
+        return $this->hasOneThrough(
+            Role::class,
+            UserRole::class,
+            'user_id', // Foreign key en la tabla UserRole
+            'id', // Foreign key en la tabla Role
+            'id', // Local key en la tabla User
+            'role_id' // Local key en la tabla UserRole
+        )->where('config_asig_role_user.status_deleted', 1);
     }
 }
