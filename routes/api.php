@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCompetenceController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationMetricController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPeriodController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
 use App\Http\Controllers\gp\gestionsistema\RoleController;
@@ -75,6 +76,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 //        COMPETENCES
         Route::resource('competence', EvaluationCompetenceController::class)->only([
+            'index', 'show', 'store', 'update', 'destroy'
+        ]);
+
+//        PERIODS
+        Route::resource('period', EvaluationPeriodController::class)->only([
             'index', 'show', 'store', 'update', 'destroy'
         ]);
     });

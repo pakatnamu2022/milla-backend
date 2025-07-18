@@ -3,65 +3,64 @@
 namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\IndexEvaluationPeriodRequest;
 use App\Http\Requests\StoreEvaluationPeriodRequest;
 use App\Http\Requests\UpdateEvaluationPeriodRequest;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationPeriod;
+use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationPeriodService;
 
 class EvaluationPeriodController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    protected EvaluationPeriodService $service;
+
+    public function __construct(EvaluationPeriodService $service)
     {
-        //
+        $this->service = $service;
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function index(IndexEvaluationPeriodRequest $request)
     {
-        //
+        try {
+            return $this->service->list($request);
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(StoreEvaluationPeriodRequest $request)
     {
-        //
+        try {
+            return $this->success($this->service->store($request->validated()));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(EvaluationPeriod $evaluationPeriod)
+    public function show($id)
     {
-        //
+        try {
+            return $this->success($this->service->show($id));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(EvaluationPeriod $evaluationPeriod)
+    public function update(UpdateEvaluationPeriodRequest $request, $id)
     {
-        //
+        try {
+            $data = $request->validated();
+            $data['id'] = $id;
+            return $this->success($this->service->update($data));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(UpdateEvaluationPeriodRequest $request, EvaluationPeriod $evaluationPeriod)
+    public function destroy($id)
     {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(EvaluationPeriod $evaluationPeriod)
-    {
-        //
+        try {
+            return $this->success($this->service->destroy($id));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 }

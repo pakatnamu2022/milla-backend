@@ -24,4 +24,19 @@ class EvaluationPeriod extends BaseModel
         'active' => 'boolean',
     ];
 
+    const filters = [
+        'name' => 'string',
+        'start_date' => 'date',
+        'end_date' => 'date',
+        'active' => 'boolean',
+    ];
+
+    const sorts = [
+        'name' => 'string',
+        'start_date' => 'date',
+        'end_date' => 'date',
+        'active' => 'boolean',
+    ];
+
+
 }
