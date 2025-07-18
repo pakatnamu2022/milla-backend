@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCompetenceController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationMetricController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationObjectiveController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPeriodController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
@@ -71,6 +72,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::group(['prefix' => 'performanceEvaluation'], function () {
 //        METRICS
         Route::resource('metric', EvaluationMetricController::class)->only([
+            'index', 'show', 'store', 'update', 'destroy'
+        ]);
+
+//        OBJECTIVES
+        Route::resource('objective', EvaluationObjectiveController::class)->only([
             'index', 'show', 'store', 'update', 'destroy'
         ]);
 

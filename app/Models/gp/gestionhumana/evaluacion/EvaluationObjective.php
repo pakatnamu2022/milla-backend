@@ -2,31 +2,38 @@
 
 namespace App\Models\gp\gestionhumana\evaluacion;
 
-use App\Models\BaseModel;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class EvaluationMetric extends BaseModel
+class EvaluationObjective extends Model
 {
     use SoftDeletes;
 
-    protected $table = "gh_evaluation_metric";
-    protected $primaryKey = 'id';
+    protected $table = 'gh_evaluation_objective';
 
     protected $fillable = [
         'name',
         'description',
+        'metric_id',
     ];
 
     const filters = [
         'id' => '=',
         'search' => ['name', 'description'],
-        'status_deleted' => '='
+        'metric_id' => '=',
     ];
 
     const sorts = [
         'id',
         'name',
         'description',
+        'metric_id',
     ];
-    
+
+
+    public function metric()
+    {
+        return $this->belongsTo(EvaluationMetric::class, 'metric_id');
+    }
+
 }

@@ -13,7 +13,7 @@ class EvaluationMetricService extends BaseService
     public function list(Request $request)
     {
         return $this->getFilteredResults(
-            EvaluationMetric::where('status_deleted', 0),
+            EvaluationMetric::class,
             $request,
             EvaluationMetric::filters,
             EvaluationMetric::sorts,
@@ -29,10 +29,9 @@ class EvaluationMetricService extends BaseService
 
     public function find($id)
     {
-        $evaluationMetric = EvaluationMetric::where('id', $id)
-            ->where('status_deleted', 0)->first();
+        $evaluationMetric = EvaluationMetric::where('id', $id)->first();
         if (!$evaluationMetric) {
-            throw new Exception('Métrica de evaluación no encontrada');
+            throw new Exception('Métrica no encontrada');
         }
         return $evaluationMetric;
     }
@@ -52,8 +51,7 @@ class EvaluationMetricService extends BaseService
     public function destroy($id)
     {
         $evaluationMetric = $this->find($id);
-        $evaluationMetric->status_deleted = 1; // Mark as deleted
-        $evaluationMetric->save();
-        return response()->json(['message' => 'Métrica de evaluación eliminada correctamente']);
+        $evaluationMetric->delete();
+        return response()->json(['message' => 'Métrica eliminada correctamente']);
     }
 }

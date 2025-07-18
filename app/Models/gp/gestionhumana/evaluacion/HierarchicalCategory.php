@@ -5,12 +5,11 @@ namespace App\Models\gp\gestionhumana\evaluacion;
 use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class EvaluationMetric extends BaseModel
+class HierarchicalCategory extends BaseModel
 {
     use SoftDeletes;
 
-    protected $table = "gh_evaluation_metric";
-    protected $primaryKey = 'id';
+    protected $table = 'gh_hierarchical_category';
 
     protected $fillable = [
         'name',
@@ -18,15 +17,18 @@ class EvaluationMetric extends BaseModel
     ];
 
     const filters = [
-        'id' => '=',
         'search' => ['name', 'description'],
-        'status_deleted' => '='
     ];
 
     const sorts = [
-        'id',
         'name',
-        'description',
+        'description'
     ];
-    
+
+    public function details()
+    {
+        return $this->hasMany(HierarchicalCategoryDetail::class, 'hierarchical_category_id');
+    }
+
+
 }

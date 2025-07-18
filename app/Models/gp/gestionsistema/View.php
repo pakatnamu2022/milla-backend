@@ -45,7 +45,7 @@ class View extends BaseModel
         'route' => 'route',
         'ruta' => 'ruta',
         'icono' => 'icono',
-        'icon' => 'icon'
+        'icon' => 'icon',
     ];
 
     public function parent()

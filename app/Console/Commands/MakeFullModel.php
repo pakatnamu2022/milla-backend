@@ -68,7 +68,7 @@ namespace {$namespace};
 
 use {$modelClass};
 
-class {$modelName}Service
+class {$modelName}Service extends BaseService
 {
     // Aquí va la lógica del servicio para {$modelName}
 }
