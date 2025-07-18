@@ -63,11 +63,8 @@ class AuthService
 
         $vistas = $this->getAllVistasConEmpresa();
         $permitidas = $this->getVistasPermitidas($userId);
-
         $vistasFiltradas = $this->filtrarVistas($vistas, $permitidas);
-
         $agrupadasPorEmpresa = $this->agruparPorEmpresa($vistasFiltradas);
-
         $menuPorEmpresa = [];
 
         foreach ($agrupadasPorEmpresa as $empresaId => $grupo) {
@@ -82,7 +79,6 @@ class AuthService
                 ];
             }
         }
-
 
         return ['opcionesMenu' => $menuPorEmpresa];
     }
@@ -179,6 +175,7 @@ class AuthService
             });
 
             foreach ($items as $item) {
+//                CAMBIAR LUEGO POR LA RUTA REAL QUE ES ROUTE
                 if (!empty($item->ruta) || count($item->children)) {
                     $resultado[] = $item;
                 }
