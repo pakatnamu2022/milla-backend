@@ -3,6 +3,7 @@
 namespace App\Http\Services\gp\gestionsistema;
 
 use App\Http\Resources\gp\gestionsistema\RoleResource;
+use App\Http\Resources\gp\gestionsistema\UserResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionsistema\Role;
 use Exception;
@@ -29,20 +30,20 @@ class RoleService extends BaseService
 
     public function find($id)
     {
-        $view = Role::where('id', $id)
+        $role = Role::where('id', $id)
             ->where('status_deleted', 1)->first();
-        if (!$view) {
+        if (!$role) {
             throw new Exception('Rol no encontrado');
         }
-        return $view;
+        return $role;
     }
 
     public function store($data)
     {
         $data = $this->enrichRoleData($data);
         $data['creator_user'] = auth()->user()->id;
-        $view = Role::create($data);
-        return new RoleResource(Role::find($view->id));
+        $role = Role::create($data);
+        return new RoleResource(Role::find($role->id));
     }
 
     public function show($id)
@@ -52,17 +53,27 @@ class RoleService extends BaseService
 
     public function update($data)
     {
-        $view = $this->find($data['id']);
+        $role = $this->find($data['id']);
         $data = $this->enrichRoleData($data);
-        $view->update($data);
-        return new RoleResource($view);
+        $role->update($data);
+        return new RoleResource($role);
     }
 
     public function destroy($id)
     {
-        $view = $this->find($id);
-        $view->status_deleted = 0;
-        $view->save();
+        $role = $this->find($id);
+        $role->status_deleted = 0;
+        $role->save();
         return response()->json(['message' => 'Rol eliminado correctamente']);
+    }
+
+    public function getUsersByRole($id)
+    {
+        $role = $this->find($id);
+        if (!$role) {
+            throw new Exception('Rol no encontrado');
+        }
+        $users = $role->users()->get();
+        return UserResource::collection($users);
     }
 }

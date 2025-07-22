@@ -63,4 +63,13 @@ class RoleController extends Controller
             return $this->error($th->getMessage());
         }
     }
+
+    public function users(int $id)
+    {
+        try {
+            return response()->json($this->service->getUsersByRole($id));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
+    }
 }

@@ -45,6 +45,13 @@ class Role extends BaseModel
 
     public function users()
     {
-        return $this->hasMany(UserRole::class, 'role_id')->where('status_deleted', 1);
+        return $this->hasManyThrough(
+            User::class,
+            UserRole::class,
+            'role_id', // Foreign key on UserRole table
+            'id', // Foreign key on User table
+            'id', // Local key on Role table
+            'user_id' // Local key on UserRole table
+        )->where('config_asig_role_user.status_deleted', 1);
     }
 }
