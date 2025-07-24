@@ -45,6 +45,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
             'index', 'show', 'store', 'update', 'destroy'
         ]);
 
+        Route::get('modules', [AuthController::class, 'modules'])->name('modules');
+
 //        ACCESS
         Route::resource('access', AccessController::class)->only([
             'index', 'show', 'store', 'update', 'destroy'

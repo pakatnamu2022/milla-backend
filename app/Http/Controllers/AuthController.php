@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Services\AuthService;
+use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
@@ -27,6 +28,15 @@ class AuthController extends Controller
     public function permissions()
     {
         return $this->service->permissions();
+    }
+
+    public function modules(Request $request)
+    {
+        try {
+            return $this->service->modules($request);
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
 }

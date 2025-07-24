@@ -81,4 +81,20 @@ class AccessService extends BaseService
         $access->save();
         return response()->json(['message' => 'Acceso eliminado correctamente']);
     }
+
+    public function getUsersByRole($id)
+    {
+        $access = $this->find($id);
+        if (!$access) {
+            throw new Exception('Acceso no encontrado');
+        }
+
+        $users = $access->users()->where('status_deleted', 1)->get();
+
+        if ($users->isEmpty()) {
+            return response()->json(['message' => 'No hay usuarios asociados a este acceso'], 404);
+        }
+
+        return response()->json($users);
+    }
 }

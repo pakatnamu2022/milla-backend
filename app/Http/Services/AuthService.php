@@ -4,6 +4,7 @@ namespace App\Http\Services;
 
 use App\Http\Resources\gp\gestionsistema\UserResource;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -23,7 +24,7 @@ class AuthService
             return response()->json([
                 'access_token' => $token->plainTextToken,
                 'user' => UserResource::make($user),
-                'permissions' => $permissions['opcionesMenu'],
+                'permissions' => $permissions['permissions'],
             ]);
         } else {
             return response()->json(['message' => 'Credenciales Inválidades'], 422);
@@ -39,7 +40,7 @@ class AuthService
             $permissions = $this->permissions();
             return response()->json([
                 'user' => UserResource::make($user),
-                'permissions' => $permissions['opcionesMenu'],
+                'permissions' => $permissions['permissions'],
             ]);
         } else {
             return response()->json(['message' => 'No autenticado'], 401);
@@ -80,8 +81,99 @@ class AuthService
             }
         }
 
-        return ['opcionesMenu' => $menuPorEmpresa];
+        return ['permissions' => $menuPorEmpresa];
     }
+
+    public function modules(Request $request)
+    {
+        $roleId = $request->query('roleId');
+
+        $views = $this->getAllVistasConEmpresa(); // como ya lo tienes
+        $permissions = $roleId
+            ? $this->getVistasConPermisosPorRol($roleId)
+            : [];
+
+        foreach ($views as $vista) {
+            $vista->permissions = $permissions[$vista->id] ?? [
+                'view' => false,
+                'create' => false,
+                'edit' => false,
+                'delete' => false,
+            ];
+        }
+
+        // Aquí transformas a tu estructura esperada:
+        $modules = $this->transformarAFormatoFront($views);
+
+        return response()->json([
+            'modules' => $modules,
+        ]);
+    }
+
+    private function getVistasConPermisosPorRol(int $roleId): array
+    {
+        return DB::table('config_asigxvistaxrole as axvr')
+            ->where('axvr.status_deleted', 1)
+            ->where('axvr.role_id', $roleId)
+            ->select(
+                'axvr.vista_id',
+                'axvr.ver as view',
+                'axvr.crear as create',
+                'axvr.editar as edit',
+                'axvr.anular as delete'
+            )
+            ->get()
+            ->groupBy('vista_id')
+            ->map(function ($items) {
+                return [
+                    'view' => $items->pluck('view')->contains(1),
+                    'create' => $items->pluck('create')->contains(1),
+                    'edit' => $items->pluck('edit')->contains(1),
+                    'delete' => $items->pluck('delete')->contains(1),
+                ];
+            })
+            ->toArray();
+    }
+
+
+    private function transformarAFormatoFront($vistas)
+    {
+        $agrupadas = [];
+
+        foreach ($vistas as $vista) {
+            $agrupadas[$vista->parent_id ?? 0][] = $vista;
+        }
+
+        $construir = function ($parentId) use (&$construir, $agrupadas) {
+            $items = $agrupadas[$parentId] ?? [];
+
+            $resultado = [];
+
+            foreach ($items as $item) {
+                $item->children = $construir($item->id);
+            }
+
+            // Reordenamos: primero los que tienen hijos
+            usort($items, function ($a, $b) {
+                $aHasChildren = count($a->children ?? []) > 0;
+                $bHasChildren = count($b->children ?? []) > 0;
+
+                return $aHasChildren === $bHasChildren ? 0 : ($aHasChildren ? -1 : 1);
+            });
+
+            foreach ($items as $item) {
+//                CAMBIAR LUEGO POR LA RUTA REAL QUE ES ROUTE
+                if (!empty($item->ruta) || count($item->children)) {
+                    $resultado[] = $item;
+                }
+            }
+
+            return $resultado;
+        };
+
+        return $construir(0);
+    }
+
 
     private function getAllVistasConEmpresa()
     {
@@ -123,6 +215,15 @@ class AuthService
             ->where('axvr.ver', 1)
             ->distinct()
             ->pluck('axvr.vista_id')
+            ->toArray();
+    }
+
+    private function getAllVistas()
+    {
+        return DB::table('config_vista')
+            ->where('status_deleted', 1)
+            ->select('id')
+            ->pluck('id')
             ->toArray();
     }
 
