@@ -13,6 +13,10 @@ return new class extends Migration {
         Schema::create('gh_evaluation_cycle', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->date('start_date_objective');
+            $table->date('end_date_objective');
+            $table->date('start_date');
+            $table->date('end_date');
             $table->timestamps();
             $table->softDeletes();
         });
