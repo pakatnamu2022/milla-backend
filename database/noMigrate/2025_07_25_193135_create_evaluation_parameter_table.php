@@ -10,15 +10,12 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::create('gh_evaluation_cycle', function (Blueprint $table) {
+        Schema::create('evaluation_parameter', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->date('start_date_objective');
-            $table->date('end_date_objective');
-            $table->date('start_date');
-            $table->date('end_date');
+            $table->string('type'); // objective, competence, final
+            $table->boolean('enableEditRating')->default(false);
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 
@@ -27,6 +24,6 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::dropIfExists('gh_evaluation_cycle');
+        Schema::dropIfExists('evaluation_parameter');
     }
 };

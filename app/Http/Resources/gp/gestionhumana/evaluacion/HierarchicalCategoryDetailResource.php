@@ -7,13 +7,12 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class HierarchicalCategoryDetailResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
-     */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        return [
+            'id' => $this->id,
+            'hierarchical_category_id' => $this->hierarchical_category_id,
+            'position_id' => $this->position_id,
+        ];
     }
 }

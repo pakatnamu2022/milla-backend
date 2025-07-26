@@ -5,8 +5,11 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCompetenceControl
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationMetricController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationObjectiveController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPeriodController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
+use App\Http\Controllers\gp\gestionsistema\PositionController;
 use App\Http\Controllers\gp\gestionsistema\RoleController;
 use App\Http\Controllers\gp\gestionsistema\SedeController;
 use App\Http\Controllers\gp\gestionsistema\UserController;
@@ -42,6 +45,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 //        VIEWS
         Route::resource('view', ViewController::class)->only([
+            'index', 'show', 'store', 'update', 'destroy'
+        ]);
+
+//        POSITIONS
+        Route::resource('position', PositionController::class)->only([
             'index', 'show', 'store', 'update', 'destroy'
         ]);
 
@@ -92,6 +100,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::resource('period', EvaluationPeriodController::class)->only([
             'index', 'show', 'store', 'update', 'destroy'
         ]);
+
+//        HIERARCHICAL CATEGORIES
+        Route::resource('hierarchicalCategory', HierarchicalCategoryController::class)->only([
+            'index', 'show', 'store', 'update', 'destroy'
+        ]);
+
+        Route::post('/hierarchicalCategory/{category}/details', [HierarchicalCategoryDetailController::class, 'storeMany']);
     });
 
 

@@ -7,6 +7,7 @@ use App\Models\BaseModel;
 class Area extends BaseModel
 {
     protected $table = 'rrhh_area';
+    
     public $timestamps = true;
 
     public function sede()

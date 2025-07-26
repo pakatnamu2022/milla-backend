@@ -25,7 +25,7 @@ class HierarchicalCategory extends BaseModel
         'description'
     ];
 
-    public function details()
+    public function children()
     {
         return $this->hasMany(HierarchicalCategoryDetail::class, 'hierarchical_category_id');
     }

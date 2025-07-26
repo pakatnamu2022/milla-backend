@@ -14,9 +14,7 @@ class HierarchicalCategoryResource extends JsonResource
             'name' => $this->name,
             'description' => $this->description,
             'parent_id' => $this->parent_id,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
-            'children' => HierarchicalCategoryResource::collection($this->whenLoaded('children')),
+            'children' => HierarchicalCategoryDetailResource::collection($this->children),
         ];
     }
 }

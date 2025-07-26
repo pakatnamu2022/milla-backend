@@ -1,26 +1,24 @@
 <?php
 
-namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
+namespace App\Http\Controllers\gp\gestionsistema;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\gp\gestionhumana\evaluacion\IndexHierarchicalCategoryRequest;
-use App\Http\Requests\gp\gestionhumana\evaluacion\StoreHierarchicalCategoryRequest;
-use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateHierarchicalCategoryRequest;
-use App\Http\Services\gp\gestionhumana\evaluacion\HierarchicalCategoryService;
-use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
-use Illuminate\Http\Request;
+use App\Http\Requests\gp\gestionsistema\IndexPositionRequest;
+use App\Http\Requests\Position\StorePositionRequest;
+use App\Http\Requests\Position\UpdatePositionRequest;
+use App\Http\Services\gp\gestionsistema\PositionService;
 
-class HierarchicalCategoryController extends Controller
+class PositionController extends Controller
 {
+    protected PositionService $service;
 
-    protected HierarchicalCategoryService $service;
-
-    public function __construct(HierarchicalCategoryService $service)
+    public function __construct(PositionService $service)
     {
         $this->service = $service;
     }
 
-    public function index(IndexHierarchicalCategoryRequest $request)
+
+    public function index(IndexPositionRequest $request)
     {
         try {
             return $this->service->list($request);
@@ -29,7 +27,7 @@ class HierarchicalCategoryController extends Controller
         }
     }
 
-    public function store(StoreHierarchicalCategoryRequest $request)
+    public function store(StorePositionRequest $request)
     {
         try {
             return $this->success($this->service->store($request->validated()));
@@ -41,13 +39,13 @@ class HierarchicalCategoryController extends Controller
     public function show($id)
     {
         try {
-            return $this->success($this->service->show($id));
+            return response()->json($this->service->show($id));
         } catch (\Throwable $th) {
             return $this->error($th->getMessage());
         }
     }
 
-    public function update(UpdateHierarchicalCategoryRequest $request, $id)
+    public function update(UpdatePositionRequest $request, $id)
     {
         try {
             $data = $request->validated();

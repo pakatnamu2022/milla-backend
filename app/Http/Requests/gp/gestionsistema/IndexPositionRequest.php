@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Requests\gp\gestionhumana\evaluacion;
+namespace App\Http\Requests\gp\gestionsistema;
 
 use App\Http\Requests\IndexRequest;
 
-class IndexHierarchicalCategoryRequest extends IndexRequest
+class IndexPositionRequest extends IndexRequest
 {
     public function rules(): array
     {

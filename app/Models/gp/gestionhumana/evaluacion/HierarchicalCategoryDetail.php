@@ -14,7 +14,7 @@ class HierarchicalCategoryDetail extends BaseModel
     ];
 
     const filters = [
-        'search' => ['hierarchicalCategory.name', 'description'],
+        'search' => ['hierarchicalCategory.name', 'hierarchicalCategory.description'],
     ];
 
     const sorts = [
