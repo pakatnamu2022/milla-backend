@@ -37,6 +37,7 @@ class AccessService extends BaseService
         return new AccessResource(Access::find($access->id));
     }
 
+
     public function storeMany(array $data)
     {
         $roleId = $data['role_id'];
@@ -49,8 +50,8 @@ class AccessService extends BaseService
                     'vista_id' => $accessData['vista_id']
                 ],
                 [
-                    'crear' => $accessData['crear'],
                     'ver' => $accessData['ver'],
+                    'crear' => $accessData['crear'],
                     'editar' => $accessData['editar'],
                     'anular' => $accessData['anular'],
                     'status_deleted' => 1,
@@ -58,7 +59,7 @@ class AccessService extends BaseService
             );
         }
 
-        return response()->json(['message' => 'Permisos actualizados correctamente']);
+        return ['message' => 'Permisos actualizados correctamente'];
     }
 
 

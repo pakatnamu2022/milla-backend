@@ -42,6 +42,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
             'index', 'show', 'store', 'update', 'destroy'
         ]);
         Route::get('role/{id}/users', [RoleController::class, 'users'])->name('role.users');
+        Route::post('/roles/{role_id}/access', [AccessController::class, 'storeMany']);
+
 
 //        VIEWS
         Route::resource('view', ViewController::class)->only([

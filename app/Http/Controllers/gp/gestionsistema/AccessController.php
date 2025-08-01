@@ -5,6 +5,7 @@ namespace App\Http\Controllers\gp\gestionsistema;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\IndexAccessRequest;
 use App\Http\Requests\StoreAccessRequest;
+use App\Http\Requests\StoreManyPermissionsRequest;
 use App\Http\Requests\UpdateAccessRequest;
 use App\Http\Services\gp\gestionsistema\AccessService;
 
@@ -30,6 +31,18 @@ class AccessController extends Controller
     {
         try {
             return $this->success($this->service->store($request->validated()));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
+    }
+
+    public function storeMany(StoreManyPermissionsRequest $request, $roleId)
+    {
+        try {
+            return $this->success($this->service->storeMany([
+                'role_id' => $roleId,
+                'accesses' => $request->validated(),
+            ]));
         } catch (\Throwable $th) {
             return $this->error($th->getMessage());
         }

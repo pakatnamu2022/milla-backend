@@ -2,7 +2,9 @@
 
 namespace App\Http\Services;
 
+use App\Http\Resources\gp\gestionsistema\RoleResource;
 use App\Http\Resources\gp\gestionsistema\UserResource;
+use App\Models\gp\gestionsistema\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -107,6 +109,7 @@ class AuthService
         $modules = $this->transformarAFormatoFront($views);
 
         return response()->json([
+            'role' => RoleResource::make(Role::find($roleId)),
             'modules' => $modules,
         ]);
     }
