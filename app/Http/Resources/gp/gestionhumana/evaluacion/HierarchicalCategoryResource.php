@@ -13,7 +13,6 @@ class HierarchicalCategoryResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'description' => $this->description,
-            'parent_id' => $this->parent_id,
             'children' => HierarchicalCategoryDetailResource::collection($this->children),
         ];
     }

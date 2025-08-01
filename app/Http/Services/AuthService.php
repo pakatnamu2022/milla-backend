@@ -93,6 +93,7 @@ class AuthService
             ? $this->getVistasConPermisosPorRol($roleId)
             : [];
 
+
         foreach ($views as $vista) {
             $vista->permissions = $permissions[$vista->id] ?? [
                 'view' => false,
@@ -123,15 +124,13 @@ class AuthService
                 'axvr.anular as delete'
             )
             ->get()
-            ->groupBy('vista_id')
-            ->map(function ($items) {
-                return [
-                    'view' => $items->pluck('view')->contains(1),
-                    'create' => $items->pluck('create')->contains(1),
-                    'edit' => $items->pluck('edit')->contains(1),
-                    'delete' => $items->pluck('delete')->contains(1),
-                ];
-            })
+            ->keyBy('vista_id')
+            ->map(fn($item) => [
+                'view' => (bool)$item->view,
+                'create' => (bool)$item->create,
+                'edit' => (bool)$item->edit,
+                'delete' => (bool)$item->delete,
+            ])
             ->toArray();
     }
 

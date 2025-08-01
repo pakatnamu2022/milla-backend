@@ -3,6 +3,7 @@
 namespace App\Models\gp\gestionhumana\evaluacion;
 
 use App\Models\BaseModel;
+use App\Models\gp\gestionsistema\Position;
 
 class HierarchicalCategoryDetail extends BaseModel
 {
@@ -25,5 +26,10 @@ class HierarchicalCategoryDetail extends BaseModel
     public function hierarchicalCategory()
     {
         return $this->belongsTo(HierarchicalCategory::class, 'hierarchical_category_id');
+    }
+
+    public function position()
+    {
+        return $this->belongsTo(Position::class, 'position_id');
     }
 }

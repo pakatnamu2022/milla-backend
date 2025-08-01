@@ -10,6 +10,7 @@ class StoreHierarchicalCategoryDetailRequest extends StoreRequest
     {
         return [
             'positions' => 'required|array',
+            'positions.*.id' => 'sometimes|integer|exists:gh_hierarchical_category_detail,id',
             'positions.*.position_id' => 'required|exists:rrhh_cargo,id',
         ];
     }

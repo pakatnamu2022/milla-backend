@@ -65,6 +65,11 @@ class Position extends BaseModel
     {
         return $this->belongsTo(Area::class, 'area_id');
     }
+
+    public function lidership()
+    {
+        return $this->belongsTo(Position::class, 'cargo_id');
+    }
 //
 //    public function tipo_onboarding()
 //    {
