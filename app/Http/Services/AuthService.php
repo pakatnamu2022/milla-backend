@@ -189,6 +189,8 @@ class AuthService
                 'c.name as empresa_nombre',
                 DB::raw('LOWER(c.abbreviation) as abbreviation'),
             )
+            ->orderBy('cv.parent_id')
+            ->orderBy('cv.descripcion')
             ->get()->map(function ($item) {
                 $item->submodule = (bool)$item->submodule;
                 return $item;

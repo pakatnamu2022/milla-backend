@@ -13,7 +13,11 @@ class UpdateViewRequest extends StoreRequest
                 'nullable',
                 'string',
                 'max:255',
-                Rule::unique('config_vista', 'descripcion')->where('status_deleted', 1)->ignore($this->route('view')),
+                Rule::unique('config_vista', 'descripcion')
+                    ->where(fn($query) => $query
+                        ->where('status_deleted', 1)
+                        ->where('parent_id', $this->parent_id))
+                    ->ignore($this->route('view')),
             ],
             'submodule' => 'nullable|boolean',
             'route' => 'nullable|string|max:255',
