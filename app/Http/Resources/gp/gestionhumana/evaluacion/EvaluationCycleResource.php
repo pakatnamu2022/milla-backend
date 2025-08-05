@@ -7,13 +7,19 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class EvaluationCycleResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
-     */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'start_date' => $this->start_date,
+            'end_date' => $this->end_date,
+            'start_date_objectives' => $this->start_date_objectives,
+            'end_date_objectives' => $this->end_date_objectives,
+            'period_id' => $this->period_id,
+            'parameter_id' => $this->parameter_id,
+            'period' => new EvaluationPeriodResource($this->whenLoaded('period')),
+            'parameter' => new EvaluationParameterResource($this->whenLoaded('parameter')),
+        ];
     }
 }

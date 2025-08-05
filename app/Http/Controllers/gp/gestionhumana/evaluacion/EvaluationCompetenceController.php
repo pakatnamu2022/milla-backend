@@ -26,7 +26,6 @@ class EvaluationCompetenceController extends Controller
         }
     }
 
-
     public function store(StoreEvaluationCompetenceRequest $request)
     {
         try {

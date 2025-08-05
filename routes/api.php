@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCompetenceController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationMetricController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationObjectiveController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationParameterController;
@@ -115,6 +116,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
             'index', 'show', 'store', 'update', 'destroy'
         ]);
 
+//        CYCLE
+        Route::apiResource('cycle', EvaluationCycleController::class)->only([
+            'index', 'show', 'store', 'update', 'destroy'
+        ]);
 
     });
 

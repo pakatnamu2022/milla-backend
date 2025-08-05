@@ -3,64 +3,65 @@
 namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
-use Illuminate\Http\Request;
+use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationCycleRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationCycleRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationCycleRequest;
+use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationCycleService;
 
 class EvaluationCycleController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    protected EvaluationCycleService $service;
+
+    public function __construct(EvaluationCycleService $service)
     {
-        //
+        $this->service = $service;
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+
+    public function index(IndexEvaluationCycleRequest $request)
     {
-        //
+        try {
+            return $this->service->list($request);
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function store(StoreEvaluationCycleRequest $request)
     {
-        //
+        try {
+            return $this->success($this->service->store($request->validated()));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(EvaluationCycle $evaluationCycle)
+    public function show(int $id)
     {
-        //
+        try {
+            return $this->success($this->service->show($id));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(EvaluationCycle $evaluationCycle)
+    public function update(UpdateEvaluationCycleRequest $request, int $id)
     {
-        //
+        try {
+            $data = $request->validated();
+            $data['id'] = $id;
+            return $this->success($this->service->update($data));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, EvaluationCycle $evaluationCycle)
+    public function destroy($id)
     {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(EvaluationCycle $evaluationCycle)
-    {
-        //
+        try {
+            return $this->success($this->service->destroy($id));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 }

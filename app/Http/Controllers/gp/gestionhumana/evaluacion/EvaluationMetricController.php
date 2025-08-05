@@ -20,21 +20,28 @@ class EvaluationMetricController extends Controller
 
     public function index(Request $request)
     {
-        return $this->service->list($request);
+        try {
+            return $this->service->list($request);
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
     public function store(StoreEvaluationMetricRequest $request)
     {
-        $data = $request->validated();
-        return response()->json($this->service->store($data));
+        try {
+            return $this->success($this->service->store($request->validated()));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
     public function show(int $id)
     {
         try {
-            return response()->json($this->service->show($id));
-        } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], 404);
+            return $this->success($this->service->show($id));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
         }
     }
 
@@ -43,18 +50,18 @@ class EvaluationMetricController extends Controller
         try {
             $data = $request->validated();
             $data['id'] = $id; // Add the ID to the data for updating
-            return response()->json($this->service->update($data));
-        } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], 404);
+            return $this->success($this->service->update($data));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
         }
     }
 
     public function destroy($id)
     {
         try {
-            return $this->service->destroy($id);
-        } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], 404);
+            return $this->success($this->service->destroy($id));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
         }
     }
 }

@@ -2,27 +2,52 @@
 
 namespace App\Http\Requests\gp\gestionhumana\evaluacion;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\StoreRequest;
+use Illuminate\Validation\Rule;
 
-class StoreEvaluationCycleRequest extends FormRequest
+class StoreEvaluationCycleRequest extends StoreRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return false;
-    }
-
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
-            //
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('gh_evaluation_cycle')->whereNull('deleted_at')
+            ],
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'start_date_objectives' => 'required|date',
+            'end_date_objectives' => 'required|date|after_or_equal:start_date_objectives',
+            'period_id' => 'required|exists:gh_evaluation_periods,id',
+            'parameter_id' => 'required|exists:gh_evaluation_parameter,id',
         ];
     }
+
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            $endCycle = $this->input('end_date');
+            $startObj = $this->input('start_date_objectives');
+            $endObj = $this->input('end_date_objectives');
+
+            if ($endCycle && ($startObj || $endObj)) {
+                $endCycleDate = strtotime($endCycle);
+                $startObjDate = $startObj ? strtotime($startObj) : null;
+                $endObjDate = $endObj ? strtotime($endObj) : null;
+
+                if (
+                    ($startObjDate && $endCycleDate < $startObjDate) ||
+                    ($endObjDate && $endCycleDate < $endObjDate)
+                ) {
+                    $validator->errors()->add(
+                        'end_date',
+                        'La fecha fin del ciclo debe ser mayor o igual a la fecha de inicio y fin de definición de objetivos.'
+                    );
+                }
+            }
+        });
+    }
+
 }
