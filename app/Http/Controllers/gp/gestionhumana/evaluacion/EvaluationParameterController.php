@@ -3,64 +3,64 @@
 namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationParameter;
-use Illuminate\Http\Request;
+use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationParameterRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationParameterRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationParameterRequest;
+use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationParameterService;
 
 class EvaluationParameterController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    protected EvaluationParameterService $service;
+
+    public function __construct(EvaluationParameterService $service)
     {
-        //
+        $this->service = $service;
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function index(IndexEvaluationParameterRequest $request)
     {
-        //
+        try {
+            return $this->service->list($request);
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function store(StoreEvaluationParameterRequest $request)
     {
-        //
+        try {
+            return $this->success($this->service->store($request->validated()));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(EvaluationParameter $evaluationParameter)
+    public function show($id)
     {
-        //
+        try {
+            return $this->success($this->service->show($id));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(EvaluationParameter $evaluationParameter)
+    public function update(UpdateEvaluationParameterRequest $request, $id)
     {
-        //
+        try {
+            $data = $request->validated();
+            $data['id'] = $id;
+            return $this->success($this->service->update($data));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, EvaluationParameter $evaluationParameter)
+    public function destroy($id)
     {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(EvaluationParameter $evaluationParameter)
-    {
-        //
+        try {
+            return $this->service->destroy($id);
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 }

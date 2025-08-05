@@ -5,7 +5,7 @@ namespace App\Http\Resources\gp\gestionhumana\evaluacion;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class EvaluationParameterResource extends JsonResource
+class EvaluationParameterDetailResource extends JsonResource
 {
     /**
      * Transform the resource into an array.
@@ -16,10 +16,10 @@ class EvaluationParameterResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'name' => $this->name,
-            'type' => $this->type,
-            'isPercentage' => (bool)$this->isPercentage,
-            'details' => EvaluationParameterDetailResource::collection($this->details),
+            'label' => $this->label,
+            'from' => $this->from,
+            'to' => $this->to,
+            'parameter_id' => $this->parameter_id,
         ];
     }
 }
