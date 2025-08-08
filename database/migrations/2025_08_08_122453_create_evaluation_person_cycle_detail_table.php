@@ -41,6 +41,7 @@ return new class extends Migration {
             $table->text('objective');
             $table->decimal('goal');
             $table->decimal('weight')->nullable();
+            $table->boolean('fixedWeight')->default(false); // indica si el peso fue modificado manualmente
             $table->string('status')->nullable(); // atrasasdo, en camino, en riesgo
 
 
