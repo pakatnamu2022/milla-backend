@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCompetenceController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationMetricController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationObjectiveController;
@@ -121,6 +122,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
             'index', 'show', 'store', 'update', 'destroy'
         ]);
 
+//        CYCLE CATEGORIES
+        Route::get('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'index']);
+        Route::post('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'storeMany']);
+        Route::delete('/cycle/{cycle}/categories/{category}', [EvaluationCycleCategoryDetailController::class, 'destroyCategory']);
     });
 
 

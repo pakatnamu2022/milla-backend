@@ -56,4 +56,5 @@ class EvaluationCycle extends Model
         return $this->belongsTo(EvaluationParameter::class, 'parameter_id');
     }
 
+
 }

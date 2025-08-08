@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\gp\gestionhumana\evaluacion;
 
-use App\Http\Requests\StoreRequest;
+use App\Http\Requests\IndexRequest;
 
-class UpdateEvaluationCycleRequest extends StoreRequest
+class IndexEvaluationCycleCategoryDetailRequest extends IndexRequest
 {
     public function rules(): array
     {

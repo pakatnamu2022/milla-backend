@@ -62,16 +62,17 @@ class MakeFullModel extends Command
     {
         $namespace = 'App\\Http\\Services' . ($relativePath ? '\\' . str_replace('/', '\\', $relativePath) : '');
         return <<<PHP
-<?php
+                <?php
 
-namespace {$namespace};
+                namespace {$namespace};
 
-use {$modelClass};
+                use App\Http\Services\BaseService;
+                use {$modelClass};
 
-class {$modelName}Service extends BaseService
-{
-    // Aquí va la lógica del servicio para {$modelName}
-}
-PHP;
+                class {$modelName}Service extends BaseService
+                {
+                    // Aquí va la lógica del servicio para {$modelName}
+                }
+                PHP;
     }
 }

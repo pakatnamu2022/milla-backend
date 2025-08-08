@@ -10,12 +10,12 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::create('gh_evaluation_objective', function (Blueprint $table) {
+        Schema::create('gh_evaluation_cycle_category_detail', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('description')->nullable();
-            $table->decimal('goalReference')->default(0.00);
-            $table->foreignId('metric_id')->constrained('gh_evaluation_metric');
+            $table->foreignId('cycle_id')
+                ->constrained('gh_evaluation_cycle', 'id', 'fk_cycle_category_cycle');
+            $table->foreignId('hierarchical_category_id')
+                ->constrained('gh_hierarchical_category', 'id', 'fk_cycle_category_hierarchical');
             $table->timestamps();
             $table->softDeletes();
         });
@@ -26,6 +26,6 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::dropIfExists('gh_evaluation_objective');
+        Schema::dropIfExists('gh_evaluation_cycle_category_detail');
     }
 };
