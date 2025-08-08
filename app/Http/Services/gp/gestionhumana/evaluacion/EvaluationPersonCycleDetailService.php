@@ -10,6 +10,7 @@ use App\Models\gp\gestionsistema\Person;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use function Pest\Laravel\json;
 
 class EvaluationPersonCycleDetailService extends BaseService
 {
@@ -26,11 +27,11 @@ class EvaluationPersonCycleDetailService extends BaseService
 
     public function find($id)
     {
-        $evaluationCompetence = EvaluationPersonCycleDetail::where('id', $id)->first();
-        if (!$evaluationCompetence) {
+        $personCycleDetail = EvaluationPersonCycleDetail::where('id', $id)->first();
+        if (!$personCycleDetail) {
             throw new Exception('Detalle de Ciclo Persona no encontrado');
         }
-        return $evaluationCompetence;
+        return $personCycleDetail;
     }
 
     public function store(array $data)
@@ -96,16 +97,52 @@ class EvaluationPersonCycleDetailService extends BaseService
 
     public function update($data)
     {
-        $evaluationCompetence = $this->find($data['id']);
-        $evaluationCompetence->update($data);
-        return new EvaluationPersonCycleDetailResource($evaluationCompetence);
+        $personCycleDetail = $this->find($data['id']);
+        $data['fixedWeight'] = isset($data['weight']) && $data['weight'] > 0;
+        $personCycleDetail->update($data);
+        $this->recalculateWeights($personCycleDetail->id);
+        return new EvaluationPersonCycleDetailResource($personCycleDetail);
     }
+
+    public function recalculateWeights($cyclePersonDetailId)
+    {
+        $personCycleDetail = $this->find($cyclePersonDetailId);
+
+        $allObjectives = EvaluationPersonCycleDetail::where('person_id', $personCycleDetail->person_id)
+            ->where('chief_id', $personCycleDetail->chief_id)
+            ->where('position_id', $personCycleDetail->position_id)
+            ->where('sede_id', $personCycleDetail->sede_id)
+            ->where('area_id', $personCycleDetail->area_id)
+            ->where('cycle_id', $personCycleDetail->cycle_id)
+            ->where('category_id', $personCycleDetail->category_id)
+            ->get();
+
+        $fixedObjectives = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === true);
+        $nonFixedObjectives = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === false);
+
+        $usedWeight = $fixedObjectives->sum('weight');
+        $remaining = max(0, 100 - $usedWeight); // evitar negativos
+
+
+        $count = $nonFixedObjectives->count();
+        $weight = $count > 0 ? round($remaining / $count, 2) : 0;
+
+        foreach ($nonFixedObjectives as $objective) {
+            $objective->update([
+                'weight' => $weight,
+                'fixedWeight' => false,
+            ]);
+        }
+
+        return ['message' => 'Pesos recalculados correctamente'];
+    }
+
 
     public function destroy($id)
     {
-        $evaluationCompetence = $this->find($id);
-        DB::transaction(function () use ($evaluationCompetence) {
-            $evaluationCompetence->delete();
+        $personCycleDetail = $this->find($id);
+        DB::transaction(function () use ($personCycleDetail) {
+            $personCycleDetail->delete();
         });
         return response()->json(['message' => 'Detalle de Ciclo Persona eliminado correctamente']);
     }

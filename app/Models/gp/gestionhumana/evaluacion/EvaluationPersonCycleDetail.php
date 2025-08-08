@@ -33,6 +33,7 @@ class EvaluationPersonCycleDetail extends BaseModel
         'objective',
         'goal',
         'weight',
+        'fixedWeight',
         'status'
     ];
 
