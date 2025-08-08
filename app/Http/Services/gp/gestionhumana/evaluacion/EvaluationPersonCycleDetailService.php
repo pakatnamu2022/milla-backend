@@ -13,10 +13,10 @@ use Illuminate\Support\Facades\DB;
 
 class EvaluationPersonCycleDetailService extends BaseService
 {
-    public function list(Request $request)
+    public function list(Request $request, int $id)
     {
         return $this->getFilteredResults(
-            EvaluationPersonCycleDetail::class,
+            EvaluationPersonCycleDetail::where('cycle_id', $id),
             $request,
             EvaluationPersonCycleDetail::filters,
             EvaluationPersonCycleDetail::sorts,

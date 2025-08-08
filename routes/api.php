@@ -126,7 +126,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 //        CYCLE CATEGORIES
         Route::get('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'index']);
         Route::post('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'storeMany']);
-        Route::delete('/cycle/{cycle}/categories/{category}', [EvaluationCycleCategoryDetailController::class, 'destroyCategory']);
+
+        Route::get('/cycle/{cycle}/details', [EvaluationPersonCycleDetailController::class, 'index']);
 
 //        PERSON CYCLE DETAILS
         Route::apiResource('personCycleDetail', EvaluationPersonCycleDetailController::class)->only([
