@@ -18,8 +18,9 @@ class EvaluationCycleResource extends JsonResource
             'end_date_objectives' => $this->end_date_objectives,
             'period_id' => $this->period_id,
             'parameter_id' => $this->parameter_id,
-            'period' => new EvaluationPeriodResource($this->whenLoaded('period')),
-            'parameter' => new EvaluationParameterResource($this->whenLoaded('parameter')),
+            'status' => (now()->between($this->start_date, $this->end_date) ? 'en proceso' : 'pendiente'),
+            'period' => new EvaluationPeriodResource($this->period),
+            'parameter' => new EvaluationParameterResource($this->parameter),
             'categories' => EvaluationCycleCategoryDetailResource::collection($this->categories)
         ];
     }
