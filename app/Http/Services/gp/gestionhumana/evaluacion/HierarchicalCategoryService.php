@@ -22,6 +22,12 @@ class HierarchicalCategoryService extends BaseService
         );
     }
 
+    public function listAll()
+    {
+        $hierarchicalCategories = HierarchicalCategory::whereAllPersonsHaveJefe();
+        return HierarchicalCategoryResource::collection($hierarchicalCategories);
+    }
+
     public function find($id)
     {
         $evaluationCompetence = HierarchicalCategory::where('id', $id)->first();

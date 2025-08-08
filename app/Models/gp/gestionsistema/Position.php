@@ -70,6 +70,11 @@ class Position extends BaseModel
     {
         return $this->belongsTo(Position::class, 'cargo_id');
     }
+
+    public function persons()
+    {
+        return $this->hasMany(Person::class, 'cargo_id');
+    }
 //
 //    public function tipo_onboarding()
 //    {

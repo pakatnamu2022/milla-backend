@@ -108,6 +108,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ]);
 
 //        HIERARCHICAL CATEGORIES
+        Route::get('/hierarchicalCategory/listAll', [HierarchicalCategoryController::class, 'listAll']);
         Route::apiResource('hierarchicalCategory', HierarchicalCategoryController::class)->only([
             'index', 'show', 'store', 'update', 'destroy'
         ]);

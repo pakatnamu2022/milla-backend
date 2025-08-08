@@ -29,6 +29,15 @@ class HierarchicalCategoryController extends Controller
         }
     }
 
+    public function listAll()
+    {
+        try {
+            return $this->success($this->service->listAll());
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
+    }
+
     public function store(StoreHierarchicalCategoryRequest $request)
     {
         try {

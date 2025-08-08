@@ -63,5 +63,23 @@ class HierarchicalCategory extends BaseModel
         );
     }
 
+    public static function whereAllPersonsHaveJefe()
+    {
+        return self::whereHas('positions.persons', function ($query) {
+            $query->whereNotNull('jefe_id');
+        })
+            ->whereDoesntHave('positions.persons', function ($query) {
+                $query->whereNull('jefe_id');
+            })
+            ->with([
+                'positions' => function ($q) {
+                    $q->with(['persons' => function ($q2) {
+                        $q2->whereNotNull('jefe_id');
+                    }]);
+                }
+            ])
+            ->get();
+    }
+
 
 }
