@@ -16,10 +16,10 @@ class StoreEvaluationCycleRequest extends StoreRequest
                 'max:255',
                 Rule::unique('gh_evaluation_cycle')->whereNull('deleted_at')
             ],
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-            'start_date_objectives' => 'required|date',
-            'end_date_objectives' => 'required|date|after_or_equal:start_date_objectives',
+            'start_date' => 'required|date|date_format:Y-m-d',
+            'end_date' => 'required|date|date_format:Y-m-d|after_or_equal:start_date',
+            'start_date_objectives' => 'required|date|date_format:Y-m-d',
+            'end_date_objectives' => 'required|date|date_format:Y-m-d|after_or_equal:start_date_objectives',
             'period_id' => 'required|exists:gh_evaluation_periods,id',
             'parameter_id' => 'required|exists:gh_evaluation_parameter,id',
         ];
