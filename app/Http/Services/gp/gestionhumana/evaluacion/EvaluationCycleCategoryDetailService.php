@@ -11,6 +11,13 @@ use Illuminate\Http\Request;
 
 class EvaluationCycleCategoryDetailService extends BaseService
 {
+    protected EvaluationPersonCycleDetailService $evaluationPersonCycleDetailService;
+
+    public function __construct(EvaluationPersonCycleDetailService $evaluationPersonCycleDetailService)
+    {
+        $this->evaluationPersonCycleDetailService = $evaluationPersonCycleDetailService;
+    }
+
     public function list(Request $request)
     {
         return $this->getFilteredResults(
@@ -28,9 +35,9 @@ class EvaluationCycleCategoryDetailService extends BaseService
         return new EvaluationCycleCategoryDetailResource(EvaluationCycleCategoryDetail::find($evaluationCycle->id));
     }
 
-    public function storeMany($cycleId, $categories)
+    public function storeMany($cycleId, $data)
     {
-        $newCategoryIds = collect($categories['categories'] ?? [])->unique()->values();
+        $newCategoryIds = collect($data['categories'] ?? [])->unique()->values();
 
         $existing = EvaluationCycleCategoryDetail::where('cycle_id', $cycleId)->get();
         $existingCycleCategoryIds = $existing->pluck('hierarchical_category_id');
@@ -50,6 +57,13 @@ class EvaluationCycleCategoryDetailService extends BaseService
             ->delete();
 
         $final = EvaluationCycleCategoryDetail::where('cycle_id', $cycleId)->get();
+
+        foreach ($data['categories'] ?? [] as $category) {
+            $this->evaluationPersonCycleDetailService->storeByCategoryAndCycle(
+                $cycleId,
+                $category
+            );
+        }
 
         return EvaluationCycleCategoryDetailResource::collection($final);
     }

@@ -41,16 +41,12 @@ class HierarchicalCategoryDetailService extends BaseService
     {
         $newPositionIds = collect($positions)->pluck('position_id')->unique()->values();
 
-        // Obtener los registros actuales
         $existing = HierarchicalCategoryDetail::where('hierarchical_category_id', $categoryId)->get();
         $existingPositionIds = $existing->pluck('position_id');
 
-        // Posiciones que hay que insertar
         $toInsert = $newPositionIds->diff($existingPositionIds);
-        // Posiciones que hay que eliminar
         $toDelete = $existingPositionIds->diff($newPositionIds);
 
-        // Insertar nuevas
         foreach ($toInsert as $positionId) {
             HierarchicalCategoryDetail::create([
                 'hierarchical_category_id' => $categoryId,
@@ -58,14 +54,11 @@ class HierarchicalCategoryDetailService extends BaseService
             ]);
         }
 
-        // Eliminar las que ya no vienen
         HierarchicalCategoryDetail::where('hierarchical_category_id', $categoryId)
             ->whereIn('position_id', $toDelete)
             ->delete();
 
-        // Devolver todos los registros actuales actualizados
         $final = HierarchicalCategoryDetail::where('hierarchical_category_id', $categoryId)->get();
-
         return HierarchicalCategoryDetailResource::collection($final);
     }
 
