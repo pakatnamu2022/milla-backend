@@ -6,6 +6,7 @@ use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategoryDetail;
 use App\Models\gp\gestionsistema\Position;
 use Illuminate\Database\Seeder;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
+use Illuminate\Support\Facades\DB;
 
 class HierarchicalCategorySeeder extends Seeder
 {
@@ -433,8 +434,13 @@ class HierarchicalCategorySeeder extends Seeder
             ]
         ];
 
-        HierarchicalCategoryDetail::where("position_id", "<>", 46464646)->delete();
-        HierarchicalCategory::where("name", "<>", "sudo")->delete();
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+
+        HierarchicalCategoryDetail::truncate();
+        HierarchicalCategory::truncate();
+
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
 
         foreach ($data as $item) {
 

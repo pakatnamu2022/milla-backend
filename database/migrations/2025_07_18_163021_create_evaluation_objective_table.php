@@ -15,6 +15,7 @@ return new class extends Migration {
             $table->string('name');
             $table->string('description')->nullable();
             $table->decimal('goalReference')->default(0.00);
+            $table->boolean('fixedWeight')->default(false);
             $table->foreignId('metric_id')->constrained('gh_evaluation_metric');
             $table->timestamps();
             $table->softDeletes();
