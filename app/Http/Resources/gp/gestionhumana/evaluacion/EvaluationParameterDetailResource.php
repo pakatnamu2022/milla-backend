@@ -17,8 +17,8 @@ class EvaluationParameterDetailResource extends JsonResource
         return [
             'id' => $this->id,
             'label' => $this->label,
-            'from' => $this->from,
-            'to' => $this->to,
+            'from' => $this->from ? round($this->from, 2) : $this->from,
+            'to' => $this->to ? round($this->to, 2) : $this->to,
             'parameter_id' => $this->parameter_id,
         ];
     }
