@@ -10,9 +10,7 @@ class EvaluationCycleCategoryDetailResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'cycle_id' => $this->cycle_id,
             'hierarchical_category_id' => $this->hierarchical_category_id,
-            'cycle' => $this->cycle?->name,
             'hierarchical_category' => $this->hierarchicalCategory?->name
         ];
     }

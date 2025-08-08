@@ -56,5 +56,9 @@ class EvaluationCycle extends Model
         return $this->belongsTo(EvaluationParameter::class, 'parameter_id');
     }
 
+    public function categories()
+    {
+        return $this->hasMany(EvaluationCycleCategoryDetail::class, 'cycle_id');
+    }
 
 }

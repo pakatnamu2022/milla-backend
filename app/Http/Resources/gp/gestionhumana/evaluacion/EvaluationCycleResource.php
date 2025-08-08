@@ -20,6 +20,7 @@ class EvaluationCycleResource extends JsonResource
             'parameter_id' => $this->parameter_id,
             'period' => new EvaluationPeriodResource($this->whenLoaded('period')),
             'parameter' => new EvaluationParameterResource($this->whenLoaded('parameter')),
+            'categories' => EvaluationCycleCategoryDetailResource::collection($this->categories)
         ];
     }
 }

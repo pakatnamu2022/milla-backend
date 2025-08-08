@@ -10,7 +10,7 @@ class StoreEvaluationCycleCategoryDetailRequest extends StoreRequest
     {
         return [
             'categories' => 'required|array|min:1',
-            'categories.*' => 'integer|exists:gh_hierarchical_category,id',
+            'categories.*' => 'required|integer|exists_soft:gh_hierarchical_category,id',
         ];
     }
 }

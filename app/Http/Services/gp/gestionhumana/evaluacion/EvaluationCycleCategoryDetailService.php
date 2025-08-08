@@ -28,20 +28,6 @@ class EvaluationCycleCategoryDetailService extends BaseService
         return new EvaluationCycleCategoryDetailResource(EvaluationCycleCategoryDetail::find($evaluationCycle->id));
     }
 
-//    public function storeMany($cycleId, $data)
-//    {
-//        $createdDetails = [];
-//        foreach ($data as $datum) {
-//            $detailData = [
-//                'cycle_id' => $cycleId,
-//                'hierarchical_category_id' => $datum,
-//            ];
-//            $evaluationCycle = EvaluationCycleCategoryDetail::create($detailData);
-//            $createdDetails[] = new EvaluationCycleCategoryDetailResource($evaluationCycle);
-//        }
-//        return $createdDetails;
-//    }
-
     public function storeMany($cycleId, $categories)
     {
         $newCategoryIds = collect($categories['categories'] ?? [])->unique()->values();
@@ -59,13 +45,13 @@ class EvaluationCycleCategoryDetailService extends BaseService
             ]);
         }
 
-        HierarchicalCategoryDetail::where('cycle_id', $cycleId)
-            ->whereIn('category_id', $toDelete)
+        EvaluationCycleCategoryDetail::where('cycle_id', $cycleId)
+            ->whereIn('hierarchical_category_id', $toDelete)
             ->delete();
 
-        $final = HierarchicalCategoryDetail::where('cycle_id', $cycleId)->get();
+        $final = EvaluationCycleCategoryDetail::where('cycle_id', $cycleId)->get();
 
-        return HierarchicalCategoryDetailResource::collection($final);
+        return EvaluationCycleCategoryDetailResource::collection($final);
     }
 
     public function find($id)
