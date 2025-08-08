@@ -13,7 +13,8 @@ class HierarchicalCategoryDetailResource extends JsonResource
         return [
             'id' => $this->id,
             'position' => $this->position?->name,
-            'area' => $this->position?->area?->name,
+            'area' => $this->position?->area?->name .
+                ($this->position?->area?->sede ? ' - ' . $this->position?->area?->sede->suc_abrev : ''),
             'leadership' => $this->position?->lidership->name,
             'hierarchical_category_id' => $this->hierarchical_category_id,
             'position_id' => $this->position_id,

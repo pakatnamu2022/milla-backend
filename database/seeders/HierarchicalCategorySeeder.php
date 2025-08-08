@@ -128,14 +128,6 @@ class HierarchicalCategorySeeder extends Seeder
                 "positions" => ["345"]
             ],
             [
-                "name" => "Analista De Remuneraciones Y Compensaciones",
-                "positions" => ["53"]
-            ],
-            [
-                "name" => "Auditor Interno",
-                "positions" => ["220"]
-            ],
-            [
                 "name" => "Supervisor De Seguridad Patrimonial",
                 "positions" => ["254"]
             ],
@@ -192,20 +184,12 @@ class HierarchicalCategorySeeder extends Seeder
                 "positions" => ["47"]
             ],
             [
-                "name" => "Jefe De Tic'S",
-                "positions" => ["345"]
-            ],
-            [
                 "name" => "Analista De Remuneraciones Y Compensaciones",
                 "positions" => ["53"]
             ],
             [
                 "name" => "Auditor Interno",
                 "positions" => ["220"]
-            ],
-            [
-                "name" => "Supervisor De Seguridad Patrimonial",
-                "positions" => ["254"]
             ],
             [
                 "name" => "Operador De Cctv",
@@ -453,20 +437,24 @@ class HierarchicalCategorySeeder extends Seeder
         HierarchicalCategory::where("name", "<>", "sudo")->delete();
 
         foreach ($data as $item) {
-            $category = HierarchicalCategory::firstOrCreate([
-                'name' => $item['name']
-            ]);
 
-            if (!empty($item['positions']) && is_array($item['positions'])) {
-                $validIds = Position::whereIn('id', $item['positions'])->pluck('id')->toArray();
-                foreach ($validIds as $positionId) {
-                    $category->children()->create([
-                        'position_id' => $positionId,
-                    ]);
+            $categoryFounded = HierarchicalCategory::where('name', $item['name'])->first();
+
+            if (!$categoryFounded) {
+                $category = HierarchicalCategory::create([
+                    'name' => $item['name'],
+                    'description' => 'Category for ' . $item['name']
+                ]);
+                if (!empty($item['positions']) && is_array($item['positions'])) {
+                    $validIds = Position::whereIn('id', $item['positions'])->pluck('id')->toArray();
+                    foreach ($validIds as $positionId) {
+                        $category->children()->create([
+                            'position_id' => $positionId,
+                        ]);
+                    }
+
                 }
-
             }
         }
-
     }
 }
