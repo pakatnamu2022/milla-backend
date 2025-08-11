@@ -17,6 +17,25 @@ class Person extends BaseModel
         'nombre_completo'
     ];
 
+    const filters = [
+        'search' => ['nombre_completo', 'vat'],
+        'vat' => 'like',
+        'nombre_completo' => 'like',
+    ];
+
+    const sorts = [
+        'vat',
+        'nombre_completo',
+    ];
+
+    public function scopeWorking($query)
+    {
+        return $query
+            ->where('status_deleted', 1)
+            ->where('b_empleado', 1)
+            ->where('status_id', 22);
+    }
+
 
 //    public function asignaciones()
 //    {

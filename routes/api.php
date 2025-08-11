@@ -11,6 +11,7 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPeriodController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailController;
+use App\Http\Controllers\gp\gestionhumana\personal\PersonController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
 use App\Http\Controllers\gp\gestionsistema\PositionController;
@@ -68,6 +69,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 //        ACCESS
         Route::apiResource('user', UserController::class)->only([
+            'index', 'show', 'store', 'update', 'destroy'
+        ]);
+    });
+
+    Route::group(['prefix' => 'person'], function () {
+        Route::get('/birthdays', [PersonController::class, 'birthdays'])->name('person.birthdays');
+        Route::apiResource('/', PersonController::class)->only([
             'index', 'show', 'store', 'update', 'destroy'
         ]);
     });
