@@ -12,6 +12,7 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailController;
 use App\Http\Controllers\gp\gestionhumana\personal\PersonController;
+use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
 use App\Http\Controllers\gp\gestionsistema\PositionController;
@@ -93,6 +94,18 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'index', 'show', 'store', 'update', 'destroy'
     ]);
 
+//    PERSONAL MAN
+    Route::group(['prefix' => 'personal'], function () {
+//        PERSON
+        Route::apiResource('person', PersonController::class)->only([
+            'index', 'show', 'store', 'update', 'destroy'
+        ]);
+
+        Route::apiResource('worker', WorkerController::class)->only([
+            'index', 'show', 'store', 'update', 'destroy'
+        ]);
+    });
+
 //    PERFORMANCE EVALUATION
     Route::group(['prefix' => 'performanceEvaluation'], function () {
 //        METRICS
@@ -142,6 +155,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::apiResource('personCycleDetail', EvaluationPersonCycleDetailController::class)->only([
             'index', 'show', 'store', 'update', 'destroy'
         ]);
+
     });
 
 

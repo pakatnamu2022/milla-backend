@@ -102,15 +102,9 @@ class Person extends BaseModel
 //        return $this->hasOne(ProcesoPostulacion::class, 'id', 'proceso_postulacion_id');
 //    }
 //
-//    public function statusCartaOferta()
-//    {
-//        return $this->hasOne(Status::class, 'id', 'status_carta_oferta_id');
-//    }
+
 //
-//    public function statusEnvioEmailCartaOferta()
-//    {
-//        return $this->hasOne(Status::class, 'id', 'status_envio_mail_carta_oferta');
-//    }
+
 //
 //    public function direcciones()
 //    {

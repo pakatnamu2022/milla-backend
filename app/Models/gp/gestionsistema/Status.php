@@ -11,4 +11,11 @@ class Status extends BaseModel
 
     protected $table = 'config_status';
     public $timestamps = false;
+
+    protected $fillable = [
+        'norden',
+        'estado',
+        'tipo',
+        'color',
+    ];
 }
