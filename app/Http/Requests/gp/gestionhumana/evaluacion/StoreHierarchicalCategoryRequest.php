@@ -11,6 +11,7 @@ class StoreHierarchicalCategoryRequest extends StoreRequest
         return [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
+            'excluded_from_evaluation' => 'boolean',
         ];
     }
 }

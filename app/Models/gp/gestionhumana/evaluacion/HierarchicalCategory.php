@@ -15,10 +15,12 @@ class HierarchicalCategory extends BaseModel
     protected $fillable = [
         'name',
         'description',
+        'excluded_from_evaluation',
     ];
-
+    
     const filters = [
         'search' => ['name', 'description'],
+        'excluded_from_evaluation' => '=',
     ];
 
     const sorts = [
@@ -65,7 +67,8 @@ class HierarchicalCategory extends BaseModel
 
     public static function whereAllPersonsHaveJefe()
     {
-        return self::whereHas('positions.persons', function ($query) {
+        return self::where('excluded_from_evaluation', false) // 👈 filtro global
+        ->whereHas('positions.persons', function ($query) {
             $query->whereNotNull('jefe_id');
         })
             ->whereDoesntHave('positions.persons', function ($query) {

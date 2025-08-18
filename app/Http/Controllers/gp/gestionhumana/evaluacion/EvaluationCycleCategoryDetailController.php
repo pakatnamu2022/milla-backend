@@ -17,10 +17,10 @@ class EvaluationCycleCategoryDetailController extends Controller
         $this->service = $service;
     }
 
-    public function index(IndexEvaluationCycleCategoryDetailRequest $request)
+    public function index(IndexEvaluationCycleCategoryDetailRequest $request, int $cycleId)
     {
         try {
-            return $this->service->list($request);
+            return $this->service->list($request, $cycleId);
         } catch (\Throwable $th) {
             return $this->error($th->getMessage());
         }

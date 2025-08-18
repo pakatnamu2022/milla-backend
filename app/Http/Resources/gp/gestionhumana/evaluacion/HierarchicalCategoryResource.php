@@ -13,6 +13,7 @@ class HierarchicalCategoryResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'description' => $this->description,
+            'excluded_from_evaluation' => (bool)$this->excluded_from_evaluation,
             'children' => HierarchicalCategoryDetailResource::collection($this->children),
         ];
     }

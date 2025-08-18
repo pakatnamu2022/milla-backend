@@ -9,7 +9,9 @@ class UpdateHierarchicalCategoryRequest extends StoreRequest
     public function rules(): array
     {
         return [
-            //
+            'name' => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'excluded_from_evaluation' => 'nullable|boolean',
         ];
     }
 }

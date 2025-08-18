@@ -3,8 +3,12 @@
 namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationCycleResource;
+use App\Http\Resources\gp\gestionhumana\personal\PersonResource;
+use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
+use App\Models\gp\gestionsistema\Person;
 use Exception;
 use Illuminate\Http\Request;
 
@@ -21,6 +25,19 @@ class EvaluationCycleService extends BaseService
         );
     }
 
+    public function participants(int $id)
+    {
+        $cycle = $this->find($id);
+        $personsInCycle = EvaluationPersonCycleDetail::where('cycle_id', $cycle->id)
+            ->select('person_id')
+            ->distinct()
+            ->get()
+            ->pluck('person_id')
+            ->toArray();
+        $persons = Person::whereIn('id', $personsInCycle)->get();
+        return WorkerResource::collection($persons);
+    }
+
     public function store($data)
     {
         $evaluationCycle = EvaluationCycle::create($data);
@@ -29,7 +46,7 @@ class EvaluationCycleService extends BaseService
 
     public function find($id)
     {
-        $evaluationCycle = EvaluationCycle::where('id', $id)->first();
+        $evaluationCycle = EvaluationCycle::find($id);
         if (!$evaluationCycle) {
             throw new Exception('Ciclo no encontrado');
         }

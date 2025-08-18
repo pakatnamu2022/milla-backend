@@ -3,6 +3,7 @@
 namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetailResource;
+use App\Http\Resources\gp\gestionhumana\personal\PersonResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
@@ -46,7 +47,10 @@ class EvaluationPersonCycleDetailService extends BaseService
     {
         $category = HierarchicalCategory::find($categoryId);
         $positions = $category->children()->pluck('position_id')->toArray();
-        $persons = Person::whereIn('cargo_id', $positions)->where('status_id', 22)->get();
+        $persons = Person::whereIn('cargo_id', $positions)
+            ->where('status_deleted', 1)
+            ->where('status_id', 22)
+            ->get();
 
         foreach ($persons as $person) {
             $exists = EvaluationPersonCycleDetail::where('person_id', $person->id)

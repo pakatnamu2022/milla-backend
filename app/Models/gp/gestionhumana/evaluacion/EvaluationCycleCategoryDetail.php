@@ -16,6 +16,10 @@ class EvaluationCycleCategoryDetail extends Model
         'hierarchical_category_id',
     ];
 
+    const filters = [
+        'search' => ['']
+    ];
+
     public function cycle()
     {
         return $this->belongsTo(EvaluationCycle::class, 'cycle_id');

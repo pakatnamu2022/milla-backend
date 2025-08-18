@@ -27,6 +27,15 @@ class EvaluationCycleController extends Controller
         }
     }
 
+    public function participants(int $id)
+    {
+        try {
+            return $this->success($this->service->participants($id));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
+    }
+
     public function store(StoreEvaluationCycleRequest $request)
     {
         try {

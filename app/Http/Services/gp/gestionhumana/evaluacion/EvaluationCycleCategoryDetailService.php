@@ -6,22 +6,30 @@ use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail
 use App\Http\Resources\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategoryDetail;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class EvaluationCycleCategoryDetailService extends BaseService
 {
     protected EvaluationPersonCycleDetailService $evaluationPersonCycleDetailService;
+    protected EvaluationCycleService $evaluationCycleService;
 
-    public function __construct(EvaluationPersonCycleDetailService $evaluationPersonCycleDetailService)
+    public function __construct(
+        EvaluationPersonCycleDetailService $evaluationPersonCycleDetailService,
+        EvaluationCycleService             $evaluationCycleService
+    )
     {
         $this->evaluationPersonCycleDetailService = $evaluationPersonCycleDetailService;
+        $this->evaluationCycleService = $evaluationCycleService;
     }
 
-    public function list(Request $request)
+    public function list(Request $request, int $cycleId)
     {
+        $cycle = $this->evaluationCycleService->find($cycleId);
         return $this->getFilteredResults(
-            EvaluationCycleCategoryDetail::class,
+            EvaluationCycleCategoryDetail::where('cycle_id', $cycle->id),
             $request,
             [],
             [],
@@ -40,10 +48,15 @@ class EvaluationCycleCategoryDetailService extends BaseService
         $newCategoryIds = collect($data['categories'] ?? [])->unique()->values();
 
         $existing = EvaluationCycleCategoryDetail::where('cycle_id', $cycleId)->get();
+
+//        dd($existing);
+
         $existingCycleCategoryIds = $existing->pluck('hierarchical_category_id');
 
         $toInsert = $newCategoryIds->diff($existingCycleCategoryIds);
         $toDelete = $existingCycleCategoryIds->diff($newCategoryIds);
+
+//        dd($toInsert, $toDelete);
 
         foreach ($toInsert as $categoryId) {
             EvaluationCycleCategoryDetail::create([
@@ -52,9 +65,25 @@ class EvaluationCycleCategoryDetailService extends BaseService
             ]);
         }
 
-        EvaluationCycleCategoryDetail::where('cycle_id', $cycleId)
-            ->whereIn('hierarchical_category_id', $toDelete)
-            ->delete();
+        DB::transaction(function () use ($cycleId, $toDelete) {
+            if (empty($toDelete)) return;
+
+            // 1) Borra (soft-delete) los detalles de categorías del ciclo que salieron
+            EvaluationCycleCategoryDetail::where('cycle_id', $cycleId)
+                ->whereIn('hierarchical_category_id', $toDelete)
+                ->delete();
+
+            // 2) Borra (soft-delete) los detalles de persona del ciclo ligados a esas categorías
+            EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+                ->whereIn('category_id', $toDelete)
+                ->orderBy('id')
+                ->chunkById(200, function ($chunk) {
+                    foreach ($chunk as $detail) {
+                        // Mantienes tu lógica centralizada en el service
+                        $this->evaluationPersonCycleDetailService->destroy($detail->id);
+                    }
+                });
+        });
 
         $final = EvaluationCycleCategoryDetail::where('cycle_id', $cycleId)->get();
 
