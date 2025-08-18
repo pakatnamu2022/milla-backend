@@ -76,8 +76,7 @@ class HierarchicalCategory extends BaseModel
                             ->where('status_id', 22)
                             ->with([
                                 'boss' => function ($qb) {
-                                    // traemos al jefe sin filtro, para validarlo abajo
-                                    $qb->with('position');
+                                    $qb->with('position'); // traemos cargo del jefe
                                 },
                                 'position',
                             ]);
@@ -104,17 +103,16 @@ class HierarchicalCategory extends BaseModel
 
             if ($total === 0) {
                 $pass = false;
-                $motive = 'No tiene personas asignadas';
+                $issues = ['No tiene personas asignadas'];
             } elseif (empty($issues)) {
                 $pass = true;
-                $motive = 'Todas las personas tienen jefe válido';
+                $issues = ['Todas las personas tienen jefe válido'];
             } else {
                 $pass = false;
-                $motive = implode(' | ', $issues);
             }
 
             $category->pass = $pass;
-            $category->motive = $motive;
+            $category->issues = $issues; // ahora es un array de strings
             $category->total_personas = $total;
             $category->con_jefe = $conJefe;
             $category->sin_jefe = $sinJefe;
