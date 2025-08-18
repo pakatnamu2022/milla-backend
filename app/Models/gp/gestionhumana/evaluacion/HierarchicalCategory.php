@@ -69,16 +69,14 @@ class HierarchicalCategory extends BaseModel
     {
         return self::where('excluded_from_evaluation', false)
             ->whereHas('positions.persons', function ($query) {
-                $query->whereNotNull('jefe_id')
-                    ->where('status_deleted', 1)
+                $query->where('status_deleted', 1)
                     ->where('b_empleado', 1)
                     ->where('status_id', 22);
             })
             ->with([
                 'positions' => function ($q) {
                     $q->with(['persons' => function ($q2) {
-                        $q2->whereNotNull('jefe_id')
-                            ->where('status_deleted', 1)
+                        $q2->where('status_deleted', 1)
                             ->where('b_empleado', 1)
                             ->where('status_id', 22);
                     }]);
