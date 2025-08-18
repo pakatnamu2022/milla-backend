@@ -73,7 +73,10 @@ class Position extends BaseModel
 
     public function persons()
     {
-        return $this->hasMany(Person::class, 'cargo_id');
+        return $this->hasMany(Person::class, 'cargo_id')
+            ->where('status_deleted', 1)
+            ->where('b_empleado', 1)
+            ->where('status_id', 22);
     }
 //
 //    public function tipo_onboarding()
