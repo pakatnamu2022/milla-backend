@@ -22,7 +22,7 @@ class Worker extends Person
         return $this->hasOne(Status::class, 'id', 'status_carta_oferta_id');
     }
 
-    public function emailDeliveryOfferLetterStatus(): HasOne
+    public function emailOfferLetterStatus(): HasOne
     {
         return $this->hasOne(Status::class, 'id', 'status_envio_mail_carta_oferta');
     }
