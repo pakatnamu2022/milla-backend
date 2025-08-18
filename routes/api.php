@@ -149,7 +149,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'index']);
         Route::post('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'storeMany']);
         Route::get('/cycle/{cycle}/details', [EvaluationPersonCycleDetailController::class, 'index']);
-        Route::get('cycle/{id}/participants', [EvaluationCycleController::class, 'participants']);
+        Route::get('/cycle/{id}/participants', [EvaluationCycleController::class, 'participants']);
 
 //        PERSON CYCLE DETAILS
         Route::apiResource('personCycleDetail', EvaluationPersonCycleDetailController::class)->only([
