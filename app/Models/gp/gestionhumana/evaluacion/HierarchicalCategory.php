@@ -68,16 +68,8 @@ class HierarchicalCategory extends BaseModel
     public static function whereAllPersonsHaveJefe()
     {
         return self::where('excluded_from_evaluation', false)
-            // debe tener al menos 1 persona válida con jefe
             ->whereHas('positions.persons', function ($query) {
                 $query->whereNotNull('jefe_id')
-                    ->where('status_deleted', 1)
-                    ->where('b_empleado', 1)
-                    ->where('status_id', 22);
-            })
-            // y no debe existir ninguna persona válida sin jefe
-            ->whereDoesntHave('positions.persons', function ($query) {
-                $query->whereNull('jefe_id')
                     ->where('status_deleted', 1)
                     ->where('b_empleado', 1)
                     ->where('status_id', 22);
@@ -94,6 +86,5 @@ class HierarchicalCategory extends BaseModel
             ])
             ->get();
     }
-
 
 }
