@@ -47,10 +47,6 @@ class Person extends BaseModel
 //        return $this->hasOne(User::class, 'id', 'usuario_solicita_credito');
 //    }
 //
-//    public function jefe()
-//    {
-//        return $this->hasOne(Persona::class, 'id', 'jefe_id');
-//    }
 //
 //    public function usuarioApruebaCredito()
 //    {
@@ -87,6 +83,12 @@ class Person extends BaseModel
 //        return $this->hasOne(Area::class, 'id', 'area_id');
 //    }
 //
+
+    public function boss()
+    {
+        return $this->hasOne(Person::class, 'id', 'jefe_id');
+    }
+
     public function position()
     {
         return $this->hasOne(Position::class, 'id', 'cargo_id');

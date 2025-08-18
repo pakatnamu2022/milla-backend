@@ -67,30 +67,61 @@ class HierarchicalCategory extends BaseModel
 
     public static function whereAllPersonsHaveJefe()
     {
-        return self::where('excluded_from_evaluation', false)
-            ->whereHas('positions.persons', function ($query) {
-                $query->whereNotNull('jefe_id')
-                    ->where('status_deleted', 1)
-                    ->where('b_empleado', 1)
-                    ->where('status_id', 22);
-            })
-            ->whereDoesntHave('positions.persons', function ($query) {
-                $query->whereNull('jefe_id')
-                    ->where('status_deleted', 1)
-                    ->where('b_empleado', 1)
-                    ->where('status_id', 22);
-            })
+        $categories = self::where('excluded_from_evaluation', false)
             ->with([
                 'positions' => function ($q) {
                     $q->with(['persons' => function ($q2) {
-                        $q2->whereNotNull('jefe_id')
-                            ->where('status_deleted', 1)
+                        $q2->where('status_deleted', 1)
                             ->where('b_empleado', 1)
-                            ->where('status_id', 22);
+                            ->where('status_id', 22)
+                            ->with([
+                                'boss' => function ($qb) {
+                                    // traemos al jefe sin filtro, para validarlo abajo
+                                    $qb->with('position');
+                                },
+                                'position',
+                            ]);
                     }]);
                 }
             ])
             ->get();
+
+        return $categories->map(function ($category) {
+            $persons = $category->positions->flatMap->persons;
+            $total = $persons->count();
+            $conJefe = $persons->whereNotNull('jefe_id')->count();
+            $sinJefe = $persons->whereNull('jefe_id')->count();
+
+            $issues = [];
+
+            foreach ($persons as $person) {
+                if (is_null($person->jefe_id)) {
+                    $issues[] = "La persona {$person->nombre_completo} no tiene jefe asignado.";
+                } elseif ($person->boss && $person->boss->status_id == 23) {
+                    $issues[] = "El jefe {$person->boss->nombre_completo} de la persona {$person->nombre_completo} está dado de baja.";
+                }
+            }
+
+            if ($total === 0) {
+                $pass = false;
+                $motive = 'No tiene personas asignadas';
+            } elseif (empty($issues)) {
+                $pass = true;
+                $motive = 'Todas las personas tienen jefe válido';
+            } else {
+                $pass = false;
+                $motive = implode(' | ', $issues);
+            }
+
+            $category->pass = $pass;
+            $category->motive = $motive;
+            $category->total_personas = $total;
+            $category->con_jefe = $conJefe;
+            $category->sin_jefe = $sinJefe;
+
+            return $category;
+        });
     }
+
 
 }
