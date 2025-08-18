@@ -31,6 +31,7 @@ class EvaluationCycleCategoryDetailController extends Controller
         try {
             return $this->success($this->service->storeMany($cycleId, $request->validated()));
         } catch (\Throwable $th) {
+            logger($th);
             return $this->error($th->getMessage());
         }
     }
