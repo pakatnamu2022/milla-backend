@@ -31,7 +31,7 @@ class UserResource extends JsonResource
             'email' => $this->person->email,
             'foto_adjunto' => $fotoBase64,
             'position' => $this->person?->position?->name,
-            'empresa' => $this->person?->sede?->razon_social,
+            'empresa' => $this->person?->sede?->company?->abbreviation,
             'sede' => $this->person?->sede?->suc_abrev,
             'fecha_ingreso' => $this->person?->fecha_inicio,
             'role' => $this->role?->nombre,

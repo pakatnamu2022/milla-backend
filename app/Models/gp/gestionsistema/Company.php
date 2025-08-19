@@ -11,13 +11,15 @@ class Company extends BaseModel
 
     protected $fillable = [
         'name',
+        'abbreviation',
+        'description',
         'businessName',
         'email',
         'logo',
         'website',
         'phone',
         'address',
-        'city'
+        'city',
     ];
 
     const filters = [

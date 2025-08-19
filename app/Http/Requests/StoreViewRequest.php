@@ -16,7 +16,9 @@ class StoreViewRequest extends StoreRequest
                 Rule::unique('config_vista', 'descripcion')
                     ->where(fn($query) => $query
                         ->where('status_deleted', 1)
-                        ->where('parent_id', $this->parent_id)),
+                        ->where('parent_id', $this->parent_id)
+                        ->where('company_id', $this->company_id)
+                    ),
             ],
             'submodule' => 'nullable|boolean',
             'route' => 'nullable|string|max:255',
