@@ -7,108 +7,108 @@ use Illuminate\Database\Eloquent\Builder;
 
 trait Filterable
 {
-    protected function applyFilters($query, $request, $filters)
-    {
-        foreach ($filters as $filter => $operator) {
-            $paramName = str_replace('.', '$', $filter);
-            $value = $request->query($paramName);
+  protected function applyFilters($query, $request, $filters)
+  {
+    foreach ($filters as $filter => $operator) {
+      $paramName = str_replace('.', '$', $filter);
+      $value = $request->query($paramName);
 
-            if ($value !== null) {
-                if ($filter === 'search') {
-                    $fields = $operator;
-                    $query->where(function ($q) use ($fields, $value) {
-                        foreach ($fields as $field) {
-                            if (str_contains($field, '.')) {
-                                $parts = explode('.', $field);
-                                $relation = implode('.', array_slice($parts, 0, -1));
-                                $relationField = end($parts);
+      if ($value !== null) {
+        if ($filter === 'search') {
+          $fields = $operator;
+          $query->where(function ($q) use ($fields, $value) {
+            foreach ($fields as $field) {
+              if (str_contains($field, '.')) {
+                $parts = explode('.', $field);
+                $relation = implode('.', array_slice($parts, 0, -1));
+                $relationField = end($parts);
 
-                                $q->orWhereHas($relation, function ($relQuery) use ($relationField, $value) {
-                                    $relQuery->where($relationField, 'like', '%' . $value . '%');
-                                });
-                            } else {
-                                $q->orWhere($field, 'like', '%' . $value . '%');
-                            }
-                        }
-                    });
-                } elseif (str_contains($filter, '.')) {
-                    $parts = explode('.', $filter);
-                    $relation = implode('.', array_slice($parts, 0, -1));
-                    $relationField = end($parts);
-
-                    $query->whereHas($relation, function ($q) use ($relationField, $operator, $value) {
-                        $this->applyFilterCondition($q, $relationField, $operator, $value);
-                    });
-                } else {
-                    $this->applyFilterCondition($query, $filter, $operator, $value);
-                }
+                $q->orWhereHas($relation, function ($relQuery) use ($relationField, $value) {
+                  $relQuery->where($relationField, 'like', '%' . $value . '%');
+                });
+              } else {
+                $q->orWhere($field, 'like', '%' . $value . '%');
+              }
             }
-        }
+          });
+        } elseif (str_contains($filter, '.')) {
+          $parts = explode('.', $filter);
+          $relation = implode('.', array_slice($parts, 0, -1));
+          $relationField = end($parts);
 
-        return $query;
-    }
-
-
-    protected function applyFilterCondition($query, $filter, $operator, $value)
-    {
-        switch ($operator) {
-            case 'like':
-                $query->where($filter, 'like', '%' . $value . '%');
-                break;
-            case 'between':
-                if (is_array($value) && count($value) === 2) {
-                    $query->whereBetween($filter, $value);
-                }
-                break;
-            case '>':
-                $query->where($filter, '>', $value);
-                break;
-            case '<':
-                $query->where($filter, '<', $value);
-                break;
-            case '>=':
-                $query->where($filter, '>=', $value);
-                break;
-            case '<=':
-                $query->where($filter, '<=', $value);
-                break;
-            case '=':
-                $query->where($filter, '=', $value);
-                break;
-            default:
-                break;
-        }
-    }
-
-    protected function applySorting($query, $request, $sorts)
-    {
-        $sortField = $request->query('sort');
-        $sortOrder = $request->query('direction', 'desc');
-
-        if ($sortField !== null && in_array($sortField, $sorts)) {
-            $query->orderBy($sortField, $sortOrder);
+          $query->whereHas($relation, function ($q) use ($relationField, $operator, $value) {
+            $this->applyFilterCondition($q, $relationField, $operator, $value);
+          });
         } else {
-            $query->orderBy('id', $sortOrder);
+          $this->applyFilterCondition($query, $filter, $operator, $value);
         }
-
-        return $query;
+      }
     }
 
-    protected function getFilteredResults($modelOrQuery, $request, $filters, $sorts, $resource)
-    {
-        if ($modelOrQuery instanceof Builder) {
-            $query = $modelOrQuery;
-        } else {
-            $query = $modelOrQuery::query();
+    return $query;
+  }
+
+
+  protected function applyFilterCondition($query, $filter, $operator, $value)
+  {
+    switch ($operator) {
+      case 'like':
+        $query->where($filter, 'like', '%' . $value . '%');
+        break;
+      case 'between':
+        if (is_array($value) && count($value) === 2) {
+          $query->whereBetween($filter, $value);
         }
+        break;
+      case '>':
+        $query->where($filter, '>', $value);
+        break;
+      case '<':
+        $query->where($filter, '<', $value);
+        break;
+      case '>=':
+        $query->where($filter, '>=', $value);
+        break;
+      case '<=':
+        $query->where($filter, '<=', $value);
+        break;
+      case '=':
+        $query->where($filter, '=', $value);
+        break;
+      default:
+        break;
+    }
+  }
 
-        $query = $this->applyFilters($query, $request, $filters);
-        $query = $this->applySorting($query, $request, $sorts);
+  protected function applySorting($query, $request, $sorts)
+  {
+    $sortField = $request->query('sort');
+    $sortOrder = $request->query('direction', 'desc');
 
-        $all = $request->query('all', false) === 'true';
+    if ($sortField !== null && in_array($sortField, $sorts)) {
+      $query->orderBy($sortField, $sortOrder);
+    } else {
+      $query->orderBy('id', $sortOrder);
+    }
+
+    return $query;
+  }
+
+  protected function getFilteredResults($modelOrQuery, $request, $filters, $sorts, $resource)
+  {
+    if ($modelOrQuery instanceof Builder) {
+      $query = $modelOrQuery;
+    } else {
+      $query = $modelOrQuery::query();
+    }
+
+    $query = $this->applyFilters($query, $request, $filters);
+    $query = $this->applySorting($query, $request, $sorts);
+
+    $all = $request->query('all', false) === 'true';
 //        $results = $all ? $query->limit(Constants::MAX_ALL_PER_QUERY)->get() : $query->paginate($request->query('per_page', Constants::DEFAULT_PER_PAGE));
-        $results = $all ? $query->get() : $query->paginate($request->query('per_page', Constants::DEFAULT_PER_PAGE));
+    $results = $all ? $query->get() : $query->paginate($request->query('per_page', Constants::DEFAULT_PER_PAGE));
 
-        return $all ? response()->json($resource::collection($results)) : $resource::collection($results);
-    }
+    return $all ? response()->json($resource::collection($results)) : $resource::collection($results);
+  }
 }
