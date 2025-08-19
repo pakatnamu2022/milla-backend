@@ -2,10 +2,10 @@
 
 namespace App\Models\ap\configuracionComercial\vehiculo;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class ApVehicleCategory extends Model
+class ApVehicleCategory extends BaseModel
 {
   use SoftDeletes;
 
@@ -18,5 +18,10 @@ class ApVehicleCategory extends Model
 
   const filters = [
     'name' => 'like',
+  ];
+
+  const sorts = [
+    'id',
+    'name',
   ];
 }

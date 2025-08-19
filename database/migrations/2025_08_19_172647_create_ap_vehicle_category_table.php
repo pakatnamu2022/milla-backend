@@ -11,10 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('ap_vehicle_category', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
-        });
+      Schema::table('ap_categoria_vehiculos', function (Blueprint $table) {
+        $table->softDeletes();
+        $table->dropColumn('status_deleted');
+      });
     }
 
     /**
@@ -22,6 +22,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('ap_vehicle_category');
+      Schema::table('ap_categoria_vehiculos', function (Blueprint $table) {
+        $table->dropSoftDeletes();
+        $table->boolean('status_deleted')->default(1);
+      });
     }
 };

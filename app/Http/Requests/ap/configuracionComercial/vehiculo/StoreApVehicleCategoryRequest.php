@@ -2,27 +2,19 @@
 
 namespace App\Http\Requests\ap\configuracionComercial\vehiculo;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\StoreRequest;
+use Illuminate\Validation\Rule;
 
-class StoreApVehicleCategoryRequest extends FormRequest
+class StoreApVehicleCategoryRequest extends StoreRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return false;
-    }
-
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
-            //
+          'name' => [
+            'required',
+            'string',
+            'max:100',
+            Rule::unique('ap_categoria_vehiculos', 'name')->whereNull('deleted_at'),],
         ];
     }
 }

@@ -3,64 +3,66 @@
 namespace App\Http\Controllers\ap\configuracionComercial\vehiculo;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApVehicleCategoryRequest;
+use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApVehicleCategoryRequest;
+use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApVehicleCategoryRequest;
+use App\Http\Services\ap\configuracionComercial\vehiculo\ApVehicleCategoryService;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleCategory;
 use Illuminate\Http\Request;
 
 class ApVehicleCategoryController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    protected ApVehicleCategoryService $service;
+
+    public function __construct(ApVehicleCategoryService $service)
     {
-        //
+      $this->service = $service;
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function index(IndexApVehicleCategoryRequest $request)
     {
-        //
+      try {
+        return $this->service->list($request);
+      } catch (\Throwable $th) {
+        return $this->error($th->getMessage());
+      }
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function store(StoreApVehicleCategoryRequest $request)
     {
-        //
+      try {
+        return $this->success($this->service->store($request->validated()));
+      } catch (\Throwable $th) {
+        return $this->error($th->getMessage());
+      }
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(ApVehicleCategory $apVehicleCategory)
+    public function show($id)
     {
-        //
+      try {
+        return $this->success($this->service->show($id));
+      } catch (\Throwable $th) {
+        return $this->error($th->getMessage());
+      }
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(ApVehicleCategory $apVehicleCategory)
+    public function update(UpdateApVehicleCategoryRequest $request, $id)
     {
-        //
+      try {
+        $data = $request->validated();
+        $data['id'] = $id;
+        return $this->success($this->service->update($data));
+      } catch (\Throwable $th) {
+        return $this->error($th->getMessage());
+      }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, ApVehicleCategory $apVehicleCategory)
+    public function destroy($id)
     {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(ApVehicleCategory $apVehicleCategory)
-    {
-        //
+      try {
+        return $this->service->destroy($id);
+      } catch (\Throwable $th) {
+        return $this->error($th->getMessage());
+      }
     }
 }
