@@ -11,56 +11,56 @@ use Illuminate\Support\Facades\DB;
 
 class HierarchicalCategoryService extends BaseService
 {
-    public function list(Request $request)
-    {
-        return $this->getFilteredResults(
-            HierarchicalCategory::class,
-            $request,
-            HierarchicalCategory::filters,
-            HierarchicalCategory::sorts,
-            HierarchicalCategoryResource::class,
-        );
-    }
+  public function list(Request $request)
+  {
+    return $this->getFilteredResults(
+      HierarchicalCategory::whereAllPersonsHaveJefeBuilder(),
+      $request,
+      HierarchicalCategory::filters,
+      HierarchicalCategory::sorts,
+      HierarchicalCategoryResource::class,
+    );
+  }
 
-    public function listAll()
-    {
-        $hierarchicalCategories = HierarchicalCategory::whereAllPersonsHaveJefe();
-        return HierarchicalCategoryResource::collection($hierarchicalCategories);
-    }
+  public function listAll()
+  {
+    $hierarchicalCategories = HierarchicalCategory::whereAllPersonsHaveJefe();
+    return HierarchicalCategoryResource::collection($hierarchicalCategories);
+  }
 
-    public function find($id)
-    {
-        $evaluationCompetence = HierarchicalCategory::where('id', $id)->first();
-        if (!$evaluationCompetence) {
-            throw new Exception('Categoría Jerárquica no encontrada');
-        }
-        return $evaluationCompetence;
+  public function find($id)
+  {
+    $evaluationCompetence = HierarchicalCategory::where('id', $id)->first();
+    if (!$evaluationCompetence) {
+      throw new Exception('Categoría Jerárquica no encontrada');
     }
+    return $evaluationCompetence;
+  }
 
-    public function store(array $data)
-    {
-        $hierarchicalCategory = HierarchicalCategory::create($data);
-        return new HierarchicalCategoryResource($hierarchicalCategory);
-    }
+  public function store(array $data)
+  {
+    $hierarchicalCategory = HierarchicalCategory::create($data);
+    return new HierarchicalCategoryResource($hierarchicalCategory);
+  }
 
-    public function show($id)
-    {
-        return new HierarchicalCategoryResource($this->find($id));
-    }
+  public function show($id)
+  {
+    return new HierarchicalCategoryResource($this->find($id));
+  }
 
-    public function update($data)
-    {
-        $evaluationCompetence = $this->find($data['id']);
-        $evaluationCompetence->update($data);
-        return new HierarchicalCategoryResource($evaluationCompetence);
-    }
+  public function update($data)
+  {
+    $evaluationCompetence = $this->find($data['id']);
+    $evaluationCompetence->update($data);
+    return new HierarchicalCategoryResource($evaluationCompetence);
+  }
 
-    public function destroy($id)
-    {
-        $evaluationCompetence = $this->find($id);
-        DB::transaction(function () use ($evaluationCompetence) {
-            $evaluationCompetence->delete();
-        });
-        return response()->json(['message' => 'Categoría Jerárquica eliminada correctamente']);
-    }
+  public function destroy($id)
+  {
+    $evaluationCompetence = $this->find($id);
+    DB::transaction(function () use ($evaluationCompetence) {
+      $evaluationCompetence->delete();
+    });
+    return response()->json(['message' => 'Categoría Jerárquica eliminada correctamente']);
+  }
 }
