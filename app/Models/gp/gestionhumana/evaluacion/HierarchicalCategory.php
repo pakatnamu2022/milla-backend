@@ -27,7 +27,9 @@ class HierarchicalCategory extends BaseModel
 
   const sorts = [
     'name',
-    'description'
+    'description',
+    'pass',
+    'excluded_from_evaluation'
   ];
 
   protected $casts = [
