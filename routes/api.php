@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApBrandController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApEngineTypeController;
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleCategoryController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCompetenceController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetailController;
@@ -168,6 +170,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
 //        CONFIGURATION COMMERCIAL
       Route::group(['prefix' => 'commercial'], function () {
         Route::apiResource('engineType', ApEngineTypeController::class)->only([
+          'index', 'show', 'store', 'update', 'destroy'
+        ]);
+        Route::apiResource('vehicleCategory', ApVehicleCategoryController::class)->only([
+          'index', 'show', 'store', 'update', 'destroy'
+        ]);
+        Route::apiResource('brand', ApBrandController::class)->only([
           'index', 'show', 'store', 'update', 'destroy'
         ]);
       });
