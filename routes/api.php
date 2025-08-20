@@ -175,7 +175,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::apiResource('vehicleCategory', ApVehicleCategoryController::class)->only([
           'index', 'show', 'store', 'update', 'destroy'
         ]);
-        Route::apiResource('brand', ApBrandController::class)->only([
+        Route::apiResource('brands', ApBrandController::class)->only([
           'index', 'show', 'store', 'update', 'destroy'
         ]);
       });
