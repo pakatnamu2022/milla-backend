@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\ap\configuracionComercial\vehiculo;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\StoreRequest;
 use Illuminate\Validation\Rule;
 
-class UpdateApVehicleCategoryRequest extends FormRequest
+class UpdateApVehicleCategoryRequest extends StoreRequest
 {
     public function rules(): array
     {
