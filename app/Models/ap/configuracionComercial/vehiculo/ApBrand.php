@@ -20,11 +20,10 @@ class ApBrand extends Model
     'descripcion',
     'logo',
     'logo_min',
-    'Responsable',
   ];
 
   const filters = [
-    'search' => ['codigo', 'codigo_dyn', 'name', 'descripcion', 'Responsable'],
+    'search' => ['codigo', 'codigo_dyn', 'name', 'descripcion'],
   ];
 
   const sorts = [
@@ -33,6 +32,10 @@ class ApBrand extends Model
     'codigo_dyn',
     'name',
     'descripcion',
-    'Responsable',
   ];
+
+  public function grupo()
+  {
+    return $this->belongsTo(ApBrandGroups::class, 'grupo_id');
+  }
 }

@@ -17,6 +17,7 @@ class ApVehicleCategory extends BaseModel
   ];
 
   const filters = [
+    'search' => ['name'],
     'name' => 'like',
   ];
 

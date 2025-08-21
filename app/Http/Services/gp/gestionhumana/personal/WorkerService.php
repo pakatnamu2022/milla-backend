@@ -10,14 +10,14 @@ use Illuminate\Http\Request;
 
 class WorkerService extends BaseService
 {
-    public function list(Request $request)
-    {
-        return $this->getFilteredResults(
-            Worker::class,
-            $request,
-            Person::filters,
-            Person::sorts,
-            WorkerResource::class,
-        );
-    }
+  public function list(Request $request)
+  {
+    return $this->getFilteredResults(
+      Worker::class,
+      $request,
+      Worker::filters,
+      Person::sorts,
+      WorkerResource::class,
+    );
+  }
 }

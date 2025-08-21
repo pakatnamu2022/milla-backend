@@ -7,26 +7,25 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class EvaluationMetric extends BaseModel
 {
-    use SoftDeletes;
+  use SoftDeletes;
 
-    protected $table = "gh_evaluation_metric";
-    protected $primaryKey = 'id';
+  protected $table = "gh_evaluation_metric";
+  protected $primaryKey = 'id';
 
-    protected $fillable = [
-        'name',
-        'description',
-    ];
+  protected $fillable = [
+    'name',
+    'description',
+  ];
 
-    const filters = [
-        'id' => '=',
-        'search' => ['name', 'description'],
-        'status_deleted' => '='
-    ];
+  const filters = [
+    'id' => '=',
+    'search' => ['name', 'description'],
+  ];
 
-    const sorts = [
-        'id',
-        'name',
-        'description',
-    ];
-    
+  const sorts = [
+    'id',
+    'name',
+    'description',
+  ];
+
 }
