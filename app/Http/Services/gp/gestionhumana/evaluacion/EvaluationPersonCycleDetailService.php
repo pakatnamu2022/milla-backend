@@ -146,6 +146,7 @@ class EvaluationPersonCycleDetailService extends BaseService
   {
     $personCycleDetail = $this->find($id);
     DB::transaction(function () use ($personCycleDetail) {
+      $this->recalculateWeights($personCycleDetail->id);
       $personCycleDetail->delete();
     });
     return response()->json(['message' => 'Detalle de Ciclo Persona eliminado correctamente']);
