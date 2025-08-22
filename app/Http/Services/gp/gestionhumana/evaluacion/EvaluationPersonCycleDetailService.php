@@ -15,139 +15,139 @@ use function Pest\Laravel\json;
 
 class EvaluationPersonCycleDetailService extends BaseService
 {
-    public function list(Request $request, int $id)
-    {
-        return $this->getFilteredResults(
-            EvaluationPersonCycleDetail::where('cycle_id', $id),
-            $request,
-            EvaluationPersonCycleDetail::filters,
-            EvaluationPersonCycleDetail::sorts,
-            EvaluationPersonCycleDetailResource::class,
-        );
-    }
+  public function list(Request $request, int $id)
+  {
+    return $this->getFilteredResults(
+      EvaluationPersonCycleDetail::where('cycle_id', $id),
+      $request,
+      EvaluationPersonCycleDetail::filters,
+      EvaluationPersonCycleDetail::sorts,
+      EvaluationPersonCycleDetailResource::class,
+    );
+  }
 
-    public function find($id)
-    {
-        $personCycleDetail = EvaluationPersonCycleDetail::where('id', $id)->first();
-        if (!$personCycleDetail) {
-            throw new Exception('Detalle de Ciclo Persona no encontrado');
+  public function find($id)
+  {
+    $personCycleDetail = EvaluationPersonCycleDetail::where('id', $id)->first();
+    if (!$personCycleDetail) {
+      throw new Exception('Detalle de Ciclo Persona no encontrado');
+    }
+    return $personCycleDetail;
+  }
+
+  public function store(array $data)
+  {
+    return $this->storeByCategoryAndCycle(
+      $data['cycle_id'],
+      $data['category_id']
+    );
+  }
+
+  public function storeByCategoryAndCycle(int $cycleId, int $categoryId)
+  {
+    $category = HierarchicalCategory::find($categoryId);
+    $positions = $category->children()->pluck('position_id')->toArray();
+    $persons = Person::whereIn('cargo_id', $positions)
+      ->where('status_deleted', 1)
+      ->where('status_id', 22)
+      ->get();
+
+    foreach ($persons as $person) {
+      $exists = EvaluationPersonCycleDetail::where('person_id', $person->id)
+        ->where('cycle_id', $cycleId)
+        ->first();
+
+      if (!$exists) {
+
+        $chief = Person::find($person->jefe_id);
+        $objectives = $category->objectives()->get();
+
+        $weight = $objectives->count() > 0 ? round(100 / $objectives->count(), 2) : 0;
+
+        foreach ($objectives as $objective) {
+          $data = [
+            'person_id' => $person->id,
+            'chief_id' => $person->jefe_id,
+            'position_id' => $person->cargo_id,
+            'sede_id' => $person->sede_id,
+            'area_id' => $person->area_id,
+            'cycle_id' => $cycleId,
+            'category_id' => $categoryId,
+            'objective_id' => $objective->id,
+            'person' => $person->nombre_completo,
+            'chief' => $chief ? $chief->nombre_completo : '',
+            'position' => $person->position ? $person->position->name : '',
+            'sede' => $person->sede ? $person->sede->abreviatura : '',
+            'area' => $person->position?->area ? $person->position->area->name : '',
+            'category' => $category->name,
+            'objective' => $objective->name,
+            'goal' => $objective->goalReference,
+            'weight' => $weight
+          ];
+          EvaluationPersonCycleDetail::create($data);
         }
-        return $personCycleDetail;
+      }
+    }
+    $evaluationMetric = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+      ->where('category_id', $categoryId)
+      ->get();
+    return EvaluationPersonCycleDetailResource::collection($evaluationMetric);
+  }
+
+  public function show($id)
+  {
+    return new EvaluationPersonCycleDetailResource($this->find($id));
+  }
+
+  public function update($data)
+  {
+    $personCycleDetail = $this->find($data['id']);
+    $data['fixedWeight'] = isset($data['weight']) && $data['weight'] > 0;
+    $personCycleDetail->update($data);
+    $this->recalculateWeights($personCycleDetail->id);
+    return new EvaluationPersonCycleDetailResource($personCycleDetail);
+  }
+
+  public function recalculateWeights($cyclePersonDetailId)
+  {
+    $personCycleDetail = $this->find($cyclePersonDetailId);
+
+    $allObjectives = EvaluationPersonCycleDetail::where('person_id', $personCycleDetail->person_id)
+      ->where('chief_id', $personCycleDetail->chief_id)
+      ->where('position_id', $personCycleDetail->position_id)
+      ->where('sede_id', $personCycleDetail->sede_id)
+      ->where('area_id', $personCycleDetail->area_id)
+      ->where('cycle_id', $personCycleDetail->cycle_id)
+      ->where('category_id', $personCycleDetail->category_id)
+      ->get();
+
+    $fixedObjectives = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === true);
+    $nonFixedObjectives = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === false);
+
+    $usedWeight = $fixedObjectives->sum('weight');
+    $remaining = max(0, 100 - $usedWeight); // evitar negativos
+
+
+    $count = $nonFixedObjectives->count();
+    $weight = $count > 0 ? round($remaining / $count, 2) : 0;
+
+    foreach ($nonFixedObjectives as $objective) {
+      $objective->update([
+        'weight' => $weight,
+        'fixedWeight' => false,
+      ]);
     }
 
-    public function store(array $data)
-    {
-        return $this->storeByCategoryAndCycle(
-            $data['cycle_id'],
-            $data['category_id']
-        );
-    }
-
-    public function storeByCategoryAndCycle(int $cycleId, int $categoryId)
-    {
-        $category = HierarchicalCategory::find($categoryId);
-        $positions = $category->children()->pluck('position_id')->toArray();
-        $persons = Person::whereIn('cargo_id', $positions)
-            ->where('status_deleted', 1)
-            ->where('status_id', 22)
-            ->get();
-
-        foreach ($persons as $person) {
-            $exists = EvaluationPersonCycleDetail::where('person_id', $person->id)
-                ->where('cycle_id', $cycleId)
-                ->first();
-
-            if (!$exists) {
-
-                $chief = Person::find($person->jefe_id);
-                $objectives = $category->objectives()->get();
-
-                $weight = $objectives->count() > 0 ? round(100 / $objectives->count(), 2) : 0;
-
-                foreach ($objectives as $objective) {
-                    $data = [
-                        'person_id' => $person->id,
-                        'chief_id' => $person->jefe_id,
-                        'position_id' => $person->cargo_id,
-                        'sede_id' => $person->sede_id,
-                        'area_id' => $person->area_id,
-                        'cycle_id' => $cycleId,
-                        'category_id' => $categoryId,
-                        'objective_id' => $objective->id,
-                        'person' => $person->nombre_completo,
-                        'chief' => $chief ? $chief->nombre_completo : '',
-                        'position' => $person->position ? $person->position->name : '',
-                        'sede' => $person->sede ? $person->sede->abreviatura : '',
-                        'area' => $person->sede?->area ? $person->sede->area->name : '',
-                        'category' => $category->name,
-                        'objective' => $objective->name,
-                        'goal' => $objective->goalReference,
-                        'weight' => $weight
-                    ];
-                    EvaluationPersonCycleDetail::create($data);
-                }
-            }
-        }
-        $evaluationMetric = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
-            ->where('category_id', $categoryId)
-            ->get();
-        return EvaluationPersonCycleDetailResource::collection($evaluationMetric);
-    }
-
-    public function show($id)
-    {
-        return new EvaluationPersonCycleDetailResource($this->find($id));
-    }
-
-    public function update($data)
-    {
-        $personCycleDetail = $this->find($data['id']);
-        $data['fixedWeight'] = isset($data['weight']) && $data['weight'] > 0;
-        $personCycleDetail->update($data);
-        $this->recalculateWeights($personCycleDetail->id);
-        return new EvaluationPersonCycleDetailResource($personCycleDetail);
-    }
-
-    public function recalculateWeights($cyclePersonDetailId)
-    {
-        $personCycleDetail = $this->find($cyclePersonDetailId);
-
-        $allObjectives = EvaluationPersonCycleDetail::where('person_id', $personCycleDetail->person_id)
-            ->where('chief_id', $personCycleDetail->chief_id)
-            ->where('position_id', $personCycleDetail->position_id)
-            ->where('sede_id', $personCycleDetail->sede_id)
-            ->where('area_id', $personCycleDetail->area_id)
-            ->where('cycle_id', $personCycleDetail->cycle_id)
-            ->where('category_id', $personCycleDetail->category_id)
-            ->get();
-
-        $fixedObjectives = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === true);
-        $nonFixedObjectives = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === false);
-
-        $usedWeight = $fixedObjectives->sum('weight');
-        $remaining = max(0, 100 - $usedWeight); // evitar negativos
+    return ['message' => 'Pesos recalculados correctamente'];
+  }
 
 
-        $count = $nonFixedObjectives->count();
-        $weight = $count > 0 ? round($remaining / $count, 2) : 0;
-
-        foreach ($nonFixedObjectives as $objective) {
-            $objective->update([
-                'weight' => $weight,
-                'fixedWeight' => false,
-            ]);
-        }
-
-        return ['message' => 'Pesos recalculados correctamente'];
-    }
-
-
-    public function destroy($id)
-    {
-        $personCycleDetail = $this->find($id);
-        DB::transaction(function () use ($personCycleDetail) {
-            $personCycleDetail->delete();
-        });
-        return response()->json(['message' => 'Detalle de Ciclo Persona eliminado correctamente']);
-    }
+  public function destroy($id)
+  {
+    $personCycleDetail = $this->find($id);
+    DB::transaction(function () use ($personCycleDetail) {
+      $personCycleDetail->delete();
+    });
+    return response()->json(['message' => 'Detalle de Ciclo Persona eliminado correctamente']);
+  }
 }

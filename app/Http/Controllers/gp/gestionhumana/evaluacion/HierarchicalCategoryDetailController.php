@@ -10,45 +10,49 @@ use App\Http\Services\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailServ
 
 class HierarchicalCategoryDetailController extends Controller
 {
-    protected HierarchicalCategoryDetailService $service;
+  protected HierarchicalCategoryDetailService $service;
 
-    public function __construct(HierarchicalCategoryDetailService $service)
-    {
-        $this->service = $service;
+  public function __construct(HierarchicalCategoryDetailService $service)
+  {
+    $this->service = $service;
+  }
+
+  public function index(IndexHierarchicalCategoryDetailRequest $request)
+  {
+
+  }
+
+  public function store(StoreHierarchicalCategoryDetailRequest $request)
+  {
+    //
+  }
+
+  public function storeMany(StoreHierarchicalCategoryDetailRequest $request, int $categoryId)
+  {
+    try {
+      $positions = $request->validated()['positions'];
+      return $this->success($this->service->storeMany($categoryId, $positions));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    public function index(IndexHierarchicalCategoryDetailRequest $request)
-    {
+  public function show($id)
+  {
+    //
+  }
 
+  public function update(UpdateHierarchicalCategoryDetailRequest $request, $id)
+  {
+    //
+  }
+
+  public function destroy($id)
+  {
+    try {
+      return $this->service->destroy($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
-
-    public function store(StoreHierarchicalCategoryDetailRequest $request)
-    {
-        //
-    }
-
-    public function storeMany(StoreHierarchicalCategoryDetailRequest $request, int $categoryId)
-    {
-        try {
-            $positions = $request->validated()['positions'];
-            return $this->success($this->service->storeMany($categoryId, $positions));
-        } catch (\Throwable $th) {
-            return $this->error($th->getMessage());
-        }
-    }
-
-    public function show($id)
-    {
-        //
-    }
-
-    public function update(UpdateHierarchicalCategoryDetailRequest $request, $id)
-    {
-        //
-    }
-
-    public function destroy($id)
-    {
-        //
-    }
+  }
 }

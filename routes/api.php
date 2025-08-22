@@ -138,9 +138,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
 //        HIERARCHICAL CATEGORIES
     Route::get('/hierarchicalCategory/listAll', [HierarchicalCategoryController::class, 'listAll']);
     Route::apiResource('hierarchicalCategory', HierarchicalCategoryController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
-    ]);
+      'index', 'show', 'store', 'update', 'destroy']);
     Route::post('/hierarchicalCategory/{category}/details', [HierarchicalCategoryDetailController::class, 'storeMany']);
+    Route::apiResource('hierarchicalCategoryDetail', HierarchicalCategoryDetailController::class)->only([
+      'index', 'show', 'store', 'update', 'destroy']);
 
 //        PARAMETER
     Route::apiResource('parameter', EvaluationParameterController::class)->only([
@@ -157,6 +158,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'storeMany']);
     Route::get('/cycle/{cycle}/details', [EvaluationPersonCycleDetailController::class, 'index']);
     Route::get('/cycle/{id}/participants', [EvaluationCycleController::class, 'participants']);
+    Route::get('/cycle/{id}/positions', [EvaluationCycleController::class, 'positions']);
 
 //        PERSON CYCLE DETAILS
     Route::apiResource('personCycleDetail', EvaluationPersonCycleDetailController::class)->only([

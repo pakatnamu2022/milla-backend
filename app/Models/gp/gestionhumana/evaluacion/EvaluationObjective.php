@@ -7,33 +7,35 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class EvaluationObjective extends Model
 {
-    use SoftDeletes;
+  use SoftDeletes;
 
-    protected $table = 'gh_evaluation_objective';
+  protected $table = 'gh_evaluation_objective';
 
-    protected $fillable = [
-        'name',
-        'description',
-        'metric_id',
-    ];
+  protected $fillable = [
+    'name',
+    'description',
+    'goalReference',
+    'fixedWeight',
+    'metric_id',
+  ];
 
-    const filters = [
-        'id' => '=',
-        'search' => ['name', 'description'],
-        'metric_id' => '=',
-    ];
+  const filters = [
+    'id' => '=',
+    'search' => ['name', 'description'],
+    'metric_id' => '=',
+  ];
 
-    const sorts = [
-        'id',
-        'name',
-        'description',
-        'metric_id',
-    ];
+  const sorts = [
+    'id',
+    'name',
+    'description',
+    'metric_id',
+  ];
 
 
-    public function metric()
-    {
-        return $this->belongsTo(EvaluationMetric::class, 'metric_id');
-    }
+  public function metric()
+  {
+    return $this->belongsTo(EvaluationMetric::class, 'metric_id');
+  }
 
 }
