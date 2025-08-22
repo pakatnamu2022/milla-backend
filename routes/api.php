@@ -3,6 +3,8 @@
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApBrandController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApBrandGroupsController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApEngineTypeController;
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFuelTypeController;
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApGearShiftTypeController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleCategoryController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCompetenceController;
@@ -180,6 +182,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'index', 'show', 'store', 'update', 'destroy'
         ]);
         Route::apiResource('brands', ApBrandController::class)->only([
+          'index', 'show', 'store', 'update', 'destroy'
+        ]);
+        Route::apiResource('fuelType', ApFuelTypeController::class)->only([
+          'index', 'show', 'store', 'update', 'destroy'
+        ]);
+        Route::apiResource('gearShiftType', ApGearShiftTypeController::class)->only([
           'index', 'show', 'store', 'update', 'destroy'
         ]);
       });
