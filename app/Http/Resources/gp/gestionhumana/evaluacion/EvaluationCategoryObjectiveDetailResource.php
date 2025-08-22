@@ -7,13 +7,14 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class EvaluationCategoryObjectiveDetailResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
-     */
-    public function toArray(Request $request): array
-    {
-        return parent::toArray($request);
-    }
+  public function toArray(Request $request): array
+  {
+    return [
+      'id' => $this->id,
+      'objective_id' => $this->objective_id,
+      'category_id' => $this->category_id,
+      'objective' => (new EvaluationObjectiveResource($this->objective))->name,
+      'category' => (new HierarchicalCategoryResource($this->category))->name,
+    ];
+  }
 }

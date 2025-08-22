@@ -3,64 +3,45 @@
 namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
+use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationCategoryObjectiveDetailRequest;
+use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailService;
 use Illuminate\Http\Request;
 
 class EvaluationCategoryObjectiveDetailController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+  protected EvaluationCategoryObjectiveDetailService $service;
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+  public function __construct(EvaluationCategoryObjectiveDetailService $service)
+  {
+    $this->service = $service;
+  }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
+  public function index(IndexEvaluationCategoryObjectiveDetailRequest $request)
+  {
+    try {
+      return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(EvaluationCategoryObjectiveDetail $evaluationCategoryObjectiveDetail)
-    {
-        //
-    }
+  public function store(Request $request)
+  {
+    //
+  }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(EvaluationCategoryObjectiveDetail $evaluationCategoryObjectiveDetail)
-    {
-        //
-    }
+  public function show(int $id)
+  {
+    //
+  }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, EvaluationCategoryObjectiveDetail $evaluationCategoryObjectiveDetail)
-    {
-        //
-    }
+  public function update(Request $request, int $id)
+  {
+    //
+  }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(EvaluationCategoryObjectiveDetail $evaluationCategoryObjectiveDetail)
-    {
-        //
-    }
+  public function destroy(int $id)
+  {
+    //
+  }
 }

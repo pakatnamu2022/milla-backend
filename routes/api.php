@@ -8,6 +8,7 @@ use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApGearShiftTypeContr
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleCategoryController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleTypeController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCompetenceController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleController;
@@ -142,6 +143,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/hierarchicalCategory/{category}/details', [HierarchicalCategoryDetailController::class, 'storeMany']);
     Route::apiResource('hierarchicalCategoryDetail', HierarchicalCategoryDetailController::class)->only([
       'index', 'show', 'store', 'update', 'destroy']);
+
+    Route::apiResource('categoryObjectiveDetail', EvaluationCategoryObjectiveDetailController::class)->only([
+      'index', 'show', 'store', 'update', 'destroy'
+    ]);
 
 //        PARAMETER
     Route::apiResource('parameter', EvaluationParameterController::class)->only([
