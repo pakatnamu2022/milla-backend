@@ -4,6 +4,7 @@ namespace App\Models\ap\configuracionComercial\vehiculo;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class ApBrandGroups extends Model
 {
@@ -25,4 +26,9 @@ class ApBrandGroups extends Model
     'id',
     'name',
   ];
+
+  public function setNameAttribute($value)
+  {
+    $this->attributes['name'] = Str::upper(Str::ascii($value));
+  }
 }

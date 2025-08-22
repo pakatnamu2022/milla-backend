@@ -3,23 +3,23 @@
 namespace App\Http\Controllers\ap\configuracionComercial\vehiculo;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApGearShiftTypeRequest;
-use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApGearShiftTypeRequest;
-use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApGearShiftTypeRequest;
-use App\Http\Services\ap\configuracionComercial\vehiculo\ApGearShiftTypeService;
-use App\Models\ap\configuracionComercial\vehiculo\ApGearShiftType;
+use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApBodyTypeRequest;
+use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApBodyTypeRequest;
+use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApBodyTypeRequest;
+use App\Http\Services\ap\configuracionComercial\vehiculo\ApBodyTypeService;
+use App\Models\ap\configuracionComercial\vehiculo\ApBodyType;
 use Illuminate\Http\Request;
 
-class ApGearShiftTypeController extends Controller
+class ApBodyTypeController extends Controller
 {
-  protected ApGearShiftTypeService $service;
+  protected ApBodyTypeService $service;
 
-  public function __construct(ApGearShiftTypeService $service)
+  public function __construct(ApBodyTypeService $service)
   {
     $this->service = $service;
   }
 
-  public function index(IndexApGearShiftTypeRequest $request)
+  public function index(IndexApBodyTypeRequest $request)
   {
     try {
       return $this->service->list($request);
@@ -28,7 +28,7 @@ class ApGearShiftTypeController extends Controller
     }
   }
 
-  public function store(StoreApGearShiftTypeRequest $request)
+  public function store(StoreApBodyTypeRequest $request)
   {
     try {
       return $this->success($this->service->store($request->all()));
@@ -46,7 +46,7 @@ class ApGearShiftTypeController extends Controller
     }
   }
 
-  public function update(UpdateApGearShiftTypeRequest $request, $id)
+  public function update(UpdateApBodyTypeRequest $request, $id)
   {
     try {
       $data = $request->all();

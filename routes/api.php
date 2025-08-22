@@ -1,10 +1,13 @@
 <?php
 
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApBodyTypeController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApBrandController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApBrandGroupsController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApEngineTypeController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFuelTypeController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApGearShiftTypeController;
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApProductTypeController;
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApTractionTypeController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleCategoryController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleTypeController;
 use App\Http\Controllers\AuthController;
@@ -192,6 +195,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'index', 'show', 'store', 'update', 'destroy'
         ]);
         Route::apiResource('vehicleType', ApVehicleTypeController::class)->only([
+          'index', 'show', 'store', 'update', 'destroy'
+        ]);
+        Route::apiResource('productType', ApProductTypeController::class)->only([
+          'index', 'show', 'store', 'update', 'destroy'
+        ]);
+        Route::apiResource('bodyType', ApBodyTypeController::class)->only([
+          'index', 'show', 'store', 'update', 'destroy'
+        ]);
+        Route::apiResource('tractionType', ApTractionTypeController::class)->only([
           'index', 'show', 'store', 'update', 'destroy'
         ]);
       });

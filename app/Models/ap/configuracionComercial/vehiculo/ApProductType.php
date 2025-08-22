@@ -4,13 +4,12 @@ namespace App\Models\ap\configuracionComercial\vehiculo;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
 
-class ApVehicleType extends Model
+class ApProductType extends Model
 {
   use SoftDeletes;
 
-  protected $table = "ap_tipo_vehiculo";
+  protected $table = 'ap_tipo_productos_vehiculo';
 
   protected $fillable = [
     'id',
@@ -27,14 +26,4 @@ class ApVehicleType extends Model
     'codigo',
     'descripcion',
   ];
-
-  public function setCodigoAttribute($value)
-  {
-    $this->attributes['codigo'] = Str::upper(Str::ascii($value));
-  }
-
-  public function setDescripcionAttribute($value)
-  {
-    $this->attributes['descripcion'] = Str::upper(Str::ascii($value));
-  }
 }

@@ -44,7 +44,7 @@ class UpdateApBrandRequest extends StoreRequest
           ->ignore($this->route('brand')),
       ],
       'grupo_id' => [
-        'required',
+        'nullable',
         'integer',
         'exists:ap_grupo_marca,id',
       ],

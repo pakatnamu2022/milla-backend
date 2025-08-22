@@ -3,23 +3,23 @@
 namespace App\Http\Controllers\ap\configuracionComercial\vehiculo;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApGearShiftTypeRequest;
-use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApGearShiftTypeRequest;
-use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApGearShiftTypeRequest;
-use App\Http\Services\ap\configuracionComercial\vehiculo\ApGearShiftTypeService;
-use App\Models\ap\configuracionComercial\vehiculo\ApGearShiftType;
+use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApTractionTypeRequest;
+use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApTractionTypeRequest;
+use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApTractionTypeRequest;
+use App\Http\Services\ap\configuracionComercial\vehiculo\ApTractionTypeService;
+use App\Models\ap\configuracionComercial\vehiculo\ApTractionType;
 use Illuminate\Http\Request;
 
-class ApGearShiftTypeController extends Controller
+class ApTractionTypeController extends Controller
 {
-  protected ApGearShiftTypeService $service;
+  protected ApTractionTypeService $service;
 
-  public function __construct(ApGearShiftTypeService $service)
+  public function __construct(ApTractionTypeService $service)
   {
     $this->service = $service;
   }
 
-  public function index(IndexApGearShiftTypeRequest $request)
+  public function index(IndexApTractionTypeRequest $request)
   {
     try {
       return $this->service->list($request);
@@ -28,7 +28,7 @@ class ApGearShiftTypeController extends Controller
     }
   }
 
-  public function store(StoreApGearShiftTypeRequest $request)
+  public function store(StoreApTractionTypeRequest $request)
   {
     try {
       return $this->success($this->service->store($request->all()));
@@ -46,7 +46,7 @@ class ApGearShiftTypeController extends Controller
     }
   }
 
-  public function update(UpdateApGearShiftTypeRequest $request, $id)
+  public function update(UpdateApTractionTypeRequest $request, $id)
   {
     try {
       $data = $request->all();

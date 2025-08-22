@@ -2,15 +2,15 @@
 
 namespace App\Models\ap\configuracionComercial\vehiculo;
 
-use App\Models\BaseModel;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class ApEngineType extends BaseModel
+class ApTractionType extends Model
 {
   use SoftDeletes;
 
-  protected $table = 'ap_tipo_motores_vehiculo';
+  protected $table = 'ap_traccion_vehiculo';
 
   protected $fillable = [
     'id',
@@ -20,8 +20,6 @@ class ApEngineType extends BaseModel
 
   const filters = [
     'search' => ['codigo', 'descripcion'],
-    'codigo' => 'like',
-    'descripcion' => 'like',
   ];
 
   const sorts = [
