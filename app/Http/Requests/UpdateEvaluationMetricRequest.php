@@ -6,18 +6,18 @@ use Illuminate\Validation\Rule;
 
 class UpdateEvaluationMetricRequest extends StoreRequest
 {
-    public function rules(): array
-    {
-        return [
-            'nombre' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('gh_metrica_objetivos', 'nombre')
-                    ->where('status_deleted', 0)
-                    ->ignore($this->route('metric')),
-            ],
-            'descripcion' => 'nullable|string|max:1000',
-        ];
-    }
+  public function rules(): array
+  {
+    return [
+      'name' => [
+        'required',
+        'string',
+        'max:255',
+        Rule::unique('gh_evaluation_metric', 'name')
+          ->whereNull('deleted_at')
+          ->ignore($this->route('metric')),
+      ],
+      'description' => 'nullable|string|max:1000',
+    ];
+  }
 }

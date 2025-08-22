@@ -17,6 +17,7 @@ class ApBrandGroups extends Model
   ];
 
   const filters = [
+    'search' => ['name'],
     'name' => 'like',
   ];
 

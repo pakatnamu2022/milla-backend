@@ -10,10 +10,9 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::table('ap_grupo_marca', function (Blueprint $table) {
+    Schema::table('ap_tipo_vehiculo', function (Blueprint $table) {
       $table->softDeletes();
       $table->dropColumn('status_deleted');
-      $table->dropColumn('Responsable');
     });
   }
 
@@ -22,7 +21,7 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::table('ap_grupo_marca', function (Blueprint $table) {
+    Schema::table('ap_tipo_vehiculo', function (Blueprint $table) {
       $table->dropSoftDeletes();
       $table->boolean('status_deleted')->default(1);
     });
