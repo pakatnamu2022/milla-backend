@@ -13,14 +13,13 @@ return new class extends Migration {
     Schema::create('gh_evaluation_category_competence_detail', function (Blueprint $table) {
       $table->id();
 
-      $table->integer('competence_id');
-      $table->foreign('competence_id', 'fk_evaluation_objective_det')
-        ->references('id')
-        ->on('gh_config_subcompetencias')
-        ->onDelete('cascade')
-        ->onUpdate('cascade');
+      $table->unsignedBigInteger('competence_id');
+      $table->foreign('competence_id', 'fk_evaluation_competence_det')
+        ->references('id')->on('gh_config_subcompetencias')
+        ->onUpdate('cascade')->onDelete('cascade');
 
-      $table->foreignId('category_id')->constrained('gh_hierarchical_category', 'id', 'fk_hierarchical_category_det');
+      $table->foreignId('category_id')->constrained('gh_hierarchical_category', 'id', 'fk_hierarchical_category_comp_det');
+
       $table->timestamps();
       $table->softDeletes();
     });
