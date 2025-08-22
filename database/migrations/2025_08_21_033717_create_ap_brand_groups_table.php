@@ -13,7 +13,6 @@ return new class extends Migration {
     Schema::table('ap_grupo_marca', function (Blueprint $table) {
       $table->softDeletes();
       $table->dropColumn('status_deleted');
-      $table->dropColumn('Responsable');
     });
   }
 
