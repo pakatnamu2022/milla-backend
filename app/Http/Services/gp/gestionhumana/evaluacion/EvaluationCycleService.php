@@ -3,12 +3,14 @@
 namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationCycleResource;
+use App\Http\Resources\gp\gestionhumana\evaluacion\HierarchicalCategoryResource;
 use App\Http\Resources\gp\gestionhumana\personal\PersonResource;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Resources\gp\gestionsistema\PositionResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
+use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionsistema\Position;
 use Exception;
@@ -51,6 +53,19 @@ class EvaluationCycleService extends BaseService
       ->toArray();
     $positions = Position::whereIn('id', $positionsInCycle)->get();
     return PositionResource::collection($positions);
+  }
+
+  public function categories(int $id)
+  {
+    $cycle = $this->find($id);
+    $categoriesInCycle = EvaluationPersonCycleDetail::where('cycle_id', $cycle->id)
+      ->select('category_id')
+      ->distinct()
+      ->get()
+      ->pluck('category_id')
+      ->toArray();
+    $categories = HierarchicalCategory::whereIn('id', $categoriesInCycle)->get();
+    return HierarchicalCategoryResource::collection($categories);
   }
 
   public function store($data)

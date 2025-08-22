@@ -164,6 +164,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/cycle/{cycle}/details', [EvaluationPersonCycleDetailController::class, 'index']);
     Route::get('/cycle/{id}/participants', [EvaluationCycleController::class, 'participants']);
     Route::get('/cycle/{id}/positions', [EvaluationCycleController::class, 'positions']);
+    
 
 //        PERSON CYCLE DETAILS
     Route::apiResource('personCycleDetail', EvaluationPersonCycleDetailController::class)->only([

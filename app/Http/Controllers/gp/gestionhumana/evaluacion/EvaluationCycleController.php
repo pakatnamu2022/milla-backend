@@ -45,6 +45,15 @@ class EvaluationCycleController extends Controller
     }
   }
 
+  public function categories(int $id)
+  {
+    try {
+      return $this->success($this->service->categories($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function store(StoreEvaluationCycleRequest $request)
   {
     try {
