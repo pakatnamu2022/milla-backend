@@ -6,26 +6,22 @@ use App\Http\Requests\StoreRequest;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class UpdateApTractionTypeRequest extends StoreRequest
+class StoreApVehicleStatusRequest extends StoreRequest
 {
   public function rules(): array
   {
     return [
       'codigo' => [
-        'nullable',
+        'required',
         'string',
         'max:50',
-        Rule::unique('ap_traccion_vehiculo', 'codigo')
-          ->whereNull('deleted_at')
-          ->ignore($this->route('tractionType')),
+        Rule::unique('ap_estados_vehiculos', 'codigo')->whereNull('deleted_at'),
       ],
       'descripcion' => [
-        'nullable',
+        'required',
         'string',
         'max:255',
-        Rule::unique('ap_traccion_vehiculo', 'descripcion')
-          ->whereNull('deleted_at')
-          ->ignore($this->route('tractionType')),
+        Rule::unique('ap_estados_vehiculos', 'descripcion')->whereNull('deleted_at'),
       ],
     ];
   }
@@ -33,10 +29,12 @@ class UpdateApTractionTypeRequest extends StoreRequest
   public function messages(): array
   {
     return [
+      'codigo.required' => 'El campo código es obligatorio.',
       'codigo.string' => 'El campo código debe ser una cadena de texto.',
       'codigo.max' => 'El campo código no debe exceder los 50 caracteres.',
       'codigo.unique' => 'El código ya está en uso.',
 
+      'descripcion.required' => 'El campo descripción es obligatorio.',
       'descripcion.string' => 'El campo descripción debe ser una cadena de texto.',
       'descripcion.max' => 'El campo descripción no debe exceder los 255 caracteres.',
       'descripcion.unique' => 'La descripción ya está en uso.',

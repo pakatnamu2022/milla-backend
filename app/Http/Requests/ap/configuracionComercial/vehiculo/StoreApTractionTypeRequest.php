@@ -14,7 +14,7 @@ class StoreApTractionTypeRequest extends StoreRequest
       'codigo' => [
         'required',
         'string',
-        'max:100',
+        'max:50',
         Rule::unique('ap_traccion_vehiculo', 'codigo')->whereNull('deleted_at'),
       ],
       'descripcion' => [
@@ -31,7 +31,7 @@ class StoreApTractionTypeRequest extends StoreRequest
     return [
       'codigo.required' => 'El campo código es obligatorio.',
       'codigo.string' => 'El campo código debe ser una cadena de texto.',
-      'codigo.max' => 'El campo código no debe exceder los 100 caracteres.',
+      'codigo.max' => 'El campo código no debe exceder los 50 caracteres.',
       'codigo.unique' => 'El código ya está en uso.',
 
       'descripcion.required' => 'El campo descripción es obligatorio.',

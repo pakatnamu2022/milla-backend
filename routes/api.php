@@ -7,8 +7,12 @@ use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApEngineTypeControll
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFuelTypeController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApGearShiftTypeController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApProductTypeController;
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApSupplierOrderTypeController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApTractionTypeController;
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApTypeVehicleOriginController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleCategoryController;
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleColorController;
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleStatusController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleTypeController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCompetenceController;
@@ -204,6 +208,18 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'index', 'show', 'store', 'update', 'destroy'
         ]);
         Route::apiResource('tractionType', ApTractionTypeController::class)->only([
+          'index', 'show', 'store', 'update', 'destroy'
+        ]);
+        Route::apiResource('typeVehicleOrigin', ApTypeVehicleOriginController::class)->only([
+          'index', 'show', 'store', 'update', 'destroy'
+        ]);
+        Route::apiResource('supplierOrderType', ApSupplierOrderTypeController::class)->only([
+          'index', 'show', 'store', 'update', 'destroy'
+        ]);
+        Route::apiResource('vehicleColor', ApVehicleColorController::class)->only([
+          'index', 'show', 'store', 'update', 'destroy'
+        ]);
+        Route::apiResource('vehicleStatus', ApVehicleStatusController::class)->only([
           'index', 'show', 'store', 'update', 'destroy'
         ]);
       });

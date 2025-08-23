@@ -6,7 +6,7 @@ use App\Http\Requests\StoreRequest;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class UpdateApTractionTypeRequest extends StoreRequest
+class UpdateApVehicleStatusRequest extends StoreRequest
 {
   public function rules(): array
   {
@@ -15,17 +15,17 @@ class UpdateApTractionTypeRequest extends StoreRequest
         'nullable',
         'string',
         'max:50',
-        Rule::unique('ap_traccion_vehiculo', 'codigo')
+        Rule::unique('ap_estados_vehiculos', 'codigo')
           ->whereNull('deleted_at')
-          ->ignore($this->route('tractionType')),
+          ->ignore($this->route('vehicleStatus')),
       ],
       'descripcion' => [
         'nullable',
         'string',
         'max:255',
-        Rule::unique('ap_traccion_vehiculo', 'descripcion')
+        Rule::unique('ap_estados_vehiculos', 'descripcion')
           ->whereNull('deleted_at')
-          ->ignore($this->route('tractionType')),
+          ->ignore($this->route('vehicleStatus')),
       ],
     ];
   }

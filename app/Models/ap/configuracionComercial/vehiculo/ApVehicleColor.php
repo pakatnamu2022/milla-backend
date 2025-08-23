@@ -6,11 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class ApProductType extends Model
+class ApVehicleColor extends Model
 {
   use SoftDeletes;
 
-  protected $table = 'ap_tipo_productos_vehiculo';
+  protected $table = 'ap_color_vn';
 
   protected $fillable = [
     'id',
