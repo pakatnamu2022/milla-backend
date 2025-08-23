@@ -10,19 +10,12 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('gh_evaluation_category_competence_detail', function (Blueprint $table) {
+    Schema::create('gh_evaluation_category_objective_detail', function (Blueprint $table) {
       $table->id();
-
-      $table->unsignedBigInteger('competence_id');
-      $table->foreign('competence_id', 'fk_evaluation_competence_det')
-        ->references('id')->on('gh_config_subcompetencias')
-        ->onUpdate('cascade')->onDelete('cascade');
-
-      $table->foreignId('category_id')->constrained('gh_hierarchical_category', 'id', 'fk_hierarchical_category_comp_det');
-
+      $table->foreignId('objective_id')->constrained('gh_evaluation_objective', 'id', 'fk_evaluation_objective_det');
+      $table->foreignId('category_id')->constrained('gh_hierarchical_category', 'id', 'fk_hierarchical_category_det');
       $table->decimal('goal', 10, 2)->nullable()->default(0);
       $table->decimal('weight', 5, 2)->nullable()->default(0);
-      
       $table->timestamps();
       $table->softDeletes();
     });
@@ -33,6 +26,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('gh_evaluation_category_competence_detail');
+    Schema::dropIfExists('gh_evaluation_category_objective_detail');
   }
 };

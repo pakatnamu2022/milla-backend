@@ -13,7 +13,7 @@ class WorkerResource extends JsonResource
       'id' => $this->id,
       'name' => $this->nombre_completo,
       'document' => $this->vat,
-      'sede' => $this->sede->abreviatura,
+      'sede' => $this->sede?->abreviatura,
       'position' => $this->position?->name,
       'offerLetterConfirmationId' => $this->status_carta_oferta_id,
       'emailOfferLetterStatusId' => $this->status_envio_mail_carta_oferta,

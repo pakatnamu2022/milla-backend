@@ -6,5 +6,5 @@ use App\Http\Traits\Filterable;
 
 class BaseService
 {
-    use Filterable;
+  use Filterable;
 }

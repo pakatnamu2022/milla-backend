@@ -17,6 +17,7 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationObjectiveControll
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationParameterController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPeriodController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetailController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailController;
 use App\Http\Controllers\gp\gestionhumana\personal\PersonController;
@@ -164,10 +165,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/cycle/{cycle}/details', [EvaluationPersonCycleDetailController::class, 'index']);
     Route::get('/cycle/{id}/participants', [EvaluationCycleController::class, 'participants']);
     Route::get('/cycle/{id}/positions', [EvaluationCycleController::class, 'positions']);
-    
+
 
 //        PERSON CYCLE DETAILS
     Route::apiResource('personCycleDetail', EvaluationPersonCycleDetailController::class)->only([
+      'index', 'show', 'store', 'update', 'destroy'
+    ]);
+
+    //        PERSON CYCLE DETAILS
+    Route::apiResource('evaluationPersonDetail', EvaluationPersonDetailController::class)->only([
       'index', 'show', 'store', 'update', 'destroy'
     ]);
 
