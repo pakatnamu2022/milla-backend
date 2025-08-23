@@ -85,6 +85,7 @@ class HierarchicalCategory extends BaseModel
             $q2->where('status_deleted', 1)
               ->where('b_empleado', 1)
               ->where('status_id', 22)
+              ->whereDoesntHave('evaluationDetails')
               ->with([
                 'boss' => function ($qb) {
                   $qb->with('position'); // traemos cargo del jefe
@@ -138,11 +139,24 @@ class HierarchicalCategory extends BaseModel
     $T_DET = 'gh_hierarchical_category_detail';
     $T_POS = 'rrhh_cargo';
     $T_PER = 'rrhh_persona';
+    $T_EPD = 'gh_evaluation_person_detail'; // <-- ajusta al nombre real
 
-    $eligibles = function ($q) {
+    // si necesitas por ciclo, setea aquí; si no, déjalo como null
+    $cycleId = null;
+
+    $eligibles = function ($q) use ($T_EPD, $cycleId) {
       $q->where('p.status_deleted', 1)
         ->where('p.b_empleado', 1)
-        ->where('p.status_id', 22);
+        ->where('p.status_id', 22)
+        // personas SIN registros activos en evaluation_person_detail
+        ->whereNotExists(function ($sq) use ($T_EPD, $cycleId) {
+          $sq->from("$T_EPD as epd")
+            ->whereColumn('epd.person_id', 'p.id')
+            ->whereNull('epd.deleted_at'); // quita esta línea si el modelo usa SoftDeletes
+          if (!is_null($cycleId)) {
+            $sq->where('epd.cycle_id', $cycleId);
+          }
+        });
     };
 
     $base = fn() => DB::table("$T_PER as p")
@@ -167,37 +181,37 @@ class HierarchicalCategory extends BaseModel
         $q->whereNull('p.jefe_id')->orWhere('b.status_id', 23);
       })
       ->selectRaw("
-                JSON_ARRAYAGG(
-                    CASE
-                        WHEN p.jefe_id IS NULL
-                            THEN CONCAT('La persona ', p.nombre_completo, ' no tiene jefe asignado.')
-                        WHEN b.status_id = 23
-                            THEN CONCAT('El jefe ', b.nombre_completo, ' de la persona ', p.nombre_completo, ' está dado de baja.')
-                    END
-                )
-            ");
+      JSON_ARRAYAGG(
+        CASE
+          WHEN p.jefe_id IS NULL
+            THEN CONCAT('La persona ', p.nombre_completo, ' no tiene jefe asignado.')
+          WHEN b.status_id = 23
+            THEN CONCAT('El jefe ', b.nombre_completo, ' de la persona ', p.nombre_completo, ' está dado de baja.')
+        END
+      )
+    ");
 
     $issuesFinal = DB::query()->selectRaw("
-            COALESCE(
-                ( {$sqIssuesRaw->toSql()} ),
-                CASE
-                    WHEN ( {$sqTotal->toSql()} ) = 0
-                        THEN JSON_ARRAY('No tiene personas asignadas')
-                    ELSE JSON_ARRAY('Todas las personas tienen jefe válido')
-                END
-            )
-        ")->setBindings(array_merge(
+    COALESCE(
+      ( {$sqIssuesRaw->toSql()} ),
+      CASE
+        WHEN ( {$sqTotal->toSql()} ) = 0
+          THEN JSON_ARRAY('No tiene personas asignadas')
+        ELSE JSON_ARRAY('Todas las personas tienen jefe válido')
+      END
+    )
+  ")->setBindings(array_merge(
       $sqIssuesRaw->getBindings(),
       $sqTotal->getBindings()
     ));
 
     $passExpr = DB::query()->selectRaw("
-            CASE
-                WHEN ( {$sqTotal->toSql()} ) = 0 THEN 0
-                WHEN ( {$sqSinJefe->toSql()} ) = 0 AND ( {$sqConJefeBaja->toSql()} ) = 0 THEN 1
-                ELSE 0
-            END
-        ")->setBindings(array_merge(
+    CASE
+      WHEN ( {$sqTotal->toSql()} ) = 0 THEN 0
+      WHEN ( {$sqSinJefe->toSql()} ) = 0 AND ( {$sqConJefeBaja->toSql()} ) = 0 THEN 1
+      ELSE 0
+    END
+  ")->setBindings(array_merge(
       $sqTotal->getBindings(),
       $sqSinJefe->getBindings(),
       $sqConJefeBaja->getBindings()
@@ -214,5 +228,6 @@ class HierarchicalCategory extends BaseModel
       ->selectSub($issuesFinal, 'issues')
       ->selectSub($passExpr, 'pass');
   }
+
 
 }

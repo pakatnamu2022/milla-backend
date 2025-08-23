@@ -3,38 +3,39 @@
 namespace App\Models\gp\gestionsistema;
 
 use App\Models\BaseModel;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
 
 class Person extends BaseModel
 {
 //    use LogsActivity;
 
-    protected $table = "rrhh_persona";
-    protected $primaryKey = 'id';
+  protected $table = "rrhh_persona";
+  protected $primaryKey = 'id';
 
-    protected $fillable = [
-        'id',
-        'vat',
-        'nombre_completo'
-    ];
+  protected $fillable = [
+    'id',
+    'vat',
+    'nombre_completo'
+  ];
 
-    const filters = [
-        'search' => ['nombre_completo', 'vat'],
-        'vat' => 'like',
-        'nombre_completo' => 'like',
-    ];
+  const filters = [
+    'search' => ['nombre_completo', 'vat'],
+    'vat' => 'like',
+    'nombre_completo' => 'like',
+  ];
 
-    const sorts = [
-        'vat',
-        'nombre_completo',
-    ];
+  const sorts = [
+    'vat',
+    'nombre_completo',
+  ];
 
-    public function scopeWorking($query)
-    {
-        return $query
-            ->where('status_deleted', 1)
-            ->where('b_empleado', 1)
-            ->where('status_id', 22);
-    }
+  public function scopeWorking($query)
+  {
+    return $query
+      ->where('status_deleted', 1)
+      ->where('b_empleado', 1)
+      ->where('status_id', 22);
+  }
 
 
 //    public function asignaciones()
@@ -73,10 +74,10 @@ class Person extends BaseModel
 //        return $this->hasOne(Estudios::class, 'id', 'estudios_id');
 //    }
 //
-    public function sede()
-    {
-        return $this->hasOne(Sede::class, 'id', 'sede_id');
-    }
+  public function sede()
+  {
+    return $this->hasOne(Sede::class, 'id', 'sede_id');
+  }
 //
 //    public function area()
 //    {
@@ -84,15 +85,20 @@ class Person extends BaseModel
 //    }
 //
 
-    public function boss()
-    {
-        return $this->hasOne(Person::class, 'id', 'jefe_id');
-    }
+  public function evaluationDetails()
+  {
+    return $this->hasMany(EvaluationPersonDetail::class, 'person_id');
+  }
 
-    public function position()
-    {
-        return $this->hasOne(Position::class, 'id', 'cargo_id');
-    }
+  public function boss()
+  {
+    return $this->hasOne(Person::class, 'id', 'jefe_id');
+  }
+
+  public function position()
+  {
+    return $this->hasOne(Position::class, 'id', 'cargo_id');
+  }
 //
 //    public function depubigeo()
 //    {
