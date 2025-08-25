@@ -23,15 +23,10 @@ class FileManagerService
   {
     $this->validateFile($file, $options);
     $filename = $this->generateSecureFilename($file, $options);
-
-    // Asegurar protección del directorio público
-    $this->ensurePublicDirectorySecurity($directory);
-
+    // storage/app/public/{directory}/{filename}
     $storedPath = Storage::disk('public')->putFileAs($directory, $file, $filename);
-
     $this->logFileOperation('store_public', $file, $storedPath);
-
-    return $storedPath;
+    return ltrim(preg_replace('#^public/#', '', $storedPath), '/'); // <- normaliza
   }
 
   /**
@@ -54,10 +49,12 @@ class FileManagerService
    */
   public function deleteFilePublic(string $path): bool
   {
-    if (Storage::disk('public')->exists($path)) {
-      $deleted = Storage::disk('public')->delete($path);
-      $this->logFileOperation('delete_public', null, $path, $deleted);
-      return $deleted;
+    $p = ltrim($path, '/');
+    $p = preg_replace('#^(public|storage)/#', '', $p);
+    if (Storage::disk('public')->exists($p)) {
+      $ok = Storage::disk('public')->delete($p);
+      $this->logFileOperation('delete_public', null, $p, $ok);
+      return $ok;
     }
     return false;
   }
@@ -80,8 +77,13 @@ class FileManagerService
    */
   public function getPublicUrl(string $path): ?string
   {
-    if (Storage::disk('public')->exists($path)) {
-      return Storage::disk('public')->url($path);
+    $p = ltrim($path, '/');
+    // si viene como "/storage/dir/file", lo convertimos a "dir/file"
+    $p = preg_replace('#^storage/#', '', $p);
+    $p = preg_replace('#^public/#', '', $p);
+
+    if (Storage::disk('public')->exists($p)) {
+      return Storage::disk('public')->url($p); // APP_URL/storage/dir/file
     }
     return null;
   }
@@ -89,9 +91,10 @@ class FileManagerService
   /**
    * Obtiene la URL segura de un archivo privado
    */
-  public function getSecureUrl(string $filename): string
+  public function getSecureUrl(string $relativePath): string
   {
-    return route('secure.file', ['filename' => basename($filename)]);
+    // ejemplo: "contracts/123/file.pdf"
+    return route('secure.file', ['path' => $relativePath]);
   }
 
   /**
@@ -203,59 +206,50 @@ class FileManagerService
   /**
    * Mueve un archivo de público a privado
    */
+// 5) Mover de público -> privado (conserva estructura y evita duplicados)
   public function moveToSecure(string $publicPath): string
   {
-    if (!Storage::disk('public')->exists($publicPath)) {
+    $src = ltrim($publicPath, '/');
+    $src = preg_replace('#^(public|storage)/#', '', $src);
+    if (!Storage::disk('public')->exists($src)) {
       throw new Exception('Archivo público no encontrado');
     }
-
-    // Leer contenido del archivo público
-    $content = Storage::disk('public')->get($publicPath);
-
-    // Generar nueva ruta para archivo privado
-    $filename = basename($publicPath);
-    $directory = dirname($publicPath);
-    $privatePath = "{$directory}/{$filename}";
-
-    // Guardar en storage privado
-    Storage::disk('private')->put($privatePath, $content);
-
-    // Eliminar archivo público
-    Storage::disk('public')->delete($publicPath);
-
-    $this->logFileOperation('move_to_secure', null, $publicPath . ' -> ' . $privatePath);
-
-    return $privatePath;
+    $dst = $src; // misma ruta relativa en disco 'private'
+    if (Storage::disk('private')->exists($dst)) {
+      // colisión: renombra destino
+      $pi = pathinfo($dst);
+      $dst = $pi['dirname'] . '/' . $pi['filename'] . '_' . bin2hex(random_bytes(4)) . '.' . $pi['extension'];
+    }
+    Storage::disk('private')->put($dst, Storage::disk('public')->get($src));
+    Storage::disk('public')->delete($src);
+    $this->logFileOperation('move_to_secure', null, $src . ' -> ' . $dst);
+    return $dst; // <- relativo al disco private
   }
 
   /**
    * Mueve un archivo de privado a público
    */
+// 6) Mover de privado -> público (análoga)
   public function moveToPublic(string $privatePath): string
   {
-    if (!Storage::disk('private')->exists($privatePath)) {
+    $src = ltrim($privatePath, '/');
+    if (!Storage::disk('private')->exists($src)) {
       throw new Exception('Archivo privado no encontrado');
     }
-
-    // Leer contenido del archivo privado
-    $content = Storage::disk('private')->get($privatePath);
-
-    // Generar nueva ruta para archivo público
-    $filename = basename($privatePath);
-    $directory = dirname($privatePath);
-    $publicPath = "{$directory}/{$filename}";
-
-    // Asegurar protección del directorio
-    $this->ensurePublicDirectorySecurity($directory);
-
-    // Guardar en storage público
-    Storage::disk('public')->put($publicPath, $content);
-
-    // Eliminar archivo privado
-    Storage::disk('private')->delete($privatePath);
-
-    $this->logFileOperation('move_to_public', null, $privatePath . ' -> ' . $publicPath);
-
-    return $publicPath;
+    $dst = $src; // misma ruta en disco 'public'
+    if (Storage::disk('public')->exists($dst)) {
+      $pi = pathinfo($dst);
+      $dst = $pi['dirname'] . '/' . $pi['filename'] . '_' . bin2hex(random_bytes(4)) . '.' . $pi['extension'];
+    }
+    // asegurar directorio (solo crea carpeta; .htaccess no sirve en Nginx)
+    $dir = dirname($dst);
+    if ($dir !== '.' && !Storage::disk('public')->exists($dir)) {
+      Storage::disk('public')->makeDirectory($dir);
+    }
+    Storage::disk('public')->put($dst, Storage::disk('private')->get($src));
+    Storage::disk('private')->delete($src);
+    $this->logFileOperation('move_to_public', null, $src . ' -> ' . $dst);
+    return $dst;
   }
+
 }
