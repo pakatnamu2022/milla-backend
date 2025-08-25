@@ -10,7 +10,7 @@ class ApSupplierOrderType extends Model
 {
   use SoftDeletes;
 
-  protected $table = 'tipo_pedido';
+  protected $table = 'Tipo_pedido';
 
   protected $fillable = [
     'id',
