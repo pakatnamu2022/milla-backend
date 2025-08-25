@@ -17,7 +17,8 @@ class UpdateApVehicleCategoryRequest extends StoreRequest
         Rule::unique('ap_categoria_vehiculos', 'name')
           ->whereNull('deleted_at')
           ->ignore($this->route('vehicleCategory')),
-      ]
+      ],
+      'status' => ['nullable', 'boolean'],
     ];
   }
 

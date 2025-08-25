@@ -12,7 +12,7 @@ return new class extends Migration {
   {
     Schema::table('ap_grupo_marca', function (Blueprint $table) {
       $table->softDeletes();
-      $table->dropColumn('status_deleted');
+      $table->boolean('status')->default(true);
     });
   }
 
@@ -23,7 +23,7 @@ return new class extends Migration {
   {
     Schema::table('ap_grupo_marca', function (Blueprint $table) {
       $table->dropSoftDeletes();
-      $table->boolean('status_deleted')->default(1);
+      $table->dropColumn('status');
     });
   }
 };

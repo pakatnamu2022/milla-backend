@@ -12,12 +12,12 @@ use Illuminate\Http\Request;
 
 class ApGearShiftTypeController extends Controller
 {
-    protected ApGearShiftTypeService $service;
+  protected ApGearShiftTypeService $service;
 
-    public function __construct(ApGearShiftTypeService $service)
-    {
-        $this->service = $service;
-    }
+  public function __construct(ApGearShiftTypeService $service)
+  {
+    $this->service = $service;
+  }
 
   public function index(IndexApGearShiftTypeRequest $request)
   {

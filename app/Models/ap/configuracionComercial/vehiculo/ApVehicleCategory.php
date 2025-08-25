@@ -4,6 +4,7 @@ namespace App\Models\ap\configuracionComercial\vehiculo;
 
 use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class ApVehicleCategory extends BaseModel
 {
@@ -14,15 +15,20 @@ class ApVehicleCategory extends BaseModel
   protected $fillable = [
     'id',
     'name',
+    'status',
   ];
 
   const filters = [
     'search' => ['name'],
-    'name' => 'like',
+    'status' => '='
   ];
 
   const sorts = [
-    'id',
     'name',
   ];
+
+  public function setNameAttribute($value)
+  {
+    $this->attributes['name'] = Str::upper(Str::ascii($value));
+  }
 }

@@ -4,6 +4,7 @@ namespace App\Models\ap\configuracionComercial\vehiculo;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class ApBrand extends Model
 {
@@ -20,6 +21,7 @@ class ApBrand extends Model
     'descripcion',
     'logo',
     'logo_min',
+    'status',
   ];
 
   const filters = [
@@ -27,15 +29,33 @@ class ApBrand extends Model
   ];
 
   const sorts = [
-    'id',
     'codigo',
     'codigo_dyn',
     'name',
-    'descripcion',
   ];
 
   public function grupo()
   {
     return $this->belongsTo(ApBrandGroups::class, 'grupo_id');
+  }
+
+  public function setCodigoAttribute($value)
+  {
+    $this->attributes['codigo'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setCodigoDynAttribute($value)
+  {
+    $this->attributes['codigo_dyn'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setNameAttribute($value)
+  {
+    $this->attributes['name'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setDescripcionAttribute($value)
+  {
+    $this->attributes['descripcion'] = Str::upper(Str::ascii($value));
   }
 }

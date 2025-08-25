@@ -6,25 +6,25 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-    public function up(): void
-    {
-      Schema::table('ap_tipo_cambio_marcha', function (Blueprint $table) {
-        $table->softDeletes();
-        $table->dropColumn('status_deleted');
-      });
-    }
+  /**
+   * Run the migrations.
+   */
+  public function up(): void
+  {
+    Schema::table('ap_tipo_cambio_marcha', function (Blueprint $table) {
+      $table->softDeletes();
+      $table->boolean('status')->default(true);
+    });
+  }
 
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
-    {
-      Schema::table('ap_tipo_cambio_marcha', function (Blueprint $table) {
-        $table->dropSoftDeletes();
-        $table->boolean('status_deleted')->default(1);
-      });
-    }
+  /**
+   * Reverse the migrations.
+   */
+  public function down(): void
+  {
+    Schema::table('ap_tipo_cambio_marcha', function (Blueprint $table) {
+      $table->dropSoftDeletes();
+      $table->dropColumn('status');
+    });
+  }
 };

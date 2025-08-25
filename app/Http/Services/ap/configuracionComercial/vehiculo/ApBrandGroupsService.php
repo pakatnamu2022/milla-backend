@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\configuracionComercial\vehiculo;
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApBrandGroupsResource;
 use App\Http\Services\BaseService;
 use App\Models\ap\configuracionComercial\vehiculo\ApBrandGroups;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 

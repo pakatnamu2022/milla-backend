@@ -26,7 +26,7 @@ class ApVehicleCategoryService extends BaseService
   {
     $engineType = ApVehicleCategory::where('id', $id)->first();
     if (!$engineType) {
-      throw new Exception('Categoria de Vehículo no encontrado');
+      throw new Exception('Categoría de Vehículo no encontrado');
     }
     return $engineType;
   }
@@ -55,6 +55,6 @@ class ApVehicleCategoryService extends BaseService
     DB::transaction(function () use ($engineType) {
       $engineType->delete();
     });
-    return response()->json(['message' => 'Categoria de Vehículo eliminado correctamente']);
+    return response()->json(['message' => 'Categoría de Vehículo eliminado correctamente']);
   }
 }
