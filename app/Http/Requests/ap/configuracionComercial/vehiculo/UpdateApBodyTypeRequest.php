@@ -27,6 +27,7 @@ class UpdateApBodyTypeRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('bodyType')),
       ],
+      'status' => ['nullable', 'boolean'],
     ];
   }
 }

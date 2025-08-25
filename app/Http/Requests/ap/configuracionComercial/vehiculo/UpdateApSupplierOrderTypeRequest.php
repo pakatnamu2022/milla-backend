@@ -17,7 +17,7 @@ class UpdateApSupplierOrderTypeRequest extends StoreRequest
         'max:50',
         Rule::unique('tipo_pedido', 'codigo')
           ->whereNull('deleted_at')
-          ->ignore($this->route('typeVehicleOrigin')),
+          ->ignore($this->route('supplierOrderType')),
       ],
       'descripcion' => [
         'nullable',
@@ -25,8 +25,9 @@ class UpdateApSupplierOrderTypeRequest extends StoreRequest
         'max:255',
         Rule::unique('tipo_pedido', 'descripcion')
           ->whereNull('deleted_at')
-          ->ignore($this->route('typeVehicleOrigin')),
+          ->ignore($this->route('supplierOrderType')),
       ],
+      'status' => ['nullable', 'boolean'],
     ];
   }
 

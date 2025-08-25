@@ -13,6 +13,7 @@ class ApTractionTypeResource extends JsonResource
       'id' => $this->id,
       'codigo' => $this->codigo,
       'descripcion' => $this->descripcion,
+      'status' => $this->status,
     ];
   }
 }

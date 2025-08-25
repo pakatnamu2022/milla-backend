@@ -27,6 +27,7 @@ class UpdateApTractionTypeRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('tractionType')),
       ],
+      'status' => ['nullable', 'boolean'],
     ];
   }
 

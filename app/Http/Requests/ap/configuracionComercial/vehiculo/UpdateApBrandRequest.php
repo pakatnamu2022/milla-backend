@@ -60,6 +60,7 @@ class UpdateApBrandRequest extends StoreRequest
         'mimes:jpeg,png,webp,jpg',
         'max:2048',
       ],
+      'status' => ['nullable', 'boolean'],
     ];
   }
 

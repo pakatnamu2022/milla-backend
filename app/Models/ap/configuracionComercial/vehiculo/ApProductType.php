@@ -16,6 +16,7 @@ class ApProductType extends Model
     'id',
     'codigo',
     'descripcion',
+    'status',
   ];
 
   const filters = [
@@ -23,7 +24,6 @@ class ApProductType extends Model
   ];
 
   const sorts = [
-    'id',
     'codigo',
     'descripcion',
   ];

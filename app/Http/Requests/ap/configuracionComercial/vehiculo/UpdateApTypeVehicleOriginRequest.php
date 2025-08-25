@@ -27,6 +27,7 @@ class UpdateApTypeVehicleOriginRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('typeVehicleOrigin')),
       ],
+      'status' => ['nullable', 'boolean']
     ];
   }
 

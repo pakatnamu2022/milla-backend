@@ -16,6 +16,7 @@ class ApTypeVehicleOrigin extends Model
     'id',
     'codigo',
     'descripcion',
+    'status',
   ];
 
   const filters = [
@@ -23,7 +24,6 @@ class ApTypeVehicleOrigin extends Model
   ];
 
   const sorts = [
-    'id',
     'codigo',
     'descripcion',
   ];

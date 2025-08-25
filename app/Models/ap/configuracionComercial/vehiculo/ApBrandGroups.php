@@ -15,15 +15,14 @@ class ApBrandGroups extends Model
   protected $fillable = [
     'id',
     'name',
+    'status',
   ];
 
   const filters = [
     'search' => ['name'],
-    'name' => 'like',
   ];
 
   const sorts = [
-    'id',
     'name',
   ];
 

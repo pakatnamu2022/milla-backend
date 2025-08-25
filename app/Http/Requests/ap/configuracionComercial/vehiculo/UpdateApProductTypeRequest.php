@@ -27,6 +27,7 @@ class UpdateApProductTypeRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('productType')),
       ],
+      'status' => ['nullable', 'boolean'],
     ];
   }
 

@@ -26,7 +26,8 @@ class UpdateApEngineTypeRequest extends StoreRequest
         Rule::unique('ap_tipo_motores_vehiculo', 'descripcion')
           ->whereNull('deleted_at')
           ->ignore($this->route('engineType')),
-      ]
+      ],
+      'status' => ['nullable', 'boolean'],
     ];
   }
 }

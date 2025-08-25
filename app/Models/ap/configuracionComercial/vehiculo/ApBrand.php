@@ -21,6 +21,7 @@ class ApBrand extends Model
     'descripcion',
     'logo',
     'logo_min',
+    'status',
   ];
 
   const filters = [
@@ -28,11 +29,9 @@ class ApBrand extends Model
   ];
 
   const sorts = [
-    'id',
     'codigo',
     'codigo_dyn',
     'name',
-    'descripcion',
   ];
 
   public function grupo()

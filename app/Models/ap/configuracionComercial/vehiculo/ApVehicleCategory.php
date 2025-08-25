@@ -19,7 +19,8 @@ class ApVehicleCategory extends BaseModel
   ];
 
   const filters = [
-    'search' => ['name', 'status'],
+    'search' => ['name'],
+    'status' => '='
   ];
 
   const sorts = [

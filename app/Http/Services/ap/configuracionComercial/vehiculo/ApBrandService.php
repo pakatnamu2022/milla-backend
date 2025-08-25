@@ -50,13 +50,6 @@ class ApBrandService extends BaseService
     return $engineType;
   }
 
-//  public function store(array $data)
-//  {
-//    $processedData = $this->processFiles($data);
-//    $engineType = ApBrand::create($processedData);
-//    return new ApBrandResource($engineType);
-//  }
-
   public function store(array $data)
   {
     try {

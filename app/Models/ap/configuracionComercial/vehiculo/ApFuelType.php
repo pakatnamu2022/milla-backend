@@ -17,16 +17,15 @@ class ApFuelType extends Model
     'codigo',
     'descripcion',
     'motor_electrico',
+    'status',
   ];
 
   const filters = [
     'search' => ['codigo', 'descripcion'],
-    'codigo' => 'like',
-    'descripcion' => 'like',
+    'status' => '=',
   ];
 
   const sorts = [
-    'id',
     'codigo',
     'descripcion',
   ];

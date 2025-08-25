@@ -16,16 +16,14 @@ class ApEngineType extends BaseModel
     'id',
     'codigo',
     'descripcion',
+    'status',
   ];
 
   const filters = [
     'search' => ['codigo', 'descripcion'],
-    'codigo' => 'like',
-    'descripcion' => 'like',
   ];
 
   const sorts = [
-    'id',
     'codigo',
     'descripcion',
   ];

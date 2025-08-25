@@ -27,6 +27,7 @@ class UpdateApVehicleColorRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('vehicleColor')),
       ],
+      'status' => ['nullable', 'boolean'],
     ];
   }
 
