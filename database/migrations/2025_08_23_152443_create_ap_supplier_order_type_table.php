@@ -10,7 +10,7 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::table('tipo_pedido', function (Blueprint $table) {
+    Schema::table('Tipo_pedido', function (Blueprint $table) {
       $table->softDeletes();
       $table->boolean('status')->default(true);
       $table->timestamps();
@@ -22,7 +22,7 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::table('tipo_pedido', function (Blueprint $table) {
+    Schema::table('Tipo_pedido', function (Blueprint $table) {
       $table->dropSoftDeletes();
       $table->dropColumn('status');
       $table->dropTimestamps();
