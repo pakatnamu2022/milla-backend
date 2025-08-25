@@ -12,6 +12,7 @@ return new class extends Migration {
   {
     Schema::table('ap_estados_vehiculos', function (Blueprint $table) {
       $table->softDeletes();
+      $table->timestamps();
     });
   }
 
@@ -22,6 +23,7 @@ return new class extends Migration {
   {
     Schema::table('ap_estados_vehiculos', function (Blueprint $table) {
       $table->dropSoftDeletes();
+      $table->dropTimestamps();
     });
   }
 };

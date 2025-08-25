@@ -12,6 +12,8 @@ return new class extends Migration {
   {
     Schema::table('tipo_pedido', function (Blueprint $table) {
       $table->softDeletes();
+      $table->boolean('status')->default(true);
+      $table->timestamps();
     });
   }
 
@@ -22,6 +24,8 @@ return new class extends Migration {
   {
     Schema::table('tipo_pedido', function (Blueprint $table) {
       $table->dropSoftDeletes();
+      $table->dropColumn('status');
+      $table->dropTimestamps();
     });
   }
 };

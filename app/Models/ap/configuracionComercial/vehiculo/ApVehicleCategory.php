@@ -15,15 +15,14 @@ class ApVehicleCategory extends BaseModel
   protected $fillable = [
     'id',
     'name',
+    'status',
   ];
 
   const filters = [
-    'search' => ['name'],
-    'name' => 'like',
+    'search' => ['name', 'status'],
   ];
 
   const sorts = [
-    'id',
     'name',
   ];
 

@@ -12,6 +12,7 @@ return new class extends Migration {
   {
     Schema::table('ap_tipo_carroceria', function (Blueprint $table) {
       $table->softDeletes();
+      $table->boolean('status')->default(true);
     });
   }
 
@@ -22,6 +23,7 @@ return new class extends Migration {
   {
     Schema::table('ap_tipo_carroceria', function (Blueprint $table) {
       $table->dropSoftDeletes();
+      $table->dropColumn('status');
     });
   }
 };
