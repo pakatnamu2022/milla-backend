@@ -86,7 +86,7 @@ class EvaluationCycleController extends Controller
   public function destroy($id)
   {
     try {
-      return $this->success($this->service->destroy($id));
+      return $this->service->destroy($id);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

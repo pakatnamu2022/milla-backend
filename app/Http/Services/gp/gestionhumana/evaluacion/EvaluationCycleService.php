@@ -4,20 +4,22 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationCycleResource;
 use App\Http\Resources\gp\gestionhumana\evaluacion\HierarchicalCategoryResource;
-use App\Http\Resources\gp\gestionhumana\personal\PersonResource;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Resources\gp\gestionsistema\PositionResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionsistema\Position;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class EvaluationCycleService extends BaseService
 {
+
   public function list(Request $request)
   {
     return $this->getFilteredResults(
@@ -98,7 +100,21 @@ class EvaluationCycleService extends BaseService
   public function destroy($id)
   {
     $evaluationCycle = $this->find($id);
-    $evaluationCycle->delete();
+    DB::transaction(function () use ($evaluationCycle) {
+      // 1) Borra (soft-delete) los detalles de categorías del ciclo
+      $categoryDetails = EvaluationCycleCategoryDetail::where('cycle_id', $evaluationCycle->id)->get();
+      foreach ($categoryDetails as $detail) {
+        $detail->delete();
+      }
+      // 2) Borra (soft-delete) los detalles de persona del ciclo
+      $personCycleDetails = EvaluationPersonCycleDetail::where('cycle_id', $evaluationCycle->id)->get();
+      foreach ($personCycleDetails as $detail) {
+        $detail->delete();
+      }
+      // 3) Borra (soft-delete) el ciclo
+      $evaluationCycle->delete();
+    });
+
     return response()->json(['message' => 'Ciclo eliminado correctamente']);
   }
 }

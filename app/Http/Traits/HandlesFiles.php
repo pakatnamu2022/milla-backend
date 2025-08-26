@@ -149,9 +149,13 @@ trait HandlesFiles
    */
   protected function isFilePublic(string $filePath): bool
   {
-    return str_contains($filePath, 'public/') ||
-      !str_contains($filePath, 'private/');
+    $p = ltrim($filePath, '/');
+    return str_starts_with($p, 'storage/')      // URL ya resuelta
+      || str_starts_with($p, 'public/')       // legacy
+      || (!str_contains($p, '/private/')      // rutas relativas tipo "brands/..."
+        && !str_starts_with($p, 'private/'));
   }
+
 
   /**
    * Genera URLs para archivos del modelo
