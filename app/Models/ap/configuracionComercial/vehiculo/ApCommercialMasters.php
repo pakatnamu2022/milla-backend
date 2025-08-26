@@ -6,29 +6,29 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class ApVehicleStatus extends Model
+class ApCommercialMasters extends Model
 {
   use SoftDeletes;
 
-  protected $table = "ap_estados_vehiculos";
+  protected $table = 'ap_commercial_masters';
 
   protected $fillable = [
     'id',
     'codigo',
     'descripcion',
-    'uso',
-    'color',
-    'status'
+    'tipo',
+    'status',
   ];
 
   const filters = [
-    'search' => ['codigo', 'descripcion'],
-    'uso' => 'like',
+    'search' => ['codigo', 'descripcion', 'tipo'],
+    'tipo' => '='
   ];
 
   const sorts = [
     'codigo',
     'descripcion',
+    'tipo',
   ];
 
   public function setCodigoAttribute($value)
@@ -39,5 +39,10 @@ class ApVehicleStatus extends Model
   public function setDescripcionAttribute($value)
   {
     $this->attributes['descripcion'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setTipoAttribute($value)
+  {
+    $this->attributes['tipo'] = Str::upper(Str::ascii($value));
   }
 }

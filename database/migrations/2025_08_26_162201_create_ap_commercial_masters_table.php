@@ -10,9 +10,14 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::table('ap_marca_vehiculo', function (Blueprint $table) {
-      $table->softDeletes();
+    Schema::create('ap_commercial_masters', function (Blueprint $table) {
+      $table->id();
+      $table->string('codigo', 50)->nullable();
+      $table->string('descripcion', 255);
+      $table->string('tipo', 100);
       $table->boolean('status')->default(true);
+      $table->timestamps();
+      $table->softDeletes();
     });
   }
 
@@ -21,9 +26,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::table('ap_marca_vehiculo', function (Blueprint $table) {
-      $table->dropSoftDeletes();
-      $table->dropColumn('status');
-    });
+    Schema::dropIfExists('ap_commercial_masters');
   }
-}; 
+};

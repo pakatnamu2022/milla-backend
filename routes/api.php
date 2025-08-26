@@ -3,6 +3,7 @@
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApBodyTypeController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApBrandController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApBrandGroupsController;
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApCommercialMastersController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApEngineTypeController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFuelTypeController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApGearShiftTypeController;
@@ -194,46 +195,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::group(['prefix' => 'configuration'], function () {
 //        CONFIGURATION COMMERCIAL
       Route::group(['prefix' => 'commercial'], function () {
-        Route::apiResource('engineType', ApEngineTypeController::class)->only([
-          'index', 'show', 'store', 'update', 'destroy'
-        ]);
-        Route::apiResource('vehicleCategory', ApVehicleCategoryController::class)->only([
-          'index', 'show', 'store', 'update', 'destroy'
-        ]);
-        Route::apiResource('brandGroups', ApBrandGroupsController::class)->only([
-          'index', 'show', 'store', 'update', 'destroy'
-        ]);
         Route::apiResource('brands', ApBrandController::class)->only([
           'index', 'show', 'store', 'update', 'destroy'
         ]);
         Route::apiResource('fuelType', ApFuelTypeController::class)->only([
           'index', 'show', 'store', 'update', 'destroy'
         ]);
-        Route::apiResource('gearShiftType', ApGearShiftTypeController::class)->only([
-          'index', 'show', 'store', 'update', 'destroy'
-        ]);
-        Route::apiResource('vehicleType', ApVehicleTypeController::class)->only([
-          'index', 'show', 'store', 'update', 'destroy'
-        ]);
-        Route::apiResource('productType', ApProductTypeController::class)->only([
-          'index', 'show', 'store', 'update', 'destroy'
-        ]);
-        Route::apiResource('bodyType', ApBodyTypeController::class)->only([
-          'index', 'show', 'store', 'update', 'destroy'
-        ]);
-        Route::apiResource('tractionType', ApTractionTypeController::class)->only([
-          'index', 'show', 'store', 'update', 'destroy'
-        ]);
-        Route::apiResource('typeVehicleOrigin', ApTypeVehicleOriginController::class)->only([
-          'index', 'show', 'store', 'update', 'destroy'
-        ]);
-        Route::apiResource('supplierOrderType', ApSupplierOrderTypeController::class)->only([
-          'index', 'show', 'store', 'update', 'destroy'
-        ]);
-        Route::apiResource('vehicleColor', ApVehicleColorController::class)->only([
-          'index', 'show', 'store', 'update', 'destroy'
-        ]);
         Route::apiResource('vehicleStatus', ApVehicleStatusController::class)->only([
+          'index', 'show', 'store', 'update', 'destroy'
+        ]);
+        Route::apiResource('commercialMasters', ApCommercialMastersController::class)->only([
           'index', 'show', 'store', 'update', 'destroy'
         ]);
       });
