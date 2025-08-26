@@ -4,8 +4,9 @@ namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationCategoryObjectiveDetailRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationCategoryObjectiveDetailRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationCategoryObjectiveDetailRequest;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailService;
-use Illuminate\Http\Request;
 
 class EvaluationCategoryObjectiveDetailController extends Controller
 {
@@ -25,9 +26,13 @@ class EvaluationCategoryObjectiveDetailController extends Controller
     }
   }
 
-  public function store(Request $request)
+  public function store(StoreEvaluationCategoryObjectiveDetailRequest $request)
   {
-    //
+    try {
+      return $this->service->store($request->validated());
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   public function show(int $id)
@@ -35,13 +40,17 @@ class EvaluationCategoryObjectiveDetailController extends Controller
     //
   }
 
-  public function update(Request $request, int $id)
+  public function update(UpdateEvaluationCategoryObjectiveDetailRequest $request, int $id)
   {
     //
   }
 
   public function destroy(int $id)
   {
-    //
+    try {
+      return $this->success($this->service->destroy($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 }

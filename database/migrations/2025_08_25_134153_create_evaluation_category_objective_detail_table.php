@@ -12,10 +12,13 @@ return new class extends Migration {
   {
     Schema::create('gh_evaluation_category_objective_detail', function (Blueprint $table) {
       $table->id();
+
       $table->foreignId('objective_id')->constrained('gh_evaluation_objective', 'id', 'fk_evaluation_objective_det');
       $table->foreignId('category_id')->constrained('gh_hierarchical_category', 'id', 'fk_hierarchical_category_det');
+
       $table->decimal('goal', 10, 2)->nullable()->default(0);
       $table->decimal('weight', 5, 2)->nullable()->default(0);
+      
       $table->timestamps();
       $table->softDeletes();
     });

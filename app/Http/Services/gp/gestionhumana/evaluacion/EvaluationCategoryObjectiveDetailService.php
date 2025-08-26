@@ -23,17 +23,17 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
 
   public function store($data)
   {
-    $evaluationMetric = EvaluationCategoryObjectiveDetail::create($data);
-    return new EvaluationCategoryObjectiveDetailResource(EvaluationCategoryObjectiveDetail::find($evaluationMetric->id));
+    $categoryObjective = EvaluationCategoryObjectiveDetail::create($data);
+    return new EvaluationCategoryObjectiveDetailResource($categoryObjective);
   }
 
   public function find($id)
   {
-    $evaluationMetric = EvaluationCategoryObjectiveDetail::where('id', $id)->first();
-    if (!$evaluationMetric) {
+    $categoryObjective = EvaluationCategoryObjectiveDetail::where('id', $id)->first();
+    if (!$categoryObjective) {
       throw new Exception('Objetivo de Categoría no encontrado');
     }
-    return $evaluationMetric;
+    return $categoryObjective;
   }
 
   public function show($id)
@@ -43,15 +43,15 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
 
   public function update($data)
   {
-    $evaluationMetric = $this->find($data['id']);
-    $evaluationMetric->update($data);
-    return new EvaluationCategoryObjectiveDetailResource($evaluationMetric);
+    $categoryObjective = $this->find($data['id']);
+    $categoryObjective->update($data);
+    return new EvaluationCategoryObjectiveDetailResource($categoryObjective);
   }
 
   public function destroy($id)
   {
-    $evaluationMetric = $this->find($id);
-    $evaluationMetric->delete();
+    $categoryObjective = $this->find($id);
+    $categoryObjective->delete();
     return response()->json(['message' => 'Objetivo de Categoria eliminado correctamente']);
   }
 }

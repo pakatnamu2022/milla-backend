@@ -148,6 +148,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/hierarchicalCategory/listAll', [HierarchicalCategoryController::class, 'listAll']);
     Route::apiResource('hierarchicalCategory', HierarchicalCategoryController::class)->only([
       'index', 'show', 'store', 'update', 'destroy']);
+
     Route::post('/hierarchicalCategory/{category}/details', [HierarchicalCategoryDetailController::class, 'storeMany']);
     Route::apiResource('hierarchicalCategoryDetail', HierarchicalCategoryDetailController::class)->only([
       'index', 'show', 'store', 'update', 'destroy']);

@@ -34,7 +34,6 @@ class HierarchicalCategory extends BaseModel
   ];
 
   protected $casts = [
-    'excluded_from_evaluation' => 'boolean',
     'pass' => 'boolean',
     'issues' => 'array',
   ];
@@ -219,7 +218,7 @@ class HierarchicalCategory extends BaseModel
 
     return self::query()
       ->from($T_CAT)
-      ->where('excluded_from_evaluation', false)
+//      ->where('excluded_from_evaluation', false)
       ->select("$T_CAT.*")
       ->selectSub($sqTotal, 'total_personas')
       ->selectSub($sqConJefe, 'con_jefe')
