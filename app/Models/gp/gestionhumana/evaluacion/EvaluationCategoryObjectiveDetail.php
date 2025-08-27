@@ -14,18 +14,29 @@ class EvaluationCategoryObjectiveDetail extends Model
   protected $fillable = [
     'objective_id',
     'category_id',
+    'goal',
+    'weight',
+    'fixedWeight',
   ];
 
   const filters = [
     'id' => '=',
     'objective_id' => '=',
     'category_id' => '=',
+    'goal' => '=',
+    'weight' => '=',
   ];
 
   const sorts = [
     'id',
     'objective_id',
     'category_id',
+    'goal',
+    'weight',
+  ];
+
+  protected $casts = [
+    'fixedWeight' => 'boolean',
   ];
 
   public function objective()

@@ -5,6 +5,7 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetailResource;
 use App\Http\Resources\gp\gestionhumana\personal\PersonResource;
 use App\Http\Services\BaseService;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use App\Models\gp\gestionsistema\Person;
@@ -50,6 +51,7 @@ class EvaluationPersonCycleDetailService extends BaseService
     $persons = Person::whereIn('cargo_id', $positions)
       ->where('status_deleted', 1)
       ->where('status_id', 22)
+      ->whereDoesntHave('evaluationDetails') // sin ningún detail asociado
       ->get();
 
     foreach ($persons as $person) {
@@ -58,13 +60,13 @@ class EvaluationPersonCycleDetailService extends BaseService
         ->first();
 
       if (!$exists) {
-
         $chief = Person::find($person->jefe_id);
         $objectives = $category->objectives()->get();
 
-        $weight = $objectives->count() > 0 ? round(100 / $objectives->count(), 2) : 0;
-
         foreach ($objectives as $objective) {
+          $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
+            ->where('category_id', $categoryId)
+            ->first();
           $data = [
             'person_id' => $person->id,
             'chief_id' => $person->jefe_id,
@@ -81,8 +83,8 @@ class EvaluationPersonCycleDetailService extends BaseService
             'area' => $person->position?->area ? $person->position->area->name : '',
             'category' => $category->name,
             'objective' => $objective->name,
-            'goal' => $objective->goalReference,
-            'weight' => $weight
+            'goal' => $categoryObjective->goal,
+            'weight' => $categoryObjective->weight,
           ];
           EvaluationPersonCycleDetail::create($data);
         }

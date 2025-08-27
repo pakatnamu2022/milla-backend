@@ -42,7 +42,13 @@ class EvaluationCategoryObjectiveDetailController extends Controller
 
   public function update(UpdateEvaluationCategoryObjectiveDetailRequest $request, int $id)
   {
-    //
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->service->update($data);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   public function destroy(int $id)

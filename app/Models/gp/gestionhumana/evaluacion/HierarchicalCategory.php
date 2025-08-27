@@ -50,8 +50,9 @@ class HierarchicalCategory extends BaseModel
       'gh_evaluation_category_objective',
       'category_id',
       'objective_id'
-    );
+    )->wherePivotNull('deleted_at'); // 👈 solo los que no están eliminados
   }
+
 
   public function competencies()
   {
