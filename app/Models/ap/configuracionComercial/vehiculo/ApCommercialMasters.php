@@ -22,7 +22,8 @@ class ApCommercialMasters extends Model
 
   const filters = [
     'search' => ['codigo', 'descripcion', 'tipo'],
-    'tipo' => '='
+    'tipo' => '=',
+    'status' => '='
   ];
 
   const sorts = [
