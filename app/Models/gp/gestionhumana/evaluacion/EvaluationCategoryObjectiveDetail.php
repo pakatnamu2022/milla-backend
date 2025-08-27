@@ -9,7 +9,7 @@ class EvaluationCategoryObjectiveDetail extends Model
 {
   use SoftDeletes;
 
-  protected $table = 'gh_evaluation_category_objective_detail';
+  protected $table = 'gh_evaluation_category_objective';
 
   protected $fillable = [
     'objective_id',

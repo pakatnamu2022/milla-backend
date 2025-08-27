@@ -47,9 +47,19 @@ class HierarchicalCategory extends BaseModel
   {
     return $this->belongsToMany(
       EvaluationObjective::class,
-      'gh_evaluation_category_objective_detail',
+      'gh_evaluation_category_objective',
       'category_id',
       'objective_id'
+    );
+  }
+
+  public function competencies()
+  {
+    return $this->belongsToMany(
+      EvaluationCompetency::class,
+      'gh_evaluation_category_competency_detail',
+      'category_id',
+      'competency_id'
     );
   }
 
