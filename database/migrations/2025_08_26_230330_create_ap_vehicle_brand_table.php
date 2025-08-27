@@ -13,7 +13,19 @@ return new class extends Migration
     {
         Schema::create('ap_vehicle_brand', function (Blueprint $table) {
             $table->id();
+            $table->string('codigo', length: 100);
+            $table->string('codigo_dyn', length: 100);
+            $table->string('nombre', length: 150);
+            $table->string('descripcion', length: 255);
+            $table->text('logo')->nullable();
+            $table->text('logo_min')->nullable();
+            $table->boolean('status')->default(true);
+            $table->foreignId('grupo_id')
+                ->constrained('ap_commercial_masters')
+                ->cascadeOnUpdate()
+                ->restrictOnDelete();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

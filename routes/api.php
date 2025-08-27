@@ -1,22 +1,12 @@
 <?php
 
-use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApBodyTypeController;
-use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApBrandController;
-use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApBrandGroupsController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApCommercialMastersController;
-use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApEngineTypeController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFuelTypeController;
-use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApGearShiftTypeController;
-use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApProductTypeController;
-use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApSupplierOrderTypeController;
-use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApTractionTypeController;
-use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApTypeVehicleOriginController;
-use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleCategoryController;
-use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleColorController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleStatusController;
-use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleTypeController;
-use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleBrandController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailController;
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCompetenceController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleController;
@@ -48,127 +38,213 @@ Route::middleware(['auth:sanctum'])->group(function () {
   Route::get('/permissions', [AuthController::class, 'permissions'])->name('permissions');
   Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
-//    GENERAL
-//    SEDE
+  //    GENERAL
+  //    SEDE
   Route::apiResource('company', CompanyController::class)->only([
-    'index', 'show', 'store', 'update', 'destroy'
+    'index',
+    'show',
+    'store',
+    'update',
+    'destroy'
   ]);
 
   Route::apiResource('sede', SedeController::class)->only([
-    'index', 'show', 'store', 'update', 'destroy'
+    'index',
+    'show',
+    'store',
+    'update',
+    'destroy'
   ]);
 
-//    SYSTEM
+  //    SYSTEM
   Route::group(['prefix' => 'configuration'], function () {
-//        ROLES
+    //        ROLES
     Route::apiResource('role', RoleController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
     ]);
     Route::get('role/{id}/users', [RoleController::class, 'users'])->name('role.users');
     Route::post('/roles/{role_id}/access', [AccessController::class, 'storeMany']);
 
 
-//        VIEWS
+    //        VIEWS
     Route::apiResource('view', ViewController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
     ]);
 
-//        POSITIONS
+    //        POSITIONS
     Route::apiResource('position', PositionController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
     ]);
 
     Route::get('modules', [AuthController::class, 'modules'])->name('modules');
 
-//        ACCESS
+    //        ACCESS
     Route::apiResource('access', AccessController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
     ]);
 
-//        ACCESS
+    //        ACCESS
     Route::apiResource('user', UserController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
     ]);
   });
 
   Route::group(['prefix' => 'person'], function () {
     Route::get('/birthdays', [PersonController::class, 'birthdays'])->name('person.birthdays');
     Route::apiResource('/', PersonController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
     ]);
   });
 
 
-//    EQUIPMENTS
+  //    EQUIPMENTS
   Route::get('/equipment/useStateGraph', [EquipmentController::class, 'useStateGraph']);
   Route::get('/equipment/sedeGraph', [EquipmentController::class, 'sedeGraph']);
   Route::apiResource('equipment', EquipmentController::class)->only([
-    'index', 'show', 'store', 'update', 'destroy'
+    'index',
+    'show',
+    'store',
+    'update',
+    'destroy'
   ]);
 
-//    TYPE EQUIPMENTS
+  //    TYPE EQUIPMENTS
   Route::apiResource('equipmentType', EquipmentTypeController::class)->only([
-    'index', 'show', 'store', 'update', 'destroy'
+    'index',
+    'show',
+    'store',
+    'update',
+    'destroy'
   ]);
 
-//    PERSONAL MAN
+  //    PERSONAL MAN
   Route::group(['prefix' => 'personal'], function () {
-//        PERSON
+    //        PERSON
     Route::apiResource('person', PersonController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
     ]);
 
     Route::apiResource('worker', WorkerController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
     ]);
   });
 
-//    PERFORMANCE EVALUATION
+  //    PERFORMANCE EVALUATION
   Route::group(['prefix' => 'performanceEvaluation'], function () {
-//        METRICS
+    //        METRICS
     Route::apiResource('metric', EvaluationMetricController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
     ]);
 
-//        OBJECTIVES
+    //        OBJECTIVES
     Route::apiResource('objective', EvaluationObjectiveController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
     ]);
 
-//        COMPETENCES
+    //        COMPETENCES
     Route::apiResource('competence', EvaluationCompetenceController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
     ]);
 
-//        PERIODS
+    //        PERIODS
     Route::apiResource('period', EvaluationPeriodController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
     ]);
 
-//        HIERARCHICAL CATEGORIES
+    //        HIERARCHICAL CATEGORIES
     Route::get('/hierarchicalCategory/listAll', [HierarchicalCategoryController::class, 'listAll']);
     Route::apiResource('hierarchicalCategory', HierarchicalCategoryController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy']);
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
 
     Route::post('/hierarchicalCategory/{category}/details', [HierarchicalCategoryDetailController::class, 'storeMany']);
     Route::apiResource('hierarchicalCategoryDetail', HierarchicalCategoryDetailController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy']);
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
 
     Route::apiResource('categoryObjectiveDetail', EvaluationCategoryObjectiveDetailController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
     ]);
 
-//        PARAMETER
+    //        PARAMETER
     Route::apiResource('parameter', EvaluationParameterController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
     ]);
 
-//        CYCLE
+    //        CYCLE
     Route::apiResource('cycle', EvaluationCycleController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
     ]);
 
-//        CYCLE CATEGORIES
+    //        CYCLE CATEGORIES
     Route::get('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'index']);
     Route::post('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'storeMany']);
     Route::get('/cycle/{cycle}/details', [EvaluationPersonCycleDetailController::class, 'index']);
@@ -176,17 +252,23 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/cycle/{id}/positions', [EvaluationCycleController::class, 'positions']);
 
 
-//        PERSON CYCLE DETAILS
+    //        PERSON CYCLE DETAILS
     Route::apiResource('personCycleDetail', EvaluationPersonCycleDetailController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
     ]);
 
     //        PERSON CYCLE DETAILS
     Route::apiResource('evaluationPersonDetail', EvaluationPersonDetailController::class)->only([
-      'index', 'show', 'store', 'update', 'destroy'
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
     ]);
-
-
   });
 
   /**
@@ -194,37 +276,56 @@ Route::middleware(['auth:sanctum'])->group(function () {
    */
   Route::group(['prefix' => 'ap'], function () {
     Route::group(['prefix' => 'configuration'], function () {
-//        CONFIGURATION COMMERCIAL
+      //        CONFIGURATION COMMERCIAL
       Route::group(['prefix' => 'commercial'], function () {
-        Route::apiResource('brands', ApBrandController::class)->only([
-          'index', 'show', 'store', 'update', 'destroy'
-        ]);
         Route::apiResource('fuelType', ApFuelTypeController::class)->only([
-          'index', 'show', 'store', 'update', 'destroy'
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
         ]);
         Route::apiResource('vehicleStatus', ApVehicleStatusController::class)->only([
-          'index', 'show', 'store', 'update', 'destroy'
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
         ]);
         Route::apiResource('commercialMasters', ApCommercialMastersController::class)->only([
-          'index', 'show', 'store', 'update', 'destroy'
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+        Route::apiResource('vehicleBrand', ApVehicleBrandController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+        Route::apiResource('deliveryReceivingChecklist', ApDeliveryReceivingChecklistController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
         ]);
       });
-//        CONFIGURATION AFTER SALES
-      Route::group(['prefix' => 'commercial'], function () {
-      });
+      //        CONFIGURATION AFTER SALES
+      Route::group(['prefix' => 'commercial'], function () {});
     });
 
-//      COMMERCIAL
-    Route::group(['prefix' => 'commercial'], function () {
-    });
+    //      COMMERCIAL
+    Route::group(['prefix' => 'commercial'], function () {});
 
-//      WORKSHOP
-    Route::group(['prefix' => 'workshop'], function () {
-    });
+    //      WORKSHOP
+    Route::group(['prefix' => 'workshop'], function () {});
 
-//      STORAGE
-    Route::group(['prefix' => 'storage'], function () {
-    });
+    //      STORAGE
+    Route::group(['prefix' => 'storage'], function () {});
   });
 
 

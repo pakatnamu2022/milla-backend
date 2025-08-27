@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\ap\configuracionComercial\vehiculo;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\StoreRequest;
 use Illuminate\Validation\Rule;
 
-class StoreApDeliveryReceivingChecklistRequest extends FormRequest
+class StoreApDeliveryReceivingChecklistRequest extends StoreRequest
 {
   public function rules(): array
   {
@@ -14,17 +14,18 @@ class StoreApDeliveryReceivingChecklistRequest extends FormRequest
         'required',
         'string',
         'max:255',
-        Rule::unique('ap_delivery_receiving_checklist', 'descripcion')->whereNull('deleted_at'),],
+        Rule::unique('ap_delivery_receiving_checklist', 'descripcion')->whereNull('deleted_at'),
+      ],
       'tipo' => [
         'required',
         'string',
         'max:50',
-        Rule::unique('ap_delivery_receiving_checklist', 'tipo')->whereNull('deleted_at'),],
-      'categoria' => [
+      ],
+      'categoria_id' => [
         'required',
-        'string',
-        'max:100',
-        Rule::unique('ap_delivery_receiving_checklist', 'categoria')->whereNull('deleted_at'),],
+        'integer',
+        'exists:ap_commercial_masters,id',
+      ],
     ];
   }
 
@@ -39,10 +40,8 @@ class StoreApDeliveryReceivingChecklistRequest extends FormRequest
       'tipo.string' => 'El campo tipo debe ser una cadena de texto.',
       'tipo.max' => 'El campo tipo no debe exceder los 255 caracteres.',
       'tipo.unique' => 'El campo tipo ya existe.',
-      'categoria.required' => 'El campo categoria es obligatorio.',
-      'categoria.string' => 'El campo categoria debe ser una cadena de texto.',
-      'categoria.max' => 'El campo categoria no debe exceder los 255 caracteres.',
-      'categoria.unique' => 'El campo categoria ya existe.',
+      'categoria_id.required' => 'El campo categoria es obligatorio.',
+      'categoria_id.exists' => 'El grupo seleccionado no existe',
     ];
   }
 }

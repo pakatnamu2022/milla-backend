@@ -3,64 +3,64 @@
 namespace App\Http\Controllers\ap\configuracionComercial\vehiculo;
 
 use App\Http\Controllers\Controller;
-use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
-use Illuminate\Http\Request;
+use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApVehicleBrandRequest;
+use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApVehicleBrandRequest;
+use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApVehicleBrandRequest;
+use App\Http\Services\ap\configuracionComercial\vehiculo\ApVehicleBrandService;
 
 class ApVehicleBrandController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    protected ApVehicleBrandService $service;
+
+    public function __construct(ApVehicleBrandService $service)
     {
-        //
+        $this->service = $service;
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function index(IndexApVehicleBrandRequest $request)
     {
-        //
+        try {
+            return $this->service->list($request);
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function store(StoreApVehicleBrandRequest $request)
     {
-        //
+        try {
+            return $this->success($this->service->store($request->validated()));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(ApVehicleBrand $apVehicleBrand)
+    public function show($id)
     {
-        //
+        try {
+            return $this->success($this->service->show($id));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(ApVehicleBrand $apVehicleBrand)
+    public function update(UpdateApVehicleBrandRequest $request, $id)
     {
-        //
+        try {
+            $data = $request->validated();
+            $data['id'] = $id;
+            return $this->success($this->service->update($data));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, ApVehicleBrand $apVehicleBrand)
+    public function destroy($id)
     {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(ApVehicleBrand $apVehicleBrand)
-    {
-        //
+        try {
+            return $this->service->destroy($id);
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
     }
 }

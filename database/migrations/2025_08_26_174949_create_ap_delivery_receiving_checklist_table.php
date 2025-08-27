@@ -14,6 +14,7 @@ return new class extends Migration {
       $table->id();
       $table->string('descripcion', 255);
       $table->enum('tipo', ['entrega', 'recepcion']);
+      $table->boolean('status')->default(true);
       $table->foreignId('categoria_id')
         ->constrained('ap_commercial_masters')
         ->cascadeOnUpdate()

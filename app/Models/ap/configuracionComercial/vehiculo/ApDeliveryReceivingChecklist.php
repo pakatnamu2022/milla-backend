@@ -16,18 +16,22 @@ class ApDeliveryReceivingChecklist extends Model
     'id',
     'descripcion',
     'tipo',
-    'categoria',
+    'categoria_id',
   ];
 
   const filters = [
-    'search' => ['descripcion', 'tipo', 'categoria'],
+    'search' => ['descripcion', 'tipo'],
   ];
 
   const sorts = [
     'descripcion',
     'tipo',
-    'categoria',
   ];
+
+  public function categoria()
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'categoria_id');
+  }
 
   public function setDescripcionAttribute($value)
   {
