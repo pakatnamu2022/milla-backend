@@ -5,17 +5,17 @@ namespace App\Http\Resources\ap\configuracionComercial\vehiculo;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class ApDeliveryReceivingChecklistResource extends JsonResource
+class ApFamiliesResource extends JsonResource
 {
   public function toArray(Request $request): array
   {
     return [
       'id' => $this->id,
+      'codigo' => $this->codigo,
       'descripcion' => $this->descripcion,
-      'tipo' => $this->tipo,
+      'marca_id' => $this->marca_id,
+      'marca' => $this->marca->nombre,
       'status' => $this->status,
-      'categoria_id' => $this->categoria_id,
-      'categoria' => $this->categoria->descripcion,
     ];
   }
 }

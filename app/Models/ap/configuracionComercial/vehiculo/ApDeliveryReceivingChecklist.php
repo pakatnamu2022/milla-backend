@@ -17,10 +17,12 @@ class ApDeliveryReceivingChecklist extends Model
     'descripcion',
     'tipo',
     'categoria_id',
+    'status'
   ];
 
   const filters = [
     'search' => ['descripcion', 'tipo'],
+    'tipo' => '='
   ];
 
   const sorts = [

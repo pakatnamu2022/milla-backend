@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApCommercialMastersController;
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFamiliesController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFuelTypeController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleStatusController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleBrandController;
@@ -313,19 +315,37 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'update',
           'destroy'
         ]);
+        Route::apiResource('families', ApFamiliesController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+        Route::apiResource('classArticle', ApClassArticleController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
       });
       //        CONFIGURATION AFTER SALES
-      Route::group(['prefix' => 'commercial'], function () {});
+      Route::group(['prefix' => 'commercial'], function () {
+      });
     });
 
     //      COMMERCIAL
-    Route::group(['prefix' => 'commercial'], function () {});
+    Route::group(['prefix' => 'commercial'], function () {
+    });
 
     //      WORKSHOP
-    Route::group(['prefix' => 'workshop'], function () {});
+    Route::group(['prefix' => 'workshop'], function () {
+    });
 
     //      STORAGE
-    Route::group(['prefix' => 'storage'], function () {});
+    Route::group(['prefix' => 'storage'], function () {
+    });
   });
 
 
