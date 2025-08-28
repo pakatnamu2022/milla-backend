@@ -222,13 +222,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
       'destroy'
     ]);
 
+    Route::get('/categoryObjectiveDetail/{category}/workers', [EvaluationCategoryObjectiveDetailController::class, 'workers']);
     Route::apiResource('categoryObjectiveDetail', EvaluationCategoryObjectiveDetailController::class)->only([
       'index',
       'show',
       'store',
       'update',
-      'destroy'
     ]);
+    Route::post('/categoryObjectiveDetail/destroy', [EvaluationCategoryObjectiveDetailController::class, 'destroy']);
 
     //        PARAMETER
     Route::apiResource('parameter', EvaluationParameterController::class)->only([

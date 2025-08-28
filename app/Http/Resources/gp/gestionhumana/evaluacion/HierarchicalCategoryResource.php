@@ -16,9 +16,8 @@ class HierarchicalCategoryResource extends JsonResource
       'description' => $this->description,
       'pass' => $this->pass,
       'issues' => $this->issues,
-      'objectives' => $this->objectives->count(),
+      'objectives' => EvaluationObjectiveResource::collection($this->objectives),
 //      'competencies' => $this->competencies?->count(),
-      'workers' => WorkerResource::collection($this->workers),
       'excluded_from_evaluation' => (bool)$this->excluded_from_evaluation,
       'children' => HierarchicalCategoryDetailResource::collection($this->children),
     ];

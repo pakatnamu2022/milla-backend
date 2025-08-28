@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\gp\gestionhumana\evaluacion\DeleteEvaluationCategoryObjectiveDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationCategoryObjectiveDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationCategoryObjectiveDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationCategoryObjectiveDetailRequest;
@@ -60,10 +61,10 @@ class EvaluationCategoryObjectiveDetailController extends Controller
     }
   }
 
-  public function destroy(int $id)
+  public function destroy(DeleteEvaluationCategoryObjectiveDetailRequest $request)
   {
     try {
-      return $this->success($this->service->destroy($id));
+      return $this->success($this->service->destroy($request));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
