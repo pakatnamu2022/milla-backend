@@ -3,6 +3,7 @@
 namespace App\Models\gp\gestionhumana\evaluacion;
 
 use App\Models\BaseModel;
+use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionsistema\Position;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -84,6 +85,18 @@ class HierarchicalCategory extends BaseModel
       'id',
       'position_id'
     );
+  }
+
+  public function workers()
+  {
+    return $this->hasManyThrough(
+      Person::class,
+      HierarchicalCategoryDetail::class,
+      'hierarchical_category_id',
+      'cargo_id',
+      'id',
+      'position_id'
+    )->where('rrhh_persona.status_id', 22);
   }
 
   public static function whereAllPersonsHaveJefe()
