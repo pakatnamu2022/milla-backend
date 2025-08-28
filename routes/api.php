@@ -146,6 +146,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
       'index', 'show', 'store', 'update', 'destroy'
     ]);
 
+    Route::get('/categoryObjectiveDetail/{category}/workers', [EvaluationCategoryObjectiveDetailController::class, 'workers']);
     Route::apiResource('categoryObjectiveDetail', EvaluationCategoryObjectiveDetailController::class)->only([
       'index', 'show', 'store', 'update', 'destroy'
     ]);

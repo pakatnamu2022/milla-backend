@@ -2,6 +2,7 @@
 
 namespace App\Models\gp\gestionhumana\evaluacion;
 
+use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -14,17 +15,21 @@ class EvaluationCategoryObjectiveDetail extends Model
   protected $fillable = [
     'objective_id',
     'category_id',
+    'person_id',
     'goal',
     'weight',
     'fixedWeight',
+    'active',
   ];
 
   const filters = [
     'id' => '=',
     'objective_id' => '=',
     'category_id' => '=',
+    'person_id' => '=',
     'goal' => '=',
     'weight' => '=',
+    'active' => '=',
   ];
 
   const sorts = [
@@ -47,5 +52,10 @@ class EvaluationCategoryObjectiveDetail extends Model
   public function category()
   {
     return $this->belongsTo(HierarchicalCategory::class, 'category_id');
+  }
+
+  public function worker()
+  {
+    return $this->belongsTo(Worker::class, 'person_id');
   }
 }

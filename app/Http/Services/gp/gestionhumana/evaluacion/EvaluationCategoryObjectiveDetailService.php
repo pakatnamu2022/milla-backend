@@ -7,6 +7,7 @@ use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationObjective;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
+use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use Exception;
 use Illuminate\Http\Request;
 use function max;
@@ -25,12 +26,38 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
     );
   }
 
-  public function recalculateWeights($categoryId)
-  {
-    $allObjectives = EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)->get();
 
-    $fixedObjectives = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === true);
-    $nonFixedObjectives = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === false);
+  public function workers(int $id)
+  {
+    $hierarchicalCategory = HierarchicalCategory::findOrFail($id);
+    $workers = $hierarchicalCategory->workers()->get();
+
+//    agrupar objetivos por person_id y dentro de la persona que este los objetivos
+    $workersWithObjectives = $workers->map(function ($worker) use ($id) {
+      $objectives = EvaluationCategoryObjectiveDetail::where('category_id', $id)
+        ->where('person_id', $worker->id)
+        ->whereNull('deleted_at')
+        ->get();
+      return [
+        'worker' => $worker->nombre_completo,
+        'objectives' => EvaluationCategoryObjectiveDetailResource::collection($objectives),
+      ];
+    });
+
+    return $workersWithObjectives;
+  }
+
+  public function recalculateWeights($categoryId, $personId)
+  {
+    $allObjectives = EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
+      ->where('person_id', $personId)
+      ->whereNull('deleted_at');
+
+    $activeObjectives = (clone $allObjectives)->where('active', true)->get();
+    $inactiveObjectives = (clone $allObjectives)->where('active', false)->get();
+
+    $fixedObjectives = $activeObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === true);
+    $nonFixedObjectives = $activeObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === false);
 
     $usedWeight = $fixedObjectives->sum('weight');
     $remaining = max(0, 100 - $usedWeight); // evitar negativos
@@ -46,14 +73,33 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
       ]);
     }
 
+    foreach ($inactiveObjectives as $objective) {
+      $objective->update([
+        'weight' => 0,
+        'fixedWeight' => false,
+      ]);
+    }
+
     return ['message' => 'Pesos recalculados correctamente'];
   }
 
   public function store($data)
   {
-    $categoryObjective = EvaluationCategoryObjectiveDetail::create($data);
-    $this->recalculateWeights($categoryObjective->category_id);
-    return new EvaluationCategoryObjectiveDetailResource($categoryObjective);
+    $category = HierarchicalCategory::findOrFail($data['category_id']);
+    $workers = $category->workers()->pluck('rrhh_persona.id')->toArray();
+
+    foreach ($workers as $workerId) {
+      EvaluationCategoryObjectiveDetail::create([
+        'objective_id' => $data['objective_id'],
+        'category_id' => $data['category_id'],
+        'person_id' => $workerId,
+      ]);
+      $this->recalculateWeights($category->id, $workerId);
+    }
+
+    return EvaluationCategoryObjectiveDetailResource::collection(
+      EvaluationCategoryObjectiveDetail::where('category_id', $data['category_id'])->get()
+    );
   }
 
   public function find($id)
@@ -77,8 +123,9 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
       $data['fixedWeight'] = $data['weight'] > 0 ? true : false;
     }
     $categoryObjective->update($data);
-    $this->recalculateWeights($categoryObjective->category_id);
-    $objective = EvaluationObjective::find($categoryObjective->objective_id);
+    $this->recalculateWeights($categoryObjective->category_id, $categoryObjective->person_id);
+    $categoryObjective = $this->find($data['id']);
+//    $objective = EvaluationObjective::find($categoryObjective->objective_id);
 //    $objective->update([
 //      'weight' => $categoryObjective->weight
 //      ''

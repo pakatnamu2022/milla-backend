@@ -11,6 +11,7 @@ class UpdateEvaluationCategoryObjectiveDetailRequest extends StoreRequest
     return [
       'goal' => 'nullable|numeric|max:255',
       'weight' => 'nullable|numeric|min:0',
+      'active' => 'nullable|boolean',
     ];
   }
 }

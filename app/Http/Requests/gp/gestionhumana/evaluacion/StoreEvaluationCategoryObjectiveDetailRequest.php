@@ -23,7 +23,7 @@ class StoreEvaluationCategoryObjectiveDetailRequest extends StoreRequest
         'required',
         'integer',
         Rule::exists('gh_hierarchical_category', 'id')->whereNull('deleted_at')
-      ]
+      ],
     ];
   }
 }

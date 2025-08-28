@@ -26,6 +26,15 @@ class EvaluationCategoryObjectiveDetailController extends Controller
     }
   }
 
+  public function workers(int $id)
+  {
+    try {
+      return $this->service->workers($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function store(StoreEvaluationCategoryObjectiveDetailRequest $request)
   {
     try {
