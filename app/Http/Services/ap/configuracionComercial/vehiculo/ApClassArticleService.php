@@ -33,8 +33,6 @@ class ApClassArticleService extends BaseService
 
   public function store(array $data)
   {
-    $marca = ApClassArticle::findOrFail($data['marca_id']);
-    $data['codigo'] = $marca->codigo_dyn . $this->nextCorrelativeCount(ApFamilies::class, 2);
     $ApCommercialMasters = ApClassArticle::create($data);
     return new ApClassArticleResource($ApCommercialMasters);
   }

@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Requests\ap\configuracionComercial\vehiculo;
+namespace App\Http\Requests\TypeCurrency;
 
 use App\Http\Requests\IndexRequest;
 
-class IndexApModelsVnRequest extends IndexRequest
+class IndexTypeCurrencyRequest extends IndexRequest
 {
   public function rules(): array
   {

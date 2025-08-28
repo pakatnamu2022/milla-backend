@@ -15,6 +15,7 @@ class ApClassArticleResource extends JsonResource
       'descripcion' => $this->descripcion,
       'cuenta' => $this->cuenta,
       'tipo' => $this->tipo,
+      'status' => $this->status
     ];
   }
 }

@@ -10,12 +10,11 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('ap_class_article', function (Blueprint $table) {
+    Schema::create('type_currency', function (Blueprint $table) {
       $table->id();
-      $table->string('codigo_dyn', length: 50);
-      $table->string('descripcion', length: 255);
-      $table->string('cuenta', length: 150);
-      $table->enum('tipo', ['POSTVENTA', 'VEHICULO']);
+      $table->string('codigo', 3)->unique(); // (ISO 4217, ej. "PEN", "USD", "EUR")
+      $table->string('nombre', 50); // Soles
+      $table->string('simbolo', 5)->nullable(); // (ej. "S/", "$", "€")
       $table->boolean('status')->default(true);
       $table->timestamps();
       $table->softDeletes();
@@ -27,6 +26,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('ap_class_article');
+    Schema::dropIfExists('type_currency');
   }
 };

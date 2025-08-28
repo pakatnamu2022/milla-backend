@@ -10,12 +10,11 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('ap_class_article', function (Blueprint $table) {
+    Schema::create('ap_fuel_type', function (Blueprint $table) {
       $table->id();
-      $table->string('codigo_dyn', length: 50);
-      $table->string('descripcion', length: 255);
-      $table->string('cuenta', length: 150);
-      $table->enum('tipo', ['POSTVENTA', 'VEHICULO']);
+      $table->string('codigo', length: 50);
+      $table->text('descripcion');
+      $table->boolean('motor_electrico')->default(false);
       $table->boolean('status')->default(true);
       $table->timestamps();
       $table->softDeletes();
@@ -27,6 +26,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('ap_class_article');
+    Schema::dropIfExists('ap_fuel_type');
   }
 };

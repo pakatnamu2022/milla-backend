@@ -35,7 +35,7 @@ class StoreApClassArticleRequest extends StoreRequest
       'tipo' => [
         'required',
         'string',
-        Rule::in(['POSVENTA', 'VEHICULO']),
+        Rule::in(['POSTVENTA', 'VEHICULO']),
       ],
     ];
   }

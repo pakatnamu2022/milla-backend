@@ -38,8 +38,9 @@ class UpdateApClassArticleRequest extends StoreRequest
       'tipo' => [
         'nullable',
         'string',
-        Rule::in(['POSVENTA', 'VEHICULO']),
+        Rule::in(['POSTVENTA', 'VEHICULO']),
       ],
+      'status' => ['nullable', 'boolean']
     ];
   }
 

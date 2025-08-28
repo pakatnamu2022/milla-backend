@@ -17,7 +17,28 @@ return new class extends Migration {
       $table->string('potencia', length: 50);
       $table->year('anio_modelo');
       $table->string('distancias_ejes', length: 50);
-      $table->integer('num_ejes');
+      $table->string('num_ejes', length: 50);
+      $table->string('ancho', length: 50);
+      $table->string('largo', length: 50);
+      $table->string('altura', length: 50);
+      $table->string('num_asientos', length: 50);
+      $table->string('num_puertas', length: 50);
+      $table->string('peso_neto', length: 50);
+      $table->string('peso_bruto', length: 50);
+      $table->string('carga_util', length: 50);
+      $table->string('cilindrada', length: 50);
+      $table->string('num_cilindros', length: 50);
+      $table->string('num_pasajeros', length: 50);
+      $table->string('num_ruedas', length: 50);
+      $table->decimal('precio_distribuidor', 10, 4);
+      $table->decimal('costo_transporte', 10, 4);
+      $table->decimal('otros_importes', 10, 4);
+      $table->decimal('descuento_compra', 10, 4);
+      $table->decimal('importe_igv', 10, 4);
+      $table->decimal('total_total_compra_sigv', 10, 4);
+      $table->decimal('total_total_compra_cigv', 10, 4);
+      $table->decimal('precio_venta', 10, 4);
+      $table->decimal('margen', 10, 4);
       $table->foreignId('familia_id')
         ->constrained('ap_families')
         ->cascadeOnUpdate()
@@ -27,7 +48,7 @@ return new class extends Migration {
         ->cascadeOnUpdate()
         ->restrictOnDelete();
       $table->foreignId('combustible_id')
-        ->constrained('ap_tipo_combustible')
+        ->constrained('ap_fuel_type')
         ->cascadeOnUpdate()
         ->restrictOnDelete();
       $table->foreignId('tipo_vehiculo_id')
@@ -42,7 +63,16 @@ return new class extends Migration {
         ->constrained('ap_commercial_masters')
         ->cascadeOnUpdate()
         ->restrictOnDelete();
+      $table->foreignId('transmision_id')
+        ->constrained('ap_commercial_masters')
+        ->cascadeOnUpdate()
+        ->restrictOnDelete();
+      $table->foreignId('tipo_moneda_id')
+        ->constrained('type_currency')
+        ->cascadeOnUpdate()
+        ->restrictOnDelete();
       $table->timestamps();
+      $table->softDeletes();
     });
   }
 

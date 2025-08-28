@@ -1,25 +1,25 @@
 <?php
 
-namespace App\Http\Controllers\ap\configuracionComercial\vehiculo;
+namespace App\Http\Controllers\TypeCurrency;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApModelsVnRequest;
-use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApModelsVnRequest;
-use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApModelsVnRequest;
-use App\Http\Services\ap\configuracionComercial\vehiculo\ApModelsVnService;
-use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
+use App\Http\Requests\TypeCurrency\IndexTypeCurrencyRequest;
+use App\Http\Requests\TypeCurrency\StoreTypeCurrencyRequest;
+use App\Http\Requests\TypeCurrency\UpdateTypeCurrencyRequest;
+use App\Http\Services\TypeCurrency\TypeCurrencyService;
+use App\Models\TypeCurrency;
 use Illuminate\Http\Request;
 
-class ApModelsVnController extends Controller
+class TypeCurrencyController extends Controller
 {
-  protected ApModelsVnService $service;
+  protected TypeCurrencyService $service;
 
-  public function __construct(ApModelsVnService $service)
+  public function __construct(TypeCurrencyService $service)
   {
     $this->service = $service;
   }
 
-  public function index(IndexApModelsVnRequest $request)
+  public function index(IndexTypeCurrencyRequest $request)
   {
     try {
       return $this->service->list($request);
@@ -28,7 +28,7 @@ class ApModelsVnController extends Controller
     }
   }
 
-  public function store(StoreApModelsVnRequest $request)
+  public function store(StoreTypeCurrencyRequest $request)
   {
     try {
       return $this->success($this->service->store($request->all()));
@@ -46,7 +46,7 @@ class ApModelsVnController extends Controller
     }
   }
 
-  public function update(UpdateApModelsVnRequest $request, $id)
+  public function update(UpdateTypeCurrencyRequest $request, $id)
   {
     try {
       $data = $request->all();

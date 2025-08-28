@@ -1,33 +1,33 @@
 <?php
 
-namespace App\Models\ap\configuracionComercial\vehiculo;
+namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class ApFuelType extends Model
+class TypeCurrency extends Model
 {
   use SoftDeletes;
 
-  protected $table = 'ap_fuel_type';
+  protected $table = 'type_currency';
 
   protected $fillable = [
     'id',
     'codigo',
-    'descripcion',
-    'motor_electrico',
+    'nombre',
+    'simbolo',
     'status',
   ];
 
   const filters = [
-    'search' => ['codigo', 'descripcion'],
+    'search' => ['codigo', 'nombre'],
     'status' => '=',
   ];
 
   const sorts = [
     'codigo',
-    'descripcion',
+    'nombre',
   ];
 
   public function setCodigoAttribute($value)
@@ -35,8 +35,8 @@ class ApFuelType extends Model
     $this->attributes['codigo'] = Str::upper(Str::ascii($value));
   }
 
-  public function setDescripcionAttribute($value)
+  public function setNombreAttribute($value)
   {
-    $this->attributes['descripcion'] = Str::upper(Str::ascii($value));
+    $this->attributes['nombre'] = Str::upper(Str::ascii($value));
   }
 }
