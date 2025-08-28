@@ -6,37 +6,41 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class ApFuelType extends Model
+class ApClassArticle extends Model
 {
   use SoftDeletes;
 
-  protected $table = 'ap_fuel_type';
+  protected $table = 'ap_class_article';
 
   protected $fillable = [
-    'id',
-    'codigo',
+    'codigo_dyn',
     'descripcion',
-    'motor_electrico',
+    'cuenta',
+    'tipo',
     'status',
   ];
 
   const filters = [
-    'search' => ['codigo', 'descripcion'],
-    'status' => '=',
+    'search' => ['codigo_dyn', 'descripcion', 'cuenta', 'tipo'],
   ];
 
   const sorts = [
-    'codigo',
+    'codigo_dyn',
     'descripcion',
   ];
 
-  public function setCodigoAttribute($value)
+  public function setCodigoDynAttribute($value)
   {
-    $this->attributes['codigo'] = Str::upper(Str::ascii($value));
+    $this->attributes['codigo_dyn'] = Str::upper(Str::ascii($value));
   }
 
   public function setDescripcionAttribute($value)
   {
     $this->attributes['descripcion'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setCuentaAttribute($value)
+  {
+    $this->attributes['cuenta'] = Str::upper(Str::ascii($value));
   }
 }

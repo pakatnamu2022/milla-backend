@@ -15,7 +15,7 @@ class UpdateApDeliveryReceivingChecklistRequest extends StoreRequest
         'string',
         'max:255',
         Rule::unique('ap_delivery_receiving_checklist', 'descripcion')
-          ->where('categoria_id', $this->categoria_id)
+          ->where('tipo', $this->tipo)
           ->whereNull('deleted_at')
           ->ignore($this->route('deliveryReceivingChecklist')),
       ],
@@ -29,23 +29,19 @@ class UpdateApDeliveryReceivingChecklistRequest extends StoreRequest
         'integer',
         'exists:ap_commercial_masters,id',
       ],
+      'status' => ['nullable', 'boolean'],
     ];
   }
 
   public function messages(): array
   {
     return [
-      'codigo.unique' => 'Este código ya existe',
-      'codigo_dyn.required' => 'El código DYN es requerido',
-      'codigo_dyn.unique' => 'Este código DYN ya existe',
-      'nombre.unique' => 'Este nombre ya existe',
-      'descripcion.required' => 'La descripción es requerida',
       'descripcion.unique' => 'Esta descripción ya existe',
-      'grupo_id.exists' => 'El grupo seleccionado no existe',
-      'logo.mimes' => 'El logo debe ser un archivo JPG, PNG o WebP',
-      'logo.max' => 'El logo no debe superar los 2MB',
-      'logo_min.mimes' => 'El logo min debe ser un archivo JPG, PNG o WebP',
-      'logo_min.max' => 'El logo min no debe superar los 2MB',
+      'descripcion.max' => 'El código no debe exceder 255 caracteres',
+      'tipo.unique' => 'Esta tipo ya existe',
+      'tipo.max' => 'El código no debe exceder 50 caracteres',
+      'categoria_id.integer' => 'El campo categoria es obligatorio.',
+      'categoria_id.exists' => 'El categoria seleccionado no existe',
     ];
   }
 }

@@ -10,15 +10,12 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('ap_delivery_receiving_checklist', function (Blueprint $table) {
+    Schema::create('type_currency', function (Blueprint $table) {
       $table->id();
-      $table->string('descripcion', 255);
-      $table->enum('tipo', ['ENTREGA', 'RECEPCION']);
+      $table->string('codigo', 3)->unique(); // (ISO 4217, ej. "PEN", "USD", "EUR")
+      $table->string('nombre', 50); // Soles
+      $table->string('simbolo', 5)->nullable(); // (ej. "S/", "$", "€")
       $table->boolean('status')->default(true);
-      $table->foreignId('categoria_id')
-        ->constrained('ap_commercial_masters')
-        ->cascadeOnUpdate()
-        ->restrictOnDelete();
       $table->timestamps();
       $table->softDeletes();
     });
@@ -29,6 +26,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('ap_delivery_receiving_checklist');
+    Schema::dropIfExists('type_currency');
   }
 };

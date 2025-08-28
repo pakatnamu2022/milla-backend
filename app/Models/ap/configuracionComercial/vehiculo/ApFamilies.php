@@ -6,29 +6,32 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class ApFuelType extends Model
+class ApFamilies extends Model
 {
   use SoftDeletes;
 
-  protected $table = 'ap_fuel_type';
+  protected $table = 'ap_families';
 
   protected $fillable = [
-    'id',
     'codigo',
     'descripcion',
-    'motor_electrico',
     'status',
+    'marca_id',
   ];
 
   const filters = [
     'search' => ['codigo', 'descripcion'],
-    'status' => '=',
   ];
 
   const sorts = [
     'codigo',
     'descripcion',
   ];
+
+  public function marca()
+  {
+    return $this->belongsTo(ApVehicleBrand::class, 'marca_id');
+  }
 
   public function setCodigoAttribute($value)
   {

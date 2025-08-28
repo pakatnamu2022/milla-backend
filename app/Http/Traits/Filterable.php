@@ -119,6 +119,9 @@ trait Filterable
       case '=':
         $query->where($filter, '=', $value);
         break;
+      case 'in':
+        $query->whereIn($filter, $value);
+        break;
       default:
         break;
     }

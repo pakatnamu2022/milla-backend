@@ -10,13 +10,13 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('ap_delivery_receiving_checklist', function (Blueprint $table) {
+    Schema::create('ap_families', function (Blueprint $table) {
       $table->id();
-      $table->string('descripcion', 255);
-      $table->enum('tipo', ['ENTREGA', 'RECEPCION']);
+      $table->string('codigo', length: 100);
+      $table->string('descripcion', length: 255);
       $table->boolean('status')->default(true);
-      $table->foreignId('categoria_id')
-        ->constrained('ap_commercial_masters')
+      $table->foreignId('marca_id')
+        ->constrained('ap_vehicle_brand')
         ->cascadeOnUpdate()
         ->restrictOnDelete();
       $table->timestamps();
@@ -29,6 +29,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('ap_delivery_receiving_checklist');
+    Schema::dropIfExists('ap_families');
   }
 };

@@ -14,7 +14,9 @@ class StoreApDeliveryReceivingChecklistRequest extends StoreRequest
         'required',
         'string',
         'max:255',
-        Rule::unique('ap_delivery_receiving_checklist', 'descripcion')->whereNull('deleted_at'),
+        Rule::unique('ap_delivery_receiving_checklist', 'descripcion')
+          ->where('tipo', $this->tipo)
+          ->whereNull('deleted_at'),
       ],
       'tipo' => [
         'required',
@@ -41,6 +43,7 @@ class StoreApDeliveryReceivingChecklistRequest extends StoreRequest
       'tipo.max' => 'El campo tipo no debe exceder los 255 caracteres.',
       'tipo.unique' => 'El campo tipo ya existe.',
       'categoria_id.required' => 'El campo categoria es obligatorio.',
+      'categoria_id.integer' => 'El campo categoria es obligatorio.',
       'categoria_id.exists' => 'El grupo seleccionado no existe',
     ];
   }
