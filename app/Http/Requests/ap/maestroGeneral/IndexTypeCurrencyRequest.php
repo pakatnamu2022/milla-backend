@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Requests\TypeCurrency;
+namespace App\Http\Requests\ap\maestroGeneral;
 
 use App\Http\Requests\IndexRequest;
 

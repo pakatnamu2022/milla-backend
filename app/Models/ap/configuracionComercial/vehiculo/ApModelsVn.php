@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\configuracionComercial\vehiculo;
 
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -48,6 +49,7 @@ class ApModelsVn extends Model
     'tipo_traccion_id',
     'transmision_id',
     'tipo_moneda_id',
+    'status'
   ];
 
   const filters = [
@@ -59,6 +61,46 @@ class ApModelsVn extends Model
     'codigo',
     'version',
   ];
+
+  public function family()
+  {
+    return $this->belongsTo(ApFamilies::class, 'familia_id');
+  }
+
+  public function classArticle()
+  {
+    return $this->belongsTo(ApClassArticle::class, 'clase_id');
+  }
+
+  public function fuelType()
+  {
+    return $this->belongsTo(ApFuelType::class, 'combustible_id');
+  }
+
+  public function vehicleType()
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'tipo_vehiculo_id');
+  }
+
+  public function bodyType()
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'tipo_carroceria_id');
+  }
+
+  public function tractionType()
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'tipo_traccion_id');
+  }
+
+  public function vehicleTransmission()
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'transmision_id');
+  }
+
+  public function typeCurrency()
+  {
+    return $this->belongsTo(TypeCurrency::class, 'tipo_moneda_id');
+  }
 
   public function setCodigoAttribute($value)
   {
