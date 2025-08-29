@@ -35,10 +35,11 @@ return new class extends Migration {
       $table->decimal('otros_importes', 10, 4);
       $table->decimal('descuento_compra', 10, 4);
       $table->decimal('importe_igv', 10, 4);
-      $table->decimal('total_total_compra_sigv', 10, 4);
-      $table->decimal('total_total_compra_cigv', 10, 4);
+      $table->decimal('total_compra_sigv', 10, 4);
+      $table->decimal('total_compra_cigv', 10, 4);
       $table->decimal('precio_venta', 10, 4);
       $table->decimal('margen', 10, 4);
+      $table->boolean('status')->default(true);
       $table->foreignId('familia_id')
         ->constrained('ap_families')
         ->cascadeOnUpdate()

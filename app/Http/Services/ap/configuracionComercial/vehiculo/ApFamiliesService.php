@@ -35,7 +35,11 @@ class ApFamiliesService extends BaseService
   public function store(array $data)
   {
     $marca = ApVehicleBrand::findOrFail($data['marca_id']);
-    $data['codigo'] = $marca->codigo_dyn . $this->nextCorrelativeCount(ApFamilies::class, 2);
+    $data['codigo'] = $marca->codigo_dyn . $this->nextCorrelativeCount(
+        ApFamilies::class,
+        2,
+        ['marca_id' => $data['marca_id']]
+      );
     $ApCommercialMasters = ApFamilies::create($data);
     return new ApFamiliesResource($ApCommercialMasters);
   }

@@ -4,12 +4,14 @@ namespace App\Http\Services\ap\configuracionComercial\vehiculo;
 
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\configuracionComercial\vehiculo\ApFamilies;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class ApModelsVnService extends BaseService
+class ApModelsVnService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
@@ -31,8 +33,15 @@ class ApModelsVnService extends BaseService
     return $engineType;
   }
 
-  public function store(array $data)
+  public function store(mixed $data)
   {
+    $familia = ApFamilies::findOrFail($data['familia_id']);
+    $anioCorto = substr($data['anio_modelo'], -2);
+    $data['codigo'] = $familia->codigo . $anioCorto . $this->nextCorrelativeCount(
+        ApModelsVn::class,
+        3,
+        ['familia_id' => $data['familia_id']]
+      );
     $engineType = ApModelsVn::create($data);
     return new ApModelsVnResource($engineType);
   }
@@ -42,7 +51,7 @@ class ApModelsVnService extends BaseService
     return new ApModelsVnResource($this->find($id));
   }
 
-  public function update($data)
+  public function update(mixed $data)
   {
     $engineType = $this->find($data['id']);
     $engineType->update($data);

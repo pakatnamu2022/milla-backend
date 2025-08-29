@@ -132,7 +132,13 @@ class StoreApModelsVnRequest extends FormRequest
         'min:0',
         'max:999999.9999',
       ],
-      'total_ctotal_compra_sigvompra_cigv' => [
+      'total_compra_sigv' => [
+        'required',
+        'numeric',
+        'min:0',
+        'max:999999.9999',
+      ],
+      'total_compra_cigv' => [
         'required',
         'numeric',
         'min:0',
@@ -318,11 +324,17 @@ class StoreApModelsVnRequest extends FormRequest
       'importe_igv.min' => 'El importe del IGV debe ser mayor o igual a 0.',
       'importe_igv.max' => 'El importe del IGV no puede exceder 999,999.9999.',
 
+      // Total compra sin IGV
+      'total_compra_sigv.required' => 'El total de compra con IGV es obligatorio.',
+      'total_compra_sigv.numeric' => 'El total de compra con IGV debe ser un número.',
+      'total_compra_sigv.min' => 'El total de compra con IGV debe ser mayor o igual a 0.',
+      'total_compra_sigv.max' => 'El total de compra con IGV no puede exceder 999,999.9999.',
+
       // Total compra con IGV
-      'total_ctotal_compra_sigvompra_cigv.required' => 'El total de compra con IGV es obligatorio.',
-      'total_ctotal_compra_sigvompra_cigv.numeric' => 'El total de compra con IGV debe ser un número.',
-      'total_ctotal_compra_sigvompra_cigv.min' => 'El total de compra con IGV debe ser mayor o igual a 0.',
-      'total_ctotal_compra_sigvompra_cigv.max' => 'El total de compra con IGV no puede exceder 999,999.9999.',
+      'total_compra_cigv.required' => 'El total de compra con IGV es obligatorio.',
+      'total_compra_cigv.numeric' => 'El total de compra con IGV debe ser un número.',
+      'total_compra_cigv.min' => 'El total de compra con IGV debe ser mayor o igual a 0.',
+      'total_compra_cigv.max' => 'El total de compra con IGV no puede exceder 999,999.9999.',
 
       // Precio venta
       'precio_venta.required' => 'El precio de venta es obligatorio.',

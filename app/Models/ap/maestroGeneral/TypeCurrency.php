@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\ap\maestroGeneral;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -38,5 +38,10 @@ class TypeCurrency extends Model
   public function setNombreAttribute($value)
   {
     $this->attributes['nombre'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setSimboloAttribute($value)
+  {
+    $this->attributes['simbolo'] = Str::upper(Str::ascii($value));
   }
 }

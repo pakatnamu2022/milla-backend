@@ -7,6 +7,7 @@ use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFuelTypeController
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApModelsVnController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleStatusController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleBrandController;
+use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
 use App\Http\Controllers\AuthController;
@@ -32,7 +33,6 @@ use App\Http\Controllers\gp\gestionsistema\UserController;
 use App\Http\Controllers\gp\gestionsistema\ViewController;
 use App\Http\Controllers\gp\tics\EquipmentController;
 use App\Http\Controllers\gp\tics\EquipmentTypeController;
-use App\Http\Controllers\TypeCurrency\TypeCurrencyController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login'])->name('login');

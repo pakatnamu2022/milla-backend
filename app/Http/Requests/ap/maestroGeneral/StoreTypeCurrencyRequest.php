@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Http\Requests\TypeCurrency;
+namespace App\Http\Requests\ap\maestroGeneral;
 
 use App\Http\Requests\StoreRequest;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreTypeCurrencyRequest extends StoreRequest

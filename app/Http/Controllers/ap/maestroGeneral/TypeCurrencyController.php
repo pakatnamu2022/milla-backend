@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Http\Controllers\TypeCurrency;
+namespace App\Http\Controllers\ap\maestroGeneral;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\TypeCurrency\IndexTypeCurrencyRequest;
-use App\Http\Requests\TypeCurrency\StoreTypeCurrencyRequest;
-use App\Http\Requests\TypeCurrency\UpdateTypeCurrencyRequest;
-use App\Http\Services\TypeCurrency\TypeCurrencyService;
-use App\Models\TypeCurrency;
+use App\Http\Requests\ap\maestroGeneral\IndexTypeCurrencyRequest;
+use App\Http\Requests\ap\maestroGeneral\StoreTypeCurrencyRequest;
+use App\Http\Requests\ap\maestroGeneral\UpdateTypeCurrencyRequest;
+use App\Http\Services\ap\maestroGeneral\TypeCurrencyService;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use Illuminate\Http\Request;
 
 class TypeCurrencyController extends Controller

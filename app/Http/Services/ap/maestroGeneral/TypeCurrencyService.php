@@ -1,15 +1,16 @@
 <?php
 
-namespace App\Http\Services\TypeCurrency;
+namespace App\Http\Services\ap\maestroGeneral;
 
-use App\Http\Resources\TypeCurrency\TypeCurrencyResource;
+use App\Http\Resources\ap\maestroGeneral\TypeCurrencyResource;
 use App\Http\Services\BaseService;
-use App\Models\TypeCurrency;
+use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Exception;
 
-class TypeCurrencyService extends BaseService
+class TypeCurrencyService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
@@ -31,7 +32,7 @@ class TypeCurrencyService extends BaseService
     return $engineType;
   }
 
-  public function store(array $data)
+  public function store(mixed $data)
   {
     $engineType = TypeCurrency::create($data);
     return new TypeCurrencyResource($engineType);
@@ -42,7 +43,7 @@ class TypeCurrencyService extends BaseService
     return new TypeCurrencyResource($this->find($id));
   }
 
-  public function update($data)
+  public function update(mixed $data)
   {
     $engineType = $this->find($data['id']);
     $engineType->update($data);

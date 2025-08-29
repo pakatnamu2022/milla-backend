@@ -8,12 +8,17 @@ class BaseService
 {
   use Filterable;
 
-  public function nextCorrelativeCount($model, $length = 8)
+  public function nextCorrelativeCount($model, $length = 8, $where = [])
   {
-    $count = $model::count();
+    $query = $model::query();
+    if (!empty($where)) {
+      $query->where($where);
+    }
+    $count = $query->count();
     $correlative = $count == 0 ? 1 : $count + 1;
     return str_pad($correlative, $length, '0', STR_PAD_LEFT);
   }
+
 
   public function nextCorrelativeField($model, $field, $length = 8)
   {
