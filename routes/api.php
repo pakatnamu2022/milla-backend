@@ -83,15 +83,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
       'destroy'
     ]);
 
-    //        POSITIONS
-    Route::apiResource('position', PositionController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
     Route::get('modules', [AuthController::class, 'modules'])->name('modules');
 
     //        ACCESS
@@ -145,7 +136,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     'destroy'
   ]);
 
-  //    PERSONAL MAN
+  //    PERSONAL MAIN
   Route::group(['prefix' => 'personal'], function () {
     //        PERSON
     Route::apiResource('person', PersonController::class)->only([
@@ -156,7 +147,17 @@ Route::middleware(['auth:sanctum'])->group(function () {
       'destroy'
     ]);
 
+//    WORKER
     Route::apiResource('worker', WorkerController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
+
+    //        POSITIONS
+    Route::apiResource('position', PositionController::class)->only([
       'index',
       'show',
       'store',
