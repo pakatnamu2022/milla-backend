@@ -25,6 +25,7 @@ use App\Http\Controllers\gp\gestionhumana\personal\PersonController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
+use App\Http\Controllers\gp\gestionsistema\DigitalFileController;
 use App\Http\Controllers\gp\gestionsistema\PositionController;
 use App\Http\Controllers\gp\gestionsistema\RoleController;
 use App\Http\Controllers\gp\gestionsistema\SedeController;
@@ -57,6 +58,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
     'show',
     'store',
     'update',
+    'destroy'
+  ]);
+
+//  DIGITAL FILE
+  Route::apiResource('digital-file', DigitalFileController::class)->only([
+    'index',
+    'show',
+    'store',
     'destroy'
   ]);
 

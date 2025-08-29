@@ -69,6 +69,7 @@ class MakeFullModel extends Command
                 namespace {$namespace};
 
                 use App\Http\Services\BaseService;
+                use App\Http\Services\BaseServiceInterface;
                 use {$modelClass};
 
                 class {$modelName}Service extends BaseService implements BaseServiceInterface
