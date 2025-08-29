@@ -52,9 +52,9 @@ class ApModelsVnResource extends JsonResource
       'tipo_carroceria' => $this->bodyType->descripcion,
       'tipo_traccion_id' => $this->tipo_traccion_id,
       'tipo_traccion' => $this->tractionType->descripcion,
-      'transmision_id' => $this->tipo_vehiculo_id,
+      'transmision_id' => $this->transmision_id,
       'transmision' => $this->vehicleTransmission->descripcion,
-      'tipo_moneda_id' => $this->tipo_carroceria_id,
+      'tipo_moneda_id' => $this->tipo_moneda_id,
       'tipo_moneda' => $this->typeCurrency->nombre,
       'status' => $this->status,
     ];
