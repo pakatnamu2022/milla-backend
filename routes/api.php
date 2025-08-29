@@ -8,6 +8,7 @@ use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApModelsVnController
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleStatusController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleBrandController;
 use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
 use App\Http\Controllers\AuthController;
@@ -232,6 +233,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
       'destroy'
     ]);
 
+    //    CATEGORY OBJECTIVE DETAILS
     Route::get('/categoryObjectiveDetail/{category}/workers', [EvaluationCategoryObjectiveDetailController::class, 'workers']);
     Route::apiResource('categoryObjectiveDetail', EvaluationCategoryObjectiveDetailController::class)->only([
       'index',
@@ -240,6 +242,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
       'update',
     ]);
     Route::post('/categoryObjectiveDetail/destroy', [EvaluationCategoryObjectiveDetailController::class, 'destroy']);
+
+    //    CATEGORY COMPETENCE DETAILS
+    Route::get('/categoryCompetenceDetail/{category}/workers', [EvaluationCategoryCompetenceDetailController::class, 'workers']);
+    Route::apiResource('categoryCompetenceDetail', EvaluationCategoryCompetenceDetailController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+    ]);
+    Route::post('/categoryCompetenceDetail/destroy', [EvaluationCategoryCompetenceDetailController::class, 'destroy']);
 
     //        PARAMETER
     Route::apiResource('parameter', EvaluationParameterController::class)->only([

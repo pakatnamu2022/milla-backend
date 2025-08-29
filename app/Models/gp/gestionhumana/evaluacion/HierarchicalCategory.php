@@ -55,14 +55,14 @@ class HierarchicalCategory extends BaseModel
   }
 
 
-  public function competencies()
+  public function competences()
   {
     return $this->belongsToMany(
-      EvaluationCompetency::class,
-      'gh_evaluation_category_competency_detail',
+      EvaluationCompetence::class,
+      'gh_evaluation_category_competence',
       'category_id',
-      'competency_id'
-    );
+      'competence_id'
+    )->wherePivotNull('deleted_at')->distinct();
   }
 
   public function cycles()
