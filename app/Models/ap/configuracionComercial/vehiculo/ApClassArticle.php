@@ -22,6 +22,7 @@ class ApClassArticle extends Model
 
   const filters = [
     'search' => ['codigo_dyn', 'descripcion', 'cuenta', 'tipo'],
+    'tipo' => '='
   ];
 
   const sorts = [
