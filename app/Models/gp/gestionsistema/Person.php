@@ -22,6 +22,7 @@ class Person extends BaseModel
     'search' => ['nombre_completo', 'vat'],
     'vat' => 'like',
     'nombre_completo' => 'like',
+    'cargo_id' => '=',
   ];
 
   const sorts = [
@@ -79,12 +80,12 @@ class Person extends BaseModel
     return $this->hasOne(Sede::class, 'id', 'sede_id');
   }
 
-  public function sedes()
+  public function consultantSede()
   {
     return $this->belongsToMany(Sede::class, 'ap_assign_sede', 'asesor_id', 'sede_id')
       ->withTimestamps();
   }
-  
+
 //
 //    public function area()
 //    {

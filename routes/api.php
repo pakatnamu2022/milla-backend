@@ -372,9 +372,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::apiResource('assignSede', ApAssignSedeController::class)->only([
           'index',
           'show',
-          'store',
           'update',
-          'destroy'
         ]);
       });
       //        CONFIGURATION AFTER SALES
