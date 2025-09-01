@@ -63,6 +63,30 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
   public function update(mixed $data)
   {
     $engineType = $this->find($data['id']);
+
+    $familiaChanged = $engineType->familia_id != $data['familia_id'];
+    $anioChanged = $engineType->anio_modelo != $data['anio_modelo'];
+
+    if ($familiaChanged || $anioChanged) {
+      $existe = ApModelsVn::where('familia_id', $data['familia_id'])
+        ->where('anio_modelo', $data['anio_modelo'])
+        ->where('id', '!=', $data['id'])
+        ->whereNull('deleted_at')
+        ->exists();
+
+      if ($existe) {
+        throw new Exception('Ya existe un modelo con esa familia y año.');
+      }
+      
+      $familia = ApFamilies::findOrFail($data['familia_id']);
+      $anioCorto = substr($data['anio_modelo'], -2);
+      $data['codigo'] = $familia->codigo . $anioCorto . $this->nextCorrelativeCount(
+          ApModelsVn::class,
+          3,
+          ['familia_id' => $data['familia_id']]
+        );
+    }
+
     $engineType->update($data);
     return new ApModelsVnResource($engineType);
   }

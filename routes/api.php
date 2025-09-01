@@ -7,6 +7,7 @@ use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFuelTypeController
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApModelsVnController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleStatusController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleBrandController;
+use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignSedeController;
 use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailController;
@@ -362,6 +363,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'destroy'
         ]);
         Route::apiResource('modelsVn', ApModelsVnController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+        Route::apiResource('assignSede', ApAssignSedeController::class)->only([
           'index',
           'show',
           'store',

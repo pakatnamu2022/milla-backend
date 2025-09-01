@@ -106,55 +106,55 @@ class StoreApModelsVnRequest extends FormRequest
         'required',
         'numeric',
         'min:0',
-        'max:999999.9999',
+        'max:9999999999.99',
       ],
       'costo_transporte' => [
         'required',
         'numeric',
         'min:0',
-        'max:999999.9999',
+        'max:9999999999.99',
       ],
       'otros_importes' => [
         'required',
         'numeric',
         'min:0',
-        'max:999999.9999',
+        'max:9999999999.99',
       ],
       'descuento_compra' => [
         'required',
         'numeric',
         'min:0',
-        'max:999999.9999',
+        'max:9999999999.99',
       ],
       'importe_igv' => [
         'required',
         'numeric',
         'min:0',
-        'max:999999.9999',
+        'max:9999999999.99',
       ],
       'total_compra_sigv' => [
         'required',
         'numeric',
         'min:0',
-        'max:999999.9999',
+        'max:9999999999.99',
       ],
       'total_compra_cigv' => [
         'required',
         'numeric',
         'min:0',
-        'max:999999.9999',
+        'max:9999999999.99',
       ],
       'precio_venta' => [
         'required',
         'numeric',
         'min:0',
-        'max:999999.9999',
+        'max:9999999999.99',
       ],
       'margen' => [
         'required',
         'numeric',
         'min:0',
-        'max:999999.9999',
+        'max:9999999999.99',
       ],
       'familia_id' => [
         'required',
@@ -298,55 +298,55 @@ class StoreApModelsVnRequest extends FormRequest
       'precio_distribuidor.required' => 'El precio del distribuidor es obligatorio.',
       'precio_distribuidor.numeric' => 'El precio del distribuidor debe ser un número.',
       'precio_distribuidor.min' => 'El precio del distribuidor debe ser mayor o igual a 0.',
-      'precio_distribuidor.max' => 'El precio del distribuidor no puede exceder 999,999.9999.',
+      'precio_distribuidor.max' => 'El precio del distribuidor no puede exceder 9999999999.99.',
 
       // Costo de transporte
       'costo_transporte.required' => 'El costo de transporte es obligatorio.',
       'costo_transporte.numeric' => 'El costo de transporte debe ser un número.',
       'costo_transporte.min' => 'El costo de transporte debe ser mayor o igual a 0.',
-      'costo_transporte.max' => 'El costo de transporte no puede exceder 999,999.9999.',
+      'costo_transporte.max' => 'El costo de transporte no puede exceder 9999999999.99.',
 
       // Otros importes
       'otros_importes.required' => 'Los otros importes son obligatorios.',
       'otros_importes.numeric' => 'Los otros importes deben ser un número.',
       'otros_importes.min' => 'Los otros importes deben ser mayor o igual a 0.',
-      'otros_importes.max' => 'Los otros importes no pueden exceder 999,999.9999.',
+      'otros_importes.max' => 'Los otros importes no pueden exceder 9999999999.99.',
 
       // Descuento compra
       'descuento_compra.required' => 'El descuento de compra es obligatorio.',
       'descuento_compra.numeric' => 'El descuento de compra debe ser un número.',
       'descuento_compra.min' => 'El descuento de compra debe ser mayor o igual a 0.',
-      'descuento_compra.max' => 'El descuento de compra no puede exceder 999,999.9999.',
+      'descuento_compra.max' => 'El descuento de compra no puede exceder 9999999999.99.',
 
       // Importe IGV
       'importe_igv.required' => 'El importe del IGV es obligatorio.',
       'importe_igv.numeric' => 'El importe del IGV debe ser un número.',
       'importe_igv.min' => 'El importe del IGV debe ser mayor o igual a 0.',
-      'importe_igv.max' => 'El importe del IGV no puede exceder 999,999.9999.',
+      'importe_igv.max' => 'El importe del IGV no puede exceder 9999999999.99.',
 
       // Total compra sin IGV
       'total_compra_sigv.required' => 'El total de compra con IGV es obligatorio.',
       'total_compra_sigv.numeric' => 'El total de compra con IGV debe ser un número.',
       'total_compra_sigv.min' => 'El total de compra con IGV debe ser mayor o igual a 0.',
-      'total_compra_sigv.max' => 'El total de compra con IGV no puede exceder 999,999.9999.',
+      'total_compra_sigv.max' => 'El total de compra con IGV no puede exceder 9999999999.99.',
 
       // Total compra con IGV
       'total_compra_cigv.required' => 'El total de compra con IGV es obligatorio.',
       'total_compra_cigv.numeric' => 'El total de compra con IGV debe ser un número.',
       'total_compra_cigv.min' => 'El total de compra con IGV debe ser mayor o igual a 0.',
-      'total_compra_cigv.max' => 'El total de compra con IGV no puede exceder 999,999.9999.',
+      'total_compra_cigv.max' => 'El total de compra con IGV no puede exceder 9999999999.99.',
 
       // Precio venta
       'precio_venta.required' => 'El precio de venta es obligatorio.',
       'precio_venta.numeric' => 'El precio de venta debe ser un número.',
       'precio_venta.min' => 'El precio de venta debe ser mayor o igual a 0.',
-      'precio_venta.max' => 'El precio de venta no puede exceder 999,999.9999.',
+      'precio_venta.max' => 'El precio de venta no puede exceder 9999999999.99.',
 
       // Margen
       'margen.required' => 'El margen es obligatorio.',
       'margen.numeric' => 'El margen debe ser un número.',
       'margen.min' => 'El margen debe ser mayor o igual a 0.',
-      'margen.max' => 'El margen no puede exceder 999,999.9999.',
+      'margen.max' => 'El margen no puede exceder 9999999999.99.',
 
       // Familia
       'familia_id.required' => 'La familia es obligatoria.',
