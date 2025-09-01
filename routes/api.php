@@ -8,6 +8,7 @@ use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApModelsVnController
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleStatusController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleBrandController;
 use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
 use App\Http\Controllers\AuthController;
@@ -26,6 +27,7 @@ use App\Http\Controllers\gp\gestionhumana\personal\PersonController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
+use App\Http\Controllers\gp\gestionsistema\DigitalFileController;
 use App\Http\Controllers\gp\gestionsistema\PositionController;
 use App\Http\Controllers\gp\gestionsistema\RoleController;
 use App\Http\Controllers\gp\gestionsistema\SedeController;
@@ -60,6 +62,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
     'destroy'
   ]);
 
+//  DIGITAL FILE
+  Route::apiResource('digital-file', DigitalFileController::class)->only([
+    'index',
+    'show',
+    'store',
+    'destroy'
+  ]);
+
   //    SYSTEM
   Route::group(['prefix' => 'configuration'], function () {
     //        ROLES
@@ -76,15 +86,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     //        VIEWS
     Route::apiResource('view', ViewController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    //        POSITIONS
-    Route::apiResource('position', PositionController::class)->only([
       'index',
       'show',
       'store',
@@ -145,7 +146,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     'destroy'
   ]);
 
-  //    PERSONAL MAN
+  //    PERSONAL MAIN
   Route::group(['prefix' => 'personal'], function () {
     //        PERSON
     Route::apiResource('person', PersonController::class)->only([
@@ -156,7 +157,17 @@ Route::middleware(['auth:sanctum'])->group(function () {
       'destroy'
     ]);
 
+//    WORKER
     Route::apiResource('worker', WorkerController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
+
+    //        POSITIONS
+    Route::apiResource('position', PositionController::class)->only([
       'index',
       'show',
       'store',
@@ -222,13 +233,25 @@ Route::middleware(['auth:sanctum'])->group(function () {
       'destroy'
     ]);
 
+    //    CATEGORY OBJECTIVE DETAILS
+    Route::get('/categoryObjectiveDetail/{category}/workers', [EvaluationCategoryObjectiveDetailController::class, 'workers']);
     Route::apiResource('categoryObjectiveDetail', EvaluationCategoryObjectiveDetailController::class)->only([
       'index',
       'show',
       'store',
       'update',
-      'destroy'
     ]);
+    Route::post('/categoryObjectiveDetail/destroy', [EvaluationCategoryObjectiveDetailController::class, 'destroy']);
+
+    //    CATEGORY COMPETENCE DETAILS
+    Route::get('/categoryCompetenceDetail/{category}/workers', [EvaluationCategoryCompetenceDetailController::class, 'workers']);
+    Route::apiResource('categoryCompetenceDetail', EvaluationCategoryCompetenceDetailController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+    ]);
+    Route::post('/categoryCompetenceDetail/destroy', [EvaluationCategoryCompetenceDetailController::class, 'destroy']);
 
     //        PARAMETER
     Route::apiResource('parameter', EvaluationParameterController::class)->only([

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\gp\gestionhumana\evaluacion\DeleteEvaluationCategoryObjectiveDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationCategoryObjectiveDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationCategoryObjectiveDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationCategoryObjectiveDetailRequest;
@@ -26,6 +27,15 @@ class EvaluationCategoryObjectiveDetailController extends Controller
     }
   }
 
+  public function workers(int $id)
+  {
+    try {
+      return $this->service->workers($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function store(StoreEvaluationCategoryObjectiveDetailRequest $request)
   {
     try {
@@ -42,13 +52,19 @@ class EvaluationCategoryObjectiveDetailController extends Controller
 
   public function update(UpdateEvaluationCategoryObjectiveDetailRequest $request, int $id)
   {
-    //
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->service->update($data);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
-  public function destroy(int $id)
+  public function destroy(DeleteEvaluationCategoryObjectiveDetailRequest $request)
   {
     try {
-      return $this->success($this->service->destroy($id));
+      return $this->success($this->service->destroy($request));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

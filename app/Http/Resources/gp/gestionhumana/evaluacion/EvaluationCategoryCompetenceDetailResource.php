@@ -7,13 +7,16 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class EvaluationCategoryCompetenceDetailResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
-     */
-    public function toArray(Request $request): array
-    {
-        return parent::toArray($request);
-    }
+  public function toArray(Request $request): array
+  {
+    return [
+      'id' => $this->id,
+      'active' => (bool)$this->active,
+      'competence_id' => $this->competence_id,
+      'category_id' => $this->category_id,
+      'competence' => EvaluationCompetenceResource::make($this->competence),
+      'category' => $this->category?->name,
+      'worker' => $this->worker?->nombre_completo,
+    ];
+  }
 }

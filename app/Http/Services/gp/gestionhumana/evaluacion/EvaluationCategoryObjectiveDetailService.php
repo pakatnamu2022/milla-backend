@@ -3,10 +3,17 @@
 namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailResource;
+use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationObjectiveResource;
+use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationObjective;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
+use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use Exception;
 use Illuminate\Http\Request;
+use function max;
+use function round;
 
 class EvaluationCategoryObjectiveDetailService extends BaseService
 {
@@ -21,10 +28,84 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
     );
   }
 
+
+  public function workers(int $id)
+  {
+    $hierarchicalCategory = HierarchicalCategory::findOrFail($id);
+    $workers = $hierarchicalCategory->workers()->get();
+
+//    agrupar objetivos por person_id y dentro de la persona que este los objetivos
+    $workersWithObjectives = $workers->map(function ($worker) use ($id) {
+      $objectives = EvaluationCategoryObjectiveDetail::where('category_id', $id)
+        ->where('person_id', $worker->id)
+        ->whereNull('deleted_at')
+        ->get();
+      return [
+        'worker' => new WorkerResource($worker),
+        'objectives' => EvaluationCategoryObjectiveDetailResource::collection($objectives),
+      ];
+    });
+
+    return $workersWithObjectives;
+  }
+
+  public function recalculateWeights($categoryId, $personId)
+  {
+    $allObjectives = EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
+      ->where('person_id', $personId)
+      ->whereNull('deleted_at');
+
+    $activeObjectives = (clone $allObjectives)->where('active', true)->get();
+    $inactiveObjectives = (clone $allObjectives)->where('active', false)->get();
+
+    $fixedObjectives = $activeObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === true);
+    $nonFixedObjectives = $activeObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === false);
+
+    $usedWeight = $fixedObjectives->sum('weight');
+    $remaining = max(0, 100 - $usedWeight); // evitar negativos
+
+
+    $count = $nonFixedObjectives->count();
+    $weight = $count > 0 ? round($remaining / $count, 2) : 0;
+
+    foreach ($nonFixedObjectives as $objective) {
+      $objective->update([
+        'weight' => $weight,
+        'fixedWeight' => false,
+      ]);
+    }
+
+    foreach ($inactiveObjectives as $objective) {
+      $objective->update([
+        'weight' => 0,
+        'fixedWeight' => false,
+      ]);
+    }
+
+    return ['message' => 'Pesos recalculados correctamente'];
+  }
+
   public function store($data)
   {
-    $categoryObjective = EvaluationCategoryObjectiveDetail::create($data);
-    return new EvaluationCategoryObjectiveDetailResource($categoryObjective);
+    $category = HierarchicalCategory::findOrFail($data['category_id']);
+    $workers = $category->workers()->pluck('rrhh_persona.id')->toArray();
+    $objective = EvaluationObjective::findOrFail($data['objective_id']);
+
+    foreach ($workers as $workerId) {
+      EvaluationCategoryObjectiveDetail::create([
+        'objective_id' => $objective->id,
+        'category_id' => $data['category_id'],
+        'person_id' => $workerId,
+        'goal' => $objective->goalReference,
+        'fixedWeight' => $objective->fixedWeight,
+        'weight' => $objective->fixedWeight ? $objective->weight : 0,
+      ]);
+      $this->recalculateWeights($category->id, $workerId);
+    }
+
+    return EvaluationCategoryObjectiveDetailResource::collection(
+      EvaluationCategoryObjectiveDetail::where('category_id', $data['category_id'])->get()
+    );
   }
 
   public function find($id)
@@ -44,14 +125,38 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
   public function update($data)
   {
     $categoryObjective = $this->find($data['id']);
+    if (isset($data['weight'])) {
+      $data['fixedWeight'] = $data['weight'] > 0 ? true : false;
+    }
     $categoryObjective->update($data);
+    $this->recalculateWeights($categoryObjective->category_id, $categoryObjective->person_id);
+    $categoryObjective = $this->find($data['id']);
+//    $objective = EvaluationObjective::find($categoryObjective->objective_id);
+//    $objective->update([
+//      'weight' => $categoryObjective->weight
+//      ''
+//    ]);
     return new EvaluationCategoryObjectiveDetailResource($categoryObjective);
   }
 
-  public function destroy($id)
+  public function destroy($data)
   {
-    $categoryObjective = $this->find($id);
-    $categoryObjective->delete();
+    $categoryId = $data['category_id'];
+    $objectiveId = $data['objective_id'];
+    $workers = HierarchicalCategory::find($categoryId)->workers()->pluck('rrhh_persona.id')->toArray();
+    // Verificar si el objetivo está asociado a alguna evaluación activa
+//    $activeEvaluations = EvaluationPersonCycleDetail::where('category_id', $categoryId
+//    )->where('person_id', $categoryObjective->person_id
+//    )->whereNull('deleted_at')->exists();
+//    if ($activeEvaluations) {
+//      throw new Exception('No se puede eliminar el objetivo porque está asociado a una evaluación activa.');
+//    }
+    EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
+      ->where('objective_id', $objectiveId)
+      ->whereNull('deleted_at')->delete();
+    foreach ($workers as $workerId) {
+      $this->recalculateWeights($categoryId, $workerId);
+    }
     return response()->json(['message' => 'Objetivo de Categoria eliminado correctamente']);
   }
 }

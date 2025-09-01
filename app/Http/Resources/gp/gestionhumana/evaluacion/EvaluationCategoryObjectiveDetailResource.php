@@ -11,10 +11,14 @@ class EvaluationCategoryObjectiveDetailResource extends JsonResource
   {
     return [
       'id' => $this->id,
+      'goal' => round($this->goal, 2),
+      'weight' => round($this->weight, 2),
+      'active' => (bool)$this->active,
       'objective_id' => $this->objective_id,
       'category_id' => $this->category_id,
       'objective' => $this->objective?->name,
       'category' => $this->category?->name,
+      'worker' => $this->worker?->nombre_completo,
     ];
   }
 }

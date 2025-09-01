@@ -110,10 +110,6 @@ class Person extends BaseModel
 //        return $this->hasOne(ProcesoPostulacion::class, 'id', 'proceso_postulacion_id');
 //    }
 //
-
-//
-
-//
 //    public function direcciones()
 //    {
 //        return $this->hasMany(fac_direcciones::class, 'cliente_id', 'id');
