@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\gp\gestionhumana\evaluacion\DeleteEvaluationCategoryCompetenceDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationCategoryCompetenceDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationCategoryCompetenceDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationCategoryCompetenceDetailRequest;
@@ -58,7 +59,7 @@ class EvaluationCategoryCompetenceDetailController extends Controller
   public function destroy(DeleteEvaluationCategoryCompetenceDetailRequest $request)
   {
     try {
-      return $this->success($this->service->destroy($request));
+      return $this->service->destroy($request->validated());
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
