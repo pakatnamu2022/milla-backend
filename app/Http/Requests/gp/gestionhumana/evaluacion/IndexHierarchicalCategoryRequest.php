@@ -6,10 +6,9 @@ use App\Http\Requests\IndexRequest;
 
 class IndexHierarchicalCategoryRequest extends IndexRequest
 {
-    public function rules(): array
-    {
-        return [
-            //
-        ];
-    }
+  public function rules(): array
+  {
+    return [
+    ];
+  }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\HierarchicalCategoryResource;
 use App\Http\Services\BaseService;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use Illuminate\Http\Request;
 use Exception;
@@ -22,9 +23,11 @@ class HierarchicalCategoryService extends BaseService
     );
   }
 
-  public function listAll()
+  public function listAll($idCycle)
   {
-    $hierarchicalCategories = HierarchicalCategory::whereAllPersonsHaveJefe();
+    $cycle = EvaluationCycle::findOrFail($idCycle);
+    $hasObjectives = $cycle->typeEvaluation == 0;
+    $hierarchicalCategories = HierarchicalCategory::whereAllPersonsHaveJefe($hasObjectives);
     return HierarchicalCategoryResource::collection($hierarchicalCategories);
   }
 

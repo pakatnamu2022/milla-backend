@@ -10,58 +10,58 @@ use Illuminate\Http\Request;
 
 class EvaluationMetricController extends Controller
 {
-    protected EvaluationMetricService $service;
+  protected EvaluationMetricService $service;
 
-    public function __construct(EvaluationMetricService $service)
-    {
-        $this->service = $service;
+  public function __construct(EvaluationMetricService $service)
+  {
+    $this->service = $service;
+  }
+
+
+  public function index(Request $request)
+  {
+    try {
+      return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-
-    public function index(Request $request)
-    {
-        try {
-            return $this->service->list($request);
-        } catch (\Throwable $th) {
-            return $this->error($th->getMessage());
-        }
+  public function store(StoreEvaluationMetricRequest $request)
+  {
+    try {
+      return $this->success($this->service->store($request->validated()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    public function store(StoreEvaluationMetricRequest $request)
-    {
-        try {
-            return $this->success($this->service->store($request->validated()));
-        } catch (\Throwable $th) {
-            return $this->error($th->getMessage());
-        }
+  public function show(int $id)
+  {
+    try {
+      return $this->success($this->service->show($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    public function show(int $id)
-    {
-        try {
-            return $this->success($this->service->show($id));
-        } catch (\Throwable $th) {
-            return $this->error($th->getMessage());
-        }
+  public function update(UpdateEvaluationMetricRequest $request, int $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->update($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    public function update(UpdateEvaluationMetricRequest $request, int $id)
-    {
-        try {
-            $data = $request->validated();
-            $data['id'] = $id; // Add the ID to the data for updating
-            return $this->success($this->service->update($data));
-        } catch (\Throwable $th) {
-            return $this->error($th->getMessage());
-        }
+  public function destroy($id)
+  {
+    try {
+      return $this->success($this->service->destroy($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
-
-    public function destroy($id)
-    {
-        try {
-            return $this->success($this->service->destroy($id));
-        } catch (\Throwable $th) {
-            return $this->error($th->getMessage());
-        }
-    }
+  }
 }

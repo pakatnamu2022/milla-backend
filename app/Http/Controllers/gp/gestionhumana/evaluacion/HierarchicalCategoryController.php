@@ -29,10 +29,11 @@ class HierarchicalCategoryController extends Controller
     }
   }
 
-  public function listAll()
+  public function listAll(Request $request)
   {
     try {
-      return $this->success($this->service->listAll());
+      $idCycle = $request->query('idCycle');
+      return $this->success($this->service->listAll($idCycle));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

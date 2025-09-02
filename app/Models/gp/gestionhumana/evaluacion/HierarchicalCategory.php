@@ -18,6 +18,9 @@ class HierarchicalCategory extends BaseModel
   protected $fillable = [
     'name',
     'description',
+    'hasObjectives',
+    'objectivePercentage',
+    'competencePercentage',
     'excluded_from_evaluation',
   ];
 
@@ -25,6 +28,7 @@ class HierarchicalCategory extends BaseModel
     'search' => ['name', 'description'],
     'excluded_from_evaluation' => '=',
     'pass' => 'virtual_bool',
+    'hasObjectives' => '=',
   ];
 
   const sorts = [
@@ -99,9 +103,12 @@ class HierarchicalCategory extends BaseModel
     )->where('rrhh_persona.status_id', 22);
   }
 
-  public static function whereAllPersonsHaveJefe()
+  public static function whereAllPersonsHaveJefe(bool $hasObjectives)
   {
     $categories = self::where('excluded_from_evaluation', false)
+      ->when($hasObjectives === true, function ($q) {
+        $q->where('hasObjectives', true);
+      })
       ->with([
         'positions' => function ($q) {
           $q->with(['persons' => function ($q2) {
