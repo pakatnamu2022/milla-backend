@@ -147,157 +147,167 @@ Route::middleware(['auth:sanctum'])->group(function () {
     'destroy'
   ]);
 
-  //    PERSONAL MAIN
-  Route::group(['prefix' => 'personal'], function () {
-    //        PERSON
-    Route::apiResource('person', PersonController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
+
+  Route::group(['prefix' => 'gp'], function () {
+    Route::group(['prefix' => 'gh'], function () {
+      //    PERSONAL MAIN
+      Route::group(['prefix' => 'personal'], function () {
+        //        PERSON
+        Route::apiResource('person', PersonController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
 
 //    WORKER
-    Route::apiResource('worker', WorkerController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
+        Route::apiResource('worker', WorkerController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
 
-    //        POSITIONS
-    Route::apiResource('position', PositionController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
+
+//      POSITIONS
+        Route::apiResource('position', PositionController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+      });
+
+      //    PERFORMANCE EVALUATION
+      Route::group(['prefix' => 'performanceEvaluation'], function () {
+        //        METRICS
+        Route::apiResource('metric', EvaluationMetricController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        //        OBJECTIVES
+        Route::apiResource('objective', EvaluationObjectiveController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        //        COMPETENCES
+        Route::apiResource('competence', EvaluationCompetenceController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        //        PERIODS
+        Route::apiResource('period', EvaluationPeriodController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        //        HIERARCHICAL CATEGORIES
+        Route::get('/hierarchicalCategory/listAll', [HierarchicalCategoryController::class, 'listAll']);
+        Route::apiResource('hierarchicalCategory', HierarchicalCategoryController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        Route::post('/hierarchicalCategory/{category}/details', [HierarchicalCategoryDetailController::class, 'storeMany']);
+        Route::apiResource('hierarchicalCategoryDetail', HierarchicalCategoryDetailController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        //    CATEGORY OBJECTIVE DETAILS
+        Route::get('/categoryObjectiveDetail/{category}/workers', [EvaluationCategoryObjectiveDetailController::class, 'workers']);
+        Route::apiResource('categoryObjectiveDetail', EvaluationCategoryObjectiveDetailController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+        ]);
+        Route::post('/categoryObjectiveDetail/destroy', [EvaluationCategoryObjectiveDetailController::class, 'destroy']);
+
+        //    CATEGORY COMPETENCE DETAILS
+        Route::get('/categoryCompetenceDetail/{category}/workers', [EvaluationCategoryCompetenceDetailController::class, 'workers']);
+        Route::apiResource('categoryCompetenceDetail', EvaluationCategoryCompetenceDetailController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+        ]);
+        Route::post('/categoryCompetenceDetail/destroy', [EvaluationCategoryCompetenceDetailController::class, 'destroy']);
+
+        //        PARAMETER
+        Route::apiResource('parameter', EvaluationParameterController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        //        CYCLE
+        Route::apiResource('cycle', EvaluationCycleController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        //        CYCLE CATEGORIES
+        Route::get('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'index']);
+        Route::post('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'storeMany']);
+        Route::get('/cycle/{cycle}/details', [EvaluationPersonCycleDetailController::class, 'index']);
+        Route::get('/cycle/{id}/participants', [EvaluationCycleController::class, 'participants']);
+        Route::get('/cycle/{id}/positions', [EvaluationCycleController::class, 'positions']);
+
+
+        //        PERSON CYCLE DETAILS
+        Route::apiResource('personCycleDetail', EvaluationPersonCycleDetailController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        //        PERSON CYCLE DETAILS
+        Route::apiResource('evaluationPersonDetail', EvaluationPersonDetailController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+      });
+
+    });
+
   });
 
-  //    PERFORMANCE EVALUATION
-  Route::group(['prefix' => 'performanceEvaluation'], function () {
-    //        METRICS
-    Route::apiResource('metric', EvaluationMetricController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    //        OBJECTIVES
-    Route::apiResource('objective', EvaluationObjectiveController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    //        COMPETENCES
-    Route::apiResource('competence', EvaluationCompetenceController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    //        PERIODS
-    Route::apiResource('period', EvaluationPeriodController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    //        HIERARCHICAL CATEGORIES
-    Route::get('/hierarchicalCategory/listAll', [HierarchicalCategoryController::class, 'listAll']);
-    Route::apiResource('hierarchicalCategory', HierarchicalCategoryController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    Route::post('/hierarchicalCategory/{category}/details', [HierarchicalCategoryDetailController::class, 'storeMany']);
-    Route::apiResource('hierarchicalCategoryDetail', HierarchicalCategoryDetailController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    //    CATEGORY OBJECTIVE DETAILS
-    Route::get('/categoryObjectiveDetail/{category}/workers', [EvaluationCategoryObjectiveDetailController::class, 'workers']);
-    Route::apiResource('categoryObjectiveDetail', EvaluationCategoryObjectiveDetailController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-    ]);
-    Route::post('/categoryObjectiveDetail/destroy', [EvaluationCategoryObjectiveDetailController::class, 'destroy']);
-
-    //    CATEGORY COMPETENCE DETAILS
-    Route::get('/categoryCompetenceDetail/{category}/workers', [EvaluationCategoryCompetenceDetailController::class, 'workers']);
-    Route::apiResource('categoryCompetenceDetail', EvaluationCategoryCompetenceDetailController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-    ]);
-    Route::post('/categoryCompetenceDetail/destroy', [EvaluationCategoryCompetenceDetailController::class, 'destroy']);
-
-    //        PARAMETER
-    Route::apiResource('parameter', EvaluationParameterController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    //        CYCLE
-    Route::apiResource('cycle', EvaluationCycleController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    //        CYCLE CATEGORIES
-    Route::get('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'index']);
-    Route::post('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'storeMany']);
-    Route::get('/cycle/{cycle}/details', [EvaluationPersonCycleDetailController::class, 'index']);
-    Route::get('/cycle/{id}/participants', [EvaluationCycleController::class, 'participants']);
-    Route::get('/cycle/{id}/positions', [EvaluationCycleController::class, 'positions']);
-
-
-    //        PERSON CYCLE DETAILS
-    Route::apiResource('personCycleDetail', EvaluationPersonCycleDetailController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    //        PERSON CYCLE DETAILS
-    Route::apiResource('evaluationPersonDetail', EvaluationPersonDetailController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-  });
 
   /**
    * Routes for Automotores Pakatnamu
