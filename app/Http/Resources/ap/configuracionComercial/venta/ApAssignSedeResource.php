@@ -14,7 +14,7 @@ class ApAssignSedeResource extends JsonResource
       'abreviatura' => $this->abreviatura,
       'asesores' => $this->asesores->map(fn($asesor) => [
         'id' => $asesor->id,
-        'nombre_completo' => $asesor->nombre_completo,
+        'name' => $asesor->nombre_completo,
       ]),
     ];
   }

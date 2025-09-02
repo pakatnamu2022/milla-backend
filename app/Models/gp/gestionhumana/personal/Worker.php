@@ -9,7 +9,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Worker extends Person
 {
-  const filters = ['sede.empresa_id' => '='];
+  const filters = [
+    'sede.empresa_id' => '=',
+    'cargo_id' => '=',
+  ];
 
   protected static function booted()
   {
