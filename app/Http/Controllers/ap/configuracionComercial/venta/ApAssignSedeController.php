@@ -27,6 +27,15 @@ class ApAssignSedeController extends Controller
     }
   }
 
+  public function indexRecord(IndexApAssignSedeRequest $request)
+  {
+    try {
+      return $this->service->listRecord($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function store(StoreApAssignSedeRequest $request)
   {
     try {

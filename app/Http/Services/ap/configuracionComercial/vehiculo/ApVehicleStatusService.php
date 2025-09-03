@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\configuracionComercial\vehiculo;
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApVehicleStatusResource;
 use App\Http\Services\BaseService;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\configuracionComercial\venta\ApAssignSedePeriodo;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;

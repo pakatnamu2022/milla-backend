@@ -79,12 +79,6 @@ class Person extends BaseModel
     return $this->hasOne(Sede::class, 'id', 'sede_id');
   }
 
-  public function sedes()
-  {
-    return $this->belongsToMany(Sede::class, 'ap_assign_sede', 'asesor_id', 'sede_id')
-      ->withTimestamps();
-  }
-  
 //
 //    public function area()
 //    {

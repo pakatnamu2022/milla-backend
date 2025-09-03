@@ -10,11 +10,11 @@ class ApAssignSedeResource extends JsonResource
   public function toArray($request)
   {
     return [
-      'id' => $this->id,
+      'sede_id' => $this->id,
       'abreviatura' => $this->abreviatura,
       'asesores' => $this->asesores->map(fn($asesor) => [
         'id' => $asesor->id,
-        'nombre_completo' => $asesor->nombre_completo,
+        'name' => $asesor->nombre_completo,
       ]),
     ];
   }
