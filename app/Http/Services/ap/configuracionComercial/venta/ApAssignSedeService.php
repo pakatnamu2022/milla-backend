@@ -4,7 +4,6 @@ namespace App\Http\Services\ap\configuracionComercial\venta;
 
 use App\Http\Resources\ap\configuracionComercial\venta\ApAssignSedeResource;
 use App\Http\Services\BaseService;
-use App\Models\ap\configuracionComercial\venta\ApAssignSede;
 use App\Models\ap\configuracionComercial\venta\ApAssignSedePeriodo;
 use App\Models\gp\gestionsistema\Sede;
 use Illuminate\Http\Request;
@@ -26,12 +25,12 @@ class ApAssignSedeService extends BaseService
   public function listRecord(Request $request)
   {
     $anio = $request->query('anio');
-    $mes = $request->query('mes');
+    $month = $request->query('month');
     $sede = $request->query('sede');
 
     $query = ApAssignSedePeriodo::with(['sede', 'asesor'])
       ->when($anio, fn($q) => $q->where('anio', $anio))
-      ->when($mes, fn($q) => $q->where('mes', $mes))
+      ->when($month, fn($q) => $q->where('month', $month))
       ->when($sede, function ($q) use ($sede) {
         $q->whereHas('sede', function ($sub) use ($sede) {
           $sub->where('abreviatura', 'like', "%{$sede}%");
@@ -47,7 +46,7 @@ class ApAssignSedeService extends BaseService
         'sede_id' => $first->sede_id,
         'sede' => $first->sede->abreviatura,
         'anio' => $first->anio,
-        'mes' => $first->mes,
+        'month' => $first->month,
         'asesores' => $items->map(function ($item) {
           return [
             'id' => $item->asesor->id,
@@ -83,10 +82,10 @@ class ApAssignSedeService extends BaseService
     $sede->asesores()->sync($data['asesores']);
 
     //si se editan registros de ese periodo determinado se debe editar tambien en la tabla ap_assign_sede_periodo
-    if (isset($data['anio']) && isset($data['mes'])) {
+    if (isset($data['anio']) && isset($data['month'])) {
       ApAssignSedePeriodo::where('sede_id', $data['sede_id'])
         ->where('anio', $data['anio'])
-        ->where('mes', $data['mes'])
+        ->where('month', $data['month'])
         ->delete();
 
       $insertData = [];
@@ -95,7 +94,7 @@ class ApAssignSedeService extends BaseService
           'sede_id' => $data['sede_id'],
           'asesor_id' => $asesorId,
           'anio' => $data['anio'],
-          'mes' => $data['mes'],
+          'month' => $data['month'],
         ];
       }
       if (!empty($insertData)) {

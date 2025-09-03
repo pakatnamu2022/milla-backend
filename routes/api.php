@@ -7,6 +7,7 @@ use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFuelTypeController
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApModelsVnController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleStatusController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleBrandController;
+use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignBrandConsultantController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignSedeController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignSedePeriodoController;
 use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
@@ -385,6 +386,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'index',
           'show',
           'update',
+        ]);
+
+        Route::get('assignBrandConsultant/showGrouped', [ApAssignBrandConsultantController::class, 'showGrouped']);
+        Route::apiResource('assignBrandConsultant', ApAssignBrandConsultantController::class)->only([
+          'index',
+          'store',
+          'update',
+          'destroy'
         ]);
       });
       //        CONFIGURATION AFTER SALES
