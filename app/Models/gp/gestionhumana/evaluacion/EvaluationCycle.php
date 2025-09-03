@@ -53,11 +53,6 @@ class EvaluationCycle extends Model
     'cerrado' => 'Cerrado',
   ];
 
-  const typesEvaluation = [
-    0 => 'Objetivos',
-    1 => '180 o 360',
-  ];
-
   public function period()
   {
     return $this->belongsTo(EvaluationPeriod::class, 'period_id');

@@ -19,8 +19,6 @@ class HierarchicalCategoryResource extends JsonResource
       'competences' => EvaluationCompetenceResource::collection($this->competences),
       'excluded_from_evaluation' => (bool)$this->excluded_from_evaluation,
       'hasObjectives' => (bool)$this->hasObjectives,
-      'objectivePercentage' => $this->objectivePercentage,
-      'competencePercentage' => $this->competencePercentage,
       'children' => HierarchicalCategoryDetailResource::collection($this->children),
     ];
   }

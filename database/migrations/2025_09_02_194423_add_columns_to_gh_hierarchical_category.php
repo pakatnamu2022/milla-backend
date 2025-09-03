@@ -12,8 +12,6 @@ return new class extends Migration {
   {
     Schema::table('gh_hierarchical_category', function (Blueprint $table) {
       $table->boolean('hasObjectives')->default(true)->after('description');
-      $table->decimal('objectivePercentage')->default(0)->after('hasObjectives');
-      $table->decimal('competencePercentage')->default(0)->after('objectivePercentage');
     });
   }
 
@@ -23,7 +21,7 @@ return new class extends Migration {
   public function down(): void
   {
     Schema::table('gh_hierarchical_category', function (Blueprint $table) {
-      $table->dropColumn(['hasObjectives', 'objectivePercentage', 'competencePercentage']);
+      $table->dropColumn(['hasObjectives']);
     });
   }
 };

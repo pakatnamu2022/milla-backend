@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources\gp\gestionhumana\evaluacion;
 
-use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -21,7 +20,7 @@ class EvaluationCycleResource extends JsonResource
       'parameter_id' => $this->parameter_id,
       'status' => (now()->between($this->start_date, $this->end_date) ? 'en proceso' : 'pendiente'),
       'typeEvaluation' => str($this->typeEvaluation),
-      'typeEvaluationName' => EvaluationCycle::typesEvaluation[$this->typeEvaluation],
+      'typeEvaluationName' => config('evaluation.typesEvaluation')[$this->typeEvaluation],
       'period' => new EvaluationPeriodResource($this->period),
       'parameter' => new EvaluationParameterResource($this->parameter),
       'categories' => EvaluationCycleCategoryDetailResource::collection($this->categories)

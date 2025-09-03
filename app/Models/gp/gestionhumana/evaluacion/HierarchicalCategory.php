@@ -19,8 +19,6 @@ class HierarchicalCategory extends BaseModel
     'name',
     'description',
     'hasObjectives',
-    'objectivePercentage',
-    'competencePercentage',
     'excluded_from_evaluation',
   ];
 
