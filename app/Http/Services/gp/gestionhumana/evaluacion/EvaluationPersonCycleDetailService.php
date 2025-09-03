@@ -6,6 +6,7 @@ use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetailRe
 use App\Http\Resources\gp\gestionhumana\personal\PersonResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use App\Models\gp\gestionsistema\Person;
@@ -16,6 +17,14 @@ use function Pest\Laravel\json;
 
 class EvaluationPersonCycleDetailService extends BaseService
 {
+
+  public function __construct(
+    protected EvaluationCategoryObjectiveDetailService $categoryObjectiveDetailService
+  )
+  {
+  }
+
+
   public function list(Request $request, int $id)
   {
     return $this->getFilteredResults(
@@ -46,6 +55,7 @@ class EvaluationPersonCycleDetailService extends BaseService
 
   public function storeByCategoryAndCycle(int $cycleId, int $categoryId)
   {
+    $lastCycle = EvaluationCycle::where('id', $cycleId)->orderBy('id', 'desc')->first();
     $category = HierarchicalCategory::find($categoryId);
     $positions = $category->children()->pluck('position_id')->toArray();
     $persons = Person::whereIn('cargo_id', $positions)
@@ -64,9 +74,39 @@ class EvaluationPersonCycleDetailService extends BaseService
         $objectives = $category->objectives()->get();
 
         foreach ($objectives as $objective) {
-          $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
-            ->where('category_id', $categoryId)
-            ->first();
+          $goal = 0;
+          $weight = 0;
+
+          if ($lastCycle) {
+            $personCycleDetail = EvaluationPersonCycleDetail::where('person_id', $person->id)
+              ->where('cycle_id', $lastCycle->id)
+              ->where('category_id', $categoryId)
+              ->where('objective_id', $objective->id)
+              ->whereNull('deleted_at')
+              ->first();
+            $goal = $personCycleDetail ? $personCycleDetail->goal : 0;
+            $weight = $personCycleDetail ? $personCycleDetail->weight : 0;
+          }
+
+          if ($goal === 0) {
+            $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
+              ->where('category_id', $categoryId)
+              ->where('person_id', $person->id)
+              ->whereNull('deleted_at')
+              ->first();
+            $goal = $categoryObjective ? $categoryObjective->goal : 0;
+            if ($weight === 0) {
+              $weight = $categoryObjective ? $categoryObjective->weight : 0;
+            }
+          }
+
+          if ($goal === 0) {
+            $goal = $objective->goalReference;
+            if ($weight === 0) {
+              $weight = round(100 / $objectives->count(), 2);
+            }
+          }
+
           $data = [
             'person_id' => $person->id,
             'chief_id' => $person->jefe_id,
@@ -83,8 +123,8 @@ class EvaluationPersonCycleDetailService extends BaseService
             'area' => $person->position?->area ? $person->position->area->name : '',
             'category' => $category->name,
             'objective' => $objective->name,
-            'goal' => $categoryObjective->goal,
-            'weight' => $categoryObjective->weight,
+            'goal' => $goal,
+            'weight' => $weight,
           ];
           EvaluationPersonCycleDetail::create($data);
         }
@@ -107,6 +147,23 @@ class EvaluationPersonCycleDetailService extends BaseService
     $data['fixedWeight'] = isset($data['weight']) && $data['weight'] > 0;
     $personCycleDetail->update($data);
     $this->recalculateWeights($personCycleDetail->id);
+
+    DB::transaction(function () use ($personCycleDetail) {
+      $categoryObjectiveDetail = EvaluationCategoryObjectiveDetail::where('objective_id', $personCycleDetail->objective_id)
+        ->where('category_id', $personCycleDetail->category_id)
+        ->where('person_id', $personCycleDetail->person_id)
+        ->whereNull('deleted_at')
+        ->first();
+
+      if ($categoryObjectiveDetail) {
+        $data = [
+          'id' => $categoryObjectiveDetail->id,
+          'goal' => $personCycleDetail->goal,
+        ];
+
+        $this->categoryObjectiveDetailService->update($data);
+      }
+    });
     return new EvaluationPersonCycleDetailResource($personCycleDetail);
   }
 

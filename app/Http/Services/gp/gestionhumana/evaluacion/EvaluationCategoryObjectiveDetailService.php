@@ -12,6 +12,7 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use function max;
 use function round;
 
@@ -131,11 +132,16 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
     $categoryObjective->update($data);
     $this->recalculateWeights($categoryObjective->category_id, $categoryObjective->person_id);
     $categoryObjective = $this->find($data['id']);
-//    $objective = EvaluationObjective::find($categoryObjective->objective_id);
-//    $objective->update([
-//      'weight' => $categoryObjective->weight
-//      ''
-//    ]);
+
+    DB::transaction(function () use ($categoryObjective) {
+      $objective = EvaluationObjective::find($categoryObjective->objective_id);
+      $objective->update([
+        'fixedWeight' => $categoryObjective->fixedWeight,
+        'weight' => $categoryObjective->fixedWeight ? $categoryObjective->weight : 0,
+        'goalReference' => $categoryObjective->goal,
+      ]);
+    });
+    
     return new EvaluationCategoryObjectiveDetailResource($categoryObjective);
   }
 
