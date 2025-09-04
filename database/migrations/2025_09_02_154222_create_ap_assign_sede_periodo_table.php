@@ -17,8 +17,8 @@ return new class extends Migration {
       $table->integer('asesor_id');
       $table->foreign('asesor_id')->references('id')->on('rrhh_persona');
       $table->integer('anio');
-      $table->integer('mes');
-      $table->unique(['sede_id', 'asesor_id', 'anio', 'mes']);
+      $table->integer('month');
+      $table->unique(['sede_id', 'asesor_id', 'anio', 'month']);
       $table->timestamps();
       $table->softDeletes();
     });

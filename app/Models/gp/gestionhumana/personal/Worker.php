@@ -13,6 +13,7 @@ class Worker extends Person
     'sede.empresa_id' => '=',
     'cargo_id' => '=',
     'status_id' => '=',
+    'sede_id' => '=',
   ];
 
   protected static function booted()
