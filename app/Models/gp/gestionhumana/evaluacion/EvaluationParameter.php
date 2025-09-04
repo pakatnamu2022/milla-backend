@@ -7,31 +7,31 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class EvaluationParameter extends Model
 {
-    use SoftDeletes;
+  use SoftDeletes;
 
-    protected $table = 'gh_evaluation_parameter';
+  protected $table = 'gh_evaluation_parameter';
 
-    protected $fillable = [
-        'name',
-        'type',
-        'isPercentage',
-    ];
+  protected $fillable = [
+    'name',
+    'type',
+    'isPercentage',
+  ];
 
-    public const filters = [
-        'search' => ['name', 'type'],
-        'name' => 'like',
-        'type' => 'exact',
-    ];
+  public const filters = [
+    'search' => ['name', 'type'],
+    'name' => 'like',
+    'type' => '=',
+  ];
 
-    public const sorts = [
-        'name',
-        'type',
-    ];
+  public const sorts = [
+    'name',
+    'type',
+  ];
 
-    public function details()
-    {
-        return $this->hasMany(EvaluationParameterDetail::class, 'parameter_id', 'id');
-    }
+  public function details()
+  {
+    return $this->hasMany(EvaluationParameterDetail::class, 'parameter_id', 'id');
+  }
 
 
 }

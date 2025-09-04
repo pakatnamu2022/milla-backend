@@ -4,7 +4,6 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationResource;
 use App\Http\Services\BaseService;
-use App\Http\Services\BaseServiceInterface;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use Exception;
 use Illuminate\Http\Request;

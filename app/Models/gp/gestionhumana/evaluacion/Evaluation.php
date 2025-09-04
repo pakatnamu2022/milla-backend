@@ -16,7 +16,6 @@ class Evaluation extends Model
     'objectivesPercentage',
     'competenciesPercentage',
     'cycle_id',
-    'hierarchical_category_id',
     'competence_parameter_id',
     'objective_parameter_id',
     'final_parameter_id'

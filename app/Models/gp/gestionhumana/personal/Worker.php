@@ -12,6 +12,7 @@ class Worker extends Person
   const filters = [
     'sede.empresa_id' => '=',
     'cargo_id' => '=',
+    'status_id' => '=',
   ];
 
   protected static function booted()

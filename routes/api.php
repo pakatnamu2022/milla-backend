@@ -15,6 +15,7 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryObjective
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCompetenceController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationMetricController;
@@ -303,6 +304,17 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'update',
           'destroy'
         ]);
+
+//        EVALUATION
+        Route::apiResource('evaluation', EvaluationController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+
       });
 
     });

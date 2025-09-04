@@ -7,8 +7,6 @@ use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationRequest;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationService;
-use App\Models\gp\gestionhumana\evaluacion\Evaluation;
-use Illuminate\Http\Request;
 
 class EvaluationController extends Controller
 {

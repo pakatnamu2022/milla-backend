@@ -16,7 +16,8 @@ class EvaluationObjective extends Model
     'description',
     'goalReference',
     'fixedWeight',
-    'metric_id',
+    'isAscending', //bool: true si a mayor es mejor, false si a menor es mejor
+    'metric_id'
   ];
 
   const filters = [
