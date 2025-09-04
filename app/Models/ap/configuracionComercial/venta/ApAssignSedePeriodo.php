@@ -17,22 +17,22 @@ class ApAssignSedePeriodo extends Model
     'sede_id',
     'asesor_id',
     'anio',
-    'mes',
+    'month',
   ];
 
   const filters = [
-    'search' => ['sede_id', 'asesor_id', 'anio', 'mes'],
+    'search' => ['sede_id', 'asesor_id'],
     'sede_id' => '=',
     'asesor_id' => '=',
     'anio' => '=',
-    'mes' => '=',
+    'month' => '=',
   ];
 
   const sorts = [
     'sede_id',
     'asesor_id',
     'anio',
-    'mes',
+    'month',
   ];
 
   public function sede()
