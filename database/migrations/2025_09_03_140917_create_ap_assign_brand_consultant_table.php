@@ -22,7 +22,7 @@ return new class extends Migration {
       $table->foreign('asesor_id')->references('id')->on('rrhh_persona');
       $table->integer('sede_id');
       $table->foreign('sede_id')->references('id')->on('config_sede');
-      $table->unique(['marca_id', 'asesor_id', 'sede_id', 'anio', 'mes'], 'unique_consultant_sede_anio_mes');
+      $table->unique(['marca_id', 'asesor_id', 'sede_id', 'anio', 'month'], 'unique_consultant_sede_anio_mes');
       $table->timestamps();
       $table->softDeletes();
     });
