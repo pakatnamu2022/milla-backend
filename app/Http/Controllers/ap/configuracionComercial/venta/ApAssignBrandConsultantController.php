@@ -51,7 +51,7 @@ class ApAssignBrandConsultantController extends Controller
   {
     try {
       $data = $request->all();
-      $data['sede_id'] = $id;
+      $data['id'] = $id;
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
@@ -61,8 +61,12 @@ class ApAssignBrandConsultantController extends Controller
   /**
    * Remove the specified resource from storage.
    */
-  public function destroy(ApAssignBrandConsultant $apAssignBrandConsultant)
+  public function destroy($id)
   {
-    //
+    try {
+      return $this->service->destroy($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 }

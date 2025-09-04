@@ -25,12 +25,12 @@ class ApAssignBrandConsultant extends Model
   ];
 
   const filters = [
+    'search' => ['marca.nombre', 'asesor.nombre_completo', 'sede.abreviatura'],
     'anio' => '=',
     'month' => '=',
     'status' => '=',
-    'marca_id' => 'like',
-    'asesor_id' => 'like',
-    'sede_id' => 'like',
+    'marca_id' => '=',
+    'sede_id' => '=',
   ];
 
   const sorts = [

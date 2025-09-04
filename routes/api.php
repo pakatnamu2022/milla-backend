@@ -386,6 +386,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'index',
           'show',
           'update',
+          'destroy'
         ]);
 
         Route::get('assignBrandConsultant/showGrouped', [ApAssignBrandConsultantController::class, 'showGrouped']);

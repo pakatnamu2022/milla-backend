@@ -7,6 +7,7 @@ use App\Http\Services\BaseService;
 use Illuminate\Http\Request;
 use Exception;
 use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
+use Illuminate\Support\Facades\DB;
 
 class ApAssignBrandConsultantService extends BaseService
 {
@@ -56,89 +57,69 @@ class ApAssignBrandConsultantService extends BaseService
     ];
   }
 
+  public function find($id)
+  {
+    $ApAssignBrandConsultantMasters = ApAssignBrandConsultant::where('id', $id)->first();
+    if (!$ApAssignBrandConsultantMasters) {
+      throw new Exception('Asignación de marca no encontrado');
+    }
+    return $ApAssignBrandConsultantMasters;
+  }
+
   public function store(array $data)
   {
-    ApAssignBrandConsultant::where('anio', $data['anio'])
-      ->where('month', $data['month'])
-      ->where('sede_id', $data['sede_id'])
-      ->where('marca_id', $data['marca_id'])
-      ->delete();
-
-    $insertData = [];
-    foreach ($data['asesores'] as $asesor) {
-      $insertData[] = [
-        'anio' => $data['anio'],
-        'month' => $data['month'],
-        'sede_id' => $data['sede_id'],
-        'marca_id' => $data['marca_id'],
-        'asesor_id' => $asesor['asesor_id'],
-        'objetivo_venta' => $asesor['objetivo'],
-        'status' => true,
-        'created_at' => now(),
-        'updated_at' => now(),
-      ];
-    }
-
-    if (!empty($insertData)) {
-      ApAssignBrandConsultant::insert($insertData);
-    }
-
-    return ApAssignBrandConsultant::with(['asesor', 'marca', 'sede'])
+    $existing = ApAssignBrandConsultant::withTrashed()
       ->where('anio', $data['anio'])
       ->where('month', $data['month'])
-      ->where('sede_id', $data['sede_id'])
+      ->where('asesor_id', $data['asesor_id'])
       ->where('marca_id', $data['marca_id'])
-      ->get();
-  }
-
-  public function update(array $data)
-  {
-    $existing = ApAssignBrandConsultant::withTrashed() // 👈 incluye soft–deleted
-    ->where('anio', $data['anio'])
-      ->where('month', $data['month'])
       ->where('sede_id', $data['sede_id'])
-      ->where('marca_id', $data['marca_id'])
-      ->get()
-      ->keyBy('asesor_id');
+      ->first();
 
-    $newAsesores = collect($data['asesores'])->keyBy('asesor_id');
-
-    foreach ($newAsesores as $asesorId => $asesorData) {
-      if ($existing->has($asesorId)) {
-        $record = $existing[$asesorId];
-        $record->objetivo_venta = $asesorData['objetivo'];
-        $record->deleted_at = null; // 👈 reactivar
-        $record->save();
+    if ($existing) {
+      if ($existing->trashed()) {
+        $existing->restore();
+        $existing->update($data);
       } else {
-        ApAssignBrandConsultant::create([
-          'anio' => $data['anio'],
-          'month' => $data['month'],
-          'sede_id' => $data['sede_id'],
-          'marca_id' => $data['marca_id'],
-          'asesor_id' => $asesorId,
-          'objetivo_venta' => $asesorData['objetivo'],
-          'status' => true,
-        ]);
+        throw new Exception('Ya existe una asignación activa para el asesor, marca y sede en el período indicado.');
       }
+      $ApAssignBrandConsultantMasters = $existing;
+    } else {
+      $ApAssignBrandConsultantMasters = ApAssignBrandConsultant::create($data);
     }
 
-    // Eliminar asesores que ya no vienen
-    $toDelete = $existing->keys()->diff($newAsesores->keys());
-    if ($toDelete->isNotEmpty()) {
-      ApAssignBrandConsultant::where('anio', $data['anio'])
-        ->where('month', $data['month'])
-        ->where('sede_id', $data['sede_id'])
-        ->where('marca_id', $data['marca_id'])
-        ->whereIn('asesor_id', $toDelete)
-        ->delete(); // 👈 soft delete
-    }
-
-    return ApAssignBrandConsultant::with(['asesor', 'marca', 'sede'])
-      ->where('anio', $data['anio'])
-      ->where('month', $data['month'])
-      ->where('sede_id', $data['sede_id'])
-      ->where('marca_id', $data['marca_id'])
-      ->get();
+    return new ApAssignBrandConsultantResource($ApAssignBrandConsultantMasters);
   }
 
+  public function update($data)
+  {
+    $ApAssignBrandConsultant = $this->find($data['id']);
+
+    if (count($data) === 2) {
+      $ApAssignBrandConsultant->update($data);
+      return new ApAssignBrandConsultantResource($ApAssignBrandConsultant);
+    }
+
+    $exists = ApAssignBrandConsultant::where('anio', $data['anio'])
+      ->where('month', $data['month'])
+      ->where('asesor_id', $data['asesor_id'])
+      ->where('marca_id', $data['marca_id'])
+      ->where('sede_id', $data['sede_id'])
+      ->where('id', '!=', $data['id'])
+      ->exists();
+    if ($exists) {
+      throw new Exception('Ya existe una asignación para el asesor, marca y sede en el período indicado.');
+    }
+    $ApAssignBrandConsultant->update($data);
+    return new ApAssignBrandConsultantResource($ApAssignBrandConsultant);
+  }
+
+  public function destroy($id)
+  {
+    $ApAssignBrandConsultant = $this->find($id);
+    DB::transaction(function () use ($ApAssignBrandConsultant) {
+      $ApAssignBrandConsultant->delete();
+    });
+    return response()->json(['message' => 'Asignación de asistente eliminado correctamente']);
+  }
 }

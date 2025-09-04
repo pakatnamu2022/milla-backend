@@ -11,36 +11,35 @@ class StoreApAssignBrandConsultantRequest extends StoreRequest
     return [
       'anio' => ['required', 'integer', 'digits:4', 'min:2000'],
       'month' => ['required', 'integer', 'between:1,12'],
-
-      'sede_id' => ['required', 'integer', 'exists:config_sede,id'],
+      'objetivo_venta' => ['required', 'integer', 'min:0'],
+      'asesor_id' => ['required', 'integer', 'exists:rrhh_persona,id'],
       'marca_id' => ['required', 'integer', 'exists:ap_vehicle_brand,id'],
-
-      'asesores' => ['required', 'array', 'min:1'],
-      'asesores.*.asesor_id' => ['required', 'integer', 'exists:rrhh_persona,id'],
-      'asesores.*.objetivo' => ['required', 'integer', 'min:0'],
+      'sede_id' => ['required', 'integer', 'exists:config_sede,id'],
     ];
   }
 
   public function messages(): array
   {
     return [
-      'anio.required' => 'El año es obligatorio.',
-      'anio.digits' => 'El año debe tener 4 dígitos.',
-      'month.required' => 'El mes es obligatorio.',
-      'month.between' => 'El mes debe estar entre 1 y 12.',
-
-      'sede_id.required' => 'Debe seleccionar una sede.',
-      'sede_id.exists' => 'La sede seleccionada no existe.',
-
-      'marca_id.required' => 'Debe seleccionar una marca.',
+      'anio.required' => 'El campo año es obligatorio.',
+      'anio.integer' => 'El campo año debe ser un número entero.',
+      'anio.digits' => 'El campo año debe tener exactamente 4 dígitos.',
+      'anio.min' => 'El campo año debe ser mayor o igual a 2000.',
+      'month.required' => 'El campo mes es obligatorio.',
+      'month.integer' => 'El campo mes debe ser un número entero.',
+      'month.between' => 'El campo mes debe estar entre 1 y 12.',
+      'objetivo_venta.required' => 'El campo objetivo de venta es obligatorio.',
+      'objetivo_venta.integer' => 'El campo objetivo de venta debe ser un número entero.',
+      'objetivo_venta.min' => 'El campo objetivo de venta debe ser mayor o igual a 0.',
+      'asesor_id.required' => 'El campo asesor es obligatorio.',
+      'asesor_id.integer' => 'El campo asesor debe ser un número entero.',
+      'asesor_id.exists' => 'El asesor seleccionado no existe.',
+      'marca_id.required' => 'El campo marca es obligatorio.',
+      'marca_id.integer' => 'El campo marca debe ser un número entero.',
       'marca_id.exists' => 'La marca seleccionada no existe.',
-
-      'asesores.required' => 'Debe agregar al menos un asesor.',
-      'asesores.array' => 'El formato de asesores es inválido.',
-      'asesores.*.asesor_id.required' => 'Cada asesor debe tener un ID.',
-      'asesores.*.asesor_id.exists' => 'El asesor seleccionado no existe.',
-      'asesores.*.objetivo.required' => 'Debe indicar el objetivo de cada asesor.',
-      'asesores.*.objetivo.min' => 'El objetivo no puede ser negativo.',
+      'sede_id.required' => 'El campo sede es obligatorio.',
+      'sede_id.integer' => 'El campo sede debe ser un número entero.',
+      'sede_id.exists' => 'La sede seleccionada no existe.',
     ];
   }
 }

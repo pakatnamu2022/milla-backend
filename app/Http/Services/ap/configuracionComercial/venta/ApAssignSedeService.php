@@ -14,7 +14,7 @@ class ApAssignSedeService extends BaseService
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      Sede::with('asesores'),
+      Sede::with('asesores')->whereNotNull('empresa_id'),
       $request,
       Sede::filters,
       Sede::sorts,
@@ -72,7 +72,6 @@ class ApAssignSedeService extends BaseService
   {
     $sede = Sede::findOrFail($data['sede_id']);
     $sede->asesores()->sync($data['asesores']);
-
     return new ApAssignSedeResource($sede->load('asesores'));
   }
 
@@ -81,24 +80,39 @@ class ApAssignSedeService extends BaseService
     $sede = Sede::findOrFail($data['sede_id']);
     $sede->asesores()->sync($data['asesores']);
 
-    //si se editan registros de ese periodo determinado se debe editar tambien en la tabla ap_assign_sede_periodo
     if (isset($data['anio']) && isset($data['month'])) {
-      ApAssignSedePeriodo::where('sede_id', $data['sede_id'])
+      $existing = ApAssignSedePeriodo::withTrashed()
+        ->where('sede_id', $data['sede_id'])
         ->where('anio', $data['anio'])
         ->where('month', $data['month'])
-        ->delete();
+        ->get()
+        ->keyBy('asesor_id');
 
-      $insertData = [];
-      foreach ($data['asesores'] as $asesorId) {
-        $insertData[] = [
-          'sede_id' => $data['sede_id'],
-          'asesor_id' => $asesorId,
-          'anio' => $data['anio'],
-          'month' => $data['month'],
-        ];
+      $newAsesores = collect($data['asesores'])->mapWithKeys(fn($id) => [$id => $id]);
+
+      foreach ($newAsesores as $asesorId) {
+        if ($existing->has($asesorId)) {
+          $record = $existing[$asesorId];
+          if ($record->trashed()) {
+            $record->restore();
+          }
+        } else {
+          ApAssignSedePeriodo::create([
+            'sede_id' => $data['sede_id'],
+            'asesor_id' => $asesorId,
+            'anio' => $data['anio'],
+            'month' => $data['month'],
+          ]);
+        }
       }
-      if (!empty($insertData)) {
-        ApAssignSedePeriodo::insert($insertData);
+
+      $toDelete = $existing->keys()->diff($newAsesores->keys());
+      if ($toDelete->isNotEmpty()) {
+        ApAssignSedePeriodo::where('sede_id', $data['sede_id'])
+          ->where('anio', $data['anio'])
+          ->where('month', $data['month'])
+          ->whereIn('asesor_id', $toDelete)
+          ->delete();
       }
     }
 
