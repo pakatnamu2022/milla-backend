@@ -7536,15 +7536,6 @@ class ObjectiveSeeder extends Seeder
         "categoria" => "Asesor Comercial"
       ],
       [
-        "dni" => "78017657",
-        "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza ",
-        "metric" => "Número",
-        "goal" => 3,
-        "isAscending" => 0,
-        "weight" => 100,
-        "categoria" => "Asistente De Reparto"
-      ],
-      [
         "dni" => "73657400",
         "objective" => "Arqueo de caja, sin diferencias ",
         "metric" => "Número",
