@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\configuracionComercial\venta;
 
 use App\Http\Resources\ap\configuracionComercial\venta\ApAssignSedeResource;
 use App\Http\Services\BaseService;
+use App\Http\Utils\Constants;
 use App\Models\ap\configuracionComercial\venta\ApAssignSedePeriodo;
 use App\Models\gp\gestionsistema\Sede;
 use Illuminate\Http\Request;
@@ -14,7 +15,9 @@ class ApAssignSedeService extends BaseService
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      Sede::with('asesores')->whereNotNull('empresa_id'),
+      Sede::with('asesores')
+        ->whereNotNull('empresa_id')
+        ->where('empresa_id', Constants::COMPANY_AP),
       $request,
       Sede::filters,
       Sede::sorts,

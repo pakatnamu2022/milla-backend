@@ -11,7 +11,7 @@ class Worker extends Person
 {
   const filters = [
     'sede.empresa_id' => '=',
-    'cargo_id' => '=',
+    'cargo_id' => 'in',
     'status_id' => '=',
     'sede_id' => '=',
   ];
