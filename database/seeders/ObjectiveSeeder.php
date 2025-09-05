@@ -8535,42 +8535,6 @@ class ObjectiveSeeder extends Seeder
         "categoria" => "Asistente De Reparto"
       ],
       [
-        "dni" => "03384366",
-        "objective" => "Tener mínimo un rendimiento de combustible del 92%",
-        "metric" => "Número",
-        "goal" => 92,
-        "isAscending" => 1,
-        "weight" => 25,
-        "categoria" => "Conductor De Tracto Camion"
-      ],
-      [
-        "dni" => "03384366",
-        "objective" => "No tener incidencias, con responsalidad del conductor",
-        "metric" => "Número",
-        "goal" => 0,
-        "isAscending" => 0,
-        "weight" => 25,
-        "categoria" => "Conductor De Tracto Camion"
-      ],
-      [
-        "dni" => "03384366",
-        "objective" => "No tener multas por llenado por mal llenado de guías",
-        "metric" => "Número",
-        "goal" => 0,
-        "isAscending" => 0,
-        "weight" => 25,
-        "categoria" => "Conductor De Tracto Camion"
-      ],
-      [
-        "dni" => "03384366",
-        "objective" => "Tener mínimo 85 promedio de conducción (Se da un un rango de cumplimiento entre 80 y 90)",
-        "metric" => "Número",
-        "goal" => 85,
-        "isAscending" => 1,
-        "weight" => 25,
-        "categoria" => "Conductor De Tracto Camion"
-      ],
-      [
         "dni" => "46053705",
         "objective" => "Tener mínimo un rendimiento de combustible del 92%",
         "metric" => "Número",
