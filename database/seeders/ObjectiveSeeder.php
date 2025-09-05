@@ -6165,7 +6165,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 0,
         "weight" => 50,
-        "categoria" => "Asistente Mecánico Ap"
+        "categoria" => "Tecnico Mecanico Ap"
       ],
       [
         "dni" => "71895009",
@@ -6174,7 +6174,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 70,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asistente Mecánico Ap"
+        "categoria" => "Tecnico Mecanico Ap"
       ],
       [
         "dni" => "77127044",
