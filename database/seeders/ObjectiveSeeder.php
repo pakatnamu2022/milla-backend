@@ -8490,42 +8490,6 @@ class ObjectiveSeeder extends Seeder
         "categoria" => "Asesor De Repuestos"
       ],
       [
-        "dni" => "41904636",
-        "objective" => "Tener mínimo un rendimiento de combustible del 92%",
-        "metric" => "Número",
-        "goal" => 92,
-        "isAscending" => 1,
-        "weight" => 25,
-        "categoria" => "Conductor I"
-      ],
-      [
-        "dni" => "41904636",
-        "objective" => "No tener incidencias, con responsalidad del conductor",
-        "metric" => "Número",
-        "goal" => 0,
-        "isAscending" => 0,
-        "weight" => 25,
-        "categoria" => "Conductor I"
-      ],
-      [
-        "dni" => "41904636",
-        "objective" => "No tener multas por llenado por mal llenado de guías",
-        "metric" => "Número",
-        "goal" => 0,
-        "isAscending" => 0,
-        "weight" => 25,
-        "categoria" => "Conductor I"
-      ],
-      [
-        "dni" => "41904636",
-        "objective" => "Tener mínimo 85 promedio de conducción (Se da un un rango de cumplimiento entre 80 y 90)",
-        "metric" => "Número",
-        "goal" => 85,
-        "isAscending" => 1,
-        "weight" => 25,
-        "categoria" => "Conductor I"
-      ],
-      [
         "dni" => "46966858",
         "objective" => "Tener mínimo un rendimiento de combustible del 92%",
         "metric" => "Número",
