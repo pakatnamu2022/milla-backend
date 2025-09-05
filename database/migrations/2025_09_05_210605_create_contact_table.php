@@ -10,13 +10,13 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('ap_accounting_account_plan', function (Blueprint $table) {
+    Schema::create('contact', function (Blueprint $table) {
       $table->id();
-      $table->string('cuenta');
-      $table->string('descripcion');
-      $table->foreignId('tipo_cta_contable_id')
-        ->constrained('ap_commercial_masters');
-      $table->boolean('status')->default(true);
+      $table->string('value');
+      $table->enum('type', ['email', 'phone', 'link']);
+      $table->foreignId('sede_id')
+        ->constrained('sede')
+        ->onDelete('cascade');
       $table->timestamps();
       $table->softDeletes();
     });
@@ -27,6 +27,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('ap_accounting_account_plan');
+    Schema::dropIfExists('contact');
   }
 };
