@@ -4296,33 +4296,6 @@ class ObjectiveSeeder extends Seeder
         "categoria" => "Supervisor De Almacen"
       ],
       [
-        "dni" => "72667006",
-        "objective" => "Cero soles de multa por errores contables en la empresa a cargo",
-        "metric" => "Número",
-        "goal" => 0,
-        "isAscending" => 0,
-        "weight" => 33,
-        "categoria" => "Asistente De Contabilidad"
-      ],
-      [
-        "dni" => "72667006",
-        "objective" => "Cero errores en el registro de información contable de manera mensual",
-        "metric" => "Número",
-        "goal" => 2,
-        "isAscending" => 0,
-        "weight" => 33,
-        "categoria" => "Asistente De Contabilidad"
-      ],
-      [
-        "dni" => "72667006",
-        "objective" => "Entrega de cierre contable mensual integral (en los primeros 12 días calendario)",
-        "metric" => "Número",
-        "goal" => 12,
-        "isAscending" => 0,
-        "weight" => 34,
-        "categoria" => "Asistente De Contabilidad"
-      ],
-      [
         "dni" => "48299990",
         "objective" => "Número de unidades entregadas",
         "metric" => "Número",
