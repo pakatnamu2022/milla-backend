@@ -2091,15 +2091,6 @@ class ObjectiveSeeder extends Seeder
         "categoria" => "Conductor De Tracto Camion"
       ],
       [
-        "dni" => "80553357",
-        "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza ",
-        "metric" => "Número",
-        "goal" => 3,
-        "isAscending" => 0,
-        "weight" => 100,
-        "categoria" => "Asistente De Reparto"
-      ],
-      [
         "dni" => "76009888",
         "objective" => "Cero soles de multa por errores contables en la empresa a cargo",
         "metric" => "Número",
@@ -4303,33 +4294,6 @@ class ObjectiveSeeder extends Seeder
         "isAscending" => 0,
         "weight" => 100,
         "categoria" => "Supervisor De Almacen"
-      ],
-      [
-        "dni" => "72667006",
-        "objective" => "Cero soles de multa por errores contables en la empresa a cargo",
-        "metric" => "Número",
-        "goal" => 0,
-        "isAscending" => 0,
-        "weight" => 33,
-        "categoria" => "Asistente De Contabilidad"
-      ],
-      [
-        "dni" => "72667006",
-        "objective" => "Cero errores en el registro de información contable de manera mensual",
-        "metric" => "Número",
-        "goal" => 2,
-        "isAscending" => 0,
-        "weight" => 33,
-        "categoria" => "Asistente De Contabilidad"
-      ],
-      [
-        "dni" => "72667006",
-        "objective" => "Entrega de cierre contable mensual integral (en los primeros 12 días calendario)",
-        "metric" => "Número",
-        "goal" => 12,
-        "isAscending" => 0,
-        "weight" => 34,
-        "categoria" => "Asistente De Contabilidad"
       ],
       [
         "dni" => "48299990",
@@ -7572,15 +7536,6 @@ class ObjectiveSeeder extends Seeder
         "categoria" => "Asesor Comercial"
       ],
       [
-        "dni" => "78017657",
-        "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza ",
-        "metric" => "Número",
-        "goal" => 3,
-        "isAscending" => 0,
-        "weight" => 100,
-        "categoria" => "Asistente De Reparto"
-      ],
-      [
         "dni" => "73657400",
         "objective" => "Arqueo de caja, sin diferencias ",
         "metric" => "Número",
@@ -8535,42 +8490,6 @@ class ObjectiveSeeder extends Seeder
         "categoria" => "Asesor De Repuestos"
       ],
       [
-        "dni" => "41904636",
-        "objective" => "Tener mínimo un rendimiento de combustible del 92%",
-        "metric" => "Número",
-        "goal" => 92,
-        "isAscending" => 1,
-        "weight" => 25,
-        "categoria" => "Conductor I"
-      ],
-      [
-        "dni" => "41904636",
-        "objective" => "No tener incidencias, con responsalidad del conductor",
-        "metric" => "Número",
-        "goal" => 0,
-        "isAscending" => 0,
-        "weight" => 25,
-        "categoria" => "Conductor I"
-      ],
-      [
-        "dni" => "41904636",
-        "objective" => "No tener multas por llenado por mal llenado de guías",
-        "metric" => "Número",
-        "goal" => 0,
-        "isAscending" => 0,
-        "weight" => 25,
-        "categoria" => "Conductor I"
-      ],
-      [
-        "dni" => "41904636",
-        "objective" => "Tener mínimo 85 promedio de conducción (Se da un un rango de cumplimiento entre 80 y 90)",
-        "metric" => "Número",
-        "goal" => 85,
-        "isAscending" => 1,
-        "weight" => 25,
-        "categoria" => "Conductor I"
-      ],
-      [
         "dni" => "46966858",
         "objective" => "Tener mínimo un rendimiento de combustible del 92%",
         "metric" => "Número",
@@ -8614,42 +8533,6 @@ class ObjectiveSeeder extends Seeder
         "isAscending" => 0,
         "weight" => 100,
         "categoria" => "Asistente De Reparto"
-      ],
-      [
-        "dni" => "03384366",
-        "objective" => "Tener mínimo un rendimiento de combustible del 92%",
-        "metric" => "Número",
-        "goal" => 92,
-        "isAscending" => 1,
-        "weight" => 25,
-        "categoria" => "Conductor De Tracto Camion"
-      ],
-      [
-        "dni" => "03384366",
-        "objective" => "No tener incidencias, con responsalidad del conductor",
-        "metric" => "Número",
-        "goal" => 0,
-        "isAscending" => 0,
-        "weight" => 25,
-        "categoria" => "Conductor De Tracto Camion"
-      ],
-      [
-        "dni" => "03384366",
-        "objective" => "No tener multas por llenado por mal llenado de guías",
-        "metric" => "Número",
-        "goal" => 0,
-        "isAscending" => 0,
-        "weight" => 25,
-        "categoria" => "Conductor De Tracto Camion"
-      ],
-      [
-        "dni" => "03384366",
-        "objective" => "Tener mínimo 85 promedio de conducción (Se da un un rango de cumplimiento entre 80 y 90)",
-        "metric" => "Número",
-        "goal" => 85,
-        "isAscending" => 1,
-        "weight" => 25,
-        "categoria" => "Conductor De Tracto Camion"
       ],
       [
         "dni" => "46053705",
