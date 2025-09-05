@@ -109,6 +109,38 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
     );
   }
 
+  public function assignMissingObjectives()
+  {
+    $categories = HierarchicalCategory::with(['workers', 'objectives'])->get();
+
+    foreach ($categories as $category) {
+      $workers = $category->workers()->pluck('rrhh_persona.id')->toArray();
+      $objectives = $category->objectives()->pluck('gh_evaluation_objective.id')->toArray();
+
+      foreach ($workers as $workerId) {
+        foreach ($objectives as $objectiveId) {
+          $exists = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
+            ->where('person_id', $workerId)
+            ->where('objective_id', $objectiveId)
+            ->exists();
+
+          if (!$exists) {
+            EvaluationCategoryObjectiveDetail::create([
+              'objective_id' => $objectiveId,
+              'category_id' => $category->id,
+              'person_id' => $workerId,
+              'goal' => 0, // o puedes heredar el goalReference del objetivo si prefieres
+              'fixedWeight' => false,
+              'weight' => 0,
+              'active' => 0,
+            ]);
+          }
+        }
+      }
+    }
+  }
+
+
   public function find($id)
   {
     $categoryObjective = EvaluationCategoryObjectiveDetail::where('id', $id)->first();
@@ -141,7 +173,7 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
         'goalReference' => $categoryObjective->goal,
       ]);
     });
-    
+
     return new EvaluationCategoryObjectiveDetailResource($categoryObjective);
   }
 

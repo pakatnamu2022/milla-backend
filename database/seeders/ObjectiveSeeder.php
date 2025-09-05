@@ -8951,5 +8951,7 @@ class ObjectiveSeeder extends Seeder
       ];
       EvaluationCategoryObjectiveDetail::create($data);
     }
+
+    $categoryObjectiveService->assignMissingObjectives();
   }
 }

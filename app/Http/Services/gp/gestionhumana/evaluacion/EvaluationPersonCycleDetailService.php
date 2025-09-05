@@ -74,59 +74,68 @@ class EvaluationPersonCycleDetailService extends BaseService
         $objectives = $category->objectives()->get();
 
         foreach ($objectives as $objective) {
-          $goal = 0;
-          $weight = 0;
+          $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
+            ->where('category_id', $categoryId)
+            ->where('person_id', $person->id)
+            ->where('active', 1)
+            ->whereNull('deleted_at')
+            ->first();
 
-          if ($lastCycle) {
-            $personCycleDetail = EvaluationPersonCycleDetail::where('person_id', $person->id)
-              ->where('cycle_id', $lastCycle->id)
-              ->where('category_id', $categoryId)
-              ->where('objective_id', $objective->id)
-              ->whereNull('deleted_at')
-              ->first();
-            $goal = $personCycleDetail ? $personCycleDetail->goal : 0;
-            $weight = $personCycleDetail ? $personCycleDetail->weight : 0;
-          }
+          if ($categoryObjective) {
+            $goal = 0;
+            $weight = 0;
 
-          if ($goal === 0) {
-            $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
-              ->where('category_id', $categoryId)
-              ->where('person_id', $person->id)
-              ->whereNull('deleted_at')
-              ->first();
-            $goal = $categoryObjective ? $categoryObjective->goal : 0;
-            if ($weight === 0) {
-              $weight = $categoryObjective ? $categoryObjective->weight : 0;
+            if ($lastCycle) {
+              $personCycleDetail = EvaluationPersonCycleDetail::where('person_id', $person->id)
+                ->where('cycle_id', $lastCycle->id)
+                ->where('category_id', $categoryId)
+                ->where('objective_id', $objective->id)
+                ->whereNull('deleted_at')
+                ->first();
+              $goal = $personCycleDetail ? $personCycleDetail->goal : 0;
+              $weight = $personCycleDetail ? $personCycleDetail->weight : 0;
             }
-          }
 
-          if ($goal === 0) {
-            $goal = $objective->goalReference;
-            if ($weight === 0) {
-              $weight = round(100 / $objectives->count(), 2);
+            if ($goal === 0) {
+              $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
+                ->where('category_id', $categoryId)
+                ->where('person_id', $person->id)
+                ->whereNull('deleted_at')
+                ->first();
+              $goal = $categoryObjective ? $categoryObjective->goal : 0;
+              if ($weight === 0) {
+                $weight = $categoryObjective ? $categoryObjective->weight : 0;
+              }
             }
-          }
 
-          $data = [
-            'person_id' => $person->id,
-            'chief_id' => $person->jefe_id,
-            'position_id' => $person->cargo_id,
-            'sede_id' => $person->sede_id,
-            'area_id' => $person->area_id,
-            'cycle_id' => $cycleId,
-            'category_id' => $categoryId,
-            'objective_id' => $objective->id,
-            'person' => $person->nombre_completo,
-            'chief' => $chief ? $chief->nombre_completo : '',
-            'position' => $person->position ? $person->position->name : '',
-            'sede' => $person->sede ? $person->sede->abreviatura : '',
-            'area' => $person->position?->area ? $person->position->area->name : '',
-            'category' => $category->name,
-            'objective' => $objective->name,
-            'goal' => $goal,
-            'weight' => $weight,
-          ];
-          EvaluationPersonCycleDetail::create($data);
+            if ($goal === 0) {
+              $goal = $objective->goalReference;
+              if ($weight === 0) {
+                $weight = round(100 / $objectives->count(), 2);
+              }
+            }
+
+            $data = [
+              'person_id' => $person->id,
+              'chief_id' => $person->jefe_id,
+              'position_id' => $person->cargo_id,
+              'sede_id' => $person->sede_id,
+              'area_id' => $person->area_id,
+              'cycle_id' => $cycleId,
+              'category_id' => $categoryId,
+              'objective_id' => $objective->id,
+              'person' => $person->nombre_completo,
+              'chief' => $chief ? $chief->nombre_completo : '',
+              'position' => $person->position ? $person->position->name : '',
+              'sede' => $person->sede ? $person->sede->abreviatura : '',
+              'area' => $person->position?->area ? $person->position->area->name : '',
+              'category' => $category->name,
+              'objective' => $objective->name,
+              'goal' => $goal,
+              'weight' => $weight,
+            ];
+            EvaluationPersonCycleDetail::create($data);
+          }
         }
       }
     }
