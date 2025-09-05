@@ -24,7 +24,7 @@ class ApClassArticleService extends BaseService
 
   public function find($id)
   {
-    $ApCommercialMasters = ApClassArticle::where('id', $id)->first();
+    $accountingAccountPlan = ApClassArticle::where('id', $id)->first();
     if (!$ApCommercialMasters) {
       throw new Exception('Clase de artículo no encontrado');
     }

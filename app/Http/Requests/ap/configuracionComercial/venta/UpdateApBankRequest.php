@@ -16,7 +16,7 @@ class UpdateApBankRequest extends StoreRequest
         'max:50',
         Rule::unique('ap_bank', 'codigo')
           ->whereNull('deleted_at')
-          ->ignore($this->route('bank')),
+          ->ignore($this->route('bankAp')),
       ],
       'numero_cuenta' => [
         'nullable',
@@ -24,7 +24,7 @@ class UpdateApBankRequest extends StoreRequest
         'max:50',
         Rule::unique('ap_bank', 'numero_cuenta')
           ->whereNull('deleted_at')
-          ->ignore($this->route('bank')),
+          ->ignore($this->route('bankAp')),
       ],
       'cci' => [
         'nullable',
@@ -32,7 +32,7 @@ class UpdateApBankRequest extends StoreRequest
         'max:50',
         Rule::unique('ap_bank', 'cci')
           ->whereNull('deleted_at')
-          ->ignore($this->route('bank')),
+          ->ignore($this->route('bankAp')),
       ],
       'banco_id' => 'nullable|integer|exists:ap_commercial_masters,id',
       'moneda_id' => 'nullable|integer|exists:type_currency,id',
