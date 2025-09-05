@@ -1138,7 +1138,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "71325400",
-        "objective" => "Cero soles de multa por errores contables en la empresa a cargo\r\n",
+        "objective" => "Cero soles de multa por errores contables en la empresa a cargo",
         "metric" => "Número",
         "goal" => 0,
         "isAscending" => 0,
@@ -1156,7 +1156,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "71325400",
-        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo (en los primeros 5 dias habiles)\r\n",
+        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo (en los primeros 5 dias habiles)",
         "metric" => "Número",
         "goal" => 95,
         "isAscending" => 1,
@@ -1273,7 +1273,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "44652712",
-        "objective" => "Cero soles de multa por errores contables en la empresa a cargo\r\n",
+        "objective" => "Cero soles de multa por errores contables en la empresa a cargo",
         "metric" => "Número",
         "goal" => 0,
         "isAscending" => 0,
@@ -1462,7 +1462,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "70408777",
-        "objective" => "Reingresos de vehículos\r\n",
+        "objective" => "Reingresos de vehículos",
         "metric" => "Número",
         "goal" => 2,
         "isAscending" => 0,
@@ -1687,7 +1687,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "48139848",
-        "objective" => "Cero multas por infringir las normas de tránsito en el desarrollo de sus funciones\r\n",
+        "objective" => "Cero multas por infringir las normas de tránsito en el desarrollo de sus funciones",
         "metric" => "Número",
         "goal" => 0,
         "isAscending" => 0,
@@ -1696,7 +1696,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "48139848",
-        "objective" => "Cero incidencias en la ruta asignada (robos, choques,etc)\r\n",
+        "objective" => "Cero incidencias en la ruta asignada (robos, choques,etc)",
         "metric" => "Número",
         "goal" => 0,
         "isAscending" => 0,
@@ -1813,7 +1813,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "74868424",
-        "objective" => "Cero soles de multa por errores contables en la empresa a cargo\r\n",
+        "objective" => "Cero soles de multa por errores contables en la empresa a cargo",
         "metric" => "Número",
         "goal" => 0,
         "isAscending" => 0,
@@ -1822,7 +1822,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "74868424",
-        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo (12 dias)\r\n",
+        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo (12 dias)",
         "metric" => "Número",
         "goal" => 12,
         "isAscending" => 0,
@@ -2101,7 +2101,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "76009888",
-        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo (en los primeros 7 dias habiles)\r\n",
+        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo (en los primeros 7 dias habiles)",
         "metric" => "Número",
         "goal" => 7,
         "isAscending" => 0,
@@ -2290,7 +2290,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "73033157",
-        "objective" => "Cumplimiento del  ICD al 90% por sede\r\n",
+        "objective" => "Cumplimiento del  ICD al 90% por sede",
         "metric" => "Número",
         "goal" => 90,
         "isAscending" => 1,
@@ -2299,7 +2299,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "73033157",
-        "objective" => "Cumplimiento de los estándares de Post Venta por parte de Derco al 80%\r\n",
+        "objective" => "Cumplimiento de los estándares de Post Venta por parte de Derco al 80%",
         "metric" => "Número",
         "goal" => 80,
         "isAscending" => 1,
@@ -2398,7 +2398,7 @@ class ObjectiveSeeder extends Seeder
 //      ],
       [
         "dni" => "42137357",
-        "objective" => "Meta de facturación mensual mayor o igual a 100%\r\n",
+        "objective" => "Meta de facturación mensual mayor o igual a 100%",
         "metric" => "Número",
         "goal" => 100,
         "isAscending" => 1,
@@ -2497,7 +2497,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "48021041",
-        "objective" => "Cuadres de caja oportunos\r\n",
+        "objective" => "Cuadres de caja oportunos",
         "metric" => "Número",
         "goal" => 100,
         "isAscending" => 1,
@@ -2506,7 +2506,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "48021041",
-        "objective" => "Arqueo de caja, sin diferencias \r\n",
+        "objective" => "Arqueo de caja, sin diferencias ",
         "metric" => "Número",
         "goal" => 100,
         "isAscending" => 1,
@@ -3019,7 +3019,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "47678322",
-        "objective" => "Meta de facturación mensual mayor o igual a 100%\r\n",
+        "objective" => "Meta de facturación mensual mayor o igual a 100%",
         "metric" => "Número",
         "goal" => 100,
         "isAscending" => 1,
@@ -3622,7 +3622,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "02855107",
-        "objective" => "Cero soles de multa por errores contables en la empresa a cargo\r\n",
+        "objective" => "Cero soles de multa por errores contables en la empresa a cargo",
         "metric" => "Número",
         "goal" => 0,
         "isAscending" => 0,
@@ -3928,7 +3928,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "72318704",
-        "objective" => "Cero soles de multa por errores contables en la empresa a cargo\r\n",
+        "objective" => "Cero soles de multa por errores contables en la empresa a cargo",
         "metric" => "Número",
         "goal" => 0,
         "isAscending" => 0,
@@ -3946,7 +3946,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "72318704",
-        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo (en los primeros 10 dias habiles)\r\n",
+        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo (en los primeros 10 dias habiles)",
         "metric" => "Número",
         "goal" => 10,
         "isAscending" => 0,
@@ -3955,7 +3955,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "48509128",
-        "objective" => "Meta de facturación mensual mayor o igual a 100%\r\n",
+        "objective" => "Meta de facturación mensual mayor o igual a 100%",
         "metric" => "Número",
         "goal" => 100,
         "isAscending" => 1,
@@ -4189,7 +4189,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "45801424",
-        "objective" => "Cero soles de multa por errores contables en la empresa a cargo\r\n",
+        "objective" => "Cero soles de multa por errores contables en la empresa a cargo",
         "metric" => "Número",
         "goal" => 0,
         "isAscending" => 0,
@@ -4459,7 +4459,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "48493314",
-        "objective" => "Cero soles de multa por errores contables en la empresa a cargo\r\n",
+        "objective" => "Cero soles de multa por errores contables en la empresa a cargo",
         "metric" => "Número",
         "goal" => 0,
         "isAscending" => 0,
@@ -4477,7 +4477,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "48493314",
-        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo (en los primeros 5 dias habiles)\r\n",
+        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo (en los primeros 5 dias habiles)",
         "metric" => "Número",
         "goal" => 95,
         "isAscending" => 1,
@@ -4918,7 +4918,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "74202439",
-        "objective" => "Calidad de servicio - Mesa de ayuda (Milla / Dynamics)\r\n",
+        "objective" => "Calidad de servicio - Mesa de ayuda (Milla / Dynamics)",
         "metric" => "Número",
         "goal" => 100,
         "isAscending" => 1,
@@ -4927,7 +4927,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "74202439",
-        "objective" => "Promedio de efectividad en tiempo de atención - Soporte TIC's\r\n",
+        "objective" => "Promedio de efectividad en tiempo de atención - Soporte TIC's",
         "metric" => "Número",
         "goal" => 45,
         "isAscending" => 0,
@@ -5035,7 +5035,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "72722099",
-        "objective" => "Cero soles de multa por errores contables en la empresa a cargo\r\n",
+        "objective" => "Cero soles de multa por errores contables en la empresa a cargo",
         "metric" => "Número",
         "goal" => 0,
         "isAscending" => 0,
@@ -5161,7 +5161,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "74624087",
-        "objective" => "Cero soles de multa por errores contables en la empresa a cargo\r\n",
+        "objective" => "Cero soles de multa por errores contables en la empresa a cargo",
         "metric" => "Número",
         "goal" => 0,
         "isAscending" => 0,
@@ -5899,7 +5899,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "45801388",
-        "objective" => "Cero soles de multa por errores contables en la empresa a cargo\r\n",
+        "objective" => "Cero soles de multa por errores contables en la empresa a cargo",
         "metric" => "Número",
         "goal" => 0,
         "isAscending" => 0,
@@ -5908,7 +5908,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "45801388",
-        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo\r\n",
+        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo",
         "metric" => "Número",
         "goal" => 12,
         "isAscending" => 0,
@@ -6007,7 +6007,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "16795422",
-        "objective" => "No tener incidencias, con responsalidad del conductor\r\n",
+        "objective" => "No tener incidencias, con responsalidad del conductor",
         "metric" => "Número",
         "goal" => 0,
         "isAscending" => 0,
@@ -6475,7 +6475,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "72865261",
-        "objective" => "Cumplir la meta de OT mensual\r\n",
+        "objective" => "Cumplir la meta de OT mensual",
         "metric" => "Número",
         "goal" => 100,
         "isAscending" => 1,
@@ -6484,7 +6484,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "72865261",
-        "objective" => "Cumplimiento de NPS\r\n",
+        "objective" => "Cumplimiento de NPS",
         "metric" => "Número",
         "goal" => 80,
         "isAscending" => 1,
@@ -6493,7 +6493,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "72865261",
-        "objective" => "Cumplimiento de meta mensual de ventas de accesorios\r\n",
+        "objective" => "Cumplimiento de meta mensual de ventas de accesorios",
         "metric" => "Número",
         "goal" => 100,
         "isAscending" => 1,
@@ -6691,7 +6691,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "76390749",
-        "objective" => "Cero soles de multa por errores contables en la empresa a cargo\r\n",
+        "objective" => "Cero soles de multa por errores contables en la empresa a cargo",
         "metric" => "Número",
         "goal" => 0,
         "isAscending" => 0,
@@ -6700,7 +6700,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "76390749",
-        "objective" => "Cero errores en el registro de información contable de manera mensual\r\n",
+        "objective" => "Cero errores en el registro de información contable de manera mensual",
         "metric" => "Número",
         "goal" => 2,
         "isAscending" => 0,
@@ -7870,7 +7870,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "72636980",
-        "objective" => "Cuadres de caja oportunos\r\n",
+        "objective" => "Cuadres de caja oportunos",
         "metric" => "Número",
         "goal" => 100,
         "isAscending" => 1,
@@ -7879,7 +7879,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "72636980",
-        "objective" => "Arqueo de caja, sin diferencias \r\n",
+        "objective" => "Arqueo de caja, sin diferencias ",
         "metric" => "Número",
         "goal" => 100,
         "isAscending" => 1,
@@ -8023,7 +8023,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "45853764",
-        "objective" => "Cuadres de caja oportunos\r\n",
+        "objective" => "Cuadres de caja oportunos",
         "metric" => "Número",
         "goal" => 100,
         "isAscending" => 1,
@@ -8032,7 +8032,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "45853764",
-        "objective" => "Arqueo de caja, sin diferencias \r\n",
+        "objective" => "Arqueo de caja, sin diferencias ",
         "metric" => "Número",
         "goal" => 100,
         "isAscending" => 1,
@@ -8374,7 +8374,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "71248855",
-        "objective" => "Meta de facturación mensual mayor o igual a 100%\r\n",
+        "objective" => "Meta de facturación mensual mayor o igual a 100%",
         "metric" => "Número",
         "goal" => 100,
         "isAscending" => 1,
@@ -8482,7 +8482,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "46783418",
-        "objective" => "Meta de facturación mensual mayor o igual a 100%\r\n",
+        "objective" => "Meta de facturación mensual mayor o igual a 100%",
         "metric" => "Número",
         "goal" => 100,
         "isAscending" => 1,
