@@ -2091,15 +2091,6 @@ class ObjectiveSeeder extends Seeder
         "categoria" => "Conductor De Tracto Camion"
       ],
       [
-        "dni" => "80553357",
-        "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza ",
-        "metric" => "Número",
-        "goal" => 3,
-        "isAscending" => 0,
-        "weight" => 100,
-        "categoria" => "Asistente De Reparto"
-      ],
-      [
         "dni" => "76009888",
         "objective" => "Cero soles de multa por errores contables en la empresa a cargo",
         "metric" => "Número",
