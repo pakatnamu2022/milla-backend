@@ -14,7 +14,6 @@ return new class extends Migration {
       $table->id();
       $table->string('name');
       $table->string('ubigeo')->nullable();
-      $table->decimal('sendCost');
       $table->foreignId('province_id')->constrained('province');
       $table->timestamps();
       $table->softDeletes();
