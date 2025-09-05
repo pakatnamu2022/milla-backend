@@ -10,6 +10,7 @@ use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleBrandContro
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignBrandConsultantController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignSedeController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignSedePeriodoController;
+use App\Http\Controllers\ap\configuracionComercial\venta\ApBankController;
 use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailController;
@@ -404,6 +405,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('assignBrandConsultant/showGrouped', [ApAssignBrandConsultantController::class, 'showGrouped']);
         Route::apiResource('assignBrandConsultant', ApAssignBrandConsultantController::class)->only([
           'index',
+          'store',
+          'update',
+          'destroy'
+        ]);
+        Route::apiResource('bankAp', ApBankController::class)->only([
+          'index',
+          'show',
           'store',
           'update',
           'destroy'

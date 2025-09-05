@@ -21,7 +21,8 @@ class ApFamilies extends Model
 
   const filters = [
     'search' => ['codigo', 'descripcion'],
-    'marca_id' => '='
+    'marca_id' => '=',
+    'status' => '=',
   ];
 
   const sorts = [

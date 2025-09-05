@@ -25,6 +25,7 @@ class ApVehicleBrand extends Model
 
   const filters = [
     'search' => ['codigo', 'codigo_dyn', 'nombre', 'descripcion'],
+    'status' => '=',
   ];
 
   const sorts = [
