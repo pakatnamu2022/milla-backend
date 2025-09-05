@@ -1854,7 +1854,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 3,
         "isAscending" => 0,
         "weight" => 100,
-        "categoria" => "Supervisor De Almacen"
+        "categoria" => "Asistente De Reparto"
       ],
       [
         "dni" => "44184967",
@@ -3177,7 +3177,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 99,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Conductor Ii"
+        "categoria" => "Conductor I"
       ],
       [
         "dni" => "46815084",
@@ -3186,7 +3186,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 3,
         "isAscending" => 0,
         "weight" => 25,
-        "categoria" => "Conductor Ii"
+        "categoria" => "Conductor I"
       ],
       [
         "dni" => "46815084",
@@ -3195,7 +3195,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 0,
         "isAscending" => 0,
         "weight" => 25,
-        "categoria" => "Conductor Ii"
+        "categoria" => "Conductor I"
       ],
       [
         "dni" => "46815084",
@@ -3204,7 +3204,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 0,
         "isAscending" => 0,
         "weight" => 25,
-        "categoria" => "Conductor Ii"
+        "categoria" => "Conductor I"
       ],
       [
         "dni" => "71908990",
@@ -5166,7 +5166,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 99,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Conductor Ii"
+        "categoria" => "Conductor I"
       ],
       [
         "dni" => "45676375",
@@ -5175,7 +5175,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 3,
         "isAscending" => 0,
         "weight" => 25,
-        "categoria" => "Conductor Ii"
+        "categoria" => "Conductor I"
       ],
       [
         "dni" => "45676375",
@@ -5184,7 +5184,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 0,
         "isAscending" => 0,
         "weight" => 25,
-        "categoria" => "Conductor Ii"
+        "categoria" => "Conductor I"
       ],
       [
         "dni" => "45676375",
@@ -5193,7 +5193,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 0,
         "isAscending" => 0,
         "weight" => 25,
-        "categoria" => "Conductor Ii"
+        "categoria" => "Conductor I"
       ],
       [
         "dni" => "74624087",
@@ -6768,7 +6768,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 99,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asistente De Reparto"
+        "categoria" => "Conductor I"
       ],
       [
         "dni" => "44723898",
@@ -6777,7 +6777,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 3,
         "isAscending" => 0,
         "weight" => 25,
-        "categoria" => "Asistente De Reparto"
+        "categoria" => "Conductor I"
       ],
       [
         "dni" => "44723898",
@@ -6786,7 +6786,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 0,
         "isAscending" => 0,
         "weight" => 25,
-        "categoria" => "Asistente De Reparto"
+        "categoria" => "Conductor I"
       ],
       [
         "dni" => "44723898",
@@ -6795,7 +6795,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 0,
         "isAscending" => 0,
         "weight" => 25,
-        "categoria" => "Asistente De Reparto"
+        "categoria" => "Conductor I"
       ],
       [
         "dni" => "40971761",
@@ -8885,9 +8885,6 @@ class ObjectiveSeeder extends Seeder
 
       $category = HierarchicalCategory::where('name', $item['categoria'])->first();
 
-      if ($person->id == 2829) {
-        dd($item, $category);
-      }
       $objective = EvaluationObjective::where('name', $item['objective'])->first();
       $metric = EvaluationMetric::where('name', $item['metric'])->first();
 
@@ -8941,10 +8938,6 @@ class ObjectiveSeeder extends Seeder
 
       if (!$objective) {
         throw new \Exception("No se encontró el objetivo: {$item['objective']}");
-      }
-
-      if ($person->id == 2829) {
-        dd($item, $category);
       }
 
 
