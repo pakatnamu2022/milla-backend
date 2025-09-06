@@ -22,7 +22,6 @@ class StoreEvaluationRequest extends StoreRequest
       'competencesPercentage' => 'required|numeric|min:0|max:100',
       'cycle_id' => 'required|exists:gh_evaluation_cycle,id',
       'competence_parameter_id' => 'nullable|exists:gh_evaluation_parameter,id',
-      'objective_parameter_id' => 'nullable|exists:gh_evaluation_parameter,id',
       'final_parameter_id' => 'nullable|exists:gh_evaluation_parameter,id',
     ];
   }
@@ -60,7 +59,6 @@ class StoreEvaluationRequest extends StoreRequest
       'competencesPercentage' => 'porcentaje de competencias',
       'cycle_id' => 'ciclo',
       'competence_parameter_id' => 'parámetro de competencia',
-      'objective_parameter_id' => 'parámetro de objetivo',
       'final_parameter_id' => 'parámetro final',
     ];
   }
