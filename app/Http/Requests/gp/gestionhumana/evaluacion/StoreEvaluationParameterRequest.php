@@ -20,7 +20,7 @@ class StoreEvaluationParameterRequest extends StoreRequest
       ],
       'type' => [
         'required',
-        'integer',
+        'string',
         Rule::in(array_keys(config('evaluation.typesParameter')))
       ],
       'details' => 'required|array',

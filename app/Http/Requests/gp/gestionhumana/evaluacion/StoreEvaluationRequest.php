@@ -19,7 +19,7 @@ class StoreEvaluationRequest extends StoreRequest
         Rule::in(array_keys(config('evaluation.typesEvaluation')))
       ],
       'objectivesPercentage' => 'required|numeric|min:0|max:100',
-      'competenciesPercentage' => 'required|numeric|min:0|max:100',
+      'competencesPercentage' => 'required|numeric|min:0|max:100',
       'cycle_id' => 'required|exists:gh_evaluation_cycle,id',
       'competence_parameter_id' => 'nullable|exists:gh_evaluation_parameter,id',
       'objective_parameter_id' => 'nullable|exists:gh_evaluation_parameter,id',
@@ -31,11 +31,11 @@ class StoreEvaluationRequest extends StoreRequest
   {
     $validator->after(function ($validator) {
       $data = $this->all();
-      if (isset($data['objectivesPercentage']) && isset($data['competenciesPercentage'])) {
-        $total = $data['objectivesPercentage'] + $data['competenciesPercentage'];
+      if (isset($data['objectivesPercentage']) && isset($data['competencesPercentage'])) {
+        $total = $data['objectivesPercentage'] + $data['competencesPercentage'];
         if ($total != 100) {
           $validator->errors()->add('objectivesPercentage', 'La suma de los porcentajes de objetivos y competencias debe ser igual a 100.');
-          $validator->errors()->add('competenciesPercentage', 'La suma de los porcentajes de objetivos y competencias debe ser igual a 100.');
+          $validator->errors()->add('competencesPercentage', 'La suma de los porcentajes de objetivos y competencias debe ser igual a 100.');
         }
       }
     });
@@ -57,7 +57,7 @@ class StoreEvaluationRequest extends StoreRequest
       'end_date' => 'fecha de fin',
       'typeEvaluation' => 'tipo de evaluación',
       'objectivesPercentage' => 'porcentaje de objetivos',
-      'competenciesPercentage' => 'porcentaje de competencias',
+      'competencesPercentage' => 'porcentaje de competencias',
       'cycle_id' => 'ciclo',
       'competence_parameter_id' => 'parámetro de competencia',
       'objective_parameter_id' => 'parámetro de objetivo',
