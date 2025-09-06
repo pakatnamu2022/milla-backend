@@ -165,7 +165,7 @@ class AuthService
 
       foreach ($items as $item) {
 //                CAMBIAR LUEGO POR LA RUTA REAL QUE ES ROUTE
-        if (!empty($item->ruta) || count($item->children)) {
+        if (!empty($item->route) || count($item->children)) {
           $resultado[] = $item;
         }
       }
@@ -281,7 +281,7 @@ class AuthService
 
       foreach ($items as $item) {
 //                CAMBIAR LUEGO POR LA RUTA REAL QUE ES ROUTE
-        if (!empty($item->ruta) || count($item->children)) {
+        if (!empty($item->route) || count($item->children)) {
           $resultado[] = $item;
         }
       }
