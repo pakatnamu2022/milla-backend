@@ -10,11 +10,12 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('ap_commercial_masters', function (Blueprint $table) {
+    Schema::create('ap_vehicle_status', function (Blueprint $table) {
       $table->id();
-      $table->string('code', 50)->nullable();
+      $table->string('code', 50);
       $table->string('description', 255);
-      $table->string('type', 100);
+      $table->enum('use', ['VENTA', 'TALLER'])->default('VENTA');
+      $table->string('color', 20);
       $table->boolean('status')->default(true);
       $table->timestamps();
       $table->softDeletes();
@@ -26,6 +27,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('ap_commercial_masters');
+    Schema::dropIfExists('ap_vehicle_status');
   }
 };

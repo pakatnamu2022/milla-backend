@@ -12,10 +12,10 @@ return new class extends Migration {
   {
     Schema::create('ap_delivery_receiving_checklist', function (Blueprint $table) {
       $table->id();
-      $table->string('descripcion', 255);
-      $table->enum('tipo', ['ENTREGA', 'RECEPCION']);
+      $table->string('description', 255);
+      $table->enum('type', ['ENTREGA', 'RECEPCION']);
       $table->boolean('status')->default(true);
-      $table->foreignId('categoria_id')
+      $table->foreignId('category_id')
         ->constrained('ap_commercial_masters')
         ->cascadeOnUpdate()
         ->restrictOnDelete();

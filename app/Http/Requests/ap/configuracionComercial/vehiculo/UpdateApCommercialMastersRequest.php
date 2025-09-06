@@ -11,25 +11,25 @@ class UpdateApCommercialMastersRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'codigo' => [
+      'code' => [
         'nullable',
         'string',
         'max:50',
-        Rule::unique('ap_commercial_masters', 'codigo')
-          ->where('tipo', $this->tipo)
+        Rule::unique('ap_commercial_masters', 'code')
+          ->where('type', $this->type)
           ->whereNull('deleted_at')
           ->ignore($this->route('commercialMaster')),
       ],
-      'descripcion' => [
+      'description' => [
         'nullable',
         'string',
         'max:255',
-        Rule::unique('ap_commercial_masters', 'descripcion')
-          ->where('tipo', $this->tipo)
+        Rule::unique('ap_commercial_masters', 'description')
+          ->where('type', $this->type)
           ->whereNull('deleted_at')
           ->ignore($this->route('commercialMaster')),
       ],
-      'tipo' => [
+      'type' => [
         'nullable',
         'string',
         'max:100',
@@ -41,17 +41,17 @@ class UpdateApCommercialMastersRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'codigo.string' => 'El código debe ser una cadena de texto.',
-      'codigo.max' => 'El código no puede exceder los 50 caracteres.',
-      'codigo.unique' => 'El código ya está registrado.',
+      'code.string' => 'El código debe ser una cadena de texto.',
+      'code.max' => 'El código no puede exceder los 50 caracteres.',
+      'code.unique' => 'El código ya está registrado.',
 
-      'descripcion.string' => 'La descripción debe ser una cadena de texto.',
-      'descripcion.max' => 'La descripción no puede exceder los 255 caracteres.',
-      'descripcion.unique' => 'La descripción ya está registrada.',
+      'description.string' => 'La descripción debe ser una cadena de texto.',
+      'description.max' => 'La descripción no puede exceder los 255 caracteres.',
+      'description.unique' => 'La descripción ya está registrada.',
 
-      'tipo.string' => 'El tipo debe ser una cadena de texto.',
-      'tipo.max' => 'El tipo no puede exceder los 100 caracteres.',
-      'tipo.unique' => 'El tipo ya está registrado.',
+      'type.string' => 'El tipo debe ser una cadena de texto.',
+      'type.max' => 'El tipo no puede exceder los 100 caracteres.',
+      'type.unique' => 'El tipo ya está registrado.',
     ];
   }
 }

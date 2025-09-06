@@ -316,8 +316,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'update',
           'destroy'
         ]);
-
-
       });
 
     });

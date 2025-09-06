@@ -11,31 +11,31 @@ class UpdateApClassArticleRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'codigo_dyn' => [
+      'dyn_code' => [
         'nullable',
         'string',
         'max:50',
-        Rule::unique('ap_class_article', 'codigo_dyn')
+        Rule::unique('ap_class_article', 'dyn_code')
           ->whereNull('deleted_at')
           ->ignore($this->route('classArticle')),
       ],
-      'descripcion' => [
+      'description' => [
         'nullable',
         'string',
         'max:255',
-        Rule::unique('ap_class_article', 'descripcion')
+        Rule::unique('ap_class_article', 'description')
           ->whereNull('deleted_at')
           ->ignore($this->route('classArticle')),
       ],
-      'cuenta' => [
+      'account' => [
         'nullable',
         'string',
         'max:150',
-        Rule::unique('ap_class_article', 'cuenta')
+        Rule::unique('ap_class_article', 'account')
           ->whereNull('deleted_at')
           ->ignore($this->route('classArticle')),
       ],
-      'tipo' => [
+      'type' => [
         'nullable',
         'string',
         Rule::in(['POSTVENTA', 'VEHICULO']),
@@ -47,20 +47,20 @@ class UpdateApClassArticleRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'codigo_dyn.string' => 'La codigo_dyn debe ser una cadena de texto.',
-      'codigo_dyn.max' => 'La codigo_dyn no debe exceder los 50 caracteres.',
-      'codigo_dyn.unique' => 'El campo codigo_dyn ya existe.',
+      'dyn_code.string' => 'El codigo dyn debe ser una cadena de texto.',
+      'dyn_code.max' => 'El codigo dyn no debe exceder los 50 caracteres.',
+      'dyn_code.unique' => 'El campo codigo dyn ya existe.',
 
-      'descripcion.string' => 'La descripcion debe ser una cadena de texto.',
-      'descripcion.max' => 'La codigo_dyn no debe exceder los 255 caracteres.',
-      'descripcion.unique' => 'El campo descripcion ya existe.',
+      'description.string' => 'La descripción debe ser una cadena de texto.',
+      'description.max' => 'La descripción no debe exceder los 255 caracteres.',
+      'description.unique' => 'El campo descripción ya existe.',
 
-      'cuenta.string' => 'La cuenta debe ser una cadena de texto.',
-      'cuenta.max' => 'La cuenta no debe exceder los 150 caracteres.',
-      'cuenta.unique' => 'El campo cuenta ya existe.',
+      'account.string' => 'La cuenta debe ser una cadena de texto.',
+      'account.max' => 'La cuenta no debe exceder los 150 caracteres.',
+      'account.unique' => 'El campo cuenta ya existe.',
 
-      'tipo.string' => 'El tipo debe ser una cadena de texto.',
-      'tipo.in' => 'El tipo seleccionado no es válido.',
+      'type.string' => 'El tipo debe ser una cadena de texto.',
+      'type.in' => 'El tipo seleccionado no es válido.',
     ];
   }
 }

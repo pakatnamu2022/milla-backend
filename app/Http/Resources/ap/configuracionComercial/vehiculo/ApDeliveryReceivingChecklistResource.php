@@ -11,11 +11,11 @@ class ApDeliveryReceivingChecklistResource extends JsonResource
   {
     return [
       'id' => $this->id,
-      'descripcion' => $this->descripcion,
-      'tipo' => $this->tipo,
+      'description' => $this->description,
+      'type' => $this->type,
       'status' => $this->status,
-      'categoria_id' => $this->categoria_id,
-      'categoria' => $this->categoria->descripcion,
+      'category_id' => $this->category_id,
+      'category' => $this->category->description,
     ];
   }
 }

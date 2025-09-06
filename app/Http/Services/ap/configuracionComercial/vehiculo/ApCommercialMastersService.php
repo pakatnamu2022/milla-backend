@@ -4,12 +4,13 @@ namespace App\Http\Services\ap\configuracionComercial\vehiculo;
 
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApCommercialMastersResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\configuracionComercial\vehiculo\ApCommercialMasters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Exception;
 
-class ApCommercialMastersService extends BaseService
+class ApCommercialMastersService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
@@ -31,7 +32,7 @@ class ApCommercialMastersService extends BaseService
     return $ApCommercialMasters;
   }
 
-  public function store(array $data)
+  public function store(Mixed $data)
   {
     $ApCommercialMasters = ApCommercialMasters::create($data);
     return new ApCommercialMastersResource($ApCommercialMasters);
@@ -42,7 +43,7 @@ class ApCommercialMastersService extends BaseService
     return new ApCommercialMastersResource($this->find($id));
   }
 
-  public function update($data)
+  public function update(Mixed $data)
   {
     $ApCommercialMasters = $this->find($data['id']);
     $ApCommercialMasters->update($data);

@@ -14,36 +14,36 @@ class ApCommercialMasters extends Model
 
   protected $fillable = [
     'id',
-    'codigo',
-    'descripcion',
-    'tipo',
+    'code',
+    'description',
+    'type',
     'status',
   ];
 
   const filters = [
-    'search' => ['codigo', 'descripcion', 'tipo'],
-    'tipo' => '=',
+    'search' => ['code', 'description', 'type'],
+    'type' => '=',
     'status' => '='
   ];
 
   const sorts = [
-    'codigo',
-    'descripcion',
-    'tipo',
+    'code',
+    'description',
+    'type',
   ];
 
-  public function setCodigoAttribute($value)
+  public function setCodeAttribute($value)
   {
-    $this->attributes['codigo'] = Str::upper(Str::ascii($value));
+    $this->attributes['code'] = Str::upper(Str::ascii($value));
   }
 
-  public function setDescripcionAttribute($value)
+  public function setDescriptionAttribute($value)
   {
-    $this->attributes['descripcion'] = Str::upper(Str::ascii($value));
+    $this->attributes['description'] = Str::upper(Str::ascii($value));
   }
 
-  public function setTipoAttribute($value)
+  public function setTypeAttribute($value)
   {
-    $this->attributes['tipo'] = Str::upper(Str::ascii($value));
+    $this->attributes['type'] = Str::upper(Str::ascii($value));
   }
 }
