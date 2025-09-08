@@ -19,6 +19,7 @@ return new class extends Migration {
       $table->decimal('objectivesPercentage')->default(0);
       $table->decimal('competencesPercentage')->default(0);
       $table->foreignId('cycle_id')->constrained('gh_evaluation_cycle');
+      $table->foreignId('period_id')->constrained('gh_evaluation_periods');
       $table->foreignId('competence_parameter_id')->constrained('gh_evaluation_parameter');
       $table->foreignId('objective_parameter_id')->constrained('gh_evaluation_parameter');
       $table->foreignId('final_parameter_id')->constrained('gh_evaluation_parameter');

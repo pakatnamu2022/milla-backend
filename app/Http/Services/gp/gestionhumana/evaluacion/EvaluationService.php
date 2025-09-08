@@ -27,6 +27,7 @@ class EvaluationService extends BaseService
   {
     $cycle = EvaluationCycle::find($data['cycle_id']);
     $data['objective_parameter_id'] = $cycle->parameter_id;
+    $data['period_id'] = $cycle->period_id;
     return $data;
   }
 

@@ -16,24 +16,25 @@ class Evaluation extends Model
     'objectivesPercentage',
     'competencesPercentage',
     'cycle_id',
+    'period_id',
     'competence_parameter_id',
     'objective_parameter_id',
     'final_parameter_id'
   ];
 
   const filters = [
-    'id',
-    'name',
-    'start_date',
-    'end_date',
-    'typeEvaluation',
-    'objectivesPercentage',
-    'competencesPercentage',
-    'cycle_id',
-    'hierarchical_category_id',
-    'competence_parameter_id',
-    'objective_parameter_id',
-    'final_parameter_id'
+    'search' => ['name'],
+    'name' => 'like',
+    'start_date' => '=',
+    'end_date' => '=',
+    'typeEvaluation' => '=',
+    'objectivesPercentage' => '>=',
+    'competencesPercentage' => '>=',
+    'cycle_id' => '=',
+    'period_id' => '=',
+    'competence_parameter_id' => '=',
+    'objective_parameter_id' => '=',
+    'final_parameter_id' => '=',
   ];
 
   const sorts = [
@@ -45,7 +46,7 @@ class Evaluation extends Model
     'objectivesPercentage',
     'competencesPercentage',
     'cycle_id',
-    'hierarchical_category_id',
+    'period_id',
     'competence_parameter_id',
     'objective_parameter_id',
     'final_parameter_id',
@@ -58,9 +59,9 @@ class Evaluation extends Model
     return $this->belongsTo(EvaluationCycle::class, 'cycle_id');
   }
 
-  public function hierarchicalCategory()
+  public function period()
   {
-    return $this->belongsTo(HierarchicalCategory::class, 'hierarchical_category_id');
+    return $this->belongsTo(EvaluationPeriod::class, 'period_id');
   }
 
   public function competenceParameter()
