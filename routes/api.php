@@ -25,8 +25,10 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationMetricController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationObjectiveController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationParameterController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPeriodController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonDetailController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonResultController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailController;
 use App\Http\Controllers\gp\gestionhumana\personal\PersonController;
@@ -316,6 +318,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'update',
           'destroy'
         ]);
+
+        Route::get('/evaluation/{evaluation}/details', [EvaluationPersonResultController::class, 'index']);
+        Route::get('/evaluation/{evaluation}/participants', [EvaluationController::class, 'participants']);
+        Route::get('/evaluation/{evaluation}/positions', [EvaluationController::class, 'positions']);
 
 
       });

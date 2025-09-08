@@ -3,21 +3,21 @@
 namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationRequest;
-use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationRequest;
-use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationRequest;
-use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationService;
+use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationPersonRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationPersonRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationPersonRequest;
+use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationPersonService;
 
-class EvaluationController extends Controller
+class EvaluationPersonController extends Controller
 {
-  protected EvaluationService $service;
+  protected EvaluationPersonService $service;
 
-  public function __construct(EvaluationService $service)
+  public function __construct(EvaluationPersonService $service)
   {
     $this->service = $service;
   }
 
-  public function index(IndexEvaluationRequest $request)
+  public function index(IndexEvaluationPersonRequest $request)
   {
     try {
       return $this->service->list($request);
@@ -26,25 +26,7 @@ class EvaluationController extends Controller
     }
   }
 
-  public function participants(int $id)
-  {
-    try {
-      return $this->success($this->service->participants($id));
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
-  public function positions(int $id)
-  {
-    try {
-      return $this->success($this->service->positions($id));
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
-  public function store(StoreEvaluationRequest $request)
+  public function store(StoreEvaluationPersonRequest $request)
   {
     try {
       return $this->success($this->service->store($request->validated()));
@@ -62,7 +44,7 @@ class EvaluationController extends Controller
     }
   }
 
-  public function update(UpdateEvaluationRequest $request, int $id)
+  public function update(UpdateEvaluationPersonRequest $request, int $id)
   {
     try {
       $data = $request->validated();

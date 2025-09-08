@@ -10,9 +10,23 @@ class StoreEvaluationRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'name' => 'required|string|max:255',
-      'start_date' => 'required|date',
-      'end_date' => 'required|date|after:start_date',
+      'name' => [
+        'required',
+        'string',
+        'max:255',
+        Rule::unique('gh_evaluation', 'name')->whereNull('deleted_at'),
+      ],
+      'start_date' => [
+        'required',
+        'date',
+        Rule::unique('gh_evaluation', 'start_date')->whereNull('deleted_at'),
+      ],
+      'end_date' => [
+        'required',
+        'date',
+        'after:start_date',
+        Rule::unique('gh_evaluation', 'end_date')->whereNull('deleted_at'),
+      ],
       'typeEvaluation' => [
         'required',
         'integer',
@@ -20,7 +34,11 @@ class StoreEvaluationRequest extends StoreRequest
       ],
       'objectivesPercentage' => 'required|numeric|min:0|max:100',
       'competencesPercentage' => 'required|numeric|min:0|max:100',
-      'cycle_id' => 'required|exists:gh_evaluation_cycle,id',
+      'cycle_id' => [
+        'required',
+        'exists:gh_evaluation_cycle,id',
+        Rule::unique('gh_evaluation', 'cycle_id')->whereNull('deleted_at'),
+      ],
       'competence_parameter_id' => 'nullable|exists:gh_evaluation_parameter,id',
       'final_parameter_id' => 'nullable|exists:gh_evaluation_parameter,id',
     ];
