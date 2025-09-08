@@ -10,11 +10,14 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('contact', function (Blueprint $table) {
+    Schema::create('ap_assign_company_branch_period', function (Blueprint $table) {
       $table->id();
-      $table->string('value');
-      $table->enum('type', ['email', 'phone', 'link']);
       $table->foreignId('company_branch_id')->constrained('company_branch');
+      $table->integer('worker_id');
+      $table->foreign('worker_id')->references('id')->on('rrhh_persona');
+      $table->integer('year');
+      $table->integer('month');
+      $table->unique(['company_branch_id', 'worker_id', 'year', 'month'], 'uniq_sede_periodo');
       $table->timestamps();
       $table->softDeletes();
     });
@@ -25,6 +28,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('contact');
+    Schema::dropIfExists('ap_assign_company_branch_period');
   }
 };

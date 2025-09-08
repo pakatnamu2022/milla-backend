@@ -7,7 +7,6 @@ use App\Http\Requests\ap\configuracionComercial\venta\IndexApAccountingAccountPl
 use App\Http\Requests\ap\configuracionComercial\venta\StoreApAccountingAccountPlanRequest;
 use App\Http\Requests\ap\configuracionComercial\venta\UpdateApAccountingAccountPlanRequest;
 use App\Http\Services\ap\configuracionComercial\venta\ApAccountingAccountPlanService;
-use Illuminate\Http\Request;
 
 class ApAccountingAccountPlanController extends Controller
 {

@@ -2,11 +2,21 @@
 
 namespace App\Http\Services\gp\gestionsistema;
 
+use App\Http\Resources\gp\gestionsistema\DistrictResource;
 use App\Http\Services\BaseService;
-use App\Http\Services\BaseServiceInterface;
 use App\Models\gp\gestionsistema\District;
+use Illuminate\Http\Request;
 
-class DistrictService extends BaseService implements BaseServiceInterface
+class DistrictService extends BaseService
 {
-    // Aquí va la lógica del servicio para District
+  public function list(Request $request)
+  {
+    return $this->getFilteredResults(
+      District::class,
+      $request,
+      District::filters,
+      District::sorts,
+      DistrictResource::class,
+    );
+  }
 }

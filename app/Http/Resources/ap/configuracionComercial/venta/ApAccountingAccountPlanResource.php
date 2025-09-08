@@ -11,10 +11,10 @@ class ApAccountingAccountPlanResource extends JsonResource
   {
     return [
       'id' => $this->id,
-      'cuenta' => $this->cuenta,
-      'descripcion' => $this->descripcion,
-      'tipo_cta_contable_id' => $this->tipo_cta_contable_id,
-      'tipo_cuenta_contable' => $this->tipoCuenta->descripcion,
+      'account' => $this->account,
+      'description' => $this->description,
+      'accounting_type_id' => $this->accounting_type_id,
+      'accounting_type' => $this->typeAccount->description,
       'status' => $this->status,
     ];
   }

@@ -10,15 +10,14 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('ap_assign_sede', function (Blueprint $table) {
+    Schema::create('ap_assign_company_branch', function (Blueprint $table) {
       $table->id();
-      $table->integer('sede_id');
-      $table->foreign('sede_id')->references('id')->on('config_sede');
-      $table->integer('asesor_id');
-      $table->foreign('asesor_id')->references('id')->on('rrhh_persona');
+      $table->foreignId('company_branch_id')->constrained('company_branch');
+      $table->integer('worker_id');
+      $table->foreign('worker_id')->references('id')->on('rrhh_persona');
       $table->timestamps();
       $table->softDeletes();
-      $table->unique(['sede_id', 'asesor_id']);;
+      $table->unique(['company_branch_id', 'worker_id']);
     });
   }
 
@@ -27,6 +26,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('ap_assign_sede');
+    Schema::dropIfExists('ap_assign_company_branch');
   }
 };
