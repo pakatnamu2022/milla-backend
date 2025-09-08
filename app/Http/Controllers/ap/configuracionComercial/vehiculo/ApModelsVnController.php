@@ -7,8 +7,6 @@ use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApModelsVnRequest;
 use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApModelsVnRequest;
 use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApModelsVnRequest;
 use App\Http\Services\ap\configuracionComercial\vehiculo\ApModelsVnService;
-use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
-use Illuminate\Http\Request;
 
 class ApModelsVnController extends Controller
 {

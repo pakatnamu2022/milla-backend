@@ -14,97 +14,97 @@ class ApModelsVn extends Model
   protected $table = 'ap_models_vn';
 
   protected $fillable = [
-    'codigo',
+    'code',
     'version',
-    'potencia',
-    'anio_modelo',
-    'distancias_ejes',
-    'num_ejes',
-    'ancho',
-    'largo',
-    'altura',
-    'num_asientos',
-    'num_puertas',
-    'peso_neto',
-    'peso_bruto',
-    'carga_util',
-    'cilindrada',
-    'num_cilindros',
-    'num_pasajeros',
-    'num_ruedas',
-    'precio_distribuidor',
-    'costo_transporte',
-    'otros_importes',
-    'descuento_compra',
-    'importe_igv',
-    'total_compra_sigv',
-    'total_compra_cigv',
-    'precio_venta',
-    'margen',
-    'familia_id',
-    'clase_id',
-    'combustible_id',
-    'tipo_vehiculo_id',
-    'tipo_carroceria_id',
-    'tipo_traccion_id',
-    'transmision_id',
-    'tipo_moneda_id',
+    'power',
+    'model_year',
+    'wheelbase',
+    'axles_number',
+    'width',
+    'length',
+    'height',
+    'seats_number',
+    'doors_number',
+    'net_weight',
+    'gross_weight',
+    'payload',
+    'displacement',
+    'cylinders_number',
+    'passengers_number',
+    'wheels_number',
+    'distributor_price',
+    'transport_cost',
+    'other_amounts',
+    'purchase_discount',
+    'igv_amount',
+    'total_purchase_excl_igv',
+    'total_purchase_incl_igv',
+    'sale_price',
+    'margin',
+    'family_id',
+    'class_id',
+    'fuel_id',
+    'vehicle_type_id',
+    'body_type_id',
+    'traction_type_id',
+    'transmission_id',
+    'currency_type_id',
     'status'
   ];
 
   const filters = [
-    'search' => ['codigo', 'version'],
+    'search' => ['code', 'version'],
     'status' => '=',
   ];
 
   const sorts = [
-    'codigo',
+    'code',
     'version',
   ];
 
   public function family()
   {
-    return $this->belongsTo(ApFamilies::class, 'familia_id');
+    return $this->belongsTo(ApFamilies::class, 'family_id');
   }
 
   public function classArticle()
   {
-    return $this->belongsTo(ApClassArticle::class, 'clase_id');
+    return $this->belongsTo(ApClassArticle::class, 'class_id');
   }
 
   public function fuelType()
   {
-    return $this->belongsTo(ApFuelType::class, 'combustible_id');
+    return $this->belongsTo(ApFuelType::class, 'fuel_id');
   }
 
   public function vehicleType()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'tipo_vehiculo_id');
+    return $this->belongsTo(ApCommercialMasters::class, 'vehicle_type_id');
   }
 
   public function bodyType()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'tipo_carroceria_id');
+    return $this->belongsTo(ApCommercialMasters::class, 'body_type_id');
   }
 
   public function tractionType()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'tipo_traccion_id');
+    return $this->belongsTo(ApCommercialMasters::class, 'traction_type_id');
   }
 
   public function vehicleTransmission()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'transmision_id');
+    return $this->belongsTo(ApCommercialMasters::class, 'transmission_id');
   }
 
   public function typeCurrency()
   {
-    return $this->belongsTo(TypeCurrency::class, 'tipo_moneda_id');
+    return $this->belongsTo(TypeCurrency::class, 'currency_type_id');
   }
 
-  public function setCodigoAttribute($value)
+  public function setCodeAttribute($value)
   {
-    $this->attributes['codigo'] = Str::upper(Str::ascii($value));
+    $this->attributes['code'] = Str::upper(Str::ascii($value));
   }
 
   public function setVersionAttribute($value)
@@ -112,78 +112,78 @@ class ApModelsVn extends Model
     $this->attributes['version'] = Str::upper(Str::ascii($value));
   }
 
-  public function setPotenciaAttribute($value)
+  public function setPowerAttribute($value)
   {
-    $this->attributes['potencia'] = Str::upper(Str::ascii($value));
+    $this->attributes['power'] = Str::upper(Str::ascii($value));
   }
 
-  public function setDistanciaEjesAttribute($value)
+  public function setWheelbaseAttribute($value)
   {
-    $this->attributes['distancias_ejes'] = Str::upper(Str::ascii($value));
+    $this->attributes['wheelbase'] = Str::upper(Str::ascii($value));
   }
 
-  public function setNumEjesAttribute($value)
+  public function setAxlesNumberAttribute($value)
   {
-    $this->attributes['num_ejes'] = Str::upper(Str::ascii($value));
+    $this->attributes['axles_number'] = Str::upper(Str::ascii($value));
   }
 
-  public function setAnchoAttribute($value)
+  public function setWidthAttribute($value)
   {
-    $this->attributes['ancho'] = Str::upper(Str::ascii($value));
+    $this->attributes['width'] = Str::upper(Str::ascii($value));
   }
 
-  public function setLargoAttribute($value)
+  public function setLengthAttribute($value)
   {
-    $this->attributes['largo'] = Str::upper(Str::ascii($value));
+    $this->attributes['length'] = Str::upper(Str::ascii($value));
   }
 
-  public function setAlturaAttribute($value)
+  public function setHeightAttribute($value)
   {
-    $this->attributes['altura'] = Str::upper(Str::ascii($value));
+    $this->attributes['height'] = Str::upper(Str::ascii($value));
   }
 
-  public function setNumAsientosAttribute($value)
+  public function setSeatsNumberAttribute($value)
   {
-    $this->attributes['num_asientos'] = Str::upper(Str::ascii($value));
+    $this->attributes['seats_number'] = Str::upper(Str::ascii($value));
   }
 
-  public function setNumPuertasAttribute($value)
+  public function setDoorsNumberAttribute($value)
   {
-    $this->attributes['num_puertas'] = Str::upper(Str::ascii($value));
+    $this->attributes['doors_number'] = Str::upper(Str::ascii($value));
   }
 
-  public function setPesoNetoAttribute($value)
+  public function setNetWeightAttribute($value)
   {
-    $this->attributes['peso_neto'] = Str::upper(Str::ascii($value));
+    $this->attributes['net_weight'] = Str::upper(Str::ascii($value));
   }
 
-  public function setPesoBrutoAttribute($value)
+  public function setGrossWeightAttribute($value)
   {
-    $this->attributes['peso_bruto'] = Str::upper(Str::ascii($value));
+    $this->attributes['gross_weight'] = Str::upper(Str::ascii($value));
   }
 
-  public function setCargaUtilAttribute($value)
+  public function setPayloadAttribute($value)
   {
-    $this->attributes['carga_util'] = Str::upper(Str::ascii($value));
+    $this->attributes['payload'] = Str::upper(Str::ascii($value));
   }
 
-  public function setCilindradaAttribute($value)
+  public function setDisplacementAttribute($value)
   {
-    $this->attributes['cilindrada'] = Str::upper(Str::ascii($value));
+    $this->attributes['displacement'] = Str::upper(Str::ascii($value));
   }
 
-  public function setNumCilindrosAttribute($value)
+  public function setCylindersNumberAttribute($value)
   {
-    $this->attributes['num_cilindros'] = Str::upper(Str::ascii($value));
+    $this->attributes['cylinders_number'] = Str::upper(Str::ascii($value));
   }
 
-  public function setNumPasajerosAttribute($value)
+  public function setPassengersNumberAttribute($value)
   {
-    $this->attributes['num_pasajeros'] = Str::upper(Str::ascii($value));
+    $this->attributes['passengers_number'] = Str::upper(Str::ascii($value));
   }
 
-  public function setNumRuedasAttribute($value)
+  public function setWheelsNumberAttribute($value)
   {
-    $this->attributes['num_ruedas'] = Str::upper(Str::ascii($value));
+    $this->attributes['wheels_number'] = Str::upper(Str::ascii($value));
   }
 }

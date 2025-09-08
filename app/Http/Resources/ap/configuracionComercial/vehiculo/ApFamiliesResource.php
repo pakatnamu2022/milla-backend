@@ -11,10 +11,10 @@ class ApFamiliesResource extends JsonResource
   {
     return [
       'id' => $this->id,
-      'codigo' => $this->codigo,
-      'descripcion' => $this->descripcion,
-      'marca_id' => $this->marca_id,
-      'marca' => $this->marca->nombre,
+      'code' => $this->code,
+      'description' => $this->description,
+      'brand_id' => $this->brand_id,
+      'brand' => $this->brand->name,
       'status' => $this->status,
     ];
   }

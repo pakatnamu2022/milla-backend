@@ -7,7 +7,6 @@ use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApClassArticleRequ
 use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApClassArticleRequest;
 use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApClassArticleRequest;
 use App\Http\Services\ap\configuracionComercial\vehiculo\ApClassArticleService;
-use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use Illuminate\Http\Request;
 
 class ApClassArticleController extends Controller

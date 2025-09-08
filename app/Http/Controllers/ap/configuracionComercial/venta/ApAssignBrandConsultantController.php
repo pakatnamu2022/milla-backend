@@ -8,7 +8,6 @@ use App\Http\Requests\ap\configuracionComercial\venta\ShowGroupedApAssignBrandCo
 use App\Http\Requests\ap\configuracionComercial\venta\StoreApAssignBrandConsultantRequest;
 use App\Http\Requests\ap\configuracionComercial\venta\UpdateApAssignBrandConsultantRequest;
 use App\Http\Services\ap\configuracionComercial\venta\ApAssignBrandConsultantService;
-use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
 use Illuminate\Http\Request;
 
 class ApAssignBrandConsultantController extends Controller

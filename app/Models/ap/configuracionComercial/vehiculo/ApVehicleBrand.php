@@ -13,40 +13,40 @@ class ApVehicleBrand extends Model
   protected $table = 'ap_vehicle_brand';
 
   protected $fillable = [
-    'codigo',
-    'codigo_dyn',
-    'nombre',
-    'descripcion',
+    'code',
+    'dyn_code',
+    'name',
+    'description',
     'logo',
     'logo_min',
     'status',
-    'grupo_id',
+    'group_id',
   ];
 
   const filters = [
-    'search' => ['codigo', 'codigo_dyn', 'nombre', 'descripcion'],
+    'search' => ['code', 'dyn_code', 'name', 'description'],
     'status' => '=',
   ];
 
   const sorts = [
-    'codigo',
-    'codigo_dyn',
-    'nombre',
+    'code',
+    'dyn_code',
+    'name',
   ];
 
-  public function grupo()
+  public function group()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'grupo_id');
+    return $this->belongsTo(ApCommercialMasters::class, 'group_id');
   }
 
-  public function setCodigoAttribute($value)
+  public function setCodeAttribute($value)
   {
-    $this->attributes['codigo'] = Str::upper(Str::ascii($value));
+    $this->attributes['code'] = Str::upper(Str::ascii($value));
   }
 
-  public function setCodigoDynAttribute($value)
+  public function setDynCodeAttribute($value)
   {
-    $this->attributes['codigo_dyn'] = Str::upper(Str::ascii($value));
+    $this->attributes['dyn_code'] = Str::upper(Str::ascii($value));
   }
 
   public function setNameAttribute($value)
@@ -54,8 +54,8 @@ class ApVehicleBrand extends Model
     $this->attributes['name'] = Str::upper(Str::ascii($value));
   }
 
-  public function setDescripcionAttribute($value)
+  public function setDescriptionAttribute($value)
   {
-    $this->attributes['descripcion'] = Str::upper(Str::ascii($value));
+    $this->attributes['description'] = Str::upper(Str::ascii($value));
   }
 }

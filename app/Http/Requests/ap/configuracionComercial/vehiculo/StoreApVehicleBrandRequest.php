@@ -10,30 +10,30 @@ class StoreApVehicleBrandRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'codigo' => [
+      'code' => [
         'required',
         'string',
         'max:100',
-        Rule::unique('ap_vehicle_brand', 'codigo')->whereNull('deleted_at'),
+        Rule::unique('ap_vehicle_brand', 'code')->whereNull('deleted_at'),
       ],
-      'codigo_dyn' => [
+      'dyn_code' => [
         'required',
         'string',
         'max:100',
-        Rule::unique('ap_vehicle_brand', 'codigo_dyn')->whereNull('deleted_at'),
+        Rule::unique('ap_vehicle_brand', 'dyn_code')->whereNull('deleted_at'),
       ],
-      'nombre' => [
+      'name' => [
         'required',
         'string',
         'max:150',
-        Rule::unique('ap_vehicle_brand', 'nombre')->whereNull('deleted_at'),
+        Rule::unique('ap_vehicle_brand', 'name')->whereNull('deleted_at'),
       ],
-      'descripcion' => [
+      'description' => [
         'required',
         'string',
         'max:250'
       ],
-      'grupo_id' => [
+      'group_id' => [
         'required',
         'integer',
         'exists:ap_commercial_masters,id',
@@ -56,21 +56,21 @@ class StoreApVehicleBrandRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'codigo.required' => 'El código es requerido',
-      'codigo.unique' => 'Este código ya existe',
-      'codigo.max' => 'El código no debe exceder 100 caracteres',
-      'codigo_dyn.required' => 'El código DYN es requerido',
-      'codigo_dyn.unique' => 'Este código DYN ya existe',
-      'codigo_dyn.max' => 'El codigo_dyn no debe exceder 100 caracteres',
-      'nombre.required' => 'El nombre es requerido',
-      'nombre.unique' => 'Este nombre ya existe',
-      'nombre.max' => 'El nombre no debe exceder 150 caracteres',
-      'descripcion.required' => 'La descripción es requerida',
-      'descripcion.unique' => 'Esta descripción ya existe',
-      'descripcion.max' => 'El descripcion no debe exceder 255 caracteres',
-      'grupo_id.required' => 'Debe seleccionar un grupo',
-      'grupo_id.integer' => 'El campo grupo es obligatorio.',
-      'grupo_id.exists' => 'El grupo seleccionado no existe',
+      'code.required' => 'El código es requerido',
+      'code.unique' => 'Este código ya existe',
+      'code.max' => 'El código no debe exceder 100 caracteres',
+      'dyn_code.required' => 'El código DYN es requerido',
+      'dyn_code.unique' => 'Este código DYN ya existe',
+      'dyn_code.max' => 'El dyn_code no debe exceder 100 caracteres',
+      'name.required' => 'El nombre es requerido',
+      'name.unique' => 'Este nombre ya existe',
+      'name.max' => 'El nombre no debe exceder 150 caracteres',
+      'description.required' => 'La descripción es requerida',
+      'description.unique' => 'Esta descripción ya existe',
+      'description.max' => 'El descripción no debe exceder 255 caracteres',
+      'group_id.required' => 'Debe seleccionar un grupo',
+      'group_id.integer' => 'El campo grupo es obligatorio.',
+      'group_id.exists' => 'El grupo seleccionado no existe',
       'logo.mimes' => 'El logo debe ser un archivo JPG, PNG o WebP',
       'logo.max' => 'El logo no debe superar los 2MB',
       'logo_min.mimes' => 'El logo min debe ser un archivo JPG, PNG o WebP',

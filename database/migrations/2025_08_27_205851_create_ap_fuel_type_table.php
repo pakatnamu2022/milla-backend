@@ -12,9 +12,9 @@ return new class extends Migration {
   {
     Schema::create('ap_fuel_type', function (Blueprint $table) {
       $table->id();
-      $table->string('codigo', length: 50);
-      $table->text('descripcion');
-      $table->boolean('motor_electrico')->default(false);
+      $table->string('code', length: 50);
+      $table->text('description');
+      $table->boolean('electric_motor')->default(false);
       $table->boolean('status')->default(true);
       $table->timestamps();
       $table->softDeletes();

@@ -11,19 +11,19 @@ class StoreApFuelTypeRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'codigo' => [
+      'code' => [
         'required',
         'string',
         'max:100',
-        Rule::unique('ap_fuel_type', 'codigo')->whereNull('deleted_at'),
+        Rule::unique('ap_fuel_type', 'code')->whereNull('deleted_at'),
       ],
-      'descripcion' => [
+      'description' => [
         'required',
         'string',
         'max:255',
-        Rule::unique('ap_fuel_type', 'descripcion')->whereNull('deleted_at'),
+        Rule::unique('ap_fuel_type', 'description')->whereNull('deleted_at'),
       ],
-      'motor_electrico' => [
+      'electric_motor' => [
         'required',
         'boolean',
       ],
@@ -33,18 +33,18 @@ class StoreApFuelTypeRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'codigo.required' => 'El campo código es obligatorio.',
-      'codigo.string' => 'El campo código debe ser una cadena de texto.',
-      'codigo.max' => 'El campo código no debe exceder los 100 caracteres.',
-      'codigo.unique' => 'El código ya está en uso.',
+      'code.required' => 'El campo código es obligatorio.',
+      'code.string' => 'El campo código debe ser una cadena de texto.',
+      'code.max' => 'El campo código no debe exceder los 100 caracteres.',
+      'code.unique' => 'El código ya está en uso.',
 
-      'descripcion.required' => 'El campo descripción es obligatorio.',
-      'descripcion.string' => 'El campo descripción debe ser una cadena de texto.',
-      'descripcion.max' => 'El campo descripción no debe exceder los 255 caracteres.',
-      'descripcion.unique' => 'La descripción ya está en uso.',
+      'description.required' => 'El campo descripción es obligatorio.',
+      'description.string' => 'El campo descripción debe ser una cadena de texto.',
+      'description.max' => 'El campo descripción no debe exceder los 255 caracteres.',
+      'description.unique' => 'La descripción ya está en uso.',
 
-      'motor_electrico.required' => 'El campo motor eléctrico es obligatorio.',
-      'motor_electrico.boolean' => 'El campo motor eléctrico debe ser verdadero o falso.',
+      'electric_motor.required' => 'El campo motor eléctrico es obligatorio.',
+      'electric_motor.boolean' => 'El campo motor eléctrico debe ser verdadero o falso.',
     ];
   }
 }

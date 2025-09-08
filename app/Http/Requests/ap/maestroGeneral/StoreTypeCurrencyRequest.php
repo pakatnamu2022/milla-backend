@@ -3,7 +3,6 @@
 namespace App\Http\Requests\ap\maestroGeneral;
 
 use App\Http\Requests\StoreRequest;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreTypeCurrencyRequest extends StoreRequest
@@ -11,23 +10,23 @@ class StoreTypeCurrencyRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'codigo' => [
+      'code' => [
         'required',
         'string',
         'max:3',
-        Rule::unique('type_currency', 'codigo')->whereNull('deleted_at'),
+        Rule::unique('type_currency', 'code')->whereNull('deleted_at'),
       ],
-      'nombre' => [
+      'name' => [
         'required',
         'string',
         'max:50',
-        Rule::unique('type_currency', 'nombre')->whereNull('deleted_at'),
+        Rule::unique('type_currency', 'name')->whereNull('deleted_at'),
       ],
-      'simbolo' => [
+      'symbol' => [
         'required',
         'string',
         'max:5',
-        Rule::unique('type_currency', 'simbolo')->whereNull('deleted_at'),
+        Rule::unique('type_currency', 'symbol')->whereNull('deleted_at'),
       ],
     ];
   }
@@ -35,20 +34,20 @@ class StoreTypeCurrencyRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'codigo.required' => 'El código de la moneda es obligatorio.',
-      'codigo.string' => 'El código de la moneda debe ser un texto.',
-      'codigo.max' => 'El código de la moneda no puede tener más de 3 caracteres.',
-      'codigo.unique' => 'El código de la moneda ya existe en el sistema.',
+      'code.required' => 'El código de la moneda es obligatorio.',
+      'code.string' => 'El código de la moneda debe ser un texto.',
+      'code.max' => 'El código de la moneda no puede tener más de 3 caracteres.',
+      'code.unique' => 'El código de la moneda ya existe en el sistema.',
 
-      'nombre.required' => 'El nombre de la moneda es obligatorio.',
-      'nombre.string' => 'El nombre de la moneda debe ser un texto.',
-      'nombre.max' => 'El nombre de la moneda no puede exceder los 50 caracteres.',
-      'nombre.unique' => 'El nombre de la moneda ya está registrado.',
+      'name.required' => 'El nombre de la moneda es obligatorio.',
+      'name.string' => 'El nombre de la moneda debe ser un texto.',
+      'name.max' => 'El nombre de la moneda no puede exceder los 50 caracteres.',
+      'name.unique' => 'El nombre de la moneda ya está registrado.',
 
-      'simbolo.required' => 'El símbolo de la moneda es obligatorio.',
-      'simbolo.string' => 'El símbolo de la moneda debe ser un texto.',
-      'simbolo.max' => 'El símbolo de la moneda no puede tener más de 5 caracteres.',
-      'simbolo.unique' => 'El símbolo de la moneda ya está en uso.',
+      'symbol.required' => 'El símbolo de la moneda es obligatorio.',
+      'symbol.string' => 'El símbolo de la moneda debe ser un texto.',
+      'symbol.max' => 'El símbolo de la moneda no puede tener más de 5 caracteres.',
+      'symbol.unique' => 'El símbolo de la moneda ya está en uso.',
     ];
   }
 }

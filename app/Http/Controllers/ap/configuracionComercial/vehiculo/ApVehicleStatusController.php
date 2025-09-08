@@ -7,7 +7,6 @@ use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApVehicleStatusReq
 use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApVehicleStatusRequest;
 use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApVehicleStatusRequest;
 use App\Http\Services\ap\configuracionComercial\vehiculo\ApVehicleStatusService;
-use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use Illuminate\Http\Request;
 
 class ApVehicleStatusController extends Controller

@@ -7,7 +7,6 @@ use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApFuelTypeRequest;
 use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApFuelTypeRequest;
 use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApFuelTypeRequest;
 use App\Http\Services\ap\configuracionComercial\vehiculo\ApFuelTypeService;
-use App\Models\ap\configuracionComercial\vehiculo\ApFuelType;
 use Illuminate\Http\Request;
 
 class ApFuelTypeController extends Controller

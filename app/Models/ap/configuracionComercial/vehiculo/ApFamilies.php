@@ -13,35 +13,35 @@ class ApFamilies extends Model
   protected $table = 'ap_families';
 
   protected $fillable = [
-    'codigo',
-    'descripcion',
+    'code',
+    'description',
     'status',
-    'marca_id',
+    'brand_id',
   ];
 
   const filters = [
-    'search' => ['codigo', 'descripcion'],
-    'marca_id' => '=',
+    'search' => ['code', 'description'],
+    'brand_id' => '=',
     'status' => '=',
   ];
 
   const sorts = [
-    'codigo',
-    'descripcion',
+    'code',
+    'description',
   ];
 
-  public function marca()
+  public function brand()
   {
-    return $this->belongsTo(ApVehicleBrand::class, 'marca_id');
+    return $this->belongsTo(ApVehicleBrand::class, 'brand_id');
   }
 
-  public function setCodigoAttribute($value)
+  public function setCodeAttribute($value)
   {
-    $this->attributes['codigo'] = Str::upper(Str::ascii($value));
+    $this->attributes['code'] = Str::upper(Str::ascii($value));
   }
 
-  public function setDescripcionAttribute($value)
+  public function setDescriptionAttribute($value)
   {
-    $this->attributes['descripcion'] = Str::upper(Str::ascii($value));
+    $this->attributes['description'] = Str::upper(Str::ascii($value));
   }
 }

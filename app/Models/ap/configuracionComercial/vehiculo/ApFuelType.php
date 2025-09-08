@@ -14,29 +14,29 @@ class ApFuelType extends Model
 
   protected $fillable = [
     'id',
-    'codigo',
-    'descripcion',
-    'motor_electrico',
+    'code',
+    'description',
+    'electric_motor',
     'status',
   ];
 
   const filters = [
-    'search' => ['codigo', 'descripcion'],
+    'search' => ['code', 'description'],
     'status' => '=',
   ];
 
   const sorts = [
-    'codigo',
-    'descripcion',
+    'code',
+    'description',
   ];
 
-  public function setCodigoAttribute($value)
+  public function setCodeAttribute($value)
   {
-    $this->attributes['codigo'] = Str::upper(Str::ascii($value));
+    $this->attributes['code'] = Str::upper(Str::ascii($value));
   }
 
-  public function setDescripcionAttribute($value)
+  public function setDescriptionAttribute($value)
   {
-    $this->attributes['descripcion'] = Str::upper(Str::ascii($value));
+    $this->attributes['description'] = Str::upper(Str::ascii($value));
   }
 }
