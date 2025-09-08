@@ -11,10 +11,10 @@ class ApClassArticleResource extends JsonResource
   {
     return [
       'id' => $this->id,
-      'codigo_dyn' => $this->codigo_dyn,
-      'descripcion' => $this->descripcion,
-      'cuenta' => $this->cuenta,
-      'tipo' => $this->tipo,
+      'dyn_code' => $this->dyn_code,
+      'description' => $this->description,
+      'account' => $this->account,
+      'type' => $this->type,
       'status' => $this->status
     ];
   }

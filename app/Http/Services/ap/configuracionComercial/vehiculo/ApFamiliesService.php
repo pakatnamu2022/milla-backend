@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\configuracionComercial\vehiculo;
 
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApFamiliesResource;
+use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\BaseService;
 use App\Models\ap\configuracionComercial\vehiculo\ApFamilies;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
@@ -10,7 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Exception;
 
-class ApFamiliesService extends BaseService
+class ApFamiliesService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
@@ -32,14 +33,14 @@ class ApFamiliesService extends BaseService
     return $ApCommercialMasters;
   }
 
-  public function store(array $data)
+  public function store(mixed $data)
   {
-    $marca = ApVehicleBrand::findOrFail($data['marca_id']);
-    $data['codigo'] = $marca->codigo_dyn . $this->nextCorrelativeCount(
-        ApFamilies::class,
-        2,
-        ['marca_id' => $data['marca_id']]
-      );
+    $marca = ApVehicleBrand::findOrFail($data['brand_id']);
+    $data['code'] = $marca->codigo_dyn . $this->nextCorrelativeCount(
+      ApFamilies::class,
+      2,
+      ['brand_id' => $data['brand_id']]
+    );
     $ApCommercialMasters = ApFamilies::create($data);
     return new ApFamiliesResource($ApCommercialMasters);
   }
@@ -49,7 +50,7 @@ class ApFamiliesService extends BaseService
     return new ApFamiliesResource($this->find($id));
   }
 
-  public function update($data)
+  public function update(mixed $data)
   {
     $ApCommercialMasters = $this->find($data['id']);
     $ApCommercialMasters->update($data);

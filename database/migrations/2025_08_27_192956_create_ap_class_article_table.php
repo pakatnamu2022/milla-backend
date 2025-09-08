@@ -12,10 +12,10 @@ return new class extends Migration {
   {
     Schema::create('ap_class_article', function (Blueprint $table) {
       $table->id();
-      $table->string('codigo_dyn', length: 50);
-      $table->string('descripcion', length: 255);
-      $table->string('cuenta', length: 150);
-      $table->enum('tipo', ['POSTVENTA', 'VEHICULO']);
+      $table->string('dyn_code', length: 50);
+      $table->string('description', length: 255);
+      $table->string('account', length: 150);
+      $table->enum('type', ['POSTVENTA', 'VEHICULO']);
       $table->boolean('status')->default(true);
       $table->timestamps();
       $table->softDeletes();

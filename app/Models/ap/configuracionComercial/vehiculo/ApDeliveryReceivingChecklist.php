@@ -14,39 +14,34 @@ class ApDeliveryReceivingChecklist extends Model
 
   protected $fillable = [
     'id',
-    'descripcion',
-    'tipo',
-    'categoria_id',
+    'description',
+    'type',
+    'category_id',
     'status'
   ];
 
   const filters = [
-    'search' => ['descripcion', 'tipo'],
-    'tipo' => '='
+    'search' => ['description', 'type'],
+    'type' => '='
   ];
 
   const sorts = [
-    'descripcion',
-    'tipo',
+    'description',
+    'type',
   ];
 
-  public function categoria()
+  public function category()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'categoria_id');
+    return $this->belongsTo(ApCommercialMasters::class, 'category_id');
   }
 
-  public function setDescripcionAttribute($value)
+  public function setDescriptionAttribute($value)
   {
-    $this->attributes['descripcion'] = Str::upper(Str::ascii($value));
+    $this->attributes['description'] = Str::upper(Str::ascii($value));
   }
 
-  public function setTipoAttribute($value)
+  public function setTypeAttribute($value)
   {
-    $this->attributes['tipo'] = Str::upper(Str::ascii($value));
-  }
-
-  public function setCategoriaAttribute($value)
-  {
-    $this->attributes['categoria'] = Str::upper(Str::ascii($value));
+    $this->attributes['type'] = Str::upper(Str::ascii($value));
   }
 }

@@ -7,7 +7,6 @@ use App\Http\Requests\ap\maestroGeneral\IndexTypeCurrencyRequest;
 use App\Http\Requests\ap\maestroGeneral\StoreTypeCurrencyRequest;
 use App\Http\Requests\ap\maestroGeneral\UpdateTypeCurrencyRequest;
 use App\Http\Services\ap\maestroGeneral\TypeCurrencyService;
-use App\Models\ap\maestroGeneral\TypeCurrency;
 use Illuminate\Http\Request;
 
 class TypeCurrencyController extends Controller

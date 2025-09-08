@@ -10,23 +10,23 @@ class UpdateApAccountingAccountPlanRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'cuenta' => [
+      'account' => [
         'nullable',
         'string',
         'max:20',
-        Rule::unique('ap_accounting_account_plan', 'cuenta')
+        Rule::unique('ap_accounting_account_plan', 'account')
           ->whereNull('deleted_at')
           ->ignore($this->route('accountingAccountPlan'))
       ],
-      'descripcion' => [
+      'description' => [
         'nullable',
         'string',
         'max:255',
-        Rule::unique('ap_accounting_account_plan', 'descripcion')
+        Rule::unique('ap_accounting_account_plan', 'description')
           ->whereNull('deleted_at')
           ->ignore($this->route('accountingAccountPlan')),
       ],
-      'tipo_cta_contable_id' => [
+      'accounting_type_id' => [
         'nullable',
         'integer',
         'exists:ap_commercial_masters,id',
@@ -41,13 +41,13 @@ class UpdateApAccountingAccountPlanRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'cuenta.unique' => 'La cuenta ya existe.',
-      'cuenta.max' => 'La cuenta no debe ser mayor a 20 caracteres.',
+      'account.unique' => 'La cuenta ya existe.',
+      'account.max' => 'La cuenta no debe ser mayor a 20 caracteres.',
 
-      'descripcion.unique' => 'La descripción ya existe.',
-      'descripcion.max' => 'La descripción no debe ser mayor a 255 caracteres.',
+      'description.unique' => 'La descripción ya existe.',
+      'description.max' => 'La descripción no debe ser mayor a 255 caracteres.',
 
-      'tipo_cta_contable_id.exists' => 'El tipo de cuenta contable no existe.',
+      'accounting_type_id.exists' => 'El tipo de account contable no existe.',
     ];
   }
 }

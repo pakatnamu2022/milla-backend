@@ -2,11 +2,21 @@
 
 namespace App\Http\Services\gp\gestionsistema;
 
+use App\Http\Resources\gp\gestionsistema\DepartmentResource;
 use App\Http\Services\BaseService;
-use App\Http\Services\BaseServiceInterface;
 use App\Models\gp\gestionsistema\Department;
+use Illuminate\Http\Request;
 
-class DepartmentService extends BaseService implements BaseServiceInterface
+class DepartmentService extends BaseService
 {
-    // Aquí va la lógica del servicio para Department
+  public function list(Request $request)
+  {
+    return $this->getFilteredResults(
+      Department::class,
+      $request,
+      Department::filters,
+      Department::sorts,
+      DepartmentResource::class,
+    );
+  }
 }

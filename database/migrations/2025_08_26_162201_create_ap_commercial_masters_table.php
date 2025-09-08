@@ -12,9 +12,9 @@ return new class extends Migration {
   {
     Schema::create('ap_commercial_masters', function (Blueprint $table) {
       $table->id();
-      $table->string('codigo', 50)->nullable();
-      $table->string('descripcion', 255);
-      $table->string('tipo', 100);
+      $table->string('code', 50)->nullable();
+      $table->string('description', 255);
+      $table->string('type', 100);
       $table->boolean('status')->default(true);
       $table->timestamps();
       $table->softDeletes();

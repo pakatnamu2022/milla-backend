@@ -7,7 +7,6 @@ use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApCommercialMaster
 use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApCommercialMastersRequest;
 use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApCommercialMastersRequest;
 use App\Http\Services\ap\configuracionComercial\vehiculo\ApCommercialMastersService;
-use App\Models\ap\configuracionComercial\vehiculo\ApCommercialMasters;
 use Illuminate\Http\Request;
 
 class ApCommercialMastersController extends Controller

@@ -12,17 +12,16 @@ return new class extends Migration {
   {
     Schema::create('ap_assign_brand_consultant', function (Blueprint $table) {
       $table->id();
-      $table->integer('objetivo_venta')->default(0);
-      $table->integer('anio');
+      $table->integer('sales_target')->default(0);
+      $table->integer('year');
       $table->integer('month');
       $table->boolean('status')->default(true);
-      $table->foreignId('marca_id')
+      $table->foreignId('brand_id')
         ->constrained('ap_vehicle_brand');
-      $table->integer('asesor_id');
-      $table->foreign('asesor_id')->references('id')->on('rrhh_persona');
-      $table->integer('sede_id');
-      $table->foreign('sede_id')->references('id')->on('config_sede');
-      $table->unique(['marca_id', 'asesor_id', 'sede_id', 'anio', 'month'], 'unique_consultant_sede_anio_mes');
+      $table->integer('worker_id');
+      $table->foreign('worker_id')->references('id')->on('rrhh_persona');
+      $table->foreignId('company_branch_id')->constrained('company_branch');
+      $table->unique(['brand_id', 'worker_id', 'company_branch_id', 'year', 'month'], 'unique_consultant_sede_anio_mes');
       $table->timestamps();
       $table->softDeletes();
     });

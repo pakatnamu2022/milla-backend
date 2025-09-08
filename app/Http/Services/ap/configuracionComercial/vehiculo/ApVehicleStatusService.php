@@ -5,7 +5,6 @@ namespace App\Http\Services\ap\configuracionComercial\vehiculo;
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApVehicleStatusResource;
 use App\Http\Services\BaseService;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
-use App\Models\ap\configuracionComercial\venta\ApAssignSedePeriodo;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,17 +24,17 @@ class ApVehicleStatusService extends BaseService
 
   public function find($id)
   {
-    $engineType = ApVehicleStatus::where('id', $id)->first();
-    if (!$engineType) {
+    $vehicleStatus = ApVehicleStatus::where('id', $id)->first();
+    if (!$vehicleStatus) {
       throw new Exception('Estado de vehículo no encontrado');
     }
-    return $engineType;
+    return $vehicleStatus;
   }
 
   public function store(array $data)
   {
-    $engineType = ApVehicleStatus::create($data);
-    return new ApVehicleStatusResource($engineType);
+    $vehicleStatus = ApVehicleStatus::create($data);
+    return new ApVehicleStatusResource($vehicleStatus);
   }
 
   public function show($id)
@@ -45,16 +44,16 @@ class ApVehicleStatusService extends BaseService
 
   public function update($data)
   {
-    $engineType = $this->find($data['id']);
-    $engineType->update($data);
-    return new ApVehicleStatusResource($engineType);
+    $vehicleStatus = $this->find($data['id']);
+    $vehicleStatus->update($data);
+    return new ApVehicleStatusResource($vehicleStatus);
   }
 
   public function destroy($id)
   {
-    $engineType = $this->find($id);
-    DB::transaction(function () use ($engineType) {
-      $engineType->delete();
+    $vehicleStatus = $this->find($id);
+    DB::transaction(function () use ($vehicleStatus) {
+      $vehicleStatus->delete();
     });
     return response()->json(['message' => 'Estado de vehículo eliminado correctamente']);
   }

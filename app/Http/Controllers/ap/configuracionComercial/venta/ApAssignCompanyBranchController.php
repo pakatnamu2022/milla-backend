@@ -3,22 +3,21 @@
 namespace App\Http\Controllers\ap\configuracionComercial\venta;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\ap\configuracionComercial\venta\IndexApAssignSedeRequest;
-use App\Http\Requests\ap\configuracionComercial\venta\StoreApAssignSedeRequest;
-use App\Http\Requests\ap\configuracionComercial\venta\UpdateApAssignSedeRequest;
-use App\Http\Services\ap\configuracionComercial\venta\ApAssignSedeService;
-use Illuminate\Http\Request;
+use App\Http\Requests\ap\configuracionComercial\venta\IndexApAssignCompanyBranchRequest;
+use App\Http\Requests\ap\configuracionComercial\venta\StoreApAssignCompanyBranchRequest;
+use App\Http\Requests\ap\configuracionComercial\venta\UpdateApAssignCompanyBranchRequest;
+use App\Http\Services\ap\configuracionComercial\venta\ApAssignCompanyBranchService;
 
-class ApAssignSedeController extends Controller
+class ApAssignCompanyBranchController extends Controller
 {
-  protected ApAssignSedeService $service;
+  protected ApAssignCompanyBranchService $service;
 
-  public function __construct(ApAssignSedeService $service)
+  public function __construct(ApAssignCompanyBranchService $service)
   {
     $this->service = $service;
   }
 
-  public function index(IndexApAssignSedeRequest $request)
+  public function index(IndexApAssignCompanyBranchRequest $request)
   {
     try {
       return $this->service->list($request);
@@ -27,7 +26,7 @@ class ApAssignSedeController extends Controller
     }
   }
 
-  public function indexRecord(IndexApAssignSedeRequest $request)
+  public function indexRecord(IndexApAssignCompanyBranchRequest $request)
   {
     try {
       return $this->service->listRecord($request);
@@ -36,7 +35,7 @@ class ApAssignSedeController extends Controller
     }
   }
 
-  public function store(StoreApAssignSedeRequest $request)
+  public function store(StoreApAssignCompanyBranchRequest $request)
   {
     try {
       return $this->success($this->service->store($request->all()));
@@ -54,11 +53,11 @@ class ApAssignSedeController extends Controller
     }
   }
 
-  public function update(UpdateApAssignSedeRequest $request, $id)
+  public function update(UpdateApAssignCompanyBranchRequest $request, $id)
   {
     try {
       $data = $request->all();
-      $data['sede_id'] = $id;
+      $data['company_branch_id'] = $id;
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());

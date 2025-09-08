@@ -10,34 +10,43 @@ class ApVehicleStatus extends Model
 {
   use SoftDeletes;
 
-  protected $table = "ap_estados_vehiculos";
+  protected $table = "ap_vehicle_status";
 
   protected $fillable = [
-    'id',
-    'codigo',
-    'descripcion',
-    'uso',
+    'code',
+    'description',
+    'use',
     'color',
     'status'
   ];
 
   const filters = [
-    'search' => ['codigo', 'descripcion'],
-    'uso' => 'like',
+    'search' => ['code', 'description'],
+    'uso' => '=',
   ];
 
   const sorts = [
-    'codigo',
-    'descripcion',
+    'code',
+    'description',
   ];
 
-  public function setCodigoAttribute($value)
+  public function setCodeAttribute($value)
   {
-    $this->attributes['codigo'] = Str::upper(Str::ascii($value));
+    $this->attributes['code'] = Str::upper(Str::ascii($value));
   }
 
-  public function setDescripcionAttribute($value)
+  public function setDescriptionAttribute($value)
   {
-    $this->attributes['descripcion'] = Str::upper(Str::ascii($value));
+    $this->attributes['description'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setUseAttribute($value)
+  {
+    $this->attributes['use'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setColorAttribute($value)
+  {
+    $this->attributes['color'] = Str::upper(Str::ascii($value));
   }
 }

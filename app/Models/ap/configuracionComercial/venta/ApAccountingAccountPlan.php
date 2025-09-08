@@ -13,27 +13,27 @@ class ApAccountingAccountPlan extends Model
   protected $table = 'ap_accounting_account_plan';
 
   protected $fillable = [
-    'cuenta',
-    'descripcion',
-    'tipo_cta_contable_id',
+    'account',
+    'description',
+    'accounting_type_id',
     'status',
   ];
 
   const filters = [
-    'search' => ['cuenta', 'descripcion'],
-    'tipo_cta_contable_id' => '=',
+    'search' => ['account', 'description'],
+    'accounting_type_id' => '=',
     'status' => '=',
   ];
 
   const sorts = [
-    'cuenta',
-    'descripcion',
-    'tipo_cta_contable_id',
+    'account',
+    'description',
+    'accounting_type_id',
     'status',
   ];
 
-  public function tipoCuenta()
+  public function typeAccount()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'tipo_cta_contable_id');
+    return $this->belongsTo(ApCommercialMasters::class, 'accounting_type_id');
   }
 }

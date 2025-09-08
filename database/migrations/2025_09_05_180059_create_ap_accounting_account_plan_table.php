@@ -12,9 +12,9 @@ return new class extends Migration {
   {
     Schema::create('ap_accounting_account_plan', function (Blueprint $table) {
       $table->id();
-      $table->string('cuenta');
-      $table->string('descripcion');
-      $table->foreignId('tipo_cta_contable_id')
+      $table->string('account');
+      $table->string('description');
+      $table->foreignId('accounting_type_id')
         ->constrained('ap_commercial_masters');
       $table->boolean('status')->default(true);
       $table->timestamps();

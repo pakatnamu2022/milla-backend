@@ -15,12 +15,12 @@ class ApVehicleBrandResource extends JsonResource
   {
     $data = [
       'id' => $this->id,
-      'codigo' => $this->codigo,
-      'codigo_dyn' => $this->codigo_dyn,
-      'grupo_id' => $this->grupo_id,
-      'grupo' => $this->grupo->descripcion,
-      'nombre' => $this->nombre,
-      'descripcion' => $this->descripcion,
+      'code' => $this->code,
+      'dyn_code' => $this->dyn_code,
+      'name' => $this->name,
+      'description' => $this->description,
+      'group_id' => $this->group_id,
+      'group' => $this->group->description,
       'status' => $this->status,
     ];
 

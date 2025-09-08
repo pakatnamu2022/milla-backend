@@ -12,9 +12,9 @@ return new class extends Migration {
   {
     Schema::create('type_currency', function (Blueprint $table) {
       $table->id();
-      $table->string('codigo', 3)->unique(); // (ISO 4217, ej. "PEN", "USD", "EUR")
-      $table->string('nombre', 50); // Soles
-      $table->string('simbolo', 5)->nullable(); // (ej. "S/", "$", "€")
+      $table->string('code', 3)->unique(); // (ISO 4217, ej. "PEN", "USD", "EUR")
+      $table->string('name', 50); // Soles
+      $table->string('symbol', 5)->nullable(); // (ej. "S/", "$", "€")
       $table->boolean('status')->default(true);
       $table->timestamps();
       $table->softDeletes();

@@ -14,9 +14,7 @@ return new class extends Migration {
       $table->id();
       $table->string('value');
       $table->enum('type', ['email', 'phone', 'link']);
-      $table->foreignId('sede_id')
-        ->constrained('sede')
-        ->onDelete('cascade');
+      $table->foreignId('company_branch_id')->constrained('company_branch');
       $table->timestamps();
       $table->softDeletes();
     });

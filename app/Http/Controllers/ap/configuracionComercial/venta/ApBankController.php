@@ -7,7 +7,6 @@ use App\Http\Requests\ap\configuracionComercial\venta\IndexApBankRequest;
 use App\Http\Requests\ap\configuracionComercial\venta\StoreApBankRequest;
 use App\Http\Requests\ap\configuracionComercial\venta\UpdateApBankRequest;
 use App\Http\Services\ap\configuracionComercial\venta\ApBankService;
-use App\Models\ap\configuracionComercial\venta\ApBank;
 use Illuminate\Http\Request;
 
 class ApBankController extends Controller

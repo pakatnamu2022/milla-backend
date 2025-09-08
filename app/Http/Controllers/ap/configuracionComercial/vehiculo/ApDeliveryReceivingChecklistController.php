@@ -7,7 +7,6 @@ use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApDeliveryReceivin
 use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApDeliveryReceivingChecklistRequest;
 use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApDeliveryReceivingChecklistRequest;
 use App\Http\Services\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistService;
-use App\Models\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklist;
 use Illuminate\Http\Request;
 
 class ApDeliveryReceivingChecklistController extends Controller

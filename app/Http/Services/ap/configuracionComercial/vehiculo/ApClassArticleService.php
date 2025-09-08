@@ -24,17 +24,17 @@ class ApClassArticleService extends BaseService
 
   public function find($id)
   {
-    $accountingAccountPlan = ApClassArticle::where('id', $id)->first();
-    if (!$ApCommercialMasters) {
+    $ApClassArticle = ApClassArticle::where('id', $id)->first();
+    if (!$ApClassArticle) {
       throw new Exception('Clase de artículo no encontrado');
     }
-    return $ApCommercialMasters;
+    return $ApClassArticle;
   }
 
   public function store(array $data)
   {
-    $ApCommercialMasters = ApClassArticle::create($data);
-    return new ApClassArticleResource($ApCommercialMasters);
+    $ApClassArticle = ApClassArticle::create($data);
+    return new ApClassArticleResource($ApClassArticle);
   }
 
   public function show($id)
@@ -44,16 +44,16 @@ class ApClassArticleService extends BaseService
 
   public function update($data)
   {
-    $ApCommercialMasters = $this->find($data['id']);
-    $ApCommercialMasters->update($data);
-    return new ApClassArticleResource($ApCommercialMasters);
+    $ApClassArticle = $this->find($data['id']);
+    $ApClassArticle->update($data);
+    return new ApClassArticleResource($ApClassArticle);
   }
 
   public function destroy($id)
   {
-    $ApCommercialMasters = $this->find($id);
-    DB::transaction(function () use ($ApCommercialMasters) {
-      $ApCommercialMasters->delete();
+    $ApClassArticle = $this->find($id);
+    DB::transaction(function () use ($ApClassArticle) {
+      $ApClassArticle->delete();
     });
     return response()->json(['message' => 'Clase de artículo eliminado correctamente']);
   }

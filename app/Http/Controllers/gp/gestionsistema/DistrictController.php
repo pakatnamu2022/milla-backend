@@ -3,64 +3,24 @@
 namespace App\Http\Controllers\gp\gestionsistema;
 
 use App\Http\Controllers\Controller;
-use App\Models\gp\gestionsistema\District;
-use Illuminate\Http\Request;
+use App\Http\Requests\gp\gestionsistema\IndexDistrictRequest;
+use App\Http\Services\gp\gestionsistema\DistrictService;
 
 class DistrictController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+  protected DistrictService $service;
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+  public function __construct(DistrictService $service)
+  {
+    $this->service = $service;
+  }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
+  public function index(IndexDistrictRequest $request)
+  {
+    try {
+      return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(District $district)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(District $district)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, District $district)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(District $district)
-    {
-        //
-    }
+  }
 }

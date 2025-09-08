@@ -9,13 +9,15 @@ class Province extends Model
   protected $table = 'province';
   protected $fillable = ['name', 'department_id'];
 
+  const filters = [
+    'search' => ['name'],
+    'department_id' => '=',
+  ];
+
+  const sorts = ['name'];
+
   public function department()
   {
     return $this->belongsTo(Department::class);
-  }
-
-  public function districts()
-  {
-    return $this->hasMany(District::class);
   }
 }

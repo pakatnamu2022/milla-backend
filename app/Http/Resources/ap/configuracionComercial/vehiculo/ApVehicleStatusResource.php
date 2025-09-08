@@ -11,9 +11,9 @@ class ApVehicleStatusResource extends JsonResource
   {
     return [
       'id' => $this->id,
-      'codigo' => $this->codigo,
-      'descripcion' => $this->descripcion,
-      'uso' => $this->uso,
+      'code' => $this->code,
+      'description' => $this->description,
+      'use' => $this->use,
       'color' => $this->color,
       'status' => $this->status,
     ];

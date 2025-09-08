@@ -13,35 +13,35 @@ class ApClassArticle extends Model
   protected $table = 'ap_class_article';
 
   protected $fillable = [
-    'codigo_dyn',
-    'descripcion',
-    'cuenta',
-    'tipo',
+    'dyn_code',
+    'description',
+    'account',
+    'type',
     'status',
   ];
 
   const filters = [
-    'search' => ['codigo_dyn', 'descripcion', 'cuenta', 'tipo'],
-    'tipo' => '='
+    'search' => ['dyn_code', 'description', 'account', 'type'],
+    'type' => '='
   ];
 
   const sorts = [
-    'codigo_dyn',
-    'descripcion',
+    'dyn_code',
+    'description',
   ];
 
-  public function setCodigoDynAttribute($value)
+  public function setDynCodeAttribute($value)
   {
-    $this->attributes['codigo_dyn'] = Str::upper(Str::ascii($value));
+    $this->attributes['dyn_code'] = Str::upper(Str::ascii($value));
   }
 
-  public function setDescripcionAttribute($value)
+  public function setDescriptionAttribute($value)
   {
-    $this->attributes['descripcion'] = Str::upper(Str::ascii($value));
+    $this->attributes['description'] = Str::upper(Str::ascii($value));
   }
 
-  public function setCuentaAttribute($value)
+  public function setAccountAttribute($value)
   {
-    $this->attributes['cuenta'] = Str::upper(Str::ascii($value));
+    $this->attributes['account'] = Str::upper(Str::ascii($value));
   }
 }

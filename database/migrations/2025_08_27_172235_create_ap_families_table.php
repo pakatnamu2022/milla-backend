@@ -12,10 +12,10 @@ return new class extends Migration {
   {
     Schema::create('ap_families', function (Blueprint $table) {
       $table->id();
-      $table->string('codigo', length: 100);
-      $table->string('descripcion', length: 255);
+      $table->string('code', length: 100);
+      $table->string('description', length: 255);
       $table->boolean('status')->default(true);
-      $table->foreignId('marca_id')
+      $table->foreignId('brand_id')
         ->constrained('ap_vehicle_brand')
         ->cascadeOnUpdate()
         ->restrictOnDelete();

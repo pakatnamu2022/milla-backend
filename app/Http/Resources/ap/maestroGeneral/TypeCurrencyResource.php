@@ -11,9 +11,9 @@ class TypeCurrencyResource extends JsonResource
   {
     return [
       'id' => $this->id,
-      'codigo' => $this->codigo,
-      'nombre' => $this->nombre,
-      'simbolo' => $this->simbolo,
+      'code' => $this->code,
+      'name' => $this->name,
+      'symbol' => $this->symbol,
       'status' => $this->status
     ];
   }

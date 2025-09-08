@@ -9,8 +9,7 @@ use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleStatusContr
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleBrandController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAccountingAccountPlanController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignBrandConsultantController;
-use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignSedeController;
-use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignSedePeriodoController;
+use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignCompanyBranchController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApBankController;
 use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetailController;
@@ -34,9 +33,13 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailC
 use App\Http\Controllers\gp\gestionhumana\personal\PersonController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
+use App\Http\Controllers\gp\gestionsistema\CompanyBranchController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
+use App\Http\Controllers\gp\gestionsistema\DepartmentController;
 use App\Http\Controllers\gp\gestionsistema\DigitalFileController;
+use App\Http\Controllers\gp\gestionsistema\DistrictController;
 use App\Http\Controllers\gp\gestionsistema\PositionController;
+use App\Http\Controllers\gp\gestionsistema\ProvinceController;
 use App\Http\Controllers\gp\gestionsistema\RoleController;
 use App\Http\Controllers\gp\gestionsistema\SedeController;
 use App\Http\Controllers\gp\gestionsistema\UserController;
@@ -156,6 +159,21 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 
   Route::group(['prefix' => 'gp'], function () {
+    Route::group(['prefix' => 'gs'], function () {
+      
+      Route::get('/department', [DepartmentController::class, 'index']);
+      Route::get('/province', [ProvinceController::class, 'index']);
+      Route::get('/district', [DistrictController::class, 'index']);
+
+      Route::apiResource('companyBranch', CompanyBranchController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+    });
+
     Route::group(['prefix' => 'gh'], function () {
       //    PERSONAL MAIN
       Route::group(['prefix' => 'personal'], function () {
@@ -401,10 +419,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'update',
           'destroy'
         ]);
-        Route::get('assignSede/record', [ApAssignSedeController::class, 'indexRecord']);
-        Route::apiResource('assignSede', ApAssignSedeController::class)->only([
+        Route::get('assignCompanyBranch/record', [ApAssignCompanyBranchController::class, 'indexRecord']);
+        Route::apiResource('assignCompanyBranch', ApAssignCompanyBranchController::class)->only([
           'index',
           'show',
+          'store',
           'update',
           'destroy'
         ]);

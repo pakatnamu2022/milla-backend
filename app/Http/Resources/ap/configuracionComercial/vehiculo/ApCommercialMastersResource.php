@@ -11,9 +11,9 @@ class ApCommercialMastersResource extends JsonResource
   {
     return [
       'id' => $this->id,
-      'codigo' => $this->codigo,
-      'descripcion' => $this->descripcion,
-      'tipo' => $this->tipo,
+      'code' => $this->code,
+      'description' => $this->description,
+      'type' => $this->type,
       'status' => $this->status,
     ];
   }

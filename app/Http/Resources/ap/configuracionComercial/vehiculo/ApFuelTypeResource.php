@@ -11,9 +11,9 @@ class ApFuelTypeResource extends JsonResource
   {
     return [
       'id' => $this->id,
-      'codigo' => $this->codigo,
-      'descripcion' => $this->descripcion,
-      'motor_electrico' => $this->motor_electrico,
+      'code' => $this->code,
+      'description' => $this->description,
+      'electric_motor' => $this->electric_motor,
       'status' => $this->status,
     ];
   }

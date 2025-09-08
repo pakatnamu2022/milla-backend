@@ -14,34 +14,34 @@ class TypeCurrency extends Model
 
   protected $fillable = [
     'id',
-    'codigo',
-    'nombre',
-    'simbolo',
+    'code',
+    'name',
+    'symbol',
     'status',
   ];
 
   const filters = [
-    'search' => ['codigo', 'nombre'],
+    'search' => ['code', 'name'],
     'status' => '=',
   ];
 
   const sorts = [
-    'codigo',
-    'nombre',
+    'code',
+    'name',
   ];
 
-  public function setCodigoAttribute($value)
+  public function setCodeAttribute($value)
   {
-    $this->attributes['codigo'] = Str::upper(Str::ascii($value));
+    $this->attributes['code'] = Str::upper(Str::ascii($value));
   }
 
-  public function setNombreAttribute($value)
+  public function setNameAttribute($value)
   {
-    $this->attributes['nombre'] = Str::upper(Str::ascii($value));
+    $this->attributes['name'] = Str::upper(Str::ascii($value));
   }
 
-  public function setSimboloAttribute($value)
+  public function setSymbolAttribute($value)
   {
-    $this->attributes['simbolo'] = Str::upper(Str::ascii($value));
+    $this->attributes['symbol'] = Str::upper(Str::ascii($value));
   }
 }

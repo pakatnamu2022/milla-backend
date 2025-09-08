@@ -7,13 +7,13 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class DistrictResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
-     */
-    public function toArray(Request $request): array
-    {
-        return parent::toArray($request);
-    }
+  public function toArray(Request $request): array
+  {
+    return [
+      'id' => $this->id,
+      'name' => $this->name,
+      'ubigeo' => $this->ubigeo,
+      'province_id' => $this->province_id,
+    ];
+  }
 }
