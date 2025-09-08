@@ -16,7 +16,7 @@ class UpdateCompanyBranchRequest extends StoreRequest
         'max:255',
         Rule::unique('company_branch', 'name')
           ->whereNull('deleted_at')
-          ->ignore($this->route('sede')),
+          ->ignore($this->route('companyBranch')),
       ],
       'abbreviation' => [
         'nullable',
@@ -24,7 +24,7 @@ class UpdateCompanyBranchRequest extends StoreRequest
         'max:50',
         Rule::unique('company_branch', 'abbreviation')
           ->whereNull('deleted_at')
-          ->ignore($this->route('sede')),
+          ->ignore($this->route('companyBranch')),
       ],
       'address' => [
         'nullable',
