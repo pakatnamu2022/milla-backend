@@ -3,7 +3,6 @@
 namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonResource;
-use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
@@ -47,7 +46,7 @@ class EvaluationPersonService extends BaseService
   {
     $data = $this->enrichData($data);
     $evaluationMetric = EvaluationPerson::create($data);
-    return new EvaluationResource($evaluationMetric);
+    return new EvaluationPersonResource($evaluationMetric);
   }
 
   public function storeMany($evaluationId)
@@ -77,7 +76,7 @@ class EvaluationPersonService extends BaseService
 
   public function show($id)
   {
-    return new EvaluationResource($this->find($id));
+    return new EvaluationPersonResource($this->find($id));
   }
 
   public function update($data)
@@ -85,7 +84,7 @@ class EvaluationPersonService extends BaseService
     $evaluationCompetence = $this->find($data['id']);
     $data = $this->enrichData($data);
     $evaluationCompetence->update($data);
-    return new EvaluationResource($evaluationCompetence);
+    return new EvaluationPersonResource($evaluationCompetence);
   }
 
   public function destroy($id)

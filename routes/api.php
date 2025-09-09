@@ -341,6 +341,23 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'destroy'
         ]);
 
+//        EVALUATION PERSON
+        Route::apiResource('evaluationPerson', EvaluationPersonController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+//        PERSON RESULT
+        Route::apiResource('personResult', EvaluationPersonResultController::class)->only([
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
 
       });
 
