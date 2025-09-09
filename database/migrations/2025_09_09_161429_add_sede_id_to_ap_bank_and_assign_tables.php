@@ -17,7 +17,7 @@ return new class extends Migration {
         ->onUpdate('cascade')
         ->onDelete('restrict');
 
-      $table->unsignedBigInteger('company_branch_id')->nullable();
+      $table->unsignedBigInteger('company_branch_id')->nullable()->change();
     });
 
 
@@ -28,7 +28,7 @@ return new class extends Migration {
         ->onUpdate('cascade')
         ->onDelete('restrict');
 
-      $table->unsignedBigInteger('company_branch_id')->nullable();
+      $table->unsignedBigInteger('company_branch_id')->nullable()->change();
     });
 
     Schema::table('ap_assign_company_branch', function (Blueprint $table) {
@@ -38,7 +38,7 @@ return new class extends Migration {
         ->onUpdate('cascade')
         ->onDelete('restrict');
 
-      $table->unsignedBigInteger('company_branch_id')->nullable();
+      $table->unsignedBigInteger('company_branch_id')->nullable()->change();
     });
 
     Schema::table('ap_assign_company_branch_period', function (Blueprint $table) {
@@ -48,7 +48,7 @@ return new class extends Migration {
         ->onUpdate('cascade')
         ->onDelete('restrict');
 
-      $table->unsignedBigInteger('company_branch_id')->nullable();
+      $table->unsignedBigInteger('company_branch_id')->nullable()->change();
     });
   }
 
