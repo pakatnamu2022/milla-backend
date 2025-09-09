@@ -22,11 +22,11 @@ class CompanyBranch extends Model
 
   const filters = [
     'search' => ['name', 'abbreviation', 'address'],
-    'company_id',
-    'district_id',
-    'province_id',
-    'department_id',
-    'status',
+    'company_id' => '=',
+    'district_id' => '=',
+    'province_id' => '=',
+    'department_id' => '=',
+    'status' => '=',
   ];
 
   const sorts = [

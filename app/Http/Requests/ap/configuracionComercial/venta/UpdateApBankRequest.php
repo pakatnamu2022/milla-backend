@@ -10,19 +10,19 @@ class UpdateApBankRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'codigo' => [
+      'code' => [
         'nullable',
         'string',
         'max:50',
-        Rule::unique('ap_bank', 'codigo')
+        Rule::unique('ap_bank', 'code')
           ->whereNull('deleted_at')
           ->ignore($this->route('bankAp')),
       ],
-      'numero_cuenta' => [
+      'account_number' => [
         'nullable',
         'string',
         'max:50',
-        Rule::unique('ap_bank', 'numero_cuenta')
+        Rule::unique('ap_bank', 'account_number')
           ->whereNull('deleted_at')
           ->ignore($this->route('bankAp')),
       ],
@@ -34,8 +34,9 @@ class UpdateApBankRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('bankAp')),
       ],
-      'banco_id' => 'nullable|integer|exists:ap_commercial_masters,id',
-      'moneda_id' => 'nullable|integer|exists:type_currency,id',
+      'bank_id' => 'nullable|integer|exists:ap_commercial_masters,id',
+      'currency_id' => 'nullable|integer|exists:type_currency,id',
+      //'company_branch_id' => 'nullable|integer|exists:company_branch,id',
       'sede_id' => 'nullable|integer|exists:config_sede,id',
       'status' => 'nullable|boolean',
     ];
@@ -44,28 +45,26 @@ class UpdateApBankRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'codigo.string' => 'El campo código debe ser una cadena de texto.',
-      'codigo.max' => 'El campo código no debe exceder los 50 caracteres.',
-      'codigo.unique' => 'El código ya está en uso.',
+      'code.string' => 'El campo código debe ser una cadena de texto.',
+      'code.max' => 'El campo código no debe exceder los 50 caracteres.',
+      'code.unique' => 'El código ya está en uso.',
 
-      'numero_cuenta.string' => 'El campo número de cuenta debe ser una cadena de texto.',
-      'numero_cuenta.max' => 'El campo número de cuenta no debe exceder los 50 caracteres.',
-      'numero_cuenta.unique' => 'El número de cuenta ya está en uso.',
+      'account_number.string' => 'El campo número de cuenta debe ser una cadena de texto.',
+      'account_number.max' => 'El campo número de cuenta no debe exceder los 50 caracteres.',
+      'account_number.unique' => 'El número de cuenta ya está en uso.',
 
       'cci.string' => 'El campo CCI debe ser una cadena de texto.',
       'cci.max' => 'El campo CCI no debe exceder los 50 caracteres.',
       'cci.unique' => 'El CCI ya está en uso.',
 
-      'banco_id.integer' => 'El campo banco debe ser un número entero.',
-      'banco_id.exists' => 'El banco seleccionado no es válido.',
+      'bank_id.integer' => 'El campo banco debe ser un número entero.',
+      'bank_id.exists' => 'El banco seleccionado no es válido.',
 
-      'moneda_id.integer' => 'El campo moneda debe ser un número entero.',
-      'moneda_id.exists' => 'La moneda seleccionada no es válida.',
+      'currency_id.integer' => 'El campo moneda debe ser un número entero.',
+      'currency_id.exists' => 'La moneda seleccionada no es válida.',
 
-      'sede_id.integer' => 'El campo sede debe ser un número entero.',
-      'sede_id.exists' => 'La sede seleccionada no es válida.',
-
-      'status.boolean' => 'El campo estado debe ser verdadero o falso.',
+      'company_branch_id.integer' => 'El campo sede debe ser un número entero.',
+      'company_branch_id.exists' => 'La sede seleccionada no es válida.',
     ];
   }
 }

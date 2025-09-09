@@ -9,7 +9,7 @@ class ShowGroupedApAssignBrandConsultant extends IndexRequest
   public function rules(): array
   {
     return [
-      'anio' => 'required|integer',
+      'year' => 'required|integer',
       'month' => 'required|integer|min:1|max:12',
       'sede_id' => 'required|integer',
       'marca_id' => 'required|integer',

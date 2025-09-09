@@ -14,7 +14,7 @@ class ApAssignBrandConsultantService extends BaseService
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      ApAssignBrandConsultant::with(['asesor', 'marca', 'sede']),
+      ApAssignBrandConsultant::with(['worker', 'brand', 'sede']),
       $request,
       ApAssignBrandConsultant::filters,
       ApAssignBrandConsultant::sorts,
@@ -26,14 +26,15 @@ class ApAssignBrandConsultantService extends BaseService
   {
     $data = $request->all();
     $rows = ApAssignBrandConsultant::with([
-      'asesor:id,nombre_completo',
+      'worker:id,nombre_completo',
       'sede:id,abreviatura',
-      'marca:id,nombre'
+      'brand:id,name'
     ])
-      ->where('anio', $data['anio'])
+      ->where('year', $data['year'])
       ->where('month', $data['month'])
+      //->where('company_branch_id', $data['company_branch_id'])
       ->where('sede_id', $data['sede_id'])
-      ->where('marca_id', $data['marca_id'])
+      ->where('brand_id', $data['brand_id'])
       ->get();
 
     if ($rows->isEmpty()) {
@@ -43,14 +44,15 @@ class ApAssignBrandConsultantService extends BaseService
     $first = $rows->first();
 
     return [
-      'anio' => (int)$data['anio'],
+      'year' => (int)$data['year'],
       'month' => (int)$data['month'],
+      //'company_branch' => $first->companyBranch->abbreviation,
       'sede' => $first->sede->abreviatura,
-      'marca' => $first->marca->nombre,
-      'asesores' => $rows->map(function ($r) {
+      'brand' => $first->brand->nombre,
+      'workers' => $rows->map(function ($r) {
         return [
-          'id' => $r->asesor->id,
-          'name' => $r->asesor->nombre_completo,
+          'id' => $r->worker->id,
+          'name' => $r->worker->nombre_completo,
           'objetivo' => (int)$r->objetivo_venta,
         ];
       })->values()->toArray(),
@@ -69,10 +71,11 @@ class ApAssignBrandConsultantService extends BaseService
   public function store(array $data)
   {
     $existing = ApAssignBrandConsultant::withTrashed()
-      ->where('anio', $data['anio'])
+      ->where('year', $data['year'])
       ->where('month', $data['month'])
-      ->where('asesor_id', $data['asesor_id'])
-      ->where('marca_id', $data['marca_id'])
+      ->where('worker_id', $data['worker_id'])
+      ->where('brand_id', $data['brand_id'])
+      //->where('company_branch_id', $data['company_branch_id'])
       ->where('sede_id', $data['sede_id'])
       ->first();
 
@@ -100,10 +103,11 @@ class ApAssignBrandConsultantService extends BaseService
       return new ApAssignBrandConsultantResource($ApAssignBrandConsultant);
     }
 
-    $exists = ApAssignBrandConsultant::where('anio', $data['anio'])
+    $exists = ApAssignBrandConsultant::where('year', $data['year'])
       ->where('month', $data['month'])
-      ->where('asesor_id', $data['asesor_id'])
-      ->where('marca_id', $data['marca_id'])
+      ->where('worker_id', $data['worker_id'])
+      ->where('brand_id', $data['brand_id'])
+      //->where('company_branch_id', $data['company_branch_id'])
       ->where('sede_id', $data['sede_id'])
       ->where('id', '!=', $data['id'])
       ->exists();

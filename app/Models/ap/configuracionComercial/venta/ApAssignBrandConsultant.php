@@ -4,6 +4,7 @@ namespace App\Models\ap\configuracionComercial\venta;
 
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\gestionsistema\CompanyBranch;
 use App\Models\gp\gestionsistema\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -15,42 +16,50 @@ class ApAssignBrandConsultant extends Model
   protected $table = 'ap_assign_brand_consultant';
 
   protected $fillable = [
-    'objetivo_venta',
-    'anio',
+    'sales_target',
+    'year',
     'month',
     'status',
-    'marca_id',
-    'asesor_id',
-    'sede_id'
+    'brand_id',
+    'worker_id',
+    'company_branch_id',
+    'sede_id', //temporal
   ];
 
   const filters = [
     'search' => ['marca.nombre', 'asesor.nombre_completo', 'sede.abreviatura'],
-    'anio' => '=',
+    'year' => '=',
     'month' => '=',
     'status' => '=',
-    'marca_id' => '=',
-    'sede_id' => '=',
+    'brand_id' => '=',
+    'company_branch_id' => '=',
+    'sede_id' => '=', //temporal
   ];
 
   const sorts = [
     'id',
-    'anio',
+    'year',
     'month',
     'status',
-    'marca_id',
-    'asesor_id',
-    'sede_id',
+    'brand_id',
+    'worker_id',
+    'company_branch_id',
+    'sede_id', //temporal
   ];
 
-  public function marca()
+  public function brand()
   {
-    return $this->belongsTo(ApVehicleBrand::class, 'marca_id');
+    return $this->belongsTo(ApVehicleBrand::class, 'brand_id');
   }
 
-  public function asesor()
+  public function worker()
   {
-    return $this->belongsTo(Worker::class, 'asesor_id');
+    return $this->belongsTo(Worker::class, 'worker_id');
+  }
+
+  public function companyBranch()
+  {
+    return $this->belongsTo(CompanyBranch::class, 'company_branch_id');
   }
 
   public function sede()

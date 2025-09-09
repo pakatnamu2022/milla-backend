@@ -53,9 +53,9 @@ class Sede extends BaseModel
     return $this->belongsTo(Company::class, 'empresa_id', 'id');
   }
 
-  public function asesores()
+  public function workers()
   {
-    return $this->belongsToMany(Person::class, 'ap_assign_sede', 'sede_id', 'asesor_id')
+    return $this->belongsToMany(Person::class, 'ap_assign_company_branch', 'sede_id', 'worker_id')
       ->withTimestamps();
   }
 }

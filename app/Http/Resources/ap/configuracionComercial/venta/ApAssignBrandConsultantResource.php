@@ -11,17 +11,19 @@ class ApAssignBrandConsultantResource extends JsonResource
   {
     return [
       'id' => $this->id,
-      'anio' => $this->anio,
+      'year' => $this->year,
       'month' => $this->month,
-      'periodo' => $this->anio . '-' . str_pad($this->month, 2, '0', STR_PAD_LEFT),
-      'objetivo_venta' => $this->objetivo_venta,
+      'period' => $this->year . '-' . str_pad($this->month, 2, '0', STR_PAD_LEFT),
+      'sales_target' => $this->sales_target,
       'status' => $this->status,
-      'marca_id' => $this->marca->id,
-      'marca' => $this->marca->nombre,
+      'brand_id' => $this->brand->id,
+      'brand' => $this->brand->name,
+//      'company_branch_id' => $this->companyBranch->id,
+//      'company_branch' => $this->companyBranch->abbreviation,
       'sede_id' => $this->sede->id,
       'sede' => $this->sede->abreviatura,
-      'asesor_id' => $this->asesor->id,
-      'asesor' => $this->asesor->nombre_completo,
+      'worker_id' => $this->worker->id,
+      'worker' => $this->worker->nombre_completo,
     ];
   }
 }

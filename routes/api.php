@@ -195,7 +195,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'destroy'
         ]);
 
-
 //      POSITIONS
         Route::apiResource('position', PositionController::class)->only([
           'index',
