@@ -12,15 +12,15 @@ return new class extends Migration {
   {
     Schema::create('ap_bank', function (Blueprint $table) {
       $table->id();
-      $table->string('codigo', 50)->unique();
-      $table->string('numero_cuenta', 50)->unique()->nullable();
+      $table->string('code', 50)->unique();
+      $table->string('account_number', 50)->unique()->nullable();
       $table->string('cci', 50)->unique()->nullable();
-      $table->foreignId('banco_id')
+      $table->foreignId('bank_id')
         ->constrained('ap_commercial_masters');
-      $table->foreignId('moneda_id')
+      $table->foreignId('currency_id')
         ->constrained('type_currency');
-      $table->integer('sede_id');
-      $table->foreign('sede_id')->references('id')->on('config_sede');
+      $table->foreignId('company_branch_id')
+        ->constrained('company_branch');
       $table->boolean('status')->default(true);
       $table->timestamps();
       $table->softDeletes();

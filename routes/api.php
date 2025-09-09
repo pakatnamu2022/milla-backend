@@ -160,7 +160,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
   Route::group(['prefix' => 'gp'], function () {
     Route::group(['prefix' => 'gs'], function () {
-      
+
       Route::get('/department', [DepartmentController::class, 'index']);
       Route::get('/province', [ProvinceController::class, 'index']);
       Route::get('/district', [DistrictController::class, 'index']);
@@ -194,7 +194,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'update',
           'destroy'
         ]);
-
 
 //      POSITIONS
         Route::apiResource('position', PositionController::class)->only([

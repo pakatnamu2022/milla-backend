@@ -15,6 +15,7 @@ class ApAssignCompanyBranch extends Model
 
   protected $fillable = [
     'company_branch_id',
+    'sede_id',
     'worker_id',
   ];
 
@@ -26,5 +27,10 @@ class ApAssignCompanyBranch extends Model
   public function worker()
   {
     return $this->belongsTo(Person::class, 'worker_id');
+  }
+
+  public function sede()
+  {
+    return $this->belongsTo(Sede::class, 'sede_id');
   }
 }

@@ -4,6 +4,7 @@ namespace App\Models\ap\configuracionComercial\venta;
 
 use App\Models\ap\configuracionComercial\vehiculo\ApCommercialMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\gp\gestionsistema\CompanyBranch;
 use App\Models\gp\gestionsistema\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -15,41 +16,49 @@ class ApBank extends Model
   protected $table = 'ap_bank';
 
   protected $fillable = [
-    'codigo',
-    'numero_cuenta',
+    'code',
+    'account_number',
     'cci',
-    'banco_id',
-    'moneda_id',
-    'sede_id',
+    'bank_id',
+    'currency_id',
+    'company_branch_id',
     'status',
+    'sede_id', //temporal
   ];
 
   const filters = [
-    'search' => ['codigo', 'numero_cuenta', 'cci'],
-    'banco_id' => '=',
-    'moneda_id' => '=',
-    'sede_id' => '=',
+    'search' => ['code', 'account_number', 'cci'],
+    'bank_id' => '=',
+    'currency_id' => '=',
+    'company_branch_id' => '=',
     'status' => '=',
+    'sede_id' => '=', //temporal
   ];
 
   const sorts = [
-    'codigo',
-    'numero_cuenta',
+    'code',
+    'account_number',
     'cci',
-    'banco_id',
-    'moneda_id',
-    'sede_id',
+    'bank_id',
+    'currency_id',
+    'company_branch_id',
     'status',
+    'sede_id', //temporal
   ];
 
-  public function banco()
+  public function bank()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'banco_id');
+    return $this->belongsTo(ApCommercialMasters::class, 'bank_id');
   }
 
-  public function moneda()
+  public function currency()
   {
-    return $this->belongsTo(TypeCurrency::class, 'moneda_id');
+    return $this->belongsTo(TypeCurrency::class, 'currency_id');
+  }
+
+  public function companyBranch()
+  {
+    return $this->belongsTo(CompanyBranch::class, 'company_branch_id');
   }
 
   public function sede()

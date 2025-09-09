@@ -4,6 +4,7 @@ namespace App\Models\ap\configuracionComercial\venta;
 
 use App\Models\gp\gestionsistema\CompanyBranch;
 use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionsistema\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -15,6 +16,7 @@ class ApAssignCompanyBranchPeriod extends Model
 
   protected $fillable = [
     'company_branch_id',
+    'sede_id',
     'worker_id',
     'year',
     'month',
@@ -22,6 +24,7 @@ class ApAssignCompanyBranchPeriod extends Model
 
   const filters = [
     'search' => ['company_branch_id', 'worker_id'],
+    'sede_id' => '=',
     'company_branch_id' => '=',
     'worker_id' => '=',
     'year' => '=',
@@ -43,5 +46,10 @@ class ApAssignCompanyBranchPeriod extends Model
   public function worker()
   {
     return $this->belongsTo(Person::class, 'worker_id');
+  }
+
+  public function sede()
+  {
+    return $this->belongsTo(Sede::class, 'sede_id');
   }
 }

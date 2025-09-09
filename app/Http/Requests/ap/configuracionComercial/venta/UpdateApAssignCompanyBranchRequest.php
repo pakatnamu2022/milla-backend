@@ -11,7 +11,8 @@ class UpdateApAssignCompanyBranchRequest extends FormRequest
     return [
       'year' => 'required|integer|min:2000|max:2100',
       'month' => 'required|integer|min:1|max:12',
-      'company_branch_id' => 'required|exists:company_branch,id',
+      //'company_branch_id' => 'required|exists:company_branch,id',
+      'sede_id' => 'required|exists:config_sede,id',
       'workers' => 'required|array|min:1',
       'workers.*' => 'integer|exists:rrhh_persona,id',
     ];
@@ -20,16 +21,22 @@ class UpdateApAssignCompanyBranchRequest extends FormRequest
   public function messages(): array
   {
     return [
+      'sede_id.required' => 'El campo sede_id es obligatorio.',
+      'sede_id.exists' => 'La sede proporcionada no existe.',
+
       'year.required' => 'El campo year es obligatorio.',
       'year.integer' => 'El campo year debe ser un número entero.',
       'year.min' => 'El campo year debe ser al menos 2000.',
       'year.max' => 'El campo year no debe ser mayor que 2100.',
+
       'month.required' => 'El campo month es obligatorio.',
       'month.integer' => 'El campo month debe ser un número entero.',
       'month.min' => 'El campo month debe ser al menos 1.',
       'month.max' => 'El campo month no debe ser mayor que 12.',
+
       'company_branch_id.required' => 'El campo company_branch_id es obligatorio.',
       'company_branch_id.exists' => 'La sede proporcionada no existe.',
+
       'workers.required' => 'El campo workers es obligatorio.',
       'workers.array' => 'El campo workers debe ser un arreglo.',
       'workers.min' => 'Debe proporcionar al menos un trabajador.',

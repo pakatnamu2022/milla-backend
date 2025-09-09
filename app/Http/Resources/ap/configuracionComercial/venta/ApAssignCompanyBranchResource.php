@@ -15,8 +15,10 @@ class ApAssignCompanyBranchResource extends JsonResource
   public function toArray(Request $request): array
   {
     return [
-      'company_branch_id' => $this->id,
-      'abbreviation' => $this->abbreviation,
+//      'company_branch_id' => $this->id,
+//      'abbreviation' => $this->abreviatura,
+      'sede_id' => $this->id,
+      'abreviatura' => $this->abreviatura,
       'workers' => $this->workers->map(fn($worker) => [
         'id' => $worker->id,
         'name' => $worker->nombre_completo,

@@ -11,16 +11,18 @@ class ApBankResource extends JsonResource
   {
     return [
       'id' => $this->id,
-      'codigo' => $this->codigo,
-      'numero_cuenta' => $this->numero_cuenta,
+      'code' => $this->code,
+      'account_number' => $this->account_number,
       'cci' => $this->cci,
-      'banco_id' => $this->banco_id,
-      'banco' => $this->banco->descripcion,
-      'descripcion' => $this->banco->descripcion . ' (' . $this->moneda->nombre . ')',
-      'moneda_id' => $this->moneda_id,
-      'moneda' => $this->moneda->nombre,
+      'bank_id' => $this->bank_id,
+      'bank' => $this->bank->description,
+      'description' => $this->bank->description . ' (' . $this->currency->name . ')',
+      'currency_id' => $this->currency_id,
+      'currency' => $this->currency->name,
+//      'company_branch_id' => $this->company_branch_id,
+//      'company_branch' => $this->companyBranch->abbreviation,
       'sede_id' => $this->sede_id,
-      'sede' => $this->sede->suc_abrev,
+      'sede' => $this->sede->abreviatura,
       'status' => $this->status,
     ];
   }
