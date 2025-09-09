@@ -55,5 +55,11 @@ class EvaluationPersonResult extends BaseModel
     return $this->belongsTo(Evaluation::class, 'evaluation_id');
   }
 
+  public function details()
+  {
+    return $this->hasMany(EvaluationPerson::class, 'evaluation_id', 'evaluation_id')
+      ->where('person_id', $this->person_id);
+  }
+
 
 }

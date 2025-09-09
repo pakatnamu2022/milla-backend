@@ -6,9 +6,7 @@ use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonResultResourc
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
-use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationResource;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use Exception;
@@ -41,7 +39,7 @@ class EvaluationPersonResultService extends BaseService
   public function store($data)
   {
     $evaluationMetric = EvaluationPersonResult::create($data);
-    return new EvaluationResource($evaluationMetric);
+    return new EvaluationPersonResultResource($evaluationMetric);
   }
 
   public function storeMany($evaluationId)
@@ -83,14 +81,14 @@ class EvaluationPersonResultService extends BaseService
 
   public function show($id)
   {
-    return new EvaluationResource($this->find($id));
+    return EvaluationPersonResultResource::make($this->find($id))->showExtra();
   }
 
   public function update($data)
   {
     $evaluationCompetence = $this->find($data['id']);
     $evaluationCompetence->update($data);
-    return new EvaluationResource($evaluationCompetence);
+    return new EvaluationPersonResultResource($evaluationCompetence);
   }
 
   public function destroy($id)
