@@ -27,7 +27,7 @@ class ApAssignBrandConsultant extends Model
   ];
 
   const filters = [
-    'search' => ['marca.nombre', 'asesor.nombre_completo', 'sede.abreviatura'],
+    'search' => ['brand.name', 'worker.nombre_completo', 'sede.abreviatura'],
     'year' => '=',
     'month' => '=',
     'status' => '=',
