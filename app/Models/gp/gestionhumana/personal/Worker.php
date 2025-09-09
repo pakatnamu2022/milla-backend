@@ -14,6 +14,7 @@ class Worker extends Person
     'cargo_id' => 'in',
     'status_id' => '=',
     'sede_id' => '=',
+    'sede.departamento' => '=',
   ];
 
   protected static function booted()
