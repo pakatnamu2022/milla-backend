@@ -12,6 +12,7 @@ class Evaluation extends Model
     'name',
     'start_date',
     'end_date',
+    'status',
     'typeEvaluation',
     'objectivesPercentage',
     'competencesPercentage',

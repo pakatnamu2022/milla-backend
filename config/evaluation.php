@@ -9,5 +9,10 @@ return [
     'objectives' => 'Objetivos',
     'competences' => 'Competencias',
     'final' => 'Final',
-  ]
+  ],
+  'statusEvaluation' => [
+    0 => 'Programado',
+    1 => 'En Progreso',
+    2 => 'Finalizado',
+  ],
 ];

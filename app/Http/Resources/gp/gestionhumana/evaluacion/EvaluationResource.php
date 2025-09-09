@@ -4,6 +4,7 @@ namespace App\Http\Resources\gp\gestionhumana\evaluacion;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use function config;
 
 class EvaluationResource extends JsonResource
 {
@@ -18,17 +19,18 @@ class EvaluationResource extends JsonResource
       'typeEvaluationName' => config('evaluation.typesEvaluation')[$this->typeEvaluation] ?? null,
       'objectivesPercentage' => $this->objectivesPercentage,
       'competencesPercentage' => $this->competencesPercentage,
-      'period' => new EvaluationPeriodResource($this->period),
       'cycle_id' => $this->cycle_id,
       'period_id' => $this->period_id,
       'competence_parameter_id' => $this->competence_parameter_id,
       'objective_parameter_id' => $this->objective_parameter_id,
       'final_parameter_id' => $this->final_parameter_id,
-
-      'cycle' => new EvaluationCycleResource($this->cycle),
-      'competenceParameter' => new EvaluationParameterResource($this->competenceParameter),
-      'objectiveParameter' => new EvaluationParameterResource($this->objectiveParameter),
-      'finalParameter' => new EvaluationParameterResource($this->finalParameter),
+      'status' => $this->status,
+      'statusName' => config('evaluation.statusEvaluation')[$this->status] ?? config('evaluation.statusEvaluation.0'),
+      'period' => $this->period->name,
+      'cycle' => $this->cycle->name,
+      'competenceParameter' => $this->competenceParameter->name,
+      'objectiveParameter' => $this->objectiveParameter->name,
+      'finalParameter' => $this->finalParameter->name,
     ];
   }
 }

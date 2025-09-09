@@ -3,6 +3,7 @@
 namespace App\Http\Requests\gp\gestionhumana\evaluacion;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use Illuminate\Validation\Rule;
 
 class StoreEvaluationRequest extends StoreRequest
@@ -48,15 +49,50 @@ class StoreEvaluationRequest extends StoreRequest
   {
     $validator->after(function ($validator) {
       $data = $this->all();
+
+      // Validación de suma de porcentajes
       if (isset($data['objectivesPercentage']) && isset($data['competencesPercentage'])) {
         $total = $data['objectivesPercentage'] + $data['competencesPercentage'];
         if ($total != 100) {
-          $validator->errors()->add('objectivesPercentage', 'La suma de los porcentajes de objetivos y competencias debe ser igual a 100.');
-          $validator->errors()->add('competencesPercentage', 'La suma de los porcentajes de objetivos y competencias debe ser igual a 100.');
+          $validator->errors()->add(
+            'objectivesPercentage',
+            'La suma de los porcentajes de objetivos y competencias debe ser igual a 100.'
+          );
+          $validator->errors()->add(
+            'competencesPercentage',
+            'La suma de los porcentajes de objetivos y competencias debe ser igual a 100.'
+          );
+        }
+      }
+
+      // Validación de cruce de fechas
+      if (!empty($data['start_date']) && !empty($data['end_date'])) {
+        $startDate = $data['start_date'];
+        $endDate = $data['end_date'];
+
+        $evaluation = Evaluation::where(function ($query) use ($startDate, $endDate) {
+          $query->whereBetween('start_date', [$startDate, $endDate])
+            ->orWhereBetween('end_date', [$startDate, $endDate])
+            ->orWhere(function ($query) use ($startDate, $endDate) {
+              $query->where('start_date', '<=', $startDate)
+                ->where('end_date', '>=', $endDate);
+            });
+        })->whereNull('deleted_at')->first();
+
+        if ($evaluation) {
+          $validator->errors()->add(
+            'start_date',
+            'La evaluación ' . $evaluation->name . '(' . $evaluation->start_date . ' - ' . $evaluation->end_date . ')' . ' se cruza con el rango de fechas proporcionado.'
+          );
+          $validator->errors()->add(
+            'end_date',
+            'La evaluación que cruza con el rango de fechas proporcionado.'
+          );
         }
       }
     });
   }
+
 
   public function messages()
   {

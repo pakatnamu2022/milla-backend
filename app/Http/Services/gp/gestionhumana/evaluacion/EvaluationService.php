@@ -41,6 +41,31 @@ class EvaluationService extends BaseService
     );
   }
 
+  public function checkActiveEvaluationByDateRange(string $startDate, string $endDate)
+  {
+    $activeEvaluations = Evaluation::where(function ($query) use ($startDate, $endDate) {
+      $query->whereBetween('start_date', [$startDate, $endDate])
+        ->orWhereBetween('end_date', [$startDate, $endDate])
+        ->orWhere(function ($query) use ($startDate, $endDate) {
+          $query->where('start_date', '<=', $startDate)
+            ->where('end_date', '>=', $endDate);
+        });
+    })->exists();
+
+    if ($activeEvaluations) {
+      return [
+        'isValid' => false,
+        'message' => 'Ya existe una evaluación activa que cruza con el rango de fechas proporcionado.'
+      ];
+    }
+
+    return [
+      'isValid' => true,
+      'message' => 'No existen evaluaciones activas en el rango de fechas indicado.'
+    ];
+  }
+
+
   public function participants(int $id)
   {
     $evaluation = $this->find($id);

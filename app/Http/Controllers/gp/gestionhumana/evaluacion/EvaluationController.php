@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CheckEvaluationRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationRequest;
@@ -21,6 +22,16 @@ class EvaluationController extends Controller
   {
     try {
       return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function checkActiveEvaluationByDateRange(CheckEvaluationRequest $request)
+  {
+    try {
+      $data = $request->validated();
+      return $this->success($this->service->checkActiveEvaluationByDateRange($data['start_date'], $data['end_date']));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

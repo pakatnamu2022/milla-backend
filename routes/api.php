@@ -160,7 +160,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
   Route::group(['prefix' => 'gp'], function () {
     Route::group(['prefix' => 'gs'], function () {
-      
+
       Route::get('/department', [DepartmentController::class, 'index']);
       Route::get('/province', [ProvinceController::class, 'index']);
       Route::get('/district', [DistrictController::class, 'index']);
@@ -329,6 +329,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ]);
 
 //        EVALUATION
+        Route::get('/evaluation/check', [EvaluationController::class, 'checkActiveEvaluationByDateRange']);
+        Route::get('/evaluation/{evaluation}/details', [EvaluationPersonResultController::class, 'index']);
+        Route::get('/evaluation/{evaluation}/participants', [EvaluationController::class, 'participants']);
+        Route::get('/evaluation/{evaluation}/positions', [EvaluationController::class, 'positions']);
+
         Route::apiResource('evaluation', EvaluationController::class)->only([
           'index',
           'show',
@@ -336,10 +341,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'update',
           'destroy'
         ]);
-
-        Route::get('/evaluation/{evaluation}/details', [EvaluationPersonResultController::class, 'index']);
-        Route::get('/evaluation/{evaluation}/participants', [EvaluationController::class, 'participants']);
-        Route::get('/evaluation/{evaluation}/positions', [EvaluationController::class, 'positions']);
 
 
       });
