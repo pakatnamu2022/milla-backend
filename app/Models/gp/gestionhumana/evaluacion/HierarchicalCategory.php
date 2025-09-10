@@ -2,6 +2,7 @@
 
 namespace App\Models\gp\gestionhumana\evaluacion;
 
+use App\Http\Utils\Constants;
 use App\Models\BaseModel;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionsistema\Position;
@@ -112,7 +113,7 @@ class HierarchicalCategory extends BaseModel
           $q->with(['persons' => function ($q2) {
             $q2->where('status_deleted', 1)
               ->where('b_empleado', 1)
-              ->where('status_id', 22)
+              ->where('status_id', Constants::WORKER_ACTIVE)
               ->whereDoesntHave('evaluationDetails')
               ->with([
                 'boss' => function ($qb) {

@@ -16,7 +16,9 @@ class ApAssignmentLeadershipService extends BaseService
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      Worker::with('boss')->fromEmpresa(Constants::COMPANY_AP),
+      Worker::with('boss')
+        ->fromEmpresa(Constants::COMPANY_AP)
+        ->where('status_id', Constants::WORKER_ACTIVE),
       $request,
       Worker::filters,
       Worker::sorts,
