@@ -11,6 +11,7 @@ class EvaluationPersonResource extends JsonResource
   public function toArray(Request $request): array
   {
     return [
+      'id' => $this->id,
       'person' => $this->person->nombre_completo,
       'personCycleDetail' => new EvaluationPersonCycleDetailResource($this->personCycleDetail),
       'evaluation' => $this->evaluation->name,

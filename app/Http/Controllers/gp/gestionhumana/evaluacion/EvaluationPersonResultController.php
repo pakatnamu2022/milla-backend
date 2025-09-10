@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationPersonResultRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationPersonResultRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationPersonResultRequest;
+use App\Http\Requests\PersonEvaluationRequest;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationPersonResultService;
 
 class EvaluationPersonResultController extends Controller
@@ -21,6 +22,15 @@ class EvaluationPersonResultController extends Controller
   {
     try {
       return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function getByPersonAndEvaluation(PersonEvaluationRequest $request)
+  {
+    try {
+      return $this->service->getByPersonAndEvaluation($request->validated());
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

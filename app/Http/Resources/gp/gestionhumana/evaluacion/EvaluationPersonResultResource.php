@@ -31,6 +31,7 @@ class EvaluationPersonResultResource extends JsonResource
     ];
 
     if ($this->showExtra) {
+      $response['evaluation'] = new EvaluationResource($this->evaluation);
       $response['details'] = EvaluationPersonResource::collection($this->details);
     }
 

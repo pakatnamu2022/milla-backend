@@ -27,6 +27,27 @@ class EvaluationPersonResultService extends BaseService
     );
   }
 
+  public function getByPersonAndEvaluation($data)
+  {
+    $person_id = $data['person_id'];
+    $evaluation_id = $data['evaluation_id'];
+
+    $query = EvaluationPersonResult::where('person_id', $person_id)
+      ->where('evaluation_id', $evaluation_id);
+
+    $count = $query->count();
+
+    if ($count === 0) {
+      throw new Exception('Evaluación de persona no encontrada');
+    }
+    if ($count > 1) {
+      throw new Exception('Se encontraron múltiples evaluaciones para la persona y evaluación especificadas');
+    }
+
+    $evaluationPerson = $query->first();
+    return EvaluationPersonResultResource::make($evaluationPerson)->showExtra();
+  }
+
   public function find($id)
   {
     $evaluationCompetence = EvaluationPersonResult::where('id', $id)->first();
