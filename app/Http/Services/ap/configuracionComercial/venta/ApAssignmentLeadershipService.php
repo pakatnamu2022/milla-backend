@@ -2,36 +2,25 @@
 
 namespace App\Http\Services\ap\configuracionComercial\venta;
 
-use App\Http\Resources\ap\configuracionComercial\venta\ApAssignCompanyBranchResource;
+use App\Http\Resources\ap\configuracionComercial\venta\ApAssignmentLeadershipResource;
 use App\Http\Services\BaseService;
 use App\Http\Utils\Constants;
-use App\Models\ap\configuracionComercial\venta\ApAssignCompanyBranchPeriod;
-use App\Models\gp\gestionsistema\CompanyBranch;
-use App\Models\gp\gestionsistema\Sede;
+use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadershipPeriod;
 use Illuminate\Http\Request;
+use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Exception;
 
-class ApAssignCompanyBranchService extends BaseService
+class ApAssignmentLeadershipService extends BaseService
 {
   public function list(Request $request)
   {
-//    return $this->getFilteredResults(
-//      CompanyBranch::with('workers')
-//        ->whereNotNull('company_id')
-//        ->where('company_id', Constants::COMPANY_AP),
-//      $request,
-//      CompanyBranch::filters,
-//      CompanyBranch::sorts,
-//      ApAssignCompanyBranchResource::class
-//    );
     return $this->getFilteredResults(
-      Sede::with('workers')
-        ->whereNotNull('empresa_id')
-        ->where('empresa_id', Constants::COMPANY_AP),
+      Worker::with('boss')->fromEmpresa(Constants::COMPANY_AP),
       $request,
-      Sede::filters,
-      Sede::sorts,
-      ApAssignCompanyBranchResource::class
+      Worker::filters,
+      Worker::sorts,
+      ApAssignmentLeadershipResource::class
     );
   }
 
@@ -39,25 +28,25 @@ class ApAssignCompanyBranchService extends BaseService
   {
     $year = $request->query('year');
     $month = $request->query('month');
-    $sede = $request->query('sede');
+    $boss = $request->query('boss');
 
-    $query = ApAssignCompanyBranchPeriod::with(['sede', 'worker'])
+    $query = ApAssignmentLeadershipPeriod::with(['boss', 'worker'])
       ->when($year, fn($q) => $q->where('year', $year))
       ->when($month, fn($q) => $q->where('month', $month))
-      ->when($sede, function ($q) use ($sede) {
-        $q->whereHas('sede', function ($sub) use ($sede) {
-          $sub->where('abreviatura', 'like', "%{$sede}%");
+      ->when($boss, function ($q) use ($boss) {
+        $q->whereHas('boss', function ($sub) use ($boss) {
+          $sub->where('nombre_completo', 'like', "%{$boss}%");
         });
       });
 
     $periodos = $query->get();
 
-    $grouped = $periodos->groupBy('sede_id')->map(function ($items) {
+    $grouped = $periodos->groupBy('boss_id')->map(function ($items) {
       $first = $items->first();
 
       return [
-        'sede_id' => $first->sede->id,
-        'sede' => $first->sede->abreviatura,
+        'boss_id' => $first->boss->id,
+        'boss' => $first->boss->nombre_completo,
         'year' => $first->year,
         'month' => $first->month,
         'workers' => $items->map(function ($item) {
@@ -74,21 +63,26 @@ class ApAssignCompanyBranchService extends BaseService
 
   public function show($id)
   {
-    $sede = Sede::with('workers')->find($id);
-    if (!$sede) {
-      throw new Exception('Sede no encontrada');
+    $boss = Worker::with('advisorsBoss')->find($id);
+    if (!$boss) {
+      throw new Exception('Jefe no encontrado');
     }
-    return new ApAssignCompanyBranchResource($sede);
+    return new ApAssignmentLeadershipResource($boss);
   }
 
   public function update(mixed $data)
   {
-    $sede = Sede::findOrFail($data['sede_id']);
-    $sede->workers()->sync($data['workers']);
+    $boss = Worker::findOrFail($data['boss_id']);
+    $boss->advisorsBoss()->sync($data['workers']);
+
+    $boss = Worker::findOrFail($data['boss_id']);
+    if ($boss->sede->empresa_id !== Constants::COMPANY_AP) {
+      throw new Exception('El jefe seleccionado no pertenece a la empresa AP');
+    }
 
     if (isset($data['year']) && isset($data['month'])) {
-      $existing = ApAssignCompanyBranchPeriod::withTrashed()
-        ->where('sede_id', $data['sede_id'])
+      $existing = ApAssignmentLeadershipPeriod::withTrashed()
+        ->where('boss_id', $data['boss_id'])
         ->where('year', $data['year'])
         ->where('month', $data['month'])
         ->get()
@@ -103,8 +97,8 @@ class ApAssignCompanyBranchService extends BaseService
             $record->restore();
           }
         } else {
-          ApAssignCompanyBranchPeriod::create([
-            'sede_id' => $data['sede_id'],
+          ApAssignmentLeadershipPeriod::create([
+            'boss_id' => $data['boss_id'],
             'worker_id' => $asesorId,
             'year' => $data['year'],
             'month' => $data['month'],
@@ -114,7 +108,7 @@ class ApAssignCompanyBranchService extends BaseService
 
       $toDelete = $existing->keys()->diff($newAsesores->keys());
       if ($toDelete->isNotEmpty()) {
-        ApAssignCompanyBranchPeriod::where('sede_id', $data['sede_id'])
+        ApAssignmentLeadershipPeriod::where('boss_id', $data['boss_id'])
           ->where('year', $data['year'])
           ->where('month', $data['month'])
           ->whereIn('worker_id', $toDelete)
@@ -122,6 +116,6 @@ class ApAssignCompanyBranchService extends BaseService
       }
     }
 
-    return new ApAssignCompanyBranchResource($sede->load('workers'));
+    return new ApAssignmentLeadershipResource($boss->load('advisorsBoss'));
   }
 }

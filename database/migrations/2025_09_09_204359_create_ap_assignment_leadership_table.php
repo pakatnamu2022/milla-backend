@@ -10,15 +10,19 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('assignment_leadership', function (Blueprint $table) {
+    Schema::create('ap_assignment_leadership', function (Blueprint $table) {
       $table->id();
       $table->integer('boss_id');
+      $table->integer('worker_id');
+      $table->foreign('worker_id')->references('id')->on('rrhh_persona');
       $table->foreign('boss_id')
         ->references('id')
         ->on('rrhh_persona')
         ->onDelete('cascade')
         ->onUpdate('cascade');
       $table->timestamps();
+      $table->softDeletes();
+      $table->unique(['boss_id', 'worker_id']);
     });
   }
 
@@ -27,6 +31,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('assignment_leadership');
+    Schema::dropIfExists('ap_assignment_leadership');
   }
 };

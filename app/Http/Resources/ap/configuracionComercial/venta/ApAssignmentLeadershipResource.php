@@ -5,16 +5,14 @@ namespace App\Http\Resources\ap\configuracionComercial\venta;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class ApAssignCompanyBranchResource extends JsonResource
+class ApAssignmentLeadershipResource extends JsonResource
 {
   public function toArray(Request $request): array
   {
     return [
-//      'company_branch_id' => $this->id,
-//      'abbreviation' => $this->abreviatura,
-      'sede_id' => $this->id,
-      'abreviatura' => $this->abreviatura,
-      'workers' => $this->workers->map(fn($worker) => [
+      'boss_id' => $this->id,
+      'boss_name' => $this->nombre_completo,
+      'assigned_workers' => $this->advisorsBoss->map(fn($worker) => [
         'id' => $worker->id,
         'name' => $worker->nombre_completo,
       ]),

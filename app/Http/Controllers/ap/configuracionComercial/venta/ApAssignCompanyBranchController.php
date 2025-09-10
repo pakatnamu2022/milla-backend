@@ -34,16 +34,7 @@ class ApAssignCompanyBranchController extends Controller
       return $this->error($th->getMessage());
     }
   }
-
-  public function store(StoreApAssignCompanyBranchRequest $request)
-  {
-    try {
-      return $this->success($this->service->store($request->all()));
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
+  
   public function show($id)
   {
     try {

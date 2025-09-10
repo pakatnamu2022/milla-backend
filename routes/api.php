@@ -10,6 +10,7 @@ use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleBrandContro
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAccountingAccountPlanController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignBrandConsultantController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignCompanyBranchController;
+use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignmentLeadershipController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApBankController;
 use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetailController;
@@ -65,6 +66,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     'destroy'
   ]);
 
+  Route::get('sede/assignedSalesWorkers', [SedeController::class, 'assignedSalesWorkers']);
   Route::apiResource('sede', SedeController::class)->only([
     'index',
     'show',
@@ -440,9 +442,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::apiResource('assignCompanyBranch', ApAssignCompanyBranchController::class)->only([
           'index',
           'show',
-          'store',
           'update',
-          'destroy'
         ]);
 
         Route::get('assignBrandConsultant/showGrouped', [ApAssignBrandConsultantController::class, 'showGrouped']);
@@ -465,6 +465,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'store',
           'update',
           'destroy'
+        ]);
+
+        Route::get('assignmentLeadership/record', [ApAssignmentLeadershipController::class, 'indexRecord']);
+        Route::apiResource('assignmentLeadership', ApAssignmentLeadershipController::class)->only([
+          'index',
+          'show',
+          'update',
         ]);
       });
       //        CONFIGURATION AFTER SALES
