@@ -15,7 +15,7 @@ class ApCommercialManagerBrandGroupService extends BaseService
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      ApCommercialMasters::ofType('GRUPO_MARCAS'),
+      ApCommercialMasters::ofType('GRUPO_MARCAS')->where("status", 1),
       $request,
       ApCommercialMasters::filters,
       ApCommercialMasters::sorts,
