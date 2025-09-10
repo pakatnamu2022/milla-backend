@@ -118,6 +118,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     ]);
 
     //        ACCESS
+    Route::get('user/{user}/complete', [UserController::class, 'showComplete'])->name('user.showComplete');
     Route::apiResource('user', UserController::class)->only([
       'index',
       'show',
