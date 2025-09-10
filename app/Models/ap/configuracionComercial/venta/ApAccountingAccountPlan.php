@@ -5,6 +5,7 @@ namespace App\Models\ap\configuracionComercial\venta;
 use App\Models\ap\configuracionComercial\vehiculo\ApCommercialMasters;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class ApAccountingAccountPlan extends Model
 {
@@ -31,6 +32,16 @@ class ApAccountingAccountPlan extends Model
     'accounting_type_id',
     'status',
   ];
+
+  public function setAccountAttribute($value)
+  {
+    $this->attributes['account'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setDescriptionAttribute($value)
+  {
+    $this->attributes['description'] = Str::upper(Str::ascii($value));
+  }
 
   public function typeAccount()
   {

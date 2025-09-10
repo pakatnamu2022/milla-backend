@@ -2,16 +2,16 @@
 
 namespace App\Http\Requests\ap\configuracionComercial\venta;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\StoreRequest;
 
-class UpdateApAssignmentLeadershipRequest extends FormRequest
+class UpdateApAssignmentLeadershipRequest extends StoreRequest
 {
   public function rules(): array
   {
     return [
       'boss_id' => 'required|exists:rrhh_persona,id',
-      'workers' => 'required|array|min:1',
-      'workers.*' => 'integer|exists:rrhh_persona,id',
+      'assigned_workers' => 'required|array|min:1',
+      'assigned_workers.*' => 'integer|exists:rrhh_persona,id',
     ];
   }
 
@@ -25,8 +25,8 @@ class UpdateApAssignmentLeadershipRequest extends FormRequest
       'workers.array' => 'El campo asesores debe ser un arreglo.',
       'workers.min' => 'Debe proporcionar al menos un asesor.',
 
-      'workers.*.integer' => 'Cada asesor debe ser un ID entero válido.',
-      'workers.*.exists' => 'Uno o más IDs de asesores proporcionados no existen.',
+      'assigned_workers.*.integer' => 'Cada asesor debe ser un ID entero válido.',
+      'assigned_workers.*.exists' => 'Uno o más IDs de asesores proporcionados no existen.',
     ];
   }
 }

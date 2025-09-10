@@ -21,16 +21,14 @@ class ApBank extends Model
     'cci',
     'bank_id',
     'currency_id',
-    'company_branch_id',
     'status',
     'sede_id', //temporal
   ];
 
   const filters = [
-    'search' => ['code', 'account_number', 'cci'],
+    'search' => ['code', 'account_number', 'cci', 'bank.description'],
     'bank_id' => '=',
     'currency_id' => '=',
-    'company_branch_id' => '=',
     'status' => '=',
     'sede_id' => '=', //temporal
   ];
@@ -41,7 +39,6 @@ class ApBank extends Model
     'cci',
     'bank_id',
     'currency_id',
-    'company_branch_id',
     'status',
     'sede_id', //temporal
   ];

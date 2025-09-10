@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\configuracionComercial\vehiculo;
 
+use App\Models\gp\gestionsistema\Person;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -45,5 +46,16 @@ class ApCommercialMasters extends Model
   public function setTypeAttribute($value)
   {
     $this->attributes['type'] = Str::upper(Str::ascii($value));
+  }
+
+  public function scopeOfType($query, string $type)
+  {
+    return $query->where('type', strtoupper($type));
+  }
+
+  public function commercialManagers()
+  {
+    return $this->belongsToMany(Person::class, 'ap_commercial_manager_brand_group', 'brand_group_id', 'commercial_manager_id')
+      ->withTimestamps();
   }
 }
