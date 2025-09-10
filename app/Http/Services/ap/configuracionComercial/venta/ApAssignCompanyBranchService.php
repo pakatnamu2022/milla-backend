@@ -15,15 +15,6 @@ class ApAssignCompanyBranchService extends BaseService
 {
   public function list(Request $request)
   {
-//    return $this->getFilteredResults(
-//      CompanyBranch::with('workers')
-//        ->whereNotNull('company_id')
-//        ->where('company_id', Constants::COMPANY_AP),
-//      $request,
-//      CompanyBranch::filters,
-//      CompanyBranch::sorts,
-//      ApAssignCompanyBranchResource::class
-//    );
     return $this->getFilteredResults(
       Sede::with('workers')
         ->whereNotNull('empresa_id')

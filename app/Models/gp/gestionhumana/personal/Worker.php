@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class Worker extends Person
 {
   const filters = [
+    'search' => ['nombre_completo'],
     'sede.empresa_id' => '=',
     'cargo_id' => 'in',
     'status_id' => '=',

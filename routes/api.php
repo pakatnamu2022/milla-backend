@@ -12,6 +12,7 @@ use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignBrandConsultant
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignCompanyBranchController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignmentLeadershipController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApBankController;
+use App\Http\Controllers\ap\configuracionComercial\venta\ApCommercialManagerBrandGroupController;
 use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailController;
@@ -469,6 +470,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         Route::get('assignmentLeadership/record', [ApAssignmentLeadershipController::class, 'indexRecord']);
         Route::apiResource('assignmentLeadership', ApAssignmentLeadershipController::class)->only([
+          'index',
+          'show',
+          'update',
+        ]);
+
+        Route::get('commercialManagerBrandGroup/record', [ApCommercialManagerBrandGroupController::class, 'indexRecord']);
+        Route::apiResource('commercialManagerBrandGroup', ApCommercialManagerBrandGroupController::class)->only([
           'index',
           'show',
           'update',

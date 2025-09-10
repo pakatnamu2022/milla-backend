@@ -28,7 +28,7 @@ class ApAssignmentLeadershipService extends BaseService
   {
     $year = $request->query('year');
     $month = $request->query('month');
-    $boss = $request->query('boss');
+    $boss = $request->query('boss_name');
 
     $query = ApAssignmentLeadershipPeriod::with(['boss', 'worker'])
       ->when($year, fn($q) => $q->where('year', $year))
@@ -46,10 +46,10 @@ class ApAssignmentLeadershipService extends BaseService
 
       return [
         'boss_id' => $first->boss->id,
-        'boss' => $first->boss->nombre_completo,
+        'boss_name' => $first->boss->nombre_completo,
         'year' => $first->year,
         'month' => $first->month,
-        'workers' => $items->map(function ($item) {
+        'assigned_workers' => $items->map(function ($item) {
           return [
             'id' => $item->worker->id,
             'name' => $item->worker->nombre_completo,
@@ -73,7 +73,7 @@ class ApAssignmentLeadershipService extends BaseService
   public function update(mixed $data)
   {
     $boss = Worker::findOrFail($data['boss_id']);
-    $boss->advisorsBoss()->sync($data['workers']);
+    $boss->advisorsBoss()->sync($data['assigned_workers']);
 
     $boss = Worker::findOrFail($data['boss_id']);
     if ($boss->sede->empresa_id !== Constants::COMPANY_AP) {
@@ -88,7 +88,7 @@ class ApAssignmentLeadershipService extends BaseService
         ->get()
         ->keyBy('worker_id');
 
-      $newAsesores = collect($data['workers'])->mapWithKeys(fn($id) => [$id => $id]);
+      $newAsesores = collect($data['assigned_workers'])->mapWithKeys(fn($id) => [$id => $id]);
 
       foreach ($newAsesores as $asesorId) {
         if ($existing->has($asesorId)) {
