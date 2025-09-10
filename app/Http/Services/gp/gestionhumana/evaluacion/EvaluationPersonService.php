@@ -82,7 +82,6 @@ class EvaluationPersonService extends BaseService
   public function update($data)
   {
     $evaluationCompetence = $this->find($data['id']);
-    $data = $this->enrichData($data);
     $evaluationCompetence->update($data);
     return new EvaluationPersonResource($evaluationCompetence);
   }

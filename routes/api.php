@@ -355,6 +355,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 //        PERSON RESULT
         Route::get('personResult/getByPersonAndEvaluation', [EvaluationPersonResultController::class, 'getByPersonAndEvaluation']);
+        Route::get('personResult/getTeamByChief/{chief}', [EvaluationPersonResultController::class, 'getTeamByChief']);
         Route::apiResource('personResult', EvaluationPersonResultController::class)->only([
           'index',
           'show',

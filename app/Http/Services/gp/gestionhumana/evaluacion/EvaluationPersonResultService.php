@@ -27,6 +27,26 @@ class EvaluationPersonResultService extends BaseService
     );
   }
 
+  public function getTeamByChief(Request $request, int $chief_id)
+  {
+    $activeEvaluation = Evaluation::where('status', 'active')->first();
+    if (!$activeEvaluation) {
+      return null;
+    }
+
+    return $this->getFilteredResults(
+      EvaluationPersonResult::whereHas('person', function ($query) use ($chief_id) {
+        $query->where('jefe_id', $chief_id)
+          ->where('status_deleted', 1)
+          ->where('status_id', 22);
+      })->where('evaluation_id', $activeEvaluation->id),
+      $request,
+      EvaluationPersonResult::filters,
+      EvaluationPersonResult::sorts,
+      EvaluationPersonResultResource::class,
+    );
+  }
+
   public function getByPersonAndEvaluation($data)
   {
     $person_id = $data['person_id'];

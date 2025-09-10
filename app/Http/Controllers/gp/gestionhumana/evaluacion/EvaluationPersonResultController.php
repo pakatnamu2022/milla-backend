@@ -8,6 +8,7 @@ use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationPersonResultReq
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationPersonResultRequest;
 use App\Http\Requests\PersonEvaluationRequest;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationPersonResultService;
+use Illuminate\Http\Request;
 
 class EvaluationPersonResultController extends Controller
 {
@@ -22,6 +23,15 @@ class EvaluationPersonResultController extends Controller
   {
     try {
       return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function getTeamByChief(Request $request, int $chief_id)
+  {
+    try {
+      return $this->service->getTeamByChief($request, $chief_id);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

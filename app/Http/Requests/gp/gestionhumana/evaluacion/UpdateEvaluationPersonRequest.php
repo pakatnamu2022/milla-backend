@@ -9,7 +9,7 @@ class UpdateEvaluationPersonRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      //
+      'result' => 'required|numeric|min:0|max:120',
     ];
   }
 }
