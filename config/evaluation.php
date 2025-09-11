@@ -3,7 +3,8 @@
 return [
   'typesEvaluation' => [
     0 => 'Objetivos',
-    1 => '180 o 360',
+    1 => '180',
+    2 => '360',
   ],
   'typesParameter' => [
     'objectives' => 'Objetivos',
@@ -15,4 +16,10 @@ return [
     1 => 'En Progreso',
     2 => 'Finalizado',
   ],
+  'evaluatorType' => [
+    0 => 'Jefe',
+    1 => 'Autoevaluación',
+    2 => 'Compañeros',
+    3 => 'Reportes',
+  ]
 ];

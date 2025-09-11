@@ -22,7 +22,10 @@ class UpdateEvaluationCycleRequest extends StoreRequest
       'end_date_objectives' => 'required|date|date_format:Y-m-d|after_or_equal:start_date_objectives',
       'period_id' => 'required|exists:gh_evaluation_periods,id',
       'parameter_id' => 'required|exists:gh_evaluation_parameter,id',
-      'typeEvaluation' => 'required|in:0,1',
+      'typeEvaluation' => [
+        'required',
+        Rule::in(array_keys(config('evaluation.typesEvaluation')))
+      ],
     ];
   }
 
