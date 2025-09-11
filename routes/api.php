@@ -471,10 +471,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'destroy'
         ]);
 
-        Route::get('assignmentLeadership/record', [ApAssignmentLeadershipController::class, 'indexRecord']);
         Route::apiResource('assignmentLeadership', ApAssignmentLeadershipController::class)->only([
           'index',
           'show',
+          'store',
           'update',
         ]);
 
