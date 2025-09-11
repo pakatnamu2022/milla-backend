@@ -40,12 +40,6 @@ class Worker extends Person
     return $this->hasOne(Status::class, 'id', 'status_envio_mail_carta_oferta');
   }
 
-  public function advisorsBoss()
-  {
-    return $this->belongsToMany(Worker::class, 'ap_assignment_leadership', 'boss_id', 'worker_id')
-      ->withTimestamps();
-  }
-
   public function scopeFromEmpresa($query, int $empresaId)
   {
     return $query->whereHas('sede', fn($q) => $q->where('empresa_id', $empresaId));

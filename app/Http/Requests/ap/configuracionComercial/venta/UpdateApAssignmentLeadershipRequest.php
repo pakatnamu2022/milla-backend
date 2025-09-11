@@ -9,19 +9,28 @@ class UpdateApAssignmentLeadershipRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'boss_id' => 'required|exists:rrhh_persona,id',
-      'assigned_workers' => 'required|array|min:1',
-      'assigned_workers.*' => 'integer|exists:rrhh_persona,id',
+      'year' => 'nullable|integer|min:2000|max:2100',
+      'month' => 'nullable|integer|min:1|max:12',
+      'boss_id' => 'nullable|exists:rrhh_persona,id',
+      'assigned_workers' => 'nullable|array|min:1',
+      'assigned_workers.*' => 'nullable|exists:rrhh_persona,id',
+      'status' => 'nullable|boolean',
     ];
   }
 
   public function messages(): array
   {
     return [
-      'boss_id.required' => 'El campo boss_id es obligatorio.',
-      'boss_id.exists' => 'El jefe proporcionado no existe.',
+      'year.integer' => 'El campo año debe ser un número entero.',
+      'year.min' => 'El campo año no puede ser menor a 2000.',
+      'year.max' => 'El campo año no puede ser mayor a 2100.',
 
-      'workers.required' => 'El campo asesores es obligatorio.',
+      'month.integer' => 'El campo mes debe ser un número entero.',
+      'month.min' => 'El campo mes no puede ser menor a 1.',
+      'month.max' => 'El campo mes no puede ser mayor a 12.',
+
+      'boss_id.exists' => 'El jefe de venta proporcionado no existe.',
+
       'workers.array' => 'El campo asesores debe ser un arreglo.',
       'workers.min' => 'Debe proporcionar al menos un asesor.',
 

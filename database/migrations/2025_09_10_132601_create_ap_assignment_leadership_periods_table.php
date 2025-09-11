@@ -19,6 +19,7 @@ return new class extends Migration {
       $table->foreign('boss_id')
         ->references('id')
         ->on('rrhh_persona');
+      $table->boolean('status')->default(true);
       $table->foreign('worker_id')->references('id')->on('rrhh_persona');
       $table->unique(['boss_id', 'worker_id', 'year', 'month'], 'uniq_boss_worker_period');
       $table->timestamps();

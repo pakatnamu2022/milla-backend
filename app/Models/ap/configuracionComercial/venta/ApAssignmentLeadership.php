@@ -10,13 +10,32 @@ class ApAssignmentLeadership extends Model
 {
   use SoftDeletes;
 
-  protected $table = 'ap_assignment_leadership';
+  protected $table = 'ap_assignment_leadership_periods';
 
   protected $fillable = [
     'boss_id',
-    'worker_id'
+    'worker_id',
+    'year',
+    'month',
+    'status',
   ];
 
+  const filters = [
+    'search' => ['boss_id', 'worker_id'],
+    'boss_id' => '=',
+    'worker_id' => '=',
+    'year' => '=',
+    'month' => '=',
+    'status' => '=',
+  ];
+
+  const sorts = [
+    'boss_id',
+    'worker_id',
+    'year',
+    'month',
+  ];
+  
   public function boss()
   {
     return $this->belongsTo(Person::class, 'boss_id');

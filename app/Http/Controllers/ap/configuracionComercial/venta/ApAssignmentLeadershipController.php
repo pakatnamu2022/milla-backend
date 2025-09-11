@@ -28,19 +28,19 @@ class ApAssignmentLeadershipController extends Controller
     }
   }
 
-  public function indexRecord(IndexApAssignmentLeadershipRequest $request)
+  public function show($id, IndexApAssignmentLeadershipRequest $request)
   {
     try {
-      return $this->service->listRecord($request);
+      return $this->service->show($id, $request);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
 
-  public function show($id)
+  public function store(StoreApAssignmentLeadershipRequest $request)
   {
     try {
-      return $this->success($this->service->show($id));
+      return $this->success($this->service->store($request->all()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -49,8 +49,7 @@ class ApAssignmentLeadershipController extends Controller
   public function update(UpdateApAssignmentLeadershipRequest $request, $id)
   {
     try {
-      $data = $request->all();
-      $data['boss_id'] = $id;
+      $data = $request->validated();
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
