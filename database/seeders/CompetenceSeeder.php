@@ -4,16 +4,11 @@ namespace Database\Seeders;
 
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetailService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetail;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCompetence;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationObjective;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationsubCompetence;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationSubCompetence;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
-use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategoryDetail;
-use App\Models\gp\gestionhumana\personal\Worker;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
