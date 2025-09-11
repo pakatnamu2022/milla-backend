@@ -51,7 +51,7 @@ class EvaluationCategoryCompetenceDetailService extends BaseService
     $competence = EvaluationCompetence::findOrFail($data['competence_id']);
 
     foreach ($workers as $workerId) {
-      EvaluationCategoryCompetenceDetail::create([
+      EvaluationCategoryCompetenceDetail::firstOrCreate([
         'competence_id' => $competence->id,
         'category_id' => $data['category_id'],
         'person_id' => $workerId,
@@ -61,6 +61,33 @@ class EvaluationCategoryCompetenceDetailService extends BaseService
     return EvaluationCategoryCompetenceDetailResource::collection(
       EvaluationCategoryCompetenceDetail::where('category_id', $data['category_id'])->get()
     );
+  }
+
+
+  public function assignCompetencesToWorkers()
+  {
+    $categories = HierarchicalCategory::with(['workers', 'objectives'])->get();
+    foreach ($categories as $category) {
+      $workers = $category->workers;
+      $competences = $category->competences;
+      foreach ($workers as $worker) {
+        foreach ($competences as $competence) {
+          $exists = EvaluationCategoryCompetenceDetail::where('category_id', $category->id)
+            ->where('person_id', $worker->id)
+            ->where('competence_id', $competence->id)
+            ->whereNull('deleted_at')
+            ->first();
+          if (!$exists) {
+            EvaluationCategoryCompetenceDetail::create([
+              'competence_id' => $competence->id,
+              'category_id' => $category->id,
+              'person_id' => $worker->id,
+            ]);
+          }
+        }
+      }
+    }
+    return ['message' => 'Competencias asignadas a los trabajadores correctamente'];
   }
 
   public function find($id)
