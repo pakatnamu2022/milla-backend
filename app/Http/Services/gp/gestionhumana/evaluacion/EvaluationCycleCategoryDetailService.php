@@ -3,11 +3,10 @@
 namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetailResource;
-use App\Http\Resources\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
-use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategoryDetail;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -29,7 +28,7 @@ class EvaluationCycleCategoryDetailService extends BaseService
   {
     $cycle = $this->evaluationCycleService->find($cycleId);
     return $this->getFilteredResults(
-      EvaluationCycleCategoryDetail::where('cycle_id', $cycle->id),
+      EvaluationCycleCategoryDetail::where('cycle_id', $cycle->id)->whereNull('deleted_at'),
       $request,
       [],
       [],

@@ -17,6 +17,7 @@ return new class extends Migration {
       $table->foreign('person_id')->references('id')->on('rrhh_persona');
 
       $table->foreignId('evaluation_id')->constrained('gh_evaluation')->onDelete('cascade');
+      $table->integer('status')->default(0)->comment('0: pending, 1: completed, 2: published');
       $table->decimal('competencesPercentage');
       $table->decimal('objectivesPercentage');
       $table->decimal('objectivesResult')->default(0);

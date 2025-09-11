@@ -15,6 +15,7 @@ return new class extends Migration {
       $table->string('name');
       $table->date('start_date');
       $table->date('end_date');
+      $table->integer('status')->default(0)->comment('0: programmed, 1: in progress , 2: finished');
       $table->integer('typeEvaluation')->default(0); // 0: Objetivos, 1: 180 o 360
       $table->decimal('objectivesPercentage')->default(0);
       $table->decimal('competencesPercentage')->default(0);
