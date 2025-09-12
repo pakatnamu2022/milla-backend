@@ -6,6 +6,8 @@ use App\Http\Resources\gp\gestionsistema\DistrictResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionsistema\District;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Exception;
 
 class DistrictService extends BaseService
 {
@@ -18,5 +20,41 @@ class DistrictService extends BaseService
       District::sorts,
       DistrictResource::class,
     );
+  }
+
+  public function find($id)
+  {
+    $District = District::where('id', $id)->first();
+    if (!$District) {
+      throw new Exception('Distrito no encontrado');
+    }
+    return $District;
+  }
+
+  public function store(Mixed $data)
+  {
+    $District = District::create($data);
+    return new DistrictResource($District);
+  }
+
+  public function show($id)
+  {
+    return new DistrictResource($this->find($id));
+  }
+
+  public function update(Mixed $data)
+  {
+    $District = $this->find($data['id']);
+    $District->update($data);
+    return new DistrictResource($District);
+  }
+
+  public function destroy($id)
+  {
+    $District = $this->find($id);
+    DB::transaction(function () use ($District) {
+      $District->delete();
+    });
+    return response()->json(['message' => 'Distrito eliminado correctamente']);
   }
 }
