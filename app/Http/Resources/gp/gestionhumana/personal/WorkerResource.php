@@ -9,19 +9,19 @@ use function base64_encode;
 
 class WorkerResource extends JsonResource
 {
+  protected $showExtra = false;
+
+  public function showExtra($show = true)
+  {
+    $this->showExtra = $show;
+    return $this;
+  }
+
   public function toArray(Request $request): array
   {
     $fotoBase64 = null;
 
-    if ($this->foto_adjunto) {
-      $path = $this->foto_adjunto;
-      if (Storage::disk('general')->exists($path)) {
-        $mime = Storage::disk('general')->mimeType($path);
-        $content = Storage::disk('general')->get($path);
-        $fotoBase64 = "data:$mime;base64," . base64_encode($content);
-      }
-    }
-    return [
+    $response = [
       'id' => $this->id,
       'name' => $this->nombre_completo,
       'document' => $this->vat,
@@ -31,7 +31,20 @@ class WorkerResource extends JsonResource
       'emailOfferLetterStatusId' => $this->status_envio_mail_carta_oferta,
       'offerLetterConfirmation' => $this->offerLetterStatus?->estado,
       'emailOfferLetterStatus' => $this->emailOfferLetterStatus?->estado,
-      'photo' => $fotoBase64,
     ];
+
+    if ($this->showExtra) {
+      if ($this->foto_adjunto) {
+        $path = $this->foto_adjunto;
+        if (Storage::disk('general')->exists($path)) {
+          $mime = Storage::disk('general')->mimeType($path);
+          $content = Storage::disk('general')->get($path);
+          $fotoBase64 = "data:$mime;base64," . base64_encode($content);
+        }
+        $response['photo'] = $fotoBase64;
+      }
+    }
+
+    return $response;
   }
 }
