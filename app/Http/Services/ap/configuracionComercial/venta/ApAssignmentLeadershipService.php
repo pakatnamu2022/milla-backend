@@ -12,12 +12,15 @@ use Exception;
 
 class ApAssignmentLeadershipService extends BaseService
 {
+
   public function list(Request $request)
   {
     $year = $request->query('year');
     $month = $request->query('month');
     $boss = $request->query('search');
     $all = filter_var($request->query('all', false), FILTER_VALIDATE_BOOLEAN);
+    $perPage = (int)$request->query('per_page', 10);
+    $page = (int)$request->query('page', 1);
 
     $query = ApAssignmentLeadership::with(['boss.position', 'worker'])
       ->when($year, fn($q) => $q->where('year', $year))
@@ -28,15 +31,51 @@ class ApAssignmentLeadershipService extends BaseService
         });
       });
 
-    $periodos = $all
-      ? $query->get()
-      : $query->paginate(10);
+    if ($all) {
+      $allRecords = $query->get();
+      $grouped = $this->groupAssignments($allRecords);
 
-    $collection = $all ? $periodos : $periodos->getCollection();
+      return response()->json([
+        'data' => $grouped
+      ]);
+    }
 
-    $grouped = $collection->groupBy('boss_id')->map(function ($items) {
+    $allRecords = $query->get();
+    $allGrouped = $this->groupAssignments($allRecords);
+
+    $total = $allGrouped->count();
+    $totalPages = ceil($total / $perPage);
+    $offset = ($page - 1) * $perPage;
+
+    $paginatedGroups = $allGrouped->slice($offset, $perPage)->values();
+
+    $baseUrl = $request->url();
+    $queryParams = $request->except('page');
+
+    return response()->json([
+      'data' => $paginatedGroups,
+      'links' => [
+        'first' => $this->buildUrl($baseUrl, array_merge($queryParams, ['page' => 1])),
+        'last' => $this->buildUrl($baseUrl, array_merge($queryParams, ['page' => $totalPages])),
+        'prev' => $page > 1 ? $this->buildUrl($baseUrl, array_merge($queryParams, ['page' => $page - 1])) : null,
+        'next' => $page < $totalPages ? $this->buildUrl($baseUrl, array_merge($queryParams, ['page' => $page + 1])) : null,
+      ],
+      'meta' => [
+        'current_page' => $page,
+        'from' => $total > 0 ? $offset + 1 : null,
+        'last_page' => $totalPages,
+        'path' => $baseUrl,
+        'per_page' => $perPage,
+        'to' => min($offset + $perPage, $total),
+        'total' => $total,
+      ]
+    ]);
+  }
+
+  private function groupAssignments($records)
+  {
+    return $records->groupBy('boss_id')->map(function ($items) {
       $first = $items->first();
-
       return [
         'boss_id' => $first->boss->id,
         'boss_position' => $first->boss->position->name,
@@ -50,33 +89,15 @@ class ApAssignmentLeadershipService extends BaseService
             'name' => $item->worker->nombre_completo,
           ];
         })->values(),
+        'workers_count' => $items->count(),
         'status' => $first->status
       ];
     })->values();
+  }
 
-    if (!$all) {
-      return response()->json([
-        'data' => $grouped,
-        'links' => [
-          'first' => $periodos->url(1),
-          'last' => $periodos->url($periodos->lastPage()),
-          'prev' => $periodos->previousPageUrl(),
-          'next' => $periodos->nextPageUrl(),
-        ],
-        'meta' => [
-          'current_page' => $periodos->currentPage(),
-          'from' => $periodos->firstItem(),
-          'last_page' => $periodos->lastPage(),
-          'links' => $periodos->linkCollection()->toArray(),
-          'path' => $periodos->path(),
-          'per_page' => $periodos->perPage(),
-          'to' => $grouped->count() + $periodos->firstItem() - 1,
-          'total' => $grouped->count(),
-        ]
-      ]);
-    }
-
-    return response()->json(['data' => $grouped]);
+  private function buildUrl($baseUrl, $params)
+  {
+    return $baseUrl . '?' . http_build_query($params);
   }
 
   public function show($id, Request $request)
