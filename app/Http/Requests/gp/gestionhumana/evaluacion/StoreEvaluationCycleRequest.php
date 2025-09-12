@@ -18,6 +18,7 @@ class StoreEvaluationCycleRequest extends StoreRequest
       ],
       'start_date' => 'required|date|date_format:Y-m-d',
       'end_date' => 'required|date|date_format:Y-m-d|after_or_equal:start_date',
+      'cut_off_date' => 'required|date|date_format:Y-m-d',
       'start_date_objectives' => 'required|date|date_format:Y-m-d',
       'end_date_objectives' => 'required|date|date_format:Y-m-d|after_or_equal:start_date_objectives',
       'period_id' => 'required|exists:gh_evaluation_periods,id',
