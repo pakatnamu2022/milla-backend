@@ -1,23 +1,25 @@
 <?php
 
-namespace App\Http\Controllers\gp\gestionsistema;
+namespace App\Http\Controllers\ap\maestroGeneral;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\gp\gestionsistema\IndexDistrictRequest;
-use App\Http\Requests\gp\gestionsistema\StoreDistrictRequest;
-use App\Http\Requests\gp\gestionsistema\UpdateDistrictRequest;
-use App\Http\Services\gp\gestionsistema\DistrictService;
+use App\Http\Requests\ap\maestroGeneral\IndexTaxClassTypesRequest;
+use App\Http\Requests\ap\maestroGeneral\StoreTaxClassTypesRequest;
+use App\Http\Requests\ap\maestroGeneral\UpdateTaxClassTypesRequest;
+use App\Http\Services\ap\maestroGeneral\TaxClassTypesService;
+use App\Models\ap\maestroGeneral\TaxClassTypes;
+use Illuminate\Http\Request;
 
-class DistrictController extends Controller
+class TaxClassTypesController extends Controller
 {
-  protected DistrictService $service;
+  protected TaxClassTypesService $service;
 
-  public function __construct(DistrictService $service)
+  public function __construct(TaxClassTypesService $service)
   {
     $this->service = $service;
   }
 
-  public function index(IndexDistrictRequest $request)
+  public function index(IndexTaxClassTypesRequest $request)
   {
     try {
       return $this->service->list($request);
@@ -26,7 +28,7 @@ class DistrictController extends Controller
     }
   }
 
-  public function store(StoreDistrictRequest $request)
+  public function store(StoreTaxClassTypesRequest $request)
   {
     try {
       return $this->success($this->service->store($request->validated()));
@@ -44,7 +46,7 @@ class DistrictController extends Controller
     }
   }
 
-  public function update(UpdateDistrictRequest $request, $id)
+  public function update(UpdateTaxClassTypesRequest $request, $id)
   {
     try {
       $data = $request->validated();
