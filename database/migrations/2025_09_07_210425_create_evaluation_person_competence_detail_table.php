@@ -10,19 +10,16 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('evaluation_person_competence_detail', function (Blueprint $table) {
+    Schema::create('gh_evaluation_person_competence_detail', function (Blueprint $table) {
       $table->id();
 
-      $table->foreignId('evaluation_id')->constrained('gh_evaluation');
+      $table->foreignId('evaluation_id')->constrained('gh_evaluation', 'id');
 
       $table->integer('person_id');
       $table->foreign('person_id')->references('id')->on('rrhh_persona');
 
-      $table->integer('competence_id');
-      $table->foreign('competence_id')->references('id')->on('gh_config_competencias');
-
-      $table->integer('sub_competence_id');
-      $table->foreign('sub_competence_id')->references('id')->on('gh_config_subcompetencias');
+      $table->foreignId('competence_id')->constrained('gh_config_competencias');
+      $table->foreignId('sub_competence_id')->constrained('gh_config_subcompetencias');
 
       $table->text('person');
       $table->text('competence');
@@ -40,6 +37,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('evaluation_person_competence_detail');
+    Schema::dropIfExists('gh_evaluation_person_competence_detail');
   }
 };

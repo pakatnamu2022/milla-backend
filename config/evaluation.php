@@ -21,5 +21,8 @@ return [
     1 => 'Autoevaluación',
     2 => 'Compañeros',
     3 => 'Reportes',
-  ]
+  ],
+  'evaluation'
+
+
 ];
