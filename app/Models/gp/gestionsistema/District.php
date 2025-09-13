@@ -13,6 +13,7 @@ class District extends Model
   const filters = [
     'search' => ['name', 'ubigeo'],
     'province_id' => '=',
+    'province.department_id' => '=',
   ];
 
   const sorts = ['name', 'ubigeo'];
