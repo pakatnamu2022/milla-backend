@@ -29,7 +29,7 @@ class ApCommercialManagerBrandGroupController extends Controller
   public function show($id, IndexApCommercialManagerBrandGroupRequest $request)
   {
     try {
-      return $this->success($this->service->show($id));
+      return $this->success($this->service->show($id, $request));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

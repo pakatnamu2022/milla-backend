@@ -20,8 +20,8 @@ class ApCommercialManagerBrandGroupResource extends JsonResource
       'month' => $first->month,
       'commercial_managers' => $this->map(function ($item) {
         return [
-          'id' => $item->worker->id,
-          'name' => $item->worker->nombre_completo,
+          'id' => $item->commercialManager->id,
+          'name' => $item->commercialManager->nombre_completo,
         ];
       })->values(),
       'status' => $first->status,

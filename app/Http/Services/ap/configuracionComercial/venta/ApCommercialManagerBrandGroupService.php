@@ -81,11 +81,11 @@ class ApCommercialManagerBrandGroupService extends BaseService
         'period' => "{$first->year}-{$first->month}",
         'commercial_managers' => $items->map(function ($item) {
           return [
-            'id' => $item->worker->id,
-            'name' => $item->worker->nombre_completo,
+            'id' => $item->commercialManager->id,
+            'name' => $item->commercialManager->nombre_completo,
           ];
         })->values(),
-        'workers_count' => $items->count(),
+        'commercial_managers_count' => $items->count(),
         'status' => $first->status
       ];
     })->values();
