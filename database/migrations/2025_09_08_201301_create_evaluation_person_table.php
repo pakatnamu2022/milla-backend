@@ -17,7 +17,7 @@ return new class extends Migration {
       $table->foreign('person_id')->references('id')->on('rrhh_persona');
 
       $table->integer('chief_id');
-      $table->foreign('chief_ud')->references('id')->on('rrhh_persona');
+      $table->foreign('chief_id')->references('id')->on('rrhh_persona');
 
       $table->foreignId('person_cycle_detail_id')->constrained('gh_evaluation_person_cycle_detail')->onDelete('cascade');
 
