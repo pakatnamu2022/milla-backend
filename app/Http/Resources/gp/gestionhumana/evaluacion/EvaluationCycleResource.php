@@ -14,6 +14,7 @@ class EvaluationCycleResource extends JsonResource
       'name' => $this->name,
       'start_date' => $this->start_date,
       'end_date' => $this->end_date,
+      'cut_off_date' => $this->cut_off_date,
       'start_date_objectives' => $this->start_date_objectives,
       'end_date_objectives' => $this->end_date_objectives,
       'period_id' => $this->period_id,

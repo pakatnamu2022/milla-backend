@@ -6,6 +6,7 @@ use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDe
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCompetence;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationSubCompetence;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
@@ -6430,6 +6431,7 @@ class CompetenceSeeder extends Seeder
     DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
     EvaluationPersonCycleDetail::query()->truncate();
+    EvaluationPersonCompetenceDetail::query()->truncate();
     EvaluationCategoryCompetenceDetail::query()->truncate();
     EvaluationCycle::query()->truncate();
     EvaluationSubCompetence::query()->truncate();

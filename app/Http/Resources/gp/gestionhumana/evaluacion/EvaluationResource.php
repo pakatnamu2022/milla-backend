@@ -28,9 +28,9 @@ class EvaluationResource extends JsonResource
       'statusName' => config('evaluation.statusEvaluation')[$this->status] ?? config('evaluation.statusEvaluation.0'),
       'period' => $this->period->name,
       'cycle' => $this->cycle->name,
-      'competenceParameter' => $this->competenceParameter->name,
-      'objectiveParameter' => $this->objectiveParameter->name,
-      'finalParameter' => $this->finalParameter->name,
+      'competenceParameter' => $this->competenceParameter?->name,
+      'objectiveParameter' => $this->objectiveParameter?->name,
+      'finalParameter' => $this->finalParameter?->name,
     ];
   }
 }

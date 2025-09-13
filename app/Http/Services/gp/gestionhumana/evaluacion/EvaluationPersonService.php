@@ -61,6 +61,8 @@ class EvaluationPersonService extends BaseService
       foreach ($details as $detail) {
         $data = [
           'person_id' => $detail->person_id,
+          'chief_id' => $detail->chief_id,
+          'chief' => $detail->chief,
           'person_cycle_detail_id' => $detail->id,
           'evaluation_id' => $evaluation->id,
           'result' => 0,

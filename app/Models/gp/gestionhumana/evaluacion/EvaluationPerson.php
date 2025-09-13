@@ -14,6 +14,8 @@ class EvaluationPerson extends BaseModel
 
   protected $fillable = [
     'person_id',
+    'chief_id',
+    'chief',
     'person_cycle_detail_id',
     'evaluation_id',
     'result',

@@ -17,6 +17,7 @@ class EvaluationCycle extends Model
     'typeEvaluation', // 0: Objetivos, 1: 180 o 360
     'start_date',
     'end_date',
+    'cut_off_date',
     'start_date_objectives',
     'end_date_objectives',
     'period_id',

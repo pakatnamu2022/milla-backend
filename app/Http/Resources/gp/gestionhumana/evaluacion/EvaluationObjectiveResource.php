@@ -15,6 +15,7 @@ class EvaluationObjectiveResource extends JsonResource
       'description' => $this->description,
       'goalReference' => (float)$this->goalReference,
       'fixedWeight' => (float)$this->fixedWeight,
+      'isAscending' => (bool)$this->isAscending,
       'metric' => $this->metric ? $this->metric->name : null,
       'metric_id' => $this->metric_id,
     ];

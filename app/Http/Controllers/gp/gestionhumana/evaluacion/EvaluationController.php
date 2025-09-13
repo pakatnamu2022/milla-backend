@@ -64,6 +64,58 @@ class EvaluationController extends Controller
     }
   }
 
+  /**
+   * Crear competencias manualmente para una evaluación 180° o 360°
+   */
+  public function createCompetences(int $id)
+  {
+    try {
+      $resultado = $this->service->createCompetences($id);
+      return response()->json($resultado, $resultado['success'] ? 200 : 400);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Obtener estadísticas de competencias de una evaluación
+   */
+  public function competencesStats(int $id)
+  {
+    try {
+      $evaluation = $this->service->find($id);
+
+      $stats = [
+        'total_competencias' => $evaluation->competenceDetails()->count(),
+        'competencias_por_tipo' => $evaluation->competenceDetails()
+          ->selectRaw('evaluatorType, count(*) as total')
+          ->groupBy('evaluatorType')
+          ->get()
+          ->mapWithKeys(function ($item) {
+            $tipos = [
+              0 => 'Líder Directo',
+              1 => 'Autoevaluación',
+              2 => 'Compañeros',
+              3 => 'Reportes'
+            ];
+            return [$tipos[$item->evaluatorType] => $item->total];
+          }),
+        'personas_con_competencias' => $evaluation->competenceDetails()
+          ->distinct('person_id')
+          ->count(),
+        'promedio_competencias_por_persona' => $evaluation->competenceDetails()
+          ->selectRaw('person_id, count(*) as total')
+          ->groupBy('person_id')
+          ->get()
+          ->avg('total')
+      ];
+
+      return $this->success($stats);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function show(int $id)
   {
     try {

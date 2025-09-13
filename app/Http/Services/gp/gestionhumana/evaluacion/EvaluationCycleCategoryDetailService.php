@@ -52,6 +52,7 @@ class EvaluationCycleCategoryDetailService extends BaseService
     $toDelete = $existingCycleCategoryIds->diff($newCategoryIds);
 
     foreach ($toInsert as $categoryId) {
+//      create or restore
       EvaluationCycleCategoryDetail::create([
         'cycle_id' => $cycleId,
         'hierarchical_category_id' => $categoryId,

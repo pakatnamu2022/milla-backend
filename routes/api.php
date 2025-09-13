@@ -344,6 +344,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'destroy'
         ]);
 
+        Route::post('/evaluation/{evaluation}/competences', [EvaluationController::class, 'createCompetences'])
+          ->name('evaluation.competences.create');
+
+        Route::get('/evaluation/{evaluation}/competences/stats', [EvaluationController::class, 'competencesStats'])
+          ->name('evaluation.competences.stats');
+
 //        EVALUATION PERSON
         Route::apiResource('evaluationPerson', EvaluationPersonController::class)->only([
           'index',

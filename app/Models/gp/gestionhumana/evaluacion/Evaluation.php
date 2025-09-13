@@ -3,9 +3,12 @@
 namespace App\Models\gp\gestionhumana\evaluacion;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Evaluation extends Model
 {
+  use SoftDeletes;
+
   protected $table = 'gh_evaluation';
 
   protected $fillable = [
@@ -13,6 +16,8 @@ class Evaluation extends Model
     'start_date',
     'end_date',
     'status',
+    'selfEvaluation',        // Agregar este campo
+    'partnersEvaluation',    // Agregar este campo
     'typeEvaluation',
     'objectivesPercentage',
     'competencesPercentage',
@@ -23,12 +28,22 @@ class Evaluation extends Model
     'final_parameter_id'
   ];
 
+  protected $casts = [
+    'selfEvaluation' => 'boolean',      // Agregar este cast
+    'partnersEvaluation' => 'boolean',  // Agregar este cast
+    'objectivesPercentage' => 'decimal:2',
+    'competencesPercentage' => 'decimal:2'
+  ];
+
   const filters = [
     'search' => ['name'],
     'name' => 'like',
     'start_date' => '=',
     'end_date' => '=',
+    'status' => '=',
     'typeEvaluation' => '=',
+    'selfEvaluation' => '=',
+    'partnersEvaluation' => '=',
     'objectivesPercentage' => '>=',
     'competencesPercentage' => '>=',
     'cycle_id' => '=',
@@ -43,7 +58,10 @@ class Evaluation extends Model
     'name',
     'start_date',
     'end_date',
+    'status',
     'typeEvaluation',
+    'selfEvaluation',
+    'partnersEvaluation',
     'objectivesPercentage',
     'competencesPercentage',
     'cycle_id',
@@ -80,4 +98,36 @@ class Evaluation extends Model
     return $this->belongsTo(EvaluationParameter::class, 'final_parameter_id');
   }
 
+  public function personResults()
+  {
+    return $this->hasMany(EvaluationPersonResult::class, 'evaluation_id');
+  }
+
+  public function competenceDetails()
+  {
+    return $this->hasMany(EvaluationPersonCompetenceDetail::class, 'evaluation_id');
+  }
+
+  // Métodos auxiliares para obtener texto descriptivo
+  public function getTipoEvaluacionTextoAttribute()
+  {
+    $tipos = [
+      0 => 'Objetivos',
+      1 => '180°',
+      2 => '360°'
+    ];
+
+    return $tipos[$this->typeEvaluation] ?? 'Desconocido';
+  }
+
+  public function getEstadoTextoAttribute()
+  {
+    $estados = [
+      0 => 'Programada',
+      1 => 'En Progreso',
+      2 => 'Finalizada'
+    ];
+
+    return $estados[$this->status] ?? 'Desconocido';
+  }
 }

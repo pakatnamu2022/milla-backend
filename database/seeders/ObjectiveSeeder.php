@@ -4392,7 +4392,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 30,
-        "categoria" => "Coordinador De Tics"
+        "categoria" => "Jefe De TICs"
       ],
       [
         "dni" => "45620643",
@@ -4401,7 +4401,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 30,
         "isAscending" => 0,
         "weight" => 30,
-        "categoria" => "Coordinador De Tics"
+        "categoria" => "Jefe De TICs"
       ],
       [
         "dni" => "45620643",
@@ -4410,7 +4410,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 30,
-        "categoria" => "Coordinador De Tics"
+        "categoria" => "Jefe De TICs"
       ],
       [
         "dni" => "45620643",
@@ -4419,7 +4419,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 10,
-        "categoria" => "Coordinador De Tics"
+        "categoria" => "Jefe De TICs"
       ],
       [
         "dni" => "42116951",

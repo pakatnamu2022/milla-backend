@@ -7,7 +7,6 @@ use App\Http\Requests\gp\gestionhumana\evaluacion\IndexHierarchicalCategoryReque
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreHierarchicalCategoryRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateHierarchicalCategoryRequest;
 use App\Http\Services\gp\gestionhumana\evaluacion\HierarchicalCategoryService;
-use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use Illuminate\Http\Request;
 
 class HierarchicalCategoryController extends Controller

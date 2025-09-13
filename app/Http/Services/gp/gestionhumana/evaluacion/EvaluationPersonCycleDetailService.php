@@ -59,9 +59,10 @@ class EvaluationPersonCycleDetailService extends BaseService
     $category = HierarchicalCategory::find($categoryId);
     $positions = $category->children()->pluck('position_id')->toArray();
     $persons = Person::whereIn('cargo_id', $positions)
+      ->where('fecha_inicio', '<=', $lastCycle->cut_off_date) // activos en la fecha de corte
       ->where('status_deleted', 1)
       ->where('status_id', 22)
-      ->whereDoesntHave('evaluationDetails') // sin ningún detail asociado
+      ->whereDoesntHave('evaluationDetails') // sin ningún detail asociado (para evitar incluir personas que ya están en evaluación)
       ->get();
 
     foreach ($persons as $person) {
