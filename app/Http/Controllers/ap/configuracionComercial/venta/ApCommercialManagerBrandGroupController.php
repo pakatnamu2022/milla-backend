@@ -4,10 +4,9 @@ namespace App\Http\Controllers\ap\configuracionComercial\venta;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\configuracionComercial\venta\IndexApCommercialManagerBrandGroupRequest;
+use App\Http\Requests\ap\configuracionComercial\venta\StoreApCommercialManagerBrandGroupRequest;
 use App\Http\Requests\ap\configuracionComercial\venta\UpdateApCommercialManagerBrandGroupRequest;
 use App\Http\Services\ap\configuracionComercial\venta\ApCommercialManagerBrandGroupService;
-use App\Models\ap\configuracionComercial\venta\ApCommercialManagerBrandGroup;
-use Illuminate\Http\Request;
 
 class ApCommercialManagerBrandGroupController extends Controller
 {
@@ -27,19 +26,19 @@ class ApCommercialManagerBrandGroupController extends Controller
     }
   }
 
-  public function indexRecord(IndexApCommercialManagerBrandGroupRequest $request)
+  public function show($id, IndexApCommercialManagerBrandGroupRequest $request)
   {
     try {
-      return $this->service->listRecord($request);
+      return $this->success($this->service->show($id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
 
-  public function show($id)
+  public function store(StoreApCommercialManagerBrandGroupRequest $request)
   {
     try {
-      return $this->success($this->service->show($id));
+      return $this->success($this->service->store($request->all()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -49,7 +48,6 @@ class ApCommercialManagerBrandGroupController extends Controller
   {
     try {
       $data = $request->all();
-      $data['brand_group_id'] = $id;
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());

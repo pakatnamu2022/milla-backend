@@ -486,10 +486,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'update',
         ]);
 
-        Route::get('commercialManagerBrandGroup/record', [ApCommercialManagerBrandGroupController::class, 'indexRecord']);
         Route::apiResource('commercialManagerBrandGroup', ApCommercialManagerBrandGroupController::class)->only([
           'index',
           'show',
+          'store',
           'update',
         ]);
 

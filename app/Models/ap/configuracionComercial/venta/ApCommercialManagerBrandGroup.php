@@ -11,11 +11,29 @@ class ApCommercialManagerBrandGroup extends Model
 {
   use SoftDeletes;
 
-  protected $table = 'ap_commercial_manager_brand_group';
+  protected $table = 'ap_commercial_manager_brand_group_periods';
 
   protected $fillable = [
     'brand_group_id',
     'commercial_manager_id',
+    'year',
+    'month',
+    'status',
+  ];
+
+  const filters = [
+    'search' => ['brand_group_id', 'commercial_manager_id'],
+    'brand_group_id' => '=',
+    'commercial_manager_id' => '=',
+    'year' => '=',
+    'month' => '=',
+  ];
+
+  const sorts = [
+    'brand_group_id',
+    'commercial_manager_id',
+    'year',
+    'month',
   ];
 
   public function commercialManager()

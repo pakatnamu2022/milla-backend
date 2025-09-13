@@ -22,7 +22,7 @@ class ApAssignmentLeadershipService extends BaseService
     $perPage = (int)$request->query('per_page', 10);
     $page = (int)$request->query('page', 1);
 
-    $query = ApAssignmentLeadership::with(['boss.position', 'worker'])
+    $query = ApAssignmentLeadership::with(['boss', 'worker'])
       ->when($year, fn($q) => $q->where('year', $year))
       ->when($month, fn($q) => $q->where('month', $month))
       ->when($boss, function ($q) use ($boss) {
