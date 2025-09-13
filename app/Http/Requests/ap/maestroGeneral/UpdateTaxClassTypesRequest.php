@@ -15,6 +15,7 @@ class UpdateTaxClassTypesRequest extends StoreRequest
         'string',
         'max:50',
         Rule::unique('tax_class_types', 'dyn_code')
+          ->where('type', $this->type)
           ->whereNull('deleted_at')
           ->ignore($this->route('taxClassType')),
       ],
@@ -23,6 +24,7 @@ class UpdateTaxClassTypesRequest extends StoreRequest
         'string',
         'max:255',
         Rule::unique('tax_class_types', 'description')
+          ->where('type', $this->type)
           ->whereNull('deleted_at')
           ->ignore($this->route('taxClassType')),
       ],
