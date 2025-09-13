@@ -22,10 +22,7 @@ return new class extends Migration {
       $table->foreignId('person_cycle_detail_id')->constrained('gh_evaluation_person_cycle_detail')->onDelete('cascade');
 
       $table->text('chief');
-
-      $table->unsignedBigInteger('evaluation_id');
-      // $table->foreignId('evaluation_id')->constrained('gh_evaluation')->onDelete('cascade'); // ← COMENTADO
-
+      $table->foreignId('evaluation_id')->constrained('gh_evaluation')->onDelete('cascade');
       $table->decimal('result')->default(0);
       $table->decimal('compliance')->default(0);
       $table->decimal('qualification')->default(0);
