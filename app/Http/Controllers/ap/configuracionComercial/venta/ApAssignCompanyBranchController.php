@@ -26,19 +26,19 @@ class ApAssignCompanyBranchController extends Controller
     }
   }
 
-  public function indexRecord(IndexApAssignCompanyBranchRequest $request)
+  public function show($id, IndexApAssignCompanyBranchRequest $request)
   {
     try {
-      return $this->service->listRecord($request);
+      return $this->success($this->service->show($id, $request));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
-  
-  public function show($id)
+
+  public function store(StoreApAssignCompanyBranchRequest $request)
   {
     try {
-      return $this->success($this->service->show($id));
+      return $this->success($this->service->store($request->all()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -48,7 +48,6 @@ class ApAssignCompanyBranchController extends Controller
   {
     try {
       $data = $request->all();
-      $data['company_branch_id'] = $id;
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());

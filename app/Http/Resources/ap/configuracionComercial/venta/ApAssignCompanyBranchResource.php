@@ -7,17 +7,24 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class ApAssignCompanyBranchResource extends JsonResource
 {
+  public static $wrap = null;
+
   public function toArray(Request $request): array
   {
+    $first = $this->first();
+
     return [
-//      'company_branch_id' => $this->id,
-//      'abbreviation' => $this->abreviatura,
-      'sede_id' => $this->id,
-      'abreviatura' => $this->abreviatura,
-      'workers' => $this->workers->map(fn($worker) => [
-        'id' => $worker->id,
-        'name' => $worker->nombre_completo,
-      ]),
+      'sede_id' => $first->sede->id,
+      'sede' => $first->sede->abreviatura,
+      'year' => $first->year,
+      'month' => $first->month,
+      'assigned_workers' => $this->map(function ($item) {
+        return [
+          'id' => $item->worker->id,
+          'name' => $item->worker->nombre_completo,
+        ];
+      })->values(),
+      'status' => $first->status,
     ];
   }
 }

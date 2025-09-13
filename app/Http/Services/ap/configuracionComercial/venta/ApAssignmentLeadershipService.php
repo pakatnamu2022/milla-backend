@@ -35,9 +35,7 @@ class ApAssignmentLeadershipService extends BaseService
       $allRecords = $query->get();
       $grouped = $this->groupAssignments($allRecords);
 
-      return response()->json([
-        'data' => $grouped
-      ]);
+      return response()->json($grouped);
     }
 
     $allRecords = $query->get();
@@ -105,8 +103,7 @@ class ApAssignmentLeadershipService extends BaseService
     $year = $request->query('year');
     $month = $request->query('month');
 
-    $query = ApAssignmentLeadership::with(['boss.position', 'worker'])
-      ->where('boss_id', $id)
+    $query = ApAssignmentLeadership::where('boss_id', $id)
       ->when($year, fn($q) => $q->where('year', $year))
       ->when($month, fn($q) => $q->where('month', $month));
 
@@ -170,7 +167,6 @@ class ApAssignmentLeadershipService extends BaseService
 
     return new ApAssignmentLeadershipResource($items);
   }
-
 
   public function update(mixed $data)
   {
@@ -281,8 +277,7 @@ class ApAssignmentLeadershipService extends BaseService
       }
     }
 
-    $query = ApAssignmentLeadership::with(['boss.position', 'worker'])
-      ->where('boss_id', $data['boss_id'])
+    $query = ApAssignmentLeadership::where('boss_id', $data['boss_id'])
       ->where('year', $data['year'])
       ->where('month', $data['month']);
 

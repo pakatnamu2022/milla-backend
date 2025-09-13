@@ -449,10 +449,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'update',
           'destroy'
         ]);
-        Route::get('assignCompanyBranch/record', [ApAssignCompanyBranchController::class, 'indexRecord']);
+
         Route::apiResource('assignCompanyBranch', ApAssignCompanyBranchController::class)->only([
           'index',
           'show',
+          'store',
           'update',
         ]);
 

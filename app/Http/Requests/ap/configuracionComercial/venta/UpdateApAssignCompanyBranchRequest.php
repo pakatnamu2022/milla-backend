@@ -11,19 +11,16 @@ class UpdateApAssignCompanyBranchRequest extends FormRequest
     return [
       'year' => 'required|integer|min:2000|max:2100',
       'month' => 'required|integer|min:1|max:12',
-      //'company_branch_id' => 'required|exists:company_branch,id',
       'sede_id' => 'required|exists:config_sede,id',
-      'workers' => 'required|array|min:1',
-      'workers.*' => 'integer|exists:rrhh_persona,id',
+      'assigned_workers' => 'required|array|min:1',
+      'assigned_workers.*' => 'integer|exists:rrhh_persona,id',
+      'status' => 'nullable|boolean',
     ];
   }
 
   public function messages(): array
   {
     return [
-      'sede_id.required' => 'El campo sede_id es obligatorio.',
-      'sede_id.exists' => 'La sede proporcionada no existe.',
-
       'year.required' => 'El campo year es obligatorio.',
       'year.integer' => 'El campo year debe ser un número entero.',
       'year.min' => 'El campo year debe ser al menos 2000.',
@@ -34,14 +31,15 @@ class UpdateApAssignCompanyBranchRequest extends FormRequest
       'month.min' => 'El campo month debe ser al menos 1.',
       'month.max' => 'El campo month no debe ser mayor que 12.',
 
-      'company_branch_id.required' => 'El campo company_branch_id es obligatorio.',
-      'company_branch_id.exists' => 'La sede proporcionada no existe.',
+      'sede_id.required' => 'El campo sede_id es obligatorio.',
+      'sede_id.exists' => 'La sede proporcionada no existe.',
 
-      'workers.required' => 'El campo workers es obligatorio.',
-      'workers.array' => 'El campo workers debe ser un arreglo.',
-      'workers.min' => 'Debe proporcionar al menos un trabajador.',
-      'workers.*.integer' => 'Cada trabajador debe ser un ID entero válido.',
-      'workers.*.exists' => 'Uno o más IDs de trabajadores proporcionados no existen.',
+      'assigned_workers.required' => 'El campo asesores es obligatorio.',
+      'assigned_workers.array' => 'El campo asesores debe ser un arreglo.',
+      'assigned_workers.min' => 'Debe proporcionar al menos un asesor.',
+
+      'assigned_workers.*.integer' => 'Cada asesor debe ser un ID entero válido.',
+      'assigned_workers.*.exists' => 'Uno o más IDs de asesores proporcionados no existen.',
     ];
   }
 }
