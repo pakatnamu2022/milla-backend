@@ -19,7 +19,7 @@ class District extends Model
 
   public function setNameAttribute($value)
   {
-    $this->attributes['dyn_code'] = Str::upper(Str::ascii($value));
+    $this->attributes['name'] = Str::upper(Str::ascii($value));
   }
 
   public function setUbigeoAttribute($value)
