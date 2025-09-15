@@ -411,10 +411,82 @@ class EvaluationService extends BaseService
 
   public function update($data)
   {
-    $evaluationCompetence = $this->find($data['id']);
-    $data = $this->enrichData($data);
-    $evaluationCompetence->update($data);
-    return new EvaluationResource($evaluationCompetence);
+    DB::beginTransaction();
+
+    try {
+      $evaluationCompetence = $this->find($data['id']);
+      $data = $this->enrichData($data);
+      $evaluationCompetence->update($data);
+
+      // Verificar si hay cambios en las personas del ciclo
+      $needsRegeneration = $this->checkCycleChanges($evaluationCompetence);
+
+      if ($needsRegeneration) {
+        // Regenerar personas del ciclo actualizado
+        $this->evaluationPersonResultService->storeMany($evaluationCompetence->id);
+        $this->evaluationPersonService->storeMany($evaluationCompetence->id);
+
+        // Regenerar competencias si es evaluación 180° o 360°
+        if (in_array($evaluationCompetence->typeEvaluation, [self::EVALUACION_180, self::EVALUACION_360])) {
+          $competencesResult = $this->crearCompetenciasEvaluacion($evaluationCompetence);
+
+          if (!$competencesResult['success']) {
+            \Log::warning('Error al regenerar competencias tras cambios en ciclo', [
+              'evaluation_id' => $evaluationCompetence->id,
+              'error' => $competencesResult['message']
+            ]);
+          }
+        }
+      }
+
+      DB::commit();
+      return new EvaluationResource($evaluationCompetence);
+
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Verificar si hay cambios en las personas del ciclo
+   */
+  private function checkCycleChanges($evaluation)
+  {
+    // Personas actualmente en la evaluación
+    $currentPersons = EvaluationPersonResult::where('evaluation_id', $evaluation->id)
+      ->pluck('person_id')
+      ->toArray();
+
+    // Personas que deberían estar según el ciclo actual
+    $expectedPersons = $this->getPersonsFromCycle($evaluation->cycle_id);
+
+    // Verificar si hay diferencias
+    $personsToAdd = array_diff($expectedPersons, $currentPersons);
+    $personsToRemove = array_diff($currentPersons, $expectedPersons);
+
+    return !empty($personsToAdd) || !empty($personsToRemove);
+  }
+
+  /**
+   * Obtener personas del ciclo según categorías jerárquicas
+   */
+  private function getPersonsFromCycle($cycleId)
+  {
+    $cycle = EvaluationCycle::find($cycleId);
+    if (!$cycle) {
+      return [];
+    }
+
+    // Obtener personas según las categorías jerárquicas del ciclo
+    return DB::table('gh_hierarchical_category_detail')
+      ->join('rrhh_persona', 'gh_hierarchical_category_detail.position_id', '=', 'rrhh_persona.cargo_id')
+      ->where('gh_hierarchical_category_detail.hierarchical_category_id', $cycle->hierarchical_category_id)
+      ->where('rrhh_persona.status_deleted', 1)
+      ->where('rrhh_persona.status_id', 22) // WORKER_ACTIVE
+      ->whereNull('gh_hierarchical_category_detail.deleted_at')
+      ->pluck('rrhh_persona.id')
+      ->toArray();
   }
 
   public function destroy($id)
