@@ -25,6 +25,7 @@ class UpdateEvaluationCycleRequest extends StoreRequest
       'parameter_id' => 'required|exists:gh_evaluation_parameter,id',
       'typeEvaluation' => [
         'required',
+        'integer',
         Rule::in(array_keys(config('evaluation.typesEvaluation')))
       ],
     ];
@@ -53,5 +54,28 @@ class UpdateEvaluationCycleRequest extends StoreRequest
         }
       }
     });
+  }
+
+  public function messages()
+  {
+    return [
+      'typeEvaluation.in' => 'El campo tipo de evaluación debe ser uno de los siguientes: ' . implode(', ', array_keys(config('evaluation.typesEvaluation'))) . ' para los valores '
+        . implode(', ', array_values(config('evaluation.typesEvaluation'))) . ' respectivamente.',
+    ];
+  }
+
+  public function attributes()
+  {
+    return [
+      'name' => 'nombre',
+      'start_date' => 'fecha de inicio',
+      'end_date' => 'fecha de fin',
+      'cut_off_date' => 'fecha de corte',
+      'start_date_objectives' => 'fecha de inicio de definición de objetivos',
+      'end_date_objectives' => 'fecha de fin de definición de objetivos',
+      'period_id' => 'periodo',
+      'parameter_id' => 'parámetro',
+      'typeEvaluation' => 'tipo de evaluación',
+    ];
   }
 }

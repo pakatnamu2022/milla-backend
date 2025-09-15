@@ -1964,102 +1964,102 @@ class CompetenceSeeder extends Seeder
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Asertividad",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Respuesta Oportuna",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Claridad En El Mensaje",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Escucha",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Gestión Tecnológica: Garantiza el adecuado funcionamiento de las herramientas tecnológicas.",
         "subCompetence" => "Métodos",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Gestión Tecnológica: Garantiza el adecuado funcionamiento de las herramientas tecnológicas.",
         "subCompetence" => "Evaluación De Sistemas",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Gestión Tecnológica: Garantiza el adecuado funcionamiento de las herramientas tecnológicas.",
         "subCompetence" => "Definición De Acciones",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Gestión Tecnológica: Garantiza el adecuado funcionamiento de las herramientas tecnológicas.",
         "subCompetence" => "Diagnóstico De Problemáticas",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
         "subCompetence" => "Dirección De Equipos",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
         "subCompetence" => "Resolución De Conflictos",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
         "subCompetence" => "Alineamiento",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
         "subCompetence" => "Convicción",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
         "subCompetence" => "Cumplimiento De Acuerdos",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
         "subCompetence" => "Proactividad",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
         "subCompetence" => "Asumo Las Consecuencias",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
         "subCompetence" => "Resultados",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
         "subCompetence" => "Definir Metas E Indciadores",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
         "subCompetence" => "Creación De Planes",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
         "subCompetence" => "Planificación De Los Recursos",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
         "subCompetence" => "Priorización",
-        "category" => "Jefe De Tic'S"
+        "category" => "Jefe De TICs"
       ],
       [
         "competence" => "Ejecución Efectiva: Realizar una ejecución efectiva a partir de una adecuada gestión de los recursos y el uso de metodologías o procesos estandarizados en tiempos previamente establecidos.",
@@ -3195,6 +3195,121 @@ class CompetenceSeeder extends Seeder
         "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
         "subCompetence" => "Asumo Las Consecuencias",
         "category" => "Jefe De Ventas Ap"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Asertividad",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Claridad En El Mensaje",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Escucha",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Respuesta Oportuna",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Gestión Comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "subCompetence" => "Conocimiento De La Competencia",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Gestión Comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "subCompetence" => "Conocimiento Del Negocio",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Gestión Comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "subCompetence" => "Propone Estrategias, Objetivos Y Metas",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Gestión Comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "subCompetence" => "Reajustes Comerciales",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Gestión de Clientes Relevantes: Fideliza clientes relevantes del negocio y resuelve sus problemas. Cuenta con un profundo conocimiento del cliente.",
+        "subCompetence" => "Conocimiento Del Cliente",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Gestión de Clientes Relevantes: Fideliza clientes relevantes del negocio y resuelve sus problemas. Cuenta con un profundo conocimiento del cliente.",
+        "subCompetence" => "Fidelización Con El Cliente",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Gestión de Clientes Relevantes: Fideliza clientes relevantes del negocio y resuelve sus problemas. Cuenta con un profundo conocimiento del cliente.",
+        "subCompetence" => "Manejo De Clientes Díficiles",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Gestión de Clientes Relevantes: Fideliza clientes relevantes del negocio y resuelve sus problemas. Cuenta con un profundo conocimiento del cliente.",
+        "subCompetence" => "Resolución De Problemas",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Gestión de Clientes Relevantes: Fideliza clientes relevantes del negocio y resuelve sus problemas. Cuenta con un profundo conocimiento del cliente.",
+        "subCompetence" => "Relación Con El Cliente",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Gestión de Equipos: Dirige a su equipo a realizar las acciones necesarias para el logro de resultados. Realiza seguimiento y corrige comportamientos. Motiva a que se logren los resultados.",
+        "subCompetence" => "Supervisión",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Gestión de Equipos: Dirige a su equipo a realizar las acciones necesarias para el logro de resultados. Realiza seguimiento y corrige comportamientos. Motiva a que se logren los resultados.",
+        "subCompetence" => "Seguimiento",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Gestión de Equipos: Dirige a su equipo a realizar las acciones necesarias para el logro de resultados. Realiza seguimiento y corrige comportamientos. Motiva a que se logren los resultados.",
+        "subCompetence" => "Retroalimentación",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Gestión de Equipos: Dirige a su equipo a realizar las acciones necesarias para el logro de resultados. Realiza seguimiento y corrige comportamientos. Motiva a que se logren los resultados.",
+        "subCompetence" => "Gestión De Consecuencias",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Gestión de Equipos: Dirige a su equipo a realizar las acciones necesarias para el logro de resultados. Realiza seguimiento y corrige comportamientos. Motiva a que se logren los resultados.",
+        "subCompetence" => "Control",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Proactividad",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Resultados",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Cumplimiento De Acuerdos",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Solución De Problema",
+        "category" => "Jefe de Ventas - Camiones"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Asumo Las Consecuencias",
+        "category" => "Jefe de Ventas - Camiones"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
@@ -6425,7 +6540,662 @@ class CompetenceSeeder extends Seeder
         "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
         "subCompetence" => "Amabilidad Y Cercanía",
         "category" => "Supervisor De Almacen"
-      ]
+      ],
+      [
+        "competence" => "Gestión Comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "subCompetence" => "Conocimiento De La Competencia Comercial",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Gestión Comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "subCompetence" => "Conocimiento Del Negocio Comercial",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Gestión Comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "subCompetence" => "Reajustes Comerciales V1",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Gestión Comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "subCompetence" => "Definición Estrategias, Objetivos Y Metas",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Gestión de Marketing: Define las estrategias de marketing, analiza el funcionamiento del mercado para definir las acciones adecuadas.",
+        "subCompetence" => "Análisis De Mercado",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Gestión de Marketing: Define las estrategias de marketing, analiza el funcionamiento del mercado para definir las acciones adecuadas.",
+        "subCompetence" => "Evaluación De La Demanda",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Gestión de Marketing: Define las estrategias de marketing, analiza el funcionamiento del mercado para definir las acciones adecuadas.",
+        "subCompetence" => "Definición De Estrategias Y Objetivos",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Gestión de Marketing: Define las estrategias de marketing, analiza el funcionamiento del mercado para definir las acciones adecuadas.",
+        "subCompetence" => "Definición Del Precio De Venta",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Gestión de Presupuesto: Define el presupuesto de inversión adecuado considerando los costos y la rentabilidad del negocio.",
+        "subCompetence" => "Ajustes Comerciales",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Gestión de Presupuesto: Define el presupuesto de inversión adecuado considerando los costos y la rentabilidad del negocio.",
+        "subCompetence" => "Control Y Monitoreo Comercial",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Gestión de Presupuesto: Define el presupuesto de inversión adecuado considerando los costos y la rentabilidad del negocio.",
+        "subCompetence" => "Evaluación De Estructura De Costos Comerciales",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Gestión de Presupuesto: Define el presupuesto de inversión adecuado considerando los costos y la rentabilidad del negocio.",
+        "subCompetence" => "Definición Presupuestal",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
+        "subCompetence" => "Alineamiento",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
+        "subCompetence" => "Resolución De Conflictos",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
+        "subCompetence" => "Dirección De Equipos",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
+        "subCompetence" => "Convicción",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Cumplimiento De Acuerdos",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Proactividad",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Asumo Las Consecuencias",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Resultados",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Solución De Problema",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
+        "subCompetence" => "Definir Metas E Indciadores",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
+        "subCompetence" => "Creación De Planes",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
+        "subCompetence" => "Planificación De Los Recursos",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
+        "subCompetence" => "Priorización",
+        "category" => "Gerente Comercial Ap"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Claridad En El Mensaje",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Respuesta Oportuna",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Escucha",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Asertividad",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Gestión de Trámites: Garantiza la recepción y entrega de documentos asegurando que cumpla con los requisitos solicitados.",
+        "subCompetence" => "Despacho Documentario",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Gestión de Trámites: Garantiza la recepción y entrega de documentos asegurando que cumpla con los requisitos solicitados.",
+        "subCompetence" => "Control Documentario",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Gestión de Trámites: Garantiza la recepción y entrega de documentos asegurando que cumpla con los requisitos solicitados.",
+        "subCompetence" => "Perseverancia En La Entrega",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Gestión de Trámites: Garantiza la recepción y entrega de documentos asegurando que cumpla con los requisitos solicitados.",
+        "subCompetence" => "Construcción De Red De Contactos",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Perspicacia Contable: Garantizar el correcto registro de los ingresos de la organización identificando posibles riesgos y auditando. Actuar con transparencia durante la auditoría.",
+        "subCompetence" => "Control De Información Sensible",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Perspicacia Contable: Garantizar el correcto registro de los ingresos de la organización identificando posibles riesgos y auditando. Actuar con transparencia durante la auditoría.",
+        "subCompetence" => "Análisis De Información Contable",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Perspicacia Contable: Garantizar el correcto registro de los ingresos de la organización identificando posibles riesgos y auditando. Actuar con transparencia durante la auditoría.",
+        "subCompetence" => "Congruente",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Perspicacia Contable: Garantizar el correcto registro de los ingresos de la organización identificando posibles riesgos y auditando. Actuar con transparencia durante la auditoría.",
+        "subCompetence" => "Fraudes",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Perspicacia Contable: Garantizar el correcto registro de los ingresos de la organización identificando posibles riesgos y auditando. Actuar con transparencia durante la auditoría.",
+        "subCompetence" => "Auditorías Oportunas",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Registro y manejo de información: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
+        "subCompetence" => "Orientación Al Registro Detallado",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Registro y manejo de información: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
+        "subCompetence" => "Organización De Información",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Registro y manejo de información: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
+        "subCompetence" => "Cumplimiento De Procedimientos",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
+        "subCompetence" => "Colaboración",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
+        "subCompetence" => "Responsabilidad",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
+        "subCompetence" => "Resuelve Conflictos",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
+        "subCompetence" => "Pasión",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
+        "subCompetence" => "Traspase De Información En Equipo",
+        "category" => "Asistente De Contabilidad"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Asertividad",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Respuesta Oportuna",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Escucha",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Claridad En El Mensaje",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Consultoría: Brinda alternativas de solución a partir del conocimiento del negocio; la identificación de las necesidades de los colaboradores y la organización.",
+        "subCompetence" => "Conoce El Negocio",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Consultoría: Brinda alternativas de solución a partir del conocimiento del negocio; la identificación de las necesidades de los colaboradores y la organización.",
+        "subCompetence" => "Asesoría",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Consultoría: Brinda alternativas de solución a partir del conocimiento del negocio; la identificación de las necesidades de los colaboradores y la organización.",
+        "subCompetence" => "Evaluación De Colaboradores",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Consultoría: Brinda alternativas de solución a partir del conocimiento del negocio; la identificación de las necesidades de los colaboradores y la organización.",
+        "subCompetence" => "Identificación De Expectativas Y Necesidades",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Ejecución Efectiva: Realizar una ejecución efectiva a partir de una adecuada gestión de los recursos y el uso de metodologías o procesos estandarizados en tiempos previamente establecidos.",
+        "subCompetence" => "Gestión De Recursos",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Ejecución Efectiva: Realizar una ejecución efectiva a partir de una adecuada gestión de los recursos y el uso de metodologías o procesos estandarizados en tiempos previamente establecidos.",
+        "subCompetence" => "Metodología",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Ejecución Efectiva: Realizar una ejecución efectiva a partir de una adecuada gestión de los recursos y el uso de metodologías o procesos estandarizados en tiempos previamente establecidos.",
+        "subCompetence" => "Orientación Al Logro",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Registro y manejo de información: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
+        "subCompetence" => "Cumplimiento De Procedimientos",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Registro y manejo de información: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
+        "subCompetence" => "Organización De Información",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Registro y manejo de información: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
+        "subCompetence" => "Orientación Al Registro Detallado",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
+        "subCompetence" => "Amabilidad Y Cercanía",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Servicio al colaborador: Resuelve las consultas y solicitudes de los colaboradores con empatía y amabilidad.",
+        "subCompetence" => "Atención Oportuna",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Servicio al colaborador: Resuelve las consultas y solicitudes de los colaboradores con empatía y amabilidad.",
+        "subCompetence" => "Atención Efectiva A Consultas De Colaboradores",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Servicio al colaborador: Resuelve las consultas y solicitudes de los colaboradores con empatía y amabilidad.",
+        "subCompetence" => "Empatía",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Servicio al colaborador: Resuelve las consultas y solicitudes de los colaboradores con empatía y amabilidad.",
+        "subCompetence" => "Amabilidad Y Cercanía Con El Colaborador",
+        "category" => "Analista En Proyectos De Gestion Humana"
+      ],
+      [
+        "competence" => "Gestión de normas y procedimientos: Se preocupa y promueve respeto de las normas y procedimientos. Vigila el cumplimiento de las normas e interviene para corregir faltas.",
+        "subCompetence" => "Claridad En La Orientación",
+        "category" => "Supervisor De Operaciones Y Mantenimiento"
+      ],
+      [
+        "competence" => "Gestión de normas y procedimientos: Se preocupa y promueve respeto de las normas y procedimientos. Vigila el cumplimiento de las normas e interviene para corregir faltas.",
+        "subCompetence" => "Gestión De Consecuencias V1",
+        "category" => "Supervisor De Operaciones Y Mantenimiento"
+      ],
+      [
+        "competence" => "Gestión de normas y procedimientos: Se preocupa y promueve respeto de las normas y procedimientos. Vigila el cumplimiento de las normas e interviene para corregir faltas.",
+        "subCompetence" => "Respeto A La Norma",
+        "category" => "Supervisor De Operaciones Y Mantenimiento"
+      ],
+      [
+        "competence" => "Gestión de normas y procedimientos: Se preocupa y promueve respeto de las normas y procedimientos. Vigila el cumplimiento de las normas e interviene para corregir faltas.",
+        "subCompetence" => "Revisión Y Seguimiento",
+        "category" => "Supervisor De Operaciones Y Mantenimiento"
+      ],
+      [
+        "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
+        "subCompetence" => "Alineamiento",
+        "category" => "Supervisor De Operaciones Y Mantenimiento"
+      ],
+      [
+        "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
+        "subCompetence" => "Convicción",
+        "category" => "Supervisor De Operaciones Y Mantenimiento"
+      ],
+      [
+        "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
+        "subCompetence" => "Dirección De Equipos",
+        "category" => "Supervisor De Operaciones Y Mantenimiento"
+      ],
+      [
+        "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
+        "subCompetence" => "Resolución De Conflictos",
+        "category" => "Supervisor De Operaciones Y Mantenimiento"
+      ],
+      [
+        "competence" => "Manejo de problemas complejos: Analiza los problemas utilizando diferentes fuentesde información a fin de definir estrategias que le permitan solucionar las dificultades de manera adecuada.",
+        "subCompetence" => "Adaptabilidad",
+        "category" => "Supervisor De Operaciones Y Mantenimiento"
+      ],
+      [
+        "competence" => "Manejo de problemas complejos: Analiza los problemas utilizando diferentes fuentesde información a fin de definir estrategias que le permitan solucionar las dificultades de manera adecuada.",
+        "subCompetence" => "Diagnóstico De Problemas",
+        "category" => "Supervisor De Operaciones Y Mantenimiento"
+      ],
+      [
+        "competence" => "Manejo de problemas complejos: Analiza los problemas utilizando diferentes fuentesde información a fin de definir estrategias que le permitan solucionar las dificultades de manera adecuada.",
+        "subCompetence" => "Solución De Problemas Internos",
+        "category" => "Supervisor De Operaciones Y Mantenimiento"
+      ],
+      [
+        "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
+        "subCompetence" => "Creación De Planes",
+        "category" => "Supervisor De Operaciones Y Mantenimiento"
+      ],
+      [
+        "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
+        "subCompetence" => "Definir Metas E Indciadores",
+        "category" => "Supervisor De Operaciones Y Mantenimiento"
+      ],
+      [
+        "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
+        "subCompetence" => "Planificación De Los Recursos",
+        "category" => "Supervisor De Operaciones Y Mantenimiento"
+      ],
+      [
+        "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
+        "subCompetence" => "Priorización",
+        "category" => "Supervisor De Operaciones Y Mantenimiento"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Asertividad",
+        "category" => "Auxiliar De Operaciones - Chiclayo"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Claridad En El Mensaje",
+        "category" => "Auxiliar De Operaciones - Chiclayo"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Escucha",
+        "category" => "Auxiliar De Operaciones - Chiclayo"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Respuesta Oportuna",
+        "category" => "Auxiliar De Operaciones - Chiclayo"
+      ],
+      [
+        "competence" => "Cooperación Operativa: Coopera de manera activa con las necesidades del equipo y unidades con las que interactúa. Respeta los acuerdos generando un espacio colaborativo y de confianza.",
+        "subCompetence" => "Cooperación",
+        "category" => "Auxiliar De Operaciones - Chiclayo"
+      ],
+      [
+        "competence" => "Cooperación Operativa: Coopera de manera activa con las necesidades del equipo y unidades con las que interactúa. Respeta los acuerdos generando un espacio colaborativo y de confianza.",
+        "subCompetence" => "Orientación A La Meta Común",
+        "category" => "Auxiliar De Operaciones - Chiclayo"
+      ],
+      [
+        "competence" => "Cooperación Operativa: Coopera de manera activa con las necesidades del equipo y unidades con las que interactúa. Respeta los acuerdos generando un espacio colaborativo y de confianza.",
+        "subCompetence" => "Relaciones Interpersonales",
+        "category" => "Auxiliar De Operaciones - Chiclayo"
+      ],
+      [
+        "competence" => "Ejecución Efectiva: Realizar una ejecución efectiva a partir de una adecuada gestión de los recursos y el uso de metodologías o procesos estandarizados en tiempos previamente establecidos.",
+        "subCompetence" => "Gestión De Recursos",
+        "category" => "Auxiliar De Operaciones - Chiclayo"
+      ],
+      [
+        "competence" => "Ejecución Efectiva: Realizar una ejecución efectiva a partir de una adecuada gestión de los recursos y el uso de metodologías o procesos estandarizados en tiempos previamente establecidos.",
+        "subCompetence" => "Metodología",
+        "category" => "Auxiliar De Operaciones - Chiclayo"
+      ],
+      [
+        "competence" => "Ejecución Efectiva: Realizar una ejecución efectiva a partir de una adecuada gestión de los recursos y el uso de metodologías o procesos estandarizados en tiempos previamente establecidos.",
+        "subCompetence" => "Orientación Al Logro",
+        "category" => "Auxiliar De Operaciones - Chiclayo"
+      ],
+      [
+        "competence" => "Organización y Control: Garantizar el uso de recursos a través de una adecuada organización, clasificación y control.",
+        "subCompetence" => "Control De Recursos",
+        "category" => "Auxiliar De Operaciones - Chiclayo"
+      ],
+      [
+        "competence" => "Organización y Control: Garantizar el uso de recursos a través de una adecuada organización, clasificación y control.",
+        "subCompetence" => "Organización De Recursos Internos",
+        "category" => "Auxiliar De Operaciones - Chiclayo"
+      ],
+      [
+        "competence" => "Organización y Control: Garantizar el uso de recursos a través de una adecuada organización, clasificación y control.",
+        "subCompetence" => "Protección De Recursos De La Organización",
+        "category" => "Auxiliar De Operaciones - Chiclayo"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Asertividad",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Claridad En El Mensaje",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Escucha",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Respuesta Oportuna",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño V2: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Anticipación A Requerimientos",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño V2: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Solución De Problemas Difíciles",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño V2: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Pertenencia",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Registro y Manejo de Caja - Caja General",
+        "subCompetence" => "Cierre De Caja Cg",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Registro y Manejo de Caja - Caja General",
+        "subCompetence" => "Entrega De Dinero Cg",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Registro y Manejo de Caja - Caja General",
+        "subCompetence" => "Reportes Cg",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Registro y Manejo de Caja - Caja General",
+        "subCompetence" => "Seguimiento De Cobranzas Cg",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Registro y Manejo de Caja - Caja General",
+        "subCompetence" => "Revisión De Ingresos Cg",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Registro y manejo de información: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
+        "subCompetence" => "Cumplimiento De Procedimientos",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Registro y manejo de información: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
+        "subCompetence" => "Organización De Información",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Registro y manejo de información: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
+        "subCompetence" => "Orientación Al Registro Detallado",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
+        "subCompetence" => "Resuelve Conflictos",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
+        "subCompetence" => "Responsabilidad",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
+        "subCompetence" => "Pasión",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
+        "subCompetence" => "Colaboración",
+        "category" => "Caja Tp"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Asertividad",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Claridad En El Mensaje",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Escucha",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Respuesta Oportuna",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "subCompetence" => "Traspase De Información",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "subCompetence" => "Solución De Problemas V1",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "subCompetence" => "Seguimiento De Cobranzas",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "subCompetence" => "Relación Con El Proveedor",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "subCompetence" => "Persuasión",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño V2: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Anticipación A Requerimientos",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño V2: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Solución De Problemas Difíciles",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño V2: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Pertenencia",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Registro y Manejo de Información - Versión 2 AP: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
+        "subCompetence" => "Orientación Al Detalle",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Registro y Manejo de Información - Versión 2 AP: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
+        "subCompetence" => "Organización",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Registro y Manejo de Información - Versión 2 AP: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
+        "subCompetence" => "Cumplimiento De Procesos Operativos",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
+        "subCompetence" => "Seguimiento A La Atención",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
+        "subCompetence" => "Atención Presencial Oportuna",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
+        "subCompetence" => "Atención Efectiva A Consultas",
+        "category" => "Asistente De Logistica"
+      ],
+      [
+        "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
+        "subCompetence" => "Amabilidad Y Cercanía",
+        "category" => "Asistente De Logistica"
+      ],
     ];
 
     DB::statement('SET FOREIGN_KEY_CHECKS=0;');
@@ -6452,6 +7222,15 @@ class CompetenceSeeder extends Seeder
 //    3. Recorrer el array e insertar los datos en las tablas correspondientes
     foreach ($data as $item) {
       $category = HierarchicalCategory::where('name', $item['category'])->first();
+      if (!$category) {
+        $category = HierarchicalCategory::create([
+          'name' => $item['category'],
+          'description' => 'Description for the category ' . $item['category'],
+          'hasObjectives' => 0,
+          'excluded_from_evaluation' => 0,
+        ]);
+      }
+
       if ($category) {
         $competence = EvaluationCompetence::firstOrCreate([
           'nombre' => $item['competence'],

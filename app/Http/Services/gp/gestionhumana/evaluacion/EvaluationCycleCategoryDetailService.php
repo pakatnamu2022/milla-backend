@@ -88,6 +88,8 @@ class EvaluationCycleCategoryDetailService extends BaseService
       );
     }
 
+    $this->evaluationPersonCycleDetailService->revalidateAllPersonsInCycle($cycleId);
+
     return EvaluationCycleCategoryDetailResource::collection($final);
   }
 

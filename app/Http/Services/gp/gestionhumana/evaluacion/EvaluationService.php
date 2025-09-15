@@ -106,6 +106,7 @@ class EvaluationService extends BaseService
   public function enrichData($data)
   {
     $cycle = EvaluationCycle::find($data['cycle_id']);
+    $data['typeEvaluation'] = $cycle->typeEvaluation;
     $data['objective_parameter_id'] = $cycle->parameter_id;
     $data['period_id'] = $cycle->period_id;
     return $data;

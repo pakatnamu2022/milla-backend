@@ -2,9 +2,9 @@
 
 return [
   'typesEvaluation' => [
-    0 => 'Objetivos',
-    1 => '180',
-    2 => '360',
+    0 => 'Evaluación de Objetivos',
+    1 => 'Evaluación 180°',
+    2 => 'Evaluación 360°',
   ],
   'typesParameter' => [
     'objectives' => 'Objetivos',

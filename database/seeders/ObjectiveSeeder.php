@@ -6,6 +6,7 @@ use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDet
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationMetric;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationObjective;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
@@ -702,7 +703,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Analista En Proyecto Tics"
+        "categoria" => "Analista En Proyecto TICs"
       ],
       [
         "dni" => "73747580",
@@ -711,7 +712,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 45,
         "isAscending" => 0,
         "weight" => 50,
-        "categoria" => "Analista En Proyecto Tics"
+        "categoria" => "Analista En Proyecto TICs"
       ],
       [
         "dni" => "72790935",
@@ -1156,9 +1157,9 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "71325400",
-        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo (en los primeros 5 dias habiles)",
+        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo",
         "metric" => "Número",
-        "goal" => 95,
+        "goal" => 5,
         "isAscending" => 1,
         "weight" => 30,
         "categoria" => "Asistente De Contabilidad"
@@ -1818,16 +1819,16 @@ class ObjectiveSeeder extends Seeder
         "goal" => 0,
         "isAscending" => 0,
         "weight" => 33,
-        "categoria" => "Analista De Contabilidad "
+        "categoria" => "Analista De Contabilidad AP"
       ],
       [
         "dni" => "74868424",
-        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo (12 dias)",
+        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo",
         "metric" => "Número",
         "goal" => 12,
         "isAscending" => 0,
         "weight" => 33,
-        "categoria" => "Analista De Contabilidad "
+        "categoria" => "Analista De Contabilidad AP"
       ],
       [
         "dni" => "74868424",
@@ -1836,7 +1837,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 34,
-        "categoria" => "Analista De Contabilidad "
+        "categoria" => "Analista De Contabilidad AP"
       ],
       [
         "dni" => "16710404",
@@ -2101,7 +2102,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "76009888",
-        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo (en los primeros 7 dias habiles)",
+        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo",
         "metric" => "Número",
         "goal" => 7,
         "isAscending" => 0,
@@ -2704,7 +2705,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "74443725",
-        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo (en los primeros 7 dias habiles)",
+        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo",
         "metric" => "Número",
         "goal" => 7,
         "isAscending" => 0,
@@ -3933,7 +3934,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 0,
         "isAscending" => 0,
         "weight" => 33,
-        "categoria" => "Analista De Contabilidad Tp"
+        "categoria" => "Analista De Contabilidad TP"
       ],
       [
         "dni" => "72318704",
@@ -3942,16 +3943,16 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 33,
-        "categoria" => "Analista De Contabilidad Tp"
+        "categoria" => "Analista De Contabilidad TP"
       ],
       [
         "dni" => "72318704",
-        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo (en los primeros 10 dias habiles)",
+        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo",
         "metric" => "Número",
         "goal" => 10,
         "isAscending" => 0,
         "weight" => 34,
-        "categoria" => "Analista De Contabilidad Tp"
+        "categoria" => "Analista De Contabilidad TP"
       ],
       [
         "dni" => "48509128",
@@ -4194,7 +4195,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 0,
         "isAscending" => 0,
         "weight" => 33,
-        "categoria" => "Analista De Contabilidad "
+        "categoria" => "Analista De Contabilidad DP"
       ],
       [
         "dni" => "45801424",
@@ -4203,7 +4204,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 33,
-        "categoria" => "Analista De Contabilidad "
+        "categoria" => "Analista De Contabilidad DP"
       ],
       [
         "dni" => "45801424",
@@ -4212,7 +4213,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 15,
         "isAscending" => 0,
         "weight" => 34,
-        "categoria" => "Analista De Contabilidad "
+        "categoria" => "Analista De Contabilidad DP"
       ],
       [
         "dni" => "46343351",
@@ -4477,7 +4478,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "48493314",
-        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo (en los primeros 5 dias habiles)",
+        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo",
         "metric" => "Número",
         "goal" => 95,
         "isAscending" => 1,
@@ -4923,7 +4924,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Analista En Proyecto Tics"
+        "categoria" => "Analista En Proyecto TICs"
       ],
       [
         "dni" => "74202439",
@@ -4932,7 +4933,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 45,
         "isAscending" => 0,
         "weight" => 50,
-        "categoria" => "Analista En Proyecto Tics"
+        "categoria" => "Analista En Proyecto TICs"
       ],
       [
         "dni" => "72483421",
@@ -5904,7 +5905,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 0,
         "isAscending" => 0,
         "weight" => 34,
-        "categoria" => "Analista De Contabilidad "
+        "categoria" => "Analista De Contabilidad AP"
       ],
       [
         "dni" => "45801388",
@@ -5913,7 +5914,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 12,
         "isAscending" => 0,
         "weight" => 33,
-        "categoria" => "Analista De Contabilidad "
+        "categoria" => "Analista De Contabilidad AP"
       ],
       [
         "dni" => "45801388",
@@ -5922,7 +5923,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 33,
-        "categoria" => "Analista De Contabilidad "
+        "categoria" => "Analista De Contabilidad AP"
       ],
       [
         "dni" => "16545918",
@@ -8284,7 +8285,7 @@ class ObjectiveSeeder extends Seeder
       ],
       [
         "dni" => "77918582",
-        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo (en los primeros 7 dias habiles)",
+        "objective" => "Entrega de cierres contables en tiempo de empresa a cargo",
         "metric" => "Número",
         "goal" => 7,
         "isAscending" => 0,
@@ -8753,6 +8754,7 @@ class ObjectiveSeeder extends Seeder
     EvaluationCategoryCompetenceDetail::query()->truncate();
     EvaluationCycle::query()->truncate();
     EvaluationObjective::query()->truncate();
+    EvaluationCycleCategoryDetail::query()->truncate();
     HierarchicalCategoryDetail::query()->truncate();
     HierarchicalCategory::query()->truncate();
 
