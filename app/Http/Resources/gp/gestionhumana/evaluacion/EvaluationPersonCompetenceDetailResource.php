@@ -12,10 +12,12 @@ class EvaluationPersonCompetenceDetailResource extends JsonResource
     return [
       'id' => $this->id,
       'evaluation_id' => $this->evaluation_id,
+      'evaluator_id' => $this->evaluator_id,
       'person_id' => $this->person_id,
       'competence_id' => $this->competence_id,
       'sub_competence_id' => $this->sub_competence_id,
       'person' => $this->person,
+      'evaluator' => $this->evaluator,
       'competence' => $this->competence,
       'sub_competence' => $this->sub_competence,
       'evaluatorType' => $this->evaluatorType,

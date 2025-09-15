@@ -14,10 +14,12 @@ class EvaluationPersonCompetenceDetail extends Model
 
   protected $fillable = [
     'evaluation_id',
+    'evaluator_id',
     'person_id',
     'competence_id',
     'sub_competence_id',
     'person',
+    'evaluator',
     'competence',
     'sub_competence',
     'evaluatorType',
@@ -57,6 +59,11 @@ class EvaluationPersonCompetenceDetail extends Model
   public function person()
   {
     return $this->belongsTo(Person::class, 'person_id');
+  }
+
+  public function evaluator()
+  {
+    return $this->belongsTo(Person::class, 'evaluator_id');
   }
 
   public function competence()

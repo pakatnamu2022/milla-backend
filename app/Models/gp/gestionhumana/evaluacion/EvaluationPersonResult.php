@@ -61,7 +61,7 @@ class EvaluationPersonResult extends BaseModel
       ->where('person_id', $this->person_id);
   }
 
-  public function competences()
+  public function competenceDetails()
   {
     return $this->hasMany(EvaluationPersonCompetenceDetail::class, 'evaluation_id', 'evaluation_id')
       ->where('person_id', $this->person_id);

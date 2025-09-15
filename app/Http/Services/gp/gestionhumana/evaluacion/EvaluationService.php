@@ -322,10 +322,12 @@ class EvaluationService extends BaseService
 
     EvaluationPersonCompetenceDetail::create([
       'evaluation_id' => $evaluacionId,
+      'evaluator_id' => $evaluador->id,
       'person_id' => $persona->id,
       'competence_id' => $competenciaData['competence_id'],
       'sub_competence_id' => $competenciaData['sub_competence_id'],
-      'person' => $persona->nombre_completo ?? ($persona->nombres . ' ' . $persona->apellidos),
+      'person' => $persona->nombre_completo,
+      'evaluator' => $evaluador->nombre_completo,
       'competence' => $competenciaData['competence_name'],
       'sub_competence' => $competenciaData['sub_competence_name'],
       'evaluatorType' => $tipoEvaluador,
