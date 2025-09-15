@@ -11,7 +11,7 @@ return new class extends Migration {
   public function up(): void
   {
     Schema::table('gh_evaluation_cycle', function (Blueprint $table) {
-      $table->date('cut_off_date')->after('end_date');
+      $table->date('cut_off_date')->after('end_date')->default(now());
     });
   }
 

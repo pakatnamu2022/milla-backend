@@ -10,6 +10,7 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationSubCompetence;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
+use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategoryDetail;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -4254,67 +4255,67 @@ class CompetenceSeeder extends Seeder
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Asertividad",
-        "category" => "Asistente De Vehiculos (pdi)"
+        "category" => "Asistente De Vehiculos (PDI)"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Claridad En El Mensaje",
-        "category" => "Asistente De Vehiculos (pdi)"
+        "category" => "Asistente De Vehiculos (PDI)"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Escucha",
-        "category" => "Asistente De Vehiculos (pdi)"
+        "category" => "Asistente De Vehiculos (PDI)"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Respuesta Oportuna",
-        "category" => "Asistente De Vehiculos (pdi)"
+        "category" => "Asistente De Vehiculos (PDI)"
       ],
       [
         "competence" => "Ejecución Efectiva: Realizar una ejecución efectiva a partir de una adecuada gestión de los recursos y el uso de metodologías o procesos estandarizados en tiempos previamente establecidos.",
         "subCompetence" => "Gestión De Recursos",
-        "category" => "Asistente De Vehiculos (pdi)"
+        "category" => "Asistente De Vehiculos (PDI)"
       ],
       [
         "competence" => "Ejecución Efectiva: Realizar una ejecución efectiva a partir de una adecuada gestión de los recursos y el uso de metodologías o procesos estandarizados en tiempos previamente establecidos.",
         "subCompetence" => "Metodología",
-        "category" => "Asistente De Vehiculos (pdi)"
+        "category" => "Asistente De Vehiculos (PDI)"
       ],
       [
         "competence" => "Ejecución Efectiva: Realizar una ejecución efectiva a partir de una adecuada gestión de los recursos y el uso de metodologías o procesos estandarizados en tiempos previamente establecidos.",
         "subCompetence" => "Orientación Al Logro",
-        "category" => "Asistente De Vehiculos (pdi)"
+        "category" => "Asistente De Vehiculos (PDI)"
       ],
       [
         "competence" => "Mentalidad de Dueño V2: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
         "subCompetence" => "Anticipación A Requerimientos",
-        "category" => "Asistente De Vehiculos (pdi)"
+        "category" => "Asistente De Vehiculos (PDI)"
       ],
       [
         "competence" => "Mentalidad de Dueño V2: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
         "subCompetence" => "Pertenencia",
-        "category" => "Asistente De Vehiculos (pdi)"
+        "category" => "Asistente De Vehiculos (PDI)"
       ],
       [
         "competence" => "Mentalidad de Dueño V2: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
         "subCompetence" => "Solución De Problemas Difíciles",
-        "category" => "Asistente De Vehiculos (pdi)"
+        "category" => "Asistente De Vehiculos (PDI)"
       ],
       [
         "competence" => "Registro y manejo de información: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
         "subCompetence" => "Cumplimiento De Procedimientos",
-        "category" => "Asistente De Vehiculos (pdi)"
+        "category" => "Asistente De Vehiculos (PDI)"
       ],
       [
         "competence" => "Registro y manejo de información: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
         "subCompetence" => "Organización De Información",
-        "category" => "Asistente De Vehiculos (pdi)"
+        "category" => "Asistente De Vehiculos (PDI)"
       ],
       [
         "competence" => "Registro y manejo de información: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
         "subCompetence" => "Orientación Al Registro Detallado",
-        "category" => "Asistente De Vehiculos (pdi)"
+        "category" => "Asistente De Vehiculos (PDI)"
       ],
       [
         "competence" => "Gestión de Campañas y Eventos de Marketing: Define, desarrolla e implementa Campañas y Eventos de acuerdo al plan de marketing e imagen corporativa.",
@@ -7198,6 +7199,13 @@ class CompetenceSeeder extends Seeder
       ],
     ];
 
+    $assignations = [
+      [
+        'category' => 'Asistente De Vehiculos (PDI)',
+        'children' => [132, 249]
+      ],
+    ];
+
     DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
     EvaluationPersonCycleDetail::query()->truncate();
@@ -7219,7 +7227,27 @@ class CompetenceSeeder extends Seeder
 //    2. Definir servicios
     $categoryCompetenceService = new EvaluationCategoryCompetenceDetailService();
 
-//    3. Recorrer el array e insertar los datos en las tablas correspondientes
+//    3. Definir Asignaciones
+    foreach ($assignations as $assignation) {
+      $category = HierarchicalCategory::where('name', $assignation['category'])->first();
+      if (!$category) {
+        $category = HierarchicalCategory::create([
+          'name' => $assignation['category'],
+          'description' => 'Description for the category ' . $assignation['category'],
+          'hasObjectives' => 0,
+          'excluded_from_evaluation' => 0,
+        ]);
+
+        foreach ($assignation['children'] as $item) {
+          HierarchicalCategoryDetail::create([
+            'hierarchical_category_id' => $category->id,
+            'position_id' => $item,
+          ]);
+        }
+      }
+    }
+
+//    4. Recorrer el array e insertar los datos en las tablas correspondientes
     foreach ($data as $item) {
       $category = HierarchicalCategory::where('name', $item['category'])->first();
       if (!$category) {
@@ -7251,7 +7279,7 @@ class CompetenceSeeder extends Seeder
       }
     }
 
-//    $categoryCompetenceService->assignCompetencesToWorkers();
+    $categoryCompetenceService->assignCompetencesToWorkers();
 
   }
 }
