@@ -126,11 +126,9 @@ class EvaluationPersonService extends BaseService
       return ($result / $goal) * 100;
     } else {
       // Para objetivos descendentes: menor resultado = mejor
-      // Cumplimiento = (meta / resultado) * 100
-      if ($result == 0) {
-        return 0; // Evitar división por cero
-      }
-      return ($goal / $result) * 100;
+      // Si el resultado es 0, tratarlo como 1 para evitar división infinita
+      $adjustedResult = $result == 0 ? 1 : $result;
+      return ($goal / $adjustedResult) * 100;
     }
   }
 

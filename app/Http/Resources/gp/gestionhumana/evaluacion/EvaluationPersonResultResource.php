@@ -18,7 +18,6 @@ class EvaluationPersonResultResource extends JsonResource
     return $this;
   }
 
-
   public function toArray(Request $request): array
   {
     $response = [
@@ -26,10 +25,10 @@ class EvaluationPersonResultResource extends JsonResource
       'person_id' => $this->person_id,
       'evaluation_id' => $this->evaluation_id,
       'person' => new WorkerResource($this->person),
-      'competencesPercentage' => $this->competencesPercentage,
-      'objectivesPercentage' => $this->objectivesPercentage,
-      'objectivesResult' => $this->objectivesResult,
-      'competencesResult' => $this->competencesResult,
+      'competencesPercentage' => round($this->competencesPercentage, 2),
+      'objectivesPercentage' => round($this->objectivesPercentage, 2),
+      'objectivesResult' => round($this->objectivesResult, 2),
+      'competencesResult' => round($this->competencesResult, 2),
       'result' => $this->result,
     ];
 
@@ -38,7 +37,9 @@ class EvaluationPersonResultResource extends JsonResource
       $response['details'] = EvaluationPersonResource::collection($this->details);
       $response['competenceGroups'] = $this->getGroupedCompetences();
       $response['statistics'] = $this->getEvaluationStatistics();
-      $response['objectiveParameter'] = new EvaluationParameterResource($this->evaluation->objectiveParameter);
+      $response['maxFinalParameter'] = round((new EvaluationParameterResource($this->evaluation->finalParameter))->details->last()->to, 2);
+      $response['maxObjectiveParameter'] = round((new EvaluationParameterResource($this->evaluation->objectiveParameter))->details->last()->to, 2);
+      $response['maxCompetenceParameter'] = round((new EvaluationParameterResource($this->evaluation->competenceParameter))->details->last()->to, 2);
     }
 
     return $response;
