@@ -99,9 +99,8 @@ class EvaluationPersonResultService extends BaseService
           ->first();
 
         foreach ($hierarchicalCategory->workers as $person) {
-
-          $objectivesPercentage = $category->hasObjectives ? $evaluation->objectivesPercentage : 0;
-          $competencesPercentage = $category->hasObjectives ? $evaluation->competencesPercentage : 100;
+          $objectivesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->objectivesPercentage : 0;
+          $competencesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->competencesPercentage : 100;
 
           $data = [
             'person_id' => $person->id,

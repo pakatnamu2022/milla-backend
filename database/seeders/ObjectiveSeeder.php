@@ -3,13 +3,16 @@
 namespace Database\Seeders;
 
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailService;
+use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationMetric;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationObjective;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategoryDetail;
 use App\Models\gp\gestionhumana\personal\Worker;
@@ -8749,10 +8752,13 @@ class ObjectiveSeeder extends Seeder
 //      1. Eliminar todos los registros de las tablas
     DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
+    EvaluationPerson::query()->delete();
+    EvaluationPersonResult::query()->truncate();
     EvaluationPersonCycleDetail::query()->truncate();
     EvaluationCategoryObjectiveDetail::query()->truncate();
     EvaluationCategoryCompetenceDetail::query()->truncate();
     EvaluationCycle::query()->truncate();
+    Evaluation::query()->truncate();
     EvaluationObjective::query()->truncate();
     EvaluationCycleCategoryDetail::query()->truncate();
     HierarchicalCategoryDetail::query()->truncate();

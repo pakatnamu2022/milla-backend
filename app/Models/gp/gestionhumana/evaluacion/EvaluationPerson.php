@@ -22,6 +22,7 @@ class EvaluationPerson extends BaseModel
     'compliance',
     'qualification',
     'comment',
+    'wasEvaluated',
   ];
 
   const filters = [
@@ -32,6 +33,9 @@ class EvaluationPerson extends BaseModel
     'result' => '=',
     'compliance' => '=',
     'qualification' => '=',
+    'chief_id' => '=',
+    'chief' => '=',
+    'wasEvaluated' => '=',
   ];
 
   const sorts = [

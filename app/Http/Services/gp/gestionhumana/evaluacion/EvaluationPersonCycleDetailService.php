@@ -126,6 +126,7 @@ class EvaluationPersonCycleDetailService extends BaseService
               'cycle_id' => $cycleId,
               'category_id' => $categoryId,
               'objective_id' => $objective->id,
+              'isAscending' => $objective->isAscending,
               'person' => $person->nombre_completo,
               'chief' => $chief ? $chief->nombre_completo : '',
               'position' => $person->position ? $person->position->name : '',
@@ -135,6 +136,8 @@ class EvaluationPersonCycleDetailService extends BaseService
               'objective' => $objective->name,
               'goal' => $goal,
               'weight' => $weight,
+              'metric' => $objective->metric->name,
+              'end_date_objectives' => $lastCycle->end_date_objectives,
             ];
             EvaluationPersonCycleDetail::create($data);
           }

@@ -24,6 +24,7 @@ class EvaluationPersonCycleDetail extends BaseModel
     'cycle_id',
     'category_id',
     'objective_id',
+    'isAscending',
     'person',
     'chief',
     'position',
@@ -34,7 +35,9 @@ class EvaluationPersonCycleDetail extends BaseModel
     'goal',
     'weight',
     'fixedWeight',
-    'status'
+    'status',
+    'metric',
+    'end_date_objectives'
   ];
 
   const filters = [

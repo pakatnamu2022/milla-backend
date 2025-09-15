@@ -23,11 +23,12 @@ class EvaluationPersonCycleDetailResource extends JsonResource
       'area' => $this->area,
       'category' => $this->category,
       'objective' => $this->objective,
+      'isAscending' => $this->isAscending,
       'goal' => round($this->goal),
       'weight' => round($this->weight),
       'status' => $this->status,
-      'metric' => (new EvaluationObjectiveResource($this->objectiveModel))->metric->name,
-      'end_date_objectives' => $this->cycle->end_date_objectives,
+      'metric' => $this->metric,
+      'end_date_objectives' => $this->end_date_objectives,
     ];
   }
 }

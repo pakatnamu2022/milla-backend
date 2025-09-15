@@ -15,10 +15,11 @@ class EvaluationPersonResource extends JsonResource
       'person' => $this->person->nombre_completo,
       'personCycleDetail' => new EvaluationPersonCycleDetailResource($this->personCycleDetail),
       'evaluation' => $this->evaluation->name,
-      'result' => $this->result,
-      'compliance' => $this->compliance,
-      'qualification' => $this->qualification,
+      'result' => round($this->result, 2),
+      'compliance' => round($this->compliance, 2),
+      'qualification' => round($this->qualification, 2),
       'comment' => $this->comment,
+      'wasEvaluated' => $this->wasEvaluated,
     ];
   }
 }

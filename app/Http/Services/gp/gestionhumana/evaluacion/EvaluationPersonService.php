@@ -84,8 +84,54 @@ class EvaluationPersonService extends BaseService
   public function update($data)
   {
     $evaluationCompetence = $this->find($data['id']);
+
+    // Si se está actualizando el resultado, calcular cumplimiento y calificación
+    if (isset($data['result'])) {
+      $result = floatval($data['result']);
+      $personCycleDetail = $evaluationCompetence->personCycleDetail;
+
+      if ($personCycleDetail) {
+        $goal = floatval($personCycleDetail->goal);
+        $isAscending = $personCycleDetail->isAscending;
+
+        // Calcular cumplimiento según si es ascendente o descendente
+        $compliance = $this->calculateCompliance($result, $goal, $isAscending);
+
+        // Calcular calificación (limitada a máximo 120%)
+        $qualification = min($compliance, 120.00);
+
+        // Agregar los campos calculados a los datos
+        $data['compliance'] = round($compliance, 2);
+        $data['qualification'] = round($qualification, 2);
+        $data['wasEvaluated'] = true;
+      }
+    }
+
     $evaluationCompetence->update($data);
     return new EvaluationPersonResource($evaluationCompetence);
+  }
+
+  /**
+   * Calcular cumplimiento según tipo de objetivo
+   */
+  private function calculateCompliance($result, $goal, $isAscending)
+  {
+    if ($goal == 0) {
+      return 0;
+    }
+
+    if ($isAscending) {
+      // Para objetivos ascendentes: mayor resultado = mejor
+      // Cumplimiento = (resultado / meta) * 100
+      return ($result / $goal) * 100;
+    } else {
+      // Para objetivos descendentes: menor resultado = mejor
+      // Cumplimiento = (meta / resultado) * 100
+      if ($result == 0) {
+        return 0; // Evitar división por cero
+      }
+      return ($goal / $result) * 100;
+    }
   }
 
   public function destroy($id)

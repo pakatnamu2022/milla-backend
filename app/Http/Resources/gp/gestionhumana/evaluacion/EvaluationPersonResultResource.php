@@ -18,6 +18,7 @@ class EvaluationPersonResultResource extends JsonResource
     return $this;
   }
 
+
   public function toArray(Request $request): array
   {
     $response = [
@@ -36,9 +37,8 @@ class EvaluationPersonResultResource extends JsonResource
       $response['evaluation'] = new EvaluationResource($this->evaluation);
       $response['details'] = EvaluationPersonResource::collection($this->details);
       $response['competenceGroups'] = $this->getGroupedCompetences();
-
-      // Añadir estadísticas adicionales
       $response['statistics'] = $this->getEvaluationStatistics();
+      $response['objectiveParameter'] = new EvaluationParameterResource($this->evaluation->objectiveParameter);
     }
 
     return $response;
@@ -313,3 +313,4 @@ class EvaluationPersonResultResource extends JsonResource
     return $types[$type] ?? 'Otro';
   }
 }
+
