@@ -13,6 +13,7 @@ use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignCompanyBranchCo
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignmentLeadershipController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApBankController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApCommercialManagerBrandGroupController;
+use App\Http\Controllers\ap\maestroGeneral\TaxClassTypesController;
 use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailController;
@@ -167,7 +168,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
       Route::get('/department', [DepartmentController::class, 'index']);
       Route::get('/province', [ProvinceController::class, 'index']);
-      Route::get('/district', [DistrictController::class, 'index']);
+      Route::apiResource('district', DistrictController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
 
       Route::apiResource('companyBranch', CompanyBranchController::class)->only([
         'index',
@@ -448,10 +455,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'update',
           'destroy'
         ]);
-        Route::get('assignCompanyBranch/record', [ApAssignCompanyBranchController::class, 'indexRecord']);
+
         Route::apiResource('assignCompanyBranch', ApAssignCompanyBranchController::class)->only([
           'index',
           'show',
+          'store',
           'update',
         ]);
 
@@ -484,11 +492,19 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'update',
         ]);
 
-        Route::get('commercialManagerBrandGroup/record', [ApCommercialManagerBrandGroupController::class, 'indexRecord']);
         Route::apiResource('commercialManagerBrandGroup', ApCommercialManagerBrandGroupController::class)->only([
           'index',
           'show',
+          'store',
           'update',
+        ]);
+
+        Route::apiResource('taxClassTypes', TaxClassTypesController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
         ]);
       });
       //        CONFIGURATION AFTER SALES

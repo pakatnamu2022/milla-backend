@@ -7,8 +7,6 @@ use App\Http\Requests\ap\configuracionComercial\venta\IndexApAssignmentLeadershi
 use App\Http\Requests\ap\configuracionComercial\venta\StoreApAssignmentLeadershipRequest;
 use App\Http\Requests\ap\configuracionComercial\venta\UpdateApAssignmentLeadershipRequest;
 use App\Http\Services\ap\configuracionComercial\venta\ApAssignmentLeadershipService;
-use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
-use Illuminate\Http\Request;
 
 class ApAssignmentLeadershipController extends Controller
 {

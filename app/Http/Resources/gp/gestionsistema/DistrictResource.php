@@ -14,6 +14,9 @@ class DistrictResource extends JsonResource
       'name' => $this->name,
       'ubigeo' => $this->ubigeo,
       'province_id' => $this->province_id,
+      'province' => $this->province->name,
+      'department_id' => $this->province->department_id,
+      'department' => $this->province->department->name,
     ];
   }
 }

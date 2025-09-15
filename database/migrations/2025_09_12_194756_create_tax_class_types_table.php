@@ -10,14 +10,14 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('ap_assign_company_branch', function (Blueprint $table) {
+    Schema::create('tax_class_types', function (Blueprint $table) {
       $table->id();
-      $table->foreignId('company_branch_id')->constrained('company_branch');
-      $table->integer('worker_id');
-      $table->foreign('worker_id')->references('id')->on('rrhh_persona');
+      $table->string('dyn_code');
+      $table->string('description');
+      $table->enum('type', ['CLIENTE', 'PROVEEDOR']);
+      $table->boolean('status')->default(true);
       $table->timestamps();
       $table->softDeletes();
-      $table->unique(['company_branch_id', 'worker_id']);
     });
   }
 
@@ -26,6 +26,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('ap_assign_company_branch');
+    Schema::dropIfExists('tax_class_types');
   }
 };

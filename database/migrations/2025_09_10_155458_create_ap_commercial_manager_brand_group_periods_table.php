@@ -18,6 +18,7 @@ return new class extends Migration {
 
       $table->integer('year');
       $table->integer('month');
+      $table->boolean('status')->default(true);
 
       $table->unique(
         ['commercial_manager_id', 'brand_group_id', 'year', 'month'],

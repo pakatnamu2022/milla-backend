@@ -12,12 +12,15 @@ return new class extends Migration {
   {
     Schema::create('ap_assign_company_branch_period', function (Blueprint $table) {
       $table->id();
-      $table->foreignId('company_branch_id')->constrained('company_branch');
+      $table->integer('sede_id');
+      $table->foreign('sede_id')->references('id')->on('config_sede');
       $table->integer('worker_id');
       $table->foreign('worker_id')->references('id')->on('rrhh_persona');
       $table->integer('year');
       $table->integer('month');
-      $table->unique(['company_branch_id', 'worker_id', 'year', 'month'], 'uniq_sede_periodo');
+      $table->boolean('status')->default(true);
+      $table->foreignId('company_branch_id')->nullable()->constrained('company_branch');
+      $table->unique(['sede_id', 'worker_id', 'year', 'month'], 'uniq_sede_periodo');
       $table->timestamps();
       $table->softDeletes();
     });
