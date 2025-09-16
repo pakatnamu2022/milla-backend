@@ -2,13 +2,16 @@
 
 namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
+use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetailResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
+use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionsistema\Person;
 use Exception;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 
 class EvaluationPersonCompetenceDetailService extends BaseService
 {
@@ -22,6 +25,275 @@ class EvaluationPersonCompetenceDetailService extends BaseService
   const EVALUACION_OBJETIVOS = 0;
   const EVALUACION_180 = 1;
   const EVALUACION_360 = 2;
+
+  public function list(Request $request)
+  {
+    return $this->getFilteredResults(
+      EvaluationPersonCompetenceDetail::class,
+      $request,
+      EvaluationPersonCompetenceDetail::filters ?? [],
+      EvaluationPersonCompetenceDetail::sorts ?? [],
+      EvaluationPersonCompetenceDetailResource::class,
+    );
+  }
+
+  public function find($id)
+  {
+    $competenceDetail = EvaluationPersonCompetenceDetail::find($id);
+    if (!$competenceDetail) {
+      throw new Exception('Detalle de competencia no encontrado');
+    }
+    return $competenceDetail;
+  }
+
+  public function store($data)
+  {
+    DB::beginTransaction();
+    try {
+      $competenceDetail = EvaluationPersonCompetenceDetail::create($data);
+
+      // Recalcular resultados después de crear
+      $this->recalculatePersonResults($competenceDetail->evaluation_id, $competenceDetail->person_id);
+
+      DB::commit();
+      return new EvaluationPersonCompetenceDetailResource($competenceDetail);
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  public function show($id)
+  {
+    return new EvaluationPersonCompetenceDetailResource($this->find($id));
+  }
+
+  public function update($data)
+  {
+    DB::beginTransaction();
+    try {
+      $competenceDetail = $this->find($data['id']);
+      $competenceDetail->update($data);
+
+      // Recalcular resultados después de actualizar
+      $this->recalculatePersonResults($competenceDetail->evaluation_id, $competenceDetail->person_id);
+
+      DB::commit();
+      return new EvaluationPersonCompetenceDetailResource($competenceDetail);
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  public function destroy($id)
+  {
+    DB::beginTransaction();
+    try {
+      $competenceDetail = $this->find($id);
+      $evaluationId = $competenceDetail->evaluation_id;
+      $personId = $competenceDetail->person_id;
+
+      $competenceDetail->delete();
+
+      // Recalcular resultados después de eliminar
+      $this->recalculatePersonResults($evaluationId, $personId);
+
+      DB::commit();
+      return ['message' => 'Detalle de competencia eliminado correctamente'];
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Obtener competencias por evaluación y persona
+   */
+  public function getByEvaluationAndPerson($evaluationId, $personId)
+  {
+    $competences = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
+      ->where('person_id', $personId)
+      ->get();
+
+    return EvaluationPersonCompetenceDetailResource::collection($competences);
+  }
+
+  /**
+   * Actualizar múltiples competencias de una persona
+   */
+  public function updateMany($data)
+  {
+    DB::beginTransaction();
+    try {
+      $evaluationId = $data['evaluation_id'];
+      $personId = $data['person_id'];
+      $competences = $data['competences']; // Array de competencias a actualizar
+
+      foreach ($competences as $competenceData) {
+        $competenceDetail = $this->find($competenceData['id']);
+        $competenceDetail->update([
+          'result' => $competenceData['result'] ?? $competenceDetail->result
+        ]);
+      }
+
+      // Recalcular resultados después de actualizar todas las competencias
+      $this->recalculatePersonResults($evaluationId, $personId);
+
+      DB::commit();
+      return $this->getByEvaluationAndPerson($evaluationId, $personId);
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Recalcular los resultados de una persona en una evaluación
+   */
+  private function recalculatePersonResults($evaluationId, $personId)
+  {
+    $evaluation = Evaluation::findOrFail($evaluationId);
+
+    // Calcular resultado de competencias
+    $competencesResult = $this->calculateCompetencesResult($evaluationId, $personId, $evaluation->typeEvaluation);
+
+    // Calcular resultado de objetivos (si aplica)
+    $objectivesResult = $this->calculateObjectivesResult($evaluationId, $personId);
+
+    // Actualizar EvaluationPersonResult
+    $this->updatePersonResult($evaluationId, $personId, $competencesResult, $objectivesResult);
+
+    // Actualizar EvaluationPerson si existe
+    $this->updateEvaluationPerson($evaluationId, $personId, $competencesResult, $objectivesResult);
+  }
+
+  /**
+   * Calcular resultado de competencias según el tipo de evaluación
+   */
+  public function calculateCompetencesResult($evaluationId, $personId, $evaluationType)
+  {
+    $competences = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
+      ->where('person_id', $personId)
+      ->get();
+
+    if ($competences->isEmpty()) {
+      return 0;
+    }
+
+    switch ($evaluationType) {
+      case self::EVALUACION_180:
+        // Para 180°, solo considerar evaluación del jefe
+        $jefeCompetences = $competences->where('evaluatorType', self::TIPO_EVALUADOR_JEFE);
+        return $jefeCompetences->avg('result') ?? 0;
+
+      case self::EVALUACION_360:
+        // Para 360°, calcular promedio ponderado por tipo de evaluador
+        return $this->calculate360CompetencesResult($competences);
+
+      default:
+        // Para evaluación de objetivos, promedio simple
+        return $competences->avg('result') ?? 0;
+    }
+  }
+
+  /**
+   * Calcular resultado de competencias para evaluación 360°
+   */
+  private function calculate360CompetencesResult($competences)
+  {
+    // Pesos por tipo de evaluador (esto puede ser configurable)
+    $weights = [
+      self::TIPO_EVALUADOR_JEFE => 0.4,          // 40% jefe
+      self::TIPO_EVALUADOR_AUTOEVALUACION => 0.2, // 20% autoevaluación
+      self::TIPO_EVALUADOR_COMPANEROS => 0.25,    // 25% compañeros
+      self::TIPO_EVALUADOR_REPORTES => 0.15       // 15% reportes
+    ];
+
+    $totalWeightedScore = 0;
+    $totalWeight = 0;
+
+    foreach ($weights as $evaluatorType => $weight) {
+      $typeCompetences = $competences->where('evaluatorType', $evaluatorType);
+
+      if ($typeCompetences->isNotEmpty()) {
+        $avgScore = $typeCompetences->avg('result');
+        $totalWeightedScore += $avgScore * $weight;
+        $totalWeight += $weight;
+      }
+    }
+
+    return $totalWeight > 0 ? $totalWeightedScore / $totalWeight : 0;
+  }
+
+  /**
+   * Calcular resultado de objetivos
+   */
+  private function calculateObjectivesResult($evaluationId, $personId)
+  {
+    // Obtener objetivos de EvaluationPerson para esta evaluación y persona
+    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluationId)
+      ->where('person_id', $personId)
+      ->get();
+
+    if ($evaluationPersons->isEmpty()) {
+      return 0;
+    }
+
+    // Calcular promedio ponderado por peso de cada objetivo
+    $totalWeightedScore = 0;
+    $totalWeight = 0;
+
+    foreach ($evaluationPersons as $evaluationPerson) {
+      $weight = $evaluationPerson->personCycleDetail->weight ?? 0;
+      $result = $evaluationPerson->result ?? 0;
+
+      $totalWeightedScore += $result * $weight;
+      $totalWeight += $weight;
+    }
+
+    return $totalWeight > 0 ? $totalWeightedScore / $totalWeight : 0;
+  }
+
+  /**
+   * Actualizar EvaluationPersonResult
+   */
+  private function updatePersonResult($evaluationId, $personId, $competencesResult, $objectivesResult)
+  {
+    $personResult = EvaluationPersonResult::where('evaluation_id', $evaluationId)
+      ->where('person_id', $personId)
+      ->first();
+
+    if ($personResult) {
+      // Calcular resultado final basado en porcentajes de la evaluación
+      $evaluation = Evaluation::find($evaluationId);
+      $competencesPercentage = $evaluation->competencesPercentage / 100;
+      $objectivesPercentage = $evaluation->objectivesPercentage / 100;
+
+      $finalResult = ($competencesResult * $competencesPercentage) + ($objectivesResult * $objectivesPercentage);
+
+      $personResult->update([
+        'competencesResult' => $competencesResult,
+        'objectivesResult' => $objectivesResult,
+        'result' => $finalResult
+      ]);
+    }
+  }
+
+  /**
+   * Actualizar EvaluationPerson
+   */
+  private function updateEvaluationPerson($evaluationId, $personId, $competencesResult, $objectivesResult)
+  {
+    // Actualizar todos los registros de EvaluationPerson para esta evaluación y persona
+    EvaluationPerson::where('evaluation_id', $evaluationId)
+      ->where('person_id', $personId)
+      ->update([
+        'result' => $competencesResult // o el resultado que corresponda según tu lógica
+      ]);
+  }
+
+  // Métodos existentes del servicio original...
 
   public function crearEvaluacionCompetencias($evaluacionId)
   {
@@ -71,7 +343,7 @@ class EvaluationPersonCompetenceDetailService extends BaseService
         'success' => true,
         'message' => 'Evaluación de competencias creada exitosamente',
         'data' => [
-          'tipo_evaluacion' => $evaluacion->tipo_evaluacion_texto,
+          'tipo_evaluacion' => $evaluacion->tipo_evaluacion_texto ?? config('evaluation.typesEvaluation')[$evaluacion->typeEvaluation],
           'personas_procesadas' => $totalPersonasProcesadas,
           'competencias_creadas' => $totalCompetenciasCreadas,
           'configuracion' => [
@@ -205,6 +477,7 @@ class EvaluationPersonCompetenceDetailService extends BaseService
     EvaluationPersonCompetenceDetail::create([
       'evaluation_id' => $evaluacionId,
       'person_id' => $persona->id,
+      'evaluator_id' => $evaluadorId,
       'competence_id' => $competenciaData['competence_id'],
       'sub_competence_id' => $competenciaData['sub_competence_id'],
       'person' => $persona->nombre_completo,
@@ -220,9 +493,6 @@ class EvaluationPersonCompetenceDetailService extends BaseService
    */
   private function obtenerCompetenciasParaPersona($persona)
   {
-    // Aquí debes implementar la lógica para obtener las competencias
-    // basándote en la categoría jerárquica de la persona usando tu sistema existente
-
     // Usando tu lógica de EvaluationCategoryCompetenceDetail
     $competenciasAsignadas = DB::table('gh_evaluation_category_competence')
       ->join('gh_config_competencias', 'gh_evaluation_category_competence.competence_id', '=', 'gh_config_competencias.id')
@@ -285,112 +555,5 @@ class EvaluationPersonCompetenceDetailService extends BaseService
       ->where('status_deleted', 1)
       ->where('status_id', 22)
       ->get();
-  }
-
-  /**
-   * Obtener resumen de la evaluación creada
-   */
-  public function obtenerResumenEvaluacion($evaluacionId)
-  {
-    $evaluacion = Evaluation::findOrFail($evaluacionId);
-
-    $totalPersonas = EvaluationPersonResult::where('evaluation_id', $evaluacionId)->count();
-
-    $totalCompetencias = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluacionId)->count();
-
-    $competenciasPorTipo = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluacionId)
-      ->selectRaw('evaluatorType, count(*) as total')
-      ->groupBy('evaluatorType')
-      ->get()
-      ->mapWithKeys(function ($item) {
-        $tipos = [
-          0 => 'Líder Directo',
-          1 => 'Autoevaluación',
-          2 => 'Compañeros',
-          3 => 'Reportes'
-        ];
-        return [$tipos[$item->evaluatorType] => $item->total];
-      });
-
-    return [
-      'evaluacion' => [
-        'id' => $evaluacion->id,
-        'nombre' => $evaluacion->name,
-        'tipo' => $evaluacion->tipo_evaluacion_texto,
-        'estado' => $evaluacion->estado_texto,
-        'fecha_inicio' => $evaluacion->start_date,
-        'fecha_fin' => $evaluacion->end_date
-      ],
-      'estadisticas' => [
-        'total_personas' => $totalPersonas,
-        'total_competencias' => $totalCompetencias,
-        'competencias_por_tipo' => $competenciasPorTipo
-      ],
-      'configuracion' => [
-        'autoevaluacion' => $evaluacion->selfEvaluation,
-        'evaluacion_companeros' => $evaluacion->partnersEvaluation,
-        'porcentaje_objetivos' => $evaluacion->objectivesPercentage,
-        'porcentaje_competencias' => $evaluacion->competencesPercentage
-      ]
-    ];
-  }
-
-  /**
-   * Validar que una evaluación esté lista para procesar competencias
-   */
-  public function validarEvaluacion($evaluacionId)
-  {
-    try {
-      $evaluacion = Evaluation::findOrFail($evaluacionId);
-
-      // Verificar que sea 180° o 360°
-      if (!in_array($evaluacion->typeEvaluation, [self::EVALUACION_180, self::EVALUACION_360])) {
-        return [
-          'success' => false,
-          'message' => 'La evaluación debe ser de tipo 180° o 360°'
-        ];
-      }
-
-      // Verificar que tenga personas en results
-      $totalPersonas = EvaluationPersonResult::where('evaluation_id', $evaluacionId)->count();
-
-      if ($totalPersonas == 0) {
-        return [
-          'success' => false,
-          'message' => 'La evaluación no tiene personas asignadas en results'
-        ];
-      }
-
-      // Verificar que las personas tengan jefe asignado
-      $personasSinJefe = DB::table('gh_evaluation_person_result')
-        ->join('rrhh_persona', 'gh_evaluation_person_result.person_id', '=', 'rrhh_persona.id')
-        ->where('gh_evaluation_person_result.evaluation_id', $evaluacionId)
-        ->whereNull('rrhh_persona.jefe_id')
-        ->count();
-
-      if ($personasSinJefe > 0) {
-        return [
-          'success' => false,
-          'message' => "Hay {$personasSinJefe} personas sin jefe asignado"
-        ];
-      }
-
-      return [
-        'success' => true,
-        'message' => 'La evaluación está lista para procesar competencias',
-        'data' => [
-          'total_personas' => $totalPersonas,
-          'tipo_evaluacion' => $evaluacion->tipo_evaluacion_texto,
-          'autoevaluacion' => $evaluacion->selfEvaluation,
-          'evaluacion_companeros' => $evaluacion->partnersEvaluation
-        ]
-      ];
-
-    } catch (Exception $e) {
-      return [
-        'success' => false,
-        'message' => 'Error al validar evaluación: ' . $e->getMessage()
-      ];
-    }
   }
 }

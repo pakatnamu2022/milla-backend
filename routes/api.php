@@ -27,6 +27,7 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationMetricController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationObjectiveController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationParameterController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPeriodController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonDetailController;
@@ -376,6 +377,23 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'update',
           'destroy'
         ]);
+
+        // Agregar estas rutas dentro del grupo performanceEvaluation en routes/api.php
+
+        Route::apiResource('personCompetenceDetail', EvaluationPersonCompetenceDetailController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+// Rutas adicionales para recálculo de resultados
+        Route::post('/evaluation/{evaluation}/recalculateResults', [EvaluationPersonController::class, 'recalculateAllResults']);
+        Route::get('/evaluation/{evaluation}/stats', [EvaluationPersonController::class, 'getEvaluationStats']);
+
+// Ruta para crear competencias en lote
+        Route::post('/evaluation/{evaluation}/storeMany', [EvaluationPersonResultController::class, 'storeMany']);
 
 
       });

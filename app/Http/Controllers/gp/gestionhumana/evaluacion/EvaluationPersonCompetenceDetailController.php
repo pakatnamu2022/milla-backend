@@ -3,64 +3,88 @@
 namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
-use Illuminate\Http\Request;
+use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationPersonCompetenceDetailRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationPersonCompetenceDetailRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationPersonCompetenceDetailRequest;
+use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetailService;
 
 class EvaluationPersonCompetenceDetailController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+  protected EvaluationPersonCompetenceDetailService $service;
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+  public function __construct(EvaluationPersonCompetenceDetailService $service)
+  {
+    $this->service = $service;
+  }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
+  public function index(IndexEvaluationPersonCompetenceDetailRequest $request)
+  {
+    try {
+      return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(EvaluationPersonCompetenceDetail $evaluationPersonCompetenceDetail)
-    {
-        //
+  public function store(StoreEvaluationPersonCompetenceDetailRequest $request)
+  {
+    try {
+      return $this->success($this->service->store($request->validated()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(EvaluationPersonCompetenceDetail $evaluationPersonCompetenceDetail)
-    {
-        //
+  public function show(int $id)
+  {
+    try {
+      return $this->success($this->service->show($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, EvaluationPersonCompetenceDetail $evaluationPersonCompetenceDetail)
-    {
-        //
+  public function update(UpdateEvaluationPersonCompetenceDetailRequest $request, int $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->update($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(EvaluationPersonCompetenceDetail $evaluationPersonCompetenceDetail)
-    {
-        //
+  public function destroy(int $id)
+  {
+    try {
+      return $this->success($this->service->destroy($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
+
+  /**
+   * Obtener competencias por evaluación y persona
+   */
+  public function getByEvaluationAndPerson(int $evaluationId, int $personId)
+  {
+    try {
+      return $this->success($this->service->getByEvaluationAndPerson($evaluationId, $personId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Actualizar múltiples competencias de una persona en una evaluación
+   */
+  public function updateMany(UpdateEvaluationPersonCompetenceDetailRequest $request)
+  {
+    try {
+      return $this->success($this->service->updateMany($request->validated()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

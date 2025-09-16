@@ -63,4 +63,30 @@ class EvaluationPersonController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Recalcular resultados para todas las personas de una evaluación
+   */
+  public function recalculateAllResults(int $evaluationId)
+  {
+    try {
+      $result = $this->service->recalculateAllResults($evaluationId);
+      return $this->success($result);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Obtener estadísticas de una evaluación
+   */
+  public function getEvaluationStats(int $evaluationId)
+  {
+    try {
+      $stats = $this->service->getEvaluationStats($evaluationId);
+      return $this->success($stats);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
