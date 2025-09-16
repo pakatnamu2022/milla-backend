@@ -17,6 +17,8 @@ use App\Http\Controllers\ap\maestroGeneral\AssignSalesSeriesController;
 use App\Http\Controllers\ap\maestroGeneral\TaxClassTypesController;
 use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
 use App\Http\Controllers\ap\maestroGeneral\UnitMeasurementController;
+use App\Http\Controllers\ap\maestroGeneral\UserSeriesAssignmentController;
+use App\Http\Controllers\ap\maestroGeneral\WarehouseController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
@@ -536,6 +538,22 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ]);
 
         Route::apiResource('unitMeasurement', UnitMeasurementController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        Route::apiResource('userSeriesAssignment', UserSeriesAssignmentController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        Route::apiResource('warehouse', WarehouseController::class)->only([
           'index',
           'show',
           'store',

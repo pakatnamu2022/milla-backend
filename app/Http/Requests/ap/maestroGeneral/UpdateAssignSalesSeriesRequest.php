@@ -14,9 +14,6 @@ class UpdateAssignSalesSeriesRequest extends StoreRequest
         'nullable',
         'string',
         'max:50',
-        Rule::unique('assign_sales_series', 'series')
-          ->whereNull('deleted_at')
-          ->ignore($this->route('assignSalesSeries')),
       ],
       'correlative_start' => [
         'nullable',

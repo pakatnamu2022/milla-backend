@@ -14,8 +14,6 @@ class StoreAssignSalesSeriesRequest extends StoreRequest
         'required',
         'string',
         'max:20',
-        Rule::unique('assign_sales_series', 'series')
-          ->whereNull('deleted_at'),
       ],
       'correlative_start' => [
         'required',

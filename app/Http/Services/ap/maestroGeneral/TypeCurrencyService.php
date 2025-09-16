@@ -25,17 +25,17 @@ class TypeCurrencyService extends BaseService implements BaseServiceInterface
 
   public function find($id)
   {
-    $engineType = TypeCurrency::where('id', $id)->first();
-    if (!$engineType) {
+    $TypeCurrency = TypeCurrency::where('id', $id)->first();
+    if (!$TypeCurrency) {
       throw new Exception('Tipo de moneda no encontrado');
     }
-    return $engineType;
+    return $TypeCurrency;
   }
 
   public function store(mixed $data)
   {
-    $engineType = TypeCurrency::create($data);
-    return new TypeCurrencyResource($engineType);
+    $TypeCurrency = TypeCurrency::create($data);
+    return new TypeCurrencyResource($TypeCurrency);
   }
 
   public function show($id)
@@ -45,16 +45,16 @@ class TypeCurrencyService extends BaseService implements BaseServiceInterface
 
   public function update(mixed $data)
   {
-    $engineType = $this->find($data['id']);
-    $engineType->update($data);
-    return new TypeCurrencyResource($engineType);
+    $TypeCurrency = $this->find($data['id']);
+    $TypeCurrency->update($data);
+    return new TypeCurrencyResource($TypeCurrency);
   }
 
   public function destroy($id)
   {
-    $engineType = $this->find($id);
-    DB::transaction(function () use ($engineType) {
-      $engineType->delete();
+    $TypeCurrency = $this->find($id);
+    DB::transaction(function () use ($TypeCurrency) {
+      $TypeCurrency->delete();
     });
     return response()->json(['message' => 'Tipo de moneda eliminado correctamente']);
   }
