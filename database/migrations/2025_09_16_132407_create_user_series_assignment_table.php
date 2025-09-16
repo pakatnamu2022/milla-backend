@@ -10,12 +10,12 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('contact', function (Blueprint $table) {
+    Schema::create('user_series_assignment', function (Blueprint $table) {
       $table->id();
-      $table->string('value');
-      $table->enum('type', ['email', 'phone', 'link']);
-      $table->integer('sede_id');
-      $table->foreign('sede_id')->references('id')->on('config_sede');
+      $table->integer('worker_id');
+      $table->foreign('worker_id')->references('id')->on('rrhh_persona');
+      $table->foreignId('voucher_id')
+        ->constrained('assign_sales_series')->onDelete('cascade');
       $table->timestamps();
       $table->softDeletes();
     });
@@ -26,6 +26,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('contact');
+    Schema::dropIfExists('user_series_assignment');
   }
 };

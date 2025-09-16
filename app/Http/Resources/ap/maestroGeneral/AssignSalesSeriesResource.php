@@ -16,7 +16,7 @@ class AssignSalesSeriesResource extends JsonResource
       'type_receipt_id' => $this->type_receipt_id,
       'type_receipt' => $this->typeReceipt->description,
       'type_operation_id' => $this->type_operation_id,
-      'type_operation' => $this->typeOperation->description,
+      'type_operation' => $this->typeOperation?->description,
       'sede_id' => $this->sede_id,
       'sede' => $this->sede->abreviatura,
       'status' => $this->status,
