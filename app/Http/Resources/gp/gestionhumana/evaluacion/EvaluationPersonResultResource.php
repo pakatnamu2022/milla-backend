@@ -29,7 +29,7 @@ class EvaluationPersonResultResource extends JsonResource
       'objectivesPercentage' => round($this->objectivesPercentage, 2),
       'objectivesResult' => round($this->objectivesResult, 2),
       'competencesResult' => round($this->competencesResult, 2),
-      'result' => $this->result,
+      'result' => round($this->result, 2),
     ];
 
     if ($this->showExtra) {
@@ -236,7 +236,6 @@ class EvaluationPersonResultResource extends JsonResource
           'sub_competence_name' => $firstEvaluation->sub_competence,
           'evaluators' => $evaluators,
           'average_result' => round($averageScore, 2),
-          'max_score' => 5.0,
           'completion_percentage' => ($validEvaluations / count($requiredEvaluatorTypes)) * 100,
           'is_completed' => $validEvaluations === count($requiredEvaluatorTypes),
         ];
@@ -270,11 +269,11 @@ class EvaluationPersonResultResource extends JsonResource
     if ($evaluationType == 1) { // 180°
       return [0]; // Solo jefe directo
     } else { // 360°
-      $types = [0, 3]; // Jefe directo + Autoevaluación
-      $types[] = 1; // Pares
+      $types = [0, 1]; // Jefe directo + Autoevaluación
+      $types[] = 2; // Pares
 
       if ($this->hasSubordinates()) {
-        $types[] = 2; // Subordinados
+        $types[] = 3; // Reportes
       }
 
       return $types;

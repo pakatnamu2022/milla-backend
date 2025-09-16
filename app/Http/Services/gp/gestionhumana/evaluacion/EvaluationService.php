@@ -277,13 +277,13 @@ class EvaluationService extends BaseService
 
       // 3. Evaluación de compañeros (si está habilitada)
       if ($evaluacion->partnersEvaluation && $tieneJefe) {
-        $companeros = $this->obtenerCompaneros($persona);
-        foreach ($companeros as $companero) {
+        $partners = $this->obtenerCompaneros($persona);
+        foreach ($partners as $partner) {
           $this->crearDetalleCompetencia(
             $evaluacion->id,
             $persona,
             $competenciaData,
-            $companero->id,
+            $partner->id,
             self::TIPO_EVALUADOR_COMPANEROS
           );
           $competenciasCreadas++;

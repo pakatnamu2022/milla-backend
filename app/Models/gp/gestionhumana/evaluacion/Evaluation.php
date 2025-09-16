@@ -130,4 +130,9 @@ class Evaluation extends Model
 
     return $estados[$this->status] ?? 'Desconocido';
   }
+
+  public function getMaxScoreCompetenceAttribute()
+  {
+    return $this->competenceParameter?->details()->max('to');
+  }
 }

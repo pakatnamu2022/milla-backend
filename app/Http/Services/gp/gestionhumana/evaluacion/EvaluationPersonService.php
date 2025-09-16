@@ -13,6 +13,7 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use function logger;
 
 class EvaluationPersonService extends BaseService
 {
@@ -101,21 +102,57 @@ class EvaluationPersonService extends BaseService
 
   public function update($data)
   {
-    DB::beginTransaction();
-    try {
-      $evaluationPerson = $this->find($data['id']);
-      $evaluationPerson->update($data);
+    $evaluationPerson = $this->find($data['id']);
 
-      // Recalcular resultados después de actualizar
-      $this->recalculatePersonResults($evaluationPerson->evaluation_id, $evaluationPerson->person_id);
+    // Si se está actualizando el resultado, calcular cumplimiento y calificación
+    if (isset($data['result'])) {
+      $result = floatval($data['result']);
+      $personCycleDetail = $evaluationPerson->personCycleDetail;
 
-      DB::commit();
-      return new EvaluationPersonResource($evaluationPerson);
-    } catch (\Exception $e) {
-      DB::rollBack();
-      throw $e;
+      if ($personCycleDetail) {
+        $goal = floatval($personCycleDetail->goal);
+        $isAscending = $personCycleDetail->isAscending;
+
+        // Calcular cumplimiento según si es ascendente o descendente
+        $compliance = $this->calculateCompliance($result, $goal, $isAscending);
+
+        // Calcular calificación (limitada a máximo 120%)
+        $qualification = min($compliance, 120.00);
+
+        // Agregar los campos calculados a los datos
+        $data['compliance'] = round($compliance, 2);
+        $data['qualification'] = round($qualification, 2);
+        $data['wasEvaluated'] = true;
+      }
+    }
+
+    $evaluationPerson->update($data);
+
+    $this->recalculatePersonResults($evaluationPerson->evaluation_id, $evaluationPerson->person_id);
+    return new EvaluationPersonResource($evaluationPerson);
+  }
+
+  /**
+   * Calcular cumplimiento según tipo de objetivo
+   */
+  private function calculateCompliance($result, $goal, $isAscending)
+  {
+    if ($goal == 0) {
+      return 0;
+    }
+
+    if ($isAscending) {
+      // Para objetivos ascendentes: mayor resultado = mejor
+      // Cumplimiento = (resultado / meta) * 100
+      return ($result / $goal) * 100;
+    } else {
+      // Para objetivos descendentes: menor resultado = mejor
+      // Si el resultado es 0, tratarlo como 1 para evitar división infinita
+      $adjustedResult = $result == 0 ? 1 : $result;
+      return ($goal / $adjustedResult) * 100;
     }
   }
+
 
   public function destroy($id)
   {
@@ -158,7 +195,7 @@ class EvaluationPersonService extends BaseService
   /**
    * Calcular resultado de objetivos basado en EvaluationPerson
    */
-  private function calculateObjectivesResult($evaluationId, $personId)
+  public function calculateObjectivesResult($evaluationId, $personId)
   {
     $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluationId)
       ->where('person_id', $personId)
@@ -171,17 +208,15 @@ class EvaluationPersonService extends BaseService
 
     // Calcular promedio ponderado por peso de cada objetivo
     $totalWeightedScore = 0;
-    $totalWeight = 0;
 
     foreach ($evaluationPersons as $evaluationPerson) {
       $weight = $evaluationPerson->personCycleDetail->weight ?? 0;
-      $result = $evaluationPerson->result ?? 0;
+      $qualification = $evaluationPerson->qualification ?? 0;
 
-      $totalWeightedScore += $result * ($weight / 100); // Convertir peso a decimal
-      $totalWeight += ($weight / 100);
+      $totalWeightedScore += $qualification * ($weight / 100); // Convertir peso a decimal
     }
 
-    return $totalWeight > 0 ? $totalWeightedScore / $totalWeight : 0;
+    return $totalWeightedScore;
   }
 
   /**

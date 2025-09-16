@@ -3,7 +3,10 @@
 namespace App\Http\Requests\gp\gestionhumana\evaluacion;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\gp\gestionhumana\evaluacion\Evaluation;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateEvaluationPersonCompetenceDetailRequest extends StoreRequest
 {
@@ -16,7 +19,13 @@ class UpdateEvaluationPersonCompetenceDetailRequest extends StoreRequest
   {
     return [
       // Para update individual
-      'result' => 'sometimes|numeric|min:0|max:5',
+      'result' => [
+        'sometimes',
+        'numeric',
+        'min:0',
+        'max:' . Evaluation::find(EvaluationPersonCompetenceDetail::find($this->route('personCompetenceDetail'))->evaluation_id)->max_score_competence
+      ],
+//    'sometimes|numeric|min:0|max:5',
       'person' => 'sometimes|string|max:255',
       'competence' => 'sometimes|string',
       'sub_competence' => 'sometimes|string',
@@ -30,21 +39,18 @@ class UpdateEvaluationPersonCompetenceDetailRequest extends StoreRequest
     ];
   }
 
-  public function messages(): array
+  public function attributes(): array
   {
     return [
-      'result.numeric' => 'El resultado debe ser un número',
-      'result.min' => 'El resultado debe ser mayor o igual a 0',
-      'result.max' => 'El resultado debe ser menor o igual a 5',
-      'evaluation_id.exists' => 'La evaluación no existe',
-      'person_id.exists' => 'La persona no existe',
-      'competences.array' => 'Las competencias deben ser un array',
-      'competences.*.id.required' => 'El ID de la competencia es requerido',
-      'competences.*.id.exists' => 'El detalle de competencia no existe',
-      'competences.*.result.required' => 'El resultado es requerido',
-      'competences.*.result.numeric' => 'El resultado debe ser un número',
-      'competences.*.result.min' => 'El resultado debe ser mayor o igual a 0',
-      'competences.*.result.max' => 'El resultado debe ser menor o igual a 5',
+      'result' => 'resultado',
+      'person' => 'persona',
+      'competence' => 'competencia',
+      'sub_competence' => 'sub competencia',
+      'evaluation_id' => 'evaluación',
+      'person_id' => 'persona',
+      'competences' => 'competencias',
+      'competences.*.id' => 'ID de la competencia',
+      'competences.*.result' => 'resultado de la competencia',
     ];
   }
 }

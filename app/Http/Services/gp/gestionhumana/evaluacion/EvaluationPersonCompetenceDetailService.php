@@ -164,15 +164,18 @@ class EvaluationPersonCompetenceDetailService extends BaseService
     // Actualizar EvaluationPersonResult
     $this->updatePersonResult($evaluationId, $personId, $competencesResult, $objectivesResult);
 
-    // Actualizar EvaluationPerson si existe
-    $this->updateEvaluationPerson($evaluationId, $personId, $competencesResult, $objectivesResult);
   }
+
 
   /**
    * Calcular resultado de competencias según el tipo de evaluación
    */
   public function calculateCompetencesResult($evaluationId, $personId, $evaluationType)
   {
+    $evaluation = Evaluation::find(1);
+    $maxScore = $evaluation->max_score_competence; // Como atributo
+
+
     $competences = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
       ->where('person_id', $personId)
       ->get();
@@ -185,7 +188,7 @@ class EvaluationPersonCompetenceDetailService extends BaseService
       case self::EVALUACION_180:
         // Para 180°, solo considerar evaluación del jefe
         $jefeCompetences = $competences->where('evaluatorType', self::TIPO_EVALUADOR_JEFE);
-        return $jefeCompetences->avg('result') ?? 0;
+        return ($jefeCompetences->avg('result') / $maxScore) * 100;
 
       case self::EVALUACION_360:
         // Para 360°, calcular promedio ponderado por tipo de evaluador
@@ -229,11 +232,11 @@ class EvaluationPersonCompetenceDetailService extends BaseService
   /**
    * Calcular resultado de objetivos
    */
-  private function calculateObjectivesResult($evaluationId, $personId)
+  public function calculateObjectivesResult($evaluationId, $personId)
   {
-    // Obtener objetivos de EvaluationPerson para esta evaluación y persona
     $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluationId)
       ->where('person_id', $personId)
+      ->with('personCycleDetail')
       ->get();
 
     if ($evaluationPersons->isEmpty()) {
@@ -242,17 +245,15 @@ class EvaluationPersonCompetenceDetailService extends BaseService
 
     // Calcular promedio ponderado por peso de cada objetivo
     $totalWeightedScore = 0;
-    $totalWeight = 0;
 
     foreach ($evaluationPersons as $evaluationPerson) {
       $weight = $evaluationPerson->personCycleDetail->weight ?? 0;
-      $result = $evaluationPerson->result ?? 0;
+      $qualification = $evaluationPerson->qualification ?? 0;
 
-      $totalWeightedScore += $result * $weight;
-      $totalWeight += $weight;
+      $totalWeightedScore += $qualification * ($weight / 100); // Convertir peso a decimal
     }
 
-    return $totalWeight > 0 ? $totalWeightedScore / $totalWeight : 0;
+    return $totalWeightedScore;
   }
 
   /**
@@ -278,19 +279,6 @@ class EvaluationPersonCompetenceDetailService extends BaseService
         'result' => $finalResult
       ]);
     }
-  }
-
-  /**
-   * Actualizar EvaluationPerson
-   */
-  private function updateEvaluationPerson($evaluationId, $personId, $competencesResult, $objectivesResult)
-  {
-    // Actualizar todos los registros de EvaluationPerson para esta evaluación y persona
-    EvaluationPerson::where('evaluation_id', $evaluationId)
-      ->where('person_id', $personId)
-      ->update([
-        'result' => $competencesResult // o el resultado que corresponda según tu lógica
-      ]);
   }
 
   // Métodos existentes del servicio original...
