@@ -172,8 +172,8 @@ class EvaluationPersonCompetenceDetailService extends BaseService
    */
   public function calculateCompetencesResult($evaluationId, $personId, $evaluationType)
   {
-    $evaluation = Evaluation::find(1);
-    $maxScore = $evaluation->max_score_competence; // Como atributo
+    $evaluation = Evaluation::find($evaluationId);
+    $maxScore = $evaluation->typeEvaluation !== 0 ? $evaluation?->max_score_competence : 0; // Como atributo
 
 
     $competences = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)

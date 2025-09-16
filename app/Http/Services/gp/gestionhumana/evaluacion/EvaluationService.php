@@ -109,6 +109,10 @@ class EvaluationService extends BaseService
     $data['typeEvaluation'] = $cycle->typeEvaluation;
     $data['objective_parameter_id'] = $cycle->parameter_id;
     $data['period_id'] = $cycle->period_id;
+    if ($data['typeEvaluation'] == self::EVALUACION_360) {
+      $data['selfEvaluation'] = 1;
+      $data['partnersEvaluation'] = 1;
+    }
     return $data;
   }
 
