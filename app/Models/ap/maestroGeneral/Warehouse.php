@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\maestroGeneral;
 
-use App\Models\ap\configuracionComercial\vehiculo\ApCommercialMasters;
+use App\Models\ap\ApCommercialMasters;
 use App\Models\gp\gestionsistema\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;

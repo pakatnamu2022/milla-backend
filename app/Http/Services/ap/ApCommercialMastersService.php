@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Http\Services\ap\configuracionComercial\vehiculo;
+namespace App\Http\Services\ap;
 
-use App\Http\Resources\ap\configuracionComercial\vehiculo\ApCommercialMastersResource;
+use App\Http\Resources\ap\ApCommercialMastersResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
-use App\Models\ap\configuracionComercial\vehiculo\ApCommercialMasters;
+use App\Models\ap\ApCommercialMasters;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Exception;
 
 class ApCommercialMastersService extends BaseService implements BaseServiceInterface
 {

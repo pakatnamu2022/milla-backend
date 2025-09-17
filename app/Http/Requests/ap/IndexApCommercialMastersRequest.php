@@ -1,9 +1,8 @@
 <?php
 
-namespace App\Http\Requests\ap\configuracionComercial\vehiculo;
+namespace App\Http\Requests\ap;
 
 use App\Http\Requests\IndexRequest;
-use Illuminate\Foundation\Http\FormRequest;
 
 class IndexApCommercialMastersRequest extends IndexRequest
 {

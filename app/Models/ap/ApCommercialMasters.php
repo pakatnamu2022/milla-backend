@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\ap\configuracionComercial\vehiculo;
+namespace App\Models\ap;
 
 use App\Models\gp\gestionsistema\Person;
 use Illuminate\Database\Eloquent\Model;

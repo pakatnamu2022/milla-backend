@@ -8,6 +8,7 @@ use App\Http\Services\BaseService;
 use App\Models\gp\gestionsistema\Sede;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SedeService extends BaseService
 {
@@ -38,4 +39,39 @@ class SedeService extends BaseService
     ]);
   }
 
+  public function find($id)
+  {
+    $Sede = Sede::where('id', $id)->first();
+    if (!$Sede) {
+      throw new Exception('Sede no encontrado');
+    }
+    return $Sede;
+  }
+
+  public function store(mixed $data)
+  {
+    $Sede = Sede::create($data);
+    return new SedeResource($Sede);
+  }
+
+  public function show($id)
+  {
+    return new SedeResource($this->find($id));
+  }
+
+  public function update(mixed $data)
+  {
+    $Sede = $this->find($data['id']);
+    $Sede->update($data);
+    return new SedeResource($Sede);
+  }
+
+  public function destroy($id)
+  {
+    $Sede = $this->find($id);
+    DB::transaction(function () use ($Sede) {
+      $Sede->delete();
+    });
+    return response()->json(['message' => 'Sede eliminado correctamente']);
+  }
 }

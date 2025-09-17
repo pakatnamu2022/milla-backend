@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\configuracionComercial\vehiculo;
 
+use App\Models\ap\ApCommercialMasters;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;

@@ -1,13 +1,12 @@
 <?php
 
-namespace App\Http\Controllers\ap\configuracionComercial\vehiculo;
+namespace App\Http\Controllers\ap;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApCommercialMastersRequest;
-use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApCommercialMastersRequest;
-use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApCommercialMastersRequest;
-use App\Http\Services\ap\configuracionComercial\vehiculo\ApCommercialMastersService;
-use Illuminate\Http\Request;
+use App\Http\Requests\ap\IndexApCommercialMastersRequest;
+use App\Http\Requests\ap\StoreApCommercialMastersRequest;
+use App\Http\Requests\ap\UpdateApCommercialMastersRequest;
+use App\Http\Services\ap\ApCommercialMastersService;
 
 class ApCommercialMastersController extends Controller
 {
