@@ -47,7 +47,7 @@ class SedeService extends BaseService
 
   public function find($id)
   {
-    $Sede = \App\Models\gp\maestroGeneral\Sede::where('id', $id)->first();
+    $Sede = Sede::where('id', $id)->first();
     if (!$Sede) {
       throw new Exception('Sede no encontrado');
     }
@@ -56,7 +56,7 @@ class SedeService extends BaseService
 
   public function store(mixed $data)
   {
-    $Sede = \App\Models\gp\maestroGeneral\Sede::create($data);
+    $Sede = Sede::create($data);
     return new SedeResource($Sede);
   }
 
