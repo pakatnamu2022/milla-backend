@@ -27,7 +27,14 @@ class SedeService extends BaseService
     $sedeId = $request->input('sede_id');
 
     if (!$sedeId) {
-      throw new \InvalidArgumentException("Debe enviar un 'sede_id'");
+      return Sede::with('workers')
+        ->get()
+        ->flatMap(fn($sede) => $sede->workers)
+        ->map(fn($worker) => [
+          'id' => $worker->id,
+          'name' => $worker->nombre_completo,
+        ])
+        ->values();
     }
 
     $sede = Sede::with('workers')->findOrFail($sedeId);

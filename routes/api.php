@@ -160,6 +160,17 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 
   Route::group(['prefix' => 'gp'], function () {
+    Route::group(['prefix' => 'mg'], function () {
+      Route::get('sede/assignedSalesWorkers', [SedeController::class, 'assignedSalesWorkers']);
+      Route::apiResource('sede', SedeController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+    });
+    
     Route::group(['prefix' => 'gs'], function () {
 
       Route::get('/department', [DepartmentController::class, 'index']);
@@ -174,17 +185,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 
     Route::group(['prefix' => 'gh'], function () {
-      Route::group(['prefix' => 'mg'], function () {
-        Route::get('sede/assignedSalesWorkers', [SedeController::class, 'assignedSalesWorkers']);
-        Route::apiResource('sede', SedeController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-      });
-      
       //    PERSONAL MAIN
       Route::group(['prefix' => 'personal'], function () {
         //        PERSON
