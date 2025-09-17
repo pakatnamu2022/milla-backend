@@ -12,7 +12,8 @@ class SedeResource extends JsonResource
     return [
       'id' => $this->id,
       'localidad' => $this->localidad,
-      'suc_abrev' => $this->company ? $this->company->abbreviation . ' | ' . $this->suc_abrev : $this->abreviatura,
+      'suc_abrev' => $this->suc_abrev,
+      'description' => $this->company ? $this->company->abbreviation . ' | ' . $this->suc_abrev : $this->abreviatura,
       'abreviatura' => $this->abreviatura,
       'empresa_id' => $this->empresa_id,
       'company' => $this->company?->name,
