@@ -18,6 +18,8 @@ class UserSeriesAssignmentResource extends JsonResource
             'id' => $voucher->id,
             'series' => $voucher->series,
             'sede' => $voucher->sede->abreviatura,
+            'type_receipt' => $voucher->typeReceipt?->description,
+            'type_operation' => $voucher->typeOperation?->description,
           ];
         });
       })
