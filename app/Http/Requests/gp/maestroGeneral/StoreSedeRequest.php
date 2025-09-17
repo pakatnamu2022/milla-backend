@@ -21,8 +21,6 @@ class StoreSedeRequest extends StoreRequest
         'required',
         'string',
         'max:100',
-        Rule::unique('config_sede', 'dyn_code')
-          ->whereNull('deleted_at'),
       ],
       'direccion' => [
         'required',

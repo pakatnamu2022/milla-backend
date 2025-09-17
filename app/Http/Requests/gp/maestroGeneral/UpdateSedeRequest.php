@@ -22,9 +22,6 @@ class UpdateSedeRequest extends StoreRequest
         'nullable',
         'string',
         'max:100',
-        Rule::unique('config_sede', 'dyn_code')
-          ->whereNull('deleted_at')
-          ->ignore($this->route('sede')),
       ],
       'direccion' => [
         'nullable',
