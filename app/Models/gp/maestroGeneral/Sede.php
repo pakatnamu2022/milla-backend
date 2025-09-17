@@ -1,8 +1,11 @@
 <?php
 
-namespace App\Models\gp\gestionsistema;
+namespace App\Models\gp\maestroGeneral;
 
 use App\Models\BaseModel;
+use App\Models\gp\gestionsistema\Area;
+use App\Models\gp\gestionsistema\Company;
+use App\Models\gp\gestionsistema\Person;
 
 class Sede extends BaseModel
 {

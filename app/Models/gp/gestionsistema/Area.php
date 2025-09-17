@@ -3,17 +3,18 @@
 namespace App\Models\gp\gestionsistema;
 
 use App\Models\BaseModel;
+use App\Models\gp\maestroGeneral\Sede;
 
 class Area extends BaseModel
 {
-    protected $table = 'rrhh_area';
-    
-    public $timestamps = true;
+  protected $table = 'rrhh_area';
 
-    public function sede()
-    {
-        return $this->belongsTo(Sede::class, 'sede_id');
-    }
+  public $timestamps = true;
+
+  public function sede()
+  {
+    return $this->belongsTo(Sede::class, 'sede_id');
+  }
 
 //    public function centro_costo()
 //    {

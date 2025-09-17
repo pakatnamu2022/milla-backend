@@ -49,9 +49,9 @@ use App\Http\Controllers\gp\gestionsistema\DistrictController;
 use App\Http\Controllers\gp\gestionsistema\PositionController;
 use App\Http\Controllers\gp\gestionsistema\ProvinceController;
 use App\Http\Controllers\gp\gestionsistema\RoleController;
-use App\Http\Controllers\gp\gestionsistema\SedeController;
 use App\Http\Controllers\gp\gestionsistema\UserController;
 use App\Http\Controllers\gp\gestionsistema\ViewController;
+use App\Http\Controllers\gp\maestroGeneral\SedeController;
 use App\Http\Controllers\gp\tics\EquipmentController;
 use App\Http\Controllers\gp\tics\EquipmentTypeController;
 use Illuminate\Support\Facades\Route;
@@ -66,15 +66,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
   //    GENERAL
   //    SEDE
   Route::apiResource('company', CompanyController::class)->only([
-    'index',
-    'show',
-    'store',
-    'update',
-    'destroy'
-  ]);
-
-  Route::get('sede/assignedSalesWorkers', [SedeController::class, 'assignedSalesWorkers']);
-  Route::apiResource('sede', SedeController::class)->only([
     'index',
     'show',
     'store',
@@ -183,6 +174,17 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 
     Route::group(['prefix' => 'gh'], function () {
+      Route::group(['prefix' => 'mg'], function () {
+        Route::get('sede/assignedSalesWorkers', [SedeController::class, 'assignedSalesWorkers']);
+        Route::apiResource('sede', SedeController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+      });
+      
       //    PERSONAL MAIN
       Route::group(['prefix' => 'personal'], function () {
         //        PERSON

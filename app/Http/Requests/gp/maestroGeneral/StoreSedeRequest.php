@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Requests\gp\gestionsistema;
+namespace App\Http\Requests\gp\maestroGeneral;
 
 use App\Http\Requests\StoreRequest;
 use Illuminate\Validation\Rule;

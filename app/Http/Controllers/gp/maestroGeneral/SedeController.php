@@ -1,13 +1,12 @@
 <?php
 
-namespace App\Http\Controllers\gp\gestionsistema;
+namespace App\Http\Controllers\gp\maestroGeneral;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\gp\gestionsistema\IndexSedeRequest;
-use App\Http\Requests\gp\gestionsistema\StoreSedeRequest;
-use App\Http\Requests\gp\gestionsistema\UpdateSedeRequest;
-use App\Http\Services\gp\gestionsistema\SedeService;
-use App\Models\gp\gestionsistema\Sede;
+use App\Http\Requests\gp\maestroGeneral\IndexSedeRequest;
+use App\Http\Requests\gp\maestroGeneral\StoreSedeRequest;
+use App\Http\Requests\gp\maestroGeneral\UpdateSedeRequest;
+use App\Http\Services\gp\maestroGeneral\SedeService;
 use Illuminate\Http\Request;
 
 class SedeController extends Controller

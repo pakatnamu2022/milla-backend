@@ -1,11 +1,10 @@
 <?php
 
-namespace App\Http\Services\gp\gestionsistema;
+namespace App\Http\Services\gp\maestroGeneral;
 
-use App\Http\Resources\gp\gestionsistema\SedeResource;
-use App\Http\Resources\gp\tics\EquipmentResource;
+use App\Http\Resources\gp\maestroGeneral\SedeResource;
 use App\Http\Services\BaseService;
-use App\Models\gp\gestionsistema\Sede;
+use App\Models\gp\maestroGeneral\Sede;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,10 +14,10 @@ class SedeService extends BaseService
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      Sede::where('status_deleted', 1)->whereNotNull('empresa_id')->orderBy('empresa_id', 'asc'),
+      \App\Models\gp\maestroGeneral\Sede::where('status_deleted', 1)->whereNotNull('empresa_id')->orderBy('empresa_id', 'asc'),
       $request,
       Sede::filters,
-      Sede::sorts,
+      \App\Models\gp\maestroGeneral\Sede::sorts,
       SedeResource::class,
     );
   }
@@ -41,7 +40,7 @@ class SedeService extends BaseService
 
   public function find($id)
   {
-    $Sede = Sede::where('id', $id)->first();
+    $Sede = \App\Models\gp\maestroGeneral\Sede::where('id', $id)->first();
     if (!$Sede) {
       throw new Exception('Sede no encontrado');
     }
@@ -50,7 +49,7 @@ class SedeService extends BaseService
 
   public function store(mixed $data)
   {
-    $Sede = Sede::create($data);
+    $Sede = \App\Models\gp\maestroGeneral\Sede::create($data);
     return new SedeResource($Sede);
   }
 

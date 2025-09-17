@@ -7,9 +7,9 @@ use App\Http\Services\BaseService;
 use App\Http\Utils\Constants;
 use App\Models\ap\configuracionComercial\venta\ApAssignCompanyBranch;
 use App\Models\ap\configuracionComercial\venta\ApAssignCompanyBranchPeriod;
-use App\Models\gp\gestionsistema\Sede;
-use Illuminate\Http\Request;
+use App\Models\gp\maestroGeneral\Sede;
 use Exception;
+use Illuminate\Http\Request;
 
 class ApAssignCompanyBranchService extends BaseService
 {

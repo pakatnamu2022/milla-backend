@@ -3,56 +3,57 @@
 namespace App\Models\gp\gestionsistema;
 
 use App\Models\BaseModel;
+use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Company extends BaseModel
 {
-    use HasFactory;
+  use HasFactory;
 
-    protected $fillable = [
-        'name',
-        'abbreviation',
-        'description',
-        'businessName',
-        'email',
-        'logo',
-        'website',
-        'phone',
-        'address',
-        'city',
-    ];
+  protected $fillable = [
+    'name',
+    'abbreviation',
+    'description',
+    'businessName',
+    'email',
+    'logo',
+    'website',
+    'phone',
+    'address',
+    'city',
+  ];
 
-    const filters = [
-        'serach' => [
-            'name',
-            'businessName',
-            'email',
-            'website',
-            'phone',
-            'address',
-            'city'
-        ],
-        'name' => 'like',
-        'businessName' => 'like',
-        'email' => 'like',
-        'website' => 'like',
-        'phone' => 'like',
-        'address' => 'like',
-        'city' => 'like',
-    ];
+  const filters = [
+    'serach' => [
+      'name',
+      'businessName',
+      'email',
+      'website',
+      'phone',
+      'address',
+      'city'
+    ],
+    'name' => 'like',
+    'businessName' => 'like',
+    'email' => 'like',
+    'website' => 'like',
+    'phone' => 'like',
+    'address' => 'like',
+    'city' => 'like',
+  ];
 
-    const sorts = [
-        'name' => 'asc',
-        'businessName' => 'asc',
-        'email' => 'asc',
-        'website' => 'asc',
-        'phone' => 'asc',
-        'address' => 'asc',
-        'city' => 'asc',
-    ];
+  const sorts = [
+    'name' => 'asc',
+    'businessName' => 'asc',
+    'email' => 'asc',
+    'website' => 'asc',
+    'phone' => 'asc',
+    'address' => 'asc',
+    'city' => 'asc',
+  ];
 
-    public function sedes()
-    {
-        return $this->hasMany(Sede::class, 'empresa_id', 'id');
-    }
+  public function sedes()
+  {
+    return $this->hasMany(Sede::class, 'empresa_id', 'id');
+  }
 }
