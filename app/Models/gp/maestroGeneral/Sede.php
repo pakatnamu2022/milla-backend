@@ -10,6 +10,7 @@ use App\Models\gp\gestionsistema\District;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionsistema\Province;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Sede extends BaseModel
 {
@@ -60,6 +61,31 @@ class Sede extends BaseModel
     'direccion',
     'ciudad',
   ];
+
+  public function setSucAbrevAttribute($value)
+  {
+    $this->attributes['suc_abrev'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setAbreviaturaAttribute($value)
+  {
+    $this->attributes['abreviatura'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setDireccionAttribute($value)
+  {
+    $this->attributes['direccion'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setDynCodeAttribute($value)
+  {
+    $this->attributes['dyn_code'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setEstablishmentAttribute($value)
+  {
+    $this->attributes['establishment'] = Str::upper(Str::ascii($value));
+  }
 
   public function areas()
   {
