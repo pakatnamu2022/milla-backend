@@ -27,6 +27,7 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCompetenceControl
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationExportController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationMetricController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationObjectiveController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationParameterController;
@@ -338,6 +339,25 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ]);
 
 //        EVALUATION
+        Route::prefix('evaluation/export')->name('evaluations.export.')->group(function () {
+
+          // Export básico
+          Route::get('/', [EvaluationExportController::class, 'export'])
+            ->name('basic');
+
+          // Export con filtros
+          Route::get('/filtered', [EvaluationExportController::class, 'exportFiltered'])
+            ->name('filtered');
+
+          // Export por estado
+          Route::get('/status/{status}', [EvaluationExportController::class, 'exportByStatus'])
+            ->name('status')
+            ->where('status', '[0-2]');
+
+          // Export con columnas personalizadas
+          Route::post('/custom-columns', [EvaluationExportController::class, 'exportCustomColumns'])
+            ->name('custom.columns');
+        });
         Route::get('/evaluation/check', [EvaluationController::class, 'checkActiveEvaluationByDateRange']);
         Route::get('/evaluation/{evaluation}/regenerateEvaluation', [EvaluationController::class, 'regenerateEvaluation']);
         Route::get('/evaluation/{evaluation}/participants', [EvaluationController::class, 'participants']);
