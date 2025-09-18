@@ -6,6 +6,7 @@ use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationResource;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Resources\gp\gestionsistema\PositionResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\ExportService;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
@@ -22,6 +23,7 @@ class EvaluationService extends BaseService
 {
   protected EvaluationPersonService $evaluationPersonService;
   protected EvaluationPersonResultService $evaluationPersonResultService;
+  protected $exportService;
 
   // Tipos de evaluador
   const TIPO_EVALUADOR_JEFE = 0;           // Líder directo
@@ -36,11 +38,18 @@ class EvaluationService extends BaseService
 
   public function __construct(
     EvaluationPersonService       $evaluationPersonService,
-    EvaluationPersonResultService $evaluationPersonResultService
+    EvaluationPersonResultService $evaluationPersonResultService,
+    ExportService                 $exportService
   )
   {
     $this->evaluationPersonService = $evaluationPersonService;
     $this->evaluationPersonResultService = $evaluationPersonResultService;
+    $this->exportService = $exportService;
+  }
+
+  public function export(Request $request)
+  {
+    return $this->exportService->exportFromRequest($request, Evaluation::class);
   }
 
   public function list(Request $request)

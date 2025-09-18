@@ -35,7 +35,16 @@ class ExportService
       'data' => $data,
       'columns' => $columns,
       'title' => $title,
-      'summary' => $options['summary'] ?? null
+      'summary' => $options['summary'] ?? null,
+      'getColumnClass' => function ($key) {
+        if (str_contains($key, 'id')) return 'col-id';
+        if (str_contains($key, 'name') || str_contains($key, 'nombre')) return 'col-name';
+        if (str_contains($key, 'date') || str_contains($key, 'fecha')) return 'col-date';
+        if (str_contains($key, 'status') || str_contains($key, 'estado')) return 'col-status';
+        if (str_contains($key, 'percentage') || str_contains($key, 'porcentaje')) return 'col-percentage';
+        if (str_contains($key, 'evaluation') || str_contains($key, 'Evaluation')) return 'col-boolean';
+        return '';
+      }
     ];
 
     $pdf = Pdf::loadView('exports.pdf-template', $viewData);

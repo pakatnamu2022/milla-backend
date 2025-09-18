@@ -8,6 +8,7 @@ use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationRequest;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationService;
+use Illuminate\Http\Request;
 
 class EvaluationController extends Controller
 {
@@ -114,5 +115,15 @@ class EvaluationController extends Controller
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
+  }
+
+  public function export(Request $request)
+  {
+    try {
+      return $this->service->export($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+
   }
 }
