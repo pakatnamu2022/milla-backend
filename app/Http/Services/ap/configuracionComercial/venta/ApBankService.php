@@ -27,7 +27,7 @@ class ApBankService extends BaseService implements BaseServiceInterface
   {
     $bank = ApBank::where('id', $id)->first();
     if (!$bank) {
-      throw new Exception('Banco Ap no encontrado');
+      throw new Exception('Chequera no encontrado');
     }
     return $bank;
   }
@@ -56,6 +56,6 @@ class ApBankService extends BaseService implements BaseServiceInterface
     DB::transaction(function () use ($bank) {
       $bank->delete();
     });
-    return response()->json(['message' => 'Banco Ap eliminado correctamente']);
+    return response()->json(['message' => 'Chequera eliminado correctamente']);
   }
 }

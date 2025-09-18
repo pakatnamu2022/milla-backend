@@ -14,6 +14,7 @@ use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignCompanyBranchCo
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignmentLeadershipController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApBankController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApCommercialManagerBrandGroupController;
+use App\Http\Controllers\ap\configuracionComercial\venta\ApGoalSellOutInController;
 use App\Http\Controllers\ap\maestroGeneral\AssignSalesSeriesController;
 use App\Http\Controllers\ap\maestroGeneral\TaxClassTypesController;
 use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
@@ -492,6 +493,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'destroy'
         ]);
         Route::apiResource('accountingAccountPlan', ApAccountingAccountPlanController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        Route::get('apGoalSellOutIn/report', [ApGoalSellOutInController::class, 'report']);
+        Route::get('apGoalSellOutIn/report/pdf', [ApGoalSellOutInController::class, 'reportPDF']); // Descargar
+        Route::apiResource('apGoalSellOutIn', ApGoalSellOutInController::class)->only([
           'index',
           'show',
           'store',
