@@ -170,7 +170,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'destroy'
       ]);
     });
-    
+
     Route::group(['prefix' => 'gs'], function () {
 
       Route::get('/department', [DepartmentController::class, 'index']);
@@ -346,7 +346,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::apiResource('evaluation', EvaluationController::class)->only([
           'index',
           'show',
-          'sto  re',
+          'store',
           'update',
           'destroy'
         ]);
