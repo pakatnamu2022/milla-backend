@@ -7,9 +7,11 @@ use App\Http\Resources\gp\gestionhumana\evaluacion\HierarchicalCategoryResource;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Resources\gp\gestionsistema\PositionResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\ExportService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionsistema\Position;
@@ -19,6 +21,20 @@ use Illuminate\Support\Facades\DB;
 
 class EvaluationCycleService extends BaseService
 {
+  protected $exportService;
+
+
+  public function __construct(
+    ExportService $exportService
+  )
+  {
+    $this->exportService = $exportService;
+  }
+
+  public function export(Request $request)
+  {
+    return $this->exportService->exportFromRequest($request, EvaluationCycle::class);
+  }
 
   public function list(Request $request)
   {

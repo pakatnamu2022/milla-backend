@@ -124,6 +124,5 @@ class EvaluationController extends Controller
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
-
   }
 }

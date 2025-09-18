@@ -92,4 +92,13 @@ class EvaluationPersonResultController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function export(Request $request)
+  {
+    try {
+      return $this->service->export($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

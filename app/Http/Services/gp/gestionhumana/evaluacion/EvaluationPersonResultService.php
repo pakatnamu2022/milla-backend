@@ -4,6 +4,7 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonResultResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\ExportService;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
@@ -16,6 +17,21 @@ use Illuminate\Support\Facades\DB;
 
 class EvaluationPersonResultService extends BaseService
 {
+  protected $exportService;
+
+
+  public function __construct(
+    ExportService $exportService
+  )
+  {
+    $this->exportService = $exportService;
+  }
+
+  public function export(Request $request)
+  {
+    return $this->exportService->exportFromRequest($request, EvaluationPersonResult::class);
+  }
+
   public function list(Request $request)
   {
     return $this->getFilteredResults(

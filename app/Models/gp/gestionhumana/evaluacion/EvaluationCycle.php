@@ -2,13 +2,14 @@
 
 namespace App\Models\gp\gestionhumana\evaluacion;
 
+use App\Http\Traits\Reportable;
 use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class EvaluationCycle extends Model
 {
-  use SoftDeletes;
+  use SoftDeletes, Reportable;
 
   protected $table = 'gh_evaluation_cycle';
 
@@ -83,5 +84,49 @@ class EvaluationCycle extends Model
     )
       ->distinct();
   }
+
+  protected $reportColumns = [
+    'name' => [
+      'label' => 'Nombre',
+      'formatter' => null,
+      'width' => 8
+    ],
+    'status' => [
+      'label' => 'Estado',
+      'formatter' => null,
+      'width' => 25
+    ],
+    'typeEvaluation' => [
+      'label' => 'Tipo de Evaluación',
+      'formatter' => null,
+      'width' => 25
+    ],
+    'start_date' => [
+      'label' => 'Fecha de Inicio',
+      'formatter' => 'date',
+      'width' => 15
+    ],
+    'end_date' => [
+      'label' => 'Fecha de Fin',
+      'formatter' => 'date',
+      'width' => 15
+    ],
+    'cut_off_date' => [
+      'label' => 'Fecha de Corte',
+      'formatter' => 'date',
+      'width' => 15
+    ],
+    'start_date_objectives' => [
+      'label' => 'Inicio Objetivos',
+      'formatter' => 'date',
+      'width' => 15
+    ],
+    'end_date_objectives' => [
+      'label' => 'Fin Objetivos',
+      'formatter' => 'date',
+      'width' => 15
+    ]
+  ];
+
 
 }

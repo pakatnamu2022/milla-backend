@@ -304,6 +304,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ]);
 
         //        CYCLE
+        Route::get('cycle/export', [EvaluationCycleController::class, 'export']);
         Route::apiResource('cycle', EvaluationCycleController::class)->only([
           'index',
           'show',
@@ -339,8 +340,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ]);
 
 //        EVALUATION
-        Route::get('evaluation/export', [EvaluationController::class, 'export']);
-
+        Route::get('/evaluation/export', [EvaluationController::class, 'export']);
         Route::get('/evaluation/check', [EvaluationController::class, 'checkActiveEvaluationByDateRange']);
         Route::get('/evaluation/{evaluation}/regenerateEvaluation', [EvaluationController::class, 'regenerateEvaluation']);
         Route::get('/evaluation/{evaluation}/participants', [EvaluationController::class, 'participants']);
@@ -367,6 +367,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ]);
 
 //        PERSON RESULT
+        Route::get('personResult/export', [EvaluationPersonResultController::class, 'export']);
         Route::get('personResult/getByPersonAndEvaluation', [EvaluationPersonResultController::class, 'getByPersonAndEvaluation']);
         Route::get('personResult/getTeamByChief/{chief}', [EvaluationPersonResultController::class, 'getTeamByChief']);
         Route::apiResource('personResult', EvaluationPersonResultController::class)->only([

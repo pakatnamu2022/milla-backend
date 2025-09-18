@@ -7,6 +7,7 @@ use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationCycleRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationCycleRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationCycleRequest;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationCycleService;
+use Illuminate\Http\Request;
 
 class EvaluationCycleController extends Controller
 {
@@ -87,6 +88,15 @@ class EvaluationCycleController extends Controller
   {
     try {
       return $this->service->destroy($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function export(Request $request)
+  {
+    try {
+      return $this->service->export($request);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
