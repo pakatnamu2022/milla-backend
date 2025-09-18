@@ -4,6 +4,7 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonResultResource;
 use App\Http\Services\BaseService;
+use App\Http\Utils\Constants;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
@@ -31,20 +32,34 @@ class EvaluationPersonResultService extends BaseService
   {
     $activeEvaluation = Evaluation::where('status', 'active')->first();
     if (!$activeEvaluation) {
-      return null;
+      return response()->json(null);
     }
 
-    return $this->getFilteredResults(
-      EvaluationPersonResult::whereHas('person', function ($query) use ($chief_id) {
-        $query->where('jefe_id', $chief_id)
-          ->where('status_deleted', 1)
-          ->where('status_id', 22);
-      })->where('evaluation_id', $activeEvaluation->id),
-      $request,
-      EvaluationPersonResult::filters,
-      EvaluationPersonResult::sorts,
-      EvaluationPersonResultResource::class,
-    );
+    $query = EvaluationPersonResult::whereHas('person', function ($query) use ($chief_id) {
+      $query->where('jefe_id', $chief_id)
+        ->where('status_deleted', 1)
+        ->where('status_id', 22);
+    })->where('evaluation_id', $activeEvaluation->id);
+
+    $filteredQuery = $this->applyFilters($query, $request, EvaluationPersonResult::filters);
+    $sortedQuery = $this->applySorting($filteredQuery, $request, EvaluationPersonResult::sorts);
+
+    $results = $sortedQuery->paginate($request->query('per_page', Constants::DEFAULT_PER_PAGE));
+
+    // Transformar los elementos antes de crear la collection
+    $results->getCollection()->transform(function ($item) {
+      return $item; // El modelo original
+    });
+
+    // Crear la resource collection que automáticamente aplicará showExtra
+    $resourceCollection = EvaluationPersonResultResource::collection($results);
+
+    // Aplicar showExtra a cada recurso
+    $resourceCollection->collection->transform(function ($resource) {
+      return $resource->showExtra(true);
+    });
+
+    return $resourceCollection;
   }
 
   public function getByPersonAndEvaluation($data)
