@@ -350,7 +350,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::apiResource('evaluation', EvaluationController::class)->only([
           'index',
           'show',
-          'store',
+          'sto  re',
           'update',
           'destroy'
         ]);

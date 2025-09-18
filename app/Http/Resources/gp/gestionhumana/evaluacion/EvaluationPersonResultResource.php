@@ -84,13 +84,16 @@ class EvaluationPersonResultResource extends JsonResource
         ), 2),
       'competences' => [
         'index_range_result' => $this->calculateIndexRangeResult($this->competencesResult, $this->evaluation->competenceParameter),
+        'label_range' => $this->calculateLabelRangeResult($this->competencesResult, $this->evaluation->competenceParameter),
         'completion_rate' => $competenceCompletionRate,
         'completed' => $completedSubCompetences,
         'total' => $totalSubCompetences,
         'average_score' => round(collect($competenceGroups)->avg('average_result'), 2),
+        'max_score' => round((new EvaluationParameterResource($this->evaluation->competenceParameter))->details->last()->to, 2),
       ],
       'objectives' => [
         'index_range_result' => $this->person->position->hierarchicalCategory->hasObjectives ? $this->calculateIndexRangeResult($this->objectivesResult, $this->evaluation->objectiveParameter) : $this->evaluation->objectiveParameter->details->count() - 1,
+        'label_range' => $this->person->position->hierarchicalCategory->hasObjectives ? $this->calculateLabelRangeResult($this->objectivesResult, $this->evaluation->objectiveParameter) : $this->evaluation->objectiveParameter->details->last()->label,
         'completion_rate' => $objectiveCompletionRate,
         'completed' => $completedObjectives,
         'total' => $totalObjectives,
@@ -99,6 +102,7 @@ class EvaluationPersonResultResource extends JsonResource
       ],
       'final' => [
         'index_range_result' => $this->calculateIndexRangeResult($this->result, $this->evaluation->finalParameter),
+        'label_range' => $this->calculateLabelRangeResult($this->result, $this->evaluation->finalParameter),
         'max_score' => round((new EvaluationParameterResource($this->evaluation->finalParameter))->details->last()->to, 2),
       ],
       'evaluator_averages' => $evaluatorAverages,
@@ -117,6 +121,17 @@ class EvaluationPersonResultResource extends JsonResource
       }
     }
     return $orderedDetailsByTo->count() - 1; // Si es mayor que todos, retorna el último índice
+  }
+
+  private function calculateLabelRangeResult($percentage, $parameter)
+  {
+    $orderedDetailsByTo = $parameter->details->sortBy('to');
+    foreach ($orderedDetailsByTo as $detail) {
+      if ($percentage < $detail->to) {
+        return $detail->label;
+      }
+    }
+    return $orderedDetailsByTo->last()->label; // Si es mayor que todos, retorna la última etiqueta
   }
 
   /**
