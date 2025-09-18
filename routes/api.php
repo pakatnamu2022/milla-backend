@@ -500,6 +500,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'destroy'
         ]);
 
+        Route::get('apGoalSellOutIn/report', [ApGoalSellOutInController::class, 'report']);
+        Route::get('apGoalSellOutIn/report/pdf', [ApGoalSellOutInController::class, 'reportPDF']); // Descargar
         Route::apiResource('apGoalSellOutIn', ApGoalSellOutInController::class)->only([
           'index',
           'show',
