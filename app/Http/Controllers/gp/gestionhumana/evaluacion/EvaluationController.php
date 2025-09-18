@@ -37,6 +37,15 @@ class EvaluationController extends Controller
     }
   }
 
+  public function regenerateEvaluation(int $id)
+  {
+    try {
+      return $this->success($this->service->regenerateEvaluation($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function participants(int $id)
   {
     try {
@@ -77,44 +86,6 @@ class EvaluationController extends Controller
     }
   }
 
-  /**
-   * Obtener estadísticas de competencias de una evaluación
-   */
-  public function competencesStats(int $id)
-  {
-    try {
-      $evaluation = $this->service->find($id);
-
-      $stats = [
-        'total_competencias' => $evaluation->competenceDetails()->count(),
-        'competencias_por_tipo' => $evaluation->competenceDetails()
-          ->selectRaw('evaluatorType, count(*) as total')
-          ->groupBy('evaluatorType')
-          ->get()
-          ->mapWithKeys(function ($item) {
-            $tipos = [
-              0 => 'Líder Directo',
-              1 => 'Autoevaluación',
-              2 => 'Compañeros',
-              3 => 'Reportes'
-            ];
-            return [$tipos[$item->evaluatorType] => $item->total];
-          }),
-        'personas_con_competencias' => $evaluation->competenceDetails()
-          ->distinct('person_id')
-          ->count(),
-        'promedio_competencias_por_persona' => $evaluation->competenceDetails()
-          ->selectRaw('person_id, count(*) as total')
-          ->groupBy('person_id')
-          ->get()
-          ->avg('total')
-      ];
-
-      return $this->success($stats);
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
 
   public function show(int $id)
   {

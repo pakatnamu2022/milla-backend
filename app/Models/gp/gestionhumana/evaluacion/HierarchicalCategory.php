@@ -99,7 +99,7 @@ class HierarchicalCategory extends BaseModel
       'cargo_id',
       'id',
       'position_id'
-    )->where('rrhh_persona.status_id', 22);
+    )->where('rrhh_persona.status_id', 22)->where('rrhh_persona.status_deleted', 1)->where('rrhh_persona.b_empleado', 1);
   }
 
   public static function whereAllPersonsHaveJefe(bool $hasObjectives)

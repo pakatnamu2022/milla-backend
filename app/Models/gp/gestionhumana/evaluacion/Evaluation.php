@@ -135,4 +135,14 @@ class Evaluation extends Model
   {
     return $this->competenceParameter?->details()->max('to');
   }
+
+  public function getMaxScoreObjectiveAttribute()
+  {
+    return $this->objectiveParameter?->details()->max('to');
+  }
+
+  public function getMaxScoreFinalAttribute()
+  {
+    return $this->finalParameter?->details()->max('to');
+  }
 }

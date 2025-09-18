@@ -340,22 +340,20 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 //        EVALUATION
         Route::get('/evaluation/check', [EvaluationController::class, 'checkActiveEvaluationByDateRange']);
+        Route::get('/evaluation/{evaluation}/regenerateEvaluation', [EvaluationController::class, 'regenerateEvaluation']);
         Route::get('/evaluation/{evaluation}/participants', [EvaluationController::class, 'participants']);
         Route::get('/evaluation/{evaluation}/positions', [EvaluationController::class, 'positions']);
 
         Route::apiResource('evaluation', EvaluationController::class)->only([
           'index',
           'show',
-          'store',
+          'sto  re',
           'update',
           'destroy'
         ]);
 
         Route::post('/evaluation/{evaluation}/competences', [EvaluationController::class, 'createCompetences'])
           ->name('evaluation.competences.create');
-
-        Route::get('/evaluation/{evaluation}/competences/stats', [EvaluationController::class, 'competencesStats'])
-          ->name('evaluation.competences.stats');
 
 //        EVALUATION PERSON
         Route::apiResource('evaluationPerson', EvaluationPersonController::class)->only([

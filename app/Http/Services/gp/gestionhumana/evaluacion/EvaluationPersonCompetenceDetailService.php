@@ -4,6 +4,7 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetailResource;
 use App\Http\Services\BaseService;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationParameter;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
@@ -192,7 +193,7 @@ class EvaluationPersonCompetenceDetailService extends BaseService
 
       case self::EVALUACION_360:
         // Para 360°, calcular promedio ponderado por tipo de evaluador
-        return $this->calculate360CompetencesResult($competences);
+        return ($this->calculate360CompetencesResult($competences) / $maxScore) * 100;
 
       default:
         // Para evaluación de objetivos, promedio simple
@@ -259,19 +260,37 @@ class EvaluationPersonCompetenceDetailService extends BaseService
   /**
    * Actualizar EvaluationPersonResult
    */
-  private function updatePersonResult($evaluationId, $personId, $competencesResult, $objectivesResult)
+  public function updatePersonResult($evaluationId, $personId, $competencesResult, $objectivesResult)
   {
     $personResult = EvaluationPersonResult::where('evaluation_id', $evaluationId)
       ->where('person_id', $personId)
       ->first();
 
     if ($personResult) {
-      // Calcular resultado final basado en porcentajes de la evaluación
       $evaluation = Evaluation::find($evaluationId);
-      $competencesPercentage = $evaluation->competencesPercentage / 100;
-      $objectivesPercentage = $evaluation->objectivesPercentage / 100;
+      $maxFinalScore = $evaluation->max_score_final;
+      $maxCompetenceScore = 100;
+      $maxObjectiveScore = $evaluation->max_score_objective;
 
-      $finalResult = ($competencesResult * $competencesPercentage) + ($objectivesResult * $objectivesPercentage);
+      if (!$maxFinalScore) {
+        throw new Exception('El parámetro final de evaluación no está configurado.');
+      }
+      if (!$maxCompetenceScore && $competencesResult > 0) {
+        throw new Exception('El parámetro de competencia de evaluación no está configurado.');
+      }
+      if (!$maxObjectiveScore && $objectivesResult > 0) {
+        throw new Exception('El parámetro de objetivo de evaluación no está configurado.');
+      }
+
+      // Convertir porcentajes a decimales
+      $competencesPercentage = $personResult->competencesPercentage / 100;
+      $objectivesPercentage = $personResult->objectivesPercentage / 100;
+
+      // Normalizar los resultados a la escala del maxFinalScore
+      $normalizedCompetencesResult = ($competencesResult / 100) * $maxFinalScore;
+      $normalizedObjectivesResult = ($objectivesResult / $maxObjectiveScore) * $maxFinalScore;
+
+      $finalResult = ($normalizedCompetencesResult * $competencesPercentage) + ($normalizedObjectivesResult * $objectivesPercentage);
 
       $personResult->update([
         'competencesResult' => $competencesResult,
