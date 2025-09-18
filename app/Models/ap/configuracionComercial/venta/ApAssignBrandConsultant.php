@@ -5,7 +5,7 @@ namespace App\Models\ap\configuracionComercial\venta;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\CompanyBranch;
-use App\Models\gp\gestionsistema\Sede;
+use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 

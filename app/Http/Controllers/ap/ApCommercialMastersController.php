@@ -1,29 +1,32 @@
 <?php
 
-namespace App\Http\Controllers\gp\gestionsistema;
+namespace App\Http\Controllers\ap;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\gp\gestionsistema\StoreCompanyBranchRequest;
-use App\Http\Requests\gp\gestionsistema\UpdateCompanyBranchRequest;
-use App\Http\Services\gp\gestionsistema\CompanyBranchService;
-use App\Models\gp\gestionsistema\CompanyBranch;
-use Illuminate\Http\Request;
+use App\Http\Requests\ap\IndexApCommercialMastersRequest;
+use App\Http\Requests\ap\StoreApCommercialMastersRequest;
+use App\Http\Requests\ap\UpdateApCommercialMastersRequest;
+use App\Http\Services\ap\ApCommercialMastersService;
 
-class CompanyBranchController extends Controller
+class ApCommercialMastersController extends Controller
 {
-  protected CompanyBranchService $service;
+  protected ApCommercialMastersService $service;
 
-  public function __construct(CompanyBranchService $service)
+  public function __construct(ApCommercialMastersService $service)
   {
     $this->service = $service;
   }
 
-  public function index()
+  public function index(IndexApCommercialMastersRequest $request)
   {
-    return $this->service->list(request());
+    try {
+      return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
-  public function store(StoreCompanyBranchRequest $request)
+  public function store(StoreApCommercialMastersRequest $request)
   {
     try {
       return $this->success($this->service->store($request->validated()));
@@ -41,7 +44,7 @@ class CompanyBranchController extends Controller
     }
   }
 
-  public function update(UpdateCompanyBranchRequest $request, $id)
+  public function update(UpdateApCommercialMastersRequest $request, $id)
   {
     try {
       $data = $request->validated();
@@ -52,9 +55,6 @@ class CompanyBranchController extends Controller
     }
   }
 
-  /**
-   * Remove the specified resource from storage.
-   */
   public function destroy($id)
   {
     try {

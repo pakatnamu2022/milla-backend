@@ -2,6 +2,7 @@
 
 namespace App\Models\gp\gestionhumana\personal;
 
+use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionsistema\Status;
 use Illuminate\Database\Eloquent\Builder;
@@ -43,5 +44,15 @@ class Worker extends Person
   public function scopeFromEmpresa($query, int $empresaId)
   {
     return $query->whereHas('sede', fn($q) => $q->where('empresa_id', $empresaId));
+  }
+
+  public function vouchers()
+  {
+    return $this->belongsToMany(
+      AssignSalesSeries::class,
+      'user_series_assignment',
+      'worker_id',
+      'voucher_id'
+    )->withTimestamps()->withTrashed();
   }
 }

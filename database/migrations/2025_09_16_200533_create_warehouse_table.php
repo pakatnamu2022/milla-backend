@@ -10,12 +10,15 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('contact', function (Blueprint $table) {
+    Schema::create('warehouse', function (Blueprint $table) {
       $table->id();
-      $table->string('value');
-      $table->enum('type', ['email', 'phone', 'link']);
+      $table->string('dyn_code', 10);
+      $table->string('description', 255);
+      $table->boolean('status')->default(true);
       $table->integer('sede_id');
       $table->foreign('sede_id')->references('id')->on('config_sede');
+      $table->foreignId('type_operation_id')
+        ->constrained('ap_commercial_masters');
       $table->timestamps();
       $table->softDeletes();
     });
@@ -26,6 +29,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('contact');
+    Schema::dropIfExists('warehouse');
   }
 };

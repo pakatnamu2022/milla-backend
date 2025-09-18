@@ -1,12 +1,13 @@
 <?php
 
+use App\Http\Controllers\ap\ApCommercialMastersController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
-use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApCommercialMastersController;
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFamiliesController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFuelTypeController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApModelsVnController;
-use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleStatusController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleBrandController;
+use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApVehicleStatusController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAccountingAccountPlanController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignBrandConsultantController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignCompanyBranchController;
@@ -17,10 +18,11 @@ use App\Http\Controllers\ap\maestroGeneral\AssignSalesSeriesController;
 use App\Http\Controllers\ap\maestroGeneral\TaxClassTypesController;
 use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
 use App\Http\Controllers\ap\maestroGeneral\UnitMeasurementController;
+use App\Http\Controllers\ap\maestroGeneral\UserSeriesAssignmentController;
+use App\Http\Controllers\ap\maestroGeneral\WarehouseController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailController;
-use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
-use App\Http\Controllers\AuthController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCompetenceController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetailController;
@@ -47,9 +49,9 @@ use App\Http\Controllers\gp\gestionsistema\DistrictController;
 use App\Http\Controllers\gp\gestionsistema\PositionController;
 use App\Http\Controllers\gp\gestionsistema\ProvinceController;
 use App\Http\Controllers\gp\gestionsistema\RoleController;
-use App\Http\Controllers\gp\gestionsistema\SedeController;
 use App\Http\Controllers\gp\gestionsistema\UserController;
 use App\Http\Controllers\gp\gestionsistema\ViewController;
+use App\Http\Controllers\gp\maestroGeneral\SedeController;
 use App\Http\Controllers\gp\tics\EquipmentController;
 use App\Http\Controllers\gp\tics\EquipmentTypeController;
 use Illuminate\Support\Facades\Route;
@@ -64,15 +66,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
   //    GENERAL
   //    SEDE
   Route::apiResource('company', CompanyController::class)->only([
-    'index',
-    'show',
-    'store',
-    'update',
-    'destroy'
-  ]);
-
-  Route::get('sede/assignedSalesWorkers', [SedeController::class, 'assignedSalesWorkers']);
-  Route::apiResource('sede', SedeController::class)->only([
     'index',
     'show',
     'store',
@@ -167,19 +160,22 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 
   Route::group(['prefix' => 'gp'], function () {
-    Route::group(['prefix' => 'gs'], function () {
-
-      Route::get('/department', [DepartmentController::class, 'index']);
-      Route::get('/province', [ProvinceController::class, 'index']);
-      Route::apiResource('district', DistrictController::class)->only([
+    Route::group(['prefix' => 'mg'], function () {
+      Route::get('sede/assignedSalesWorkers', [SedeController::class, 'assignedSalesWorkers']);
+      Route::apiResource('sede', SedeController::class)->only([
         'index',
         'show',
         'store',
         'update',
         'destroy'
       ]);
+    });
+    
+    Route::group(['prefix' => 'gs'], function () {
 
-      Route::apiResource('companyBranch', CompanyBranchController::class)->only([
+      Route::get('/department', [DepartmentController::class, 'index']);
+      Route::get('/province', [ProvinceController::class, 'index']);
+      Route::apiResource('district', DistrictController::class)->only([
         'index',
         'show',
         'store',
@@ -407,6 +403,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
    * Routes for Automotores Pakatnamu
    */
   Route::group(['prefix' => 'ap'], function () {
+    Route::apiResource('commercialMasters', ApCommercialMastersController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
     Route::group(['prefix' => 'configuration'], function () {
       //        CONFIGURATION COMMERCIAL
       Route::group(['prefix' => 'commercial'], function () {
@@ -418,13 +421,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'destroy'
         ]);
         Route::apiResource('vehicleStatus', ApVehicleStatusController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-        Route::apiResource('commercialMasters', ApCommercialMastersController::class)->only([
           'index',
           'show',
           'store',
@@ -534,6 +530,22 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ]);
 
         Route::apiResource('unitMeasurement', UnitMeasurementController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        Route::apiResource('userSeriesAssignment', UserSeriesAssignmentController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        Route::apiResource('warehouse', WarehouseController::class)->only([
           'index',
           'show',
           'store',

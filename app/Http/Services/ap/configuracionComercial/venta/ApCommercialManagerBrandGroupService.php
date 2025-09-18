@@ -4,11 +4,10 @@ namespace App\Http\Services\ap\configuracionComercial\venta;
 
 use App\Http\Resources\ap\configuracionComercial\venta\ApCommercialManagerBrandGroupResource;
 use App\Http\Services\BaseService;
-use App\Models\ap\configuracionComercial\vehiculo\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\venta\ApCommercialManagerBrandGroup;
 use App\Models\ap\configuracionComercial\venta\ApCommercialManagerBrandGroupPeriod;
-use Illuminate\Http\Request;
 use Exception;
+use Illuminate\Http\Request;
 
 class ApCommercialManagerBrandGroupService extends BaseService
 {

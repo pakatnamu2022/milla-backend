@@ -20,8 +20,9 @@ return new class extends Migration {
         ->constrained('ap_vehicle_brand');
       $table->integer('worker_id');
       $table->foreign('worker_id')->references('id')->on('rrhh_persona');
-      $table->foreignId('company_branch_id')->constrained('company_branch');
-      $table->unique(['brand_id', 'worker_id', 'company_branch_id', 'year', 'month'], 'unique_consultant_sede_anio_mes');
+      $table->integer('sede_id');
+      $table->foreign('sede_id')->references('id')->on('config_sede');
+      $table->unique(['brand_id', 'worker_id', 'sede_id', 'year', 'month'], 'unique_consultant_sede_anio_mes');
       $table->timestamps();
       $table->softDeletes();
     });

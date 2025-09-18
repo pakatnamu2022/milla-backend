@@ -4,6 +4,7 @@ namespace App\Models\gp\gestionsistema;
 
 use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
+use App\Models\gp\maestroGeneral\Sede;
 
 class Person extends BaseModel
 {

@@ -19,7 +19,6 @@ return new class extends Migration {
       $table->integer('year');
       $table->integer('month');
       $table->boolean('status')->default(true);
-      $table->foreignId('company_branch_id')->nullable()->constrained('company_branch');
       $table->unique(['sede_id', 'worker_id', 'year', 'month'], 'uniq_sede_periodo');
       $table->timestamps();
       $table->softDeletes();

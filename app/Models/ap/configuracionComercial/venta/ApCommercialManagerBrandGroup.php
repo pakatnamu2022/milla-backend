@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\configuracionComercial\venta;
 
-use App\Models\ap\configuracionComercial\vehiculo\ApCommercialMasters;
+use App\Models\ap\ApCommercialMasters;
 use App\Models\gp\gestionsistema\Person;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;

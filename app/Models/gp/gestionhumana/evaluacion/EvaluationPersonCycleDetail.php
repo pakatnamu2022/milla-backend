@@ -6,7 +6,7 @@ use App\Models\BaseModel;
 use App\Models\gp\gestionsistema\Area;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionsistema\Position;
-use App\Models\gp\gestionsistema\Sede;
+use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class EvaluationPersonCycleDetail extends BaseModel

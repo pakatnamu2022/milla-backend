@@ -2,10 +2,10 @@
 
 namespace App\Models\ap\configuracionComercial\venta;
 
-use App\Models\ap\configuracionComercial\vehiculo\ApCommercialMasters;
+use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\gp\gestionsistema\CompanyBranch;
-use App\Models\gp\gestionsistema\Sede;
+use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 

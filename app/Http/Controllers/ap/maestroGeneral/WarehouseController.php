@@ -1,24 +1,25 @@
 <?php
 
-namespace App\Http\Controllers\ap\configuracionComercial\vehiculo;
+namespace App\Http\Controllers\ap\maestroGeneral;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApCommercialMastersRequest;
-use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApCommercialMastersRequest;
-use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApCommercialMastersRequest;
-use App\Http\Services\ap\configuracionComercial\vehiculo\ApCommercialMastersService;
+use App\Http\Requests\ap\maestroGeneral\IndexWarehouseRequest;
+use App\Http\Requests\ap\maestroGeneral\StoreWarehouseRequest;
+use App\Http\Requests\ap\maestroGeneral\UpdateWarehouseRequest;
+use App\Http\Services\ap\maestroGeneral\WarehouseService;
+use App\Models\ap\maestroGeneral\Warehouse;
 use Illuminate\Http\Request;
 
-class ApCommercialMastersController extends Controller
+class WarehouseController extends Controller
 {
-  protected ApCommercialMastersService $service;
+  protected WarehouseService $service;
 
-  public function __construct(ApCommercialMastersService $service)
+  public function __construct(WarehouseService $service)
   {
     $this->service = $service;
   }
 
-  public function index(IndexApCommercialMastersRequest $request)
+  public function index(IndexWarehouseRequest $request)
   {
     try {
       return $this->service->list($request);
@@ -27,10 +28,10 @@ class ApCommercialMastersController extends Controller
     }
   }
 
-  public function store(StoreApCommercialMastersRequest $request)
+  public function store(StoreWarehouseRequest $request)
   {
     try {
-      return $this->success($this->service->store($request->validated()));
+      return $this->success($this->service->store($request->all()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -45,10 +46,10 @@ class ApCommercialMastersController extends Controller
     }
   }
 
-  public function update(UpdateApCommercialMastersRequest $request, $id)
+  public function update(UpdateWarehouseRequest $request, $id)
   {
     try {
-      $data = $request->validated();
+      $data = $request->all();
       $data['id'] = $id;
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {

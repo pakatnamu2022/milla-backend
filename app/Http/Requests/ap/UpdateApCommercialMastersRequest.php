@@ -1,9 +1,8 @@
 <?php
 
-namespace App\Http\Requests\ap\configuracionComercial\vehiculo;
+namespace App\Http\Requests\ap;
 
 use App\Http\Requests\StoreRequest;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateApCommercialMastersRequest extends StoreRequest
