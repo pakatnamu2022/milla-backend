@@ -2,6 +2,7 @@
 
 namespace App\Models\gp\gestionhumana\evaluacion;
 
+use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -67,6 +68,20 @@ class EvaluationCycle extends Model
   public function categories()
   {
     return $this->hasMany(EvaluationCycleCategoryDetail::class, 'cycle_id');
+  }
+
+  // En el modelo EvaluationCycle
+  public function workers()
+  {
+    return $this->hasManyThrough(
+      Worker::class,
+      EvaluationCycleCategoryDetail::class,
+      'cycle_id',                    // Foreign key en EvaluationCycleCategoryDetail
+      'cargo_id',                    // Foreign key en Person que apunta a Position
+      'id',                         // Local key en EvaluationCycle
+      'hierarchical_category_id'     // Local key en EvaluationCycleCategoryDetail que conecta con HierarchicalCategory
+    )
+      ->distinct();
   }
 
 }

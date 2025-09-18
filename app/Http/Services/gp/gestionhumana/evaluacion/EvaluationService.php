@@ -8,8 +8,10 @@ use App\Http\Resources\gp\gestionsistema\PositionResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionsistema\Position;
 use Exception;
@@ -413,38 +415,49 @@ class EvaluationService extends BaseService
     return new EvaluationResource($this->find($id));
   }
 
+  public function regenerateEvaluation($evaluationId)
+  {
+    $evaluation = $this->find($evaluationId);
+
+    // Verificar si hay cambios en las personas del ciclo
+    $needsRegeneration = $this->checkCycleChanges($evaluation);
+
+    if ($needsRegeneration) {
+      // Regenerar personas del ciclo actualizado
+      $this->evaluationPersonResultService->storeMany($evaluation->id);
+      $this->evaluationPersonService->storeMany($evaluation->id);
+
+      // Regenerar competencias si es evaluación 180° o 360°
+      if (in_array($evaluation->typeEvaluation, [self::EVALUACION_180, self::EVALUACION_360])) {
+        $competencesResult = $this->crearCompetenciasEvaluacion($evaluation);
+
+        if (!$competencesResult['success']) {
+          \Log::warning('Error al regenerar competencias tras cambios en ciclo', [
+            'evaluation_id' => $evaluation->id,
+            'error' => $competencesResult['message']
+          ]);
+        }
+      }
+    }
+
+    return [
+      'message' => $needsRegeneration ? 'Evaluación regenerada con éxito' : 'No se detectaron cambios en las personas del ciclo; no se realizaron modificaciones'
+    ];
+  }
+
   public function update($data)
   {
     DB::beginTransaction();
 
     try {
-      $evaluationCompetence = $this->find($data['id']);
+      $evaluation = $this->find($data['id']);
       $data = $this->enrichData($data);
-      $evaluationCompetence->update($data);
+      $evaluation->update($data);
 
-      // Verificar si hay cambios en las personas del ciclo
-      $needsRegeneration = $this->checkCycleChanges($evaluationCompetence);
-
-      if ($needsRegeneration) {
-        // Regenerar personas del ciclo actualizado
-        $this->evaluationPersonResultService->storeMany($evaluationCompetence->id);
-        $this->evaluationPersonService->storeMany($evaluationCompetence->id);
-
-        // Regenerar competencias si es evaluación 180° o 360°
-        if (in_array($evaluationCompetence->typeEvaluation, [self::EVALUACION_180, self::EVALUACION_360])) {
-          $competencesResult = $this->crearCompetenciasEvaluacion($evaluationCompetence);
-
-          if (!$competencesResult['success']) {
-            \Log::warning('Error al regenerar competencias tras cambios en ciclo', [
-              'evaluation_id' => $evaluationCompetence->id,
-              'error' => $competencesResult['message']
-            ]);
-          }
-        }
-      }
+      $this->regenerateEvaluation($evaluation->id);
 
       DB::commit();
-      return new EvaluationResource($evaluationCompetence);
+      return new EvaluationResource($evaluation);
 
     } catch (\Exception $e) {
       DB::rollBack();
@@ -477,19 +490,26 @@ class EvaluationService extends BaseService
    */
   private function getPersonsFromCycle($cycleId)
   {
-    $cycle = EvaluationCycle::find($cycleId);
-    if (!$cycle) {
-      return [];
+    $cycle = EvaluationCycle::findOrFail($cycleId);
+
+    $query = DB::table('rrhh_persona as p')
+      ->join('rrhh_cargo as pos', 'pos.id', '=', 'p.cargo_id')
+      ->join('gh_hierarchical_category_detail as hcd', 'hcd.position_id', '=', 'pos.id')
+      ->join('gh_hierarchical_category as hc', 'hc.id', '=', 'hcd.hierarchical_category_id')
+      ->join('gh_evaluation_cycle_category_detail as eccd', 'eccd.hierarchical_category_id', '=', 'hc.id')
+      ->where('eccd.cycle_id', $cycleId)
+      ->whereNull('eccd.deleted_at')
+      ->where('p.status_deleted', 1)
+      ->where('p.b_empleado', 1)
+      ->where('p.status_id', 22);
+
+    if ($cycle->typeEvaluation == 0) {
+      // Solo categorías con objetivos
+      $query->where('hc.hasObjectives', true);
     }
 
-    // Obtener personas según las categorías jerárquicas del ciclo
-    return DB::table('gh_hierarchical_category_detail')
-      ->join('rrhh_persona', 'gh_hierarchical_category_detail.position_id', '=', 'rrhh_persona.cargo_id')
-      ->where('gh_hierarchical_category_detail.hierarchical_category_id', $cycle->hierarchical_category_id)
-      ->where('rrhh_persona.status_deleted', 1)
-      ->where('rrhh_persona.status_id', 22) // WORKER_ACTIVE
-      ->whereNull('gh_hierarchical_category_detail.deleted_at')
-      ->pluck('rrhh_persona.id')
+    return $query->distinct()
+      ->pluck('p.id')
       ->toArray();
   }
 

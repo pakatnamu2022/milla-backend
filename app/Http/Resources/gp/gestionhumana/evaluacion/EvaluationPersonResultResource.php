@@ -40,6 +40,10 @@ class EvaluationPersonResultResource extends JsonResource
       $response['maxFinalParameter'] = round((new EvaluationParameterResource($this->evaluation->finalParameter))->details->last()->to, 2);
       $response['maxObjectiveParameter'] = round((new EvaluationParameterResource($this->evaluation->objectiveParameter))->details->last()->to, 2);
       $response['maxCompetenceParameter'] = round((new EvaluationParameterResource($this->evaluation->competenceParameter))->details->last()->to, 2);
+      $response['finalParameter'] = new EvaluationParameterResource($this->evaluation->finalParameter);
+      $response['objectiveParameter'] = new EvaluationParameterResource($this->evaluation->objectiveParameter);
+      $response['competenceParameter'] = new EvaluationParameterResource($this->evaluation->competenceParameter);
+      $response['hasObjectives'] = (bool)$this->person->position->hierarchicalCategory->hasObjectives;
     }
 
     return $response;
@@ -61,7 +65,7 @@ class EvaluationPersonResultResource extends JsonResource
 
     // Estadísticas de objetivos
     $totalObjectives = $objectives->count();
-    $completedObjectives = $objectives->where('result', '>', 0)->count();
+    $completedObjectives = $objectives->where('wasEvaluated', 1)->count();
     $objectiveCompletionRate = $totalObjectives > 0 ?
       round(($completedObjectives / $totalObjectives) * 100, 2) : 0;
 
@@ -75,23 +79,44 @@ class EvaluationPersonResultResource extends JsonResource
     $competenceAnalysis = $this->getCompetenceAnalysis($competenceGroups);
 
     return [
-      'overall_completion_rate' => round(($competenceCompletionRate + $objectiveCompletionRate) / 2, 2),
+      'overall_completion_rate' => round(($competenceCompletionRate + $objectiveCompletionRate) / (
+          ($totalSubCompetences > 0 ? 1 : 0) + ($totalObjectives > 0 ? 1 : 0)
+        ), 2),
       'competences' => [
+        'index_range_result' => $this->calculateIndexRangeResult($this->competencesResult, $this->evaluation->competenceParameter),
         'completion_rate' => $competenceCompletionRate,
         'completed' => $completedSubCompetences,
         'total' => $totalSubCompetences,
         'average_score' => round(collect($competenceGroups)->avg('average_result'), 2),
       ],
       'objectives' => [
+        'index_range_result' => $this->person->position->hierarchicalCategory->hasObjectives ? $this->calculateIndexRangeResult($this->objectivesResult, $this->evaluation->objectiveParameter) : $this->evaluation->objectiveParameter->details->count() - 1,
         'completion_rate' => $objectiveCompletionRate,
         'completed' => $completedObjectives,
         'total' => $totalObjectives,
         'average_score' => round($objectives->where('result', '>', 0)->avg('result'), 2),
+        'max_score' => $this->person->position->hierarchicalCategory->hasObjectives ? round((new EvaluationParameterResource($this->evaluation->objectiveParameter))->details->last()->to, 2) : 0,
+      ],
+      'final' => [
+        'index_range_result' => $this->calculateIndexRangeResult($this->result, $this->evaluation->finalParameter),
+        'max_score' => round((new EvaluationParameterResource($this->evaluation->finalParameter))->details->last()->to, 2),
       ],
       'evaluator_averages' => $evaluatorAverages,
       'competence_analysis' => $competenceAnalysis,
       'evaluation_status' => $this->getEvaluationStatus(),
     ];
+  }
+
+
+  private function calculateIndexRangeResult($percentage, $parameter)
+  {
+    $orderedDetailsByTo = $parameter->details->sortBy('to');
+    foreach ($orderedDetailsByTo as $index => $detail) {
+      if ($percentage < $detail->to) {
+        return $index;
+      }
+    }
+    return $orderedDetailsByTo->count() - 1; // Si es mayor que todos, retorna el último índice
   }
 
   /**

@@ -189,7 +189,7 @@ class EvaluationPersonService extends BaseService
     $competencesResult = $this->calculateCompetencesResult($evaluationId, $personId, $evaluation->typeEvaluation);
 
     // Actualizar EvaluationPersonResult
-    $this->updatePersonResult($evaluationId, $personId, $competencesResult, $objectivesResult);
+    $this->competenceDetailService->updatePersonResult($evaluationId, $personId, $competencesResult, $objectivesResult);
   }
 
   /**
@@ -228,30 +228,6 @@ class EvaluationPersonService extends BaseService
     return $this->competenceDetailService->calculateCompetencesResult($evaluationId, $personId, $evaluationType);
   }
 
-  /**
-   * Actualizar EvaluationPersonResult
-   */
-  private function updatePersonResult($evaluationId, $personId, $competencesResult, $objectivesResult)
-  {
-    $personResult = EvaluationPersonResult::where('evaluation_id', $evaluationId)
-      ->where('person_id', $personId)
-      ->first();
-
-    if ($personResult) {
-      // Calcular resultado final basado en porcentajes de la evaluación
-      $evaluation = Evaluation::find($evaluationId);
-      $competencesPercentage = $evaluation->competencesPercentage / 100;
-      $objectivesPercentage = $evaluation->objectivesPercentage / 100;
-
-      $finalResult = ($competencesResult * $competencesPercentage) + ($objectivesResult * $objectivesPercentage);
-
-      $personResult->update([
-        'competencesResult' => round($competencesResult, 2),
-        'objectivesResult' => round($objectivesResult, 2),
-        'result' => round($finalResult, 2)
-      ]);
-    }
-  }
 
   /**
    * Recalcular resultados para todas las personas de una evaluación
