@@ -30,6 +30,8 @@ class EvaluationPersonResultResource extends JsonResource
       'objectivesResult' => round($this->objectivesResult, 2),
       'competencesResult' => round($this->competencesResult, 2),
       'result' => round($this->result, 2),
+//      'total_progress' => $this->total_progress,
+      'is_completed' => $this->is_completed,
     ];
 
     if ($this->showExtra) {

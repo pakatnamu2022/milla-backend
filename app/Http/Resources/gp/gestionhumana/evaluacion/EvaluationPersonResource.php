@@ -22,7 +22,6 @@ class EvaluationPersonResource extends JsonResource
       'wasEvaluated' => $this->wasEvaluated,
       'index_range_result' => $this->person->position->hierarchicalCategory->hasObjectives ? $this->calculateIndexRangeResult($this->qualification, $this->evaluation->objectiveParameter) : $this->evaluation->objectiveParameter->details->count() - 1,
       'label_range' => $this->person->position->hierarchicalCategory->hasObjectives ? $this->calculateLabelRangeResult($this->qualification, $this->evaluation->objectiveParameter) : $this->evaluation->objectiveParameter->details->last()->label,
-
     ];
   }
 

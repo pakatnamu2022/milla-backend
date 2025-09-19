@@ -23,6 +23,12 @@ trait Filterable
         continue;
       }
 
+      // 👇 NUEVO: soporte para accessors (se filtran después de la query)
+      if (is_string($operator) && str_starts_with($operator, 'accessor')) {
+        // Los accessors se manejan después en getFilteredResults
+        continue;
+      }
+
       if ($filter === 'search') {
         $fields = $operator;
         $query->where(function ($q) use ($fields, $value) {
@@ -93,6 +99,74 @@ trait Filterable
     }
   }
 
+  // 👇 NUEVO: Método para aplicar filtros de accessor
+  protected function applyAccessorFilters($collection, $request, $filters)
+  {
+    foreach ($filters as $filter => $operator) {
+      if (!is_string($operator) || !str_starts_with($operator, 'accessor')) {
+        continue;
+      }
+
+      $paramName = str_replace('.', '$', $filter);
+      $value = $request->query($paramName);
+
+      if ($value === null) {
+        continue;
+      }
+
+      $collection = $collection->filter(function ($item) use ($filter, $operator, $value) {
+        return $this->applyAccessorFilterCondition($item, $filter, $operator, $value);
+      });
+    }
+
+    return $collection;
+  }
+
+  // 👇 NUEVO: Condiciones para filtros de accessor
+  protected function applyAccessorFilterCondition($item, $filter, $operator, $value)
+  {
+    $itemValue = data_get($item, $filter);
+
+    switch ($operator) {
+      case 'accessor_bool':
+        $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        if ($bool === null && ($value === '0' || $value === 0)) {
+          $bool = false;
+        }
+        return $itemValue == $bool;
+
+      case 'accessor_like':
+        return stripos($itemValue, $value) !== false;
+
+      case 'accessor_numeric':
+        return $itemValue == $value;
+
+      case 'accessor_gt':
+        return $itemValue > $value;
+
+      case 'accessor_lt':
+        return $itemValue < $value;
+
+      case 'accessor_gte':
+        return $itemValue >= $value;
+
+      case 'accessor_lte':
+        return $itemValue <= $value;
+
+      case 'accessor_between':
+        if (is_array($value) && count($value) === 2) {
+          return $itemValue >= $value[0] && $itemValue <= $value[1];
+        }
+        return false;
+
+      case 'accessor_in':
+        return in_array($itemValue, (array)$value);
+
+      default:
+        return $itemValue == $value;
+    }
+  }
+
   protected function applyFilterCondition($query, $filter, $operator, $value)
   {
     switch ($operator) {
@@ -141,15 +215,80 @@ trait Filterable
     return $query;
   }
 
+  // 👇 NUEVO: Método para ordenar por accessor
+  protected function applyAccessorSorting($collection, $request, $sorts)
+  {
+    $sortField = $request->query('sort');
+    $sortOrder = $request->query('direction', 'desc');
+
+    if ($sortField !== null && in_array($sortField, $sorts) && str_starts_with($sorts[$sortField] ?? '', 'accessor')) {
+      $collection = $collection->sortBy(function ($item) use ($sortField) {
+        return data_get($item, $sortField);
+      }, SORT_REGULAR, $sortOrder === 'desc');
+    }
+
+    return $collection;
+  }
+
   protected function getFilteredResults($modelOrQuery, $request, $filters, $sorts, $resource)
   {
     $query = $modelOrQuery instanceof Builder ? $modelOrQuery : $modelOrQuery::query();
 
+    // Aplicar filtros de base de datos
     $query = $this->applyFilters($query, $request, $filters);
-    $query = $this->applySorting($query, $request, $sorts);
+
+    // Solo aplicar ordenamiento de BD si no es por accessor
+    $sortField = $request->query('sort');
+    $hasAccessorSort = $sortField && isset($sorts[$sortField]) &&
+      is_string($sorts[$sortField]) &&
+      str_starts_with($sorts[$sortField], 'accessor');
+
+    if (!$hasAccessorSort) {
+      $query = $this->applySorting($query, $request, $sorts);
+    }
 
     $all = $request->query('all', false) === 'true';
 
+    // Verificar si hay filtros de accessor
+    $hasAccessorFilters = collect($filters)->contains(function ($operator) {
+      return is_string($operator) && str_starts_with($operator, 'accessor');
+    });
+
+    if ($hasAccessorFilters || $hasAccessorSort) {
+      // Si hay filtros o ordenamiento de accessor, obtenemos todo y filtramos en memoria
+      $results = $query->get();
+
+      // Aplicar filtros de accessor
+      if ($hasAccessorFilters) {
+        $results = $this->applyAccessorFilters($results, $request, $filters);
+      }
+
+      // Aplicar ordenamiento de accessor
+      if ($hasAccessorSort) {
+        $results = $this->applyAccessorSorting($results, $request, $sorts);
+        $results = $results->values(); // Re-indexar
+      }
+
+      // Paginación manual para accessors
+      if (!$all) {
+        $perPage = $request->query('per_page', Constants::DEFAULT_PER_PAGE);
+        $page = $request->query('page', 1);
+        $total = $results->count();
+        $results = $results->slice(($page - 1) * $perPage, $perPage)->values();
+
+        return response()->json([
+          'data' => $resource::collection($results),
+          'current_page' => (int)$page,
+          'per_page' => (int)$perPage,
+          'total' => $total,
+          'last_page' => ceil($total / $perPage),
+        ]);
+      }
+
+      return response()->json($resource::collection($results));
+    }
+
+    // Flujo normal sin accessors
     $results = $all ? $query->get() : $query->paginate($request->query('per_page', Constants::DEFAULT_PER_PAGE));
 
     return $all ? response()->json($resource::collection($results)) : $resource::collection($results);

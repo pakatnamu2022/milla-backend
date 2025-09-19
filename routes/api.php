@@ -221,6 +221,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
       //    PERFORMANCE EVALUATION
       Route::group(['prefix' => 'performanceEvaluation'], function () {
         //        METRICS
+        Route::get('metric/export', [EvaluationMetricController::class, 'export']);
         Route::apiResource('metric', EvaluationMetricController::class)->only([
           'index',
           'show',

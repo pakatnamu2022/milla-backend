@@ -3,6 +3,7 @@
 namespace App\Http\Requests\gp\gestionhumana\evaluacion;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use Illuminate\Validation\Rule;
 
 class UpdateEvaluationRequest extends StoreRequest
@@ -55,19 +56,20 @@ class UpdateEvaluationRequest extends StoreRequest
           $validator->errors()->add('competencesPercentage', 'La suma de los porcentajes de objetivos y competencias debe ser igual a 100.');
         }
       }
-      if (isset($data['status']) && $data['status'] == 1) { // Si el estado es "Cerrada"
+      if (isset($data['status']) && $data['status'] == config('evaluation.statusEvaluation.1')) { // Si el estado es "En Progreso"
         $evaluation = $this->route('evaluation');
-        if ($evaluation) {
-          $evaluationModel = \App\Models\gp\gestionhumana\evaluacion\Evaluation::find($evaluation);
-          if ($evaluationModel && $evaluationModel->participants()->count() > 0) {
-            $validator->errors()->add('status', 'No se puede reabrir la evaluación porque ya tiene participantes asociados.');
-          }
+        $evaluationInProgress = Evaluation::where('status', config('evaluation.statusEvaluation.1'))
+          ->where('id', '!=', $evaluation)
+          ->whereNull('deleted_at')
+          ->first();
+        if ($evaluationInProgress) {
+          $validator->errors()->add('status', 'Ya existe una evaluación en progreso. Solo se permite una evaluación en progreso a la vez.');
         }
       }
-      if (isset($data['status']) && $data['status'] == 2) { // Si el estado es "Cerrada"
+      if (isset($data['status']) && $data['status'] == config('evaluation.statusEvaluation.2')) { // Si el estado es "Completado"
         $evaluation = $this->route('evaluation');
         if ($evaluation) {
-          $evaluationModel = \App\Models\gp\gestionhumana\evaluacion\Evaluation::find($evaluation);
+          $evaluationModel = Evaluation::find($evaluation);
           if ($evaluationModel && $evaluationModel->participants()->count() == 0) {
             $validator->errors()->add('status', 'No se puede cerrar la evaluación porque no tiene participantes asociados.');
           }

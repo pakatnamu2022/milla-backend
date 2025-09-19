@@ -31,6 +31,7 @@ class EvaluationResource extends JsonResource
       'competenceParameter' => $this->competenceParameter?->name,
       'objectiveParameter' => $this->objectiveParameter?->name,
       'finalParameter' => $this->finalParameter?->name,
+      'progress_stats' => $this->progress_stats,
     ];
   }
 }

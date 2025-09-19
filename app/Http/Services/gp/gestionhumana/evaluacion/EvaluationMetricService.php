@@ -4,12 +4,28 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationMetricResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\ExportService;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationMetric;
 use Exception;
 use Illuminate\Http\Request;
 
 class EvaluationMetricService extends BaseService
 {
+  protected $exportService;
+
+  public function __construct(
+    ExportService $exportService
+  )
+  {
+    $this->exportService = $exportService;
+  }
+
+  public function export(Request $request)
+  {
+    return $this->exportService->exportFromRequest($request, EvaluationMetric::class);
+  }
+
   public function list(Request $request)
   {
     return $this->getFilteredResults(
