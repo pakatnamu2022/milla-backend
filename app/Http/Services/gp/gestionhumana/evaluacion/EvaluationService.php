@@ -116,11 +116,13 @@ class EvaluationService extends BaseService
 
   public function enrichData($data)
   {
-    $cycle = EvaluationCycle::find($data['cycle_id']);
-    $data['typeEvaluation'] = $cycle->typeEvaluation;
-    $data['objective_parameter_id'] = $cycle->parameter_id;
-    $data['period_id'] = $cycle->period_id;
-    if ($data['typeEvaluation'] == self::EVALUACION_360) {
+    if (isset($data['cycle_id'])) {
+      $cycle = EvaluationCycle::find($data['cycle_id']);
+      $data['typeEvaluation'] = $cycle->typeEvaluation;
+      $data['objective_parameter_id'] = $cycle->parameter_id;
+      $data['period_id'] = $cycle->period_id;
+    }
+    if (isset($data['typeEvaluation']) && $data['typeEvaluation'] == self::EVALUACION_360) {
       $data['selfEvaluation'] = 1;
       $data['partnersEvaluation'] = 1;
     }
@@ -462,9 +464,6 @@ class EvaluationService extends BaseService
       $evaluation = $this->find($data['id']);
       $data = $this->enrichData($data);
       $evaluation->update($data);
-
-      $this->regenerateEvaluation($evaluation->id);
-
       DB::commit();
       return new EvaluationResource($evaluation);
 

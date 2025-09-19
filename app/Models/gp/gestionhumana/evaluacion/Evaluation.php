@@ -10,6 +10,7 @@ class Evaluation extends Model
 {
   use SoftDeletes, Reportable;
 
+
   protected $table = 'gh_evaluation';
 
   protected $fillable = [
@@ -24,8 +25,6 @@ class Evaluation extends Model
     'partnersEvaluation' => 'boolean',
     'objectivesPercentage' => 'decimal:2',
     'competencesPercentage' => 'decimal:2',
-    'start_date' => 'date',
-    'end_date' => 'date'
   ];
 
   // Configuración para reportes
