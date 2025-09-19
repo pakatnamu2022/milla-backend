@@ -230,6 +230,78 @@ trait Filterable
     return $collection;
   }
 
+  // 👇 NUEVO: Generar links de paginación como Laravel
+  protected function generatePaginationLinks($currentPage, $lastPage, $baseUrl, $queryParams)
+  {
+    $links = [];
+
+    // Previous link
+    $links[] = [
+      'url' => $currentPage > 1 ?
+        $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $currentPage - 1])) : null,
+      'label' => '&laquo; Previous',
+      'active' => false
+    ];
+
+    // Generar links de páginas (mostrar máximo 10 páginas alrededor de la actual)
+    $start = max(1, $currentPage - 5);
+    $end = min($lastPage, $currentPage + 5);
+
+    // Primera página si no está en el rango
+    if ($start > 1) {
+      $links[] = [
+        'url' => $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => 1])),
+        'label' => '1',
+        'active' => false
+      ];
+
+      if ($start > 2) {
+        $links[] = [
+          'url' => null,
+          'label' => '...',
+          'active' => false
+        ];
+      }
+    }
+
+    // Páginas del rango
+    for ($page = $start; $page <= $end; $page++) {
+      $links[] = [
+        'url' => $page === $currentPage ? null :
+          $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page])),
+        'label' => (string)$page,
+        'active' => $page === $currentPage
+      ];
+    }
+
+    // Última página si no está en el rango
+    if ($end < $lastPage) {
+      if ($end < $lastPage - 1) {
+        $links[] = [
+          'url' => null,
+          'label' => '...',
+          'active' => false
+        ];
+      }
+
+      $links[] = [
+        'url' => $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $lastPage])),
+        'label' => (string)$lastPage,
+        'active' => false
+      ];
+    }
+
+    // Next link
+    $links[] = [
+      'url' => $currentPage < $lastPage ?
+        $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $currentPage + 1])) : null,
+      'label' => 'Next &raquo;',
+      'active' => false
+    ];
+
+    return $links;
+  }
+
   protected function getFilteredResults($modelOrQuery, $request, $filters, $sorts, $resource)
   {
     $query = $modelOrQuery instanceof Builder ? $modelOrQuery : $modelOrQuery::query();
@@ -271,17 +343,49 @@ trait Filterable
 
       // Paginación manual para accessors
       if (!$all) {
-        $perPage = $request->query('per_page', Constants::DEFAULT_PER_PAGE);
-        $page = $request->query('page', 1);
+        $perPage = (int)$request->query('per_page', Constants::DEFAULT_PER_PAGE);
+        $page = (int)$request->query('page', 1);
         $total = $results->count();
-        $results = $results->slice(($page - 1) * $perPage, $perPage)->values();
+        $lastPage = (int)ceil($total / $perPage);
+        $from = $total > 0 ? (($page - 1) * $perPage) + 1 : null;
+        $to = $total > 0 ? min($from + $perPage - 1, $total) : null;
+
+        $paginatedResults = $results->slice(($page - 1) * $perPage, $perPage)->values();
+
+        // Generar URLs de paginación
+        $baseUrl = $request->url();
+        $queryParams = $request->query();
+
+        $prevPageUrl = null;
+        $nextPageUrl = null;
+
+        if ($page > 1) {
+          $prevParams = array_merge($queryParams, ['page' => $page - 1]);
+          $prevPageUrl = $baseUrl . '?' . http_build_query($prevParams);
+        }
+
+        if ($page < $lastPage) {
+          $nextParams = array_merge($queryParams, ['page' => $page + 1]);
+          $nextPageUrl = $baseUrl . '?' . http_build_query($nextParams);
+        }
+
+        $firstPageUrl = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => 1]));
+        $lastPageUrl = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $lastPage]));
 
         return response()->json([
-          'data' => $resource::collection($results),
-          'current_page' => (int)$page,
-          'per_page' => (int)$perPage,
+          'data' => $resource::collection($paginatedResults),
+          'current_page' => $page,
+          'first_page_url' => $firstPageUrl,
+          'from' => $from,
+          'last_page' => $lastPage,
+          'last_page_url' => $lastPageUrl,
+          'links' => $this->generatePaginationLinks($page, $lastPage, $baseUrl, $queryParams),
+          'next_page_url' => $nextPageUrl,
+          'path' => $baseUrl,
+          'per_page' => $perPage,
+          'prev_page_url' => $prevPageUrl,
+          'to' => $to,
           'total' => $total,
-          'last_page' => ceil($total / $perPage),
         ]);
       }
 

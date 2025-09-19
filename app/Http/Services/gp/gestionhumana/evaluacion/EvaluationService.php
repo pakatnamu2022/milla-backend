@@ -63,6 +63,15 @@ class EvaluationService extends BaseService
     );
   }
 
+  public function active()
+  {
+    $activeEvaluation = Evaluation::where('status', 1)->first();
+    if (!$activeEvaluation) {
+      throw new Exception('No hay una evaluación activa en este momento.');
+    }
+    return (new EvaluationResource($activeEvaluation))->showExtra();
+  }
+
   public function checkActiveEvaluationByDateRange(string $startDate, string $endDate)
   {
     $activeEvaluations = Evaluation::where(function ($query) use ($startDate, $endDate) {

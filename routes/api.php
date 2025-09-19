@@ -344,6 +344,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 //        EVALUATION
         Route::get('/evaluation/export', [EvaluationController::class, 'export']);
         Route::get('/evaluation/check', [EvaluationController::class, 'checkActiveEvaluationByDateRange']);
+        Route::get('/evaluation/active', [EvaluationController::class, 'active']);
         Route::get('/evaluation/{evaluation}/regenerateEvaluation', [EvaluationController::class, 'regenerateEvaluation']);
         Route::get('/evaluation/{evaluation}/participants', [EvaluationController::class, 'participants']);
         Route::get('/evaluation/{evaluation}/positions', [EvaluationController::class, 'positions']);
