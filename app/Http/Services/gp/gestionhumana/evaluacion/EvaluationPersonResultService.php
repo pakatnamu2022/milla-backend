@@ -62,6 +62,7 @@ class EvaluationPersonResultService extends BaseService
       EvaluationPersonResult::filters,
       EvaluationPersonResult::sorts,
       EvaluationPersonResultResource::class,
+      ['showExtra' => [true]] // 👈 Configuración del Resource
     );
   }
 

@@ -302,7 +302,7 @@ trait Filterable
     return $links;
   }
 
-  protected function getFilteredResults($modelOrQuery, $request, $filters, $sorts, $resource)
+  protected function getFilteredResults($modelOrQuery, $request, $filters, $sorts, $resource, $resourceConfig = [])
   {
     $query = $modelOrQuery instanceof Builder ? $modelOrQuery : $modelOrQuery::query();
 
@@ -341,6 +341,9 @@ trait Filterable
         $results = $results->values(); // Re-indexar
       }
 
+      // Configurar Resource si se proporcionan configuraciones
+      $resourceCollection = $this->configureResourceCollection($resource, $results, $resourceConfig);
+
       // Paginación manual para accessors
       if (!$all) {
         $perPage = (int)$request->query('per_page', Constants::DEFAULT_PER_PAGE);
@@ -351,6 +354,9 @@ trait Filterable
         $to = $total > 0 ? min($from + $perPage - 1, $total) : null;
 
         $paginatedResults = $results->slice(($page - 1) * $perPage, $perPage)->values();
+
+        // Configurar Resource paginado
+        $paginatedResourceCollection = $this->configureResourceCollection($resource, $paginatedResults, $resourceConfig);
 
         // Generar URLs de paginación
         $baseUrl = $request->url();
@@ -373,7 +379,7 @@ trait Filterable
         $lastPageUrl = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $lastPage]));
 
         return response()->json([
-          'data' => $resource::collection($paginatedResults),
+          'data' => $paginatedResourceCollection,
           'current_page' => $page,
           'first_page_url' => $firstPageUrl,
           'from' => $from,
@@ -389,12 +395,49 @@ trait Filterable
         ]);
       }
 
-      return response()->json($resource::collection($results));
+      return response()->json($resourceCollection);
     }
 
     // Flujo normal sin accessors
     $results = $all ? $query->get() : $query->paginate($request->query('per_page', Constants::DEFAULT_PER_PAGE));
 
-    return $all ? response()->json($resource::collection($results)) : $resource::collection($results);
+    if ($all) {
+      $resourceCollection = $this->configureResourceCollection($resource, $results, $resourceConfig);
+      return response()->json($resourceCollection);
+    } else {
+      // Para paginación normal, configurar cada resource individualmente
+      $data = $results->getCollection()->map(function ($item) use ($resource, $resourceConfig) {
+        return $this->configureResourceInstance($resource, $item, $resourceConfig);
+      });
+
+      return response()->json(array_merge($results->toArray(), ['data' => $data]));
+    }
+  }
+
+// 👇 NUEVO: Configurar colección de recursos
+  protected function configureResourceCollection($resource, $collection, $config)
+  {
+    return $collection->map(function ($item) use ($resource, $config) {
+      return $this->configureResourceInstance($resource, $item, $config);
+    });
+  }
+
+// 👇 NUEVO: Configurar instancia individual de recurso
+  protected function configureResourceInstance($resource, $item, $config)
+  {
+    $resourceInstance = new $resource($item);
+
+    // Aplicar configuraciones
+    foreach ($config as $method => $params) {
+      if (method_exists($resourceInstance, $method)) {
+        if (is_array($params)) {
+          $resourceInstance->$method(...$params);
+        } else {
+          $resourceInstance->$method($params);
+        }
+      }
+    }
+
+    return $resourceInstance;
   }
 }
