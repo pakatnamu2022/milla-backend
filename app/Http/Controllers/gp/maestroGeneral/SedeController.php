@@ -23,6 +23,11 @@ class SedeController extends Controller
     return $this->service->list(request());
   }
 
+  public function availableLocationsShop(IndexSedeRequest $request)
+  {
+    return $this->service->getAvailableLocationsShop(request());
+  }
+
   public function assignedSalesWorkers(Request $request)
   {
     // esto es para obtener los trabajadores asignados a ventas es diferente a trabajadores por sede

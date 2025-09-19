@@ -3,6 +3,7 @@
 namespace App\Models\ap;
 
 use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -57,5 +58,10 @@ class ApCommercialMasters extends Model
   {
     return $this->belongsToMany(Person::class, 'ap_commercial_manager_brand_group', 'brand_group_id', 'commercial_manager_id')
       ->withTimestamps();
+  }
+
+  public function sedes()
+  {
+    return $this->hasMany(Sede::class, 'shop_id');
   }
 }

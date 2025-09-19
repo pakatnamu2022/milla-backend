@@ -15,6 +15,8 @@ use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignmentLeadershipC
 use App\Http\Controllers\ap\configuracionComercial\venta\ApBankController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApCommercialManagerBrandGroupController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApGoalSellOutInController;
+use App\Http\Controllers\ap\configuracionComercial\venta\ApSafeCreditGoalController;
+use App\Http\Controllers\ap\configuracionComercial\venta\ApShopController;
 use App\Http\Controllers\ap\maestroGeneral\AssignSalesSeriesController;
 use App\Http\Controllers\ap\maestroGeneral\TaxClassTypesController;
 use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
@@ -43,7 +45,6 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailC
 use App\Http\Controllers\gp\gestionhumana\personal\PersonController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
-use App\Http\Controllers\gp\gestionsistema\CompanyBranchController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
 use App\Http\Controllers\gp\gestionsistema\DepartmentController;
 use App\Http\Controllers\gp\gestionsistema\DigitalFileController;
@@ -164,6 +165,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
   Route::group(['prefix' => 'gp'], function () {
     Route::group(['prefix' => 'mg'], function () {
       Route::get('sede/assignedSalesWorkers', [SedeController::class, 'assignedSalesWorkers']);
+      Route::get('sede/availableLocationsShop', [SedeController::class, 'availableLocationsShop']);
       Route::apiResource('sede', SedeController::class)->only([
         'index',
         'show',
@@ -561,6 +563,22 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ]);
 
         Route::apiResource('warehouse', WarehouseController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        Route::apiResource('shop', ApShopController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        Route::apiResource('apSafeCreditGoal', ApSafeCreditGoalController::class)->only([
           'index',
           'show',
           'store',

@@ -14,10 +14,25 @@ class SedeService extends BaseService
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      \App\Models\gp\maestroGeneral\Sede::where('status_deleted', 1)->whereNotNull('empresa_id')->orderBy('empresa_id', 'asc'),
+      Sede::where('status_deleted', 1)->whereNotNull('empresa_id')->orderBy('empresa_id', 'asc'),
       $request,
       Sede::filters,
-      \App\Models\gp\maestroGeneral\Sede::sorts,
+      Sede::sorts,
+      SedeResource::class,
+    );
+  }
+
+  public function getAvailableLocationsShop(Request $request)
+  {
+    return $this->getFilteredResults(
+      Sede::where('status_deleted', 1)
+        ->whereNotNull('empresa_id')
+        ->where('status', 1)
+        ->whereNull('shop_id')
+        ->orderBy('empresa_id', 'asc'),
+      $request,
+      Sede::filters,
+      Sede::sorts,
       SedeResource::class,
     );
   }

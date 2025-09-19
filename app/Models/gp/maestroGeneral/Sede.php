@@ -2,6 +2,7 @@
 
 namespace App\Models\gp\maestroGeneral;
 
+use App\Models\ap\ApCommercialMasters;
 use App\Models\BaseModel;
 use App\Models\gp\gestionsistema\Area;
 use App\Models\gp\gestionsistema\Company;
@@ -117,5 +118,10 @@ class Sede extends BaseModel
   public function district()
   {
     return $this->belongsTo(District::class, 'district_id', 'id');
+  }
+
+  public function shop()
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'shop_id');
   }
 }
