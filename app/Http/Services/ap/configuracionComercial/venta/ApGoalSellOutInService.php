@@ -44,11 +44,11 @@ class ApGoalSellOutInService extends BaseService implements BaseServiceInterface
     $pdf = PDF::loadView('reports.ap.configuracionComercial.venta.goal-sell-out-in', $reportData);
 
     // Configurar PDF
-    $pdf->setPaper('A4', 'landscape'); // Horizontal para mejor visualización de tablas
     $pdf->setOptions([
-      'defaultFont' => 'sans-serif',
+      'defaultFont' => 'Arial',
       'isHtml5ParserEnabled' => true,
       'isRemoteEnabled' => false,
+      'dpi' => 96,
     ]);
 
     return $pdf;

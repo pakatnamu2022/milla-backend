@@ -12,8 +12,7 @@
     }
 
     @page {
-      margin: 10mm;
-      size: A4 landscape;
+      margin: 10mm 8mm;
     }
 
     body {
@@ -53,6 +52,7 @@
       margin-bottom: 12px;
       padding-bottom: 8px;
       border-bottom: 1px solid #e2e8f0;
+      position: relative;
     }
 
     .header h1 {
@@ -62,6 +62,25 @@
       color: #1e40af;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+    }
+
+    .print-date {
+      position: absolute;
+      top: 0;
+      right: 0;
+      font-size: 7px;
+      color: #6b7280;
+      font-style: italic;
+    }
+
+    .footer {
+      margin-top: 15px;
+      padding-top: 8px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 6px;
+      color: #6b7280;
+      text-align: center;
+      font-style: italic;
     }
 
     .company-info {
@@ -259,7 +278,7 @@
 
     <div class="company-info">
       <p><strong>Estimados señores AUTOMOTORES PAKATNAMU S.A.C.,</strong></p>
-      <p>Sirva la presente para saludarlos cordialmente y a su vez comunicarles los objetivos de Comercial para el
+      <p>Sirva la presente para saludarlos cordialmente y a su vez comunicarles los objetivos del PDG Comercial para el
         presente mes:</p>
     </div>
 
@@ -268,8 +287,8 @@
       <table class="summary-table">
         <thead>
         <tr>
-          <th>SELL IN</th>
-          <th>SELL OUT</th>
+          <th style="color: #000;">SELL IN</th>
+          <th style="color: #000;">SELL OUT</th>
         </tr>
         </thead>
         <tbody>
@@ -391,6 +410,11 @@
         (*) Para el cálculo de cumplimiento de cuota se considera todas las operaciones debidamente registradas en las
         plataformas correspondientes (Salesforce / Dealer Portal) con fecha de facturación dentro del mes de evaluación.
       </div>
+    </div>
+
+    <!-- Footer opcional -->
+    <div class="footer">
+      {{ date('d/m/Y') }} • AUTOMOTORES PAKATNAMU S.A.C.
     </div>
 
   </div>
