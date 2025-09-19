@@ -13,6 +13,8 @@ use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use function array_find_key;
+use function config;
 
 
 class EvaluationPersonResultService extends BaseService
@@ -45,7 +47,7 @@ class EvaluationPersonResultService extends BaseService
 
   public function getTeamByChief(Request $request, int $chief_id)
   {
-    $activeEvaluation = Evaluation::where('status', 'active')->first();
+    $activeEvaluation = Evaluation::where('status', 1)->first();
     if (!$activeEvaluation) {
       return null;
     }
