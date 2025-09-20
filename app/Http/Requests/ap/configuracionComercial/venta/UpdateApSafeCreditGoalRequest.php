@@ -24,7 +24,7 @@ class UpdateApSafeCreditGoalRequest extends StoreRequest
       'goal_amount' => [
         'sometimes',
         'numeric',
-        'min:0'
+        'min:1'
       ],
       'type' => [
         'sometimes',
@@ -51,7 +51,7 @@ class UpdateApSafeCreditGoalRequest extends StoreRequest
       'month.max' => 'El campo mes debe ser menor o igual a 12.',
 
       'goal_amount.numeric' => 'El campo monto meta debe ser un número.',
-      'goal_amount.min' => 'El campo monto meta debe ser mayor o igual a 0.',
+      'goal_amount.min' => 'El campo monto meta debe ser mayor o igual a 1.',
 
       'type.string' => 'El campo tipo debe ser una cadena de texto.',
       'type.in' => 'El campo tipo debe ser CREDITO o SEGURO.',

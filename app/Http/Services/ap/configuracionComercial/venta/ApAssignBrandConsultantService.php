@@ -4,6 +4,9 @@ namespace App\Http\Services\ap\configuracionComercial\venta;
 
 use App\Http\Resources\ap\configuracionComercial\venta\ApAssignBrandConsultantResource;
 use App\Http\Services\BaseService;
+use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\configuracionComercial\venta\ApGoalSellOutIn;
+use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Http\Request;
 use Exception;
 use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
@@ -13,13 +16,47 @@ class ApAssignBrandConsultantService extends BaseService
 {
   public function list(Request $request)
   {
-    return $this->getFilteredResults(
-      ApAssignBrandConsultant::with(['worker', 'brand', 'sede']),
+    $query = ApAssignBrandConsultant::with(['worker', 'brand', 'sede']);
+
+    $results = $this->getFilteredResults(
+      $query,
       $request,
       ApAssignBrandConsultant::filters,
       ApAssignBrandConsultant::sorts,
       ApAssignBrandConsultantResource::class
     );
+
+    $brandId = $request->get('brand_id');
+    $sedeId = $request->get('sede_id');
+    $year = $request->get('year');
+    $month = $request->get('month');
+
+    if (!empty($brandId) && !empty($sedeId)) {
+      if (method_exists($results, 'additional')) {
+        $shopId = Sede::where('id', $sedeId)->value('shop_id');
+        $shopName = ApCommercialMasters::where('id', $shopId)->value('description');
+        $goalSellIn = ApGoalSellOutIn::where('brand_id', $brandId)
+          ->where('shop_id', $shopId)
+          ->where('type', 'IN')
+          ->where('year', $year)
+          ->where('month', $month)
+          ->first()->goal ?? 0;
+        $goalSellOut = ApGoalSellOutIn::where('brand_id', $brandId)
+          ->where('shop_id', $shopId)
+          ->where('type', 'OUT')
+          ->where('year', $year)
+          ->where('month', $month)
+          ->first()->goal ?? 0;
+
+        return $results->additional([
+          'meta_sell_in' => $goalSellIn,
+          'meta_sell_out' => $goalSellOut,
+          'shop' => $shopName,
+        ]);
+      }
+    }
+
+    return $results;
   }
 
   public function showGrouped(Request $request)

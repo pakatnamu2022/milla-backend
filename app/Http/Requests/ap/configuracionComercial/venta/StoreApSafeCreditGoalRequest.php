@@ -24,7 +24,7 @@ class StoreApSafeCreditGoalRequest extends StoreRequest
       'goal_amount' => [
         'required',
         'numeric',
-        'min:0'
+        'min:1'
       ],
       'type' => [
         'required',
@@ -54,7 +54,7 @@ class StoreApSafeCreditGoalRequest extends StoreRequest
 
       'goal_amount.required' => 'El campo monto meta es obligatorio.',
       'goal_amount.numeric' => 'El campo monto meta debe ser un número.',
-      'goal_amount.min' => 'El campo monto meta debe ser mayor o igual a 0.',
+      'goal_amount.min' => 'El campo monto meta debe ser mayor o igual a 1.',
 
       'type.required' => 'El campo tipo es obligatorio.',
       'type.string' => 'El campo tipo debe ser una cadena de texto.',

@@ -13,6 +13,7 @@ class ApSafeCreditGoalResource extends JsonResource
       'id' => $this->id,
       'year' => $this->year,
       'month' => $this->month,
+      'period' => $this->year . '-' . str_pad($this->month, 2, '0', STR_PAD_LEFT),
       'goal_amount' => $this->goal_amount,
       'type' => $this->type,
       'sede_id' => $this->sede_id,

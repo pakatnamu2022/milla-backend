@@ -21,10 +21,9 @@ class ApSafeCreditGoal extends Model
   ];
 
   const filters = [
-    'search' => ['sede.abreviatura'],
+    'search' => ['sede.abreviatura', 'type'],
     'year' => '=',
     'month' => '=',
-    'type' => '=',
     'sede_id' => '=',
   ];
 
