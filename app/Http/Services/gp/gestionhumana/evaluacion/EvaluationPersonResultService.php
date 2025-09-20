@@ -108,29 +108,33 @@ class EvaluationPersonResultService extends BaseService
     $cycle = EvaluationCycle::findOrFail($evaluation->cycle_id);
     $categories = EvaluationCycleCategoryDetail::where('cycle_id', $cycle->id)->get();
 
-    EvaluationPersonResult::where('evaluation_id', $evaluation->id)->delete();
+    $ids = EvaluationPersonResult::where('evaluation_id', $evaluation->id)->pluck('id');
+    EvaluationPersonResult::destroy($ids);
 
-    DB::transaction(function () use ($categories, $evaluation) {
+    DB::transaction(function () use ($categories, $evaluation, $cycle) {
       foreach ($categories as $category) {
         $hierarchicalCategory = HierarchicalCategory
           ::where('id', $category->hierarchical_category_id)
-          ->with('workers')
+          ->with('workers') // Sin constraint, obtiene todos los workers
           ->first();
 
-        foreach ($hierarchicalCategory->workers as $person) {
-          $objectivesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->objectivesPercentage : 0;
-          $competencesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->competencesPercentage : 100;
+        // Verificar que existe y tiene workers
+        if ($hierarchicalCategory && $hierarchicalCategory->workers->isNotEmpty()) {
+          foreach ($hierarchicalCategory->workers as $person) {
+            $objectivesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->objectivesPercentage : 0;
+            $competencesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->competencesPercentage : 100;
 
-          $data = [
-            'person_id' => $person->id,
-            'evaluation_id' => $evaluation->id,
-            'objectivesPercentage' => $objectivesPercentage,
-            'competencesPercentage' => $competencesPercentage,
-            'objectivesResult' => 0,
-            'competencesResult' => 0,
-            'result' => 0,
-          ];
-          EvaluationPersonResult::create($data);
+            $data = [
+              'person_id' => $person->id,
+              'evaluation_id' => $evaluation->id,
+              'objectivesPercentage' => $objectivesPercentage,
+              'competencesPercentage' => $competencesPercentage,
+              'objectivesResult' => 0,
+              'competencesResult' => 0,
+              'result' => 0,
+            ];
+            EvaluationPersonResult::create($data);
+          }
         }
       }
     });

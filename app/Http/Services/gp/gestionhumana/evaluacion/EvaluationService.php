@@ -432,7 +432,7 @@ class EvaluationService extends BaseService
 
   public function show($id)
   {
-    return new EvaluationResource($this->find($id));
+    return (new EvaluationResource($this->find($id)))->showExtra();
   }
 
   public function regenerateEvaluation($evaluationId)
@@ -442,7 +442,7 @@ class EvaluationService extends BaseService
     // Verificar si hay cambios en las personas del ciclo
     $needsRegeneration = $this->checkCycleChanges($evaluation);
 
-    if ($needsRegeneration) {
+    if (true) {
       // Regenerar personas del ciclo actualizado
       $this->evaluationPersonResultService->storeMany($evaluation->id);
       $this->evaluationPersonService->storeMany($evaluation->id);

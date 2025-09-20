@@ -230,7 +230,7 @@ trait Filterable
     return $collection;
   }
 
-  // 👇 NUEVO: Generar links de paginación como Laravel
+  // 👇 CORREGIDO: Generar links de paginación en el formato simple
   protected function generatePaginationLinks($currentPage, $lastPage, $baseUrl, $queryParams)
   {
     $links = [];
@@ -358,40 +358,34 @@ trait Filterable
         // Configurar Resource paginado
         $paginatedResourceCollection = $this->configureResourceCollection($resource, $paginatedResults, $resourceConfig);
 
-        // Generar URLs de paginación
+        // Generar URLs simples de paginación
         $baseUrl = $request->url();
         $queryParams = $request->query();
 
-        $prevPageUrl = null;
-        $nextPageUrl = null;
-
-        if ($page > 1) {
-          $prevParams = array_merge($queryParams, ['page' => $page - 1]);
-          $prevPageUrl = $baseUrl . '?' . http_build_query($prevParams);
-        }
-
-        if ($page < $lastPage) {
-          $nextParams = array_merge($queryParams, ['page' => $page + 1]);
-          $nextPageUrl = $baseUrl . '?' . http_build_query($nextParams);
-        }
-
-        $firstPageUrl = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => 1]));
-        $lastPageUrl = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $lastPage]));
+        // 👇 CORREGIDO: Formato simple de links
+        $first = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => 1]));
+        $last = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $lastPage]));
+        $prev = $page > 1 ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page - 1])) : null;
+        $next = $page < $lastPage ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page + 1])) : null;
 
         return response()->json([
           'data' => $paginatedResourceCollection,
-          'current_page' => $page,
-          'first_page_url' => $firstPageUrl,
-          'from' => $from,
-          'last_page' => $lastPage,
-          'last_page_url' => $lastPageUrl,
-          'links' => $this->generatePaginationLinks($page, $lastPage, $baseUrl, $queryParams),
-          'next_page_url' => $nextPageUrl,
-          'path' => $baseUrl,
-          'per_page' => $perPage,
-          'prev_page_url' => $prevPageUrl,
-          'to' => $to,
-          'total' => $total,
+          'links' => [
+            'first' => $first,
+            'last' => $last,
+            'prev' => $prev,
+            'next' => $next,
+          ],
+          'meta' => [
+            'current_page' => $page,
+            'from' => $from,
+            'last_page' => $lastPage,
+            'links' => $this->generatePaginationLinks($page, $lastPage, $baseUrl, $queryParams),
+            'path' => $baseUrl,
+            'per_page' => $perPage,
+            'to' => $to,
+            'total' => $total,
+          ]
         ]);
       }
 
@@ -399,18 +393,55 @@ trait Filterable
     }
 
     // Flujo normal sin accessors
-    $results = $all ? $query->get() : $query->paginate($request->query('per_page', Constants::DEFAULT_PER_PAGE));
-
     if ($all) {
+      $results = $query->get();
       $resourceCollection = $this->configureResourceCollection($resource, $results, $resourceConfig);
       return response()->json($resourceCollection);
     } else {
-      // Para paginación normal, configurar cada resource individualmente
-      $data = $results->getCollection()->map(function ($item) use ($resource, $resourceConfig) {
-        return $this->configureResourceInstance($resource, $item, $resourceConfig);
-      });
+      // 👇 NUEVO: Usar el mismo formato simple para todos los casos
+      $perPage = (int)$request->query('per_page', Constants::DEFAULT_PER_PAGE);
+      $page = (int)$request->query('page', 1);
 
-      return response()->json(array_merge($results->toArray(), ['data' => $data]));
+      // Contar total sin obtener todos los registros
+      $total = $query->count();
+      $lastPage = (int)ceil($total / $perPage);
+      $from = $total > 0 ? (($page - 1) * $perPage) + 1 : null;
+      $to = $total > 0 ? min($from + $perPage - 1, $total) : null;
+
+      // Obtener solo los registros de la página actual
+      $results = $query->skip(($page - 1) * $perPage)->take($perPage)->get();
+
+      // Configurar Resource
+      $resourceCollection = $this->configureResourceCollection($resource, $results, $resourceConfig);
+
+      // Generar URLs simples de paginación
+      $baseUrl = $request->url();
+      $queryParams = $request->query();
+
+      $first = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => 1]));
+      $last = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $lastPage]));
+      $prev = $page > 1 ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page - 1])) : null;
+      $next = $page < $lastPage ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page + 1])) : null;
+
+      return response()->json([
+        'data' => $resourceCollection,
+        'links' => [
+          'first' => $first,
+          'last' => $last,
+          'prev' => $prev,
+          'next' => $next,
+        ],
+        'meta' => [
+          'current_page' => $page,
+          'from' => $from,
+          'last_page' => $lastPage,
+          'links' => $this->generatePaginationLinks($page, $lastPage, $baseUrl, $queryParams),
+          'path' => $baseUrl,
+          'per_page' => $perPage,
+          'to' => $to,
+          'total' => $total,
+        ]
+      ]);
     }
   }
 

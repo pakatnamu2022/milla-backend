@@ -80,9 +80,10 @@ class EvaluationPersonResultResource extends JsonResource
     // Análisis de brechas (competencias con menor puntuación)
     $competenceAnalysis = $this->getCompetenceAnalysis($competenceGroups);
 
+
     return [
       'overall_completion_rate' => round(($competenceCompletionRate + $objectiveCompletionRate) / (
-          ($totalSubCompetences > 0 ? 1 : 0) + ($totalObjectives > 0 ? 1 : 0)
+          max(($totalSubCompetences > 0 ? 1 : 0) + ($totalObjectives > 0 ? 1 : 0),1)
         ), 2),
       'competences' => [
         'index_range_result' => $this->calculateIndexRangeResult($this->competencesResult, $this->evaluation->competenceParameter),
