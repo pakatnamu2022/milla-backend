@@ -13,11 +13,6 @@ use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use function array_find_key;
-use function config;
-use function dd;
-use const EVALUATION_PERSON_PENDING;
-
 
 class EvaluationPersonResultService extends BaseService
 {

@@ -4,8 +4,6 @@ namespace App\Http\Controllers\gp\gestionhumana\personal;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\personal\IndexWorkerRequest;
-use App\Http\Requests\gp\gestionhumana\personal\StoreWorkerRequest;
-use App\Http\Requests\gp\gestionhumana\personal\UpdateWorkerRequest;
 use App\Http\Services\gp\gestionhumana\personal\WorkerService;
 
 class WorkerController extends Controller

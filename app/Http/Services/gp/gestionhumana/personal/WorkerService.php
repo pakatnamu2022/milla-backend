@@ -7,7 +7,6 @@ use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationObjective;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
