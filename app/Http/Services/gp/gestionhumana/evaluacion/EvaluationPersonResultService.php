@@ -129,7 +129,7 @@ class EvaluationPersonResultService extends BaseService
                 'competencesPercentage' => $competencesPercentage,
                 'objectivesResult' => 0,
                 'competencesResult' => 0,
-                'status' => EVALUATION_PERSON_PENDING,
+                'status' => 0,
                 'result' => 0,
                 'name' => $person->nombre_completo,
                 'dni' => $person->vat,

@@ -1,9 +1,6 @@
 <?php
 
 // Definir las constantes al inicio del archivo
-const EVALUATION_PERSON_PENDING = 0;
-const EVALUATION_PERSON_IN_PROGRESS = 1;
-const EVALUATION_PERSON_COMPLETED = 2;
 
 return [
   'typesEvaluation' => [
@@ -28,8 +25,8 @@ return [
     3 => 'Reportes',
   ],
   'statusEvaluationPerson' => [
-    EVALUATION_PERSON_PENDING => 'Pendiente',
-    EVALUATION_PERSON_IN_PROGRESS => 'En Progreso',
-    EVALUATION_PERSON_COMPLETED => 'Completado',
+    0 => 'Pendiente',
+    1 => 'En Progreso',
+    2 => 'Completado',
   ]
 ];
