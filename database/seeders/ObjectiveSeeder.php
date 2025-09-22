@@ -12,10 +12,12 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationMetric;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationObjective;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategoryDetail;
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\gestionsistema\Position;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -8807,6 +8809,27 @@ class ObjectiveSeeder extends Seeder
       EvaluationCategoryObjectiveDetail::create($data);
     }
 
+//    4. Asignar el gerente general category 'Gerente General' position id 23
+
+    $categoryChiefExecutive = HierarchicalCategory::create([
+      'name' => 'Gerente General',
+      'description' => 'Description for the category Gerente General',
+      'hasObjectives' => false,
+    ]);
+
+    HierarchicalCategoryDetail::create([
+      'hierarchical_category_id' => $categoryChiefExecutive->id,
+      'position_id' => 23,
+    ]);
+
+//    Excluir del cálculo al gerente general
+    $personChiefExecutive = Worker::where('cargo_id', 23)->where('status_id', 22)->first();
+    if ($personChiefExecutive) {
+      EvaluationPersonDetail::create([
+        'person_id' => $personChiefExecutive->id,
+      ]);
+    }
+//    5. Asignar objetivos faltantes a todas las categorías
     $categoryObjectiveService->assignMissingObjectives();
   }
 }

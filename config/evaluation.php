@@ -1,5 +1,10 @@
 <?php
 
+// Definir las constantes al inicio del archivo
+define('EVALUATION_PERSON_PENDING', 0);
+define('EVALUATION_PERSON_IN_PROGRESS', 1);
+define('EVALUATION_PERSON_COMPLETED', 2);
+
 return [
   'typesEvaluation' => [
     0 => 'Evaluación de Objetivos',
@@ -22,4 +27,9 @@ return [
     2 => 'Compañeros',
     3 => 'Reportes',
   ],
+  'statusEvaluationPerson' => [
+    EVALUATION_PERSON_PENDING => 'Pendiente',
+    EVALUATION_PERSON_IN_PROGRESS => 'En Progreso',
+    EVALUATION_PERSON_COMPLETED => 'Completado',
+  ]
 ];

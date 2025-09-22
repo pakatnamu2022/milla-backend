@@ -20,7 +20,21 @@ class EvaluationPersonResult extends BaseModel
     'objectivesPercentage',
     'objectivesResult',
     'competencesResult',
+    'status',
     'result',
+    'name',
+    'dni',
+    'hierarchical_category',
+    'position',
+    'area',
+    'sede',
+    'boss',
+    'boss_dni',
+    'boss_hierarchical_category',
+    'boss_position',
+    'boss_area',
+    'boss_sede',
+    'comments',
   ];
 
   const filters = [
@@ -81,17 +95,22 @@ class EvaluationPersonResult extends BaseModel
 
   // ← AGREGAR ESTA CONFIGURACIÓN
   protected $reportColumns = [
-    'id' => [
-      'label' => 'ID',
-      'formatter' => 'number',
-      'width' => 8
-    ],
+//    'id' => [
+//      'label' => 'ID',
+//      'formatter' => 'number',
+//      'width' => 8
+//    ],
     'person.nombre_completo' => [
-      'label' => 'Empleado',
+      'label' => 'Nombre Completo',
       'formatter' => null,
       'width' => 25
     ],
-    'evaluation.name' => [
+    'person.vat' => [
+      'label' => 'DNI',
+      'formatter' => null,
+      'width' => 25
+    ],
+    'evaluation.boss.nombre_completo' => [
       'label' => 'Evaluación',
       'formatter' => null,
       'width' => 25
@@ -132,8 +151,8 @@ class EvaluationPersonResult extends BaseModel
   {
     $objectivesProgress = $this->getObjectivesProgressAttribute();
     $competencesProgress = $this->getCompetencesProgressAttribute();
-    $objectivesPercentage = $this->objectivesPercentage;
-    $competencesPercentage = $this->competencesPercentage;
+    $objectivesPercentage = max($this->objectivesPercentage, 1);
+    $competencesPercentage = max($this->competencesPercentage, 1);
 
     $totalSections = 0;
     $completedSections = 0;
