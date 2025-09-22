@@ -93,56 +93,175 @@ class EvaluationPersonResult extends BaseModel
       ->where('person_id', $this->person_id);
   }
 
-  // ← AGREGAR ESTA CONFIGURACIÓN
+  // ← CONFIGURACIÓN DEL REPORTE CON FORMATO SOLICITADO
   protected $reportColumns = [
-//    'id' => [
-//      'label' => 'ID',
-//      'formatter' => 'number',
-//      'width' => 8
-//    ],
-    'person.nombre_completo' => [
-      'label' => 'Nombre Completo',
+    'nombres' => [
+      'label' => 'Nombres',
       'formatter' => null,
-      'width' => 25
+      'width' => 15,
+      'accessor' => 'getNombresAttribute'
+    ],
+    'apellidos' => [
+      'label' => 'Apellidos',
+      'formatter' => null,
+      'width' => 20,
+      'accessor' => 'getApellidosAttribute'
     ],
     'person.vat' => [
       'label' => 'DNI',
       'formatter' => null,
-      'width' => 25
+      'width' => 12
     ],
-    'evaluation.boss.nombre_completo' => [
-      'label' => 'Evaluación',
+    'person.position.name' => [
+      'label' => 'Puesto',
+      'formatter' => null,
+      'width' => 20
+    ],
+    'person.position.area.name' => [
+      'label' => 'Área',
+      'formatter' => null,
+      'width' => 20
+    ],
+    'person.position.hierarchicalCategory.name' => [
+      'label' => 'Categoría jerárquica',
       'formatter' => null,
       'width' => 25
     ],
-    'competencesPercentage' => [
-      'label' => '% Competencias',
-      'formatter' => 'percentage',
-      'width' => 12
-    ],
-    'objectivesPercentage' => [
-      'label' => '% Objetivos',
-      'formatter' => 'percentage',
-      'width' => 12
-    ],
-    'competencesResult' => [
-      'label' => 'Resultado Competencias',
-      'formatter' => 'decimal',
+    'person.sede.abreviatura' => [
+      'label' => 'Sede',
+      'formatter' => null,
       'width' => 15
     ],
-    'objectivesResult' => [
-      'label' => 'Resultado Objetivos',
-      'formatter' => 'decimal',
-      'width' => 15
+    'evaluaciones_formato' => [
+      'label' => 'Evaluaciones',
+      'formatter' => null,
+      'width' => 12,
+      'accessor' => 'getEvaluacionesFormatoAttribute'
     ],
-    'result' => [
-      'label' => 'Resultado Final',
-      'formatter' => 'decimal',
-      'width' => 12
+    'progreso_porcentaje' => [
+      'label' => 'Progreso',
+      'formatter' => null,
+      'width' => 10,
+      'accessor' => 'getProgresoPorcentajeAttribute'
+    ],
+    'finalizacion_estado' => [
+      'label' => 'Finalización',
+      'formatter' => null,
+      'width' => 20,
+      'accessor' => 'getFinalizacionEstadoAttribute'
+    ],
+    'estado_evaluacion' => [
+      'label' => 'Estado',
+      'formatter' => null,
+      'width' => 18,
+      'accessor' => 'getEstadoEvaluacionAttribute'
+    ],
+    'reunion_feedback' => [
+      'label' => 'Reunión feedback',
+      'formatter' => null,
+      'width' => 15,
+      'accessor' => 'getReunionFeedbackAttribute'
+    ],
+    'nota_feedback_subordinado' => [
+      'label' => 'Nota feedback (SUBORDINADO)',
+      'formatter' => null,
+      'width' => 25,
+      'accessor' => 'getNotaFeedbackSubordinadoAttribute'
     ]
   ];
 
-  protected $reportRelations = ['person', 'evaluation'];
+  protected $reportRelations = [
+    'person.position.area',
+    'person.position.hierarchicalCategory',
+    'person.sede',
+    'person.subordinates',
+    'evaluation'
+  ];
+
+  /**
+   * Accessor para obtener solo los nombres
+   */
+  public function getNombresAttribute()
+  {
+    $nombreCompleto = explode(' ', $this->person->nombre_completo);
+    return implode(' ', array_slice($nombreCompleto, 0, 2)); // Primeros 2 elementos
+  }
+
+  /**
+   * Accessor para obtener solo los apellidos
+   */
+  public function getApellidosAttribute()
+  {
+    $nombreCompleto = explode(' ', $this->person->nombre_completo);
+    return implode(' ', array_slice($nombreCompleto, 2)); // Resto de elementos
+  }
+
+  /**
+   * Accessor para formato de evaluaciones (completadas/total)
+   */
+  public function getEvaluacionesFormatoAttribute()
+  {
+    $totalProgress = $this->total_progress;
+    return "{$totalProgress['completed_sections']}/{$totalProgress['total_sections']}";
+  }
+
+  /**
+   * Accessor para progreso en porcentaje
+   */
+  public function getProgresoPorcentajeAttribute()
+  {
+    return number_format($this->total_progress['completion_rate'] * 100, 2) . '%';
+  }
+
+  /**
+   * Accessor para estado de finalización
+   */
+  public function getFinalizacionEstadoAttribute()
+  {
+    return $this->total_progress['is_completed'] ? 'Completado' : 'Evaluaciones pendientes';
+  }
+
+  /**
+   * Accessor para estado general de evaluación
+   */
+  public function getEstadoEvaluacionAttribute()
+  {
+    $totalProgress = $this->total_progress;
+
+    if ($totalProgress['is_completed']) {
+      return 'Completado';
+    } elseif ($totalProgress['completion_rate'] > 0) {
+      return 'Evaluación en proceso';
+    } else {
+      return 'Pendiente';
+    }
+  }
+
+  /**
+   * Accessor para reunión feedback con subordinados
+   */
+  public function getReunionFeedbackAttribute()
+  {
+    $subordinadosTotal = 0;
+    $subordinadosCompletados = 0;
+
+    if ($this->person->subordinates()->exists()) {
+      $subordinadosTotal = $this->person->subordinates()->count();
+      // Aquí podrías agregar lógica específica para contar subordinados que completaron feedback
+      $subordinadosCompletados = 0; // Placeholder
+    }
+
+    return $subordinadosTotal > 0 ? "{$subordinadosCompletados}/{$subordinadosTotal}" : "0/0";
+  }
+
+  /**
+   * Accessor para nota de feedback de subordinados
+   */
+  public function getNotaFeedbackSubordinadoAttribute()
+  {
+    // Placeholder - aquí podrías implementar lógica específica para obtener la nota
+    return 'Pendiente';
+  }
 
   /**
    * Calcula el progreso total de la evaluación (objetivos + competencias)
