@@ -34,6 +34,14 @@ class ApCommercialMastersService extends BaseService implements BaseServiceInter
 
   public function store(Mixed $data)
   {
+    if (
+      isset($data['type']) &&
+      $data['type'] === 'TIPO_DOCUMENTO' &&
+      (!isset($data['code']) || !is_int($data['code']))
+    ) {
+      throw new Exception('El campo num. digitos debe tener formato de número entero.');
+    }
+
     $ApCommercialMasters = ApCommercialMasters::create($data);
     return new ApCommercialMastersResource($ApCommercialMasters);
   }
@@ -46,6 +54,13 @@ class ApCommercialMastersService extends BaseService implements BaseServiceInter
   public function update(Mixed $data)
   {
     $ApCommercialMasters = $this->find($data['id']);
+    if (
+      isset($data['type']) &&
+      $data['type'] === 'TIPO_DOCUMENTO' &&
+      (!isset($data['code']) || !is_int($data['code']))
+    ) {
+      throw new Exception('El campo num. digitos debe tener formato de número entero.');
+    }
     $ApCommercialMasters->update($data);
     return new ApCommercialMastersResource($ApCommercialMasters);
   }

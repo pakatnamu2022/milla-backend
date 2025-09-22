@@ -14,7 +14,6 @@ class StoreApBankRequest extends StoreRequest
       'cci' => 'nullable|string|max:50|unique:ap_bank,cci',
       'bank_id' => 'required|integer|exists:ap_commercial_masters,id',
       'currency_id' => 'required|integer|exists:type_currency,id',
-      //'company_branch_id' => 'required|integer|exists:company_branch,id',
       'sede_id' => 'required|integer|exists:config_sede,id',
     ];
   }

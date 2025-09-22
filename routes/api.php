@@ -15,6 +15,8 @@ use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignmentLeadershipC
 use App\Http\Controllers\ap\configuracionComercial\venta\ApBankController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApCommercialManagerBrandGroupController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApGoalSellOutInController;
+use App\Http\Controllers\ap\configuracionComercial\venta\ApSafeCreditGoalController;
+use App\Http\Controllers\ap\configuracionComercial\venta\ApShopController;
 use App\Http\Controllers\ap\maestroGeneral\AssignSalesSeriesController;
 use App\Http\Controllers\ap\maestroGeneral\TaxClassTypesController;
 use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
@@ -42,7 +44,6 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailC
 use App\Http\Controllers\gp\gestionhumana\personal\PersonController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
-use App\Http\Controllers\gp\gestionsistema\CompanyBranchController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
 use App\Http\Controllers\gp\gestionsistema\DepartmentController;
 use App\Http\Controllers\gp\gestionsistema\DigitalFileController;
@@ -163,6 +164,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
   Route::group(['prefix' => 'gp'], function () {
     Route::group(['prefix' => 'mg'], function () {
       Route::get('sede/assignedSalesWorkers', [SedeController::class, 'assignedSalesWorkers']);
+      Route::get('sede/availableLocationsShop', [SedeController::class, 'availableLocationsShop']);
       Route::apiResource('sede', SedeController::class)->only([
         'index',
         'show',
@@ -423,173 +425,201 @@ Route::middleware(['auth:sanctum'])->group(function () {
       'destroy'
     ]);
     Route::group(['prefix' => 'configuration'], function () {
-      //        CONFIGURATION COMMERCIAL
-      Route::group(['prefix' => 'commercial'], function () {
-        Route::apiResource('fuelType', ApFuelTypeController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-        Route::apiResource('vehicleStatus', ApVehicleStatusController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-        Route::apiResource('vehicleBrand', ApVehicleBrandController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-        Route::apiResource('deliveryReceivingChecklist', ApDeliveryReceivingChecklistController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-        Route::apiResource('families', ApFamiliesController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-        Route::apiResource('typeCurrency', TypeCurrencyController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-        Route::apiResource('classArticle', ApClassArticleController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-        Route::apiResource('modelsVn', ApModelsVnController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+      Route::apiResource('fuelType', ApFuelTypeController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
 
-        Route::apiResource('assignCompanyBranch', ApAssignCompanyBranchController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-        ]);
+      Route::apiResource('vehicleStatus', ApVehicleStatusController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
 
-        Route::get('assignBrandConsultant/showGrouped', [ApAssignBrandConsultantController::class, 'showGrouped']);
-        Route::apiResource('assignBrandConsultant', ApAssignBrandConsultantController::class)->only([
-          'index',
-          'store',
-          'update',
-          'destroy'
-        ]);
-        Route::apiResource('bankAp', ApBankController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-        Route::apiResource('accountingAccountPlan', ApAccountingAccountPlanController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+      Route::apiResource('vehicleBrand', ApVehicleBrandController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
 
-        Route::get('apGoalSellOutIn/report', [ApGoalSellOutInController::class, 'report']);
-        Route::get('apGoalSellOutIn/report/pdf', [ApGoalSellOutInController::class, 'reportPDF']); // Descargar
-        Route::apiResource('apGoalSellOutIn', ApGoalSellOutInController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+      Route::apiResource('deliveryReceivingChecklist', ApDeliveryReceivingChecklistController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
 
-        Route::apiResource('assignmentLeadership', ApAssignmentLeadershipController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-        ]);
+      Route::apiResource('families', ApFamiliesController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
 
-        Route::apiResource('commercialManagerBrandGroup', ApCommercialManagerBrandGroupController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-        ]);
+      Route::apiResource('typeCurrency', TypeCurrencyController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
 
-        Route::apiResource('taxClassTypes', TaxClassTypesController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+      Route::apiResource('classArticle', ApClassArticleController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
 
-        Route::apiResource('assignSalesSeries', AssignSalesSeriesController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+      Route::apiResource('modelsVn', ApModelsVnController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
 
-        Route::apiResource('unitMeasurement', UnitMeasurementController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+      Route::apiResource('assignCompanyBranch', ApAssignCompanyBranchController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+      ]);
 
-        Route::apiResource('userSeriesAssignment', UserSeriesAssignmentController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+      Route::get('assignBrandConsultant/showGrouped', [ApAssignBrandConsultantController::class, 'showGrouped']);
+      Route::apiResource('assignBrandConsultant', ApAssignBrandConsultantController::class)->only([
+        'index',
+        'store',
+        'update',
+        'destroy'
+      ]);
 
-        Route::apiResource('warehouse', WarehouseController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-      });
-      //        CONFIGURATION AFTER SALES
-      Route::group(['prefix' => 'commercial'], function () {
-      });
+      Route::apiResource('bankAp', ApBankController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::get('assignBrandConsultant/showGrouped', [ApAssignBrandConsultantController::class, 'showGrouped']);
+      Route::apiResource('assignBrandConsultant', ApAssignBrandConsultantController::class)->only([
+        'index',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::apiResource('bankAp', ApBankController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::apiResource('accountingAccountPlan', ApAccountingAccountPlanController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::get('apGoalSellOutIn/report', [ApGoalSellOutInController::class, 'report']);
+      Route::get('apGoalSellOutIn/report/pdf', [ApGoalSellOutInController::class, 'reportPDF']); // Descargar
+      Route::apiResource('apGoalSellOutIn', ApGoalSellOutInController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::apiResource('assignmentLeadership', ApAssignmentLeadershipController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+      ]);
+
+      Route::apiResource('commercialManagerBrandGroup', ApCommercialManagerBrandGroupController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+      ]);
+
+      Route::apiResource('taxClassTypes', TaxClassTypesController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::apiResource('assignSalesSeries', AssignSalesSeriesController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::apiResource('unitMeasurement', UnitMeasurementController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::apiResource('userSeriesAssignment', UserSeriesAssignmentController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::apiResource('warehouse', WarehouseController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::apiResource('shop', ApShopController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::apiResource('apSafeCreditGoal', ApSafeCreditGoalController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
     });
 
     //      COMMERCIAL
     Route::group(['prefix' => 'commercial'], function () {
-    });
 
-    //      WORKSHOP
-    Route::group(['prefix' => 'workshop'], function () {
-    });
-
-    //      STORAGE
-    Route::group(['prefix' => 'storage'], function () {
     });
   });
 

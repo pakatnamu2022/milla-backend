@@ -26,23 +26,23 @@ class ApFamiliesService extends BaseService implements BaseServiceInterface
 
   public function find($id)
   {
-    $ApCommercialMasters = ApFamilies::where('id', $id)->first();
-    if (!$ApCommercialMasters) {
+    $ApFamilies = ApFamilies::where('id', $id)->first();
+    if (!$ApFamilies) {
       throw new Exception('Familia no encontrado');
     }
-    return $ApCommercialMasters;
+    return $ApFamilies;
   }
 
   public function store(mixed $data)
   {
     $marca = ApVehicleBrand::findOrFail($data['brand_id']);
     $data['code'] = $marca->codigo_dyn . $this->nextCorrelativeCount(
-      ApFamilies::class,
-      2,
-      ['brand_id' => $data['brand_id']]
-    );
-    $ApCommercialMasters = ApFamilies::create($data);
-    return new ApFamiliesResource($ApCommercialMasters);
+        ApFamilies::class,
+        2,
+        ['brand_id' => $data['brand_id']]
+      );
+    $ApFamilies = ApFamilies::create($data);
+    return new ApFamiliesResource($ApFamilies);
   }
 
   public function show($id)
@@ -52,16 +52,16 @@ class ApFamiliesService extends BaseService implements BaseServiceInterface
 
   public function update(mixed $data)
   {
-    $ApCommercialMasters = $this->find($data['id']);
-    $ApCommercialMasters->update($data);
-    return new ApFamiliesResource($ApCommercialMasters);
+    $ApFamilies = $this->find($data['id']);
+    $ApFamilies->update($data);
+    return new ApFamiliesResource($ApFamilies);
   }
 
   public function destroy($id)
   {
-    $ApCommercialMasters = $this->find($id);
-    DB::transaction(function () use ($ApCommercialMasters) {
-      $ApCommercialMasters->delete();
+    $ApFamilies = $this->find($id);
+    DB::transaction(function () use ($ApFamilies) {
+      $ApFamilies->delete();
     });
     return response()->json(['message' => 'Familia eliminado correctamente']);
   }
