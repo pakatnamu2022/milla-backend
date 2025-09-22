@@ -140,7 +140,6 @@
     }
 
     .section-title {
-      background: linear-gradient(135deg, #1e40af, #3b82f6);
       color: white;
       text-align: center;
       padding: 6px;
@@ -223,7 +222,6 @@
 
     .data-table tr.total-row td:last-child {
       background: linear-gradient(135deg, #a5b4fc, #8b5cf6);
-      color: #ffffff;
       font-weight: 700;
     }
 
@@ -245,7 +243,6 @@
 
     .total-header {
       background: linear-gradient(135deg, #a5b4fc, #8b5cf6) !important;
-      color: white !important;
       font-weight: 700;
     }
 
@@ -287,14 +284,14 @@
       <table class="summary-table">
         <thead>
         <tr>
-          <th style="color: #000;">SELL IN</th>
-          <th style="color: #000;">SELL OUT</th>
+          <th style="background: #0B2C83;">SELL IN</th>
+          <th style="background: #F0494E;">SELL OUT</th>
         </tr>
         </thead>
         <tbody>
         <tr>
-          <td>{{ $data['sell_in']['totals']['total'] ?? 0 }}</td>
-          <td>{{ $data['sell_out']['totals']['total'] ?? 0 }}</td>
+          <td style="color: #000;">{{ $data['sell_in']['totals']['total'] ?? 0 }}</td>
+          <td style="color: #000;">{{ $data['sell_out']['totals']['total'] ?? 0 }}</td>
         </tr>
         </tbody>
       </table>
@@ -302,7 +299,7 @@
 
     <!-- Sección SELL IN -->
     <div class="section-container">
-      <div class="section-title">Meta Sell In Unidades</div>
+      <div class="section-title" style="background: #0B2C83;">Meta Sell In Unidades</div>
       <div class="section-subtitle">
         <strong>1.- Objetivos Sell In expresado en unidades {{ $period['month_name'] }}</strong>
       </div>
@@ -358,7 +355,7 @@
 
     <!-- Sección SELL OUT -->
     <div class="section-container">
-      <div class="section-title">Meta Sell Out Unidades</div>
+      <div class="section-title" style="background: #F0494E;">Meta Sell Out Unidades</div>
       <div class="section-subtitle">
         <strong>1.- Objetivos Sell Out expresado en unidades {{ $period['month_name'] }}</strong>
       </div>
