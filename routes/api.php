@@ -200,19 +200,23 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ]);
 
 //    WORKER
-        Route::get('workerWithoutCategoriesObjectives', [WorkerController::class, 'getWorkersWithoutCategoriesAndObjectives']);
-        Route::get('workerWithoutObjectives', [WorkerController::class, 'getWorkersWithoutObjectives']);
-        Route::get('workerWithoutCategories', [WorkerController::class, 'getWorkersWithoutCategories']);
-        Route::get('workerWithoutCompetences', [WorkerController::class, 'getWorkersWithoutCompetences']);
-        Route::post('workerAssignObjectives', [WorkerController::class, 'assignObjectivesToWorkers']);
+        Route::group(['prefix' => 'worker'], function () {
+          Route::get('index', [WorkerController::class, 'index']);
+//          Route::get('update', [WorkerController::class, 'update']);
+//          Route::get('destroy', [WorkerController::class, 'destroy']);
+          Route::get('categoriesObjectives', [WorkerController::class, 'getWorkersWithoutCategoriesAndObjectives']);
+          Route::get('objectives', [WorkerController::class, 'getWorkersWithoutObjectives']);
+          Route::get('categories', [WorkerController::class, 'getWorkersWithoutCategories']);
+          Route::get('competences', [WorkerController::class, 'getWorkersWithoutCompetences']);
+        });
 
-        Route::apiResource('worker', WorkerController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+//        Route::apiResource('worker', WorkerController::class)->only([
+//          'index',
+//          'show',
+//          'store',
+//          'update',
+//          'destroy'
+//        ]);
 
 //      POSITIONS
         Route::apiResource('position', PositionController::class)->only([
