@@ -274,7 +274,7 @@ class Evaluation extends Model
     $inProgressParticipants = $this->personResults()
       ->get()
       ->filter(function ($result) {
-        $progress = $result->completion_percentage;
+        $progress = $result->completion_percentage * 100;
         return $progress > 0 && $progress < 100;
       })
       ->count();

@@ -32,6 +32,7 @@ class EvaluationPersonResultResource extends JsonResource
       'result' => round($this->result, 2),
       'total_progress' => $this->total_progress,
       'is_completed' => $this->is_completed,
+//      'completion_percentage' => round($this->completion_percentage, 2),
     ];
 
     if ($this->showExtra) {
@@ -83,7 +84,7 @@ class EvaluationPersonResultResource extends JsonResource
 
     return [
       'overall_completion_rate' => round(($competenceCompletionRate + $objectiveCompletionRate) / (
-          max(($totalSubCompetences > 0 ? 1 : 0) + ($totalObjectives > 0 ? 1 : 0),1)
+        max(($totalSubCompetences > 0 ? 1 : 0) + ($totalObjectives > 0 ? 1 : 0), 1)
         ), 2),
       'competences' => [
         'index_range_result' => $this->calculateIndexRangeResult($this->competencesResult, $this->evaluation->competenceParameter),

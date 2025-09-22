@@ -13,6 +13,7 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use function dd;
 use function logger;
 
 class EvaluationPersonService extends BaseService
@@ -139,16 +140,19 @@ class EvaluationPersonService extends BaseService
   private function calculateCompliance($result, $goal, $isAscending)
   {
     if ($goal == 0) {
-      return 0;
+      if ($isAscending) {
+        // Caso problemático: no se puede tener meta ascendente de 0
+        // Opciones:
+        return $result > 0 ? 100 : 0; // O lanzar excepción
+      } else {
+        // Para descendentes: meta 0 es válida
+        return $result == 0 ? 100 : 0;
+      }
     }
 
     if ($isAscending) {
-      // Para objetivos ascendentes: mayor resultado = mejor
-      // Cumplimiento = (resultado / meta) * 100
       return ($result / $goal) * 100;
     } else {
-      // Para objetivos descendentes: menor resultado = mejor
-      // Si el resultado es 0, tratarlo como 1 para evitar división infinita
       $adjustedResult = $result == 0 ? 1 : $result;
       return ($goal / $adjustedResult) * 100;
     }

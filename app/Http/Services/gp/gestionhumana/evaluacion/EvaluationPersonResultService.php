@@ -121,19 +121,21 @@ class EvaluationPersonResultService extends BaseService
         // Verificar que existe y tiene workers
         if ($hierarchicalCategory && $hierarchicalCategory->workers->isNotEmpty()) {
           foreach ($hierarchicalCategory->workers as $person) {
-            $objectivesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->objectivesPercentage : 0;
-            $competencesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->competencesPercentage : 100;
+            if ($person->fecha_inicio <= $cycle->cut_off_date) {
+              $objectivesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->objectivesPercentage : 0;
+              $competencesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->competencesPercentage : 100;
 
-            $data = [
-              'person_id' => $person->id,
-              'evaluation_id' => $evaluation->id,
-              'objectivesPercentage' => $objectivesPercentage,
-              'competencesPercentage' => $competencesPercentage,
-              'objectivesResult' => 0,
-              'competencesResult' => 0,
-              'result' => 0,
-            ];
-            EvaluationPersonResult::create($data);
+              $data = [
+                'person_id' => $person->id,
+                'evaluation_id' => $evaluation->id,
+                'objectivesPercentage' => $objectivesPercentage,
+                'competencesPercentage' => $competencesPercentage,
+                'objectivesResult' => 0,
+                'competencesResult' => 0,
+                'result' => 0,
+              ];
+              EvaluationPersonResult::create($data);
+            }
           }
         }
       }
