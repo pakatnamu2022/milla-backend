@@ -5,6 +5,9 @@ namespace App\Models\gp\gestionhumana\personal;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionsistema\Status;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -54,5 +57,17 @@ class Worker extends Person
       'worker_id',
       'voucher_id'
     )->withTimestamps()->withTrashed();
+  }
+
+  public function objectives()
+  {
+    return $this->hasMany(EvaluationCategoryObjectiveDetail::class, 'person_id')
+        ->where('active', true);
+  }
+
+  public function competences()
+  {
+    return $this->hasMany(EvaluationCategoryCompetenceDetail::class, 'person_id')
+        ->where('active', true);
   }
 }

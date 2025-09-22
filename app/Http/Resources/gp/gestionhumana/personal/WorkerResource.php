@@ -45,6 +45,14 @@ class WorkerResource extends JsonResource
       }
     }
 
+    // Agregar campos de diagnóstico si están disponibles
+    if (isset($this->inclusion_reason)) {
+      $response['inclusion_reason'] = $this->inclusion_reason;
+      $response['has_category'] = $this->has_category ?? false;
+      $response['has_objectives'] = $this->has_objectives ?? false;
+      $response['has_competences'] = $this->has_competences ?? false;
+    }
+
     return $response;
   }
 }

@@ -46,4 +46,40 @@ class WorkerController extends Controller
     {
         //
     }
+
+    public function getWorkersWithoutCategoriesAndObjectives()
+    {
+        try {
+            return $this->service->getWorkersWithoutCategoriesAndObjectives();
+        } catch (\Throwable $e) {
+            return $this->error($e->getMessage());
+        }
+    }
+
+    public function getWorkersWithoutObjectives()
+    {
+        try {
+            return $this->service->getWorkersWithoutObjectives();
+        } catch (\Throwable $e) {
+            return $this->error($e->getMessage());
+        }
+    }
+
+    public function getWorkersWithoutCategories()
+    {
+        try {
+            return $this->service->getWorkersWithoutCategories();
+        } catch (\Throwable $e) {
+            return $this->error($e->getMessage());
+        }
+    }
+
+    public function getWorkersWithoutCompetences()
+    {
+        try {
+            return $this->service->getWorkersWithoutCompetences();
+        } catch (\Throwable $e) {
+            return $this->error($e->getMessage());
+        }
+    }
 }
