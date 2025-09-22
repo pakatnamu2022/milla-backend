@@ -8716,7 +8716,7 @@ class ObjectiveSeeder extends Seeder
 //      1. Eliminar todos los registros de las tablas
     DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
-    EvaluationPerson::query()->delete();
+    EvaluationPerson::query()->truncate();
     EvaluationPersonResult::query()->truncate();
     EvaluationPersonCycleDetail::query()->truncate();
     EvaluationCategoryObjectiveDetail::query()->truncate();

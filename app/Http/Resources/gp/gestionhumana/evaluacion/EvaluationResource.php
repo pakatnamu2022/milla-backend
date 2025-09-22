@@ -4,13 +4,20 @@ namespace App\Http\Resources\gp\gestionhumana\evaluacion;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use function config;
 
 class EvaluationResource extends JsonResource
 {
+  protected $showExtra = false;
+
+  public function showExtra($show = true)
+  {
+    $this->showExtra = $show;
+    return $this;
+  }
+
   public function toArray(Request $request): array
   {
-    return [
+    $response = [
       'id' => $this->id,
       'name' => $this->name,
       'start_date' => $this->start_date,
@@ -32,5 +39,11 @@ class EvaluationResource extends JsonResource
       'objectiveParameter' => $this->objectiveParameter?->name,
       'finalParameter' => $this->finalParameter?->name,
     ];
+
+    if ($this->showExtra) {
+      $response['progress_stats'] = $this->progress_stats;
+    }
+
+    return $response;
   }
 }

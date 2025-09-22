@@ -28,6 +28,15 @@ class EvaluationController extends Controller
     }
   }
 
+  public function active()
+  {
+    try {
+      return $this->service->active();
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function checkActiveEvaluationByDateRange(CheckEvaluationRequest $request)
   {
     try {

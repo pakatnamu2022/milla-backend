@@ -30,7 +30,6 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCompetenceControl
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleController;
-use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationExportController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationMetricController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationObjectiveController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationParameterController;
@@ -223,6 +222,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
       //    PERFORMANCE EVALUATION
       Route::group(['prefix' => 'performanceEvaluation'], function () {
         //        METRICS
+        Route::get('metric/export', [EvaluationMetricController::class, 'export']);
         Route::apiResource('metric', EvaluationMetricController::class)->only([
           'index',
           'show',
@@ -345,9 +345,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
 //        EVALUATION
         Route::get('/evaluation/export', [EvaluationController::class, 'export']);
         Route::get('/evaluation/check', [EvaluationController::class, 'checkActiveEvaluationByDateRange']);
+        Route::get('/evaluation/active', [EvaluationController::class, 'active']);
         Route::get('/evaluation/{evaluation}/regenerateEvaluation', [EvaluationController::class, 'regenerateEvaluation']);
         Route::get('/evaluation/{evaluation}/participants', [EvaluationController::class, 'participants']);
         Route::get('/evaluation/{evaluation}/positions', [EvaluationController::class, 'positions']);
+        Route::get('evaluation/{id}/testUpdateAllResultsWithGoals', [EvaluationPersonController::class, 'testUpdateAllResultsWithGoals']);
 
         Route::apiResource('evaluation', EvaluationController::class)->only([
           'index',

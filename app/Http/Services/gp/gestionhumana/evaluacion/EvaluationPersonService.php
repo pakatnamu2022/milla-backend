@@ -13,6 +13,7 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use function dd;
 use function logger;
 
 class EvaluationPersonService extends BaseService
@@ -76,7 +77,8 @@ class EvaluationPersonService extends BaseService
     $cycle = EvaluationCycle::findOrFail($evaluation->cycle_id);
     $details = EvaluationPersonCycleDetail::where('cycle_id', $cycle->id)->get();
 
-    EvaluationPerson::where('evaluation_id', $evaluation->id)->delete();
+    $ids = EvaluationPerson::where('evaluation_id', $evaluation->id)->pluck('id');
+    EvaluationPerson::destroy($ids);
 
     DB::transaction(function () use ($details, $evaluation) {
       foreach ($details as $detail) {
@@ -138,21 +140,23 @@ class EvaluationPersonService extends BaseService
   private function calculateCompliance($result, $goal, $isAscending)
   {
     if ($goal == 0) {
-      return 0;
+      if ($isAscending) {
+        // Caso problemático: no se puede tener meta ascendente de 0
+        // Opciones:
+        return $result > 0 ? 100 : 0; // O lanzar excepción
+      } else {
+        // Para descendentes: meta 0 es válida
+        return $result == 0 ? 100 : 0;
+      }
     }
 
     if ($isAscending) {
-      // Para objetivos ascendentes: mayor resultado = mejor
-      // Cumplimiento = (resultado / meta) * 100
       return ($result / $goal) * 100;
     } else {
-      // Para objetivos descendentes: menor resultado = mejor
-      // Si el resultado es 0, tratarlo como 1 para evitar división infinita
       $adjustedResult = $result == 0 ? 1 : $result;
       return ($goal / $adjustedResult) * 100;
     }
   }
-
 
   public function destroy($id)
   {
@@ -228,7 +232,6 @@ class EvaluationPersonService extends BaseService
     return $this->competenceDetailService->calculateCompetencesResult($evaluationId, $personId, $evaluationType);
   }
 
-
   /**
    * Recalcular resultados para todas las personas de una evaluación
    */
@@ -282,5 +285,118 @@ class EvaluationPersonService extends BaseService
     ];
 
     return $stats;
+  }
+
+  /**
+   * Función de pruebas: Actualizar todos los resultados de una evaluación
+   * asignándoles el valor de su meta correspondiente
+   */
+  public function testUpdateAllResultsWithGoals($evaluationId)
+  {
+    $evaluation = Evaluation::findOrFail($evaluationId);
+
+    // Obtener todas las personas de esta evaluación
+    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluationId)
+      ->with('personCycleDetail')
+      ->get();
+
+    if ($evaluationPersons->isEmpty()) {
+      throw new Exception('No se encontraron personas en esta evaluación');
+    }
+
+    DB::beginTransaction();
+    try {
+      $updatedCount = 0;
+
+      foreach ($evaluationPersons as $evaluationPerson) {
+        $personCycleDetail = $evaluationPerson->personCycleDetail;
+
+        if ($personCycleDetail && $personCycleDetail->goal) {
+          // Usar el valor de la meta como resultado
+          $goal = floatval($personCycleDetail->goal);
+
+          // Actualizar usando el método update existente que ya hace todos los cálculos
+          $this->update([
+            'id' => $evaluationPerson->id,
+            'result' => $goal
+          ]);
+
+          $updatedCount++;
+
+          logger("Evaluación de prueba actualizada - Persona ID: {$evaluationPerson->person_id}, Meta/Resultado: {$goal}");
+        }
+      }
+
+      DB::commit();
+
+      return [
+        'message' => 'Prueba completada exitosamente',
+        'evaluation_id' => $evaluationId,
+        'total_persons' => $evaluationPersons->count(),
+        'updated_persons' => $updatedCount,
+        'description' => 'Todos los resultados fueron actualizados con el valor de sus metas correspondientes'
+      ];
+
+    } catch (\Exception $e) {
+      DB::rollBack();
+      logger("Error en prueba de evaluación: " . $e->getMessage());
+      throw new Exception("Error al ejecutar la prueba: " . $e->getMessage());
+    }
+  }
+
+  /**
+   * Función de pruebas alternativa: Permite especificar un porcentaje de la meta
+   * Por ejemplo: 0.8 = 80% de la meta, 1.2 = 120% de la meta
+   */
+  public function testUpdateAllResultsWithPercentage($evaluationId, $percentage = 1.0)
+  {
+    $evaluation = Evaluation::findOrFail($evaluationId);
+
+    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluationId)
+      ->with('personCycleDetail')
+      ->get();
+
+    if ($evaluationPersons->isEmpty()) {
+      throw new Exception('No se encontraron personas en esta evaluación');
+    }
+
+    DB::beginTransaction();
+    try {
+      $updatedCount = 0;
+
+      foreach ($evaluationPersons as $evaluationPerson) {
+        $personCycleDetail = $evaluationPerson->personCycleDetail;
+
+        if ($personCycleDetail && $personCycleDetail->goal) {
+          $goal = floatval($personCycleDetail->goal);
+          $testResult = $goal * $percentage;
+
+          $this->update([
+            'id' => $evaluationPerson->id,
+            'result' => $testResult
+          ]);
+
+          $updatedCount++;
+
+          logger("Evaluación de prueba actualizada - Persona ID: {$evaluationPerson->person_id}, Meta: {$goal}, Resultado: {$testResult} ({$percentage}%)");
+        }
+      }
+
+      DB::commit();
+
+      return [
+        'message' => 'Prueba con porcentaje completada exitosamente',
+        'evaluation_id' => $evaluationId,
+        'percentage_used' => $percentage * 100 . '%',
+        'total_persons' => $evaluationPersons->count(),
+        'updated_persons' => $updatedCount,
+        'description' => "Todos los resultados fueron actualizados con el {$percentage}% de sus metas correspondientes"
+      ];
+
+    } catch (\Exception $e) {
+      DB::rollBack();
+      logger("Error en prueba de evaluación con porcentaje: " . $e->getMessage());
+      throw new Exception("Error al ejecutar la prueba: " . $e->getMessage());
+    }
   }
 }

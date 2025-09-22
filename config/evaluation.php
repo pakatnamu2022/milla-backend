@@ -14,7 +14,7 @@ return [
   'statusEvaluation' => [
     0 => 'Programado',
     1 => 'En Progreso',
-    2 => 'Finalizado',
+    2 => 'Completado',
   ],
   'evaluatorType' => [
     0 => 'Jefe',

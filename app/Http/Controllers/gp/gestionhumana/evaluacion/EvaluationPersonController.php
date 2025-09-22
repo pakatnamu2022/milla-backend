@@ -55,6 +55,15 @@ class EvaluationPersonController extends Controller
     }
   }
 
+  public function testUpdateAllResultsWithGoals(int $id)
+  {
+    try {
+      return $this->success($this->service->testUpdateAllResultsWithGoals($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function destroy(int $id)
   {
     try {

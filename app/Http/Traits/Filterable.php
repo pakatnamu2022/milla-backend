@@ -23,6 +23,12 @@ trait Filterable
         continue;
       }
 
+      // 👇 NUEVO: soporte para accessors (se filtran después de la query)
+      if (is_string($operator) && str_starts_with($operator, 'accessor')) {
+        // Los accessors se manejan después en getFilteredResults
+        continue;
+      }
+
       if ($filter === 'search') {
         $fields = $operator;
         $query->where(function ($q) use ($fields, $value) {
@@ -93,6 +99,74 @@ trait Filterable
     }
   }
 
+  // 👇 NUEVO: Método para aplicar filtros de accessor
+  protected function applyAccessorFilters($collection, $request, $filters)
+  {
+    foreach ($filters as $filter => $operator) {
+      if (!is_string($operator) || !str_starts_with($operator, 'accessor')) {
+        continue;
+      }
+
+      $paramName = str_replace('.', '$', $filter);
+      $value = $request->query($paramName);
+
+      if ($value === null) {
+        continue;
+      }
+
+      $collection = $collection->filter(function ($item) use ($filter, $operator, $value) {
+        return $this->applyAccessorFilterCondition($item, $filter, $operator, $value);
+      });
+    }
+
+    return $collection;
+  }
+
+  // 👇 NUEVO: Condiciones para filtros de accessor
+  protected function applyAccessorFilterCondition($item, $filter, $operator, $value)
+  {
+    $itemValue = data_get($item, $filter);
+
+    switch ($operator) {
+      case 'accessor_bool':
+        $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        if ($bool === null && ($value === '0' || $value === 0)) {
+          $bool = false;
+        }
+        return $itemValue == $bool;
+
+      case 'accessor_like':
+        return stripos($itemValue, $value) !== false;
+
+      case 'accessor_numeric':
+        return $itemValue == $value;
+
+      case 'accessor_gt':
+        return $itemValue > $value;
+
+      case 'accessor_lt':
+        return $itemValue < $value;
+
+      case 'accessor_gte':
+        return $itemValue >= $value;
+
+      case 'accessor_lte':
+        return $itemValue <= $value;
+
+      case 'accessor_between':
+        if (is_array($value) && count($value) === 2) {
+          return $itemValue >= $value[0] && $itemValue <= $value[1];
+        }
+        return false;
+
+      case 'accessor_in':
+        return in_array($itemValue, (array)$value);
+
+      default:
+        return $itemValue == $value;
+    }
+  }
+
   protected function applyFilterCondition($query, $filter, $operator, $value)
   {
     switch ($operator) {
@@ -141,17 +215,260 @@ trait Filterable
     return $query;
   }
 
-  protected function getFilteredResults($modelOrQuery, $request, $filters, $sorts, $resource)
+  // 👇 NUEVO: Método para ordenar por accessor
+  protected function applyAccessorSorting($collection, $request, $sorts)
+  {
+    $sortField = $request->query('sort');
+    $sortOrder = $request->query('direction', 'desc');
+
+    if ($sortField !== null && in_array($sortField, $sorts) && str_starts_with($sorts[$sortField] ?? '', 'accessor')) {
+      $collection = $collection->sortBy(function ($item) use ($sortField) {
+        return data_get($item, $sortField);
+      }, SORT_REGULAR, $sortOrder === 'desc');
+    }
+
+    return $collection;
+  }
+
+  // 👇 CORREGIDO: Generar links de paginación en el formato simple
+  protected function generatePaginationLinks($currentPage, $lastPage, $baseUrl, $queryParams)
+  {
+    $links = [];
+
+    // Previous link
+    $links[] = [
+      'url' => $currentPage > 1 ?
+        $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $currentPage - 1])) : null,
+      'label' => '&laquo; Previous',
+      'active' => false
+    ];
+
+    // Generar links de páginas (mostrar máximo 10 páginas alrededor de la actual)
+    $start = max(1, $currentPage - 5);
+    $end = min($lastPage, $currentPage + 5);
+
+    // Primera página si no está en el rango
+    if ($start > 1) {
+      $links[] = [
+        'url' => $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => 1])),
+        'label' => '1',
+        'active' => false
+      ];
+
+      if ($start > 2) {
+        $links[] = [
+          'url' => null,
+          'label' => '...',
+          'active' => false
+        ];
+      }
+    }
+
+    // Páginas del rango
+    for ($page = $start; $page <= $end; $page++) {
+      $links[] = [
+        'url' => $page === $currentPage ? null :
+          $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page])),
+        'label' => (string)$page,
+        'active' => $page === $currentPage
+      ];
+    }
+
+    // Última página si no está en el rango
+    if ($end < $lastPage) {
+      if ($end < $lastPage - 1) {
+        $links[] = [
+          'url' => null,
+          'label' => '...',
+          'active' => false
+        ];
+      }
+
+      $links[] = [
+        'url' => $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $lastPage])),
+        'label' => (string)$lastPage,
+        'active' => false
+      ];
+    }
+
+    // Next link
+    $links[] = [
+      'url' => $currentPage < $lastPage ?
+        $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $currentPage + 1])) : null,
+      'label' => 'Next &raquo;',
+      'active' => false
+    ];
+
+    return $links;
+  }
+
+  protected function getFilteredResults($modelOrQuery, $request, $filters, $sorts, $resource, $resourceConfig = [])
   {
     $query = $modelOrQuery instanceof Builder ? $modelOrQuery : $modelOrQuery::query();
 
+    // Aplicar filtros de base de datos
     $query = $this->applyFilters($query, $request, $filters);
-    $query = $this->applySorting($query, $request, $sorts);
+
+    // Solo aplicar ordenamiento de BD si no es por accessor
+    $sortField = $request->query('sort');
+    $hasAccessorSort = $sortField && isset($sorts[$sortField]) &&
+      is_string($sorts[$sortField]) &&
+      str_starts_with($sorts[$sortField], 'accessor');
+
+    if (!$hasAccessorSort) {
+      $query = $this->applySorting($query, $request, $sorts);
+    }
 
     $all = $request->query('all', false) === 'true';
 
-    $results = $all ? $query->get() : $query->paginate($request->query('per_page', Constants::DEFAULT_PER_PAGE));
+    // Verificar si hay filtros de accessor
+    $hasAccessorFilters = collect($filters)->contains(function ($operator) {
+      return is_string($operator) && str_starts_with($operator, 'accessor');
+    });
 
-    return $all ? response()->json($resource::collection($results)) : $resource::collection($results);
+    if ($hasAccessorFilters || $hasAccessorSort) {
+      // Si hay filtros o ordenamiento de accessor, obtenemos todo y filtramos en memoria
+      $results = $query->get();
+
+      // Aplicar filtros de accessor
+      if ($hasAccessorFilters) {
+        $results = $this->applyAccessorFilters($results, $request, $filters);
+      }
+
+      // Aplicar ordenamiento de accessor
+      if ($hasAccessorSort) {
+        $results = $this->applyAccessorSorting($results, $request, $sorts);
+        $results = $results->values(); // Re-indexar
+      }
+
+      // Configurar Resource si se proporcionan configuraciones
+      $resourceCollection = $this->configureResourceCollection($resource, $results, $resourceConfig);
+
+      // Paginación manual para accessors
+      if (!$all) {
+        $perPage = (int)$request->query('per_page', Constants::DEFAULT_PER_PAGE);
+        $page = (int)$request->query('page', 1);
+        $total = $results->count();
+        $lastPage = (int)ceil($total / $perPage);
+        $from = $total > 0 ? (($page - 1) * $perPage) + 1 : null;
+        $to = $total > 0 ? min($from + $perPage - 1, $total) : null;
+
+        $paginatedResults = $results->slice(($page - 1) * $perPage, $perPage)->values();
+
+        // Configurar Resource paginado
+        $paginatedResourceCollection = $this->configureResourceCollection($resource, $paginatedResults, $resourceConfig);
+
+        // Generar URLs simples de paginación
+        $baseUrl = $request->url();
+        $queryParams = $request->query();
+
+        // 👇 CORREGIDO: Formato simple de links
+        $first = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => 1]));
+        $last = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $lastPage]));
+        $prev = $page > 1 ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page - 1])) : null;
+        $next = $page < $lastPage ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page + 1])) : null;
+
+        return response()->json([
+          'data' => $paginatedResourceCollection,
+          'links' => [
+            'first' => $first,
+            'last' => $last,
+            'prev' => $prev,
+            'next' => $next,
+          ],
+          'meta' => [
+            'current_page' => $page,
+            'from' => $from,
+            'last_page' => $lastPage,
+            'links' => $this->generatePaginationLinks($page, $lastPage, $baseUrl, $queryParams),
+            'path' => $baseUrl,
+            'per_page' => $perPage,
+            'to' => $to,
+            'total' => $total,
+          ]
+        ]);
+      }
+
+      return response()->json($resourceCollection);
+    }
+
+    // Flujo normal sin accessors
+    if ($all) {
+      $results = $query->get();
+      $resourceCollection = $this->configureResourceCollection($resource, $results, $resourceConfig);
+      return response()->json($resourceCollection);
+    } else {
+      // 👇 NUEVO: Usar el mismo formato simple para todos los casos
+      $perPage = (int)$request->query('per_page', Constants::DEFAULT_PER_PAGE);
+      $page = (int)$request->query('page', 1);
+
+      // Contar total sin obtener todos los registros
+      $total = $query->count();
+      $lastPage = (int)ceil($total / $perPage);
+      $from = $total > 0 ? (($page - 1) * $perPage) + 1 : null;
+      $to = $total > 0 ? min($from + $perPage - 1, $total) : null;
+
+      // Obtener solo los registros de la página actual
+      $results = $query->skip(($page - 1) * $perPage)->take($perPage)->get();
+
+      // Configurar Resource
+      $resourceCollection = $this->configureResourceCollection($resource, $results, $resourceConfig);
+
+      // Generar URLs simples de paginación
+      $baseUrl = $request->url();
+      $queryParams = $request->query();
+
+      $first = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => 1]));
+      $last = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $lastPage]));
+      $prev = $page > 1 ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page - 1])) : null;
+      $next = $page < $lastPage ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page + 1])) : null;
+
+      return response()->json([
+        'data' => $resourceCollection,
+        'links' => [
+          'first' => $first,
+          'last' => $last,
+          'prev' => $prev,
+          'next' => $next,
+        ],
+        'meta' => [
+          'current_page' => $page,
+          'from' => $from,
+          'last_page' => $lastPage,
+          'links' => $this->generatePaginationLinks($page, $lastPage, $baseUrl, $queryParams),
+          'path' => $baseUrl,
+          'per_page' => $perPage,
+          'to' => $to,
+          'total' => $total,
+        ]
+      ]);
+    }
+  }
+
+// 👇 NUEVO: Configurar colección de recursos
+  protected function configureResourceCollection($resource, $collection, $config)
+  {
+    return $collection->map(function ($item) use ($resource, $config) {
+      return $this->configureResourceInstance($resource, $item, $config);
+    });
+  }
+
+// 👇 NUEVO: Configurar instancia individual de recurso
+  protected function configureResourceInstance($resource, $item, $config)
+  {
+    $resourceInstance = new $resource($item);
+
+    // Aplicar configuraciones
+    foreach ($config as $method => $params) {
+      if (method_exists($resourceInstance, $method)) {
+        if (is_array($params)) {
+          $resourceInstance->$method(...$params);
+        } else {
+          $resourceInstance->$method($params);
+        }
+      }
+    }
+
+    return $resourceInstance;
   }
 }
