@@ -10,85 +10,64 @@ use App\Http\Services\gp\gestionhumana\personal\WorkerService;
 
 class WorkerController extends Controller
 {
-    protected WorkerService $service;
+  protected WorkerService $service;
 
-    public function __construct(WorkerService $service)
-    {
-        $this->service = $service;
+  public function __construct(WorkerService $service)
+  {
+    $this->service = $service;
+  }
+
+  public function index(IndexWorkerRequest $request)
+  {
+    try {
+      return $this->service->list($request);
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
     }
+  }
 
-
-    public function index(IndexWorkerRequest $request)
-    {
-        try {
-            return $this->service->list($request);
-        } catch (\Throwable $e) {
-            return $this->error($e->getMessage());
-        }
+  public function getWorkersWithoutCategoriesAndObjectives()
+  {
+    try {
+      return $this->service->getWorkersWithoutCategoriesAndObjectives();
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
     }
+  }
 
-    public function store(StoreWorkerRequest $request)
-    {
-        //
+  public function getWorkersWithoutObjectives()
+  {
+    try {
+      return $this->service->getWorkersWithoutObjectives();
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
     }
+  }
 
-    public function show(int $id)
-    {
-        //
+  public function getWorkersWithoutCategories()
+  {
+    try {
+      return $this->service->getWorkersWithoutCategories();
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
     }
+  }
 
-    public function update(UpdateWorkerRequest $request, int $id)
-    {
-        //
+  public function getWorkersWithoutCompetences()
+  {
+    try {
+      return $this->service->getWorkersWithoutCompetences();
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
     }
+  }
 
-    public function destroy(int $id)
-    {
-        //
+  public function assignObjectivesToWorkers()
+  {
+    try {
+      return $this->service->assignObjectivesToWorkers();
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
     }
-
-    public function getWorkersWithoutCategoriesAndObjectives()
-    {
-        try {
-            return $this->service->getWorkersWithoutCategoriesAndObjectives();
-        } catch (\Throwable $e) {
-            return $this->error($e->getMessage());
-        }
-    }
-
-    public function getWorkersWithoutObjectives()
-    {
-        try {
-            return $this->service->getWorkersWithoutObjectives();
-        } catch (\Throwable $e) {
-            return $this->error($e->getMessage());
-        }
-    }
-
-    public function getWorkersWithoutCategories()
-    {
-        try {
-            return $this->service->getWorkersWithoutCategories();
-        } catch (\Throwable $e) {
-            return $this->error($e->getMessage());
-        }
-    }
-
-    public function getWorkersWithoutCompetences()
-    {
-        try {
-            return $this->service->getWorkersWithoutCompetences();
-        } catch (\Throwable $e) {
-            return $this->error($e->getMessage());
-        }
-    }
-
-    public function assignObjectivesToWorkers()
-    {
-        try {
-            return $this->service->assignObjectivesToWorkers();
-        } catch (\Throwable $e) {
-            return $this->error($e->getMessage());
-        }
-    }
+  }
 }
