@@ -200,11 +200,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ]);
 
 //    WORKER
-        Route::get('worke/withoutCategoriesObjectives', [WorkerController::class, 'getWorkersWithoutCategoriesAndObjectives']);
-        Route::get('worker/withoutObjectives', [WorkerController::class, 'getWorkersWithoutObjectives']);
-        Route::get('worker/withoutCategories', [WorkerController::class, 'getWorkersWithoutCategories']);
-        Route::get('worker/withoutCompetences', [WorkerController::class, 'getWorkersWithoutCompetences']);
-        Route::post('worker/assignObjectives', [WorkerController::class, 'assignObjectivesToWorkers']);
+        Route::get('workerWithoutCategoriesObjectives', [WorkerController::class, 'getWorkersWithoutCategoriesAndObjectives']);
+        Route::get('workerWithoutObjectives', [WorkerController::class, 'getWorkersWithoutObjectives']);
+        Route::get('workerWithoutCategories', [WorkerController::class, 'getWorkersWithoutCategories']);
+        Route::get('workerWithoutCompetences', [WorkerController::class, 'getWorkersWithoutCompetences']);
+        Route::post('workerAssignObjectives', [WorkerController::class, 'assignObjectivesToWorkers']);
 
         Route::apiResource('worker', WorkerController::class)->only([
           'index',
