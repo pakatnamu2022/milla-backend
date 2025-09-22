@@ -1,9 +1,9 @@
 <?php
 
 // Definir las constantes al inicio del archivo
-define('EVALUATION_PERSON_PENDING', 0);
-define('EVALUATION_PERSON_IN_PROGRESS', 1);
-define('EVALUATION_PERSON_COMPLETED', 2);
+const EVALUATION_PERSON_PENDING = 0;
+const EVALUATION_PERSON_IN_PROGRESS = 1;
+const EVALUATION_PERSON_COMPLETED = 2;
 
 return [
   'typesEvaluation' => [
