@@ -6,7 +6,10 @@ use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationObjective;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class WorkerService extends BaseService
 {
@@ -161,5 +164,91 @@ class WorkerService extends BaseService
       ->values();
 
     return WorkerResource::collection($workers);
+  }
+
+  public function assignObjectivesToWorkers()
+  {
+    DB::beginTransaction();
+
+    try {
+      $workersProcessed = [];
+      $objectivesAssigned = 0;
+
+      // Buscar workers que tienen categoría pero no tienen objetivos y que requieren objetivos
+      $workers = Worker::where('status_id', 22)
+        ->with(['position.hierarchicalCategory.objectives', 'objectives', 'evaluationDetails'])
+        ->get()
+        ->filter(function ($worker) {
+          // Excluir si tiene EvaluationPersonDetail
+          if ($worker->evaluationDetails->count() > 0) {
+            return false;
+          }
+
+          $hasCategory = $worker->position && $worker->position->hierarchicalCategory;
+
+          if ($hasCategory) {
+            $category = $worker->position->hierarchicalCategory;
+            $hasObjectives = $worker->objectives->count() > 0;
+
+            // Solo incluir si la categoría requiere objetivos pero no los tiene
+            return $category->hasObjectives && !$hasObjectives;
+          }
+
+          return false;
+        });
+
+      foreach ($workers as $worker) {
+        $category = $worker->position->hierarchicalCategory;
+        $objectivesForCategory = $category->objectives; // Esto ya filtra solo los activos por la relación en HierarchicalCategory
+
+        $workerData = [
+          'id' => $worker->id,
+          'name' => $worker->nombre_completo,
+          'position' => $worker->position->name,
+          'hierarchical_category' => $category->name,
+          'objectives_assigned' => []
+        ];
+
+        foreach ($objectivesForCategory as $objective) {
+          // Crear el registro en EvaluationCategoryObjectiveDetail
+          $objectiveDetail = EvaluationCategoryObjectiveDetail::create([
+            'objective_id' => $objective->id,
+            'category_id' => $category->id,
+            'person_id' => $worker->id,
+            'goal' => $objective->goalReference, // Usar la meta de referencia del objetivo
+            'weight' => $objective->fixedWeight ?? 1, // Usar el peso fijo o 1 por defecto
+            'fixedWeight' => true,
+            'active' => true
+          ]);
+
+          $workerData['objectives_assigned'][] = [
+            'objective_id' => $objective->id,
+            'objective_name' => $objective->name,
+            'goal_reference' => $objective->goalReference,
+            'weight' => $objective->fixedWeight ?? 1
+          ];
+
+          $objectivesAssigned++;
+        }
+
+        $workersProcessed[] = $workerData;
+      }
+
+      DB::commit();
+
+      return response()->json([
+        'success' => true,
+        'message' => "Se asignaron objetivos exitosamente",
+        'summary' => [
+          'workers_processed' => count($workersProcessed),
+          'objectives_assigned' => $objectivesAssigned
+        ],
+        'data' => $workersProcessed
+      ]);
+
+    } catch (\Exception $e) {
+      DB::rollback();
+      throw $e;
+    }
   }
 }

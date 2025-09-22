@@ -3,18 +3,14 @@
 namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailResource;
-use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationObjectiveResource;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationObjective;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use function max;
-use function round;
 
 class EvaluationCategoryObjectiveDetailService extends BaseService
 {
@@ -125,17 +121,19 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
             ->exists();
 
           if (!$exists) {
+            $objective = EvaluationObjective::find($objectiveId);
             EvaluationCategoryObjectiveDetail::create([
               'objective_id' => $objectiveId,
               'category_id' => $category->id,
               'person_id' => $workerId,
-              'goal' => 0, // o puedes heredar el goalReference del objetivo si prefieres
+              'goal' => $objective->goalReference,
               'fixedWeight' => false,
               'weight' => 0,
-              'active' => 0,
+              'active' => 1,
             ]);
           }
         }
+        $this->recalculateWeights($category->id, $workerId);
       }
     }
   }

@@ -127,10 +127,6 @@ class EvaluationPersonResultService extends BaseService
               $objectivesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->objectivesPercentage : 0;
               $competencesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->competencesPercentage : 100;
 
-              if ($person->id === 2972) {
-                dd($person->boss?->position);
-              }
-
               $data = [
                 'person_id' => $person->id,
                 'evaluation_id' => $evaluation->id,
@@ -148,7 +144,7 @@ class EvaluationPersonResultService extends BaseService
                 'sede' => $person->sede?->abreviatura,
                 'boss' => $person->boss?->nombre_completo,
                 'boss_dni' => $person->boss?->vat,
-                'boss_hierarchical_category' => $person->boss?->position?->hierarchicalCategory?->name,
+                'boss_hierarchical_category' => $person->boss?->position?->hierarchicalCategory?->name ?? "-",
                 'boss_position' => $person->boss?->position?->name,
                 'boss_area' => $person->boss?->position?->area?->name,
                 'boss_sede' => $person->boss?->sede?->abreviatura,

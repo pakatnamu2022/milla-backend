@@ -82,4 +82,13 @@ class WorkerController extends Controller
             return $this->error($e->getMessage());
         }
     }
+
+    public function assignObjectivesToWorkers()
+    {
+        try {
+            return $this->service->assignObjectivesToWorkers();
+        } catch (\Throwable $e) {
+            return $this->error($e->getMessage());
+        }
+    }
 }

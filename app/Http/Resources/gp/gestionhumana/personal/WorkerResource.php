@@ -27,6 +27,7 @@ class WorkerResource extends JsonResource
       'document' => $this->vat,
       'sede' => $this->sede?->abreviatura,
       'position' => $this->position?->name,
+      'hierarchical_category' => $this->position?->hierarchicalCategory?->name,
       'offerLetterConfirmationId' => $this->status_carta_oferta_id,
       'emailOfferLetterStatusId' => $this->status_envio_mail_carta_oferta,
       'offerLetterConfirmation' => $this->offerLetterStatus?->estado,

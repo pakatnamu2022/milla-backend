@@ -8810,7 +8810,6 @@ class ObjectiveSeeder extends Seeder
     }
 
 //    4. Asignar el gerente general category 'Gerente General' position id 23
-
     $categoryChiefExecutive = HierarchicalCategory::create([
       'name' => 'Gerente General',
       'description' => 'Description for the category Gerente General',
