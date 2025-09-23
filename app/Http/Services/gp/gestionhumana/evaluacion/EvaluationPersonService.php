@@ -153,8 +153,14 @@ class EvaluationPersonService extends BaseService
     if ($isAscending) {
       return ($result / $goal) * 100;
     } else {
-      $adjustedResult = $result == 0 ? 1 : $result;
-      return ($goal / $adjustedResult) * 100;
+      // Para indicadores descendentes
+      if ($result == 0) {
+        // Si el resultado es 0, el cumplimiento es máximo (500% cap)
+        return 500;
+      }
+      $compliance = ($goal / $result) * 100;
+      // Limitar el compliance máximo para evitar valores fuera de rango
+      return min($compliance, 500);
     }
   }
 
@@ -295,10 +301,11 @@ class EvaluationPersonService extends BaseService
   {
     $evaluation = Evaluation::findOrFail($evaluationId);
 
-    // Obtener todas las personas de esta evaluación
+    // Obtener todas las personas de esta evaluación agrupadas por person_id
     $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluationId)
       ->with('personCycleDetail')
-      ->get();
+      ->get()
+      ->groupBy('person_id');
 
     if ($evaluationPersons->isEmpty()) {
       throw new Exception('No se encontraron personas en esta evaluación');
@@ -306,25 +313,64 @@ class EvaluationPersonService extends BaseService
 
     DB::beginTransaction();
     try {
+      $totalPersons = $evaluationPersons->count();
+
+      // Calcular distribución: 50% completado, 30% en progreso, 20% sin responder
+      $completedCount = intval($totalPersons * 0.5);
+      $inProgressCount = intval($totalPersons * 0.3);
+      $notAnsweredCount = $totalPersons - $completedCount - $inProgressCount;
+
       $updatedCount = 0;
+      $processedCount = 0;
 
-      foreach ($evaluationPersons as $evaluationPerson) {
-        $personCycleDetail = $evaluationPerson->personCycleDetail;
+      foreach ($evaluationPersons as $personId => $personEvaluations) {
+        if ($processedCount < $completedCount) {
+          // 50% completado - completar TODAS las evaluaciones de esta persona
+          foreach ($personEvaluations as $evaluationPerson) {
+            $personCycleDetail = $evaluationPerson->personCycleDetail;
+            if ($personCycleDetail && $personCycleDetail->goal) {
+              $goal = floatval($personCycleDetail->goal);
 
-        if ($personCycleDetail && $personCycleDetail->goal) {
-          // Usar el valor de la meta como resultado
-          $goal = floatval($personCycleDetail->goal);
+              $this->update([
+                'id' => $evaluationPerson->id,
+                'result' => $goal
+              ]);
 
-          // Actualizar usando el método update existente que ya hace todos los cálculos
-          $this->update([
-            'id' => $evaluationPerson->id,
-            'result' => $goal
-          ]);
+              $updatedCount++;
+            }
+          }
+          $status = 'completado';
+          logger("Persona completamente evaluada - Person ID: {$personId}, Evaluaciones: " . $personEvaluations->count() . ", Estado: {$status}");
 
-          $updatedCount++;
+        } elseif ($processedCount < $completedCount + $inProgressCount) {
+          // 30% en progreso - completar SOLO LA MITAD de las evaluaciones de esta persona
+          $evaluationsToComplete = intval($personEvaluations->count() / 2);
+          $completedEvaluations = 0;
 
-          logger("Evaluación de prueba actualizada - Persona ID: {$evaluationPerson->person_id}, Meta/Resultado: {$goal}");
+          foreach ($personEvaluations as $evaluationPerson) {
+            $personCycleDetail = $evaluationPerson->personCycleDetail;
+            if ($personCycleDetail && $personCycleDetail->goal && $completedEvaluations < $evaluationsToComplete) {
+              $goal = floatval($personCycleDetail->goal);
+
+              $this->update([
+                'id' => $evaluationPerson->id,
+                'result' => $goal
+              ]);
+
+              $updatedCount++;
+              $completedEvaluations++;
+            }
+          }
+          $status = 'en progreso';
+          logger("Persona parcialmente evaluada - Person ID: {$personId}, Completadas: {$completedEvaluations}/{$personEvaluations->count()}, Estado: {$status}");
+
+        } else {
+          // 20% sin responder - NO ACTUALIZAR NINGUNA evaluación de esta persona
+          $status = 'sin responder';
+          logger("Persona sin evaluar - Person ID: {$personId}, Evaluaciones: " . $personEvaluations->count() . ", Estado: {$status}");
         }
+
+        $processedCount++;
       }
 
       DB::commit();
@@ -332,9 +378,14 @@ class EvaluationPersonService extends BaseService
       return [
         'message' => 'Prueba completada exitosamente',
         'evaluation_id' => $evaluationId,
-        'total_persons' => $evaluationPersons->count(),
-        'updated_persons' => $updatedCount,
-        'description' => 'Todos los resultados fueron actualizados con el valor de sus metas correspondientes'
+        'total_persons' => $totalPersons,
+        'total_evaluations_updated' => $updatedCount,
+        'distribution' => [
+          'personas_completadas' => $completedCount,
+          'personas_en_progreso' => $inProgressCount,
+          'personas_sin_responder' => $notAnsweredCount
+        ],
+        'description' => 'Personas distribuidas: 50% completadas (todas sus evaluaciones), 30% en progreso (mitad de sus evaluaciones), 20% sin responder (ninguna evaluación)'
       ];
 
     } catch (\Exception $e) {
