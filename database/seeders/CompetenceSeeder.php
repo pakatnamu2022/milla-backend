@@ -7288,8 +7288,87 @@ class CompetenceSeeder extends Seeder
         "subCompetence" => "Pertenencia",
         "category" => "Jefe de Administración Comercial"
       ],
-//      SUPERVISOR DE SEGURIDAD PATRIMONIAL
-    
+//      ASISTENTE DE BIENESTAR Y CLIMA LABORAL
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Claridad en el mensaje",
+        "category" => "Asistente De Bienestar Y Clima Laboral"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Respuesta Oportuna",
+        "category" => "Asistente De Bienestar Y Clima Laboral"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Escucha",
+        "category" => "Asistente De Bienestar Y Clima Laboral"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Asertividad",
+        "category" => "Asistente De Bienestar Y Clima Laboral"
+      ],
+      [
+        "competence" => "Ejecución Efectiva: Realizar una ejecución efectiva a partir de una adecuada gestión de los recursos y el uso de metodologías o procesos estandarizados en tiempos previamente establecidos.",
+        "subCompetence" => "Gestión De Recursos",
+        "category" => "Asistente De Bienestar Y Clima Laboral"
+      ],
+      [
+        "competence" => "Ejecución Efectiva: Realizar una ejecución efectiva a partir de una adecuada gestión de los recursos y el uso de metodologías o procesos estandarizados en tiempos previamente establecidos.",
+        "subCompetence" => "Metodología",
+        "category" => "Asistente De Bienestar Y Clima Laboral"
+      ],
+      [
+        "competence" => "Ejecución Efectiva: Realizar una ejecución efectiva a partir de una adecuada gestión de los recursos y el uso de metodologías o procesos estandarizados en tiempos previamente establecidos.",
+        "subCompetence" => "Orientación Al Logro",
+        "category" => "Asistente De Bienestar Y Clima Laboral"
+      ],
+      [
+        "competence" => "Gestión de Trámites: Garantiza la recepción y entrega de documentos asegurando que cumpla con los requisitos solicitados.",
+        "subCompetence" => "Despacho Documentario",
+        "category" => "Asistente De Bienestar Y Clima Laboral"
+      ],
+      [
+        "competence" => "Gestión de Trámites: Garantiza la recepción y entrega de documentos asegurando que cumpla con los requisitos solicitados.",
+        "subCompetence" => "Control Documentario",
+        "category" => "Asistente De Bienestar Y Clima Laboral"
+      ],
+      [
+        "competence" => "Gestión de Trámites: Garantiza la recepción y entrega de documentos asegurando que cumpla con los requisitos solicitados.",
+        "subCompetence" => "Perseverancia En La Entrega",
+        "category" => "Asistente De Bienestar Y Clima Laboral"
+      ],
+      [
+        "competence" => "Gestión de Trámites: Garantiza la recepción y entrega de documentos asegurando que cumpla con los requisitos solicitados.",
+        "subCompetence" => "Construcción De Red De Contactos",
+        "category" => "Asistente De Bienestar Y Clima Laboral"
+      ],
+      [
+        "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
+        "subCompetence" => "Amabilidad Y Cercanía",
+        "category" => "Asistente De Bienestar Y Clima Laboral"
+      ],
+      [
+        "competence" => "Servicio al colaborador: Resuelve las consultas y solicitudes de los colaboradores con empatía y amabilidad.",
+        "subCompetence" => "Atención Oportuna",
+        "category" => "Asistente De Bienestar Y Clima Laboral"
+      ],
+      [
+        "competence" => "Servicio al colaborador: Resuelve las consultas y solicitudes de los colaboradores con empatía y amabilidad.",
+        "subCompetence" => "Empatía",
+        "category" => "Asistente De Bienestar Y Clima Laboral"
+      ],
+      [
+        "competence" => "Servicio al colaborador: Resuelve las consultas y solicitudes de los colaboradores con empatía y amabilidad.",
+        "subCompetence" => "Atención Efectiva A Consultas De Colaboradores",
+        "category" => "Asistente De Bienestar Y Clima Laboral"
+      ],
+      [
+        "competence" => "Servicio al colaborador: Resuelve las consultas y solicitudes de los colaboradores con empatía y amabilidad.",
+        "subCompetence" => "Amabilidad Y Cercanía Con El Colaborador",
+        "category" => "Asistente De Bienestar Y Clima Laboral"
+      ],
     ];
 
     $assignations = [
