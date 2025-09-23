@@ -7197,6 +7197,8 @@ class CompetenceSeeder extends Seeder
         "subCompetence" => "Amabilidad Y Cercanía",
         "category" => "Asistente De Logistica"
       ],
+
+//      NUEVOS
     ];
 
     $assignations = [

@@ -112,6 +112,14 @@ class WorkerService extends BaseService
     $workers = Worker::where('status_id', 22)
       ->with(['position.hierarchicalCategory', 'evaluationDetails'])
       ->get()
+      ->groupBy(function ($worker) {
+        // Agrupar por nombre completo (normalizado)
+        return trim(strtolower($worker->nombre_completo));
+      })
+      ->map(function ($group) {
+        // Tomar solo el primer registro de cada grupo
+        return $group->first();
+      })
       ->filter(function ($worker) {
         // Excluir si tiene EvaluationPersonDetail
         if ($worker->evaluationDetails->count() > 0) {
