@@ -139,9 +139,7 @@ class ApAssignmentLeadershipService extends BaseService
         ->where('boss_id', '!=', $data['boss_id'])
         ->where('year', $data['year'])
         ->where('month', $data['month'])
-        ->where(function ($q) {
-          $q->where('status', 1)->orWhereNull('deleted_at');
-        })
+        ->where('status', 1)
         ->exists();
 
       $nameAsesor = Worker::find($asesorId)->nombre_completo;
@@ -196,9 +194,7 @@ class ApAssignmentLeadershipService extends BaseService
           ->where('boss_id', '!=', $data['boss_id'])
           ->where('year', $data['year'])
           ->where('month', $data['month'])
-          ->where(function ($q) {
-            $q->where('status', 1);
-          })
+          ->where('status', 1)
           ->exists();
 
         $nameAsesor = Worker::find($asesorId)->nombre_completo;
@@ -242,9 +238,7 @@ class ApAssignmentLeadershipService extends BaseService
           ->where('boss_id', '!=', $data['boss_id'])
           ->where('year', $data['year'])
           ->where('month', $data['month'])
-          ->where(function ($q) {
-            $q->where('status', 1);
-          })
+          ->where('status', 1)
           ->exists();
 
         if ($existsElsewhere) {

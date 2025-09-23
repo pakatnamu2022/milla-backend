@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\ap\ApCommercialMastersController;
+use App\Http\Controllers\DocumentValidationController;
+use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFamiliesController;
@@ -614,10 +616,27 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     //      COMMERCIAL
     Route::group(['prefix' => 'commercial'], function () {
-
+      Route::apiResource('businessPartners', BusinessPartnersController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
     });
   });
 
+  // Document Validation Routes
+  Route::group(['prefix' => 'document-validation'], function () {
+    Route::post('/validate/general', [DocumentValidationController::class, 'validateGeneral']);
+    Route::post('/validate/dni', [DocumentValidationController::class, 'validateDni']);
+    Route::post('/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
+    Route::post('/validate/license', [DocumentValidationController::class, 'validateLicense']);
+    Route::get('/document-types', [DocumentValidationController::class, 'documentTypes']);
+    Route::get('/provider-info', [DocumentValidationController::class, 'providerInfo']);
+    Route::delete('/cache', [DocumentValidationController::class, 'clearCache']);
+    Route::delete('/cache/all', [DocumentValidationController::class, 'clearAllCache']);
+  });
 
   // Add other routes that require authentication here
 });
