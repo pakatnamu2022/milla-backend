@@ -7197,8 +7197,99 @@ class CompetenceSeeder extends Seeder
         "subCompetence" => "Amabilidad Y Cercanía",
         "category" => "Asistente De Logistica"
       ],
-
-//      NUEVOS
+//     JEFE DE ADMINISTRACIÓN COMERCIAL
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Asertividad",
+        "category" => "Jefe de Administración Comercial"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Respuesta Oportuna",
+        "category" => "Jefe de Administración Comercial"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Claridad En El Mensaje",
+        "category" => "Jefe de Administración Comercial"
+      ],
+      [
+        "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
+        "subCompetence" => "Escucha",
+        "category" => "Jefe de Administración Comercial"
+      ],
+      [
+        "competence" => "Gestión de Trámites: Garantiza la recepción y entrega de documentos asegurando que cumpla con los requisitos solicitados.",
+        "subCompetence" => "Despacho Documentario",
+        "category" => "Jefe de Administración Comercial"
+      ],
+      [
+        "competence" => "Gestión de Trámites: Garantiza la recepción y entrega de documentos asegurando que cumpla con los requisitos solicitados.",
+        "subCompetence" => "Control Documentario",
+        "category" => "Jefe de Administración Comercial"
+      ],
+      [
+        "competence" => "Gestión de Trámites: Garantiza la recepción y entrega de documentos asegurando que cumpla con los requisitos solicitados.",
+        "subCompetence" => "Perseverancia En La Entrega",
+        "category" => "Jefe de Administración Comercial"
+      ],
+      [
+        "competence" => "Gestión de Trámites: Garantiza la recepción y entrega de documentos asegurando que cumpla con los requisitos solicitados.",
+        "subCompetence" => "Construcción De Red De Contactos",
+        "category" => "Jefe de Administración Comercial"
+      ],
+      [
+        "competence" => "Registro y Manejo de Información - Versión 2 AP: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
+        "subCompetence" => "Orientación Al Detalle",
+        "category" => "Jefe de Administración Comercial"
+      ],
+      [
+        "competence" => "Registro y Manejo de Información - Versión 2 AP: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
+        "subCompetence" => "Organización",
+        "category" => "Jefe de Administración Comercial"
+      ],
+      [
+        "competence" => "Registro y Manejo de Información - Versión 2 AP: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
+        "subCompetence" => "Cumplimiento De Procesos Operativos",
+        "category" => "Jefe de Administración Comercial"
+      ],
+      [
+        "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
+        "subCompetence" => "Colaboración",
+        "category" => "Jefe de Administración Comercial"
+      ],
+      [
+        "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
+        "subCompetence" => "Responsabilidad",
+        "category" => "Jefe de Administración Comercial"
+      ],
+      [
+        "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
+        "subCompetence" => "Resuelve Conflictos",
+        "category" => "Jefe de Administración Comercial"
+      ],
+      [
+        "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
+        "subCompetence" => "Pasión",
+        "category" => "Jefe de Administración Comercial"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño V2: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Anticipación A Requerimientos",
+        "category" => "Jefe de Administración Comercial"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño V2: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Solución De Problemas Difíciles",
+        "category" => "Jefe de Administración Comercial"
+      ],
+      [
+        "competence" => "Mentalidad de Dueño V2: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
+        "subCompetence" => "Pertenencia",
+        "category" => "Jefe de Administración Comercial"
+      ],
+//      SUPERVISOR DE SEGURIDAD PATRIMONIAL
+    
     ];
 
     $assignations = [
