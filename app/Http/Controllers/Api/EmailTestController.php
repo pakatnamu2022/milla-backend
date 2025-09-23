@@ -4,10 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\EmailService;
-use App\Mail\TestMail;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Mail;
 
 class EmailTestController extends Controller
 {
@@ -19,22 +17,45 @@ class EmailTestController extends Controller
     }
 
     /**
-     * Enviar email básico de prueba
+     * Prueba del correo de recordatorio de evaluaciones
      */
-    public function sendBasic(Request $request): JsonResponse
+    public function testEvaluationReminder(Request $request): JsonResponse
     {
         $request->validate([
-            'to' => 'required|email',
-            'name' => 'nullable|string',
+            'to' => 'required|email'
         ]);
 
         $config = [
             'to' => $request->to,
-            'subject' => 'Email de Prueba - Sistema Milla',
-            'template' => 'emails.simple',
+            'subject' => 'PRUEBA - Recordatorio de Evaluación de Desempeño',
+            'template' => 'emails.evaluation-reminder',
             'data' => [
-                'name' => $request->name ?? 'Usuario',
-                'message' => 'Este es un email de prueba del sistema. Si recibes este mensaje, la configuración está funcionando correctamente.'
+                'title' => 'Recordatorio de Evaluación de Desempeño',
+                'subtitle' => 'Evaluaciones Pendientes de Completar (PRUEBA)',
+                'leader_name' => 'Usuario de Prueba',
+                'evaluation_name' => 'Evaluación Anual de Desempeño 2024',
+                'end_date' => now()->addDays(5)->format('d/m/Y'),
+                'pending_count' => 3,
+                'total_count' => 5,
+                'pending_evaluations' => [
+                    [
+                        'employee_name' => 'Juan Carlos Pérez',
+                        'progress_percentage' => 0
+                    ],
+                    [
+                        'employee_name' => 'María Elena González',
+                        'progress_percentage' => 50
+                    ],
+                    [
+                        'employee_name' => 'Carlos Andrés Rodríguez',
+                        'progress_percentage' => 25
+                    ]
+                ],
+                'evaluation_url' => 'https://sistema.grupopakatnamu.com/evaluations/1',
+                'additional_notes' => 'Esta evaluación vence en 5 días. Por favor complete las evaluaciones pendientes lo antes posible.',
+                'send_date' => now()->format('d/m/Y H:i'),
+                'company_name' => 'Grupo Pakana',
+                'contact_info' => 'rrhh@grupopakatnamu.com'
             ]
         ];
 
@@ -42,46 +63,91 @@ class EmailTestController extends Controller
 
         return response()->json([
             'success' => $result,
-            'message' => $result ? 'Email enviado correctamente' : 'Error al enviar email',
-            'to' => $request->to
+            'message' => $result ? 'Correo de prueba enviado correctamente' : 'Error al enviar correo',
+            'to' => $request->to,
+            'template' => 'evaluation-reminder',
+            'timestamp' => now()->toISOString()
         ]);
     }
 
     /**
-     * Enviar notificación de prueba
+     * Prueba de correo básico con nueva plantilla
      */
-    public function sendNotification(Request $request): JsonResponse
+    public function testBasicTemplate(Request $request): JsonResponse
     {
         $request->validate([
             'to' => 'required|email',
-            'type' => 'nullable|in:info,success,warning',
-            'title' => 'nullable|string',
-            'message' => 'nullable|string',
+            'name' => 'nullable|string'
+        ]);
+
+        $config = [
+            'to' => $request->to,
+            'subject' => 'PRUEBA - Sistema de Correos Milla',
+            'template' => 'emails.default',
+            'data' => [
+                'title' => 'Prueba del Sistema de Correos',
+                'subtitle' => 'Nueva plantilla implementada',
+                'greeting' => 'Hola ' . ($request->name ?? 'Usuario') . ',',
+                'message' => 'Este es un correo de prueba del nuevo sistema de plantillas de email. La plantilla base ha sido actualizada con un diseño moderno y responsivo.',
+                'alert_type' => 'success',
+                'alert_message' => 'El sistema de correos está funcionando correctamente con las nuevas plantillas.',
+                'button_text' => 'Acceder al Sistema',
+                'button_url' => 'https://sistema.grupopakatnamu.com',
+                'button_style' => 'btn-success',
+                'additional_info' => 'Esta nueva plantilla incluye:<br>• Diseño responsivo<br>• Múltiples tipos de alertas<br>• Soporte para botones personalizados<br>• Mejor estructura organizacional',
+                'footer_text' => 'Este es un correo automático del sistema de pruebas.',
+                'company_name' => 'Grupo Pakana',
+                'contact_info' => 'soporte@grupopakatnamu.com'
+            ]
+        ];
+
+        $result = $this->emailService->send($config);
+
+        return response()->json([
+            'success' => $result,
+            'message' => $result ? 'Correo de prueba enviado correctamente' : 'Error al enviar correo',
+            'to' => $request->to,
+            'template' => 'default',
+            'timestamp' => now()->toISOString()
+        ]);
+    }
+
+    /**
+     * Prueba de correo de notificación con nueva plantilla
+     */
+    public function testNotificationTemplate(Request $request): JsonResponse
+    {
+        $request->validate([
+            'to' => 'required|email',
+            'type' => 'nullable|in:info,success,warning,danger'
         ]);
 
         $type = $request->type ?? 'info';
-        $title = $request->title ?? 'Notificación de Prueba';
-        $message = $request->message ?? 'Esta es una notificación de prueba del sistema.';
 
         $config = [
             'to' => $request->to,
-            'subject' => 'Notificación - ' . $title,
+            'subject' => 'PRUEBA - Notificación del Sistema',
             'template' => 'emails.notification',
             'data' => [
-                'title' => $title,
-                'subtitle' => 'Sistema de Notificaciones',
+                'title' => 'Notificación del Sistema',
+                'subtitle' => 'Prueba de la nueva plantilla de notificaciones',
                 'user_name' => 'Usuario de Prueba',
-                'main_message' => $message,
+                'main_message' => 'Esta es una prueba de la nueva plantilla de notificaciones con diseño mejorado.',
                 'alert_type' => $type,
                 'alert_message' => $this->getAlertMessage($type),
                 'details' => [
-                    'Hora: ' . now()->format('H:i:s'),
-                    'Fecha: ' . now()->format('d/m/Y'),
+                    'Fecha de envío: ' . now()->format('d/m/Y H:i:s'),
+                    'Tipo de alerta: ' . ucfirst($type),
                     'Sistema: Milla Backend',
-                    'Tipo: Notificación de prueba'
+                    'Versión de plantilla: 2.0'
                 ],
-                'action_needed' => 'Esta es solo una prueba, no se requiere ninguna acción.',
-                'date' => now()->format('d/m/Y H:i')
+                'action_needed' => 'Esta es solo una prueba del sistema. No se requiere ninguna acción por parte del usuario.',
+                'button_text' => 'Ver en el Sistema',
+                'button_url' => 'https://sistema.grupopakatnamu.com',
+                'button_style' => $this->getButtonStyle($type),
+                'date' => now()->format('d/m/Y H:i'),
+                'company_name' => 'Grupo Pakana',
+                'contact_info' => 'soporte@grupopakatnamu.com'
             ]
         ];
 
@@ -89,204 +155,61 @@ class EmailTestController extends Controller
 
         return response()->json([
             'success' => $result,
-            'message' => $result ? 'Notificación enviada correctamente' : 'Error al enviar notificación',
+            'message' => $result ? 'Correo de notificación enviado correctamente' : 'Error al enviar correo',
             'to' => $request->to,
-            'type' => $type
+            'alert_type' => $type,
+            'template' => 'notification',
+            'timestamp' => now()->toISOString()
         ]);
     }
 
     /**
-     * Enviar reporte de prueba
-     */
-    public function sendReport(Request $request): JsonResponse
-    {
-        $request->validate([
-            'to' => 'required|email',
-        ]);
-
-        $config = [
-            'to' => $request->to,
-            'subject' => 'Reporte de Prueba - Sistema Milla',
-            'template' => 'emails.report',
-            'data' => [
-                'report_title' => 'Reporte de Actividad del Sistema',
-                'report_subtitle' => 'Datos de prueba generados automáticamente',
-                'generated_date' => now()->format('d/m/Y H:i:s'),
-                'recipient_name' => 'Usuario de Prueba',
-                'introduction' => 'Este es un reporte de prueba generado por el sistema para verificar el funcionamiento del servicio de emails.',
-                'summary_data' => [
-                    'Usuarios Activos' => rand(100, 500),
-                    'Emails Enviados' => rand(50, 200),
-                    'Tiempo de Actividad' => '99.9%',
-                    'Última Actualización' => now()->format('d/m/Y H:i')
-                ],
-                'table_headers' => ['Módulo', 'Estado', 'Última Verificación', 'Observaciones'],
-                'table_data' => [
-                    ['Autenticación', 'Activo', now()->subMinutes(5)->format('H:i'), 'Sin problemas'],
-                    ['Base de Datos', 'Activo', now()->subMinutes(2)->format('H:i'), 'Funcionando correctamente'],
-                    ['Email Service', 'Activo', now()->format('H:i'), 'Prueba en progreso'],
-                    ['API REST', 'Activo', now()->subMinutes(1)->format('H:i'), 'Respuesta óptima']
-                ],
-                'important_notes' => [
-                    'Este es un reporte de prueba generado automáticamente',
-                    'Los datos mostrados son ficticios y solo para testing'
-                ],
-                'conclusions' => 'El sistema está funcionando correctamente y todos los módulos están operativos.',
-                'next_steps' => [
-                    'Continuar con las pruebas de funcionalidad',
-                    'Verificar configuración de producción',
-                    'Documentar procesos de testing'
-                ],
-                'company_name' => 'Sistema Milla',
-                'contact_info' => 'soporte@sistema-milla.com'
-            ]
-        ];
-
-        $result = $this->emailService->send($config);
-
-        return response()->json([
-            'success' => $result,
-            'message' => $result ? 'Reporte enviado correctamente' : 'Error al enviar reporte',
-            'to' => $request->to
-        ]);
-    }
-
-    /**
-     * Enviar email con múltiples destinatarios
-     */
-    public function sendMultiple(Request $request): JsonResponse
-    {
-        $request->validate([
-            'emails' => 'required|array|min:1|max:5',
-            'emails.*' => 'email',
-            'message' => 'nullable|string',
-        ]);
-
-        $message = $request->message ?? 'Este es un email de prueba enviado a múltiples destinatarios.';
-
-        $config = [
-            'to' => $request->emails,
-            'subject' => 'Email Masivo de Prueba - Sistema Milla',
-            'template' => 'emails.default',
-            'data' => [
-                'title' => 'Email Masivo',
-                'greeting' => 'Estimados usuarios,',
-                'message' => $message,
-                'additional_info' => 'Este email fue enviado a múltiples destinatarios como prueba del sistema de envío masivo.',
-                'footer_text' => 'Sistema de emails masivos - Prueba completada.',
-                'company_name' => 'Sistema Milla'
-            ]
-        ];
-
-        $result = $this->emailService->send($config);
-
-        return response()->json([
-            'success' => $result,
-            'message' => $result ? 'Emails enviados correctamente' : 'Error al enviar emails',
-            'recipients_count' => count($request->emails),
-            'recipients' => $request->emails
-        ]);
-    }
-
-    /**
-     * Probar cola de emails
-     */
-    public function testQueue(Request $request): JsonResponse
-    {
-        $request->validate([
-            'to' => 'required|email',
-        ]);
-
-        $config = [
-            'to' => $request->to,
-            'subject' => 'Email en Cola - Sistema Milla',
-            'template' => 'emails.notification',
-            'data' => [
-                'title' => 'Email desde Cola',
-                'subtitle' => 'Procesamiento asíncrono',
-                'main_message' => 'Este email fue enviado usando el sistema de colas para procesamiento asíncrono.',
-                'alert_type' => 'success',
-                'alert_message' => 'El sistema de colas está funcionando correctamente.',
-                'date' => now()->format('d/m/Y H:i')
-            ]
-        ];
-
-        $result = $this->emailService->queue($config);
-
-        return response()->json([
-            'success' => $result,
-            'message' => $result ? 'Email agregado a la cola correctamente' : 'Error al agregar email a la cola',
-            'to' => $request->to,
-            'note' => 'El email se procesará de forma asíncrona'
-        ]);
-    }
-
-    /**
-     * Obtener estado del servicio de email
+     * Estado del servicio de correos
      */
     public function status(): JsonResponse
     {
-        try {
-            $status = [
-                'service' => 'EmailService',
-                'status' => 'active',
-                'mail_driver' => config('mail.default'),
+        return response()->json([
+            'service' => 'EmailService',
+            'status' => 'active',
+            'templates_available' => [
+                'emails.default' => 'Plantilla básica con nueva estructura',
+                'emails.notification' => 'Plantilla para notificaciones',
+                'emails.evaluation-reminder' => 'Plantilla para recordatorios de evaluación',
+                'emails.report' => 'Plantilla para reportes'
+            ],
+            'endpoints' => [
+                'POST /api/email/test/evaluation-reminder' => 'Probar correo de recordatorio de evaluación',
+                'POST /api/email/test/basic-template' => 'Probar plantilla básica mejorada',
+                'POST /api/email/test/notification-template' => 'Probar plantilla de notificación',
+                'GET /api/email/test/status' => 'Estado del servicio'
+            ],
+            'mail_config' => [
+                'driver' => config('mail.default'),
                 'from_address' => config('mail.from.address'),
-                'from_name' => config('mail.from.name'),
-                'timestamp' => now()->toISOString(),
-                'endpoints' => [
-                    'POST /api/email/test/basic' => 'Enviar email básico',
-                    'POST /api/email/test/notification' => 'Enviar notificación',
-                    'POST /api/email/test/report' => 'Enviar reporte',
-                    'POST /api/email/test/multiple' => 'Enviar a múltiples destinatarios',
-                    'POST /api/email/test/queue' => 'Probar cola de emails',
-                    'GET /api/email/test/status' => 'Estado del servicio'
-                ]
-            ];
-
-            return response()->json($status);
-        } catch (\Exception $e) {
-            return response()->json([
-                'service' => 'EmailService',
-                'status' => 'error',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Probar con Mailable nativo de Laravel
-     */
-    public function testNative(Request $request): JsonResponse
-    {
-        $request->validate([
-            'to' => 'required|email',
+                'from_name' => config('mail.from.name')
+            ],
+            'timestamp' => now()->toISOString()
         ]);
-
-        try {
-            Mail::to($request->to)->send(new TestMail());
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Email nativo enviado correctamente',
-                'to' => $request->to
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error: ' . $e->getMessage(),
-                'to' => $request->to
-            ]);
-        }
     }
 
     private function getAlertMessage(string $type): string
     {
         return match($type) {
-            'info' => 'Esta es una notificación informativa del sistema.',
-            'success' => 'Operación completada exitosamente.',
-            'warning' => 'Atención: Se requiere revisar esta información.',
+            'info' => 'Esta es una notificación informativa para mantenerle al día con el sistema.',
+            'success' => 'Operación completada exitosamente. Todo funciona correctamente.',
+            'warning' => 'Atención: Se ha detectado una situación que requiere su revisión.',
+            'danger' => 'Alerta: Se ha detectado un problema crítico que requiere atención inmediata.',
             default => 'Notificación del sistema.'
+        };
+    }
+
+    private function getButtonStyle(string $type): string
+    {
+        return match($type) {
+            'success' => 'btn-success',
+            'warning' => 'btn-warning',
+            'danger' => 'btn-danger',
+            default => ''
         };
     }
 }

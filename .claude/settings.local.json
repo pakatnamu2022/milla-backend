@@ -6,7 +6,8 @@
       "Bash(mkdir:*)",
       "Bash(curl:*)",
       "Bash(composer:*)",
-      "Bash(php:*)"
+      "Bash(php:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []

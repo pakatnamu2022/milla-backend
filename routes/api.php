@@ -63,13 +63,10 @@ Route::post('/login', [AuthController::class, 'login'])->name('login');
 
 // Email testing routes (sin autenticación para facilitar pruebas)
 Route::group(['prefix' => 'email/test'], function () {
-  Route::get('/status', [EmailTestController::class, 'status']);
-  Route::post('/basic', [EmailTestController::class, 'sendBasic']);
-  Route::post('/native', [EmailTestController::class, 'testNative']);
-  Route::post('/notification', [EmailTestController::class, 'sendNotification']);
-  Route::post('/report', [EmailTestController::class, 'sendReport']);
-  Route::post('/multiple', [EmailTestController::class, 'sendMultiple']);
-  Route::post('/queue', [EmailTestController::class, 'testQueue']);
+  Route::get('/status', [App\Http\Controllers\Api\EmailTestController::class, 'status']);
+  Route::post('/evaluation-reminder', [App\Http\Controllers\Api\EmailTestController::class, 'testEvaluationReminder']);
+  Route::post('/basic-template', [App\Http\Controllers\Api\EmailTestController::class, 'testBasicTemplate']);
+  Route::post('/notification-template', [App\Http\Controllers\Api\EmailTestController::class, 'testNotificationTemplate']);
 });
 
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -368,6 +365,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/evaluation/{evaluation}/participants', [EvaluationController::class, 'participants']);
         Route::get('/evaluation/{evaluation}/positions', [EvaluationController::class, 'positions']);
         Route::get('evaluation/{id}/testUpdateAllResultsWithGoals', [EvaluationPersonController::class, 'testUpdateAllResultsWithGoals']);
+
+//        EVALUATION NOTIFICATIONS
+        Route::group(['prefix' => 'evaluation/notifications'], function () {
+            Route::post('/send-reminders', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'sendReminders']);
+            Route::post('/send-hr-summary', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'sendHrSummary']);
+            Route::get('/pending-status', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'getPendingStatus']);
+            Route::post('/test-reminder', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'testReminder']);
+        });
 
         Route::apiResource('evaluation', EvaluationController::class)->only([
           'index',
