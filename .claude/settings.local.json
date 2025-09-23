@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(php artisan:*)",
-      "Bash(php -l:*)"
+      "Bash(php -l:*)",
+      "Bash(mkdir:*)",
+      "Bash(curl:*)",
+      "Bash(composer:*)",
+      "Bash(php:*)"
     ],
     "deny": [],
     "ask": []

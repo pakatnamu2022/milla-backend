@@ -56,9 +56,21 @@ use App\Http\Controllers\gp\gestionsistema\ViewController;
 use App\Http\Controllers\gp\maestroGeneral\SedeController;
 use App\Http\Controllers\gp\tics\EquipmentController;
 use App\Http\Controllers\gp\tics\EquipmentTypeController;
+use App\Http\Controllers\Api\EmailTestController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login'])->name('login');
+
+// Email testing routes (sin autenticación para facilitar pruebas)
+Route::group(['prefix' => 'email/test'], function () {
+  Route::get('/status', [EmailTestController::class, 'status']);
+  Route::post('/basic', [EmailTestController::class, 'sendBasic']);
+  Route::post('/native', [EmailTestController::class, 'testNative']);
+  Route::post('/notification', [EmailTestController::class, 'sendNotification']);
+  Route::post('/report', [EmailTestController::class, 'sendReport']);
+  Route::post('/multiple', [EmailTestController::class, 'sendMultiple']);
+  Route::post('/queue', [EmailTestController::class, 'testQueue']);
+});
 
 Route::middleware(['auth:sanctum'])->group(function () {
   Route::get('/authenticate', [AuthController::class, 'authenticate'])->name('authenticate');
@@ -623,6 +635,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     });
   });
+
 
 
   // Add other routes that require authentication here
