@@ -13,6 +13,11 @@ class EvaluationPersonResult extends BaseModel
 
   protected $table = 'gh_evaluation_person_result';
 
+  // Constantes para estados de progreso
+  const PROGRESS_NOT_STARTED = 'sin_iniciar';
+  const PROGRESS_IN_PROGRESS = 'en_proceso';
+  const PROGRESS_COMPLETED = 'completado';
+
   protected $fillable = [
     'person_id',
     'evaluation_id',
@@ -50,10 +55,12 @@ class EvaluationPersonResult extends BaseModel
 
     // 👇 NUEVOS: Filtros por accessor
     'is_completed' => 'accessor_bool',
+    'is_in_progress' => 'accessor_bool',
     'completion_percentage' => 'accessor_numeric',
     'total_progress.completion_rate' => 'accessor_numeric',
     'objectives_progress.is_completed' => 'accessor_bool',
     'competences_progress.is_completed' => 'accessor_bool',
+    'progress_status' => 'accessor_string', // completado, en_proceso, sin_iniciar
 
     // Rangos numéricos
     'completion_percentage_range' => 'accessor_between', // [min, max]
@@ -354,11 +361,36 @@ class EvaluationPersonResult extends BaseModel
   }
 
   /**
+   * Verifica si la evaluación está en progreso
+   */
+  public function getIsInProgressAttribute()
+  {
+    $totalProgress = $this->total_progress;
+    return !$totalProgress['is_completed'] && $totalProgress['completion_rate'] > 0;
+  }
+
+  /**
    * Obtiene el porcentaje de progreso general
    */
   public function getCompletionPercentageAttribute()
   {
     return $this->total_progress['completion_rate'];
+  }
+
+  /**
+   * Obtiene el estado de progreso en texto
+   */
+  public function getProgressStatusAttribute()
+  {
+    $totalProgress = $this->total_progress;
+
+    if ($totalProgress['is_completed']) {
+      return self::PROGRESS_COMPLETED;
+    } elseif ($totalProgress['completion_rate'] > 0) {
+      return self::PROGRESS_IN_PROGRESS;
+    } else {
+      return self::PROGRESS_NOT_STARTED;
+    }
   }
 
   /**
@@ -514,6 +546,46 @@ class EvaluationPersonResult extends BaseModel
   {
     return $query->get()->filter(function ($evaluation) use ($minPercentage) {
       return $evaluation->completion_percentage >= $minPercentage;
+    });
+  }
+
+  /**
+   * Scope para evaluaciones completadas
+   */
+  public function scopeCompletedProgress($query)
+  {
+    return $query->get()->filter(function ($evaluation) {
+      return $evaluation->progress_status === 'completado';
+    });
+  }
+
+  /**
+   * Scope para evaluaciones en proceso
+   */
+  public function scopeInProgress($query)
+  {
+    return $query->get()->filter(function ($evaluation) {
+      return $evaluation->progress_status === 'en_proceso';
+    });
+  }
+
+  /**
+   * Scope para evaluaciones sin iniciar
+   */
+  public function scopeNotStarted($query)
+  {
+    return $query->get()->filter(function ($evaluation) {
+      return $evaluation->progress_status === 'sin_iniciar';
+    });
+  }
+
+  /**
+   * Scope para filtrar por estado de progreso
+   */
+  public function scopeByProgressStatus($query, $status)
+  {
+    return $query->get()->filter(function ($evaluation) use ($status) {
+      return $evaluation->progress_status === $status;
     });
   }
 

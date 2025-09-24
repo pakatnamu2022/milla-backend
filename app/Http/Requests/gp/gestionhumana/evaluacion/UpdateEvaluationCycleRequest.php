@@ -19,8 +19,8 @@ class UpdateEvaluationCycleRequest extends StoreRequest
       'start_date' => 'required|date|date_format:Y-m-d',
       'end_date' => 'required|date|date_format:Y-m-d|after_or_equal:start_date',
       'cut_off_date' => 'required|date|date_format:Y-m-d',
-      'start_date_objectives' => 'required|date|date_format:Y-m-d',
-      'end_date_objectives' => 'required|date|date_format:Y-m-d|after_or_equal:start_date_objectives',
+//      'start_date_objectives' => 'required|date|date_format:Y-m-d',
+//      'end_date_objectives' => 'required|date|date_format:Y-m-d|after_or_equal:start_date_objectives',
       'period_id' => 'required|exists:gh_evaluation_periods,id',
       'parameter_id' => 'required|exists:gh_evaluation_parameter,id',
       'typeEvaluation' => [
@@ -34,23 +34,13 @@ class UpdateEvaluationCycleRequest extends StoreRequest
   public function withValidator($validator)
   {
     $validator->after(function ($validator) {
-      $endCycle = $this->input('end_date');
-      $startObj = $this->input('start_date_objectives');
-      $endObj = $this->input('end_date_objectives');
+      $start = $this->input('start_date');
+      $end = $this->input('end_date');
+      $cutOff = $this->input('cut_off_date');
 
-      if ($endCycle && ($startObj || $endObj)) {
-        $endCycleDate = strtotime($endCycle);
-        $startObjDate = $startObj ? strtotime($startObj) : null;
-        $endObjDate = $endObj ? strtotime($endObj) : null;
-
-        if (
-          ($startObjDate && $endCycleDate < $startObjDate) ||
-          ($endObjDate && $endCycleDate < $endObjDate)
-        ) {
-          $validator->errors()->add(
-            'end_date',
-            'La fecha fin del ciclo debe ser mayor o igual a la fecha de inicio y fin de definición de objetivos.'
-          );
+      if ($start && $end && $cutOff) {
+        if ($cutOff < $start || $cutOff > $end) {
+          $validator->errors()->add('cut_off_date', 'La fecha de corte debe estar entre la fecha de inicio y la fecha de fin.');
         }
       }
     });
@@ -71,8 +61,8 @@ class UpdateEvaluationCycleRequest extends StoreRequest
       'start_date' => 'fecha de inicio',
       'end_date' => 'fecha de fin',
       'cut_off_date' => 'fecha de corte',
-      'start_date_objectives' => 'fecha de inicio de definición de objetivos',
-      'end_date_objectives' => 'fecha de fin de definición de objetivos',
+//      'start_date_objectives' => 'fecha de inicio de definición de objetivos',
+//      'end_date_objectives' => 'fecha de fin de definición de objetivos',
       'period_id' => 'periodo',
       'parameter_id' => 'parámetro',
       'typeEvaluation' => 'tipo de evaluación',

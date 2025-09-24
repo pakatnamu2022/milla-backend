@@ -116,7 +116,7 @@ trait Filterable
 
       $collection = $collection->filter(function ($item) use ($filter, $operator, $value) {
         return $this->applyAccessorFilterCondition($item, $filter, $operator, $value);
-      });
+      })->values(); // Re-indexar para obtener array secuencial
     }
 
     return $collection;
