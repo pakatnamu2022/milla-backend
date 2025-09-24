@@ -4,7 +4,6 @@ namespace App\Http\Services\DocumentValidation\Providers;
 
 use App\Http\Services\DocumentValidation\Contracts\DocumentProviderInterface;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Exception;
 
 class FactilizaProvider implements DocumentProviderInterface
@@ -47,12 +46,6 @@ class FactilizaProvider implements DocumentProviderInterface
       throw new Exception("HTTP Error: " . $response->status() . " - " . $response->body());
 
     } catch (Exception $e) {
-      Log::error('Factiliza API Error', [
-        'document_type' => $documentType,
-        'document_number' => $documentNumber,
-        'error' => $e->getMessage(),
-      ]);
-
       throw $e;
     }
   }

@@ -31,17 +31,17 @@ return new class extends Migration {
       //contactos
       $table->string('email')->nullable();
       $table->string('secondary_email')->nullable();
-      $table->string('tertiary_email')->nullable();
       $table->string('phone')->nullable();
       $table->string('secondary_phone')->nullable();
-      $table->string('tertiary_phone')->nullable();
       $table->string('secondary_phone_contact_name')->nullable();
-      $table->string('tertiary_phone_contact_name')->nullable();
       //numero de carnet de conducir
+      $table->string('driver_num_doc')->nullable();
+      $table->string('driver_full_name')->nullable();
       $table->string('driving_license')->nullable();
-      $table->string('driving_license_place')->nullable();
       $table->date('driving_license_issue_date')->nullable();
       $table->date('driving_license_expiration_date')->nullable();
+      $table->string('status_license')->nullable();
+      $table->string('restriction')->nullable();
       $table->boolean('status_gp')->default(false);
       $table->boolean('status_ap')->default(false);
       $table->boolean('status_tp')->default(false);

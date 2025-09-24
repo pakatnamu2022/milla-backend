@@ -31,6 +31,7 @@ class BusinessPartnersResource extends JsonResource
 
       // Representante legal
       'legal_representative_num_doc' => $this->legal_representative_num_doc,
+      'driver_full_name ' => $this->driver_full_name,
       'legal_representative_name' => $this->legal_representative_name,
       'legal_representative_paternal_surname' => $this->legal_representative_paternal_surname,
       'legal_representative_maternal_surname' => $this->legal_representative_maternal_surname,
@@ -39,18 +40,16 @@ class BusinessPartnersResource extends JsonResource
       // Contactos
       'email' => $this->email,
       'secondary_email' => $this->secondary_email,
-      'tertiary_email' => $this->tertiary_email,
       'phone' => $this->phone,
       'secondary_phone' => $this->secondary_phone,
-      'tertiary_phone' => $this->tertiary_phone,
       'secondary_phone_contact_name' => $this->secondary_phone_contact_name,
-      'tertiary_phone_contact_name' => $this->tertiary_phone_contact_name,
 
       // Licencia de conducir
       'driving_license' => $this->driving_license,
-      'driving_license_place' => $this->driving_license_place,
       'driving_license_issue_date' => $this->driving_license_issue_date?->format('Y-m-d'),
       'driving_license_expiration_date' => $this->driving_license_expiration_date?->format('Y-m-d'),
+      'status_license' => $this->status_license,
+      'restriction' => $this->restriction,
 
       // IDs de relaciones
       'origin_id' => $this->origin_id,

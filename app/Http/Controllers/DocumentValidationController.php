@@ -6,6 +6,7 @@ use App\Http\Services\DocumentValidation\DocumentValidationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\Response;
 
 class DocumentValidationController extends Controller
 {
@@ -65,9 +66,9 @@ class DocumentValidationController extends Controller
       $validated['use_cache'] ?? true
     );
 
-    $statusCode = $result['success'] ? 200 : 400;
+    //$statusCode = $result['success'] ? 200 : 400;
 
-    return response()->json($result, $statusCode);
+    return response()->json($result, Response::HTTP_OK);
   }
 
   /**
@@ -90,9 +91,9 @@ class DocumentValidationController extends Controller
       $validated['use_cache'] ?? true
     );
 
-    $statusCode = $result['success'] ? 200 : 400;
+    //$statusCode = $result['success'] ? 200 : 400;
 
-    return response()->json($result, $statusCode);
+    return response()->json($result, Response::HTTP_OK);
   }
 
   /**
@@ -115,9 +116,9 @@ class DocumentValidationController extends Controller
       $validated['use_cache'] ?? true
     );
 
-    $statusCode = $result['success'] ? 200 : 400;
+    //$statusCode = $result['success'] ? 200 : 400;
 
-    return response()->json($result, $statusCode);
+    return response()->json($result, Response::HTTP_OK);
   }
 
   /**
