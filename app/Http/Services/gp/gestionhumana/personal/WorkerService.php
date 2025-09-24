@@ -23,6 +23,21 @@ class WorkerService extends BaseService
     );
   }
 
+  public function find(int $id)
+  {
+    $worker = Worker::find($id);
+    if (!$worker) {
+      throw new \Exception("Trabajador no encontrado");
+    }
+    return $worker;
+  }
+
+  public function show(int $id)
+  {
+    $worker = $this->find($id);
+    return new WorkerResource($worker);
+  }
+
   public function getWorkersWithoutCategoriesAndObjectives()
   {
     $workers = Worker::where('status_id', 22)

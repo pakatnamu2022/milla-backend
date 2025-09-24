@@ -8745,6 +8745,7 @@ class ObjectiveSeeder extends Seeder
 //      1. Eliminar todos los registros de las tablas
     DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
+    EvaluationPersonDetail::query()->truncate();
     EvaluationPerson::query()->truncate();
     EvaluationPersonResult::query()->truncate();
     EvaluationPersonCycleDetail::query()->truncate();
@@ -8849,13 +8850,17 @@ class ObjectiveSeeder extends Seeder
     ]);
 
 //    Excluir del cálculo al gerente general
-    $personChiefExecutive = Worker::where('cargo_id', 23)->where('status_id', 22)->first();
-    if ($personChiefExecutive) {
-      EvaluationPersonDetail::create([
-        'person_id' => $personChiefExecutive->id,
-      ]);
+    $excludedPositions = [215, 307, 255, 214, 276, 23, 294, 326, 295, 352];
+    $excludedPeople = Worker::whereIn('cargo_id', $excludedPositions)->where('status_id', 22)->get();
+    if ($excludedPeople) {
+      foreach ($excludedPeople as $excludedId) {
+        EvaluationPersonDetail::create([
+          'person_id' => $excludedId->id,
+        ]);
+      }
     }
 //    5. Asignar objetivos faltantes a todas las categorías
     $categoryObjectiveService->assignMissingObjectives();
+
   }
 }

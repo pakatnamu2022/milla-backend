@@ -24,6 +24,15 @@ class WorkerController extends Controller
     }
   }
 
+  public function show(int $id)
+  {
+    try {
+      return $this->success($this->service->show($id));
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
   public function getWorkersWithoutCategoriesAndObjectives()
   {
     try {
