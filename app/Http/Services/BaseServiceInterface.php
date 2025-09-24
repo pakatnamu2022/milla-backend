@@ -16,4 +16,6 @@ interface BaseServiceInterface
 
   public function destroy(int $id);
 
+  public function enrichData(array $data);
+
 }

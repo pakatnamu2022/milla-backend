@@ -7,6 +7,7 @@ use App\Http\Resources\gp\gestionhumana\evaluacion\HierarchicalCategoryResource;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Resources\gp\gestionsistema\PositionResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\ExportService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
@@ -19,7 +20,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class EvaluationCycleService extends BaseService
+class EvaluationCycleService extends BaseService implements BaseServiceInterface
 {
   protected $exportService;
 
@@ -34,6 +35,13 @@ class EvaluationCycleService extends BaseService
   public function export(Request $request)
   {
     return $this->exportService->exportFromRequest($request, EvaluationCycle::class);
+  }
+
+  public function enrichData(array $data)
+  {
+    $data['start_date_objectives'] = $data['start_date'];
+    $data['end_date_objectives'] = $data['end_date'];
+    return $data;
   }
 
   public function list(Request $request)
@@ -88,6 +96,7 @@ class EvaluationCycleService extends BaseService
 
   public function store($data)
   {
+    $data = $this->enrichData($data);
     $evaluationCycle = EvaluationCycle::create($data);
     return new EvaluationCycleResource(EvaluationCycle::find($evaluationCycle->id));
   }
