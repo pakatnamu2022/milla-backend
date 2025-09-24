@@ -1,0 +1,159 @@
+<?php
+
+namespace App\Http\Services\DocumentValidation\Formatters;
+
+use App\Http\Services\DocumentValidation\Contracts\ResponseFormatterInterface;
+
+class StandardResponseFormatter implements ResponseFormatterInterface
+{
+  public function format(array $providerResponse, string $documentType, string $documentNumber): array
+  {
+    $baseResponse = [
+      'success' => true,
+      'document_type' => $documentType,
+      'document_number' => $documentNumber,
+      'provider' => 'factiliza',
+      'validated_at' => now()->toISOString(),
+      'data' => null,
+    ];
+
+    return match ($documentType) {
+      'dni' => array_merge($baseResponse, [
+        'data' => $this->formatDniResponse($providerResponse)
+      ]),
+      'ruc' => array_merge($baseResponse, [
+        'data' => $this->formatRucResponse($providerResponse)
+      ]),
+      'license' => array_merge($baseResponse, [
+        'data' => $this->formatLicenseResponse($providerResponse)
+      ]),
+      'soat', 'ce' => array_merge($baseResponse, [
+        'data' => $this->formatMigracionesResponse($providerResponse)
+      ]),
+      default => array_merge($baseResponse, [
+        'data' => $this->formatGenericResponse($providerResponse)
+      ]),
+    };
+  }
+
+  public function formatError(string $error, string $documentType, string $documentNumber): array
+  {
+    return [
+      'success' => false,
+      'document_type' => $documentType,
+      'document_number' => $documentNumber,
+      'provider' => 'factiliza',
+      'validated_at' => now()->toISOString(),
+      'error' => $error,
+      'data' => null,
+    ];
+  }
+
+  protected function formatDniResponse(array $response): ?array
+  {
+    if (!isset($response['success']) || !$response['success']) {
+      return null;
+    }
+
+    $data = $response['data'] ?? [];
+
+    return [
+      'valid' => true,
+      'document_number' => $data['numero'] ?? null,
+      'names' => $data['nombre_completo'] ?? null,
+      'first_name' => $data['nombres'] ?? null,
+      'paternal_surname' => $data['apellido_paterno'] ?? null,
+      'maternal_surname' => $data['apellido_materno'] ?? null,
+      'birth_date' => $data['fecha_nacimiento'] ?? null,
+      'gender' => $data['sexo'] ?? null,
+      'department' => $data['departamento'] ?? null,
+      'province' => $data['provincia'] ?? null,
+      'district' => $data['distrito'] ?? null,
+      'ubigeo_reniec' => $data['ubigeo_reniec'] ?? null,
+      'ubigeo_sunat' => $data['ubigeo_sunat'] ?? null,
+      'address' => $data['direccion'] ?? null,
+      'ubigeo' => $data['ubigeo'] ?? null,
+      'restricted' => $data['restriccion'] ?? false,
+    ];
+  }
+
+  protected function formatRucResponse(array $response): ?array
+  {
+    if (!isset($response['success']) || !$response['success']) {
+      return null;
+    }
+
+    $data = $response['data'] ?? [];
+
+    return [
+      'valid' => true,
+      'ruc' => $data['ruc'] ?? null,
+      'business_name' => $data['razon_social'] ?? null,
+      'commercial_name' => $data['nombre_comercial'] ?? null,
+      'legal_representative' => $data['representante_legal'] ?? null,
+      'status' => $data['estado'] ?? null,
+      'condition' => $data['condicion'] ?? null,
+      'address' => $data['direccion'] ?? null,
+      'department' => $data['departamento'] ?? null,
+      'province' => $data['provincia'] ?? null,
+      'district' => $data['distrito'] ?? null,
+      'economic_activity' => $data['actividad_economica'] ?? null,
+      'registration_date' => $data['fecha_inscripcion'] ?? null,
+    ];
+  }
+
+  protected function formatLicenseResponse(array $response): ?array
+  {
+    if (!isset($response['success']) || !$response['success']) {
+      return null;
+    }
+
+    $data = $response['data'] ?? [];
+
+    return [
+      'valid' => true,
+      'license_number' => $data['licencia'] ?? null,
+      'names' => $data['nombres'] ?? null,
+      'paternal_surname' => $data['apellido_paterno'] ?? null,
+      'maternal_surname' => $data['apellido_materno'] ?? null,
+      'category' => $data['categoria'] ?? null,
+      'expiration_date' => $data['fecha_vencimiento'] ?? null,
+      'restriction' => $data['restriccion'] ?? null,
+      'status' => $data['estado'] ?? null,
+    ];
+  }
+
+  protected function formatMigracionesResponse(array $response): ?array
+  {
+    if (!isset($response['success']) || !$response['success']) {
+      return null;
+    }
+
+    $data = $response['data'] ?? [];
+
+    return [
+      'valid' => true,
+      'document_number' => $data['numero_documento'] ?? null,
+      'names' => $data['nombres'] ?? null,
+      'paternal_surname' => $data['apellido_paterno'] ?? null,
+      'maternal_surname' => $data['apellido_materno'] ?? null,
+      'nationality' => $data['nacionalidad'] ?? null,
+      'birth_date' => $data['fecha_nacimiento'] ?? null,
+      'immigration_status' => $data['calidad_migratoria'] ?? null,
+      'entry_date' => $data['fecha_ingreso'] ?? null,
+      'expiration_date' => $data['fecha_vencimiento'] ?? null,
+    ];
+  }
+
+  protected function formatGenericResponse(array $response): ?array
+  {
+    if (!isset($response['success']) || !$response['success']) {
+      return null;
+    }
+
+    return [
+      'valid' => true,
+      'raw_data' => $response['data'] ?? [],
+    ];
+  }
+}

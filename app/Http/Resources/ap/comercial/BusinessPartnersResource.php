@@ -1,0 +1,84 @@
+<?php
+
+namespace App\Http\Resources\ap\comercial;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class BusinessPartnersResource extends JsonResource
+{
+  public function toArray(Request $request): array
+  {
+    return [
+      'id' => $this->id,
+      'name' => $this->name,
+      'paternal_surname' => $this->paternal_surname,
+      'maternal_surname' => $this->maternal_surname,
+      'full_name' => $this->full_name,
+      'birth_date' => $this->birth_date?->format('Y-m-d'),
+      'nationality' => $this->nationality,
+      'num_doc' => $this->num_doc,
+
+      // Datos del cónyuge
+      'spouse_num_doc' => $this->spouse_num_doc,
+      'spouse_name' => $this->spouse_name,
+      'spouse_paternal_surname' => $this->spouse_paternal_surname,
+      'spouse_maternal_surname' => $this->spouse_maternal_surname,
+      'spouse_full_name' => $this->spouse_full_name,
+
+      // Dirección
+      'direction' => $this->direction,
+
+      // Representante legal
+      'legal_representative_num_doc' => $this->legal_representative_num_doc,
+      'legal_representative_name' => $this->legal_representative_name,
+      'legal_representative_paternal_surname' => $this->legal_representative_paternal_surname,
+      'legal_representative_maternal_surname' => $this->legal_representative_maternal_surname,
+      'legal_representative_full_name' => $this->legal_representative_full_name,
+
+      // Contactos
+      'email' => $this->email,
+      'secondary_email' => $this->secondary_email,
+      'tertiary_email' => $this->tertiary_email,
+      'phone' => $this->phone,
+      'secondary_phone' => $this->secondary_phone,
+      'tertiary_phone' => $this->tertiary_phone,
+      'secondary_phone_contact_name' => $this->secondary_phone_contact_name,
+      'tertiary_phone_contact_name' => $this->tertiary_phone_contact_name,
+
+      // Licencia de conducir
+      'driving_license' => $this->driving_license,
+      'driving_license_place' => $this->driving_license_place,
+      'driving_license_issue_date' => $this->driving_license_issue_date?->format('Y-m-d'),
+      'driving_license_expiration_date' => $this->driving_license_expiration_date?->format('Y-m-d'),
+
+      // IDs de relaciones
+      'origin_id' => $this->origin_id,
+      'driving_license_type_id' => $this->driving_license_type_id,
+      'tax_class_type_id' => $this->tax_class_type_id,
+      'type_road_id' => $this->type_road_id,
+      'type_person_id' => $this->type_person_id,
+      'district_id' => $this->district_id,
+      'document_type_id' => $this->document_type_id,
+      'person_segment_id' => $this->person_segment_id,
+      'marital_status_id' => $this->marital_status_id,
+      'gender_id' => $this->gender_id,
+      'activity_economic_id' => $this->activity_economic_id,
+      'company_id' => $this->company_id,
+
+      // Relaciones cargadas
+      'origin' => $this->origin?->description,
+      'driving_license_type_info' => $this->drivingLicenseType?->description,
+      'tax_class_type' => $this->taxClassType?->description,
+      'type_road' => $this->typeRoad?->description,
+      'type_person' => $this->typePerson?->description,
+      'district' => $this->district->name . ' - ' . $this->district->province->name . ' - ' . $this->district->province->department->name,
+      'document_type' => $this->documentType?->description,
+      'person_segment' => $this->personSegment?->description,
+      'marital_status' => $this->maritalStatus?->description,
+      'gender' => $this->gender?->description,
+      'activity_economic' => $this->activityEconomic?->description,
+      'company' => $this->company->name,
+    ];
+  }
+}
