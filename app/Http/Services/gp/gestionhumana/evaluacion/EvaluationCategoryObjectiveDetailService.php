@@ -114,6 +114,19 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
       $objectives = $category->objectives()->pluck('gh_evaluation_objective.id')->toArray();
 
       foreach ($workers as $workerId) {
+        // Verificar el estado actual del trabajador
+        $existingObjectivesCount = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
+          ->where('person_id', $workerId)
+          ->count();
+
+        $hasActiveObjectives = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
+          ->where('person_id', $workerId)
+          ->where('active', 1)
+          ->exists();
+
+        // Determinar si es un trabajador completamente nuevo
+        $isCompletelyNew = $existingObjectivesCount === 0;
+
         foreach ($objectives as $objectiveId) {
           $exists = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
             ->where('person_id', $workerId)
@@ -122,6 +135,12 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
 
           if (!$exists) {
             $objective = EvaluationObjective::find($objectiveId);
+
+            // Lógica refinada:
+            // - Si es completamente nuevo (0 objetivos) → nuevos van activos
+            // - Si ya existía en el sistema (tiene algunos objetivos) → nuevos van inactivos
+            $activeStatus = $isCompletelyNew ? 1 : 0;
+
             EvaluationCategoryObjectiveDetail::create([
               'objective_id' => $objectiveId,
               'category_id' => $category->id,
@@ -129,7 +148,7 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
               'goal' => $objective->goalReference,
               'fixedWeight' => false,
               'weight' => 0,
-              'active' => 1,
+              'active' => $activeStatus,
             ]);
           }
         }
@@ -137,7 +156,6 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
       }
     }
   }
-
 
   public function find($id)
   {
