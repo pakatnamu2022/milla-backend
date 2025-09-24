@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailService;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategoryDetail;
 use Illuminate\Database\Seeder;
@@ -170,5 +171,7 @@ class CategorySeeder extends Seeder
     $categoryObjectiveService = new EvaluationCategoryObjectiveDetailService();
     $categoryObjectiveService->assignMissingObjectives();
 
+//    6. Actualizar a false fixedWeight en todos los objetivos
+    EvaluationCategoryObjectiveDetail::query()->update(['fixedWeight' => false]);
   }
 }
