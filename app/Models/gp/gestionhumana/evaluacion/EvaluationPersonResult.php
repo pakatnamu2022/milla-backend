@@ -100,6 +100,12 @@ class EvaluationPersonResult extends BaseModel
       ->where('person_id', $this->person_id);
   }
 
+  public function dashboard()
+  {
+    return $this->hasOne(\App\Models\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard::class, 'person_id', 'person_id')
+      ->where('evaluation_id', $this->evaluation_id);
+  }
+
   // ← CONFIGURACIÓN DEL REPORTE CON FORMATO SOLICITADO
   protected $reportColumns = [
     'nombres' => [
@@ -275,6 +281,13 @@ class EvaluationPersonResult extends BaseModel
    */
   public function getTotalProgressAttribute()
   {
+    // Intentar obtener datos del dashboard primero
+    $dashboard = $this->dashboard;
+    if ($dashboard && $dashboard->last_calculated_at && $dashboard->total_progress_detail) {
+      return $dashboard->total_progress_detail;
+    }
+
+    // Fallback al cálculo original si no hay dashboard
     $objectivesProgress = $this->getObjectivesProgressAttribute();
     $competencesProgress = $this->getCompetencesProgressAttribute();
     $objectivesPercentage = max($this->objectivesPercentage, 1);
@@ -314,6 +327,13 @@ class EvaluationPersonResult extends BaseModel
    */
   public function getObjectivesProgressAttribute()
   {
+    // Intentar obtener datos del dashboard primero
+    $dashboard = $this->dashboard;
+    if ($dashboard && $dashboard->last_calculated_at && $dashboard->objectives_progress_detail) {
+      return $dashboard->objectives_progress_detail;
+    }
+
+    // Fallback al cálculo original si no hay dashboard
     $objectives = $this->details;
     $totalObjectives = $objectives->count();
     $completedObjectives = $objectives->where('wasEvaluated', 1)->count();
@@ -335,6 +355,13 @@ class EvaluationPersonResult extends BaseModel
    */
   public function getCompetencesProgressAttribute()
   {
+    // Intentar obtener datos del dashboard primero
+    $dashboard = $this->dashboard;
+    if ($dashboard && $dashboard->last_calculated_at && $dashboard->competences_progress_detail) {
+      return $dashboard->competences_progress_detail;
+    }
+
+    // Fallback al cálculo original si no hay dashboard
     $competenceGroups = $this->getGroupedCompetences();
 
     $totalSubCompetences = collect($competenceGroups)->sum('total_sub_competences');
@@ -398,6 +425,13 @@ class EvaluationPersonResult extends BaseModel
    */
   public function getGroupedCompetences()
   {
+    // Intentar obtener datos del dashboard primero
+    $dashboard = $this->dashboard;
+    if ($dashboard && $dashboard->last_calculated_at && $dashboard->grouped_competences) {
+      return $dashboard->grouped_competences;
+    }
+
+    // Fallback al cálculo original si no hay dashboard
     $groupedCompetences = [];
     $evaluationType = $this->evaluation->typeEvaluation;
 
