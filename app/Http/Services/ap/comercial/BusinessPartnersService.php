@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\comercial;
 use App\Http\Resources\ap\comercial\BusinessPartnersResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Helpers;
 use App\Models\ap\comercial\BusinessPartners;
 use Exception;
 use Illuminate\Http\Request;
@@ -36,6 +37,10 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
   {
     DB::beginTransaction();
     try {
+      $isAdult = Helpers::isAdult($data['birth_date']);
+      if (!$isAdult) {
+        throw new Exception('El cliente o proveedor debe ser mayor de 18 años');
+      }
       $businessPartner = BusinessPartners::create($data);
       DB::commit();
       return new BusinessPartnersResource($businessPartner);
@@ -55,6 +60,10 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
     DB::beginTransaction();
     try {
       $businessPartner = $this->find($data['id']);
+      $isAdult = Helpers::isAdult($data['birth_date']);
+      if (!$isAdult) {
+        throw new Exception('El cliente o proveedor debe ser mayor de 18 años');
+      }
       $businessPartner->update($data);
       DB::commit();
       return new BusinessPartnersResource($businessPartner);

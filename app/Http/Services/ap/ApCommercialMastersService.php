@@ -37,7 +37,7 @@ class ApCommercialMastersService extends BaseService implements BaseServiceInter
     if (
       isset($data['type']) &&
       $data['type'] === 'TIPO_DOCUMENTO' &&
-      (!isset($data['code']) || !is_int($data['code']))
+      (!isset($data['code']) || !is_numeric($data['code']))
     ) {
       throw new Exception('El campo num. digitos debe tener formato de número entero.');
     }
@@ -57,7 +57,7 @@ class ApCommercialMastersService extends BaseService implements BaseServiceInter
     if (
       isset($data['type']) &&
       $data['type'] === 'TIPO_DOCUMENTO' &&
-      (!isset($data['code']) || !is_int($data['code']))
+      (!isset($data['code']) || !is_numeric($data['code']))
     ) {
       throw new Exception('El campo num. digitos debe tener formato de número entero.');
     }
