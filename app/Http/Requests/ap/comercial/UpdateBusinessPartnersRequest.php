@@ -125,7 +125,7 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'person_segment_id.exists' => 'El segmento de persona seleccionado no existe.',
 
       'marital_status_id.exists' => 'El estado civil seleccionado no existe.',
-      
+
       'gender_id.exists' => 'El género seleccionado no existe.',
 
       'activity_economic_id.required' => 'La actividad económica es obligatoria.',
