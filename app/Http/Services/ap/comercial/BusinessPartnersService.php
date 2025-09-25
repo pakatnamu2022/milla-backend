@@ -7,6 +7,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
+use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use Exception;
 use Illuminate\Http\Request;
@@ -48,6 +49,11 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
           throw new Exception('El socio comercial debe ser mayor de edad');
         }
       }
+      $TypeDocument = ApCommercialMasters::findOrFail($data['document_type_id']);
+      $NumCharDoc = strlen($data['num_doc']);
+      if ($TypeDocument->code != $NumCharDoc) {
+        throw new Exception("El número de documento debe tener {$TypeDocument->code} caracteres para el tipo de documento seleccionado");
+      }
 
       $businessPartner = BusinessPartners::create($data);
       DB::commit();
@@ -77,6 +83,12 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
         if (!$isAdult) {
           throw new Exception('El socio comercial debe ser mayor de edad');
         }
+      }
+
+      $TypeDocument = ApCommercialMasters::findOrFail($data['document_type_id']);
+      $NumCharDoc = strlen($data['num_doc']);
+      if ($TypeDocument->code != $NumCharDoc) {
+        throw new Exception("El número de documento debe tener {$TypeDocument->code} caracteres para el tipo de documento seleccionado");
       }
 
       $businessPartner->update($data);

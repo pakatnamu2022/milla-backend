@@ -24,16 +24,4 @@ class Helpers
 
     return $age >= $adultAge;
   }
-
-  public static function buildFullName(?string $firstName, ?string $middleName, ?string $paternalSurname, ?string $maternalSurname): string
-  {
-    $nameParts = array_filter([
-      trim($firstName ?? ''),
-      trim($middleName ?? ''),
-      trim($paternalSurname ?? ''),
-      trim($maternalSurname ?? '')
-    ], fn($part) => !empty($part));
-
-    return implode(' ', $nameParts);
-  }
 }
