@@ -14,6 +14,7 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'middle_name' => 'nullable|string|max:255',
       'paternal_surname' => 'nullable|string|max:255',
       'maternal_surname' => 'nullable|string|max:255',
+      'full_name' => 'required|string|max:255',
       'birth_date' => 'nullable|date|before:today',
       'nationality' => 'required|string|in:NACIONAL,EXTRANJERO',
       'num_doc' => [
@@ -42,8 +43,10 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'driving_license' => 'nullable|string|max:50',
       'driving_license_issue_date' => 'nullable|date|before_or_equal:today',
       'driving_license_expiration_date' => 'nullable|date|after:driving_license_issue_date',
+      'status_license' => 'nullable|string|max:100',
+      'restriction' => 'nullable|string|max:255',
       'origin_id' => 'required|integer|exists:ap_commercial_masters,id',
-      'driving_license_type' => 'nullable|integer|exists:ap_commercial_masters,id',
+      'driving_license_type_id' => 'nullable|integer|exists:ap_commercial_masters,id',
       'tax_class_type_id' => 'required|integer|exists:tax_class_types,id',
       'type_road_id' => 'nullable|integer|exists:ap_commercial_masters,id',
       'type_person_id' => 'required|integer|exists:ap_commercial_masters,id',
@@ -60,17 +63,21 @@ class UpdateBusinessPartnersRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'name.required' => 'El nombre es obligatorio.',
-      'name.string' => 'El nombre debe ser una cadena de texto.',
-      'name.max' => 'El nombre no debe exceder los 255 caracteres.',
+      'first_name.string' => 'El nombre debe ser una cadena de texto.',
+      'first_name.max' => 'El nombre no debe exceder los 255 caracteres.',
 
-      'paternal_surname.required' => 'El apellido paterno es obligatorio.',
+      'middle_name.string' => 'El segundo nombre debe ser una cadena de texto.',
+      'middle_name.max' => 'El segundo nombre no debe exceder los 255 caracteres.',
+
       'paternal_surname.string' => 'El apellido paterno debe ser una cadena de texto.',
       'paternal_surname.max' => 'El apellido paterno no debe exceder los 255 caracteres.',
 
-      'maternal_surname.required' => 'El apellido materno es obligatorio.',
       'maternal_surname.string' => 'El apellido materno debe ser una cadena de texto.',
       'maternal_surname.max' => 'El apellido materno no debe exceder los 255 caracteres.',
+
+      'full_name.required' => 'El nombre completo es obligatorio.',
+      'full_name.string' => 'El nombre completo debe ser una cadena de texto.',
+      'full_name.max' => 'El nombre completo no debe exceder los 255 caracteres.',
 
       'birth_date.date' => 'La fecha de nacimiento debe ser una fecha válida.',
       'birth_date.before' => 'La fecha de nacimiento no es válido.',
@@ -95,9 +102,13 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'driving_license_issue_date.before_or_equal' => 'Ingrese la fecha de expedición.',
       'driving_license_expiration_date.date' => 'La fecha de vencimiento de la licencia debe ser una fecha válida.',
       'driving_license_expiration_date.after' => 'La fecha de vencimiento debe ser posterior a la fecha de emisión.',
+      'status_license.max' => 'El estado de la licencia no debe exceder los 100 caracteres.',
+      'restriction.max' => 'La restricción no debe exceder los 255 caracteres.',
 
       'origin_id.required' => 'El origen es obligatorio.',
       'origin_id.exists' => 'El origen seleccionado no existe.',
+
+      'driving_license_type_id.exists' => 'El tipo de licencia de conducir seleccionado no existe.',
 
       'tax_class_type_id.required' => 'El tipo de clase tributaria es obligatorio.',
       'tax_class_type_id.exists' => 'El tipo de clase tributaria seleccionado no existe.',

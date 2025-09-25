@@ -106,7 +106,7 @@ class ApAssignBrandConsultantService extends BaseService implements BaseServiceI
     return $ApAssignBrandConsultantMasters;
   }
 
-  public function store(array $data)
+  public function store(mixed $data)
   {
     $existing = ApAssignBrandConsultant::withTrashed()
       ->where('year', $data['year'])
@@ -132,7 +132,7 @@ class ApAssignBrandConsultantService extends BaseService implements BaseServiceI
     return new ApAssignBrandConsultantResource($ApAssignBrandConsultantMasters);
   }
 
-  public function update($data)
+  public function update(mixed $data)
   {
     $ApAssignBrandConsultant = $this->find($data['id']);
 

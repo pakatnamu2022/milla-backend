@@ -32,7 +32,7 @@ class ApVehicleStatusService extends BaseService implements BaseServiceInterface
     return $vehicleStatus;
   }
 
-  public function store(array $data)
+  public function store(mixed $data)
   {
     $vehicleStatus = ApVehicleStatus::create($data);
     return new ApVehicleStatusResource($vehicleStatus);
@@ -43,7 +43,7 @@ class ApVehicleStatusService extends BaseService implements BaseServiceInterface
     return new ApVehicleStatusResource($this->find($id));
   }
 
-  public function update($data)
+  public function update(mixed $data)
   {
     $vehicleStatus = $this->find($data['id']);
     $vehicleStatus->update($data);

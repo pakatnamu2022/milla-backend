@@ -12,7 +12,7 @@ return new class extends Migration {
   {
     Schema::create('business_partners', function (Blueprint $table) {
       $table->id();
-      $table->string('first_name');
+      $table->string('first_name')->nullable();
       $table->string('middle_name')->nullable();
       $table->string('paternal_surname')->nullable();
       $table->string('maternal_surname')->nullable();
@@ -63,9 +63,9 @@ return new class extends Migration {
         ->constrained('ap_commercial_masters')->onDelete('cascade');
       $table->foreignId('person_segment_id')
         ->constrained('ap_commercial_masters')->onDelete('cascade');
-      $table->foreignId('marital_status_id')
+      $table->foreignId('marital_status_id')->nullable()
         ->constrained('ap_commercial_masters')->onDelete('cascade');
-      $table->foreignId('gender_id')
+      $table->foreignId('gender_id')->nullable()
         ->constrained('ap_commercial_masters')->onDelete('cascade');
       $table->foreignId('activity_economic_id')
         ->constrained('ap_commercial_masters')->onDelete('cascade');

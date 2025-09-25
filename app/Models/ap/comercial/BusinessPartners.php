@@ -103,24 +103,10 @@ class BusinessPartners extends Model
     $this->attributes['maternal_surname'] = Str::upper($value);
   }
 
-  public function setSpouseNameAttribute($value)
+  public function setSpouseFullNameAttribute($value)
   {
     if ($value) {
-      $this->attributes['spouse_name'] = Str::upper($value);
-    }
-  }
-
-  public function setSpousePaternalSurnameAttribute($value)
-  {
-    if ($value) {
-      $this->attributes['spouse_paternal_surname'] = Str::upper($value);
-    }
-  }
-
-  public function setSpouseMaternalSurnameAttribute($value)
-  {
-    if ($value) {
-      $this->attributes['spouse_maternal_surname'] = Str::upper($value);
+      $this->attributes['spouse_full_name'] = Str::upper($value);
     }
   }
 
@@ -143,27 +129,6 @@ class BusinessPartners extends Model
     if ($value) {
       $this->attributes['legal_representative_maternal_surname'] = Str::upper($value);
     }
-  }
-
-  public function getFullNameAttribute()
-  {
-    return trim("{$this->name} {$this->paternal_surname} {$this->maternal_surname}");
-  }
-
-  public function getSpouseFullNameAttribute()
-  {
-    if (!$this->spouse_name) {
-      return null;
-    }
-    return trim("{$this->spouse_name} {$this->spouse_paternal_surname} {$this->spouse_maternal_surname}");
-  }
-
-  public function getLegalRepresentativeFullNameAttribute()
-  {
-    if (!$this->legal_representative_name) {
-      return null;
-    }
-    return trim("{$this->legal_representative_name} {$this->legal_representative_paternal_surname} {$this->legal_representative_maternal_surname}");
   }
 
   public function origin()

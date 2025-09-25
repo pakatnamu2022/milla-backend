@@ -32,7 +32,7 @@ class ApDeliveryReceivingChecklistService extends BaseService implements BaseSer
     return $DeliveryReceivingChecklist;
   }
 
-  public function store(array $data)
+  public function store(mixed $data)
   {
     $DeliveryReceivingChecklist = ApDeliveryReceivingChecklist::create($data);
     return new ApDeliveryReceivingChecklistResource($DeliveryReceivingChecklist);
@@ -43,7 +43,7 @@ class ApDeliveryReceivingChecklistService extends BaseService implements BaseSer
     return new ApDeliveryReceivingChecklistResource($this->find($id));
   }
 
-  public function update($data)
+  public function update(mixed $data)
   {
     $DeliveryReceivingChecklist = $this->find($data['id']);
     $DeliveryReceivingChecklist->update($data);

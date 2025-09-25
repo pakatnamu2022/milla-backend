@@ -32,7 +32,7 @@ class ApClassArticleService extends BaseService implements BaseServiceInterface
     return $ApClassArticle;
   }
 
-  public function store(array $data)
+  public function store(mixed $data)
   {
     $ApClassArticle = ApClassArticle::create($data);
     return new ApClassArticleResource($ApClassArticle);
@@ -43,7 +43,7 @@ class ApClassArticleService extends BaseService implements BaseServiceInterface
     return new ApClassArticleResource($this->find($id));
   }
 
-  public function update($data)
+  public function update(mixed $data)
   {
     $ApClassArticle = $this->find($data['id']);
     $ApClassArticle->update($data);
