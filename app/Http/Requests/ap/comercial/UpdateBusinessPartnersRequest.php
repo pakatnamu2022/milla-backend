@@ -53,8 +53,8 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'district_id' => 'required|integer|exists:district,id',
       'document_type_id' => 'required|integer|exists:ap_commercial_masters,id',
       'person_segment_id' => 'required|integer|exists:ap_commercial_masters,id',
-      'marital_status_id' => 'required|integer|exists:ap_commercial_masters,id',
-      'gender_id' => 'required|integer|exists:ap_commercial_masters,id',
+      'marital_status_id' => 'nullable|integer|exists:ap_commercial_masters,id',
+      'gender_id' => 'nullable|integer|exists:ap_commercial_masters,id',
       'activity_economic_id' => 'required|integer|exists:ap_commercial_masters,id',
       'company_id' => 'required|integer|exists:companies,id',
     ];
@@ -124,10 +124,8 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'person_segment_id.required' => 'El segmento de persona es obligatorio.',
       'person_segment_id.exists' => 'El segmento de persona seleccionado no existe.',
 
-      'marital_status_id.required' => 'El estado civil es obligatorio.',
       'marital_status_id.exists' => 'El estado civil seleccionado no existe.',
-
-      'gender_id.required' => 'El género es obligatorio.',
+      
       'gender_id.exists' => 'El género seleccionado no existe.',
 
       'activity_economic_id.required' => 'La actividad económica es obligatoria.',
