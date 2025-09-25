@@ -4,12 +4,13 @@ namespace App\Http\Services\ap\configuracionComercial\vehiculo;
 
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApVehicleStatusResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class ApVehicleStatusService extends BaseService
+class ApVehicleStatusService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {

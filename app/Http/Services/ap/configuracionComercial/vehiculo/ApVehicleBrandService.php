@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\configuracionComercial\vehiculo;
 
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApVehicleBrandResource;
+use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Http\Services\BaseService;
 use Illuminate\Support\Facades\DB;
@@ -11,7 +12,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Http\Request;
 use Exception;
 
-class ApVehicleBrandService extends BaseService
+class ApVehicleBrandService extends BaseService implements BaseServiceInterface
 {
     use HandlesFiles;
 

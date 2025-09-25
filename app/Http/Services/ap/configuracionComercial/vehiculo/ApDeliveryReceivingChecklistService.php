@@ -4,12 +4,13 @@ namespace App\Http\Services\ap\configuracionComercial\vehiculo;
 
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklist;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Exception;
 
-class ApDeliveryReceivingChecklistService extends BaseService
+class ApDeliveryReceivingChecklistService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {

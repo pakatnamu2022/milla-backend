@@ -3,8 +3,8 @@
 namespace App\Http\Services\ap\configuracionComercial\vehiculo;
 
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApFamiliesResource;
-use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\configuracionComercial\vehiculo\ApFamilies;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use Illuminate\Http\Request;

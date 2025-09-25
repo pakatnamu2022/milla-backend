@@ -4,12 +4,13 @@ namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\BusinessPartnersResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\comercial\BusinessPartners;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class BusinessPartnersService extends BaseService
+class BusinessPartnersService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
