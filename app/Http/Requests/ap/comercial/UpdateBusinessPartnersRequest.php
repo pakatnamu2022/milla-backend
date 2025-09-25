@@ -15,7 +15,7 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'paternal_surname' => 'nullable|string|max:255',
       'maternal_surname' => 'nullable|string|max:255',
       'full_name' => 'required|string|max:255',
-      'birth_date' => 'nullable|date|before:today',
+      'birth_date' => 'nullable|date',
       'nationality' => 'required|string|in:NACIONAL,EXTRANJERO',
       'num_doc' => [
         'required',
@@ -80,7 +80,6 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'full_name.max' => 'El nombre completo no debe exceder los 255 caracteres.',
 
       'birth_date.date' => 'La fecha de nacimiento debe ser una fecha válida.',
-      'birth_date.before' => 'La fecha de nacimiento no es válido.',
 
       'nationality.required' => 'La nacionalidad es obligatoria.',
       'nationality.in' => 'La nacionalidad debe ser NACIONAL o EXTRANJERO.',
