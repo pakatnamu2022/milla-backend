@@ -10,9 +10,10 @@ class UpdateBusinessPartnersRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'name' => 'required|string|max:255',
-      'paternal_surname' => 'required|string|max:255',
-      'maternal_surname' => 'required|string|max:255',
+      'first_name' => 'required|string|max:255',
+      'middle_name' => 'nullable|string|max:255',
+      'paternal_surname' => 'nullable|string|max:255',
+      'maternal_surname' => 'nullable|string|max:255',
       'birth_date' => 'nullable|date|before:today',
       'nationality' => 'required|string|in:NACIONAL,EXTRANJERO',
       'num_doc' => [
@@ -25,9 +26,7 @@ class UpdateBusinessPartnersRequest extends StoreRequest
           ->whereNull('deleted_at'),
       ],
       'spouse_num_doc' => 'nullable|string|max:20',
-      'spouse_name' => 'nullable|string|max:255',
-      'spouse_paternal_surname' => 'nullable|string|max:255',
-      'spouse_maternal_surname' => 'nullable|string|max:255',
+      'spouse_full_name' => 'nullable|string|max:255',
       'direction' => 'nullable|string|max:500',
       'legal_representative_num_doc' => 'nullable|string|max:20',
       'legal_representative_name' => 'nullable|string|max:255',
@@ -74,7 +73,7 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'maternal_surname.max' => 'El apellido materno no debe exceder los 255 caracteres.',
 
       'birth_date.date' => 'La fecha de nacimiento debe ser una fecha válida.',
-      'birth_date.before' => 'La fecha de nacimiento debe ser anterior a hoy.',
+      'birth_date.before' => 'La fecha de nacimiento no es válido.',
 
       'nationality.required' => 'La nacionalidad es obligatoria.',
       'nationality.in' => 'La nacionalidad debe ser NACIONAL o EXTRANJERO.',
@@ -83,6 +82,9 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'num_doc.string' => 'El número de documento debe ser una cadena de texto.',
       'num_doc.max' => 'El número de documento no debe exceder los 20 caracteres.',
       'num_doc.unique' => 'El número de documento ya está registrado para esta empresa.',
+
+      'spouse_num_doc.max' => 'El número de documento del cónyuge no debe exceder los 20 caracteres.',
+      'spouse_full_name.max' => 'El nombre completo del cónyuge no debe exceder los 255 caracteres.',
 
       'email.email' => 'El email debe tener un formato válido.',
       'secondary_email.email' => 'El email secundario debe tener un formato válido.',

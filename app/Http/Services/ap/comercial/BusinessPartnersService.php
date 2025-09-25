@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\comercial;
 use App\Http\Resources\ap\comercial\BusinessPartnersResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Helpers;
 use App\Models\ap\comercial\BusinessPartners;
 use Exception;
 use Illuminate\Http\Request;
@@ -36,12 +37,24 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
   {
     DB::beginTransaction();
     try {
+      $isAdult = Helpers::isAdult($data['birth_date']);
+      if (!$isAdult) {
+        throw new Exception('El socio comercial debe ser mayor de edad');
+      }
+
+      $data['full_name'] = Helpers::buildFullName(
+        $data['first_name'] ?? null,
+        $data['middle_name'] ?? null,
+        $data['paternal_surname'] ?? null,
+        $data['maternal_surname'] ?? null
+      );
+
       $businessPartner = BusinessPartners::create($data);
       DB::commit();
       return new BusinessPartnersResource($businessPartner);
     } catch (Exception $e) {
       DB::rollBack();
-      throw new Exception('Error al crear el socio comercial: ' . $e->getMessage());
+      throw new Exception($e->getMessage());
     }
   }
 
@@ -55,12 +68,24 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
     DB::beginTransaction();
     try {
       $businessPartner = $this->find($data['id']);
+      $isAdult = Helpers::isAdult($data['birth_date']);
+      if (!$isAdult) {
+        throw new Exception('El socio comercial debe ser mayor de edad');
+      }
+
+      $data['full_name'] = Helpers::buildFullName(
+        $data['first_name'] ?? null,
+        $data['middle_name'] ?? null,
+        $data['paternal_surname'] ?? null,
+        $data['maternal_surname'] ?? null
+      );
+
       $businessPartner->update($data);
       DB::commit();
       return new BusinessPartnersResource($businessPartner);
     } catch (Exception $e) {
       DB::rollBack();
-      throw new Exception('Error al actualizar el socio comercial: ' . $e->getMessage());
+      throw new Exception($e->getMessage());
     }
   }
 
@@ -74,7 +99,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       return response()->json(['message' => 'Socio comercial eliminado correctamente']);
     } catch (Exception $e) {
       DB::rollBack();
-      throw new Exception('Error al eliminar el socio comercial: ' . $e->getMessage());
+      throw new Exception($e->getMessage());
     }
   }
 }

@@ -10,7 +10,8 @@ class StoreBusinessPartnersRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'name' => 'required|string|max:255',
+      'first_name' => 'required|string|max:255',
+      'middle_name' => 'nullable|string|max:255',
       'paternal_surname' => 'required|string|max:255',
       'maternal_surname' => 'required|string|max:255',
       'birth_date' => 'nullable|date|before:today',
@@ -23,9 +24,7 @@ class StoreBusinessPartnersRequest extends StoreRequest
           ->whereNull('deleted_at'),
       ],
       'spouse_num_doc' => 'nullable|string|max:20',
-      'spouse_name' => 'nullable|string|max:255',
-      'spouse_paternal_surname' => 'nullable|string|max:255',
-      'spouse_maternal_surname' => 'nullable|string|max:255',
+      'spouse_full_name' => 'nullable|string|max:255',
       'direction' => 'nullable|string|max:500',
       'legal_representative_num_doc' => 'nullable|string|max:20',
       'legal_representative_name' => 'nullable|string|max:255',
@@ -65,9 +64,13 @@ class StoreBusinessPartnersRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'name.required' => 'El nombre es obligatorio.',
-      'name.string' => 'El nombre debe ser una cadena de texto.',
-      'name.max' => 'El nombre no debe exceder los 255 caracteres.',
+      'first_name.required' => 'El nombre es obligatorio.',
+      'first_name.string' => 'El nombre debe ser una cadena de texto.',
+      'first_name.max' => 'El nombre no debe exceder los 255 caracteres.',
+
+      'middle_name.string' => 'El segundo nombre debe ser una cadena de texto.',
+      'middle_name.max' => 'El segundo nombre no debe exceder los 255 caracteres.',
+      'middle_name.required' => 'El segundo nombre es obligatorio.',
 
       'paternal_surname.required' => 'El apellido paterno es obligatorio.',
       'paternal_surname.string' => 'El apellido paterno debe ser una cadena de texto.',
@@ -77,8 +80,12 @@ class StoreBusinessPartnersRequest extends StoreRequest
       'maternal_surname.string' => 'El apellido materno debe ser una cadena de texto.',
       'maternal_surname.max' => 'El apellido materno no debe exceder los 255 caracteres.',
 
+      'full_name.required' => 'El nombre completo es obligatorio.',
+      'full_name.string' => 'El nombre completo debe ser una cadena de texto.',
+      'full_name.max' => 'El nombre completo no debe exceder los 255 caracteres.',
+
       'birth_date.date' => 'La fecha de nacimiento debe ser una fecha válida.',
-      'birth_date.before' => 'La fecha de nacimiento debe ser anterior a hoy.',
+      'birth_date.before' => 'La fecha de nacimiento no es válido.',
 
       'nationality.required' => 'La nacionalidad es obligatoria.',
       'nationality.in' => 'La nacionalidad debe ser NACIONAL o EXTRANJERO.',
@@ -87,6 +94,9 @@ class StoreBusinessPartnersRequest extends StoreRequest
       'num_doc.string' => 'El número de documento debe ser una cadena de texto.',
       'num_doc.max' => 'El número de documento no debe exceder los 20 caracteres.',
       'num_doc.unique' => 'El número de documento ya está registrado para esta empresa.',
+
+      'spouse_num_doc.max' => 'El número de documento del cónyuge no debe exceder los 20 caracteres.',
+      'spouse_full_name.max' => 'El nombre completo del cónyuge no debe exceder los 255 caracteres.',
 
       'email.email' => 'El email debe tener un formato válido.',
       'secondary_email.email' => 'El email secundario debe tener un formato válido.',

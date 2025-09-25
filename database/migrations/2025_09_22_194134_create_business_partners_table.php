@@ -12,22 +12,23 @@ return new class extends Migration {
   {
     Schema::create('business_partners', function (Blueprint $table) {
       $table->id();
-      $table->string('name');
-      $table->string('paternal_surname');
-      $table->string('maternal_surname');
+      $table->string('first_name');
+      $table->string('middle_name')->nullable();
+      $table->string('paternal_surname')->nullable();
+      $table->string('maternal_surname')->nullable();
+      $table->string('full_name');
       $table->date('birth_date')->nullable();
       $table->enum('nationality', ['NACIONAL', 'EXTRANJERO']);
       $table->string('num_doc');
       $table->string('spouse_num_doc')->nullable();
-      $table->string('spouse_name')->nullable();
-      $table->string('spouse_paternal_surname')->nullable();
-      $table->string('spouse_maternal_surname')->nullable();
-      $table->string('direction')->nullable();
+      $table->string('spouse_full_name')->nullable();
+      $table->string('direction');
       // representante legal
       $table->string('legal_representative_num_doc')->nullable();
       $table->string('legal_representative_name')->nullable();
       $table->string('legal_representative_paternal_surname')->nullable();
       $table->string('legal_representative_maternal_surname')->nullable();
+      $table->string('legal_representative_full_name')->nullable();
       //contactos
       $table->string('email')->nullable();
       $table->string('secondary_email')->nullable();

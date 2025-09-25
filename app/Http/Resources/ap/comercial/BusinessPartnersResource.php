@@ -11,7 +11,8 @@ class BusinessPartnersResource extends JsonResource
   {
     return [
       'id' => $this->id,
-      'name' => $this->name,
+      'first_name' => $this->first_name,
+      'middle_name' => $this->middle_name,
       'paternal_surname' => $this->paternal_surname,
       'maternal_surname' => $this->maternal_surname,
       'full_name' => $this->full_name,
@@ -21,9 +22,6 @@ class BusinessPartnersResource extends JsonResource
 
       // Datos del cónyuge
       'spouse_num_doc' => $this->spouse_num_doc,
-      'spouse_name' => $this->spouse_name,
-      'spouse_paternal_surname' => $this->spouse_paternal_surname,
-      'spouse_maternal_surname' => $this->spouse_maternal_surname,
       'spouse_full_name' => $this->spouse_full_name,
 
       // Dirección
@@ -31,7 +29,6 @@ class BusinessPartnersResource extends JsonResource
 
       // Representante legal
       'legal_representative_num_doc' => $this->legal_representative_num_doc,
-      'driver_full_name ' => $this->driver_full_name,
       'legal_representative_name' => $this->legal_representative_name,
       'legal_representative_paternal_surname' => $this->legal_representative_paternal_surname,
       'legal_representative_maternal_surname' => $this->legal_representative_maternal_surname,
@@ -45,6 +42,8 @@ class BusinessPartnersResource extends JsonResource
       'secondary_phone_contact_name' => $this->secondary_phone_contact_name,
 
       // Licencia de conducir
+      'driver_num_doc' => $this->driver_num_doc,
+      'driver_full_name' => $this->driver_full_name,
       'driving_license' => $this->driving_license,
       'driving_license_issue_date' => $this->driving_license_issue_date?->format('Y-m-d'),
       'driving_license_expiration_date' => $this->driving_license_expiration_date?->format('Y-m-d'),
