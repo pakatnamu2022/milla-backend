@@ -12,7 +12,7 @@ class UpdateEvaluationDashboardsCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'evaluation:update-dashboards {evaluation_id?}';
+    protected $signature = 'evaluation:update-dashboards {evaluation_id?} {--sync : Ejecutar sincronamente en lugar de usar cola}';
 
     /**
      * The console command description.
@@ -27,16 +27,29 @@ class UpdateEvaluationDashboardsCommand extends Command
     public function handle()
     {
         $evaluationId = $this->argument('evaluation_id');
+        $runSync = $this->option('sync');
 
-        if ($evaluationId) {
-            $this->info("Actualizando dashboard para evaluación ID: {$evaluationId}");
-            UpdateEvaluationDashboards::dispatchSync($evaluationId);
+        if ($runSync) {
+            // Ejecutar sincronamente
+            if ($evaluationId) {
+                $this->info("Actualizando dashboard para evaluación ID: {$evaluationId} (síncrono)");
+                UpdateEvaluationDashboards::dispatchSync($evaluationId);
+            } else {
+                $this->info("Actualizando dashboards para todas las evaluaciones (síncrono)");
+                UpdateEvaluationDashboards::dispatchSync();
+            }
+            $this->info("Job de actualización completado correctamente.");
         } else {
-            $this->info("Actualizando dashboards para todas las evaluaciones");
-            UpdateEvaluationDashboards::dispatchSync();
+            // Ejecutar asíncrono en cola
+            if ($evaluationId) {
+                $this->info("Enviando job para evaluación ID: {$evaluationId} a cola 'evaluation-dashboards'");
+                UpdateEvaluationDashboards::dispatch($evaluationId)->onQueue('evaluation-dashboards');
+            } else {
+                $this->info("Enviando job para todas las evaluaciones a cola 'evaluation-dashboards'");
+                UpdateEvaluationDashboards::dispatch()->onQueue('evaluation-dashboards');
+            }
+            $this->info("Job enviado a la cola correctamente. Ejecute 'php artisan queue:work' para procesarlo.");
         }
-
-        $this->info("Job de actualización completado correctamente.");
 
         return 0;
     }

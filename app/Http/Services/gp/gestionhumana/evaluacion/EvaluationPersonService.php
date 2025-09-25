@@ -10,6 +10,7 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
+use App\Jobs\UpdateEvaluationDashboards;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -131,6 +132,11 @@ class EvaluationPersonService extends BaseService
     $evaluationPerson->update($data);
 
     $this->recalculatePersonResults($evaluationPerson->evaluation_id, $evaluationPerson->person_id);
+
+    if (isset($data['result'])) {
+      UpdateEvaluationDashboards::dispatch($evaluationPerson->evaluation_id)->onQueue('evaluation-dashboards');
+    }
+
     return new EvaluationPersonResource($evaluationPerson);
   }
 

@@ -13,7 +13,7 @@ class EvaluationObserver
     public function created(Evaluation $evaluation): void
     {
         // Crear dashboards para nueva evaluación
-        UpdateEvaluationDashboards::dispatchSync($evaluation->id);
+        UpdateEvaluationDashboards::dispatch($evaluation->id)->onQueue('evaluation-dashboards');
     }
 
     /**
@@ -23,7 +23,7 @@ class EvaluationObserver
     {
         // Solo actualizar si cambió algo relevante para los cálculos
         if ($evaluation->wasChanged(['status', 'objectivesPercentage', 'competencesPercentage', 'start_date', 'end_date'])) {
-            UpdateEvaluationDashboards::dispatchSync($evaluation->id);
+            UpdateEvaluationDashboards::dispatch($evaluation->id)->onQueue('evaluation-dashboards');
         }
     }
 

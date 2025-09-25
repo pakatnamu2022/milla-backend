@@ -12,7 +12,7 @@ class EvaluationPersonResultObserver
      */
     public function created(EvaluationPersonResult $evaluationPersonResult): void
     {
-        UpdateEvaluationDashboards::dispatchSync($evaluationPersonResult->evaluation_id);
+        UpdateEvaluationDashboards::dispatch($evaluationPersonResult->evaluation_id)->onQueue('evaluation-dashboards');
     }
 
     /**
@@ -22,7 +22,7 @@ class EvaluationPersonResultObserver
     {
         // Solo actualizar si cambió algo relevante para los cálculos
         if ($evaluationPersonResult->wasChanged(['result', 'objectivesResult', 'competencesResult', 'status'])) {
-            UpdateEvaluationDashboards::dispatchSync($evaluationPersonResult->evaluation_id);
+            UpdateEvaluationDashboards::dispatch($evaluationPersonResult->evaluation_id)->onQueue('evaluation-dashboards');
         }
     }
 
@@ -31,6 +31,6 @@ class EvaluationPersonResultObserver
      */
     public function deleted(EvaluationPersonResult $evaluationPersonResult): void
     {
-        UpdateEvaluationDashboards::dispatchSync($evaluationPersonResult->evaluation_id);
+        UpdateEvaluationDashboards::dispatch($evaluationPersonResult->evaluation_id)->onQueue('evaluation-dashboards');
     }
 }

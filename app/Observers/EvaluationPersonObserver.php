@@ -12,7 +12,7 @@ class EvaluationPersonObserver
      */
     public function created(EvaluationPerson $evaluationPerson): void
     {
-        UpdateEvaluationDashboards::dispatchSync($evaluationPerson->evaluation_id);
+        UpdateEvaluationDashboards::dispatch($evaluationPerson->evaluation_id)->onQueue('evaluation-dashboards');
     }
 
     /**
@@ -22,7 +22,7 @@ class EvaluationPersonObserver
     {
         // Solo actualizar si cambió algo relevante para los cálculos
         if ($evaluationPerson->wasChanged(['result', 'qualification', 'wasEvaluated'])) {
-            UpdateEvaluationDashboards::dispatchSync($evaluationPerson->evaluation_id);
+            UpdateEvaluationDashboards::dispatch($evaluationPerson->evaluation_id)->onQueue('evaluation-dashboards');
         }
     }
 
@@ -31,6 +31,6 @@ class EvaluationPersonObserver
      */
     public function deleted(EvaluationPerson $evaluationPerson): void
     {
-        UpdateEvaluationDashboards::dispatchSync($evaluationPerson->evaluation_id);
+        UpdateEvaluationDashboards::dispatch($evaluationPerson->evaluation_id)->onQueue('evaluation-dashboards');
     }
 }
