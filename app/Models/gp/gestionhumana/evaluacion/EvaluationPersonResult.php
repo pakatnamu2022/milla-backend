@@ -100,6 +100,12 @@ class EvaluationPersonResult extends BaseModel
       ->where('person_id', $this->person_id);
   }
 
+  public function dashboard()
+  {
+    return $this->hasOne(\App\Models\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard::class, 'person_id', 'person_id')
+      ->where('evaluation_id', $this->evaluation_id);
+  }
+
   // ← CONFIGURACIÓN DEL REPORTE CON FORMATO SOLICITADO
   protected $reportColumns = [
     'nombres' => [
@@ -275,38 +281,20 @@ class EvaluationPersonResult extends BaseModel
    */
   public function getTotalProgressAttribute()
   {
-    $objectivesProgress = $this->getObjectivesProgressAttribute();
-    $competencesProgress = $this->getCompetencesProgressAttribute();
-    $objectivesPercentage = max($this->objectivesPercentage, 1);
-    $competencesPercentage = max($this->competencesPercentage, 1);
-
-    $totalSections = 0;
-    $completedSections = 0;
-
-    // Solo contar objetivos si la persona los tiene
-    if ($this->person->position->hierarchicalCategory->hasObjectives) {
-      $totalSections++;
-      if ($objectivesProgress['completion_rate'] == 100) {
-        $completedSections++;
-      }
+    // Intentar obtener datos del dashboard primero
+    $dashboard = $this->dashboard;
+    if ($dashboard && $dashboard->last_calculated_at && $dashboard->total_progress_detail) {
+      return $dashboard->total_progress_detail;
     }
 
-    // Solo contar competencias si la evaluación no es de objetivos
-    if ($this->evaluation->typeEvaluation != 0) {
-      $totalSections++;
-      if ($competencesProgress['completion_rate'] == 100) {
-        $completedSections++;
-      }
-    }
+    // Fallback al cálculo original si no hay dashboard
+    return $this->fallbackCalculateTotalProgress();
+  }
 
-    return [
-      'completion_rate' => round(($objectivesProgress['completion_rate'] / $objectivesPercentage) + ($competencesPercentage > 0 ? ($competencesProgress['completion_rate'] / $competencesPercentage) : 0), 2),
-      'completed_sections' => $completedSections,
-      'total_sections' => $totalSections,
-      'is_completed' => $completedSections === $totalSections,
-      'objectives_progress' => $objectivesProgress,
-      'competences_progress' => $competencesProgress,
-    ];
+  public function getTotalProgressFallbackAttribute()
+  {
+    // Fallback al cálculo original si no hay dashboard
+    return $this->fallbackCalculateTotalProgress();
   }
 
   /**
@@ -314,20 +302,20 @@ class EvaluationPersonResult extends BaseModel
    */
   public function getObjectivesProgressAttribute()
   {
-    $objectives = $this->details;
-    $totalObjectives = $objectives->count();
-    $completedObjectives = $objectives->where('wasEvaluated', 1)->count();
+    // Intentar obtener datos del dashboard primero
+    $dashboard = $this->dashboard;
+    if ($dashboard && $dashboard->last_calculated_at && $dashboard->objectives_progress_detail) {
+      return $dashboard->objectives_progress_detail;
+    }
 
-    $completionRate = $totalObjectives > 0 ?
-      round(($completedObjectives / $totalObjectives) * 100, 2) : 0;
+    // Fallback al cálculo original si no hay dashboard
+    return $this->fallbackCalculateObjectivesProgress();
+  }
 
-    return [
-      'completion_rate' => $completionRate,
-      'completed' => $completedObjectives,
-      'total' => $totalObjectives,
-      'is_completed' => $completionRate == 100,
-      'has_objectives' => (bool)$this->person->position->hierarchicalCategory->hasObjectives,
-    ];
+  public function getObjectivesProgressFallbackAttribute()
+  {
+    // Fallback al cálculo original si no hay dashboard
+    return $this->fallbackCalculateObjectivesProgress();
   }
 
   /**
@@ -335,21 +323,20 @@ class EvaluationPersonResult extends BaseModel
    */
   public function getCompetencesProgressAttribute()
   {
-    $competenceGroups = $this->getGroupedCompetences();
+    // Intentar obtener datos del dashboard primero
+    $dashboard = $this->dashboard;
+    if ($dashboard && $dashboard->last_calculated_at && $dashboard->competences_progress_detail) {
+      return $dashboard->competences_progress_detail;
+    }
 
-    $totalSubCompetences = collect($competenceGroups)->sum('total_sub_competences');
-    $completedSubCompetences = collect($competenceGroups)->sum('completed_evaluations');
+    // Fallback al cálculo original si no hay dashboard
+    return $this->fallbackCalculateCompetencesProgress();
+  }
 
-    $completionRate = $totalSubCompetences > 0 ?
-      round(($completedSubCompetences / $totalSubCompetences) * 100, 2) : 0;
-
-    return [
-      'completion_rate' => $completionRate,
-      'completed' => $completedSubCompetences,
-      'total' => $totalSubCompetences,
-      'is_completed' => $completionRate == $totalSubCompetences,
-      'groups' => count($competenceGroups),
-    ];
+  public function getCompetencesProgressFallbackAttribute()
+  {
+    // Fallback al cálculo original si no hay dashboard
+    return $this->fallbackCalculateCompetencesProgress();
   }
 
   /**
@@ -358,6 +345,11 @@ class EvaluationPersonResult extends BaseModel
   public function getIsCompletedAttribute()
   {
     return $this->total_progress['is_completed'];
+  }
+
+  public function getIsCompletedFallbackAttribute()
+  {
+    return $this->total_progress_fallback['is_completed'];
   }
 
   /**
@@ -375,6 +367,11 @@ class EvaluationPersonResult extends BaseModel
   public function getCompletionPercentageAttribute()
   {
     return $this->total_progress['completion_rate'];
+  }
+
+  public function getCompletionPercentageFallbackAttribute()
+  {
+    return $this->total_progress_fallback['completion_rate'];
   }
 
   /**
@@ -398,6 +395,13 @@ class EvaluationPersonResult extends BaseModel
    */
   public function getGroupedCompetences()
   {
+    // Intentar obtener datos del dashboard primero
+    $dashboard = $this->dashboard;
+    if ($dashboard && $dashboard->last_calculated_at && $dashboard->grouped_competences) {
+      return $dashboard->grouped_competences;
+    }
+
+    // Fallback al cálculo original si no hay dashboard
     $groupedCompetences = [];
     $evaluationType = $this->evaluation->typeEvaluation;
 
@@ -587,6 +591,88 @@ class EvaluationPersonResult extends BaseModel
     return $query->get()->filter(function ($evaluation) use ($status) {
       return $evaluation->progress_status === $status;
     });
+  }
+
+  /**
+   * @return array
+   */
+  public function fallbackCalculateTotalProgress(): array
+  {
+    $objectivesProgress = $this->getObjectivesProgressAttribute();
+    $competencesProgress = $this->getCompetencesProgressAttribute();
+    $objectivesPercentage = max($this->objectivesPercentage, 1);
+    $competencesPercentage = max($this->competencesPercentage, 1);
+
+    $totalSections = 0;
+    $completedSections = 0;
+
+    // Solo contar objetivos si la persona los tiene
+    if ($this->person->position->hierarchicalCategory->hasObjectives) {
+      $totalSections++;
+      if ($objectivesProgress['completion_rate'] == 100) {
+        $completedSections++;
+      }
+    }
+
+    // Solo contar competencias si la evaluación no es de objetivos
+    if ($this->evaluation->typeEvaluation != 0) {
+      $totalSections++;
+      if ($competencesProgress['completion_rate'] == 100) {
+        $completedSections++;
+      }
+    }
+
+    return [
+      'completion_rate' => round(($objectivesProgress['completion_rate'] / $objectivesPercentage) + ($competencesPercentage > 0 ? ($competencesProgress['completion_rate'] / $competencesPercentage) : 0), 2),
+      'completed_sections' => $completedSections,
+      'total_sections' => $totalSections,
+      'is_completed' => $completedSections === $totalSections,
+      'objectives_progress' => $objectivesProgress,
+      'competences_progress' => $competencesProgress,
+    ];
+  }
+
+  /**
+   * @return array
+   */
+  public function fallbackCalculateObjectivesProgress(): array
+  {
+    $objectives = $this->details;
+    $totalObjectives = $objectives->count();
+    $completedObjectives = $objectives->where('wasEvaluated', 1)->count();
+
+    $completionRate = $totalObjectives > 0 ?
+      round(($completedObjectives / $totalObjectives) * 100, 2) : 0;
+
+    return [
+      'completion_rate' => $completionRate,
+      'completed' => $completedObjectives,
+      'total' => $totalObjectives,
+      'is_completed' => $completionRate == 100,
+      'has_objectives' => (bool)$this->person->position->hierarchicalCategory->hasObjectives,
+    ];
+  }
+
+  /**
+   * @return array
+   */
+  public function fallbackCalculateCompetencesProgress(): array
+  {
+    $competenceGroups = $this->getGroupedCompetences();
+
+    $totalSubCompetences = collect($competenceGroups)->sum('total_sub_competences');
+    $completedSubCompetences = collect($competenceGroups)->sum('completed_evaluations');
+
+    $completionRate = $totalSubCompetences > 0 ?
+      round(($completedSubCompetences / $totalSubCompetences) * 100, 2) : 0;
+
+    return [
+      'completion_rate' => $completionRate,
+      'completed' => $completedSubCompetences,
+      'total' => $totalSubCompetences,
+      'is_completed' => $completionRate == $totalSubCompetences,
+      'groups' => count($competenceGroups),
+    ];
   }
 
 }

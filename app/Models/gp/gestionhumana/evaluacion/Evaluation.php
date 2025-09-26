@@ -168,6 +168,11 @@ class Evaluation extends Model
     return $this->hasMany(EvaluationPersonCompetenceDetail::class, 'evaluation_id');
   }
 
+  public function dashboard()
+  {
+    return $this->hasOne(\App\Models\Models\gp\gestionhumana\evaluacion\EvaluationDashboard::class, 'evaluation_id');
+  }
+
   // Métodos para reportes
   public function processReportData($data)
   {
@@ -263,34 +268,26 @@ class Evaluation extends Model
    */
   public function getProgressStatsAttribute()
   {
-    $totalParticipants = $this->personResults()->count();
-    $completedParticipants = $this->personResults()
-      ->get()
-      ->filter(function ($result) {
-        return $result->is_completed; // Usa el accessor del modelo EvaluationPersonResult
-      })
-      ->count();
+    // Intentar obtener datos del dashboard primero
+    $dashboard = $this->dashboard;
+    if ($dashboard && $dashboard->last_calculated_at) {
+      return [
+        'total_participants' => $dashboard->total_participants,
+        'completed_participants' => $dashboard->completed_participants,
+        'in_progress_participants' => $dashboard->in_progress_participants,
+        'not_started_participants' => $dashboard->not_started_participants,
+        'completion_percentage' => $dashboard->completion_percentage,
+        'progress_percentage' => $dashboard->progress_percentage,
+      ];
+    }
 
-    $inProgressParticipants = $this->personResults()
-      ->get()
-      ->filter(function ($result) {
-        $progress = $result->completion_percentage * 100;
-        return $progress > 0 && $progress < 100;
-      })
-      ->count();
+    // Fallback al cálculo original si no hay dashboard
+    return $this->fallbackCalculateProgressStats();
+  }
 
-    $notStartedParticipants = $totalParticipants - $completedParticipants - $inProgressParticipants;
-
-    return [
-      'total_participants' => $totalParticipants,
-      'completed_participants' => $completedParticipants,
-      'in_progress_participants' => $inProgressParticipants,
-      'not_started_participants' => $notStartedParticipants,
-      'completion_percentage' => $totalParticipants > 0 ?
-        round(($completedParticipants / $totalParticipants) * 100, 2) : 0,
-      'progress_percentage' => $totalParticipants > 0 ?
-        round((($completedParticipants + $inProgressParticipants) / $totalParticipants) * 100, 2) : 0,
-    ];
+  public function getProgressStatsFallbackAttribute()
+  {
+    return $this->fallbackCalculateProgressStats();
   }
 
   /**
@@ -333,6 +330,13 @@ class Evaluation extends Model
    */
   public function getCompetenceStatsAttribute()
   {
+    // Intentar obtener datos del dashboard primero
+    $dashboard = $this->dashboard;
+    if ($dashboard && $dashboard->last_calculated_at && $dashboard->competence_stats) {
+      return $dashboard->competence_stats;
+    }
+
+    // Fallback al cálculo original si no hay dashboard
     $personResults = $this->personResults()->with('competenceDetails')->get();
 
     $competenceStats = [];
@@ -388,6 +392,13 @@ class Evaluation extends Model
       return [];
     }
 
+    // Intentar obtener datos del dashboard primero
+    $dashboard = $this->dashboard;
+    if ($dashboard && $dashboard->last_calculated_at && $dashboard->evaluator_type_stats) {
+      return $dashboard->evaluator_type_stats;
+    }
+
+    // Fallback al cálculo original si no hay dashboard
     $evaluatorTypes = [
       0 => 'Jefe Directo',
       1 => 'Pares',
@@ -458,6 +469,13 @@ class Evaluation extends Model
    */
   public function getParticipantRankingAttribute()
   {
+    // Intentar obtener datos del dashboard primero
+    $dashboard = $this->dashboard;
+    if ($dashboard && $dashboard->last_calculated_at && $dashboard->participant_ranking) {
+      return $dashboard->participant_ranking;
+    }
+
+    // Fallback al cálculo original si no hay dashboard
     return $this->personResults()
       ->with('person')
       ->get()
@@ -481,6 +499,13 @@ class Evaluation extends Model
    */
   public function getExecutiveSummaryAttribute()
   {
+    // Intentar obtener datos del dashboard primero
+    $dashboard = $this->dashboard;
+    if ($dashboard && $dashboard->last_calculated_at && $dashboard->executive_summary) {
+      return $dashboard->executive_summary;
+    }
+
+    // Fallback al cálculo original si no hay dashboard
     $progressStats = $this->progress_stats;
     $competenceStats = $this->competence_stats;
 
@@ -516,6 +541,41 @@ class Evaluation extends Model
         'days_duration' => \Carbon\Carbon::parse($this->start_date)
           ->diffInDays(\Carbon\Carbon::parse($this->end_date)),
       ],
+    ];
+  }
+
+  /**
+   * @return array
+   */
+  public function fallbackCalculateProgressStats(): array
+  {
+    $totalParticipants = $this->personResults()->count();
+    $completedParticipants = $this->personResults()
+      ->get()
+      ->filter(function ($result) {
+        return $result->is_completed_fallback; // Usa el accessor del modelo EvaluationPersonResult
+      })
+      ->count();
+
+    $inProgressParticipants = $this->personResults()
+      ->get()
+      ->filter(function ($result) {
+        $progress = $result->completion_percentage_fallback * 100;
+        return $progress > 0 && $progress < 100;
+      })
+      ->count();
+
+    $notStartedParticipants = $totalParticipants - $completedParticipants - $inProgressParticipants;
+
+    return [
+      'total_participants' => $totalParticipants,
+      'completed_participants' => $completedParticipants,
+      'in_progress_participants' => $inProgressParticipants,
+      'not_started_participants' => $notStartedParticipants,
+      'completion_percentage' => $totalParticipants > 0 ?
+        round(($completedParticipants / $totalParticipants) * 100, 2) : 0,
+      'progress_percentage' => $totalParticipants > 0 ?
+        round((($completedParticipants + $inProgressParticipants) / $totalParticipants) * 100, 2) : 0,
     ];
   }
 }
