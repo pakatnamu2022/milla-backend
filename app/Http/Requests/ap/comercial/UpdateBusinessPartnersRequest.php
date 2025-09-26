@@ -41,10 +41,6 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'driver_num_doc' => 'nullable|string|max:20',
       'driver_full_name' => 'nullable|string|max:255',
       'driving_license' => 'nullable|string|max:50',
-<<<<<<< HEAD
-=======
-      'driving_license_issue_date' => 'nullable|date',
->>>>>>> abb656f1fd84ddb5b57bc9ec50c7a844a91d26a9
       'driving_license_expiration_date' => 'nullable|date',
       'status_license' => 'nullable|string|max:100',
       'restriction' => 'nullable|string|max:255',
@@ -102,10 +98,6 @@ class UpdateBusinessPartnersRequest extends StoreRequest
 
       'driver_num_doc.max' => 'El número de documento del conductor no debe exceder los 20 caracteres.',
       'driver_full_name.max' => 'El nombre completo del conductor no debe exceder los 255 caracteres.',
-<<<<<<< HEAD
-=======
-      'driving_license_issue_date.date' => 'La fecha de emisión de la licencia debe ser una fecha válida.',
->>>>>>> abb656f1fd84ddb5b57bc9ec50c7a844a91d26a9
       'driving_license_expiration_date.date' => 'La fecha de vencimiento de la licencia debe ser una fecha válida.',
       'status_license.max' => 'El estado de la licencia no debe exceder los 100 caracteres.',
       'restriction.max' => 'La restricción no debe exceder los 255 caracteres.',

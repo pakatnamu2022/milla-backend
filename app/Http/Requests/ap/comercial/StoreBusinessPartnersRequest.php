@@ -43,20 +43,10 @@ class StoreBusinessPartnersRequest extends StoreRequest
       'driver_num_doc' => 'nullable|string|max:20',
       'driver_full_name' => 'nullable|string|max:255',
       'driving_license' => 'nullable|string|max:50',
-<<<<<<< HEAD
       'driving_license_expiration_date' => 'nullable|date',
       'status_license' => 'nullable|string|max:100',
       'restriction' => 'nullable|string|max:255',
       'driving_license_category' => 'nullable|string|max:50',
-=======
-      'driving_license_issue_date' => 'nullable|date',
-      'driving_license_expiration_date' => 'nullable|date',
-      'status_license' => 'nullable|string|max:100',
-      'restriction' => 'nullable|string|max:255',
-      'company_status' => 'nullable|string|max:100',
-      'company_condition' => 'nullable|string|max:100',
-      'driving_license_type_id' => 'nullable|integer|exists:ap_commercial_masters,id',
->>>>>>> abb656f1fd84ddb5b57bc9ec50c7a844a91d26a9
       'origin_id' => 'required|integer|exists:ap_commercial_masters,id',
       'tax_class_type_id' => 'required|integer|exists:tax_class_types,id',
       'type_person_id' => 'required|integer|exists:ap_commercial_masters,id',
@@ -109,24 +99,13 @@ class StoreBusinessPartnersRequest extends StoreRequest
 
       'driver_num_doc.max' => 'El número de documento del conductor no debe exceder los 20 caracteres.',
       'driver_full_name.max' => 'El nombre completo del conductor no debe exceder los 255 caracteres.',
-<<<<<<< HEAD
-=======
-      'driving_license_issue_date.date' => 'La fecha de emisión de la licencia debe ser una fecha válida.',
->>>>>>> abb656f1fd84ddb5b57bc9ec50c7a844a91d26a9
       'driving_license_expiration_date.date' => 'La fecha de vencimiento de la licencia debe ser una fecha válida.',
 
       'status_license.max' => 'El estado de la licencia no debe exceder los 100 caracteres.',
       'restriction.max' => 'La restricción no debe exceder los 255 caracteres.',
 
-<<<<<<< HEAD
       'driving_license_category.string' => 'La categoría de la licencia debe ser una cadena de texto.',
       'driving_license_category.max' => 'La categoría de la licencia no debe exceder los 50 caracteres.',
-=======
-      'company_status.max' => 'El estado de la empresa no debe exceder los 100 caracteres.',
-      'company_condition.max' => 'La condición de la empresa no debe exceder los 100 caracteres.',
-
-      'driving_license_type_id.exists' => 'El tipo de licencia de conducir seleccionado no existe.',
->>>>>>> abb656f1fd84ddb5b57bc9ec50c7a844a91d26a9
 
       'origin_id.required' => 'El origen es obligatorio.',
       'origin_id.exists' => 'El origen seleccionado no existe.',
