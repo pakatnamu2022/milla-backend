@@ -129,6 +129,20 @@ class BusinessPartners extends Model
     $this->attributes['direction'] = Str::upper($value);
   }
 
+  public function setCompanyStatusAttribute($value)
+  {
+    if ($value) {
+      $this->attributes['company_status'] = Str::upper($value);
+    }
+  }
+
+  public function setCompanyConditionAttribute($value)
+  {
+    if ($value) {
+      $this->attributes['company_condition'] = Str::upper($value);
+    }
+  }
+
   public function setLegalRepresentativeNameAttribute($value)
   {
     if ($value) {
