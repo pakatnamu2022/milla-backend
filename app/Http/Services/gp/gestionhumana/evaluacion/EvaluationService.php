@@ -543,6 +543,16 @@ class EvaluationService extends BaseService
     $personsToAdd = array_diff($expectedPersons, $currentPersons);
     $personsToRemove = array_diff($currentPersons, $expectedPersons);
 
+    // Diagnóstico detallado para debugging
+    $diagnostico = [
+      'current_persons_count' => count($currentPersons),
+      'expected_persons_count' => count($expectedPersons),
+      'persons_to_add_ids' => array_values($personsToAdd),
+      'persons_to_remove_ids' => array_values($personsToRemove),
+      'current_persons_sample' => array_slice($currentPersons, 0, 5),
+      'expected_persons_sample' => array_slice($expectedPersons, 0, 5)
+    ];
+
     $stats = [
       'persons_added' => 0,
       'persons_removed' => 0,
@@ -564,10 +574,11 @@ class EvaluationService extends BaseService
     }
 
     // Agregar nuevas personas
+    $personsAddedDetails = [];
     if (!empty($personsToAdd)) {
-      $this->createPersonResultsForSpecific($evaluation, $personsToAdd);
+      $personsAddedDetails = $this->createPersonResultsForSpecific($evaluation, $personsToAdd);
       $this->createPersonDetailsForSpecific($evaluation, $personsToAdd);
-      $stats['persons_added'] = count($personsToAdd);
+      $stats['persons_added'] = count($personsAddedDetails);
 
       // Crear competencias solo para las personas nuevas
       if (in_array($evaluation->typeEvaluation, [self::EVALUACION_180, self::EVALUACION_360])) {
@@ -601,7 +612,9 @@ class EvaluationService extends BaseService
       'persons_removed' => $stats['persons_removed'],
       'competences_created' => $stats['competences_created'],
       'progress_reset' => $resetProgress,
-      'progress_reset_count' => $stats['progress_reset_count']
+      'progress_reset_count' => $stats['progress_reset_count'],
+      'persons_added_details' => $personsAddedDetails,
+      'diagnostic' => $diagnostico
     ];
   }
 
@@ -623,15 +636,25 @@ class EvaluationService extends BaseService
     // Solo agregar los que faltan
     $personsToAdd = array_diff($expectedPersons, $currentPersons);
 
+    // Diagnóstico detallado para debugging
+    $diagnostico = [
+      'current_persons_count' => count($currentPersons),
+      'expected_persons_count' => count($expectedPersons),
+      'persons_to_add_ids' => array_values($personsToAdd),
+      'current_persons_sample' => array_slice($currentPersons, 0, 5),
+      'expected_persons_sample' => array_slice($expectedPersons, 0, 5)
+    ];
+
     $stats = [
       'persons_added' => 0,
       'competences_created' => 0
     ];
 
+    $personsAddedDetails = [];
     if (!empty($personsToAdd)) {
-      $this->createPersonResultsForSpecific($evaluation, $personsToAdd);
+      $personsAddedDetails = $this->createPersonResultsForSpecific($evaluation, $personsToAdd);
       $this->createPersonDetailsForSpecific($evaluation, $personsToAdd);
-      $stats['persons_added'] = count($personsToAdd);
+      $stats['persons_added'] = count($personsAddedDetails);
 
       // Crear competencias solo para las personas nuevas
       if (in_array($evaluation->typeEvaluation, [self::EVALUACION_180, self::EVALUACION_360])) {
@@ -640,10 +663,12 @@ class EvaluationService extends BaseService
     }
 
     return [
-      'message' => empty($personsToAdd) ? 'No hay participantes faltantes que agregar' : 'Participantes faltantes agregados exitosamente',
+      'message' => empty($personsAddedDetails) ? 'No hay participantes faltantes que agregar' : 'Participantes faltantes agregados exitosamente',
       'persons_added' => $stats['persons_added'],
       'competences_created' => $stats['competences_created'],
-      'existing_preserved' => true
+      'existing_preserved' => true,
+      'persons_added_details' => $personsAddedDetails,
+      'diagnostic' => $diagnostico
     ];
   }
 
@@ -674,6 +699,7 @@ class EvaluationService extends BaseService
   private function createPersonResultsForSpecific($evaluation, array $personIds)
   {
     $cycle = EvaluationCycle::findOrFail($evaluation->cycle_id);
+    $personsAdded = [];
 
     foreach ($personIds as $personId) {
       // Verificar si ya existe
@@ -715,7 +741,21 @@ class EvaluationService extends BaseService
         'boss_area' => $person->boss->position->area->name ?? '',
         'boss_sede' => $person->boss->sede->abreviatura ?? '',
       ]);
+
+      // Agregar detalles de la persona agregada para el log
+      $personsAdded[] = [
+        'id' => $person->id,
+        'name' => $person->nombre_completo,
+        'dni' => $person->vat,
+        'position' => $person->position->name,
+        'area' => $person->position->area->name ?? '',
+        'hierarchical_category' => $hierarchicalCategory->name,
+        'fecha_inicio' => $person->fecha_inicio,
+        'reason' => 'Agregado por diferencia en ciclo'
+      ];
     }
+
+    return $personsAdded;
   }
 
   /**
