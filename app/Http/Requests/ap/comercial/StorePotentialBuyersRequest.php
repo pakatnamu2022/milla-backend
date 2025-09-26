@@ -53,6 +53,28 @@ class StorePotentialBuyersRequest extends StoreRequest
         'string',
         'max:100',
       ],
+      'sede_id' => [
+        'required',
+        'integer',
+        'exists:config_sede,id',
+      ],
+      'vehicle_brand_id' => [
+        'required',
+        'integer',
+        'exists:ap_vehicle_brand,id',
+      ],
+      'document_type_id' => [
+        'required',
+        'integer',
+        'exists:ap_commercial_masters,id',
+      ],
+      'income_sector_id' => [
+        'required',
+        'integer',
+        'exists:ap_commercial_masters,id',
+      ],
+      'type' => 'required|string|max:50',
+      'area_id' => 'required|integer|exists:ap_commercial_masters,id',
     ];
   }
 
@@ -91,6 +113,30 @@ class StorePotentialBuyersRequest extends StoreRequest
       'campaign.required' => 'La campaña es obligatoria.',
       'campaign.string' => 'La campaña debe ser una cadena de texto.',
       'campaign.max' => 'La campaña no debe exceder los 100 caracteres.',
+
+      'sede_id.required' => 'La sede es obligatoria.',
+      'sede_id.integer' => 'La sede debe ser un número entero.',
+      'sede_id.exists' => 'La sede seleccionada no existe.',
+
+      'vehicle_brand_id.required' => 'La marca del vehículo es obligatoria.',
+      'vehicle_brand_id.integer' => 'La marca del vehículo debe ser un número entero.',
+      'vehicle_brand_id.exists' => 'La marca del vehículo seleccionada no existe.',
+
+      'document_type_id.required' => 'El tipo de documento es obligatorio.',
+      'document_type_id.integer' => 'El tipo de documento debe ser un número entero.',
+      'document_type_id.exists' => 'El tipo de documento seleccionado no existe.',
+
+      'income_sector_id.required' => 'El sector de ingresos es obligatorio.',
+      'income_sector_id.integer' => 'El sector de ingresos debe ser un número entero.',
+      'income_sector_id.exists' => 'El sector de ingresos seleccionado no existe.',
+
+      'type.required' => 'El tipo es obligatorio.',
+      'type.string' => 'El tipo debe ser una cadena de texto.',
+      'type.max' => 'El tipo no debe exceder los 50 caracteres.',
+
+      'area_id.required' => 'El área es obligatoria.',
+      'area_id.integer' => 'El área debe ser un número entero.',
+      'area_id.exists' => 'El área seleccionada no existe.',
     ];
   }
 }

@@ -28,6 +28,9 @@ class PotentialBuyers extends Model
     'sede_id',
     'vehicle_brand_id',
     'document_type_id',
+    'type',
+    'income_sector_id',
+    'area_id',
   ];
 
   const filters = [
@@ -37,6 +40,9 @@ class PotentialBuyers extends Model
     'document_type_id' => '=',
     'registration_date_from' => 'registration_date>=',
     'registration_date_to' => 'registration_date<=',
+    'type' => '=',
+    'income_sector_id' => '=',
+    'area_id' => '=',
   ];
 
   const sorts = [
@@ -76,7 +82,12 @@ class PotentialBuyers extends Model
   {
     $this->attributes['campaign'] = Str::upper($value);
   }
-  
+
+  public function setTypeAttribute($value): void
+  {
+    $this->attributes['type'] = Str::upper($value);
+  }
+
   public function vehicleBrand()
   {
     return $this->belongsTo(ApVehicleBrand::class, 'vehicle_brand_id');
@@ -90,5 +101,15 @@ class PotentialBuyers extends Model
   public function sede()
   {
     return $this->belongsTo(Sede::class, 'sede_id');
+  }
+
+  public function area()
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'area_id');
+  }
+
+  public function incomeSector()
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'income_sector_id');
   }
 }

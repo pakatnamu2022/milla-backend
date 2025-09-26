@@ -20,6 +20,10 @@ class PotentialBuyersResource extends JsonResource
       'phone' => $this->phone,
       'email' => $this->email,
       'campaign' => $this->campaign,
+      'sede' => $this->sede->abreviatura,
+      'vehicle_brand' => $this->vehicleBrand->name,
+      'document_type' => $this->documentType->description,
+      'income_sector' => $this->incomeSector->description,
     ];
   }
 }
