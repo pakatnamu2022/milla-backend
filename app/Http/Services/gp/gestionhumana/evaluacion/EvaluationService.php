@@ -168,6 +168,7 @@ class EvaluationService extends BaseService
           \Log::warning('Error al crear competencias automáticamente', [
             'evaluation_id' => $evaluation->id,
             'error' => $competencesResult['message']
+            
           ]);
         }
       }
