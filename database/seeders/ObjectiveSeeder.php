@@ -18,6 +18,8 @@ use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategoryDetail;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Position;
+use App\Models\Models\gp\gestionhumana\evaluacion\EvaluationDashboard;
+use App\Models\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -440,33 +442,33 @@ class ObjectiveSeeder extends Seeder
         "weight" => 34,
         "categoria" => "Trabajadora Social"
       ],
-      [
-        "dni" => "70475815",
-        "objective" => "Ejecución del Plan de Clima Laboral y Bienestar",
-        "metric" => "Número",
-        "goal" => 95,
-        "isAscending" => 1,
-        "weight" => 33,
-        "categoria" => "Asistente De Bienestar Y Clima Laboral"
-      ],
-      [
-        "dni" => "70475815",
-        "objective" => "Adherencia a Pakatnamu Star",
-        "metric" => "Número",
-        "goal" => 85,
-        "isAscending" => 1,
-        "weight" => 33,
-        "categoria" => "Asistente De Bienestar Y Clima Laboral"
-      ],
-      [
-        "dni" => "70475815",
-        "objective" => "Subsidios recuperados",
-        "metric" => "Número",
-        "goal" => 100,
-        "isAscending" => 1,
-        "weight" => 34,
-        "categoria" => "Asistente De Bienestar Y Clima Laboral"
-      ],
+//      [
+//        "dni" => "70475815",
+//        "objective" => "Ejecución del Plan de Clima Laboral y Bienestar",
+//        "metric" => "Número",
+//        "goal" => 95,
+//        "isAscending" => 1,
+//        "weight" => 33,
+//        "categoria" => "Asistente De Bienestar Y Clima Laboral"
+//      ],
+//      [
+//        "dni" => "70475815",
+//        "objective" => "Adherencia a Pakatnamu Star",
+//        "metric" => "Número",
+//        "goal" => 85,
+//        "isAscending" => 1,
+//        "weight" => 33,
+//        "categoria" => "Asistente De Bienestar Y Clima Laboral"
+//      ],
+//      [
+//        "dni" => "70475815",
+//        "objective" => "Subsidios recuperados",
+//        "metric" => "Número",
+//        "goal" => 100,
+//        "isAscending" => 1,
+//        "weight" => 34,
+//        "categoria" => "Asistente De Bienestar Y Clima Laboral"
+//      ],
       [
         "dni" => "16664102",
         "objective" => "Notas de crèdito a proveedores ",
@@ -8745,6 +8747,8 @@ class ObjectiveSeeder extends Seeder
 //      1. Eliminar todos los registros de las tablas
     DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
+    EvaluationPersonDashboard::query()->truncate();
+    EvaluationDashboard::query()->truncate();
     EvaluationPersonDetail::query()->truncate();
     EvaluationPerson::query()->truncate();
     EvaluationPersonResult::query()->truncate();

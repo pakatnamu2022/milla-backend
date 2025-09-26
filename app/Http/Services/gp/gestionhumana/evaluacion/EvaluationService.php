@@ -15,6 +15,8 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionsistema\Position;
+use App\Models\Models\gp\gestionhumana\evaluacion\EvaluationDashboard;
+use App\Models\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -123,7 +125,7 @@ class EvaluationService extends BaseService
     return PositionResource::collection($positions);
   }
 
-  public function enrichData($data)
+  public function enrichData($data, $evaluation = null)
   {
     if (isset($data['cycle_id'])) {
       $cycle = EvaluationCycle::find($data['cycle_id']);
@@ -135,6 +137,16 @@ class EvaluationService extends BaseService
       $data['selfEvaluation'] = 1;
       $data['partnersEvaluation'] = 1;
     }
+
+    if (!$evaluation) {
+      $evaluationActive = Evaluation::where('status', Evaluation::IN_PROGRESS_EVALUATION)->first();
+      if ($evaluationActive) {
+        $data['status'] = Evaluation::PROGRAMMED_EVALUATION;
+      } else {
+        $data['status'] = Evaluation::IN_PROGRESS_EVALUATION;
+      }
+    }
+
     return $data;
   }
 
@@ -168,7 +180,6 @@ class EvaluationService extends BaseService
           \Log::warning('Error al crear competencias automáticamente', [
             'evaluation_id' => $evaluation->id,
             'error' => $competencesResult['message']
-            
           ]);
         }
       }
@@ -459,6 +470,14 @@ class EvaluationService extends BaseService
           ]);
         }
       }
+
+      EvaluationDashboard::where('evaluation_id', $evaluation->id)
+        ->get()
+        ->each
+        ->resetStats();
+
+      EvaluationPersonDashboard::where('evaluation_id', $evaluation->id)->delete();
+
     }
 
     return [
@@ -472,7 +491,7 @@ class EvaluationService extends BaseService
 
     try {
       $evaluation = $this->find($data['id']);
-      $data = $this->enrichData($data);
+      $data = $this->enrichData($data, $evaluation);
       $evaluation->update($data);
       DB::commit();
       return new EvaluationResource($evaluation);
