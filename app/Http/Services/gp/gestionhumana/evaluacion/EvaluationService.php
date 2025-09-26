@@ -7,6 +7,7 @@ use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Resources\gp\gestionsistema\PositionResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\ExportService;
+use App\Http\Traits\DisableObservers;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
@@ -23,6 +24,8 @@ use Illuminate\Support\Facades\DB;
 
 class EvaluationService extends BaseService
 {
+  use DisableObservers;
+
   protected EvaluationPersonService $evaluationPersonService;
   protected EvaluationPersonResultService $evaluationPersonResultService;
   protected $exportService;
@@ -447,42 +450,220 @@ class EvaluationService extends BaseService
     return (new EvaluationResource($this->find($id)))->showExtra();
   }
 
-  public function regenerateEvaluation($evaluationId)
+  public function regenerateEvaluation($evaluationId, array $params = [])
   {
     $evaluation = $this->find($evaluationId);
 
+    // Parámetros por defecto
+    $mode = $params['mode'] ?? 'sync_with_cycle';
+    $resetProgress = $params['reset_progress'] ?? false;
+    $force = $params['force'] ?? false;
+
     // Verificar si hay cambios en las personas del ciclo
-    $needsRegeneration = $this->checkCycleChanges($evaluation);
+    $cycleChanges = $this->checkCycleChanges($evaluation);
+    $needsRegeneration = $force || $cycleChanges;
 
-    if (true) {
-      // Regenerar personas del ciclo actualizado
-      $this->evaluationPersonResultService->storeMany($evaluation->id);
-      $this->evaluationPersonService->storeMany($evaluation->id);
+    if (!$needsRegeneration && $mode !== 'full_reset') {
+      return [
+        'success' => true,
+        'message' => 'No se detectaron cambios en las personas del ciclo; no se realizaron modificaciones',
+        'changes_detected' => false,
+        'mode_used' => $mode
+      ];
+    }
 
-      // Regenerar competencias si es evaluación 180° o 360°
-      if (in_array($evaluation->typeEvaluation, [self::EVALUACION_180, self::EVALUACION_360])) {
-        $competencesResult = $this->crearCompetenciasEvaluacion($evaluation);
+    return $this->withoutObservers(function () use ($evaluation, $mode, $resetProgress) {
+      $result = match ($mode) {
+        'full_reset' => $this->executeFullReset($evaluation, $resetProgress),
+        'sync_with_cycle' => $this->executeSyncWithCycle($evaluation, $resetProgress),
+        'add_missing_only' => $this->executeAddMissingOnly($evaluation),
+        default => throw new Exception("Modo de regeneración no válido: {$mode}")
+      };
 
-        if (!$competencesResult['success']) {
-          \Log::warning('Error al regenerar competencias tras cambios en ciclo', [
-            'evaluation_id' => $evaluation->id,
-            'error' => $competencesResult['message']
-          ]);
-        }
-      }
+      return array_merge($result, [
+        'success' => true,
+        'changes_detected' => true,
+        'mode_used' => $mode
+      ]);
+    }, $evaluation->id);
+  }
 
-      EvaluationDashboard::where('evaluation_id', $evaluation->id)
-        ->get()
-        ->each
-        ->resetStats();
+  /**
+   * Modo: Reinicio completo - Elimina todo y crea desde cero
+   */
+  private function executeFullReset($evaluation, $resetProgress = false)
+  {
+    \Log::info("Iniciando regeneración completa para evaluación {$evaluation->id}");
 
-      EvaluationPersonDashboard::where('evaluation_id', $evaluation->id)->delete();
+    // 1. Limpiar completamente todos los datos existentes
+    EvaluationPersonResult::where('evaluation_id', $evaluation->id)->delete();
+    EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluation->id)->delete();
 
+    // 2. Resetear dashboards
+    EvaluationDashboard::where('evaluation_id', $evaluation->id)->get()->each->resetStats();
+    EvaluationPersonDashboard::where('evaluation_id', $evaluation->id)->delete();
+
+    // 3. Recrear todo desde cero
+    $this->evaluationPersonResultService->storeMany($evaluation->id);
+    $this->evaluationPersonService->storeMany($evaluation->id);
+
+    // 4. Recrear competencias si es necesario
+    $competencesCreated = 0;
+    if (in_array($evaluation->typeEvaluation, [self::EVALUACION_180, self::EVALUACION_360])) {
+      $competencesResult = $this->crearCompetenciasEvaluacion($evaluation);
+      $competencesCreated = $competencesResult['competencias_creadas'] ?? 0;
     }
 
     return [
-      'message' => $needsRegeneration ? 'Evaluación regenerada con éxito' : 'No se detectaron cambios en las personas del ciclo; no se realizaron modificaciones'
+      'message' => 'Evaluación completamente regenerada desde cero',
+      'participants_recreated' => EvaluationPersonResult::where('evaluation_id', $evaluation->id)->count(),
+      'competences_created' => $competencesCreated,
+      'progress_reset' => true
     ];
+  }
+
+  /**
+   * Modo: Sincronizar con ciclo - Agregar nuevos, mantener existentes según configuración
+   */
+  private function executeSyncWithCycle($evaluation, $resetProgress = false)
+  {
+    \Log::info("Iniciando sincronización con ciclo para evaluación {$evaluation->id}");
+
+    // Personas actualmente en la evaluación
+    $currentPersons = EvaluationPersonResult::where('evaluation_id', $evaluation->id)
+      ->pluck('person_id')
+      ->toArray();
+
+    // Personas que deberían estar según el ciclo actual
+    $expectedPersons = $this->getPersonsFromCycle($evaluation->cycle_id);
+
+    // Calcular diferencias
+    $personsToAdd = array_diff($expectedPersons, $currentPersons);
+    $personsToRemove = array_diff($currentPersons, $expectedPersons);
+
+    $stats = [
+      'persons_added' => 0,
+      'persons_removed' => 0,
+      'competences_created' => 0,
+      'progress_reset_count' => 0
+    ];
+
+    // Eliminar personas que ya no están en el ciclo
+    if (!empty($personsToRemove)) {
+      EvaluationPersonResult::where('evaluation_id', $evaluation->id)
+        ->whereIn('person_id', $personsToRemove)
+        ->delete();
+
+      EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluation->id)
+        ->whereIn('person_id', $personsToRemove)
+        ->delete();
+
+      $stats['persons_removed'] = count($personsToRemove);
+    }
+
+    // Agregar nuevas personas
+    if (!empty($personsToAdd)) {
+      $this->createPersonResultsForSpecific($evaluation, $personsToAdd);
+      $this->createPersonDetailsForSpecific($evaluation, $personsToAdd);
+      $stats['persons_added'] = count($personsToAdd);
+
+      // Crear competencias solo para las personas nuevas
+      if (in_array($evaluation->typeEvaluation, [self::EVALUACION_180, self::EVALUACION_360])) {
+        $stats['competences_created'] = $this->createCompetencesForSpecificPersons($evaluation, $personsToAdd);
+      }
+    }
+
+    // Resetear progreso si se solicita
+    if ($resetProgress) {
+      EvaluationPersonResult::where('evaluation_id', $evaluation->id)
+        ->update([
+          'result' => 0,
+          'objectivesResult' => 0,
+          'competencesResult' => 0,
+          'status' => 0
+        ]);
+
+      EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluation->id)
+        ->update(['result' => 0]);
+
+      $stats['progress_reset_count'] = EvaluationPersonResult::where('evaluation_id', $evaluation->id)->count();
+    }
+
+    // Resetear dashboards
+    EvaluationDashboard::where('evaluation_id', $evaluation->id)->get()->each->resetStats();
+    EvaluationPersonDashboard::where('evaluation_id', $evaluation->id)->delete();
+
+    return [
+      'message' => 'Evaluación sincronizada con el ciclo',
+      'persons_added' => $stats['persons_added'],
+      'persons_removed' => $stats['persons_removed'],
+      'competences_created' => $stats['competences_created'],
+      'progress_reset' => $resetProgress,
+      'progress_reset_count' => $stats['progress_reset_count']
+    ];
+  }
+
+  /**
+   * Modo: Solo agregar faltantes - Mantener todo existente, solo agregar nuevos
+   */
+  private function executeAddMissingOnly($evaluation)
+  {
+    \Log::info("Agregando solo participantes faltantes para evaluación {$evaluation->id}");
+
+    // Personas actualmente en la evaluación
+    $currentPersons = EvaluationPersonResult::where('evaluation_id', $evaluation->id)
+      ->pluck('person_id')
+      ->toArray();
+
+    // Personas que deberían estar según el ciclo actual
+    $expectedPersons = $this->getPersonsFromCycle($evaluation->cycle_id);
+
+    // Solo agregar los que faltan
+    $personsToAdd = array_diff($expectedPersons, $currentPersons);
+
+    $stats = [
+      'persons_added' => 0,
+      'competences_created' => 0
+    ];
+
+    if (!empty($personsToAdd)) {
+      $this->evaluationPersonResultService->storeMany($evaluation->id, $personsToAdd);
+      $this->evaluationPersonService->storeMany($evaluation->id, $personsToAdd);
+      $stats['persons_added'] = count($personsToAdd);
+
+      // Crear competencias solo para las personas nuevas
+      if (in_array($evaluation->typeEvaluation, [self::EVALUACION_180, self::EVALUACION_360])) {
+        $stats['competences_created'] = $this->createCompetencesForSpecificPersons($evaluation, $personsToAdd);
+      }
+    }
+
+    return [
+      'message' => empty($personsToAdd) ? 'No hay participantes faltantes que agregar' : 'Participantes faltantes agregados exitosamente',
+      'persons_added' => $stats['persons_added'],
+      'competences_created' => $stats['competences_created'],
+      'existing_preserved' => true
+    ];
+  }
+
+  /**
+   * Crear competencias solo para personas específicas
+   */
+  private function createCompetencesForSpecificPersons($evaluation, array $personIds)
+  {
+    $competencesCreated = 0;
+
+    foreach ($personIds as $personId) {
+      $persona = Person::find($personId);
+      if (!$persona) continue;
+
+      if ($evaluation->typeEvaluation == self::EVALUACION_180) {
+        $competencesCreated += $this->procesarEvaluacion180($evaluation, $persona);
+      } else {
+        $competencesCreated += $this->procesarEvaluacion360($evaluation, $persona);
+      }
+    }
+
+    return $competencesCreated;
   }
 
   public function update($data)

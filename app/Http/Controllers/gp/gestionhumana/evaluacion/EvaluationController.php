@@ -5,6 +5,7 @@ namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CheckEvaluationRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\RegenerateEvaluationRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationRequest;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationService;
@@ -31,7 +32,7 @@ class EvaluationController extends Controller
   public function active()
   {
     try {
-      return $this->service->active();
+      return $this->success($this->service->active());
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -47,10 +48,10 @@ class EvaluationController extends Controller
     }
   }
 
-  public function regenerateEvaluation(int $id)
+  public function regenerateEvaluation(RegenerateEvaluationRequest $request, int $id)
   {
     try {
-      return $this->success($this->service->regenerateEvaluation($id));
+      return $this->success($this->service->regenerateEvaluation($id, $request->validated()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
