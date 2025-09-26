@@ -133,10 +133,6 @@ class EvaluationPersonService extends BaseService
 
     $this->recalculatePersonResults($evaluationPerson->evaluation_id, $evaluationPerson->person_id);
 
-    if (isset($data['result'])) {
-      UpdateEvaluationDashboards::dispatch($evaluationPerson->evaluation_id)->onQueue('evaluation-dashboards');
-    }
-
     return new EvaluationPersonResource($evaluationPerson);
   }
 
