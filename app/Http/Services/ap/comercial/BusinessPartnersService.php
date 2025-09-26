@@ -130,7 +130,6 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
 
       DB::commit();
       return response()->json(['message' => $message]);
-
     } catch (Exception $e) {
       DB::rollBack();
       throw new Exception($e->getMessage());
@@ -144,7 +143,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
    */
   public function getData(mixed $data): mixed
   {
-    if (isset($data['type_person_id']) && $data['type_person_id'] == Constants::TYPE_PERSON_ID) {
+    if (isset($data['type_person_id']) && $data['type_person_id'] == Constants::TYPE_PERSON_NATURAL_ID) {
       if (empty($data['birth_date'])) {
         throw new Exception('La fecha de nacimiento es requerida para personas naturales');
       }

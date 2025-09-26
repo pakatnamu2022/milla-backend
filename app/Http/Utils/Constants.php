@@ -11,7 +11,7 @@ class Constants
 
   public const WORKER_ACTIVE = 22;
 
-  public const TYPE_PERSON_ID = 704; // Persona Natural
+  public const TYPE_PERSON_NATURAL_ID = 704; // Persona Natural
 
   public const TYPE_PERSON_JURIDICA_ID = 705; // Persona Juridica
 }

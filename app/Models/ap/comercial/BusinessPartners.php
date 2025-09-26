@@ -49,6 +49,8 @@ class BusinessPartners extends Model
     'status_ap',
     'status_tp',
     'status_dp',
+    'company_status',
+    'company_condition',
     'origin_id',
     'driving_license_category',
     'tax_class_type_id',
@@ -126,6 +128,20 @@ class BusinessPartners extends Model
   public function setDirectionAttribute($value)
   {
     $this->attributes['direction'] = Str::upper($value);
+  }
+
+  public function setCompanyStatusAttribute($value)
+  {
+    if ($value) {
+      $this->attributes['company_status'] = Str::upper($value);
+    }
+  }
+
+  public function setCompanyConditionAttribute($value)
+  {
+    if ($value) {
+      $this->attributes['company_condition'] = Str::upper($value);
+    }
   }
 
   public function setLegalRepresentativeNameAttribute($value)
