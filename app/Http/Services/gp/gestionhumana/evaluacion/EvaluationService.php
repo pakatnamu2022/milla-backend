@@ -13,6 +13,8 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionsistema\Position;
@@ -627,8 +629,8 @@ class EvaluationService extends BaseService
     ];
 
     if (!empty($personsToAdd)) {
-      $this->evaluationPersonResultService->storeMany($evaluation->id, $personsToAdd);
-      $this->evaluationPersonService->storeMany($evaluation->id, $personsToAdd);
+      $this->createPersonResultsForSpecific($evaluation, $personsToAdd);
+      $this->createPersonDetailsForSpecific($evaluation, $personsToAdd);
       $stats['persons_added'] = count($personsToAdd);
 
       // Crear competencias solo para las personas nuevas
@@ -664,6 +666,95 @@ class EvaluationService extends BaseService
     }
 
     return $competencesCreated;
+  }
+
+  /**
+   * Crear EvaluationPersonResult solo para personas específicas
+   */
+  private function createPersonResultsForSpecific($evaluation, array $personIds)
+  {
+    $cycle = EvaluationCycle::findOrFail($evaluation->cycle_id);
+
+    foreach ($personIds as $personId) {
+      // Verificar si ya existe
+      $exists = EvaluationPersonResult::where('evaluation_id', $evaluation->id)
+        ->where('person_id', $personId)
+        ->exists();
+
+      if ($exists) continue;
+
+      $person = Person::find($personId);
+      if (!$person || !$person->position || !$person->position->hierarchicalCategory) continue;
+
+      // Verificar fecha de inicio vs fecha de corte
+      if ($person->fecha_inicio > $cycle->cut_off_date) continue;
+
+      $hierarchicalCategory = $person->position->hierarchicalCategory;
+      $objectivesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->objectivesPercentage : 0;
+      $competencesPercentage = $evaluation->typeEvaluation == 0 ? 0 : $evaluation->competencesPercentage;
+
+      EvaluationPersonResult::create([
+        'person_id' => $person->id,
+        'evaluation_id' => $evaluation->id,
+        'competencesPercentage' => $competencesPercentage,
+        'objectivesPercentage' => $objectivesPercentage,
+        'objectivesResult' => 0,
+        'competencesResult' => 0,
+        'status' => 0,
+        'result' => 0,
+        'name' => $person->nombre_completo,
+        'dni' => $person->vat,
+        'hierarchical_category' => $hierarchicalCategory->name,
+        'position' => $person->position->name,
+        'area' => $person->position->area->name ?? '',
+        'sede' => $person->sede->abreviatura ?? '',
+        'boss' => $person->boss->nombre_completo ?? '',
+        'boss_dni' => $person->boss->vat ?? '',
+        'boss_hierarchical_category' => $person->boss->position->hierarchicalCategory->name ?? '',
+        'boss_position' => $person->boss->position->name ?? '',
+        'boss_area' => $person->boss->position->area->name ?? '',
+        'boss_sede' => $person->boss->sede->abreviatura ?? '',
+      ]);
+    }
+  }
+
+  /**
+   * Crear EvaluationPerson (objetivos) solo para personas específicas
+   */
+  private function createPersonDetailsForSpecific($evaluation, array $personIds)
+  {
+    $cycle = EvaluationCycle::findOrFail($evaluation->cycle_id);
+
+    // Obtener detalles del ciclo solo para las personas específicas
+    $cycleDetails = EvaluationPersonCycleDetail::where('cycle_id', $cycle->id)
+      ->whereIn('person_id', $personIds)
+      ->get();
+
+    foreach ($cycleDetails as $detail) {
+      // Verificar si ya existe este objetivo para esta persona en esta evaluación
+      $exists = EvaluationPerson::where('evaluation_id', $evaluation->id)
+        ->where('person_id', $detail->person_id)
+        ->where('objective_id', $detail->objective_id)
+        ->exists();
+
+      if (!$exists) {
+        EvaluationPerson::create([
+          'person_id' => $detail->person_id,
+          'chief_id' => $detail->chief_id,
+          'chief' => $detail->chief,
+          'person_cycle_detail_id' => $detail->id,
+          'evaluation_id' => $evaluation->id,
+          'objective_id' => $detail->objective_id,
+          'person' => $detail->person,
+          'objective' => $detail->objective,
+          'description' => $detail->objective, // o el campo correcto si existe
+          'result' => 0,
+          'compliance' => 0,
+          'qualification' => 0,
+          'wasEvaluated' => 0,
+        ]);
+      }
+    }
   }
 
   public function update($data)
