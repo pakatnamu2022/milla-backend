@@ -47,6 +47,8 @@ class StoreBusinessPartnersRequest extends StoreRequest
       'driving_license_expiration_date' => 'nullable|date|after:driving_license_issue_date',
       'status_license' => 'nullable|string|max:100',
       'restriction' => 'nullable|string|max:255',
+      'company_status' => 'nullable|string|max:100',
+      'company_condition' => 'nullable|string|max:100',
       'driving_license_type_id' => 'nullable|integer|exists:ap_commercial_masters,id',
       'origin_id' => 'required|integer|exists:ap_commercial_masters,id',
       'tax_class_type_id' => 'required|integer|exists:tax_class_types,id',
@@ -67,9 +69,6 @@ class StoreBusinessPartnersRequest extends StoreRequest
     return [
       'first_name.string' => 'El nombre debe ser una cadena de texto.',
       'first_name.max' => 'El nombre no debe exceder los 255 caracteres.',
-
-      'middle_name.string' => 'El nombre debe ser una cadena de texto.',
-      'middle_name.max' => 'El nombre no debe exceder los 255 caracteres.',
 
       'middle_name.string' => 'El segundo nombre debe ser una cadena de texto.',
       'middle_name.max' => 'El segundo nombre no debe exceder los 255 caracteres.',
@@ -111,6 +110,9 @@ class StoreBusinessPartnersRequest extends StoreRequest
       'status_license.max' => 'El estado de la licencia no debe exceder los 100 caracteres.',
       'restriction.max' => 'La restricción no debe exceder los 255 caracteres.',
 
+      'company_status.max' => 'El estado de la empresa no debe exceder los 100 caracteres.',
+      'company_condition.max' => 'La condición de la empresa no debe exceder los 100 caracteres.',
+
       'driving_license_type_id.exists' => 'El tipo de licencia de conducir seleccionado no existe.',
 
       'origin_id.required' => 'El origen es obligatorio.',
@@ -132,7 +134,7 @@ class StoreBusinessPartnersRequest extends StoreRequest
       'person_segment_id.exists' => 'El segmento de persona seleccionado no existe.',
 
       'marital_status_id.exists' => 'El estado civil seleccionado no existe.',
-      
+
       'gender_id.exists' => 'El género seleccionado no existe.',
 
       'activity_economic_id.required' => 'La actividad económica es obligatoria.',

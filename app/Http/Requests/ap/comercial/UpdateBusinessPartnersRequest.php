@@ -45,6 +45,8 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'driving_license_expiration_date' => 'nullable|date|after:driving_license_issue_date',
       'status_license' => 'nullable|string|max:100',
       'restriction' => 'nullable|string|max:255',
+      'company_status' => 'nullable|string|max:100',
+      'company_condition' => 'nullable|string|max:100',
       'origin_id' => 'required|integer|exists:ap_commercial_masters,id',
       'driving_license_type_id' => 'nullable|integer|exists:ap_commercial_masters,id',
       'tax_class_type_id' => 'required|integer|exists:tax_class_types,id',
@@ -103,6 +105,9 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'driving_license_expiration_date.after' => 'La fecha de vencimiento debe ser posterior a la fecha de emisión.',
       'status_license.max' => 'El estado de la licencia no debe exceder los 100 caracteres.',
       'restriction.max' => 'La restricción no debe exceder los 255 caracteres.',
+
+      'company_status.max' => 'El estado de la empresa no debe exceder los 100 caracteres.',
+      'company_condition.max' => 'La condición de la empresa no debe exceder los 100 caracteres.',
 
       'origin_id.required' => 'El origen es obligatorio.',
       'origin_id.exists' => 'El origen seleccionado no existe.',

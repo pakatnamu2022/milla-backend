@@ -49,6 +49,8 @@ class BusinessPartnersResource extends JsonResource
       'driving_license_expiration_date' => $this->driving_license_expiration_date?->format('Y-m-d'),
       'status_license' => $this->status_license,
       'restriction' => $this->restriction,
+      'company_status' => $this->company_status ?? '-',
+      'company_condition' => $this->company_condition ?? '-',
 
       // IDs de relaciones
       'origin_id' => $this->origin_id,

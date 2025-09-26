@@ -49,6 +49,8 @@ class BusinessPartners extends Model
     'status_ap',
     'status_tp',
     'status_dp',
+    'company_status',
+    'company_condition',
     'origin_id',
     'driving_license_type_id',
     'tax_class_type_id',

@@ -47,6 +47,8 @@ return new class extends Migration {
       $table->boolean('status_ap')->default(false);
       $table->boolean('status_tp')->default(false);
       $table->boolean('status_dp')->default(false);
+      $table->string('company_status')->nullable();
+      $table->string('company_condition')->nullable();
       $table->foreignId('origin_id')
         ->constrained('ap_commercial_masters')->onDelete('cascade');
       $table->foreignId('driving_license_type_id')->nullable()
