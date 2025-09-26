@@ -51,7 +51,7 @@ class EvaluationPersonResultService extends BaseService
 
     return $this->getFilteredResults(
       EvaluationPersonResult::whereHas('person', function ($query) use ($chief_id) {
-        $query->where('jefe_id', $chief_id)
+        $query->where('supervisor_id', $chief_id)
           ->where('status_deleted', 1)
           ->where('status_id', 22);
       })->where('evaluation_id', $activeEvaluation->id),
@@ -121,6 +121,8 @@ class EvaluationPersonResultService extends BaseService
             if ($person->fecha_inicio <= $cycle->cut_off_date) {
               $objectivesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->objectivesPercentage : 0;
               $competencesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->competencesPercentage : 100;
+
+              $evaluator = $person->evaluator ?? $person->boss;
 
               $data = [
                 'person_id' => $person->id,

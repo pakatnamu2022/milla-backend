@@ -116,11 +116,17 @@ class HierarchicalCategory extends BaseModel
               ->where('status_id', Constants::WORKER_ACTIVE)
               ->whereDoesntHave('evaluationDetails')
               ->with([
-                'boss' => function ($qb) {
+                'evaluator' => function ($qb) {
                   $qb->with('position'); // traemos cargo del jefe
                 },
                 'position',
               ]);
+//            ->with([
+//                'boss' => function ($qb) {
+//                  $qb->with('position'); // traemos cargo del jefe
+//                },
+//                'position',
+//              ]);
           }]);
         }
       ])
@@ -129,16 +135,22 @@ class HierarchicalCategory extends BaseModel
     return $categories->map(function ($category) {
       $persons = $category->positions->flatMap->persons;
       $total = $persons->count();
-      $conJefe = $persons->whereNotNull('jefe_id')->count();
-      $sinJefe = $persons->whereNull('jefe_id')->count();
+//      $conJefe = $persons->whereNotNull('jefe_id')->count();
+//      $sinJefe = $persons->whereNull('jefe_id')->count();
+      $conJefe = $persons->whereNotNull('supervisor_id')->count();
+      $sinJefe = $persons->whereNull('supervisor_id')->count();
 
       $issues = [];
 
       foreach ($persons as $person) {
-        if (is_null($person->jefe_id)) {
-          $issues[] = "La persona {$person->nombre_completo} no tiene jefe asignado.";
-        } elseif ($person->boss && $person->boss->status_id == 23) {
-          $issues[] = "El jefe {$person->boss->nombre_completo} de la persona {$person->nombre_completo} está dado de baja.";
+        if (is_null($person->supervisor_id)) {
+//        if (is_null($person->jefe_id)) {
+          $issues[] = "La persona {$person->nombre_completo} no tiene evaluador asignado.";
+//        } elseif ($person->boss && $person->boss->status_id == 23) {
+//          $issues[] = "El jefe {$person->boss->nombre_completo} de la persona {$person->nombre_completo} está dado de baja.";
+//        }
+        } elseif ($person->evaluator && $person->evaluator->status_id == 23) {
+          $issues[] = "El evaluador {$person->evaluator->nombre_completo} de la persona {$person->nombre_completo} está dado de baja.";
         }
       }
 
@@ -195,30 +207,46 @@ class HierarchicalCategory extends BaseModel
       ->where($eligibles);
 
     $sqTotal = $base()->cloneWithout([])->selectRaw('COUNT(*)');
-    $sqConJefe = $base()->cloneWithout([])->whereNotNull('p.jefe_id')->selectRaw('COUNT(*)');
-    $sqSinJefe = $base()->cloneWithout([])->whereNull('p.jefe_id')->selectRaw('COUNT(*)');
+//    $sqConJefe = $base()->cloneWithout([])->whereNotNull('p.jefe_id')->selectRaw('COUNT(*)');
+//    $sqSinJefe = $base()->cloneWithout([])->whereNull('p.jefe_id')->selectRaw('COUNT(*)');
+    $sqConJefe = $base()->cloneWithout([])->whereNotNull('p.supervisor_id')->selectRaw('COUNT(*)');
+    $sqSinJefe = $base()->cloneWithout([])->whereNull('p.supervisor_id')->selectRaw('COUNT(*)');
 
     $sqConJefeBaja = $base()->cloneWithout([])
-      ->leftJoin("$T_PER as b", 'b.id', '=', 'p.jefe_id')
-      ->whereNotNull('p.jefe_id')
+//      ->leftJoin("$T_PER as b", 'b.id', '=', 'p.jefe_id')
+//      ->whereNotNull('p.jefe_id')
+      ->leftJoin("$T_PER as b", 'b.id', '=', 'p.supervisor_id')
+      ->whereNotNull('p.supervisor_id')
       ->where('b.status_id', 23)
       ->selectRaw('COUNT(*)');
 
     $sqIssuesRaw = $base()->cloneWithout([])
-      ->leftJoin("$T_PER as b", 'b.id', '=', 'p.jefe_id')
+      ->leftJoin("$T_PER as b", 'b.id', '=', 'p.supervisor_id')
+//      ->leftJoin("$T_PER as b", 'b.id', '=', 'p.jefe_id')
       ->where(function ($q) {
-        $q->whereNull('p.jefe_id')->orWhere('b.status_id', 23);
+        $q->whereNull('p.supervisor_id')->orWhere('b.status_id', 23);
+//        $q->whereNull('p.jefe_id')->orWhere('b.status_id', 23);
       })
       ->selectRaw("
       JSON_ARRAYAGG(
         CASE
-          WHEN p.jefe_id IS NULL
-            THEN CONCAT('La persona ', p.nombre_completo, ' no tiene jefe asignado.')
+          WHEN p.supervisor_id IS NULL
+            THEN CONCAT('La persona ', p.nombre_completo, ' no tiene evaluador asignado.')
           WHEN b.status_id = 23
             THEN CONCAT('El jefe ', b.nombre_completo, ' de la persona ', p.nombre_completo, ' está dado de baja.')
         END
       )
     ");
+//      ->selectRaw("
+//      JSON_ARRAYAGG(
+//        CASE
+//          WHEN p.jefe_id IS NULL
+//            THEN CONCAT('La persona ', p.nombre_completo, ' no tiene evaluador asignado.')
+//          WHEN b.status_id = 23
+//            THEN CONCAT('El jefe ', b.nombre_completo, ' de la persona ', p.nombre_completo, ' está dado de baja.')
+//        END
+//      )
+//    ");
 
     $issuesFinal = DB::query()->selectRaw("
     COALESCE(
