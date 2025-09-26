@@ -47,12 +47,7 @@ return new class extends Migration {
       $table->boolean('status_ap')->default(false);
       $table->boolean('status_tp')->default(false);
       $table->boolean('status_dp')->default(false);
-<<<<<<< HEAD
       $table->enum('type', ['CLIENTE', 'PROVEEDOR', 'AMBOS'])->default('CLIENTE');
-=======
-      $table->string('company_status')->nullable();
-      $table->string('company_condition')->nullable();
->>>>>>> abb656f1fd84ddb5b57bc9ec50c7a844a91d26a9
       $table->foreignId('origin_id')
         ->constrained('ap_commercial_masters')->onDelete('cascade');
       $table->foreignId('tax_class_type_id')
