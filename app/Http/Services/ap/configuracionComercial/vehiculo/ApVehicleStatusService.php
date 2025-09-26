@@ -4,12 +4,13 @@ namespace App\Http\Services\ap\configuracionComercial\vehiculo;
 
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApVehicleStatusResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class ApVehicleStatusService extends BaseService
+class ApVehicleStatusService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
@@ -31,7 +32,7 @@ class ApVehicleStatusService extends BaseService
     return $vehicleStatus;
   }
 
-  public function store(array $data)
+  public function store(mixed $data)
   {
     $vehicleStatus = ApVehicleStatus::create($data);
     return new ApVehicleStatusResource($vehicleStatus);
@@ -42,7 +43,7 @@ class ApVehicleStatusService extends BaseService
     return new ApVehicleStatusResource($this->find($id));
   }
 
-  public function update($data)
+  public function update(mixed $data)
   {
     $vehicleStatus = $this->find($data['id']);
     $vehicleStatus->update($data);

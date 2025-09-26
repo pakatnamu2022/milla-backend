@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\configuracionComercial\venta;
 
 use App\Http\Resources\ap\configuracionComercial\venta\ApAssignBrandConsultantResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\venta\ApGoalSellOutIn;
 use App\Models\gp\maestroGeneral\Sede;
@@ -12,7 +13,7 @@ use Exception;
 use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
 use Illuminate\Support\Facades\DB;
 
-class ApAssignBrandConsultantService extends BaseService
+class ApAssignBrandConsultantService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
@@ -105,7 +106,7 @@ class ApAssignBrandConsultantService extends BaseService
     return $ApAssignBrandConsultantMasters;
   }
 
-  public function store(array $data)
+  public function store(mixed $data)
   {
     $existing = ApAssignBrandConsultant::withTrashed()
       ->where('year', $data['year'])
@@ -131,7 +132,7 @@ class ApAssignBrandConsultantService extends BaseService
     return new ApAssignBrandConsultantResource($ApAssignBrandConsultantMasters);
   }
 
-  public function update($data)
+  public function update(mixed $data)
   {
     $ApAssignBrandConsultant = $this->find($data['id']);
 

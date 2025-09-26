@@ -40,7 +40,7 @@ class ApSafeCreditGoalService extends BaseService implements BaseServiceInterfac
       ->where('type', $data['type'])
       ->whereNull('deleted_at')
       ->first();
-    
+
     if ($existingRecord) {
       throw new Exception('Ya existe un registro para el mismo año, mes, sede y tipo');
     }

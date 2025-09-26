@@ -87,24 +87,24 @@ class StandardResponseFormatter implements ResponseFormatterInterface
 
     return [
       'valid' => true,
-      'ruc' => $data['ruc'] ?? null,
-      'business_name' => $data['razon_social'] ?? null,
-      'commercial_name' => $data['nombre_comercial'] ?? null,
-      'legal_representative' => $data['representante_legal'] ?? null,
+      'ruc' => $data['numero'] ?? null,
+      'business_name' => $data['nombre_o_razon_social'] ?? null,
+      "taxpayer_type" => $data['tipo_contribuyente'] ?? null,
       'status' => $data['estado'] ?? null,
       'condition' => $data['condicion'] ?? null,
-      'address' => $data['direccion'] ?? null,
       'department' => $data['departamento'] ?? null,
       'province' => $data['provincia'] ?? null,
       'district' => $data['distrito'] ?? null,
-      'economic_activity' => $data['actividad_economica'] ?? null,
-      'registration_date' => $data['fecha_inscripcion'] ?? null,
+      'address' => $data['direccion'] ?? null,
+      'full_address' => $data['direccion_completa'] ?? null,
+      'ubigeo_sunat' => $data['ubigeo_sunat'] ?? null,
+      'ubigeo' => $data['ubigeo'] ?? null,
     ];
   }
 
   protected function formatLicenseResponse(array $response): ?array
   {
-    if (!isset($response['success']) || !$response['success']) {
+    if (!isset($response['message']) || strtolower($response['message']) !== 'exito!') {
       return null;
     }
 
@@ -112,14 +112,9 @@ class StandardResponseFormatter implements ResponseFormatterInterface
 
     return [
       'valid' => true,
-      'license_number' => $data['licencia'] ?? null,
-      'names' => $data['nombres'] ?? null,
-      'paternal_surname' => $data['apellido_paterno'] ?? null,
-      'maternal_surname' => $data['apellido_materno'] ?? null,
-      'category' => $data['categoria'] ?? null,
-      'expiration_date' => $data['fecha_vencimiento'] ?? null,
-      'restriction' => $data['restriccion'] ?? null,
-      'status' => $data['estado'] ?? null,
+      'license_number' => $data['numero_documento'] ?? null,
+      'full_name' => $data['nombre_completo'] ?? null,
+      'licencia' => $data['licencia'] ?? null,
     ];
   }
 

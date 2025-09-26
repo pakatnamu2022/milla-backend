@@ -6,7 +6,6 @@ use App\Http\Resources\ap\configuracionComercial\venta\ApAssignCompanyBranchReso
 use App\Http\Services\BaseService;
 use App\Http\Utils\Constants;
 use App\Models\ap\configuracionComercial\venta\ApAssignCompanyBranch;
-use App\Models\ap\configuracionComercial\venta\ApAssignCompanyBranchPeriod;
 use App\Models\gp\maestroGeneral\Sede;
 use Exception;
 use Illuminate\Http\Request;

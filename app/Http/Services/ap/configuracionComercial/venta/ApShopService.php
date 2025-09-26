@@ -4,14 +4,13 @@ namespace App\Http\Services\ap\configuracionComercial\venta;
 
 use App\Http\Resources\ap\configuracionComercial\venta\ApShopResource;
 use App\Http\Services\BaseService;
-use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Exception;
 
-class ApShopService extends BaseService implements BaseServiceInterface
+class ApShopService extends BaseService
 {
   public function list(Request $request)
   {

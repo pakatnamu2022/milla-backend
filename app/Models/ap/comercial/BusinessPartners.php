@@ -17,33 +17,40 @@ class BusinessPartners extends Model
   protected $table = 'business_partners';
 
   protected $fillable = [
-    'name',
+    'first_name',
+    'middle_name',
     'paternal_surname',
     'maternal_surname',
+    'full_name',
     'birth_date',
     'nationality',
     'num_doc',
     'spouse_num_doc',
-    'spouse_name',
-    'spouse_paternal_surname',
-    'spouse_maternal_surname',
+    'spouse_full_name',
     'direction',
     'legal_representative_num_doc',
     'legal_representative_name',
     'legal_representative_paternal_surname',
     'legal_representative_maternal_surname',
+    'legal_representative_full_name',
     'email',
     'secondary_email',
-    'tertiary_email',
     'phone',
     'secondary_phone',
-    'tertiary_phone',
     'secondary_phone_contact_name',
-    'tertiary_phone_contact_name',
+    'driver_num_doc',
+    'driver_full_name',
     'driving_license',
-    'driving_license_place',
     'driving_license_issue_date',
     'driving_license_expiration_date',
+    'status_license',
+    'restriction',
+    'status_gp',
+    'status_ap',
+    'status_tp',
+    'status_dp',
+    'company_status',
+    'company_condition',
     'origin_id',
     'driving_license_type_id',
     'tax_class_type_id',
@@ -83,9 +90,16 @@ class BusinessPartners extends Model
     'updated_at',
   ];
 
-  public function setNameAttribute($value)
+  public function setFirstNameAttribute($value)
   {
-    $this->attributes['name'] = Str::upper($value);
+    $this->attributes['first_name'] = Str::upper($value);
+  }
+
+  public function setMiddleNameAttribute($value)
+  {
+    if ($value) {
+      $this->attributes['middle_name'] = Str::upper($value);
+    }
   }
 
   public function setPaternalSurnameAttribute($value)
@@ -98,24 +112,34 @@ class BusinessPartners extends Model
     $this->attributes['maternal_surname'] = Str::upper($value);
   }
 
-  public function setSpouseNameAttribute($value)
+  public function setFullNameAttribute($value)
+  {
+    $this->attributes['full_name'] = Str::upper($value);
+  }
+
+  public function setSpouseFullNameAttribute($value)
   {
     if ($value) {
-      $this->attributes['spouse_name'] = Str::upper($value);
+      $this->attributes['spouse_full_name'] = Str::upper($value);
     }
   }
 
-  public function setSpousePaternalSurnameAttribute($value)
+  public function setDirectionAttribute($value)
+  {
+    $this->attributes['direction'] = Str::upper($value);
+  }
+
+  public function setCompanyStatusAttribute($value)
   {
     if ($value) {
-      $this->attributes['spouse_paternal_surname'] = Str::upper($value);
+      $this->attributes['company_status'] = Str::upper($value);
     }
   }
 
-  public function setSpouseMaternalSurnameAttribute($value)
+  public function setCompanyConditionAttribute($value)
   {
     if ($value) {
-      $this->attributes['spouse_maternal_surname'] = Str::upper($value);
+      $this->attributes['company_condition'] = Str::upper($value);
     }
   }
 
@@ -140,25 +164,18 @@ class BusinessPartners extends Model
     }
   }
 
-  public function getFullNameAttribute()
+  public function setLegalRepresentativeFullNameAttribute($value)
   {
-    return trim("{$this->name} {$this->paternal_surname} {$this->maternal_surname}");
+    if ($value) {
+      $this->attributes['legal_representative_full_name'] = Str::upper($value);
+    }
   }
 
-  public function getSpouseFullNameAttribute()
+  public function setDriverFullNameAttribute($value)
   {
-    if (!$this->spouse_name) {
-      return null;
+    if ($value) {
+      $this->attributes['driver_full_name'] = Str::upper($value);
     }
-    return trim("{$this->spouse_name} {$this->spouse_paternal_surname} {$this->spouse_maternal_surname}");
-  }
-
-  public function getLegalRepresentativeFullNameAttribute()
-  {
-    if (!$this->legal_representative_name) {
-      return null;
-    }
-    return trim("{$this->legal_representative_name} {$this->legal_representative_paternal_surname} {$this->legal_representative_maternal_surname}");
   }
 
   public function origin()

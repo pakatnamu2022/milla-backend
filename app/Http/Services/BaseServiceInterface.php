@@ -15,7 +15,4 @@ interface BaseServiceInterface
   public function update(Mixed $data);
 
   public function destroy(int $id);
-
-  public function enrichData(array $data);
-
 }

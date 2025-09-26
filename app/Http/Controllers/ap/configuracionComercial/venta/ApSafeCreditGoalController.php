@@ -7,8 +7,6 @@ use App\Http\Requests\ap\configuracionComercial\venta\IndexApSafeCreditGoalReque
 use App\Http\Requests\ap\configuracionComercial\venta\StoreApSafeCreditGoalRequest;
 use App\Http\Requests\ap\configuracionComercial\venta\UpdateApSafeCreditGoalRequest;
 use App\Http\Services\ap\configuracionComercial\venta\ApSafeCreditGoalService;
-use App\Models\ap\configuracionComercial\venta\ApSafeCreditGoal;
-use Illuminate\Http\Request;
 
 class ApSafeCreditGoalController extends Controller
 {

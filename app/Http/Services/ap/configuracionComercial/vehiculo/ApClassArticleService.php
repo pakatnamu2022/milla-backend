@@ -4,12 +4,13 @@ namespace App\Http\Services\ap\configuracionComercial\vehiculo;
 
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApClassArticleResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Exception;
 
-class ApClassArticleService extends BaseService
+class ApClassArticleService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
@@ -31,7 +32,7 @@ class ApClassArticleService extends BaseService
     return $ApClassArticle;
   }
 
-  public function store(array $data)
+  public function store(mixed $data)
   {
     $ApClassArticle = ApClassArticle::create($data);
     return new ApClassArticleResource($ApClassArticle);
@@ -42,7 +43,7 @@ class ApClassArticleService extends BaseService
     return new ApClassArticleResource($this->find($id));
   }
 
-  public function update($data)
+  public function update(mixed $data)
   {
     $ApClassArticle = $this->find($data['id']);
     $ApClassArticle->update($data);

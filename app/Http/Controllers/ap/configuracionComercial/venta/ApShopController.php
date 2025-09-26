@@ -7,7 +7,6 @@ use App\Http\Requests\ap\configuracionComercial\venta\IndexApShopRequest;
 use App\Http\Requests\ap\configuracionComercial\venta\StoreApShopRequest;
 use App\Http\Requests\ap\configuracionComercial\venta\UpdateApShopRequest;
 use App\Http\Services\ap\configuracionComercial\venta\ApShopService;
-use Illuminate\Http\Request;
 
 class ApShopController extends Controller
 {

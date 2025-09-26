@@ -16,6 +16,7 @@ class StoreApCommercialMastersRequest extends StoreRequest
         'max:50',
         Rule::unique('ap_commercial_masters', 'code')
           ->where('type', $this->type)
+          ->whereNotIn('type', ['TIPO_DOCUMENTO'])
           ->whereNull('deleted_at'),
       ],
       'description' => [
