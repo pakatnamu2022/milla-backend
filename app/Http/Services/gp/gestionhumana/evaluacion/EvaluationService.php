@@ -566,6 +566,10 @@ class EvaluationService extends BaseService
         ->whereIn('person_id', $personsToRemove)
         ->delete();
 
+      EvaluationPerson::where('evaluation_id', $evaluation->id)
+        ->whereIn('person_id', $personsToRemove)
+        ->delete();
+
       EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluation->id)
         ->whereIn('person_id', $personsToRemove)
         ->delete();

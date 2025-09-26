@@ -91,7 +91,7 @@ class EvaluationPersonResult extends BaseModel
   public function details()
   {
     return $this->hasMany(EvaluationPerson::class, 'evaluation_id', 'evaluation_id')
-      ->where('person_id', $this->person_id);
+      ->where('person_id', $this->person_id)->whereNull('deleted_at');
   }
 
   public function competenceDetails()
