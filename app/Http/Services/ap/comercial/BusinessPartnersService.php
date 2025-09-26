@@ -39,7 +39,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
   {
     DB::beginTransaction();
     try {
-      if (isset($data['type_person_id']) && $data['type_person_id'] == Constants::TYPE_PERSON_ID) {
+      if (isset($data['type_person_id']) && $data['type_person_id'] == Constants::TYPE_PERSON_NATURAL_ID) {
         if (empty($data['birth_date'])) {
           throw new Exception('La fecha de nacimiento es requerida para personas naturales');
         }
@@ -74,7 +74,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
     DB::beginTransaction();
     try {
       $businessPartner = $this->find($data['id']);
-      if (isset($data['type_person_id']) && $data['type_person_id'] == Constants::TYPE_PERSON_ID) {
+      if (isset($data['type_person_id']) && $data['type_person_id'] == Constants::TYPE_PERSON_NATURAL_ID) {
         if (empty($data['birth_date'])) {
           throw new Exception('La fecha de nacimiento es requerida para personas naturales');
         }
