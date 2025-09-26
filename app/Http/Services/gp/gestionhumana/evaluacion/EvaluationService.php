@@ -771,10 +771,9 @@ class EvaluationService extends BaseService
       ->get();
 
     foreach ($cycleDetails as $detail) {
-      // Verificar si ya existe este objetivo para esta persona en esta evaluación
+      // Verificar si ya existe este person_cycle_detail para esta evaluación
       $exists = EvaluationPerson::where('evaluation_id', $evaluation->id)
-        ->where('person_id', $detail->person_id)
-        ->where('objective_id', $detail->objective_id)
+        ->where('person_cycle_detail_id', $detail->id)
         ->exists();
 
       if (!$exists) {
@@ -784,10 +783,6 @@ class EvaluationService extends BaseService
           'chief' => $detail->chief,
           'person_cycle_detail_id' => $detail->id,
           'evaluation_id' => $evaluation->id,
-          'objective_id' => $detail->objective_id,
-          'person' => $detail->person,
-          'objective' => $detail->objective,
-          'description' => $detail->objective, // o el campo correcto si existe
           'result' => 0,
           'compliance' => 0,
           'qualification' => 0,
