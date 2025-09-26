@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ap\ApCommercialMastersController;
+use App\Http\Controllers\ap\comercial\PotentialBuyersController;
 use App\Http\Controllers\DocumentValidationController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
@@ -216,7 +217,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('worker-without-categories', [WorkerController::class, 'getWorkersWithoutCategories']);
         Route::get('worker-without-competences', [WorkerController::class, 'getWorkersWithoutCompetences']);
         Route::post('worker-assign-objectives', [WorkerController::class, 'assignObjectivesToWorkers']);
-        
+
         Route::apiResource('worker', WorkerController::class)->only([
           'index',
           'show',
@@ -370,10 +371,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 //        EVALUATION NOTIFICATIONS
         Route::group(['prefix' => 'evaluation/notifications'], function () {
-            Route::post('/send-reminders', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'sendReminders']);
-            Route::post('/send-hr-summary', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'sendHrSummary']);
-            Route::get('/pending-status', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'getPendingStatus']);
-            Route::post('/test-reminder', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'testReminder']);
+          Route::post('/send-reminders', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'sendReminders']);
+          Route::post('/send-hr-summary', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'sendHrSummary']);
+          Route::get('/pending-status', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'getPendingStatus']);
+          Route::post('/test-reminder', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'testReminder']);
         });
 
         Route::apiResource('evaluation', EvaluationController::class)->only([
@@ -644,6 +645,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'show',
         'store',
         'update',
+        'destroy'
+      ]);
+      Route::patch('businessPartners/{id}/remove-type', [BusinessPartnersController::class, 'removeType']);
+      
+      Route::apiResource('potentialBuyers', PotentialBuyersController::class)->only([
+        'index',
+        'show',
+        'store',
         'destroy'
       ]);
     });

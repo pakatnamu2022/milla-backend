@@ -69,4 +69,13 @@ class BusinessPartnersController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function removeType(Request $request, $id)
+  {
+    $request->validate([
+      'type' => 'required|in:CLIENTE,PROVEEDOR'
+    ]);
+
+    return $this->service->destroy($id, $request->type);
+  }
 }

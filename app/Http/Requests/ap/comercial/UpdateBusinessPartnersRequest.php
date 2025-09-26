@@ -41,14 +41,12 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'driver_num_doc' => 'nullable|string|max:20',
       'driver_full_name' => 'nullable|string|max:255',
       'driving_license' => 'nullable|string|max:50',
-      'driving_license_issue_date' => 'nullable|date|before_or_equal:today',
-      'driving_license_expiration_date' => 'nullable|date|after:driving_license_issue_date',
+      'driving_license_expiration_date' => 'nullable|date',
       'status_license' => 'nullable|string|max:100',
       'restriction' => 'nullable|string|max:255',
       'origin_id' => 'required|integer|exists:ap_commercial_masters,id',
-      'driving_license_type_id' => 'nullable|integer|exists:ap_commercial_masters,id',
+      'driving_license_category' => 'nullable|string|max:50',
       'tax_class_type_id' => 'required|integer|exists:tax_class_types,id',
-      'type_road_id' => 'nullable|integer|exists:ap_commercial_masters,id',
       'type_person_id' => 'required|integer|exists:ap_commercial_masters,id',
       'district_id' => 'required|integer|exists:district,id',
       'document_type_id' => 'required|integer|exists:ap_commercial_masters,id',
@@ -57,6 +55,7 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'gender_id' => 'nullable|integer|exists:ap_commercial_masters,id',
       'activity_economic_id' => 'required|integer|exists:ap_commercial_masters,id',
       'company_id' => 'required|integer|exists:companies,id',
+      'type' => 'required|string|in:CLIENTE,PROVEEDOR,AMBOS',
     ];
   }
 
@@ -97,17 +96,15 @@ class UpdateBusinessPartnersRequest extends StoreRequest
 
       'driver_num_doc.max' => 'El número de documento del conductor no debe exceder los 20 caracteres.',
       'driver_full_name.max' => 'El nombre completo del conductor no debe exceder los 255 caracteres.',
-      'driving_license_issue_date.date' => 'La fecha de emisión de la licencia debe ser una fecha válida.',
-      'driving_license_issue_date.before_or_equal' => 'Ingrese la fecha de expedición.',
       'driving_license_expiration_date.date' => 'La fecha de vencimiento de la licencia debe ser una fecha válida.',
-      'driving_license_expiration_date.after' => 'La fecha de vencimiento debe ser posterior a la fecha de emisión.',
       'status_license.max' => 'El estado de la licencia no debe exceder los 100 caracteres.',
       'restriction.max' => 'La restricción no debe exceder los 255 caracteres.',
 
       'origin_id.required' => 'El origen es obligatorio.',
       'origin_id.exists' => 'El origen seleccionado no existe.',
 
-      'driving_license_type_id.exists' => 'El tipo de licencia de conducir seleccionado no existe.',
+      'driving_license_category.string' => 'La categoría de la licencia debe ser una cadena de texto.',
+      'driving_license_category.max' => 'La categoría de la licencia no debe exceder los 50 caracteres.',
 
       'tax_class_type_id.required' => 'El tipo de clase tributaria es obligatorio.',
       'tax_class_type_id.exists' => 'El tipo de clase tributaria seleccionado no existe.',
@@ -133,6 +130,11 @@ class UpdateBusinessPartnersRequest extends StoreRequest
 
       'company_id.required' => 'La empresa es obligatoria.',
       'company_id.exists' => 'La empresa seleccionada no existe.',
+
+      'type.required' => 'El tipo es obligatorio.',
+      'type.in' => 'El tipo debe ser CLIENTE, PROVEEDOR o AMBOS.',
+      'type.string' => 'El tipo debe ser una cadena de texto.',
+      'type.max' => 'El tipo no debe exceder los 20 caracteres.',
     ];
   }
 }
