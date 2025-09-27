@@ -3923,7 +3923,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 49,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Jefe De Ventas"
+        "categoria" => "Jefe De Ventas Ap"
       ],
       [
         "dni" => "45801393",
@@ -3932,7 +3932,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 7,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Jefe De Ventas"
+        "categoria" => "Jefe De Ventas Ap"
       ],
       [
         "dni" => "45801393",
@@ -3941,7 +3941,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 14,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Jefe De Ventas"
+        "categoria" => "Jefe De Ventas Ap"
       ],
       [
         "dni" => "45801393",
@@ -3950,7 +3950,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Jefe De Ventas"
+        "categoria" => "Jefe De Ventas Ap"
       ],
       [
         "dni" => "45746188",
