@@ -39,22 +39,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
   {
     DB::beginTransaction();
     try {
-      if (isset($data['type_person_id']) && $data['type_person_id'] == Constants::TYPE_PERSON_NATURAL_ID) {
-        if (empty($data['birth_date'])) {
-          throw new Exception('La fecha de nacimiento es requerida para personas naturales');
-        }
-
-        $isAdult = Helpers::isAdult($data['birth_date']);
-        if (!$isAdult) {
-          throw new Exception('El socio comercial debe ser mayor de edad');
-        }
-      }
-      $TypeDocument = ApCommercialMasters::findOrFail($data['document_type_id']);
-      $NumCharDoc = strlen($data['num_doc']);
-      if ($TypeDocument->code != $NumCharDoc) {
-        throw new Exception("El número de documento debe tener {$TypeDocument->code} caracteres para el tipo de documento seleccionado");
-      }
-
+      $data = $this->getData($data);
       $businessPartner = BusinessPartners::create($data);
       DB::commit();
       return new BusinessPartnersResource($businessPartner);
@@ -74,23 +59,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
     DB::beginTransaction();
     try {
       $businessPartner = $this->find($data['id']);
-      if (isset($data['type_person_id']) && $data['type_person_id'] == Constants::TYPE_PERSON_NATURAL_ID) {
-        if (empty($data['birth_date'])) {
-          throw new Exception('La fecha de nacimiento es requerida para personas naturales');
-        }
-
-        $isAdult = Helpers::isAdult($data['birth_date']);
-        if (!$isAdult) {
-          throw new Exception('El socio comercial debe ser mayor de edad');
-        }
-      }
-
-      $TypeDocument = ApCommercialMasters::findOrFail($data['document_type_id']);
-      $NumCharDoc = strlen($data['num_doc']);
-      if ($TypeDocument->code != $NumCharDoc) {
-        throw new Exception("El número de documento debe tener {$TypeDocument->code} caracteres para el tipo de documento seleccionado");
-      }
-
+      $data = $this->getData($data);
       $businessPartner->update($data);
       DB::commit();
       return new BusinessPartnersResource($businessPartner);
@@ -100,17 +69,96 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
     }
   }
 
-  public function destroy($id)
+  public function destroy($id, $typeToRemove = null)
   {
     DB::beginTransaction();
     try {
       $businessPartner = $this->find($id);
-      $businessPartner->delete();
+
+      // Si no se especifica qué type remover, eliminar completamente
+      if (!$typeToRemove) {
+        $businessPartner->delete();
+        DB::commit();
+        return response()->json(['message' => 'Socio comercial eliminado correctamente']);
+      }
+
+      // Validar que el type a remover sea válido
+      $validTypes = ['CLIENTE', 'PROVEEDOR'];
+      if (!in_array($typeToRemove, $validTypes)) {
+        throw new Exception('Tipo inválido. Debe ser CLIENTE o PROVEEDOR');
+      }
+
+      $currentType = $businessPartner->type;
+
+      // Lógica según el tipo actual
+      switch ($currentType) {
+        case 'CLIENTE':
+          if ($typeToRemove === 'CLIENTE') {
+            // Si es solo CLIENTE y quiere remover CLIENTE, eliminar completamente
+            $businessPartner->delete();
+            $message = 'Cliente eliminado correctamente';
+          } else {
+            throw new Exception('Este socio comercial es solo CLIENTE, no se puede remover como PROVEEDOR');
+          }
+          break;
+
+        case 'PROVEEDOR':
+          if ($typeToRemove === 'PROVEEDOR') {
+            // Si es solo PROVEEDOR y quiere remover PROVEEDOR, eliminar completamente
+            $businessPartner->delete();
+            $message = 'Proveedor eliminado correctamente';
+          } else {
+            throw new Exception('Este socio comercial es solo PROVEEDOR, no se puede remover como CLIENTE');
+          }
+          break;
+
+        case 'AMBOS':
+          if ($typeToRemove === 'CLIENTE') {
+            // Remover CLIENTE, queda como PROVEEDOR
+            $businessPartner->update(['type' => 'PROVEEDOR']);
+            $message = 'Cliente removido. Socio comercial ahora es solo PROVEEDOR';
+          } elseif ($typeToRemove === 'PROVEEDOR') {
+            // Remover PROVEEDOR, queda como CLIENTE
+            $businessPartner->update(['type' => 'CLIENTE']);
+            $message = 'Proveedor removido. Socio comercial ahora es solo CLIENTE';
+          }
+          break;
+
+        default:
+          throw new Exception('Tipo de socio comercial no reconocido');
+      }
+
       DB::commit();
-      return response()->json(['message' => 'Socio comercial eliminado correctamente']);
+      return response()->json(['message' => $message]);
     } catch (Exception $e) {
       DB::rollBack();
       throw new Exception($e->getMessage());
     }
+  }
+
+  /**
+   * @param mixed $data
+   * @return mixed
+   * @throws Exception
+   */
+  public function getData(mixed $data): mixed
+  {
+    if (isset($data['type_person_id']) && $data['type_person_id'] == Constants::TYPE_PERSON_NATURAL_ID) {
+      if (empty($data['birth_date'])) {
+        throw new Exception('La fecha de nacimiento es requerida para personas naturales');
+      }
+
+      $isAdult = Helpers::isAdult($data['birth_date']);
+      if (!$isAdult) {
+        throw new Exception('El cliente debe ser mayor de edad');
+      }
+    }
+
+    $TypeDocument = ApCommercialMasters::findOrFail($data['document_type_id']);
+    $NumCharDoc = strlen($data['num_doc']);
+    if ($TypeDocument->code != $NumCharDoc) {
+      throw new Exception("El número de documento debe tener {$TypeDocument->code} caracteres para el tipo de documento seleccionado");
+    }
+    return $data;
   }
 }

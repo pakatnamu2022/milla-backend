@@ -39,7 +39,7 @@ return new class extends Migration {
       $table->string('driver_num_doc')->nullable();
       $table->string('driver_full_name')->nullable();
       $table->string('driving_license')->nullable();
-      $table->date('driving_license_issue_date')->nullable();
+      $table->string('driving_license_category')->nullable();
       $table->date('driving_license_expiration_date')->nullable();
       $table->string('status_license')->nullable();
       $table->string('restriction')->nullable();
@@ -47,16 +47,11 @@ return new class extends Migration {
       $table->boolean('status_ap')->default(false);
       $table->boolean('status_tp')->default(false);
       $table->boolean('status_dp')->default(false);
-      $table->string('company_status')->nullable();
-      $table->string('company_condition')->nullable();
+      $table->enum('type', ['CLIENTE', 'PROVEEDOR', 'AMBOS'])->default('CLIENTE');
       $table->foreignId('origin_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
-      $table->foreignId('driving_license_type_id')->nullable()
         ->constrained('ap_commercial_masters')->onDelete('cascade');
       $table->foreignId('tax_class_type_id')
         ->constrained('tax_class_types')->onDelete('cascade');
-      $table->foreignId('type_road_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
       $table->foreignId('type_person_id')
         ->constrained('ap_commercial_masters')->onDelete('cascade');
       $table->foreignId('district_id')

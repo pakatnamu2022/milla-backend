@@ -52,9 +52,8 @@ class BusinessPartners extends Model
     'company_status',
     'company_condition',
     'origin_id',
-    'driving_license_type_id',
+    'driving_license_category',
     'tax_class_type_id',
-    'type_road_id',
     'type_person_id',
     'district_id',
     'document_type_id',
@@ -63,6 +62,7 @@ class BusinessPartners extends Model
     'gender_id',
     'activity_economic_id',
     'company_id',
+    'type',
   ];
 
   protected $casts = [
@@ -80,6 +80,7 @@ class BusinessPartners extends Model
     'nationality' => '=',
     'marital_status_id' => '=',
     'gender_id' => '=',
+    'type' => 'in',
   ];
 
   const sorts = [
@@ -178,24 +179,21 @@ class BusinessPartners extends Model
     }
   }
 
+  public function setDrivingLicenseCategoryAttribute($value)
+  {
+    if ($value) {
+      $this->attributes['driving_license_category'] = Str::upper($value);
+    }
+  }
+
   public function origin()
   {
     return $this->belongsTo(ApCommercialMasters::class, 'origin_id');
   }
 
-  public function drivingLicenseType()
-  {
-    return $this->belongsTo(ApCommercialMasters::class, 'driving_license_type');
-  }
-
   public function taxClassType()
   {
     return $this->belongsTo(TaxClassTypes::class, 'tax_class_type_id');
-  }
-
-  public function typeRoad()
-  {
-    return $this->belongsTo(ApCommercialMasters::class, 'type_road_id');
   }
 
   public function typePerson()

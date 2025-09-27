@@ -45,7 +45,6 @@ class BusinessPartnersResource extends JsonResource
       'driver_num_doc' => $this->driver_num_doc,
       'driver_full_name' => $this->driver_full_name,
       'driving_license' => $this->driving_license,
-      'driving_license_issue_date' => $this->driving_license_issue_date?->format('Y-m-d'),
       'driving_license_expiration_date' => $this->driving_license_expiration_date?->format('Y-m-d'),
       'status_license' => $this->status_license,
       'restriction' => $this->restriction,
@@ -54,9 +53,8 @@ class BusinessPartnersResource extends JsonResource
 
       // IDs de relaciones
       'origin_id' => $this->origin_id,
-      'driving_license_type_id' => $this->driving_license_type_id,
+      'driving_license_category' => $this->driving_license_category,
       'tax_class_type_id' => $this->tax_class_type_id,
-      'type_road_id' => $this->type_road_id,
       'type_person_id' => $this->type_person_id,
       'district_id' => $this->district_id,
       'document_type_id' => $this->document_type_id,
@@ -68,7 +66,6 @@ class BusinessPartnersResource extends JsonResource
 
       // Relaciones cargadas
       'origin' => $this->origin?->description,
-      'driving_license_type_info' => $this->drivingLicenseType?->description,
       'tax_class_type' => $this->taxClassType?->description,
       'type_road' => $this->typeRoad?->description,
       'type_person' => $this->typePerson?->description,
