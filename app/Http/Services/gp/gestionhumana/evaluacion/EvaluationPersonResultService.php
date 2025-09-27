@@ -183,9 +183,10 @@ class EvaluationPersonResultService extends BaseService
 
   public function regeneratePersonEvaluation(int $personId, int $evaluationId)
   {
-    $evaluation = Evaluation::findOrFail($evaluationId);
 
-    DB::transaction(function () use ($personId, $evaluationId, $evaluation) {
+    DB::transaction(function () use ($personId, $evaluationId) {
+
+      $evaluation = Evaluation::findOrFail($evaluationId);
       // 1. Reset EvaluationPersonResult
       $personResult = EvaluationPersonResult::where('person_id', $personId)
         ->where('evaluation_id', $evaluationId)
@@ -216,21 +217,23 @@ class EvaluationPersonResultService extends BaseService
         ->delete();
 
       // 4. Reset EvaluationPerson if exists
-      $evaluationPerson = EvaluationPerson::where('person_id', $personId)
+      $evaluationsPerson = EvaluationPerson::where('person_id', $personId)
         ->where('evaluation_id', $evaluationId)
-        ->first();
+        ->get();
 
-      if ($evaluationPerson) {
-        $evaluationPerson->update([
-          'result' => null,
-          'compliance' => null,
-          'qualification' => null,
-          'comment' => null,
-          'wasEvaluated' => false,
-        ]);
+      if ($evaluationsPerson) {
+        foreach ($evaluationsPerson as $evaluationPerson) {
+          $evaluationPerson->update([
+            'result' => 0,
+            'compliance' => 0,
+            'qualification' => 0,
+            'comment' => null,
+            'wasEvaluated' => false,
+          ]);
+        }
       }
     });
 
-    return ['message' => 'Evaluación de persona regenerada correctamente'];
+    return ['message' => 'Evaluación del colaborador regenerada correctamente'];
   }
 }
