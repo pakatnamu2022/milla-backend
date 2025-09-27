@@ -10,16 +10,16 @@ class StorePotentialBuyersRequest extends StoreRequest
   {
     return [
       'registration_date' => [
-        'required',
+        'sometimes',
         'date',
       ],
       'model' => [
-        'required',
+        'sometimes',
         'string',
         'max:100',
       ],
       'version' => [
-        'required',
+        'sometimes',
         'string',
         'max:100',
       ],
@@ -81,14 +81,11 @@ class StorePotentialBuyersRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'registration_date.required' => 'La fecha de registro es obligatoria.',
       'registration_date.date' => 'La fecha de registro no es una fecha válida.',
 
-      'model.required' => 'El modelo es obligatorio.',
       'model.string' => 'El modelo debe ser una cadena de texto.',
       'model.max' => 'El modelo no debe exceder los 100 caracteres.',
 
-      'version.required' => 'La versión es obligatoria.',
       'version.string' => 'La versión debe ser una cadena de texto.',
       'version.max' => 'La versión no debe exceder los 100 caracteres.',
 

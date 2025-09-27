@@ -17,6 +17,7 @@ class PotentialBuyersResource extends JsonResource
       'num_doc' => $this->num_doc,
       'name' => $this->name,
       'surnames' => $this->surnames,
+      'full_name' => $this->name . ' ' . $this->surnames,
       'phone' => $this->phone,
       'email' => $this->email,
       'campaign' => $this->campaign,
