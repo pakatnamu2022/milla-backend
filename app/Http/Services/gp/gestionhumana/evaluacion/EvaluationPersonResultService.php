@@ -234,6 +234,6 @@ class EvaluationPersonResultService extends BaseService
       }
     });
 
-    return ['message' => 'Evaluación del colaborador regenerada correctamente'];
+    return ['message' => 'Evaluación del   colaborador regenerada correctamente'];
   }
 }
