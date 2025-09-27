@@ -10,6 +10,9 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
+use App\Models\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -176,5 +179,58 @@ class EvaluationPersonResultService extends BaseService
       $evaluationCompetence->delete();
     });
     return response()->json(['message' => 'Persona de Evaluación eliminada correctamente']);
+  }
+
+  public function regeneratePersonEvaluation(int $personId, int $evaluationId)
+  {
+    $evaluation = Evaluation::findOrFail($evaluationId);
+
+    DB::transaction(function () use ($personId, $evaluationId, $evaluation) {
+      // 1. Reset EvaluationPersonResult
+      $personResult = EvaluationPersonResult::where('person_id', $personId)
+        ->where('evaluation_id', $evaluationId)
+        ->first();
+
+      if ($personResult) {
+        $personResult->update([
+          'objectivesResult' => 0,
+          'competencesResult' => 0,
+          'status' => 0,
+          'result' => 0,
+          'comments' => null,
+        ]);
+      }
+
+      // 2. Reset EvaluationPersonDashboard
+      $dashboard = EvaluationPersonDashboard::where('person_id', $personId)
+        ->where('evaluation_id', $evaluationId)
+        ->first();
+
+      if ($dashboard) {
+        $dashboard->resetStats();
+      }
+
+      // 3. Delete EvaluationPersonCompetenceDetail records
+      EvaluationPersonCompetenceDetail::where('person_id', $personId)
+        ->where('evaluation_id', $evaluationId)
+        ->delete();
+
+      // 4. Reset EvaluationPerson if exists
+      $evaluationPerson = EvaluationPerson::where('person_id', $personId)
+        ->where('evaluation_id', $evaluationId)
+        ->first();
+
+      if ($evaluationPerson) {
+        $evaluationPerson->update([
+          'result' => null,
+          'compliance' => null,
+          'qualification' => null,
+          'comment' => null,
+          'wasEvaluated' => false,
+        ]);
+      }
+    });
+
+    return ['message' => 'Evaluación de persona regenerada correctamente'];
   }
 }

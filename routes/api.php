@@ -400,6 +400,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('personResult/export', [EvaluationPersonResultController::class, 'export']);
         Route::get('personResult/getByPersonAndEvaluation', [EvaluationPersonResultController::class, 'getByPersonAndEvaluation']);
         Route::get('personResult/getTeamByChief/{chief}', [EvaluationPersonResultController::class, 'getTeamByChief']);
+        Route::post('personResult/regenerate/{personId}/{evaluationId}', [EvaluationPersonResultController::class, 'regenerate']);
         Route::apiResource('personResult', EvaluationPersonResultController::class)->only([
           'index',
           'show',
