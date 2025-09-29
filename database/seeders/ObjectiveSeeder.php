@@ -8,16 +8,17 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationDashboard;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationMetric;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationObjective;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategoryDetail;
 use App\Models\gp\gestionhumana\personal\Worker;
-use App\Models\gp\gestionsistema\Position;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -3921,7 +3922,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 49,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Jefe De Ventas"
+        "categoria" => "Jefe De Ventas Ap"
       ],
       [
         "dni" => "45801393",
@@ -3930,7 +3931,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 7,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Jefe De Ventas"
+        "categoria" => "Jefe De Ventas Ap"
       ],
       [
         "dni" => "45801393",
@@ -3939,7 +3940,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 14,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Jefe De Ventas"
+        "categoria" => "Jefe De Ventas Ap"
       ],
       [
         "dni" => "45801393",
@@ -3948,7 +3949,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Jefe De Ventas"
+        "categoria" => "Jefe De Ventas Ap"
       ],
       [
         "dni" => "45746188",
@@ -8745,6 +8746,8 @@ class ObjectiveSeeder extends Seeder
 //      1. Eliminar todos los registros de las tablas
     DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
+    EvaluationPersonDashboard::query()->truncate();
+    EvaluationDashboard::query()->truncate();
     EvaluationPersonDetail::query()->truncate();
     EvaluationPerson::query()->truncate();
     EvaluationPersonResult::query()->truncate();

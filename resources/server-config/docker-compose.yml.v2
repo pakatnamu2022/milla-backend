@@ -1,0 +1,24 @@
+services:
+  app:
+    build: .
+    working_dir: /var/www/html
+    volumes:
+      - ./app:/var/www/html
+      - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+    ports:
+      - "127.0.0.1:9000:9000"
+    environment:
+      APP_ENV: production
+
+  queue:
+    build: .
+    working_dir: /var/www/html
+    command: bash -lc "php artisan queue:work --queue=evaluation-dashboards --sleep=1 --tries=3 --timeout=60"
+    volumes:
+      - ./app:/var/www/html
+      - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+    environment:
+      APP_ENV: production
+    restart: unless-stopped
+    depends_on:
+      - app

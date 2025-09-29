@@ -2,7 +2,7 @@
 
 namespace App\Http\Traits;
 
-use App\Http\Services\FileManagerService;
+use App\Http\Services\common\FileManagerService;
 use Illuminate\Http\UploadedFile;
 
 trait HandlesFiles

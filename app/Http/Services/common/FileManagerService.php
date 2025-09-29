@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Http\Services;
+namespace App\Http\Services\common;
 
 use Exception;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class FileManagerService
 {

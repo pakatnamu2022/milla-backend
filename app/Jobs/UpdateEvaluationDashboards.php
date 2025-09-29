@@ -3,11 +3,11 @@
 namespace App\Jobs;
 
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
-use App\Models\Models\gp\gestionhumana\evaluacion\EvaluationDashboard;
-use App\Models\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationDashboard;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
+use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class UpdateEvaluationDashboards implements ShouldQueue
@@ -54,6 +54,7 @@ class UpdateEvaluationDashboards implements ShouldQueue
     $evaluatorTypeStats = $evaluation->evaluator_type_stats;
     $participantRanking = $evaluation->participant_ranking;
     $executiveSummary = $evaluation->executive_summary;
+    $resultsStats = $evaluation->fallbackCalculateResultsStats();
 
     // Actualizar o crear el dashboard
     EvaluationDashboard::updateOrCreate(
@@ -71,6 +72,7 @@ class UpdateEvaluationDashboards implements ShouldQueue
         'evaluator_type_stats' => $evaluatorTypeStats,
         'participant_ranking' => $participantRanking,
         'executive_summary' => $executiveSummary,
+        'results_stats' => $resultsStats,
         'last_calculated_at' => Carbon::now(),
       ]
     );

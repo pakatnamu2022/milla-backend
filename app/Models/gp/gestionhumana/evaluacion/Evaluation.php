@@ -10,7 +10,6 @@ class Evaluation extends Model
 {
   use SoftDeletes, Reportable;
 
-
   protected $table = 'gh_evaluation';
 
   protected $fillable = [
@@ -26,6 +25,11 @@ class Evaluation extends Model
     'objectivesPercentage' => 'decimal:2',
     'competencesPercentage' => 'decimal:2',
   ];
+
+//  Evaluation Status
+  const int PROGRAMMED_EVALUATION = 0;
+  const int IN_PROGRESS_EVALUATION = 1;
+  const int COMPLETED_EVALUATION = 2;
 
   // Configuración para reportes
   protected $reportColumns = [
@@ -170,7 +174,7 @@ class Evaluation extends Model
 
   public function dashboard()
   {
-    return $this->hasOne(\App\Models\Models\gp\gestionhumana\evaluacion\EvaluationDashboard::class, 'evaluation_id');
+    return $this->hasOne(\App\Models\gp\gestionhumana\evaluacion\EvaluationDashboard::class, 'evaluation_id');
   }
 
   // Métodos para reportes
@@ -541,6 +545,103 @@ class Evaluation extends Model
         'days_duration' => \Carbon\Carbon::parse($this->start_date)
           ->diffInDays(\Carbon\Carbon::parse($this->end_date)),
       ],
+    ];
+  }
+
+  /**
+   * Obtiene estadísticas de resultados agrupados por rangos del parámetro final
+   */
+  public function getResultsStatsAttribute()
+  {
+    // Intentar obtener datos del dashboard primero
+    $dashboard = $this->dashboard;
+    if ($dashboard && $dashboard->last_calculated_at && $dashboard->results_stats) {
+      return $dashboard->results_stats;
+    }
+
+    // Fallback al cálculo original si no hay dashboard
+    return $this->fallbackCalculateResultsStats();
+  }
+
+  /**
+   * Calcula las estadísticas de resultados por rangos (fallback y para el job)
+   */
+  public function fallbackCalculateResultsStats()
+  {
+    if (!$this->final_parameter_id) {
+      return [
+        'ranges' => [],
+        'total_evaluated' => 0,
+        'message' => 'No hay parámetro final configurado'
+      ];
+    }
+
+    $finalParameter = $this->finalParameter;
+    if (!$finalParameter || !$finalParameter->details || $finalParameter->details->isEmpty()) {
+      return [
+        'ranges' => [],
+        'total_evaluated' => 0,
+        'message' => 'No hay rangos configurados en el parámetro final'
+      ];
+    }
+
+    // Obtener resultados completados con puntaje > 0
+    $completedResults = $this->personResults()
+      ->get()
+      ->filter(function ($result) {
+        return $result->is_completed;
+      });
+
+    $totalEvaluated = $completedResults->count();
+
+    if ($totalEvaluated === 0) {
+      return [
+        'ranges' => [],
+        'total_evaluated' => 0,
+        'message' => 'No hay resultados evaluados'
+      ];
+    }
+
+    // Obtener rangos ordenados
+    $ranges = $finalParameter->details()
+      ->orderBy('from')
+      ->get();
+
+    $rangeStats = [];
+
+    foreach ($ranges as $index => $range) {
+      // Determinar si es el último rango
+      $isLastRange = $index === ($ranges->count() - 1);
+
+      // Contar cuántos resultados caen en este rango
+      $countInRange = $completedResults->filter(function ($result) use ($range, $isLastRange) {
+        $score = floatval($result->result);
+
+        // Para todos los rangos excepto el último: [from, to)
+        // Para el último rango: [from, to]
+        if ($isLastRange) {
+          return $score >= $range->from && $score <= $range->to;
+        } else {
+          return $score >= $range->from && $score < $range->to;
+        }
+      })->count();
+
+      $percentage = $totalEvaluated > 0 ? round(($countInRange / $totalEvaluated) * 100, 2) : 0;
+
+      $rangeStats[] = [
+        'range_index' => $index,
+        'range_label' => $range->label,
+        'range_from' => $range->from,
+        'range_to' => $range->to,
+        'count' => $countInRange,
+        'percentage' => $percentage
+      ];
+    }
+
+    return [
+      'ranges' => $rangeStats,
+      'total_evaluated' => $totalEvaluated,
+      'parameter_name' => $finalParameter->name
     ];
   }
 

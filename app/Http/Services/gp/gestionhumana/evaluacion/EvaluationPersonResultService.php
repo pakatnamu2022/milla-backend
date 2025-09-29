@@ -4,11 +4,14 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonResultResource;
 use App\Http\Services\BaseService;
-use App\Http\Services\ExportService;
+use App\Http\Services\common\ExportService;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use Exception;
 use Illuminate\Http\Request;
@@ -51,7 +54,7 @@ class EvaluationPersonResultService extends BaseService
 
     return $this->getFilteredResults(
       EvaluationPersonResult::whereHas('person', function ($query) use ($chief_id) {
-        $query->where('jefe_id', $chief_id)
+        $query->where('supervisor_id', $chief_id)
           ->where('status_deleted', 1)
           ->where('status_id', 22);
       })->where('evaluation_id', $activeEvaluation->id),
@@ -122,6 +125,8 @@ class EvaluationPersonResultService extends BaseService
               $objectivesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->objectivesPercentage : 0;
               $competencesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->competencesPercentage : 100;
 
+              $evaluator = $person->evaluator ?? $person->boss;
+
               $data = [
                 'person_id' => $person->id,
                 'evaluation_id' => $evaluation->id,
@@ -174,5 +179,61 @@ class EvaluationPersonResultService extends BaseService
       $evaluationCompetence->delete();
     });
     return response()->json(['message' => 'Persona de Evaluación eliminada correctamente']);
+  }
+
+  public function regeneratePersonEvaluation(int $personId, int $evaluationId)
+  {
+
+    DB::transaction(function () use ($personId, $evaluationId) {
+
+      $evaluation = Evaluation::findOrFail($evaluationId);
+      // 1. Reset EvaluationPersonResult
+      $personResult = EvaluationPersonResult::where('person_id', $personId)
+        ->where('evaluation_id', $evaluationId)
+        ->first();
+
+      if ($personResult) {
+        $personResult->update([
+          'objectivesResult' => 0,
+          'competencesResult' => 0,
+          'status' => 0,
+          'result' => 0,
+          'comments' => null,
+        ]);
+      }
+
+      // 2. Reset EvaluationPersonDashboard
+      $dashboard = EvaluationPersonDashboard::where('person_id', $personId)
+        ->where('evaluation_id', $evaluationId)
+        ->first();
+
+      if ($dashboard) {
+        $dashboard->resetStats();
+      }
+
+      // 3. Delete EvaluationPersonCompetenceDetail records
+      EvaluationPersonCompetenceDetail::where('person_id', $personId)
+        ->where('evaluation_id', $evaluationId)
+        ->delete();
+
+      // 4. Reset EvaluationPerson if exists
+      $evaluationsPerson = EvaluationPerson::where('person_id', $personId)
+        ->where('evaluation_id', $evaluationId)
+        ->get();
+
+      if ($evaluationsPerson) {
+        foreach ($evaluationsPerson as $evaluationPerson) {
+          $evaluationPerson->update([
+            'result' => 0,
+            'compliance' => 0,
+            'qualification' => 0,
+            'comment' => null,
+            'wasEvaluated' => false,
+          ]);
+        }
+      }
+    });
+
+    return ['message' => 'Evaluación del   colaborador regenerada correctamente'];
   }
 }

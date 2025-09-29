@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Services;
+namespace App\Http\Services\common;
 
-use Maatwebsite\Excel\Facades\Excel;
 use Exception;
 use Illuminate\Http\UploadedFile;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ImportService
 {

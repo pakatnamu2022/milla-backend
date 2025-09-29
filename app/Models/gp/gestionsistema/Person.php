@@ -99,6 +99,11 @@ class Person extends BaseModel
     return $this->hasOne(Person::class, 'id', 'jefe_id');
   }
 
+  public function evaluator()
+  {
+    return $this->hasOne(Person::class, 'id', 'supervisor_id');
+  }
+
   public function subordinates()
   {
     return $this->hasMany(Person::class, 'jefe_id', 'id');

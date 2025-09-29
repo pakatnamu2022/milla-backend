@@ -72,7 +72,9 @@ class EvaluationPersonCycleDetailService extends BaseService
         ->first();
 
       if (!$exists) {
-        $chief = Person::find($person->jefe_id);
+
+        $evaluatorId = $person->supervisor_id ?? $person->jefe_id;
+        $chief = Person::find($evaluatorId);
         $objectives = $category->objectives()->get();
 
         foreach ($objectives as $objective) {
@@ -119,7 +121,7 @@ class EvaluationPersonCycleDetailService extends BaseService
 
             $data = [
               'person_id' => $person->id,
-              'chief_id' => $person->jefe_id,
+              'chief_id' => $evaluatorId,
               'position_id' => $person->cargo_id,
               'sede_id' => $person->sede_id,
               'area_id' => $person->area_id,

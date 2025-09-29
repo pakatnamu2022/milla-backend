@@ -101,4 +101,13 @@ class EvaluationPersonResultController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function regenerate(int $personId, int $evaluationId)
+  {
+    try {
+      return $this->success($this->service->regeneratePersonEvaluation($personId, $evaluationId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

@@ -42,6 +42,7 @@ class EvaluationResource extends JsonResource
 
     if ($this->showExtra) {
       $response['progress_stats'] = $this->progress_stats;
+      $response['results_stats'] = $this->results_stats;
     }
 
     return $response;
