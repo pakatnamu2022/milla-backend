@@ -3,10 +3,13 @@
 namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\BusinessPartnersResource;
+use App\Http\Resources\ap\comercial\BusinessPartnersEstablishmentResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
+use App\Jobs\ProcessEstablishments;
+use App\Jobs\UpdateEstablishments;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use Exception;
@@ -15,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 
 class BusinessPartnersService extends BaseService implements BaseServiceInterface
 {
+
   public function list(Request $request)
   {
     return $this->getFilteredResults(
@@ -41,6 +45,9 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
     try {
       $data = $this->getData($data);
       $businessPartner = BusinessPartners::create($data);
+      if ($data['document_type_id'] == Constants::TYPE_DOCUMENT_RUC_ID) {
+        ProcessEstablishments::dispatch($businessPartner->id, $data['num_doc']);
+      }
       DB::commit();
       return new BusinessPartnersResource($businessPartner);
     } catch (Exception $e) {
@@ -59,8 +66,32 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
     DB::beginTransaction();
     try {
       $businessPartner = $this->find($data['id']);
+
+      // Guardar el RUC anterior para comparar
+      $previousNumDoc = $businessPartner->num_doc;
+      $previousDocumentTypeId = $businessPartner->document_type_id;
+
       $data = $this->getData($data);
       $businessPartner->update($data);
+
+      // Solo procesar establecimientos si es RUC
+      if ($data['document_type_id'] == Constants::TYPE_DOCUMENT_RUC_ID) {
+        $rucChanged = $previousNumDoc !== $data['num_doc'];
+        $wasRuc = $previousDocumentTypeId == Constants::TYPE_DOCUMENT_RUC_ID;
+
+        if (!$wasRuc) {
+          ProcessEstablishments::dispatch($businessPartner->id, $data['num_doc']);
+        } else {
+          UpdateEstablishments::dispatch(
+            $businessPartner->id,
+            $data['num_doc'],
+            $rucChanged ? $previousNumDoc : null
+          );
+        }
+      } elseif ($previousDocumentTypeId == Constants::TYPE_DOCUMENT_RUC_ID) {
+        $businessPartner->establishments()->delete();
+      }
+
       DB::commit();
       return new BusinessPartnersResource($businessPartner);
     } catch (Exception $e) {
@@ -160,5 +191,14 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       throw new Exception("El número de documento debe tener {$TypeDocument->code} caracteres para el tipo de documento seleccionado");
     }
     return $data;
+  }
+
+  /**
+   * Obtener establecimientos de un socio comercial
+   */
+  public function getEstablishments($businessPartnerId)
+  {
+    $businessPartner = $this->find($businessPartnerId);
+    return BusinessPartnersEstablishmentResource::collection($businessPartner->establishments);
   }
 }

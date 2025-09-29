@@ -63,6 +63,7 @@ class BusinessPartners extends Model
     'activity_economic_id',
     'company_id',
     'type',
+    'establishments_status',
   ];
 
   protected $casts = [
@@ -234,5 +235,10 @@ class BusinessPartners extends Model
   public function company()
   {
     return $this->belongsTo(Company::class, 'company_id');
+  }
+
+  public function establishments()
+  {
+    return $this->hasMany(BusinessPartnersEstablishment::class, 'business_partner_id');
   }
 }

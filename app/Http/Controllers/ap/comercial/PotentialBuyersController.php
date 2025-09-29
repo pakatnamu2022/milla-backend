@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\IndexPotentialBuyersRequest;
 use App\Http\Requests\ap\comercial\StorePotentialBuyersRequest;
 use App\Http\Services\ap\comercial\PotentialBuyersService;
-use App\Models\ap\comercial\PotentialBuyers;
 use Illuminate\Http\Request;
 
 class PotentialBuyersController extends Controller

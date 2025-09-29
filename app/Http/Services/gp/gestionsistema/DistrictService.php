@@ -6,6 +6,7 @@ use App\Http\Resources\gp\gestionsistema\DistrictResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionsistema\District;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Exception;
 
@@ -13,6 +14,20 @@ class DistrictService extends BaseService
 {
   public function list(Request $request)
   {
+    // Si se solicita todos los distritos, usar caché
+    if ($request->boolean('all')) {
+      return Cache::remember('districts.all', now()->addMonth(), function () use ($request) { // 1 mes
+        return $this->getFilteredResults(
+          District::class,
+          $request,
+          District::filters,
+          District::sorts,
+          DistrictResource::class,
+        );
+      });
+    }
+
+    // Si hay parámetros, no usar caché
     return $this->getFilteredResults(
       District::class,
       $request,
@@ -34,6 +49,7 @@ class DistrictService extends BaseService
   public function store(Mixed $data)
   {
     $District = District::create($data);
+    Cache::forget('districts.all');
     return new DistrictResource($District);
   }
 
@@ -46,6 +62,7 @@ class DistrictService extends BaseService
   {
     $District = $this->find($data['id']);
     $District->update($data);
+    Cache::forget('districts.all');
     return new DistrictResource($District);
   }
 
@@ -55,6 +72,7 @@ class DistrictService extends BaseService
     DB::transaction(function () use ($District) {
       $District->delete();
     });
+    Cache::forget('districts.all');
     return response()->json(['message' => 'Distrito eliminado correctamente']);
   }
 }

@@ -6,6 +6,7 @@ use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -87,27 +88,27 @@ class PotentialBuyers extends Model
     $this->attributes['type'] = Str::upper($value);
   }
 
-  public function vehicleBrand()
+  public function vehicleBrand(): BelongsTo
   {
     return $this->belongsTo(ApVehicleBrand::class, 'vehicle_brand_id');
   }
 
-  public function documentType()
+  public function documentType(): BelongsTo
   {
     return $this->belongsTo(ApCommercialMasters::class, 'document_type_id');
   }
 
-  public function sede()
+  public function sede(): BelongsTo
   {
     return $this->belongsTo(Sede::class, 'sede_id');
   }
 
-  public function area()
+  public function area(): BelongsTo
   {
     return $this->belongsTo(ApCommercialMasters::class, 'area_id');
   }
 
-  public function incomeSector()
+  public function incomeSector(): BelongsTo
   {
     return $this->belongsTo(ApCommercialMasters::class, 'income_sector_id');
   }

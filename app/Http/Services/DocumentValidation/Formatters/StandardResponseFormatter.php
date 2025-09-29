@@ -24,6 +24,9 @@ class StandardResponseFormatter implements ResponseFormatterInterface
       'ruc' => array_merge($baseResponse, [
         'data' => $this->formatRucResponse($providerResponse)
       ]),
+      'anexo' => array_merge($baseResponse, [
+        'data' => $this->formatAnexoResponse($providerResponse)
+      ]),
       'license' => array_merge($baseResponse, [
         'data' => $this->formatLicenseResponse($providerResponse)
       ]),
@@ -99,6 +102,37 @@ class StandardResponseFormatter implements ResponseFormatterInterface
       'full_address' => $data['direccion_completa'] ?? null,
       'ubigeo_sunat' => $data['ubigeo_sunat'] ?? null,
       'ubigeo' => $data['ubigeo'] ?? null,
+    ];
+  }
+
+  protected function formatAnexoResponse(array $response): ?array
+  {
+    if (!isset($response['message']) || strtolower($response['message']) !== 'exito') {
+      return null;
+    }
+
+    $data = $response['data'] ?? [];
+
+    if (empty($data) || !is_array($data)) {
+      return null;
+    }
+
+    $establishments = [];
+    foreach ($data as $establishment) {
+      $establishments[] = [
+        'code' => $establishment['codigo'] ?? null,
+        'type' => $establishment['tipo_establecimiento'] ?? null,
+        'activity_economic' => $establishment['actividad_economica'] ?? null,
+        'address' => $establishment['direccion'] ?? null,
+        'full_address' => $establishment['direccion_completa'] ?? null,
+        'ubigeo_sunat' => $establishment['ubigeo_sunat'] ?? null,
+        'ubigeo' => $establishment['ubigeo'] ?? null,
+      ];
+    }
+
+    return [
+      'valid' => true,
+      'establishments' => $establishments,
     ];
   }
 

@@ -8,7 +8,7 @@ use Illuminate\Http\UploadedFile;
 
 class ImportService
 {
-  public function importFromExcel(UploadedFile $file, $importClass)
+  public function importFromExcel(UploadedFile $file, $importClass): array
   {
     try {
       $import = new $importClass();
@@ -42,7 +42,7 @@ class ImportService
     }
   }
 
-  public function validateFile(UploadedFile $file, array $allowedExtensions = ['xlsx', 'xls', 'csv'])
+  public function validateFile(UploadedFile $file, array $allowedExtensions = ['xlsx', 'xls', 'csv']): true
   {
     $extension = $file->getClientOriginalExtension();
 
@@ -57,7 +57,7 @@ class ImportService
     return true;
   }
 
-  public function processImportData(array $data, $modelClass)
+  public function processImportData(array $data, $modelClass): array
   {
     $model = app($modelClass);
     $results = [

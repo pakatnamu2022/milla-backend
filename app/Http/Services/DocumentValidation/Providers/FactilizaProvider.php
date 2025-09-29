@@ -30,13 +30,19 @@ class FactilizaProvider implements DocumentProviderInterface
     try {
       $fullUrl = "{$this->baseUrl}/{$endpoint}/{$documentNumber}";
 
-      $response = Http::timeout($this->timeout)
+      $httpClient = Http::timeout($this->timeout)
         ->withHeaders([
           'Accept' => 'application/json',
           'Content-Type' => 'application/json',
           'Authorization' => 'Bearer ' . $this->token,
-        ])
-        ->get($fullUrl);
+        ]);
+
+      // Disable SSL verification in development
+      if (config('app.env') === 'local' || config('app.env') === 'development') {
+        $httpClient = $httpClient->withOptions(['verify' => false]);
+      }
+
+      $response = $httpClient->get($fullUrl);
 
 
       if ($response->successful()) {
@@ -55,6 +61,7 @@ class FactilizaProvider implements DocumentProviderInterface
     return [
       'dni' => 'DNI - Documento Nacional de Identidad',
       'ruc' => 'RUC - Registro Único de Contribuyentes',
+      'anexo' => 'RUC - Establecimientos',
       'license' => 'Carnet de Conducir',
       'soat' => 'Soat',
       'ce' => 'Carnet de Extranjería',
@@ -76,6 +83,7 @@ class FactilizaProvider implements DocumentProviderInterface
     $endpoints = [
       'dni' => 'dni/info',
       'ruc' => 'ruc/info',
+      'anexo' => 'ruc/anexo',
       'license' => 'licencia/info',
       'soat' => 'placa/soat',
       'ce' => 'cee/info',
