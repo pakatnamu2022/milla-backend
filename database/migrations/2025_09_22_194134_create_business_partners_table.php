@@ -43,6 +43,8 @@ return new class extends Migration {
       $table->date('driving_license_expiration_date')->nullable();
       $table->string('status_license')->nullable();
       $table->string('restriction')->nullable();
+      $table->string('company_status')->nullable();
+      $table->string('company_condition')->nullable();
       $table->boolean('status_gp')->default(false);
       $table->boolean('status_ap')->default(false);
       $table->boolean('status_tp')->default(false);
