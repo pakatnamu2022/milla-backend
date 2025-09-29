@@ -3,11 +3,11 @@
 namespace App\Jobs;
 
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
-use App\Models\Models\gp\gestionhumana\evaluacion\EvaluationDashboard;
-use App\Models\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationDashboard;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
+use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class UpdateEvaluationDashboards implements ShouldQueue

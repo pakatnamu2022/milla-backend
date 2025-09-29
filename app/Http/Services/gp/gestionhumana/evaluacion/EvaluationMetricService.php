@@ -4,8 +4,7 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationMetricResource;
 use App\Http\Services\BaseService;
-use App\Http\Services\ExportService;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
+use App\Http\Services\common\ExportService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationMetric;
 use Exception;
 use Illuminate\Http\Request;

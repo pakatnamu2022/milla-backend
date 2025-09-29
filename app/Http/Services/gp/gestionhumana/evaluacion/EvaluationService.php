@@ -6,20 +6,17 @@ use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationResource;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Resources\gp\gestionsistema\PositionResource;
 use App\Http\Services\BaseService;
-use App\Http\Services\ExportService;
+use App\Http\Services\common\ExportService;
 use App\Http\Traits\DisableObservers;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
-use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionsistema\Position;
-use App\Models\Models\gp\gestionhumana\evaluacion\EvaluationDashboard;
-use App\Models\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -502,7 +499,7 @@ class EvaluationService extends BaseService
     EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluation->id)->delete();
 
     // 2. Resetear dashboards
-    EvaluationDashboard::where('evaluation_id', $evaluation->id)->get()->each->resetStats();
+    \App\Models\gp\gestionhumana\evaluacion\EvaluationDashboard::where('evaluation_id', $evaluation->id)->get()->each->resetStats();
     EvaluationPersonDashboard::where('evaluation_id', $evaluation->id)->delete();
 
     // 3. Recrear todo desde cero
@@ -607,8 +604,8 @@ class EvaluationService extends BaseService
     }
 
     // Resetear dashboards
-    EvaluationDashboard::where('evaluation_id', $evaluation->id)->get()->each->resetStats();
-    EvaluationPersonDashboard::where('evaluation_id', $evaluation->id)->delete();
+    \App\Models\gp\gestionhumana\evaluacion\EvaluationDashboard::where('evaluation_id', $evaluation->id)->get()->each->resetStats();
+    \App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard::where('evaluation_id', $evaluation->id)->delete();
 
     return [
       'message' => 'Evaluación sincronizada con el ciclo',

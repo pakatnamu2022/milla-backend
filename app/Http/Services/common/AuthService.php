@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Services;
+namespace App\Http\Services\common;
 
 use App\Http\Resources\gp\gestionsistema\RoleResource;
 use App\Http\Resources\gp\gestionsistema\UserResource;

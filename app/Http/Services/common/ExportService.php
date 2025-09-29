@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Http\Services;
+namespace App\Http\Services\common;
 
 use App\Exports\GeneralExport;
-use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ExportService
 {

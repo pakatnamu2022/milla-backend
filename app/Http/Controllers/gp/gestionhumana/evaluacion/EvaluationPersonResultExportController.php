@@ -1,11 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\gp\gh\evaluation;
+namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 
 class EvaluationPersonResultExportController extends Controller
 {
-    //
+  //
 }

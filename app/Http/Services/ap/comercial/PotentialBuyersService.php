@@ -4,7 +4,7 @@ namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\PotentialBuyersResource;
 use App\Http\Services\BaseService;
-use App\Http\Services\ImportService;
+use App\Http\Services\common\ImportService;
 use App\Imports\PotentialBuyersImport;
 use App\Models\ap\comercial\PotentialBuyers;
 use Exception;

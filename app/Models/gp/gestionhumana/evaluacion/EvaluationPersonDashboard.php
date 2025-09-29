@@ -1,8 +1,7 @@
 <?php
 
-namespace App\Models\Models\gp\gestionhumana\evaluacion;
+namespace App\Models\gp\gestionhumana\evaluacion;
 
-use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionsistema\Person;
 use Illuminate\Database\Eloquent\Model;
 

@@ -174,7 +174,7 @@ class Evaluation extends Model
 
   public function dashboard()
   {
-    return $this->hasOne(\App\Models\Models\gp\gestionhumana\evaluacion\EvaluationDashboard::class, 'evaluation_id');
+    return $this->hasOne(\App\Models\gp\gestionhumana\evaluacion\EvaluationDashboard::class, 'evaluation_id');
   }
 
   // Métodos para reportes
@@ -591,7 +591,7 @@ class Evaluation extends Model
       ->filter(function ($result) {
         return $result->is_completed;
       });
-    
+
     $totalEvaluated = $completedResults->count();
 
     if ($totalEvaluated === 0) {

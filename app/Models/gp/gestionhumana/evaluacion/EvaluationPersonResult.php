@@ -102,7 +102,7 @@ class EvaluationPersonResult extends BaseModel
 
   public function dashboard()
   {
-    return $this->hasOne(\App\Models\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard::class, 'person_id', 'person_id')
+    return $this->hasOne(\App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard::class, 'person_id', 'person_id')
       ->where('evaluation_id', $this->evaluation_id);
   }
 

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
-use App\Http\Services\ExportService;
+use App\Http\Services\common\ExportService;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use Illuminate\Http\Request;
 

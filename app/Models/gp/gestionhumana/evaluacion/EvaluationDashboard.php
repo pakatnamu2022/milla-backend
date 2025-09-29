@@ -1,8 +1,7 @@
 <?php
 
-namespace App\Models\Models\gp\gestionhumana\evaluacion;
+namespace App\Models\gp\gestionhumana\evaluacion;
 
-use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use Illuminate\Database\Eloquent\Model;
 
 class EvaluationDashboard extends Model
