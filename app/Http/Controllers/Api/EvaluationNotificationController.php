@@ -219,7 +219,7 @@ class EvaluationNotificationController extends Controller
         ]
       ];
 
-      $emailService = app(\App\Services\EmailService::class);
+      $emailService = app(\App\Http\Services\common\EmailService::class);
       $sent = $emailService->send($testData);
 
       return response()->json([

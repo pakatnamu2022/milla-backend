@@ -5,7 +5,7 @@ namespace App\Http\Services\common;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionsistema\Person;
-use App\Services\EmailService;
+use App\Http\Services\common\EmailService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;

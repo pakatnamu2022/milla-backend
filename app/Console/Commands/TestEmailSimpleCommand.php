@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Services\EmailService;
+use App\Http\Services\common\EmailService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 
