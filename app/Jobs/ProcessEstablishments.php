@@ -23,7 +23,7 @@ class ProcessEstablishments implements ShouldQueue
     public string $numDoc
   )
   {
-    //
+    $this->onQueue('establishments');
   }
 
   /**

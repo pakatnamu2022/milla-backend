@@ -12,19 +12,15 @@ class UpdateEstablishments implements ShouldQueue
 {
   use Queueable;
 
-  public int $tries = 3; // Intentos en caso de fallo
-  public int $timeout = 60; // Timeout de 60 segundos
-
   /**
    * Create a new job instance.
    */
   public function __construct(
-    public int    $businessPartnerId,
-    public string $numDoc,
-    public string $previousNumDoc = null
-  )
-  {
-    //
+    public int     $businessPartnerId,
+    public string  $numDoc,
+    public ?string $previousNumDoc = null
+  ) {
+    $this->onQueue('update-establishments');
   }
 
   /**
