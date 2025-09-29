@@ -28,11 +28,6 @@ class UpdateSedeRequest extends StoreRequest
         'string',
         'max:255',
       ],
-      'direccion' => [
-        'nullable',
-        'string',
-        'max:255',
-      ],
       'empresa_id' => [
         'nullable',
         'integer',
@@ -56,6 +51,11 @@ class UpdateSedeRequest extends StoreRequest
       'status' => [
         'nullable',
         'boolean',
+      ],
+      'derco_store_code' => [
+        'nullable',
+        'string',
+        'max:100',
       ],
     ];
   }
@@ -81,6 +81,9 @@ class UpdateSedeRequest extends StoreRequest
 
       'district_id.integer' => 'El ID del distrito debe ser un número entero.',
       'district_id.exists' => 'El ID del distrito no existe.',
+
+      'derco_store_code.max' => 'El código de tienda Derco no debe exceder los 100 caracteres.',
+      'derco_store_code.string' => 'El código de tienda Derco debe ser una cadena de texto.',
     ];
   }
 }

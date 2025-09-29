@@ -656,6 +656,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'store',
         'destroy'
       ]);
+      Route::post('potentialBuyers/import', [PotentialBuyersController::class, 'import']);
     });
   });
 
