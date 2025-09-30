@@ -50,7 +50,7 @@ class ProcessEstablishments implements ShouldQueue
             'code' => $establishment['code'] ?? null,
             'type' => $establishment['type'] ?? null,
             'activity_economic' => $establishment['activity_economic'] ?? null,
-            'address' => $establishment['address'] ?? null,
+            'address' => $establishment['address'] ?? '-',
             'full_address' => $establishment['full_address'] ?? null,
             'ubigeo' => $establishment['ubigeo_sunat'] ?? null,
             'business_partner_id' => $businessPartner->id,

@@ -6,6 +6,7 @@ use App\Http\Resources\ap\comercial\PotentialBuyersResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ImportService;
 use App\Imports\PotentialBuyersImport;
+use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\PotentialBuyers;
 use Exception;
 use Illuminate\Http\Request;
@@ -42,6 +43,12 @@ class PotentialBuyersService extends BaseService
         $data['registration_date'] = now();
       }
 
+      $TypeDocument = ApCommercialMasters::findOrFail($data['document_type_id']);
+      $NumCharDoc = strlen($data['num_doc']);
+      if ($TypeDocument->code != $NumCharDoc) {
+        throw new Exception("El número de documento debe tener {$TypeDocument->code} caracteres para el tipo de documento seleccionado");
+      }
+
       $businessPartner = PotentialBuyers::create($data);
       DB::commit();
       return new PotentialBuyersResource($businessPartner);
@@ -54,6 +61,26 @@ class PotentialBuyersService extends BaseService
   public function show($id)
   {
     return new PotentialBuyersResource($this->find($id));
+  }
+
+  public function update(mixed $data)
+  {
+    DB::beginTransaction();
+    try {
+      $TypeDocument = ApCommercialMasters::findOrFail($data['document_type_id']);
+      $NumCharDoc = strlen($data['num_doc']);
+      if ($TypeDocument->code != $NumCharDoc) {
+        throw new Exception("El número de documento debe tener {$TypeDocument->code} caracteres para el tipo de documento seleccionado");
+      }
+
+      $businessPartner = $this->find($data['id']);
+      $businessPartner->update($data);
+      DB::commit();
+      return new PotentialBuyersResource($businessPartner);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw new Exception($e->getMessage());
+    }
   }
 
   public function destroy($id)

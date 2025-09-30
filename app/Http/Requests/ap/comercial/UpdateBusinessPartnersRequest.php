@@ -16,7 +16,13 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'maternal_surname' => 'nullable|string|max:255',
       'full_name' => 'required|string|max:255',
       'birth_date' => 'nullable|date',
-      'nationality' => 'required|string|in:NACIONAL,EXTRANJERO',
+      'nationality' => [
+        Rule::when(
+          in_array($this->type, ['CLIENTE', 'AMBOS']),
+          ['required', 'string', 'in:NACIONAL,EXTRANJERO'],
+          ['nullable', 'string', 'in:NACIONAL,EXTRANJERO']
+        )
+      ],
       'num_doc' => [
         'required',
         'string',
@@ -46,7 +52,13 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'restriction' => 'nullable|string|max:255',
       'company_status' => 'nullable|string|max:100',
       'company_condition' => 'nullable|string|max:100',
-      'origin_id' => 'required|integer|exists:ap_commercial_masters,id',
+      'origin_id' => [
+        Rule::when(
+          in_array($this->type, ['CLIENTE', 'AMBOS']),
+          ['required', 'integer', 'exists:ap_commercial_masters,id'],
+          ['nullable', 'integer', 'exists:ap_commercial_masters,id']
+        )
+      ],
       'driving_license_category' => 'nullable|string|max:50',
       'tax_class_type_id' => 'required|integer|exists:tax_class_types,id',
       'type_person_id' => 'required|integer|exists:ap_commercial_masters,id',
@@ -55,7 +67,13 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'person_segment_id' => 'required|integer|exists:ap_commercial_masters,id',
       'marital_status_id' => 'nullable|integer|exists:ap_commercial_masters,id',
       'gender_id' => 'nullable|integer|exists:ap_commercial_masters,id',
-      'activity_economic_id' => 'required|integer|exists:ap_commercial_masters,id',
+      'activity_economic_id' => [
+        Rule::when(
+          in_array($this->type, ['CLIENTE', 'AMBOS']),
+          ['required', 'integer', 'exists:ap_commercial_masters,id'],
+          ['nullable', 'integer', 'exists:ap_commercial_masters,id']
+        )
+      ],
       'company_id' => 'required|integer|exists:companies,id',
       'type' => 'required|string|in:CLIENTE,PROVEEDOR,AMBOS',
     ];

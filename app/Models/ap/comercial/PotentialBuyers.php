@@ -4,6 +4,7 @@ namespace App\Models\ap\comercial;
 
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,11 +22,11 @@ class PotentialBuyers extends Model
     'model',
     'version',
     'num_doc',
-    'name',
-    'surnames',
+    'full_name',
     'phone',
     'email',
     'campaign',
+    'worker_id',
     'sede_id',
     'vehicle_brand_id',
     'document_type_id',
@@ -35,7 +36,7 @@ class PotentialBuyers extends Model
   ];
 
   const filters = [
-    'search' => ['name', 'num_doc', 'email', 'phone', 'campaign'],
+    'search' => ['full_name', 'num_doc', 'email', 'phone', 'campaign'],
     'sede_id' => '=',
     'vehicle_brand_id' => '=',
     'document_type_id' => '=',
@@ -43,11 +44,12 @@ class PotentialBuyers extends Model
     'type' => '=',
     'income_sector_id' => '=',
     'area_id' => '=',
+    'worker_id' => '=',
   ];
 
   const sorts = [
     'registration_date',
-    'name',
+    'full_name',
     'num_doc',
     'email',
     'phone',
@@ -66,16 +68,9 @@ class PotentialBuyers extends Model
     $this->attributes['version'] = Str::upper($value);
   }
 
-  public function setNameAttribute($value): void
+  public function setFullNameAttribute($value): void
   {
-    $this->attributes['name'] = Str::upper($value);
-  }
-
-  public function setSurnamesAttribute($value): void
-  {
-    if ($value) {
-      $this->attributes['surnames'] = Str::upper($value);
-    }
+    $this->attributes['full_name'] = Str::upper($value);
   }
 
   public function setCampaignAttribute($value): void
@@ -111,5 +106,10 @@ class PotentialBuyers extends Model
   public function incomeSector(): BelongsTo
   {
     return $this->belongsTo(ApCommercialMasters::class, 'income_sector_id');
+  }
+
+  public function worker(): BelongsTo
+  {
+    return $this->belongsTo(Worker::class, 'worker_id');
   }
 }

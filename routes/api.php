@@ -519,6 +519,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
       ]);
 
       Route::get('assignBrandConsultant/showGrouped', [ApAssignBrandConsultantController::class, 'showGrouped']);
+      Route::get('assignBrandConsultant/{sedeId}/brands', [ApAssignBrandConsultantController::class, 'getBrandsByBranch']);
+      Route::get('assignBrandConsultant/{sedeId}/brands/{brandId}/advisors', [ApAssignBrandConsultantController::class, 'getAdvisorsByBranchAndBrand']);
       Route::apiResource('assignBrandConsultant', ApAssignBrandConsultantController::class)->only([
         'index',
         'store',
@@ -655,6 +657,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'index',
         'show',
         'store',
+        'update',
         'destroy'
       ]);
       Route::post('potentialBuyers/import', [PotentialBuyersController::class, 'import']);
