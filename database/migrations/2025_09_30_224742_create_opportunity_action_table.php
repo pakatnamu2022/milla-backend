@@ -10,13 +10,10 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('ap_opportunity', function (Blueprint $table) {
+    Schema::create('opportunity_action', function (Blueprint $table) {
       $table->id();
-      $table->integer('worker_id');
+      $table->integer('worker_id'); // mismo tipo que rrhh_persona.id
       $table->foreign('worker_id')->references('id')->on('rrhh_persona');
-
-      $table->foreignId('client_id')->constrained('business_partners')->onDelete('cascade');
-      $table->foreignId('client_id')->constrained('business_partners')->onDelete('cascade');
 
 
       $table->timestamps();
@@ -28,6 +25,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('opportunity');
+    Schema::dropIfExists('opportunity_action');
   }
 };
