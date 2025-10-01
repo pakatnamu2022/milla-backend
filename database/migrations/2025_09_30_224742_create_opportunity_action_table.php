@@ -12,11 +12,17 @@ return new class extends Migration {
   {
     Schema::create('opportunity_action', function (Blueprint $table) {
       $table->id();
-      $table->integer('worker_id'); // mismo tipo que rrhh_persona.id
-      $table->foreign('worker_id')->references('id')->on('rrhh_persona');
 
+      $table->foreignId('opportunity_id')->constrained('ap_opportunity');
+      $table->foreignId('action_type_id')->constrained('ap_commercial_masters');
+      $table->foreignId('action_contact_type_id')->constrained('ap_commercial_masters');
+
+      $table->dateTime('datetime');
+      $table->text('description')->nullable();
+      $table->boolean('result')->default(0);
 
       $table->timestamps();
+      $table->softDeletes();
     });
   }
 
