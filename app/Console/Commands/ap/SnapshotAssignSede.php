@@ -27,7 +27,7 @@ class SnapshotAssignSede extends Command
   public function handle()
   {
     $year = now()->year;
-    $month = now()->month - 1;
+    $month = now()->month;
     $assignments = DB::table('ap_assign_company_branch_period')->get();
 
     foreach ($assignments as $a) {
