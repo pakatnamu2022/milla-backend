@@ -7,10 +7,12 @@ use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
 use App\Models\ap\configuracionComercial\venta\ApAssignCompanyBranch;
 use App\Models\gp\maestroGeneral\Sede;
+use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithValidation;
 use Exception;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
 {
@@ -34,19 +36,23 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
 
   public function transformRow(array $row)
   {
+    $sedeData = $this->getSedeData($row[9] ?? $row['codigo_de_tienda'] ?? null, $row[10] ?? $row['marca'] ?? null);
+
     return [
       'registration_date' => $this->parseDate($row[0] ?? $row['creado'] ?? null),
-      'model' => $row[1] ?? $row['modelo'] ?? null,
-      'version' => $row[2] ?? $row['version'] ?? null,
+      'model' => strtoupper($row[1] ?? $row['modelo'] ?? ''),
+      'version' => strtoupper($row[2] ?? $row['version'] ?? null),
       'num_doc' => $row[3] ?? $row['nro_documento'] ?? null,
-      'name' => $row[4] ?? $row['nombres'] ?? null,
-      'surnames' => $row[5] ?? $row['apellidos'] ?? null,
+      'name' => strtoupper($row[4] ?? $row['nombres'] ?? null),
+      'surnames' => strtoupper($row[5] ?? $row['apellidos'] ?? null),
       'phone' => $row[6] ?? $row['celular'] ?? null,
-      'email' => $row[7] ?? $row['correo'] ?? null,
+      'email' => strtolower($row[7] ?? $row['correo'] ?? null),
       'campaign' => $row[8] ?? $row['campana'] ?? 'DERCO',
-      'sede_id' => $this->getSedeId($row[9] ?? $row['codigo_de_tienda'] ?? null, $row[10] ?? $row['marca'] ?? null),
+      'sede_id' => $sedeData['id'],
+      'sede' => $sedeData['abreviatura'],
       'vehicle_brand_id' => $this->getVehicleBrandId($row[10] ?? $row['marca'] ?? null),
       'document_type_id' => $this->getDocumentTypeId($row[11] ?? $row['tipo_documento'] ?? null),
+      'document_type' => $row[11] ?? $row['tipo_documento'] ?? null, // Solo para referencia, no se guarda en BD
       'type' => $row[12] ?? $row['tipo'] ?? 'LEADS',
       'income_sector_id' => $row[13] ?? $row['sector_ingresos_id'] ?? 829,
       'area_id' => $row[14] ?? $row['area_id'] ?? 826,
@@ -116,34 +122,41 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
     return $brand ? $brand->id : null;
   }
 
-  private function getSedeId($storeCode, $vehicleBrand)
+  private function getSedeData($storeCode, $vehicleBrand)
   {
+    $defaultReturn = ['id' => null, 'abreviatura' => null];
+
     if (empty($storeCode)) {
-      return null;
+      return $defaultReturn;
     }
 
     // 1. Buscar la sede por derco_store_code
     $sede = Sede::where('derco_store_code', trim($storeCode))->first();
 
     if (!$sede) {
-      return null;
+      return $defaultReturn;
     }
 
     // Si no hay marca específica, retornar la sede encontrada
     if (empty($vehicleBrand)) {
-      return $sede->id;
+      return ['id' => $sede->id, 'abreviatura' => $sede->abreviatura];
     }
 
     // 2. Obtener el brand_id de la marca
     $brandId = $this->getVehicleBrandId($vehicleBrand);
 
     if (!$brandId) {
-      return $sede->id; // Retornar sede aunque no se encuentre la marca
+      return ['id' => $sede->id, 'abreviatura' => $sede->abreviatura]; // Retornar sede aunque no se encuentre la marca
     }
 
     // 3. Verificar que la sede tenga esa marca asignada
     // Primero obtener workers de esa sede
+    $currentYear = date('Y');
+    $currentMonth = date('m');
+
     $workers = ApAssignCompanyBranch::where('sede_id', $sede->id)
+      ->where('year', $currentYear)
+      ->where('month', $currentMonth)
       ->pluck('worker_id');
 
     // Luego verificar si algún worker tiene esa marca
@@ -153,30 +166,35 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
 
     // Si la sede tiene la marca, retornarla
     if ($hasBrand) {
-      return $sede->id;
+      return ['id' => $sede->id, 'abreviatura' => $sede->abreviatura];
     }
 
     // Si no tiene la marca, buscar cualquier sede con ese derco_store_code
     $fallbackSede = Sede::where('derco_store_code', trim($storeCode))->first();
-    return $fallbackSede ? $fallbackSede->id : null;
+    return $fallbackSede ? ['id' => $fallbackSede->id, 'abreviatura' => $fallbackSede->abreviatura] : $defaultReturn;
   }
+
+//  private function getSedeId($storeCode, $vehicleBrand)
+//  {
+//    return $this->getSedeData($storeCode, $vehicleBrand)['id'];
+//  }
 
   private function parseDate($date)
   {
     if (empty($date)) {
-      return now();
+      return now()->format('Y-m-d');
     }
 
     try {
       // Intentar diferentes formatos de fecha
       if (is_numeric($date)) {
         // Excel serial date
-        return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($date);
+        return Date::excelToDateTimeObject($date)->format('Y-m-d');
       }
 
-      return \Carbon\Carbon::parse($date);
+      return Carbon::parse($date)->format('Y-m-d');
     } catch (Exception $e) {
-      return now();
+      return now()->format('Y-m-d');
     }
   }
 }
