@@ -34,9 +34,9 @@ class SnapshotAssignSede extends Command
       DB::table('ap_assign_company_branch_period')->updateOrInsert(
         [
           'sede_id' => $a->sede_id,
-          'asesor_id' => $a->asesor_id,
-          'anio' => $year,
-          'mes' => $month, // Snapshot del mes anterior
+          'worker_id' => $a->worker_id,
+          'year' => $year,
+          'month' => $month, // Snapshot del mes anterior
         ],
         ['created_at' => now(), 'updated_at' => now()]
       );
