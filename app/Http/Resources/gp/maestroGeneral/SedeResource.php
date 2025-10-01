@@ -37,7 +37,6 @@ class SedeResource extends JsonResource
       'district_id' => $this->district_id,
       'district' => $this->district?->name,
       'status' => $this->status,
-      'derco_store_code' => $this->derco_store_code,
     ];
   }
 }

@@ -22,7 +22,7 @@ class ApAssignBrandConsultant extends Model
     'status',
     'brand_id',
     'worker_id',
-    'sede_id', //temporal
+    'sede_id',
   ];
 
   const filters = [

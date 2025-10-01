@@ -5,7 +5,7 @@ namespace App\Imports;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
-use App\Models\ap\configuracionComercial\venta\ApAssignCompanyBranch;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\ToModel;
@@ -27,6 +27,21 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
     // Agregar más mapeos según necesites
   ];
 
+  // Mapeo de código de tienda a district_id
+  private $storeCodeToDistrictMap = [
+    'PE35' => 1227,
+    'PE36' => 1227,
+    'PE46' => 558,
+    'PE48' => 631,
+    'PE50' => 1549,
+  ];
+
+  // Cache de asesores por sede y marca para distribución equitativa
+  private $workersCache = [];
+
+  // Contador de distribución round-robin por clave (sede_id + brand_id)
+  private $distributionCounter = [];
+
   public function model(array $row)
   {
     // No crear el modelo aquí, solo retornar null
@@ -37,6 +52,10 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
   public function transformRow(array $row)
   {
     $sedeData = $this->getSedeData($row[9] ?? $row['codigo_de_tienda'] ?? null, $row[10] ?? $row['marca'] ?? null);
+    $vehicleBrandId = $this->getVehicleBrandId($row[10] ?? $row['marca'] ?? null);
+
+    // Obtener el asesor asignado mediante distribución equitativa
+    $workerData = $this->getAssignedWorker($sedeData['id'], $vehicleBrandId);
 
     return [
       'registration_date' => $this->parseDate($row[0] ?? $row['creado'] ?? null),
@@ -50,7 +69,9 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
       'campaign' => $row[8] ?? $row['campana'] ?? 'DERCO',
       'sede_id' => $sedeData['id'],
       'sede' => $sedeData['abreviatura'],
-      'vehicle_brand_id' => $this->getVehicleBrandId($row[10] ?? $row['marca'] ?? null),
+      'vehicle_brand_id' => $vehicleBrandId,
+      'worker_id' => $workerData['worker_id'],
+      'worker_name' => $workerData['worker_name'],
       'document_type_id' => $this->getDocumentTypeId($row[11] ?? $row['tipo_documento'] ?? null),
       'document_type' => $row[11] ?? $row['tipo_documento'] ?? null, // Solo para referencia, no se guarda en BD
       'type' => $row[12] ?? $row['tipo'] ?? 'LEADS',
@@ -130,54 +151,91 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
       return $defaultReturn;
     }
 
-    // 1. Buscar la sede por derco_store_code
-    $sede = Sede::where('derco_store_code', trim($storeCode))->first();
+    // 1. Mapear el código de tienda a district_id
+    $normalizedStoreCode = strtoupper(trim($storeCode));
+    $districtId = $this->storeCodeToDistrictMap[$normalizedStoreCode] ?? null;
+
+    if (!$districtId) {
+      return $defaultReturn;
+    }
+
+    // 2. Buscar la sede por district_id
+    $sede = Sede::where('district_id', $districtId)->first();
 
     if (!$sede) {
       return $defaultReturn;
     }
 
-    // Si no hay marca específica, retornar la sede encontrada
-    if (empty($vehicleBrand)) {
-      return ['id' => $sede->id, 'abreviatura' => $sede->abreviatura];
-    }
-
-    // 2. Obtener el brand_id de la marca
-    $brandId = $this->getVehicleBrandId($vehicleBrand);
-
-    if (!$brandId) {
-      return ['id' => $sede->id, 'abreviatura' => $sede->abreviatura]; // Retornar sede aunque no se encuentre la marca
-    }
-
-    // 3. Verificar que la sede tenga esa marca asignada
-    // Primero obtener workers de esa sede
-    $currentYear = date('Y');
-    $currentMonth = date('m');
-
-    $workers = ApAssignCompanyBranch::where('sede_id', $sede->id)
-      ->where('year', $currentYear)
-      ->where('month', $currentMonth)
-      ->pluck('worker_id');
-
-    // Luego verificar si algún worker tiene esa marca
-    $hasBrand = ApAssignBrandConsultant::whereIn('worker_id', $workers)
-      ->where('brand_id', $brandId)
-      ->exists();
-
-    // Si la sede tiene la marca, retornarla
-    if ($hasBrand) {
-      return ['id' => $sede->id, 'abreviatura' => $sede->abreviatura];
-    }
-
-    // Si no tiene la marca, buscar cualquier sede con ese derco_store_code
-    $fallbackSede = Sede::where('derco_store_code', trim($storeCode))->first();
-    return $fallbackSede ? ['id' => $fallbackSede->id, 'abreviatura' => $fallbackSede->abreviatura] : $defaultReturn;
+    return ['id' => $sede->id, 'abreviatura' => $sede->abreviatura];
   }
 
-//  private function getSedeId($storeCode, $vehicleBrand)
-//  {
-//    return $this->getSedeData($storeCode, $vehicleBrand)['id'];
-//  }
+  /**
+   * Obtiene el asesor asignado mediante distribución equitativa round-robin
+   *
+   * @param int|null $sedeId
+   * @param int|null $brandId
+   * @return array ['worker_id' => int|null, 'worker_name' => string|null]
+   */
+  private function getAssignedWorker($sedeId, $brandId)
+  {
+    $defaultReturn = ['worker_id' => null, 'worker_name' => null];
+
+    if (empty($sedeId) || empty($brandId)) {
+      return $defaultReturn;
+    }
+
+    // Crear clave única para esta combinación de sede + marca
+    $cacheKey = "{$sedeId}_{$brandId}";
+
+    // Si no están en cache, obtener los asesores de ApAssignBrandConsultant
+    if (!isset($this->workersCache[$cacheKey])) {
+      $currentYear = date('Y');
+      $currentMonth = date('m');
+
+      // Obtener asesores que tienen esta marca y sede asignada
+      $workerIds = ApAssignBrandConsultant::where('sede_id', $sedeId)
+        ->where('brand_id', $brandId)
+        ->where('year', $currentYear)
+        ->where('month', $currentMonth)
+        ->where('status', 1) // Asumiendo que 1 es activo
+        ->pluck('worker_id')
+        ->toArray();
+
+      if (empty($workerIds)) {
+        $this->workersCache[$cacheKey] = [];
+        return $defaultReturn;
+      }
+
+      // Obtener datos de los workers (id y nombre)
+      $workers = Worker::whereIn('id', $workerIds)
+        ->get(['id', 'nombre_completo'])
+        ->map(function ($worker) {
+          return [
+            'worker_id' => $worker->id,
+            'worker_name' => $worker->nombre_completo
+          ];
+        })
+        ->toArray();
+
+      $this->workersCache[$cacheKey] = $workers;
+      $this->distributionCounter[$cacheKey] = 0;
+    }
+
+    // Si no hay asesores disponibles, retornar null
+    if (empty($this->workersCache[$cacheKey])) {
+      return $defaultReturn;
+    }
+
+    // Obtener el asesor actual según round-robin
+    $workers = $this->workersCache[$cacheKey];
+    $currentIndex = $this->distributionCounter[$cacheKey] % count($workers);
+    $assignedWorker = $workers[$currentIndex];
+
+    // Incrementar el contador para el siguiente registro
+    $this->distributionCounter[$cacheKey]++;
+
+    return $assignedWorker;
+  }
 
   private function parseDate($date)
   {

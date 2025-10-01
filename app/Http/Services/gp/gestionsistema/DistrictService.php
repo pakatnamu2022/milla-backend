@@ -14,8 +14,10 @@ class DistrictService extends BaseService
 {
   public function list(Request $request)
   {
+    $onlyAll = $request->boolean('all') && count($request->except('all')) === 0;
+
     // Si se solicita todos los distritos, usar caché
-    if ($request->boolean('all')) {
+    if ($onlyAll) {
       return Cache::remember('districts.all', now()->addMonth(), function () use ($request) { // 1 mes
         return $this->getFilteredResults(
           District::class,
