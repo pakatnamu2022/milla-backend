@@ -33,7 +33,7 @@ class SnapshotAssignSede extends Command
     foreach ($assignments as $a) {
       DB::table('ap_assign_company_branch_period')->updateOrInsert(
         [
-          'company_branch_id' => $a->company_branch_id,
+          'sede_id' => $a->sede_id,
           'asesor_id' => $a->asesor_id,
           'anio' => $year,
           'mes' => $month, // Snapshot del mes anterior
