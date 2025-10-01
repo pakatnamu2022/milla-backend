@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ap\ApCommercialMastersController;
+use App\Http\Controllers\ap\comercial\OpportunityController;
 use App\Http\Controllers\ap\comercial\PotentialBuyersController;
 use App\Http\Controllers\DocumentValidationController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
@@ -651,6 +652,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
       Route::patch('businessPartners/{id}/remove-type', [BusinessPartnersController::class, 'removeType']);
       Route::get('businessPartners/{id}/establishments', [BusinessPartnersController::class, 'establishments']);
 
+      // Crear oportunidad desde un cliente
+      Route::post('businessPartners/{clientId}/opportunities', [\App\Http\Controllers\ap\comercial\OpportunityController::class, 'storeFromClient']);
+
       Route::apiResource('potentialBuyers', PotentialBuyersController::class)->only([
         'index',
         'show',
@@ -659,7 +663,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
       ]);
       Route::post('potentialBuyers/import', [PotentialBuyersController::class, 'import']);
 
-      Route::apiResource('opportunities', \App\Http\Controllers\ap\comercial\OpportunityController::class)->only([
+      // Rutas especiales de oportunidades (deben ir antes del apiResource)
+      Route::get('opportunities/my-opportunities', [OpportunityController::class, 'myOpportunities']);
+      Route::get('opportunities/my-agenda', [OpportunityController::class, 'myAgenda']);
+      Route::get('opportunities/{opportunityId}/actions', [OpportunityController::class, 'getActions']);
+
+      Route::apiResource('opportunities', OpportunityController::class)->only([
         'index',
         'show',
         'store',
@@ -667,7 +676,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'destroy'
       ]);
 
-      Route::apiResource('opportunityActions', \App\Http\Controllers\ap\comercial\OpportunityActionController::class)->only([
+      Route::apiResource('opportunityActions', OpportunityActionController::class)->only([
         'index',
         'show',
         'store',
