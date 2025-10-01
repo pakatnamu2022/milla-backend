@@ -658,6 +658,22 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'destroy'
       ]);
       Route::post('potentialBuyers/import', [PotentialBuyersController::class, 'import']);
+
+      Route::apiResource('opportunities', \App\Http\Controllers\ap\comercial\OpportunityController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::apiResource('opportunityActions', \App\Http\Controllers\ap\comercial\OpportunityActionController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
     });
   });
 

@@ -3,64 +3,60 @@
 namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
-use App\Models\ap\comercial\Opportunity;
-use Illuminate\Http\Request;
+use App\Http\Requests\ap\comercial\IndexOpportunityRequest;
+use App\Http\Requests\ap\comercial\StoreOpportunityRequest;
+use App\Http\Requests\ap\comercial\UpdateOpportunityRequest;
+use App\Http\Services\ap\comercial\OpportunityService;
 
 class OpportunityController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+  protected OpportunityService $service;
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+  public function __construct(OpportunityService $service)
+  {
+    $this->service = $service;
+  }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
+  public function index(IndexOpportunityRequest $request)
+  {
+    return $this->service->list($request);
+  }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Opportunity $opportunity)
-    {
-        //
+  public function store(StoreOpportunityRequest $request)
+  {
+    try {
+      return $this->success($this->service->store($request->validated()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Opportunity $opportunity)
-    {
-        //
+  public function show($id)
+  {
+    try {
+      return $this->success($this->service->show($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Opportunity $opportunity)
-    {
-        //
+  public function update(UpdateOpportunityRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->update($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Opportunity $opportunity)
-    {
-        //
+  public function destroy($id)
+  {
+    try {
+      return $this->service->destroy($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 }
