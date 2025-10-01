@@ -27,13 +27,22 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
     // Agregar más mapeos según necesites
   ];
 
-  // Mapeo de código de tienda a district_id
+  // Mapeo de código de tienda a district_id (puede ser un ID o array de IDs)
   private $storeCodeToDistrictMap = [
-    'PE35' => 1227,
-    'PE36' => 1227,
-    'PE46' => 558,
-    'PE48' => 631,
-    'PE50' => 1549,
+    'PE35' => [1227, 1238], // CHICLAYO - PIMENTEL
+    'PE36' => [1227, 1238], // CHICLAYO - PIMENTEL
+    'PE46' => 558, // CAJAMARCA
+    'PE48' => 631, // JAÉN
+    'PE50' => 1549, // PIURA
+  ];
+
+  // Mapeo de código de tienda a nombre de distrito
+  private $storeCodeToDistrictNameMap = [
+    'PE35' => 'CHICLAYO - PIMENTEL',
+    'PE36' => 'CHICLAYO - PIMENTEL',
+    'PE46' => 'CAJAMARCA',
+    'PE48' => 'JAÉN',
+    'PE50' => 'PIURA',
   ];
 
   // Cache de asesores por sede y marca para distribución equitativa
@@ -51,25 +60,36 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
 
   public function transformRow(array $row)
   {
-    $sedeData = $this->getSedeData($row[9] ?? $row['codigo_de_tienda'] ?? null, $row[10] ?? $row['marca'] ?? null);
+    $storeCode = $row[9] ?? $row['codigo_de_tienda'] ?? null;
+    $sedeData = $this->getSedeData($storeCode, $row[10] ?? $row['marca'] ?? null);
     $vehicleBrandId = $this->getVehicleBrandId($row[10] ?? $row['marca'] ?? null);
 
     // Obtener el asesor asignado mediante distribución equitativa
     $workerData = $this->getAssignedWorker($sedeData['id'], $vehicleBrandId);
+
+    // Obtener nombre del distrito desde el código de tienda
+    $normalizedStoreCode = strtoupper(trim($storeCode ?? ''));
+    $districtName = $this->storeCodeToDistrictNameMap[$normalizedStoreCode] ?? null;
+
+    // Consolidar nombre completo eliminando duplicados
+    $nombres = $row[4] ?? $row['nombres'] ?? '';
+    $apellidos = $row[5] ?? $row['apellidos'] ?? '';
+    $fullName = $this->consolidateFullName($nombres, $apellidos);
 
     return [
       'registration_date' => $this->parseDate($row[0] ?? $row['creado'] ?? null),
       'model' => strtoupper($row[1] ?? $row['modelo'] ?? ''),
       'version' => strtoupper($row[2] ?? $row['version'] ?? null),
       'num_doc' => $row[3] ?? $row['nro_documento'] ?? null,
-      'name' => strtoupper($row[4] ?? $row['nombres'] ?? null),
-      'surnames' => strtoupper($row[5] ?? $row['apellidos'] ?? null),
+      'full_name' => $fullName,
       'phone' => $row[6] ?? $row['celular'] ?? null,
       'email' => strtolower($row[7] ?? $row['correo'] ?? null),
       'campaign' => $row[8] ?? $row['campana'] ?? 'DERCO',
       'sede_id' => $sedeData['id'],
       'sede' => $sedeData['abreviatura'],
+      'district' => $districtName,
       'vehicle_brand_id' => $vehicleBrandId,
+      'vehicle_brand' => $row[10] ?? $row['marca'] ?? null, // Solo para referencia, no se guarda en BD
       'worker_id' => $workerData['worker_id'],
       'worker_name' => $workerData['worker_name'],
       'document_type_id' => $this->getDocumentTypeId($row[11] ?? $row['tipo_documento'] ?? null),
@@ -151,7 +171,7 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
       return $defaultReturn;
     }
 
-    // 1. Mapear el código de tienda a district_id
+    // 1. Mapear el código de tienda a district_id (puede ser un ID o array de IDs)
     $normalizedStoreCode = strtoupper(trim($storeCode));
     $districtId = $this->storeCodeToDistrictMap[$normalizedStoreCode] ?? null;
 
@@ -159,8 +179,16 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
       return $defaultReturn;
     }
 
-    // 2. Buscar la sede por district_id
-    $sede = Sede::where('district_id', $districtId)->first();
+    // 2. Buscar la sede por district_id (soporta un ID o array de IDs)
+    $query = Sede::query();
+
+    if (is_array($districtId)) {
+      $query->whereIn('district_id', $districtId);
+    } else {
+      $query->where('district_id', $districtId);
+    }
+
+    $sede = $query->first();
 
     if (!$sede) {
       return $defaultReturn;
@@ -235,6 +263,53 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
     $this->distributionCounter[$cacheKey]++;
 
     return $assignedWorker;
+  }
+
+  /**
+   * Consolida el nombre completo eliminando duplicados entre nombres y apellidos
+   *
+   * Ejemplo:
+   * - Nombres: "Carloman Saucedo estela"
+   * - Apellidos: "Saucedo estela"
+   * - Resultado: "CARLOMAN SAUCEDO ESTELA"
+   *
+   * @param string $nombres
+   * @param string $apellidos
+   * @return string
+   */
+  private function consolidateFullName($nombres, $apellidos)
+  {
+    // Limpiar y normalizar
+    $nombres = trim($nombres ?? '');
+    $apellidos = trim($apellidos ?? '');
+
+    // Si ambos están vacíos, retornar null
+    if (empty($nombres) && empty($apellidos)) {
+      return null;
+    }
+
+    // Convertir a mayúsculas y dividir en palabras
+    $nombresArray = array_filter(explode(' ', strtoupper($nombres)));
+    $apellidosArray = array_filter(explode(' ', strtoupper($apellidos)));
+
+    // Si solo hay nombres, retornarlos
+    if (empty($apellidosArray)) {
+      return implode(' ', $nombresArray);
+    }
+
+    // Si solo hay apellidos, retornarlos
+    if (empty($nombresArray)) {
+      return implode(' ', $apellidosArray);
+    }
+
+    // Eliminar duplicados: quitar de nombres las palabras que están en apellidos
+    $nombresUnicos = array_diff($nombresArray, $apellidosArray);
+
+    // Combinar nombres únicos + apellidos
+    $fullNameArray = array_merge(array_values($nombresUnicos), $apellidosArray);
+
+    // Retornar el nombre completo sin duplicados
+    return implode(' ', $fullNameArray);
   }
 
   private function parseDate($date)
