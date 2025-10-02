@@ -9,6 +9,8 @@ use App\Imports\PotentialBuyersImport;
 use App\Jobs\ValidatePotentialBuyersDocuments;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\PotentialBuyers;
+use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -100,6 +102,7 @@ class PotentialBuyersService extends BaseService
 
   public function importFromExcel(UploadedFile $file)
   {
+    DB::beginTransaction();
     try {
       // Validar que el archivo no sea nulo
       if (!$file || !$file->isValid()) {
@@ -126,28 +129,210 @@ class PotentialBuyersService extends BaseService
         ];
       }
 
-      // Procesar los datos importados
-      $processResult = $importService->processImportData(
-        $importResult['data'],
-        PotentialBuyers::class
-      );
+      $totalRows = count($importResult['data']);
+      $imported = 0;
+      $duplicated = 0;
+      $errors = 0;
+      $errorDetails = [];
+      $duplicatedRecords = [];
+      $createdIds = [];
+
+      // Procesar los datos importados con validación de duplicados y longitud de documento
+      foreach ($importResult['data'] as $index => $rowData) {
+        try {
+          // Verificar si ya existe el DNI en el mes actual
+          $exists = PotentialBuyers::where('num_doc', $rowData['num_doc'])
+            ->whereYear('registration_date', now()->year)
+            ->whereMonth('registration_date', now()->month)
+            ->exists();
+
+          if ($exists) {
+            $duplicated++;
+            $duplicatedRecords[] = [
+              'row' => $index + 1,
+              'num_doc' => $rowData['num_doc'],
+              'full_name' => $rowData['full_name'] ?? 'N/A'
+            ];
+            continue;
+          }
+
+          // Validar longitud del documento y asignar status_num_doc
+          $numDoc = trim($rowData['num_doc']);
+          $docLength = strlen($numDoc);
+          $documentTypeId = $rowData['document_type_id'];
+
+          // Inicializar status_num_doc
+          $statusNumDoc = 'PENDIENTE';
+          $countDigitTypeDoc = (int)ApCommercialMasters::find($documentTypeId)->code;
+
+          // Validar si la longitud del documento no coincide con el tipo
+          if ($docLength != $countDigitTypeDoc) {
+            $statusNumDoc = 'ERRADO';
+          }
+
+          // Agregar status_num_doc al array de datos
+          $rowData['status_num_doc'] = $statusNumDoc;
+
+          // Crear el registro
+          $buyer = PotentialBuyers::create($rowData);
+          $createdIds[] = $buyer->id;
+          $imported++;
+
+        } catch (Exception $e) {
+          $errors++;
+          $errorDetails[] = [
+            'row' => $index + 1,
+            'error' => $e->getMessage(),
+            'data' => $rowData
+          ];
+        }
+      }
+
+      DB::commit();
+
+      // Despachar un job individual por cada registro creado
+      foreach ($createdIds as $buyerId) {
+        ValidatePotentialBuyersDocuments::dispatch([$buyerId]);
+      }
+
+      // Construir mensaje descriptivo
+      $message = "Importación completada: {$imported} de {$totalRows} registros importados exitosamente";
+      if ($duplicated > 0) {
+        $message .= ", {$duplicated} ya están registrados en el mes actual";
+      }
+      if ($errors > 0) {
+        $message .= ", {$errors} con errores";
+      }
 
       return [
         'success' => true,
-        'message' => 'Importación completada',
-        'data' => $importResult['data'],
+        'message' => $message,
         'summary' => [
-          'total_rows' => $importResult['total_rows'],
-          'processed' => $processResult['processed'],
-          'errors' => $processResult['errors'],
-          'error_details' => $processResult['error_details']
+          'total_rows' => $totalRows,
+          'imported' => $imported,
+          'duplicated' => $duplicated,
+          'errors' => $errors,
+          'duplicated_records' => $duplicatedRecords,
+          'error_details' => $errorDetails
         ]
       ];
 
     } catch (Exception $e) {
+      DB::rollBack();
       return [
         'success' => false,
         'message' => 'Error en la importación',
+        'error' => $e->getMessage()
+      ];
+    }
+  }
+
+  public function assignWorkersToUnassigned()
+  {
+    DB::beginTransaction();
+    try {
+      // Obtener todos los registros del periodo actual
+      $unassignedBuyers = PotentialBuyers::whereYear('registration_date', now()->year)
+        ->whereMonth('registration_date', now()->month)
+        ->where('use', 0)
+        ->get();
+
+      if ($unassignedBuyers->isEmpty()) {
+        return [
+          'success' => true,
+          'message' => 'No hay registros en el periodo actual',
+          'summary' => [
+            'total' => 0,
+            'assigned' => 0,
+            'unassigned' => 0
+          ]
+        ];
+      }
+
+      $currentYear = date('Y');
+      $currentMonth = date('m');
+      $workersCache = [];
+      $distributionCounter = [];
+      $assigned = 0;
+      $unassigned = 0;
+
+      foreach ($unassignedBuyers as $buyer) {
+        try {
+          // Verificar que tenga sede_id y vehicle_brand_id
+          if (empty($buyer->sede_id) || empty($buyer->vehicle_brand_id)) {
+            $unassigned++;
+            continue;
+          }
+
+          // Crear clave única para esta combinación de sede + marca
+          $cacheKey = "{$buyer->sede_id}_{$buyer->vehicle_brand_id}";
+
+          // Si no están en cache, obtener los asesores de ApAssignBrandConsultant
+          if (!isset($workersCache[$cacheKey])) {
+            $workerIds = ApAssignBrandConsultant::where('sede_id', $buyer->sede_id)
+              ->where('brand_id', $buyer->vehicle_brand_id)
+              ->where('year', $currentYear)
+              ->where('month', $currentMonth)
+              ->where('status', 1)
+              ->pluck('worker_id')
+              ->toArray();
+
+            if (empty($workerIds)) {
+              $workersCache[$cacheKey] = [];
+              $unassigned++;
+              continue;
+            }
+
+            // Obtener datos de los workers
+            $workers = Worker::whereIn('id', $workerIds)
+              ->pluck('id')
+              ->toArray();
+
+            $workersCache[$cacheKey] = $workers;
+            $distributionCounter[$cacheKey] = 0;
+          }
+
+          // Si no hay asesores disponibles para esta combinación
+          if (empty($workersCache[$cacheKey])) {
+            $unassigned++;
+            continue;
+          }
+
+          // Obtener el asesor actual según round-robin
+          $workers = $workersCache[$cacheKey];
+          $currentIndex = $distributionCounter[$cacheKey] % count($workers);
+          $assignedWorkerId = $workers[$currentIndex];
+
+          // Actualizar el buyer con el worker_id
+          $buyer->update(['worker_id' => $assignedWorkerId]);
+
+          // Incrementar el contador para el siguiente registro
+          $distributionCounter[$cacheKey]++;
+          $assigned++;
+
+        } catch (Exception $e) {
+          $unassigned++;
+          continue;
+        }
+      }
+
+      DB::commit();
+
+      return [
+        'success' => true,
+        'message' => "Asignación completada: {$assigned} registros asignados, {$unassigned} no pudieron ser asignados",
+        'summary' => [
+          'total' => $unassignedBuyers->count(),
+          'assigned' => $assigned,
+          'unassigned' => $unassigned
+        ]
+      ];
+
+    } catch (Exception $e) {
+      DB::rollBack();
+      return [
+        'success' => false,
+        'message' => 'Error en la asignación de asesores',
         'error' => $e->getMessage()
       ];
     }

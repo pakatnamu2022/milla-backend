@@ -37,29 +37,6 @@ class SedeService extends BaseService
     );
   }
 
-  public function getWorkers(Request $request)
-  {
-    $sedeId = $request->input('sede_id');
-
-    if (!$sedeId) {
-      return Sede::with('workers')
-        ->get()
-        ->flatMap(fn($sede) => $sede->workers)
-        ->map(fn($worker) => [
-          'id' => $worker->id,
-          'name' => $worker->nombre_completo,
-        ])
-        ->values();
-    }
-
-    $sede = Sede::with('workers')->findOrFail($sedeId);
-
-    return $sede->workers->map(fn($worker) => [
-      'id' => $worker->id,
-      'name' => $worker->nombre_completo,
-    ]);
-  }
-
   public function find($id)
   {
     $Sede = Sede::where('id', $id)->first();

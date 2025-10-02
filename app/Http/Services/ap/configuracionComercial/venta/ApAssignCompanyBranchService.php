@@ -231,4 +231,22 @@ class ApAssignCompanyBranchService extends BaseService
 
     return new ApAssignCompanyBranchResource($items);
   }
+
+  public function getWorkersBySede($sedeId)
+  {
+    $workers = ApAssignCompanyBranch::where('sede_id', $sedeId)
+      ->where('status', 1)
+      ->with('worker:id,nombre_completo')
+      ->get()
+      ->map(function ($assignment) {
+        return [
+          'id' => $assignment->worker->id,
+          'name' => $assignment->worker->nombre_completo
+        ];
+      })
+      ->unique('id')
+      ->values();
+
+    return $workers;
+  }
 }

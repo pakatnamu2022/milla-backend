@@ -33,10 +33,12 @@ class PotentialBuyers extends Model
     'type',
     'income_sector_id',
     'area_id',
+    'status_num_doc',
+    'use'
   ];
 
   const filters = [
-    'search' => ['full_name', 'num_doc', 'email', 'phone', 'campaign'],
+    'search' => ['full_name', 'worker.nombre_completo', 'sede.abreviatura', 'vehicleBrand.name', 'num_doc', 'email', 'phone', 'campaign'],
     'sede_id' => '=',
     'vehicle_brand_id' => '=',
     'document_type_id' => '=',
@@ -45,6 +47,8 @@ class PotentialBuyers extends Model
     'income_sector_id' => '=',
     'area_id' => '=',
     'worker_id' => '=',
+    'status_num_doc' => '=',
+    'use' => '=',
   ];
 
   const sorts = [

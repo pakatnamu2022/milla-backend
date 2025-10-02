@@ -175,7 +175,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
   Route::group(['prefix' => 'gp'], function () {
     Route::group(['prefix' => 'mg'], function () {
-      Route::get('sede/assignedSalesWorkers', [SedeController::class, 'assignedSalesWorkers']);
       Route::get('sede/availableLocationsShop', [SedeController::class, 'availableLocationsShop']);
       Route::apiResource('sede', SedeController::class)->only([
         'index',
@@ -517,6 +516,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'store',
         'update',
       ]);
+      Route::get('assignCompanyBranch/{sedeId}/workers', [ApAssignCompanyBranchController::class, 'getWorkersBySede']);
 
       Route::get('assignBrandConsultant/showGrouped', [ApAssignBrandConsultantController::class, 'showGrouped']);
       Route::get('assignBrandConsultant/{sedeId}/brands', [ApAssignBrandConsultantController::class, 'getBrandsByBranch']);
@@ -661,6 +661,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'destroy'
       ]);
       Route::post('potentialBuyers/import', [PotentialBuyersController::class, 'import']);
+      Route::post('potentialBuyers/assign-workers', [PotentialBuyersController::class, 'assignWorkers']);
     });
   });
 

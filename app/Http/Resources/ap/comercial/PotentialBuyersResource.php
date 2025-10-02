@@ -31,6 +31,8 @@ class PotentialBuyersResource extends JsonResource
       'document_type' => $this->documentType->description,
       'income_sector' => $this->incomeSector->description,
       'area_id' => $this->area_id,
+      'district' => $this->sede->district->name ?? null,
+      'status_num_doc' => $this->status_num_doc,
     ];
   }
 }

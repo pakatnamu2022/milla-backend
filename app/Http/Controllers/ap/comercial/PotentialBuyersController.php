@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\IndexPotentialBuyersRequest;
+use App\Http\Requests\ap\comercial\StoreBulkPotentialBuyersRequest;
 use App\Http\Requests\ap\comercial\StorePotentialBuyersRequest;
 use App\Http\Requests\ap\comercial\UpdatePotentialBuyersRequest;
 use App\Http\Services\ap\comercial\PotentialBuyersService;
@@ -74,6 +75,21 @@ class PotentialBuyersController extends Controller
 
     try {
       $result = $this->service->importFromExcel($request->file('file'));
+
+      if ($result['success']) {
+        return $this->success($result, $result['message']);
+      } else {
+        return $this->error($result['message'], $result);
+      }
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function assignWorkers()
+  {
+    try {
+      $result = $this->service->assignWorkersToUnassigned();
 
       if ($result['success']) {
         return $this->success($result, $result['message']);

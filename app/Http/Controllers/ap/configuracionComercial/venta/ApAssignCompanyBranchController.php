@@ -53,4 +53,14 @@ class ApAssignCompanyBranchController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function getWorkersBySede($sedeId)
+  {
+    try {
+      $workers = $this->service->getWorkersBySede($sedeId);
+      return $this->success($workers);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

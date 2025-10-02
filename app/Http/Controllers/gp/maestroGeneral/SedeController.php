@@ -28,12 +28,6 @@ class SedeController extends Controller
     return $this->service->getAvailableLocationsShop(request());
   }
 
-  public function assignedSalesWorkers(Request $request)
-  {
-    // esto es para obtener los trabajadores asignados a ventas es diferente a trabajadores por sede
-    return $this->service->getWorkers($request);
-  }
-
   public function store(StoreSedeRequest $request)
   {
     try {
