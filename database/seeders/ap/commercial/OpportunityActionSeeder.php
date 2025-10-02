@@ -1,12 +1,12 @@
 <?php
 
-namespace Database\Seeders;
+namespace Database\Seeders\ap\commercial;
 
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\OpportunityAction;
-use Illuminate\Database\Seeder;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class OpportunityActionSeeder extends Seeder
 {

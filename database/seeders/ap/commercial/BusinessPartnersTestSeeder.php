@@ -1,12 +1,12 @@
 <?php
 
-namespace Database\Seeders;
+namespace Database\Seeders\ap\commercial;
 
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\maestroGeneral\TaxClassTypes;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\gestionsistema\District;
-use App\Models\ap\maestroGeneral\TaxClassTypes;
 use Illuminate\Database\Seeder;
 
 class BusinessPartnersTestSeeder extends Seeder

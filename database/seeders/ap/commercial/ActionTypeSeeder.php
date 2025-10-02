@@ -1,6 +1,6 @@
 <?php
 
-namespace Database\Seeders;
+namespace Database\Seeders\ap\commercial;
 
 use App\Models\ap\ApCommercialMasters;
 use Illuminate\Database\Seeder;
