@@ -2,6 +2,7 @@
 
 namespace App\Imports;
 
+use App\Http\Utils\Constants;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
@@ -140,8 +141,16 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
     }
 
     // Si no encuentra, buscar en BD como fallback
-    $master = ApCommercialMasters::where('description', 'LIKE', trim($documentType))
-      ->where('type', 'TIPO_DOCUMENTO')
+    $documentTypeMap = [
+      'DNI' => Constants::TYPE_DOCUMENT_DNI_ID,
+      'RUC' => Constants::TYPE_DOCUMENT_RUC_ID,
+    ];
+
+    $documentTypeUpper = strtoupper(trim($documentType));
+    $id_document = $documentTypeMap[$documentTypeUpper] ?? 0;
+
+    $master = ApCommercialMasters::where('type', 'TIPO_DOCUMENTO')
+      ->where('id', $id_document)
       ->first();
     return $master ? $master->id : null;
   }
