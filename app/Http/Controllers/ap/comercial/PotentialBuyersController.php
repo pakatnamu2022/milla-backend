@@ -5,6 +5,7 @@ namespace App\Http\Controllers\ap\comercial;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\IndexPotentialBuyersRequest;
 use App\Http\Requests\ap\comercial\StorePotentialBuyersRequest;
+use App\Http\Requests\ap\comercial\UpdatePotentialBuyersRequest;
 use App\Http\Services\ap\comercial\PotentialBuyersService;
 use Illuminate\Http\Request;
 
@@ -35,6 +36,17 @@ class PotentialBuyersController extends Controller
   {
     try {
       return $this->success($this->service->show($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function update(UpdatePotentialBuyersRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->update($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

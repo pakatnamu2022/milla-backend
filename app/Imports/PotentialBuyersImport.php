@@ -5,12 +5,14 @@ namespace App\Imports;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
-use App\Models\ap\configuracionComercial\venta\ApAssignCompanyBranch;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
+use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithValidation;
 use Exception;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
 {
@@ -25,6 +27,30 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
     // Agregar más mapeos según necesites
   ];
 
+  // Mapeo de código de tienda a district_id (puede ser un ID o array de IDs)
+  private $storeCodeToDistrictMap = [
+    'PE35' => [1227, 1238], // CHICLAYO - PIMENTEL
+    'PE36' => [1227, 1238], // CHICLAYO - PIMENTEL
+    'PE46' => 558, // CAJAMARCA
+    'PE48' => 631, // JAÉN
+    'PE50' => 1549, // PIURA
+  ];
+
+  // Mapeo de código de tienda a nombre de distrito
+  private $storeCodeToDistrictNameMap = [
+    'PE35' => 'CHICLAYO - PIMENTEL',
+    'PE36' => 'CHICLAYO - PIMENTEL',
+    'PE46' => 'CAJAMARCA',
+    'PE48' => 'JAÉN',
+    'PE50' => 'PIURA',
+  ];
+
+  // Cache de asesores por sede y marca para distribución equitativa
+  private $workersCache = [];
+
+  // Contador de distribución round-robin por clave (sede_id + brand_id)
+  private $distributionCounter = [];
+
   public function model(array $row)
   {
     // No crear el modelo aquí, solo retornar null
@@ -34,19 +60,40 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
 
   public function transformRow(array $row)
   {
+    $storeCode = $row[9] ?? $row['codigo_de_tienda'] ?? null;
+    $sedeData = $this->getSedeData($storeCode, $row[10] ?? $row['marca'] ?? null);
+    $vehicleBrandId = $this->getVehicleBrandId($row[10] ?? $row['marca'] ?? null);
+
+    // Obtener el asesor asignado mediante distribución equitativa
+    $workerData = $this->getAssignedWorker($sedeData['id'], $vehicleBrandId);
+
+    // Obtener nombre del distrito desde el código de tienda
+    $normalizedStoreCode = strtoupper(trim($storeCode ?? ''));
+    $districtName = $this->storeCodeToDistrictNameMap[$normalizedStoreCode] ?? null;
+
+    // Consolidar nombre completo eliminando duplicados
+    $nombres = $row[4] ?? $row['nombres'] ?? '';
+    $apellidos = $row[5] ?? $row['apellidos'] ?? '';
+    $fullName = $this->consolidateFullName($nombres, $apellidos);
+
     return [
       'registration_date' => $this->parseDate($row[0] ?? $row['creado'] ?? null),
-      'model' => $row[1] ?? $row['modelo'] ?? null,
-      'version' => $row[2] ?? $row['version'] ?? null,
+      'model' => strtoupper($row[1] ?? $row['modelo'] ?? ''),
+      'version' => strtoupper($row[2] ?? $row['version'] ?? null),
       'num_doc' => $row[3] ?? $row['nro_documento'] ?? null,
-      'name' => $row[4] ?? $row['nombres'] ?? null,
-      'surnames' => $row[5] ?? $row['apellidos'] ?? null,
+      'full_name' => $fullName,
       'phone' => $row[6] ?? $row['celular'] ?? null,
-      'email' => $row[7] ?? $row['correo'] ?? null,
+      'email' => strtolower($row[7] ?? $row['correo'] ?? null),
       'campaign' => $row[8] ?? $row['campana'] ?? 'DERCO',
-      'sede_id' => $this->getSedeId($row[9] ?? $row['codigo_de_tienda'] ?? null, $row[10] ?? $row['marca'] ?? null),
-      'vehicle_brand_id' => $this->getVehicleBrandId($row[10] ?? $row['marca'] ?? null),
+      'sede_id' => $sedeData['id'],
+      'sede' => $sedeData['abreviatura'],
+      'district' => $districtName,
+      'vehicle_brand_id' => $vehicleBrandId,
+      'vehicle_brand' => $row[10] ?? $row['marca'] ?? null, // Solo para referencia, no se guarda en BD
+      'worker_id' => $workerData['worker_id'],
+      'worker_name' => $workerData['worker_name'],
       'document_type_id' => $this->getDocumentTypeId($row[11] ?? $row['tipo_documento'] ?? null),
+      'document_type' => $row[11] ?? $row['tipo_documento'] ?? null, // Solo para referencia, no se guarda en BD
       'type' => $row[12] ?? $row['tipo'] ?? 'LEADS',
       'income_sector_id' => $row[13] ?? $row['sector_ingresos_id'] ?? 829,
       'area_id' => $row[14] ?? $row['area_id'] ?? 826,
@@ -116,67 +163,171 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
     return $brand ? $brand->id : null;
   }
 
-  private function getSedeId($storeCode, $vehicleBrand)
+  private function getSedeData($storeCode, $vehicleBrand)
   {
+    $defaultReturn = ['id' => null, 'abreviatura' => null];
+
     if (empty($storeCode)) {
-      return null;
+      return $defaultReturn;
     }
 
-    // 1. Buscar la sede por derco_store_code
-    $sede = Sede::where('derco_store_code', trim($storeCode))->first();
+    // 1. Mapear el código de tienda a district_id (puede ser un ID o array de IDs)
+    $normalizedStoreCode = strtoupper(trim($storeCode));
+    $districtId = $this->storeCodeToDistrictMap[$normalizedStoreCode] ?? null;
+
+    if (!$districtId) {
+      return $defaultReturn;
+    }
+
+    // 2. Buscar la sede por district_id (soporta un ID o array de IDs)
+    $query = Sede::query();
+
+    if (is_array($districtId)) {
+      $query->whereIn('district_id', $districtId);
+    } else {
+      $query->where('district_id', $districtId);
+    }
+
+    $sede = $query->first();
 
     if (!$sede) {
+      return $defaultReturn;
+    }
+
+    return ['id' => $sede->id, 'abreviatura' => $sede->abreviatura];
+  }
+
+  /**
+   * Obtiene el asesor asignado mediante distribución equitativa round-robin
+   *
+   * @param int|null $sedeId
+   * @param int|null $brandId
+   * @return array ['worker_id' => int|null, 'worker_name' => string|null]
+   */
+  private function getAssignedWorker($sedeId, $brandId)
+  {
+    $defaultReturn = ['worker_id' => null, 'worker_name' => null];
+
+    if (empty($sedeId) || empty($brandId)) {
+      return $defaultReturn;
+    }
+
+    // Crear clave única para esta combinación de sede + marca
+    $cacheKey = "{$sedeId}_{$brandId}";
+
+    // Si no están en cache, obtener los asesores de ApAssignBrandConsultant
+    if (!isset($this->workersCache[$cacheKey])) {
+      $currentYear = date('Y');
+      $currentMonth = date('m');
+
+      // Obtener asesores que tienen esta marca y sede asignada
+      $workerIds = ApAssignBrandConsultant::where('sede_id', $sedeId)
+        ->where('brand_id', $brandId)
+        ->where('year', $currentYear)
+        ->where('month', $currentMonth)
+        ->where('status', 1) // Asumiendo que 1 es activo
+        ->pluck('worker_id')
+        ->toArray();
+
+      if (empty($workerIds)) {
+        $this->workersCache[$cacheKey] = [];
+        return $defaultReturn;
+      }
+
+      // Obtener datos de los workers (id y nombre)
+      $workers = Worker::whereIn('id', $workerIds)
+        ->get(['id', 'nombre_completo'])
+        ->map(function ($worker) {
+          return [
+            'worker_id' => $worker->id,
+            'worker_name' => $worker->nombre_completo
+          ];
+        })
+        ->toArray();
+
+      $this->workersCache[$cacheKey] = $workers;
+      $this->distributionCounter[$cacheKey] = 0;
+    }
+
+    // Si no hay asesores disponibles, retornar null
+    if (empty($this->workersCache[$cacheKey])) {
+      return $defaultReturn;
+    }
+
+    // Obtener el asesor actual según round-robin
+    $workers = $this->workersCache[$cacheKey];
+    $currentIndex = $this->distributionCounter[$cacheKey] % count($workers);
+    $assignedWorker = $workers[$currentIndex];
+
+    // Incrementar el contador para el siguiente registro
+    $this->distributionCounter[$cacheKey]++;
+
+    return $assignedWorker;
+  }
+
+  /**
+   * Consolida el nombre completo eliminando duplicados entre nombres y apellidos
+   *
+   * Ejemplo:
+   * - Nombres: "Carloman Saucedo estela"
+   * - Apellidos: "Saucedo estela"
+   * - Resultado: "CARLOMAN SAUCEDO ESTELA"
+   *
+   * @param string $nombres
+   * @param string $apellidos
+   * @return string
+   */
+  private function consolidateFullName($nombres, $apellidos)
+  {
+    // Limpiar y normalizar
+    $nombres = trim($nombres ?? '');
+    $apellidos = trim($apellidos ?? '');
+
+    // Si ambos están vacíos, retornar null
+    if (empty($nombres) && empty($apellidos)) {
       return null;
     }
 
-    // Si no hay marca específica, retornar la sede encontrada
-    if (empty($vehicleBrand)) {
-      return $sede->id;
+    // Convertir a mayúsculas y dividir en palabras
+    $nombresArray = array_filter(explode(' ', strtoupper($nombres)));
+    $apellidosArray = array_filter(explode(' ', strtoupper($apellidos)));
+
+    // Si solo hay nombres, retornarlos
+    if (empty($apellidosArray)) {
+      return implode(' ', $nombresArray);
     }
 
-    // 2. Obtener el brand_id de la marca
-    $brandId = $this->getVehicleBrandId($vehicleBrand);
-
-    if (!$brandId) {
-      return $sede->id; // Retornar sede aunque no se encuentre la marca
+    // Si solo hay apellidos, retornarlos
+    if (empty($nombresArray)) {
+      return implode(' ', $apellidosArray);
     }
 
-    // 3. Verificar que la sede tenga esa marca asignada
-    // Primero obtener workers de esa sede
-    $workers = ApAssignCompanyBranch::where('sede_id', $sede->id)
-      ->pluck('worker_id');
+    // Eliminar duplicados: quitar de nombres las palabras que están en apellidos
+    $nombresUnicos = array_diff($nombresArray, $apellidosArray);
 
-    // Luego verificar si algún worker tiene esa marca
-    $hasBrand = ApAssignBrandConsultant::whereIn('worker_id', $workers)
-      ->where('brand_id', $brandId)
-      ->exists();
+    // Combinar nombres únicos + apellidos
+    $fullNameArray = array_merge(array_values($nombresUnicos), $apellidosArray);
 
-    // Si la sede tiene la marca, retornarla
-    if ($hasBrand) {
-      return $sede->id;
-    }
-
-    // Si no tiene la marca, buscar cualquier sede con ese derco_store_code
-    $fallbackSede = Sede::where('derco_store_code', trim($storeCode))->first();
-    return $fallbackSede ? $fallbackSede->id : null;
+    // Retornar el nombre completo sin duplicados
+    return implode(' ', $fullNameArray);
   }
 
   private function parseDate($date)
   {
     if (empty($date)) {
-      return now();
+      return now()->format('Y-m-d');
     }
 
     try {
       // Intentar diferentes formatos de fecha
       if (is_numeric($date)) {
         // Excel serial date
-        return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($date);
+        return Date::excelToDateTimeObject($date)->format('Y-m-d');
       }
 
-      return \Carbon\Carbon::parse($date);
+      return Carbon::parse($date)->format('Y-m-d');
     } catch (Exception $e) {
-      return now();
+      return now()->format('Y-m-d');
     }
   }
 }

@@ -28,15 +28,10 @@ class StorePotentialBuyersRequest extends StoreRequest
         'string',
         'max:20',
       ],
-      'name' => [
+      'full_name' => [
         'required',
         'string',
-        'max:100',
-      ],
-      'surnames' => [
-        'required',
-        'string',
-        'max:100',
+        'max:255',
       ],
       'phone' => [
         'nullable',
@@ -52,6 +47,11 @@ class StorePotentialBuyersRequest extends StoreRequest
         'required',
         'string',
         'max:100',
+      ],
+      'worker_id' => [
+        'required',
+        'integer',
+        'exists:rrhh_persona,id',
       ],
       'sede_id' => [
         'required',
@@ -93,13 +93,9 @@ class StorePotentialBuyersRequest extends StoreRequest
       'num_doc.string' => 'El número de documento debe ser una cadena de texto.',
       'num_doc.max' => 'El número de documento no debe exceder los 20 caracteres.',
 
-      'name.required' => 'El nombre es obligatorio.',
-      'name.string' => 'El nombre debe ser una cadena de texto.',
-      'name.max' => 'El nombre no debe exceder los 100 caracteres.',
-
-      'surnames.required' => 'Los apellidos son obligatorios.',
-      'surnames.string' => 'Los apellidos deben ser una cadena de texto.',
-      'surnames.max' => 'Los apellidos no deben exceder los 100 caracteres.',
+      'full_name.required' => 'El nombre es obligatorio.',
+      'full_name.string' => 'El nombre debe ser una cadena de texto.',
+      'full_name.max' => 'El nombre no debe exceder los 255 caracteres.',
 
       'phone.string' => 'El teléfono debe ser una cadena de texto.',
       'phone.max' => 'El teléfono no debe exceder los 20 caracteres.',
@@ -110,6 +106,10 @@ class StorePotentialBuyersRequest extends StoreRequest
       'campaign.required' => 'La campaña es obligatoria.',
       'campaign.string' => 'La campaña debe ser una cadena de texto.',
       'campaign.max' => 'La campaña no debe exceder los 100 caracteres.',
+
+      'worker_id.required' => 'El asesor es obligatorio.',
+      'worker_id.integer' => 'El asesor debe ser un número entero.',
+      'worker_id.exists' => 'El asesor seleccionado no existe.',
 
       'sede_id.required' => 'La sede es obligatoria.',
       'sede_id.integer' => 'La sede debe ser un número entero.',

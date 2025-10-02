@@ -47,13 +47,6 @@ class StoreSedeRequest extends StoreRequest
         'integer',
         'exists:district,id',
       ],
-      'derco_store_code' => [
-        'nullable',
-        'string',
-        'max:100',
-        Rule::unique('config_sede', 'derco_store_code')
-          ->whereNull('deleted_at'),
-      ],
     ];
   }
 
@@ -88,10 +81,6 @@ class StoreSedeRequest extends StoreRequest
       'dyn_code.required' => 'El código DYN es obligatorio.',
       'dyn_code.string' => 'El código DYN debe ser una cadena de texto.',
       'dyn_code.max' => 'El código DYN no debe exceder los 100 caracteres.',
-
-      'derco_store_code.string' => 'El código de tienda Derco debe ser una cadena de texto.',
-      'derco_store_code.max' => 'El código de tienda Derco no debe exceder los 100 caracteres.',
-      'derco_store_code.unique' => 'El código de tienda Derco ya está en uso.',
     ];
   }
 }

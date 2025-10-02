@@ -68,4 +68,22 @@ class ApAssignBrandConsultantController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function getBrandsByBranch($sedeId)
+  {
+    try {
+      return $this->service->getBrandsByBranch($sedeId);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function getAdvisorsByBranchAndBrand($sedeId, $brandId)
+  {
+    try {
+      return $this->service->getAdvisorsByBranchAndBrand($sedeId, $brandId);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

@@ -22,8 +22,7 @@ class ApAssignBrandConsultant extends Model
     'status',
     'brand_id',
     'worker_id',
-    'company_branch_id',
-    'sede_id', //temporal
+    'sede_id',
   ];
 
   const filters = [
@@ -32,7 +31,6 @@ class ApAssignBrandConsultant extends Model
     'month' => '=',
     'status' => '=',
     'brand_id' => '=',
-    'company_branch_id' => '=',
     'sede_id' => '=', //temporal
   ];
 
@@ -43,7 +41,6 @@ class ApAssignBrandConsultant extends Model
     'status',
     'brand_id',
     'worker_id',
-    'company_branch_id',
     'sede_id', //temporal
   ];
 
@@ -55,11 +52,6 @@ class ApAssignBrandConsultant extends Model
   public function worker()
   {
     return $this->belongsTo(Worker::class, 'worker_id');
-  }
-
-  public function companyBranch()
-  {
-    return $this->belongsTo(CompanyBranch::class, 'company_branch_id');
   }
 
   public function sede()

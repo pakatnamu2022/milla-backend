@@ -44,12 +44,11 @@ class Sede extends BaseModel
     'province_id',
     'district_id',
     'status',
-    'derco_store_code'
   ];
 
   const filters = [
     'id' => '=',
-    'search' => ['suc_abrev', 'abreviatura', 'razon_social', 'direccion', 'ciudad', 'dyn_code', 'establishment', 'derco_store_code'],
+    'search' => ['suc_abrev', 'abreviatura', 'razon_social', 'direccion', 'ciudad', 'dyn_code', 'establishment'],
     'empresa_id' => '=',
     'department_id' => '=',
     'province_id' => '=',
@@ -89,11 +88,6 @@ class Sede extends BaseModel
   public function setEstablishmentAttribute($value): void
   {
     $this->attributes['establishment'] = Str::upper(Str::ascii($value));
-  }
-
-  public function setDercoStoreCodeAttribute($value): void
-  {
-    $this->attributes['derco_store_code'] = 'PE' . Str::upper(Str::ascii($value));
   }
 
   public function areas()

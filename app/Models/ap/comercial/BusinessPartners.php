@@ -73,7 +73,7 @@ class BusinessPartners extends Model
   ];
 
   const filters = [
-    'search' => ['name', 'paternal_surname', 'maternal_surname', 'num_doc', 'email', 'phone'],
+    'search' => ['full_name', 'paternal_surname', 'maternal_surname', 'num_doc', 'email', 'phone'],
     'company_id' => '=',
     'type_person_id' => '=',
     'document_type_id' => '=',
@@ -85,7 +85,7 @@ class BusinessPartners extends Model
   ];
 
   const sorts = [
-    'name',
+    'full_name',
     'paternal_surname',
     'maternal_surname',
     'created_at',

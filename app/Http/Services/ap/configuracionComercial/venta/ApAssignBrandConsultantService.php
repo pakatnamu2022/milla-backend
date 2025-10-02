@@ -70,7 +70,6 @@ class ApAssignBrandConsultantService extends BaseService implements BaseServiceI
     ])
       ->where('year', $data['year'])
       ->where('month', $data['month'])
-      //->where('company_branch_id', $data['company_branch_id'])
       ->where('sede_id', $data['sede_id'])
       ->where('brand_id', $data['brand_id'])
       ->get();
@@ -145,7 +144,6 @@ class ApAssignBrandConsultantService extends BaseService implements BaseServiceI
       ->where('month', $data['month'])
       ->where('worker_id', $data['worker_id'])
       ->where('brand_id', $data['brand_id'])
-      //->where('company_branch_id', $data['company_branch_id'])
       ->where('sede_id', $data['sede_id'])
       ->where('id', '!=', $data['id'])
       ->exists();
@@ -163,5 +161,60 @@ class ApAssignBrandConsultantService extends BaseService implements BaseServiceI
       $ApAssignBrandConsultant->delete();
     });
     return response()->json(['message' => 'Asignación de asistente eliminado correctamente']);
+  }
+
+  public function getBrandsByBranch($sedeId)
+  {
+    $currentYear = date('Y');
+    $currentMonth = date('m');
+
+    $brands = ApAssignBrandConsultant::with(['brand'])
+      ->where('sede_id', $sedeId)
+      ->where('year', $currentYear)
+      ->where('month', $currentMonth)
+      ->where('status', 1)
+      ->select('brand_id')
+      ->distinct()
+      ->get();
+
+    if ($brands->isEmpty()) {
+      return response()->json([], 404);
+    }
+
+    $brandsData = $brands->map(function ($assignment) {
+      return [
+        'id' => $assignment->brand->id,
+        'name' => $assignment->brand->name,
+      ];
+    });
+
+    return response()->json($brandsData);
+  }
+
+  public function getAdvisorsByBranchAndBrand($sedeId, $brandId)
+  {
+    $currentYear = date('Y');
+    $currentMonth = date('m');
+
+    $advisors = ApAssignBrandConsultant::with(['worker'])
+      ->where('sede_id', $sedeId)
+      ->where('brand_id', $brandId)
+      ->where('year', $currentYear)
+      ->where('month', $currentMonth)
+      ->where('status', 1)
+      ->get();
+
+    if ($advisors->isEmpty()) {
+      return response()->json([], 404);
+    }
+
+    $advisorsData = $advisors->map(function ($assignment) {
+      return [
+        'id' => $assignment->worker->id,
+        'name' => $assignment->worker->nombre_completo,
+      ];
+    });
+
+    return response()->json($advisorsData);
   }
 }
