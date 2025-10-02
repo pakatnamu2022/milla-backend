@@ -62,7 +62,7 @@ class PotentialBuyersController extends Controller
     }
   }
 
-  public function import(Request $request)
+  public function importDerco(Request $request)
   {
     $request->validate([
       'file' => 'required|file|mimes:xlsx,xls,csv|max:10240'
@@ -74,7 +74,31 @@ class PotentialBuyersController extends Controller
     }
 
     try {
-      $result = $this->service->importFromExcel($request->file('file'));
+      $result = $this->service->importFromExcelDerco($request->file('file'));
+
+      if ($result['success']) {
+        return $this->success($result, $result['message']);
+      } else {
+        return $this->error($result['message'], $result);
+      }
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function importSocialNetworks(Request $request)
+  {
+    $request->validate([
+      'file' => 'required|file|mimes:xlsx,xls,csv|max:10240'
+    ]);
+
+    // Verificar que el archivo fue recibido correctamente
+    if (!$request->hasFile('file') || !$request->file('file')->isValid()) {
+      return $this->error('Archivo no encontrado o no válido. Asegúrate de enviar un archivo con el campo "file".');
+    }
+
+    try {
+      $result = $this->service->importFromExcelSocialNetworks($request->file('file'));
 
       if ($result['success']) {
         return $this->success($result, $result['message']);

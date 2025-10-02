@@ -5,7 +5,8 @@ namespace App\Http\Services\ap\comercial;
 use App\Http\Resources\ap\comercial\PotentialBuyersResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ImportService;
-use App\Imports\PotentialBuyersImport;
+use App\Imports\ap\comercial\PotentialBuyersDercoImport;
+use App\Imports\ap\comercial\PotentialBuyersSocialNetworksImport;
 use App\Jobs\ValidatePotentialBuyersDocuments;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\PotentialBuyers;
@@ -100,7 +101,7 @@ class PotentialBuyersService extends BaseService
     }
   }
 
-  public function importFromExcel(UploadedFile $file)
+  public function importFromExcelDerco(UploadedFile $file)
   {
     DB::beginTransaction();
     try {
@@ -119,7 +120,7 @@ class PotentialBuyersService extends BaseService
       $importService->validateFile($file);
 
       // Importar datos del Excel
-      $importResult = $importService->importFromExcel($file, PotentialBuyersImport::class);
+      $importResult = $importService->importFromExcel($file, PotentialBuyersDercoImport::class);
 
       if (!$importResult['success']) {
         return [
@@ -142,8 +143,7 @@ class PotentialBuyersService extends BaseService
         try {
           // Verificar si ya existe el DNI en el mes actual
           $exists = PotentialBuyers::where('num_doc', $rowData['num_doc'])
-            ->whereYear('registration_date', now()->year)
-            ->whereMonth('registration_date', now()->month)
+            ->whereDate('registration_date', $rowData['registration_date'])
             ->exists();
 
           if ($exists) {
@@ -222,6 +222,132 @@ class PotentialBuyersService extends BaseService
       return [
         'success' => false,
         'message' => 'Error en la importación',
+        'error' => $e->getMessage()
+      ];
+    }
+  }
+
+  public function importFromExcelSocialNetworks(UploadedFile $file)
+  {
+    DB::beginTransaction();
+    try {
+      // Validar que el archivo no sea nulo
+      if (!$file || !$file->isValid()) {
+        return [
+          'success' => false,
+          'message' => 'Archivo no válido o no encontrado',
+          'error' => 'El archivo enviado no es válido'
+        ];
+      }
+
+      $importService = new ImportService();
+
+      // Validar archivo
+      $importService->validateFile($file);
+
+      // Importar datos del Excel usando PotentialBuyersSocialNetworksImport
+      $importResult = $importService->importFromExcel($file, PotentialBuyersSocialNetworksImport::class);
+
+      if (!$importResult['success']) {
+        return [
+          'success' => false,
+          'message' => $importResult['message'],
+          'error' => $importResult['error']
+        ];
+      }
+
+      $totalRows = count($importResult['data']);
+      $imported = 0;
+      $duplicated = 0;
+      $errors = 0;
+      $errorDetails = [];
+      $duplicatedRecords = [];
+      $createdIds = [];
+
+      // Procesar los datos importados con validación de duplicados y longitud de documento
+      foreach ($importResult['data'] as $index => $rowData) {
+        try {
+          // Verificar si ya existe el documento en el mes actual
+          $exists = PotentialBuyers::where('num_doc', $rowData['num_doc'])
+            ->whereDate('registration_date', $rowData['registration_date'])
+            ->exists();
+
+          if ($exists) {
+            $duplicated++;
+            $duplicatedRecords[] = [
+              'row' => $index + 1,
+              'num_doc' => $rowData['num_doc'],
+              'full_name' => $rowData['full_name'] ?? 'N/A'
+            ];
+            continue;
+          }
+
+          // Validar longitud del documento y asignar status_num_doc
+          $numDoc = trim($rowData['num_doc']);
+          $docLength = strlen($numDoc);
+          $documentTypeId = $rowData['document_type_id'];
+
+          // Inicializar status_num_doc
+          $statusNumDoc = 'PENDIENTE';
+          $countDigitTypeDoc = (int)ApCommercialMasters::find($documentTypeId)->code;
+
+          // Validar si la longitud del documento no coincide con el tipo
+          if ($docLength != $countDigitTypeDoc) {
+            $statusNumDoc = 'ERRADO';
+          }
+
+          // Agregar status_num_doc al array de datos
+          $rowData['status_num_doc'] = $statusNumDoc;
+
+          // Crear el registro
+          $buyer = PotentialBuyers::create($rowData);
+          $createdIds[] = $buyer->id;
+          $imported++;
+
+        } catch (Exception $e) {
+          $errors++;
+          $errorDetails[] = [
+            'row' => $index + 1,
+            'error' => $e->getMessage(),
+            'data' => $rowData
+          ];
+        }
+      }
+
+      DB::commit();
+
+      // Despachar un job individual por cada registro creado
+      foreach ($createdIds as $buyerId) {
+        ValidatePotentialBuyersDocuments::dispatch([$buyerId]);
+      }
+
+      // Construir mensaje descriptivo
+      $message = "Importación de redes sociales completada: {$imported} de {$totalRows} registros importados exitosamente";
+      if ($duplicated > 0) {
+        $message .= ", {$duplicated} ya están registrados en el mes actual";
+      }
+      if ($errors > 0) {
+        $message .= ", {$errors} con errores";
+      }
+
+      return [
+        'success' => true,
+        'message' => $message,
+        'summary' => [
+          'total_rows' => $totalRows,
+          'imported' => $imported,
+          'duplicated' => $duplicated,
+          'errors' => $errors,
+          'duplicated_records' => $duplicatedRecords,
+          'error_details' => $errorDetails
+        ]
+      ];
+
+    } catch (Exception $e) {
+      DB::rollBack();
+      return [
+        'success' => false,
+        'message' => 'Error en la importación de redes sociales',
         'error' => $e->getMessage()
       ];
     }
