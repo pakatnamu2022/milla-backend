@@ -43,6 +43,7 @@ class ValidatePotentialBuyersDocuments implements ShouldQueue
    */
   public function __construct(array $potentialBuyerIds)
   {
+    $this->onQueue('validate-potential-buyers-documents');
     $this->potentialBuyerIds = $potentialBuyerIds;
   }
 
@@ -53,22 +54,12 @@ class ValidatePotentialBuyersDocuments implements ShouldQueue
   {
     $documentValidationService = new DocumentValidationService();
 
-    Log::info('Iniciando validación de documentos', [
-      'total_records' => count($this->potentialBuyerIds)
-    ]);
-
-    $processed = 0;
-    $validated = 0;
-    $notFound = 0;
-    $errors = 0;
-
     foreach ($this->potentialBuyerIds as $id) {
       try {
         // Obtener el registro
         $potentialBuyer = PotentialBuyers::find($id);
 
         if (!$potentialBuyer) {
-          Log::warning("Registro no encontrado: {$id}");
           continue;
         }
 
@@ -80,40 +71,20 @@ class ValidatePotentialBuyersDocuments implements ShouldQueue
         $numDoc = $potentialBuyer->num_doc;
 
         // Validar el documento
-        $statusNumDoc = $this->validateDocument($documentValidationService, $numDoc);
+        $validationResult = $this->validateDocument($documentValidationService, $numDoc);
 
         // Actualizar el estado
-        $potentialBuyer->update(['status_num_doc' => $statusNumDoc]);
+        $updateData = array_filter([
+          'status_num_doc' => $validationResult['status'],
+          'full_name' => $validationResult['full_name']
+        ], fn($value) => !empty(trim($value)));
 
-        $processed++;
-
-        // Contar estadísticas
-        if ($statusNumDoc === 'VALIDADO') {
-          $validated++;
-        } elseif ($statusNumDoc === 'NO_ENCONTRADO') {
-          $notFound++;
-        } elseif ($statusNumDoc === 'ERRADO') {
-          $errors++;
-        }
-
-        // Log cada 100 registros procesados
-        if ($processed % 100 === 0) {
-          Log::info("Progreso de validación: {$processed} de " . count($this->potentialBuyerIds));
-        }
-
+        $potentialBuyer->update($updateData);
       } catch (Exception $e) {
-        Log::error("Error validando documento para ID {$id}: " . $e->getMessage());
         // Continuar con el siguiente aunque falle uno
         continue;
       }
     }
-
-    Log::info('Validación de documentos completada', [
-      'total_procesados' => $processed,
-      'validados' => $validated,
-      'no_encontrados' => $notFound,
-      'errados' => $errors
-    ]);
   }
 
   /**
@@ -121,13 +92,16 @@ class ValidatePotentialBuyersDocuments implements ShouldQueue
    *
    * @param DocumentValidationService $service
    * @param string|null $numDoc
-   * @return string 'VALIDADO' | 'NO_ENCONTRADO' | 'ERRADO'
+   * @return array ['status' => string, 'full_name' => string|null]
    */
-  private function validateDocument(DocumentValidationService $service, $numDoc)
+  private function validateDocument(DocumentValidationService $service, $numDoc): array
   {
-    // Si no hay número de documento, retornar ERRADO
+    // Si no hay número de documento
     if (empty($numDoc)) {
-      return 'ERRADO';
+      return [
+        'status' => 'ERRADO',
+        'full_name' => null
+      ];
     }
 
     // Limpiar el número de documento
@@ -141,8 +115,10 @@ class ValidatePotentialBuyersDocuments implements ShouldQueue
     } elseif ($length === 11) {
       $documentType = 'ruc';
     } else {
-      // Si no tiene ni 8 ni 11 dígitos, retornar ERRADO
-      return 'ERRADO';
+      return [
+        'status' => 'ERRADO',
+        'full_name' => null
+      ];
     }
 
     try {
@@ -151,19 +127,29 @@ class ValidatePotentialBuyersDocuments implements ShouldQueue
         $documentType,
         $numDoc,
         [],
-        true // usar cache
+        true
       );
+
+      // Extraer el nombre completo según el tipo
+      $fullName = $result['data']['names'] ?? ($result['data']['business_name'] ?? null);
 
       // Verificar si la validación fue exitosa
       if (isset($result['success']) && $result['success'] === true) {
-        return 'VALIDADO';
+        return [
+          'status' => 'VALIDADO',
+          'full_name' => $fullName
+        ];
       } else {
-        return 'NO_ENCONTRADO';
+        return [
+          'status' => 'NO_ENCONTRADO',
+          'full_name' => null
+        ];
       }
     } catch (Exception $e) {
-      // Si hay un error en la validación, retornar NO_ENCONTRADO
-      Log::warning("Error validando documento {$numDoc}: " . $e->getMessage());
-      return 'NO_ENCONTRADO';
+      return [
+        'status' => 'NO_ENCONTRADO',
+        'full_name' => null
+      ];
     }
   }
 

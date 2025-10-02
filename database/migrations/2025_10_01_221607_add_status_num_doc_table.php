@@ -12,6 +12,7 @@ return new class extends Migration {
   {
     Schema::table('potential_buyers', function (Blueprint $table) {
       $table->enum('status_num_doc', ['PENDIENTE', 'VALIDADO', 'ERRADO', 'NO_ENCONTRADO'])->default('PENDIENTE')->after('num_doc');
+      $table->boolean('use')->default(false)->after('status_num_doc');
     });
   }
 
@@ -22,6 +23,7 @@ return new class extends Migration {
   {
     Schema::table('potential_buyers', function (Blueprint $table) {
       $table->dropColumn('status_num_doc');
+      $table->dropColumn('use');
     });
   }
 };

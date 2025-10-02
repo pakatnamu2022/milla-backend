@@ -63,7 +63,7 @@ class StandardResponseFormatter implements ResponseFormatterInterface
     return [
       'valid' => true,
       'document_number' => $data['numero'] ?? null,
-      'names' => $data['nombre_completo'] ?? null,
+      'names' => str_replace(',', '', $data['nombre_completo']) ?? null,
       'first_name' => $data['nombres'] ?? null,
       'paternal_surname' => $data['apellido_paterno'] ?? null,
       'maternal_surname' => $data['apellido_materno'] ?? null,
