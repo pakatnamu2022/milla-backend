@@ -57,7 +57,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       }
 
       // Sincronizar a otras bases de datos
-      $this->syncService->sync('business_partners', $businessPartner->toArray(), 'create');
+      //$this->syncService->sync('business_partners', $businessPartner->toArray(), 'create');
 
       DB::commit();
       return new BusinessPartnersResource($businessPartner);
