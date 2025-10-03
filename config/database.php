@@ -122,6 +122,8 @@ return [
       'charset' => 'utf8',
       'prefix' => '',
       'prefix_indexes' => true,
+      'encrypt' => env('DBTP_ENCRYPT', 'yes'),
+      'trust_server_certificate' => env('DBTP_TRUST_SERVER_CERTIFICATE', 'true'),
     ],
 
     'dbtp2' => [
@@ -134,6 +136,8 @@ return [
       'charset' => 'utf8',
       'prefix' => '',
       'prefix_indexes' => true,
+      'encrypt' => env('DBTP2_ENCRYPT', 'yes'),
+      'trust_server_certificate' => env('DBTP2_TRUST_SERVER_CERTIFICATE', 'true'),
     ],
 
   ],

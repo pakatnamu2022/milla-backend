@@ -53,11 +53,13 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       $data = $this->getData($data);
       $businessPartner = BusinessPartners::create($data);
       if ($data['document_type_id'] == Constants::TYPE_DOCUMENT_RUC_ID) {
+        $businessPartner['first_name'] = '';
         ProcessEstablishments::dispatch($businessPartner->id, $data['num_doc']);
       }
 
       // Sincronizar a otras bases de datos
-      //$this->syncService->sync('business_partners', $businessPartner->toArray(), 'create');
+      $this->syncService->sync('business_partners', $businessPartner->toArray(), 'create');
+      $this->syncService->sync('business_partners_directions', $businessPartner->toArray(), 'create');
 
       DB::commit();
       return new BusinessPartnersResource($businessPartner);

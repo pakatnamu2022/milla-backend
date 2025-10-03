@@ -6,6 +6,7 @@ use App\Http\Services\DocumentValidation\Contracts\DocumentProviderInterface;
 use App\Http\Services\DocumentValidation\Contracts\ResponseFormatterInterface;
 use App\Http\Services\DocumentValidation\Providers\FactilizaProvider;
 use App\Http\Services\DocumentValidation\Formatters\StandardResponseFormatter;
+use App\Models\ap\comercial\BusinessPartners;
 use Illuminate\Support\Facades\Cache;
 use Exception;
 
@@ -53,6 +54,15 @@ class DocumentValidationService
       );
     }
 
+    // Check if document exists in BusinessPartners first (only if isBusinessPartners = true)
+    $checkBusinessPartners = $additionalParams['isBusinessPartners'] ?? false;
+    if ($checkBusinessPartners) {
+      $businessPartner = $this->findInBusinessPartners($documentType, $documentNumber);
+      if ($businessPartner) {
+        return $this->formatBusinessPartnerResponse($businessPartner, $documentType, $documentNumber);
+      }
+    }
+
     // Get provider for this document type
     $provider = $this->getProviderForDocumentType($documentType);
 
@@ -79,6 +89,7 @@ class DocumentValidationService
     if ($useCache) {
       $cachedResult = Cache::get($cacheKey);
       if ($cachedResult !== null) {
+        $cachedResult['source'] = 'api';
         return $cachedResult;
       }
     }
@@ -97,6 +108,9 @@ class DocumentValidationService
         $documentType,
         $documentNumber
       );
+
+      // Add source field
+      $formattedResponse['source'] = 'api';
 
       // Cache the result if using cache
       if ($useCache) {
@@ -242,5 +256,89 @@ class DocumentValidationService
   {
     $availableTypes = array_keys($provider->getAvailableDocumentTypes());
     return in_array($documentType, $availableTypes);
+  }
+
+  /**
+   * Find document in BusinessPartners table
+   *
+   * @param string $documentType
+   * @param string $documentNumber
+   * @return BusinessPartners|null
+   */
+  protected function findInBusinessPartners(string $documentType, string $documentNumber): ?BusinessPartners
+  {
+    // Solo buscar para DNI y RUC
+    if (!in_array($documentType, ['dni', 'ruc'])) {
+      return null;
+    }
+
+    return BusinessPartners::where('num_doc', $documentNumber)->first();
+  }
+
+  /**
+   * Format BusinessPartner data to match API response structure
+   *
+   * @param BusinessPartners $businessPartner
+   * @param string $documentType
+   * @param string $documentNumber
+   * @return array
+   */
+  protected function formatBusinessPartnerResponse(BusinessPartners $businessPartner, string $documentType, string $documentNumber): array
+  {
+    $baseResponse = [
+      'success' => true,
+      'document_type' => $documentType,
+      'document_number' => $documentNumber,
+      'provider' => 'database',
+      'source' => 'database',
+      'validated_at' => now()->toISOString(),
+    ];
+
+    if ($documentType === 'dni') {
+      return array_merge($baseResponse, [
+        'data' => [
+          'valid' => true,
+          'document_number' => $businessPartner->num_doc,
+          'names' => $businessPartner->full_name,
+          'first_name' => $businessPartner->first_name,
+          'paternal_surname' => $businessPartner->paternal_surname,
+          'maternal_surname' => $businessPartner->maternal_surname,
+          'birth_date' => $businessPartner->birth_date?->format('Y-m-d'),
+          'gender' => $businessPartner->gender?->code,
+          'department' => $businessPartner->district?->province?->department?->description,
+          'province' => $businessPartner->district?->province?->description,
+          'district' => $businessPartner->district?->description,
+          'ubigeo_reniec' => $businessPartner->district?->code,
+          'ubigeo_sunat' => $businessPartner->district?->code,
+          'address' => $businessPartner->direction,
+          'ubigeo' => $businessPartner->district?->code,
+          'restricted' => false,
+          'type' => $businessPartner->type,
+        ]
+      ]);
+    }
+
+    if ($documentType === 'ruc') {
+      return array_merge($baseResponse, [
+        'data' => [
+          'valid' => true,
+          'ruc' => $businessPartner->num_doc,
+          'business_name' => $businessPartner->full_name,
+          'taxpayer_type' => $businessPartner->taxClassType?->description,
+          'status' => $businessPartner->company_status,
+          'condition' => $businessPartner->company_condition,
+          'department' => $businessPartner->district?->province?->department?->description,
+          'province' => $businessPartner->district?->province?->description,
+          'district' => $businessPartner->district?->description,
+          'address' => $businessPartner->direction,
+          'full_address' => $businessPartner->direction,
+          'ubigeo_sunat' => $businessPartner->district?->code,
+          'ubigeo' => $businessPartner->district?->code,
+          'type' => $businessPartner->type,
+        ]
+      ]);
+    }
+
+    return $baseResponse;
   }
 }
