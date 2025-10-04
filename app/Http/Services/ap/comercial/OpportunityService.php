@@ -194,11 +194,13 @@ class OpportunityService extends BaseService implements BaseServiceInterface
     $groupedActions = $actions->groupBy(function ($action) {
       return Carbon::parse($action->datetime)->format('Y-m-d');
     });
-
+    
     return $groupedActions->map(function ($actions, $date) {
       return [
         'date' => $date,
         'count' => $actions->count(),
+        'count_positive_result' => $actions->where('result', 1)->count(),
+        'count_negative_result' => $actions->where('result', 0)->count(),
         'actions' => OpportunityActionResource::collection($actions),
       ];
     })->values();

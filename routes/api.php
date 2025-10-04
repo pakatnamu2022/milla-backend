@@ -656,7 +656,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
       Route::get('businessPartners/{id}/establishments', [BusinessPartnersController::class, 'establishments']);
 
       // Crear oportunidad desde un cliente
-      Route::post('businessPartners/{clientId}/opportunities', [\App\Http\Controllers\ap\comercial\OpportunityController::class, 'storeFromClient']);
+      Route::post('businessPartners/{clientId}/opportunities', [OpportunityController::class, 'storeFromClient']);
 
       Route::apiResource('potentialBuyers', PotentialBuyersController::class)->only([
         'index',

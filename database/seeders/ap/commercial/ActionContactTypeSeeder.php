@@ -11,8 +11,8 @@ class ActionContactTypeSeeder extends Seeder
   {
     $data = [
       ['description' => 'EMAIL', 'type' => 'ACTION_CONTACT_TYPE'],
-      ['description' => 'TELÉFONO', 'type' => 'ACTION_CONTACT_TYPE'],
-      ['description' => 'REUNIÓN', 'type' => 'ACTION_CONTACT_TYPE'],
+      ['description' => 'TELEFONO', 'type' => 'ACTION_CONTACT_TYPE'],
+      ['description' => 'REUNION', 'type' => 'ACTION_CONTACT_TYPE'],
       ['description' => 'VIDEOLLAMADA', 'type' => 'ACTION_CONTACT_TYPE'],
       ['description' => 'WHATSAPP', 'type' => 'ACTION_CONTACT_TYPE'],
     ];
