@@ -648,7 +648,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'show',
         'store',
         'update',
-        'destroy'
       ]);
       Route::patch('businessPartners/{id}/remove-type', [BusinessPartnersController::class, 'removeType']);
       Route::get('businessPartners/{id}/establishments', [BusinessPartnersController::class, 'establishments']);

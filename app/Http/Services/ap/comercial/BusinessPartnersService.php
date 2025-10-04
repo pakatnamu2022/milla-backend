@@ -51,15 +51,38 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
     DB::beginTransaction();
     try {
       $data = $this->getData($data);
+
+      // Verificar si existe
+      $existingPartner = BusinessPartners::where('num_doc', $data['num_doc'])
+        ->whereNull('deleted_at')
+        ->first();
+
+      if ($existingPartner) {
+        // Si existe y tiene un type diferente, actualizar a AMBOS
+        if ($existingPartner->type !== $data['type'] && $existingPartner->type !== 'AMBOS') {
+          $data['type'] = 'AMBOS';
+          $data['id'] = $existingPartner->id;
+          $existingPartner->update($data);
+
+          DB::commit();
+          return new BusinessPartnersResource($existingPartner);
+        }
+
+        // Si ya es AMBOS o mismo tipo, no hacer nada
+        DB::commit();
+        return new BusinessPartnersResource($existingPartner);
+      }
+
+      // Si no existe, crear nuevo
       $businessPartner = BusinessPartners::create($data);
-      if ($data['document_type_id'] == Constants::TYPE_DOCUMENT_RUC_ID) {
-        $businessPartner['first_name'] = '';
+
+      if ($data['document_type_id'] == Constants::TYPE_DOCUMENT_RUC_ID && str_starts_with($data['num_doc'], '20')) {
         ProcessEstablishments::dispatch($businessPartner->id, $data['num_doc']);
       }
 
       // Sincronizar a otras bases de datos
-      $this->syncService->sync('business_partners', $businessPartner->toArray(), 'create');
-      $this->syncService->sync('business_partners_directions', $businessPartner->toArray(), 'create');
+//      $this->syncService->sync('business_partners', $businessPartner->toArray(), 'create');
+//      $this->syncService->sync('business_partners_directions', $businessPartner->toArray(), 'create');
 
       DB::commit();
       return new BusinessPartnersResource($businessPartner);
@@ -122,17 +145,12 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
     try {
       $businessPartner = $this->find($id);
 
-      // Si no se especifica qué type remover, eliminar completamente
       if (!$typeToRemove) {
-        // Sincronizar eliminación a otras bases de datos
-        //$this->syncService->sync('business_partners', $businessPartner->toArray(), 'delete');
-
         $businessPartner->delete();
         DB::commit();
-        return response()->json(['message' => 'Socio comercial eliminado correctamente']);
+        return response()->json(['message' => 'Registro eliminado correctamente']);
       }
 
-      // Validar que el type a remover sea válido
       $validTypes = ['CLIENTE', 'PROVEEDOR'];
       if (!in_array($typeToRemove, $validTypes)) {
         throw new Exception('Tipo inválido. Debe ser CLIENTE o PROVEEDOR');
@@ -140,44 +158,37 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
 
       $currentType = $businessPartner->type;
 
-      // Lógica según el tipo actual
       switch ($currentType) {
         case 'CLIENTE':
           if ($typeToRemove === 'CLIENTE') {
-            // Si es solo CLIENTE y quiere remover CLIENTE, eliminar completamente
-            //$this->syncService->sync('business_partners', $businessPartner->toArray(), 'delete');
             $businessPartner->delete();
             $message = 'Cliente eliminado correctamente';
           } else {
-            throw new Exception('Este socio comercial es solo CLIENTE, no se puede remover como PROVEEDOR');
+            throw new Exception('Este registro es solo CLIENTE, no se puede remover como PROVEEDOR');
           }
           break;
 
         case 'PROVEEDOR':
           if ($typeToRemove === 'PROVEEDOR') {
-            // Si es solo PROVEEDOR y quiere remover PROVEEDOR, eliminar completamente
-            //$this->syncService->sync('business_partners', $businessPartner->toArray(), 'delete');
             $businessPartner->delete();
             $message = 'Proveedor eliminado correctamente';
           } else {
-            throw new Exception('Este socio comercial es solo PROVEEDOR, no se puede remover como CLIENTE');
+            throw new Exception('Este registro es solo PROVEEDOR, no se puede remover como CLIENTE');
           }
           break;
 
         case 'AMBOS':
           if ($typeToRemove === 'CLIENTE') {
-            // Remover CLIENTE, queda como PROVEEDOR
             $businessPartner->update(['type' => 'PROVEEDOR']);
-            $message = 'Cliente removido. Socio comercial ahora es solo PROVEEDOR';
+            $message = 'Cliente eliminado correctamente';
           } elseif ($typeToRemove === 'PROVEEDOR') {
-            // Remover PROVEEDOR, queda como CLIENTE
             $businessPartner->update(['type' => 'CLIENTE']);
-            $message = 'Proveedor removido. Socio comercial ahora es solo CLIENTE';
+            $message = 'Proveedor eliminado correctamente';
           }
           break;
 
         default:
-          throw new Exception('Tipo de socio comercial no reconocido');
+          throw new Exception('Registro no reconocido');
       }
 
       DB::commit();

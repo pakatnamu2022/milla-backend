@@ -64,6 +64,7 @@ class BusinessPartners extends Model
     'company_id',
     'type',
     'establishments_status',
+    'supplier_tax_class_id'
   ];
 
   protected $casts = [

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ap\comercial;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\comercial\BusinessPartners;
 use Illuminate\Validation\Rule;
 
 class StoreBusinessPartnersRequest extends StoreRequest
@@ -17,8 +18,7 @@ class StoreBusinessPartnersRequest extends StoreRequest
       'full_name' => 'required|string|max:255',
       'birth_date' => 'nullable|date',
       'nationality' => [
-        Rule::when(
-          in_array($this->type, ['CLIENTE', 'AMBOS']),
+        Rule::when($this->type == 'CLIENTE',
           ['required', 'string', 'in:NACIONAL,EXTRANJERO'],
           ['nullable', 'string', 'in:NACIONAL,EXTRANJERO']
         )
@@ -27,8 +27,17 @@ class StoreBusinessPartnersRequest extends StoreRequest
         'required',
         'string',
         'max:20',
-        Rule::unique('business_partners', 'num_doc')
-          ->whereNull('deleted_at'),
+        function ($attribute, $value, $fail) {
+          $existing = BusinessPartners::where('num_doc', $value)
+            ->whereNull('deleted_at')
+            ->first();
+
+          if ($existing) {
+            if ($existing->type === $this->type || $existing->type === 'AMBOS') {
+              $fail('El número de documento ya está registrado con este tipo.');
+            }
+          }
+        },
       ],
       'spouse_num_doc' => 'nullable|string|max:20',
       'spouse_full_name' => 'nullable|string|max:255',
@@ -56,13 +65,23 @@ class StoreBusinessPartnersRequest extends StoreRequest
       'company_condition' => 'nullable|string|max:100',
       'driving_license_category' => 'nullable|string|max:50',
       'origin_id' => [
-        Rule::when(
-          in_array($this->type, ['CLIENTE', 'AMBOS']),
+        Rule::when($this->type == 'CLIENTE',
           ['required', 'integer', 'exists:ap_commercial_masters,id'],
           ['nullable', 'integer', 'exists:ap_commercial_masters,id']
         )
       ],
-      'tax_class_type_id' => 'required|integer|exists:tax_class_types,id',
+      'tax_class_type_id' => [
+        Rule::when($this->type == 'CLIENTE',
+          ['required', 'integer', 'exists:tax_class_types,id'],
+          ['nullable', 'integer', 'exists:tax_class_types,id']
+        )
+      ],
+      'supplier_tax_class_id' => [
+        Rule::when($this->type == 'PROVEEDOR',
+          ['required', 'integer', 'exists:tax_class_types,id'],
+          ['nullable', 'integer', 'exists:tax_class_types,id']
+        )
+      ],
       'type_person_id' => 'required|integer|exists:ap_commercial_masters,id',
       'district_id' => 'required|integer|exists:district,id',
       'document_type_id' => 'required|integer|exists:ap_commercial_masters,id',
@@ -70,8 +89,7 @@ class StoreBusinessPartnersRequest extends StoreRequest
       'marital_status_id' => 'nullable|integer|exists:ap_commercial_masters,id',
       'gender_id' => 'nullable|integer|exists:ap_commercial_masters,id',
       'activity_economic_id' => [
-        Rule::when(
-          in_array($this->type, ['CLIENTE', 'AMBOS']),
+        Rule::when($this->type == 'CLIENTE',
           ['required', 'integer', 'exists:ap_commercial_masters,id'],
           ['nullable', 'integer', 'exists:ap_commercial_masters,id']
         )
@@ -135,6 +153,9 @@ class StoreBusinessPartnersRequest extends StoreRequest
 
       'tax_class_type_id.required' => 'El tipo de clase tributaria es obligatorio.',
       'tax_class_type_id.exists' => 'El tipo de clase tributaria seleccionado no existe.',
+
+      'supplier_tax_class_id.required' => 'El tipo de clase tributaria del proveedor es obligatorio.',
+      'supplier_tax_class_id.exists' => 'El tipo de clase tributaria del proveedor seleccionado no existe.',
 
       'type_person_id.required' => 'El tipo de persona es obligatorio.',
       'type_person_id.exists' => 'El tipo de persona seleccionado no existe.',
