@@ -57,16 +57,20 @@ class DocumentValidationController extends Controller
     $validated = $request->validate([
       'dni' => 'required|string|size:8|regex:/^[0-9]+$/',
       'use_cache' => 'sometimes|boolean',
+      'isBusinessPartners' => 'sometimes|boolean',
     ]);
+
+    $additionalParams = [];
+    if (isset($validated['isBusinessPartners'])) {
+      $additionalParams['isBusinessPartners'] = $validated['isBusinessPartners'];
+    }
 
     $result = $this->documentValidationService->validateDocument(
       'dni',
       $validated['dni'],
-      [],
+      $additionalParams,
       $validated['use_cache'] ?? true
     );
-
-    //$statusCode = $result['success'] ? 200 : 400;
 
     return response()->json($result, Response::HTTP_OK);
   }
@@ -82,16 +86,20 @@ class DocumentValidationController extends Controller
     $validated = $request->validate([
       'ruc' => 'required|string|size:11|regex:/^[0-9]+$/',
       'use_cache' => 'sometimes|boolean',
+      'isBusinessPartners' => 'sometimes|boolean',
     ]);
+
+    $additionalParams = [];
+    if (isset($validated['isBusinessPartners'])) {
+      $additionalParams['isBusinessPartners'] = $validated['isBusinessPartners'];
+    }
 
     $result = $this->documentValidationService->validateDocument(
       'ruc',
       $validated['ruc'],
-      [],
+      $additionalParams,
       $validated['use_cache'] ?? true
     );
-
-    //$statusCode = $result['success'] ? 200 : 400;
 
     return response()->json($result, Response::HTTP_OK);
   }

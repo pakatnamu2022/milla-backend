@@ -665,7 +665,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'update',
         'destroy'
       ]);
-      Route::post('potentialBuyers/import', [PotentialBuyersController::class, 'import']);
+      Route::post('potentialBuyers/import-derco', [PotentialBuyersController::class, 'importDerco']);
+      Route::post('potentialBuyers/import-social-networks', [PotentialBuyersController::class, 'importSocialNetworks']);
       Route::post('potentialBuyers/assign-workers', [PotentialBuyersController::class, 'assignWorkers']);
 
       // Rutas especiales de oportunidades (deben ir antes del apiResource)

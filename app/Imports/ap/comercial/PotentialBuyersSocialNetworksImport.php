@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Imports;
+namespace App\Imports\ap\comercial;
 
 use App\Http\Utils\Constants;
 use App\Models\ap\ApCommercialMasters;
@@ -9,13 +9,13 @@ use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
 use Carbon\Carbon;
+use Exception;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithValidation;
-use Exception;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 
-class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
+class PotentialBuyersSocialNetworksImport implements ToModel, WithHeadingRow, WithValidation
 {
   // Mapeo de marcas del Excel a nombres del sistema
   private $vehicleBrandMap = [
@@ -25,25 +25,36 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
     'JAC CARS' => 'JAC',
     'JAC TRUCK' => 'JAC CAMIONES',
     'JAC CAMIONES' => 'JAC CAMIONES',
-    // Agregar más mapeos según necesites
   ];
 
-  // Mapeo de código de tienda a district_id (puede ser un ID o array de IDs)
-  private $storeCodeToDistrictMap = [
-    'PE35' => [1227, 1238], // CHICLAYO - PIMENTEL
-    'PE36' => [1227, 1238], // CHICLAYO - PIMENTEL
-    'PE46' => 558, // CAJAMARCA
-    'PE48' => 631, // JAÉN
-    'PE50' => 1549, // PIURA
+  // Lista de campañas válidas (medios de redes sociales permitidos)
+  // Solo se aceptarán estos valores en la columna 'campana'
+  private $validCampaigns = [
+    'FACEBOOK',
+    'WHATSAPP',
+    'INSTAGRAM',
+    'TIKTOK',
+    'LINKEDIN',
+    'TWITTER',
+    'YOUTUBE',
+    'GOOGLE ADS',
+    'REDES SOCIALES',
   ];
 
-  // Mapeo de código de tienda a nombre de distrito
-  private $storeCodeToDistrictNameMap = [
-    'PE35' => 'CHICLAYO - PIMENTEL',
-    'PE36' => 'CHICLAYO - PIMENTEL',
-    'PE46' => 'CAJAMARCA',
-    'PE48' => 'JAÉN',
-    'PE50' => 'PIURA',
+  // Mapeo de nombres de ciudades a district_ids
+  private $cityToDistrictMap = [
+    'CHICLAYO' => [1227, 1238], // CHICLAYO - PIMENTEL
+    'CAJAMARCA' => 558, // CAJAMARCA
+    'JAEN' => 631, // JAÉN
+    'PIURA' => 1549, // PIURA
+  ];
+
+  // Mapeo de nombres de ciudades a nombre de distrito (para referencia)
+  private $cityToDistrictNameMap = [
+    'CHICLAYO' => 'CHICLAYO - PIMENTEL',
+    'CAJAMARCA' => 'CAJAMARCA',
+    'JAEN' => 'JAÉN',
+    'PIURA' => 'PIURA',
   ];
 
   // Cache de asesores por sede y marca para distribución equitativa
@@ -59,45 +70,64 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
     return null;
   }
 
+  /**
+   * Transforma una fila del Excel al formato requerido
+   *
+   * Formato del Excel:
+   * marca | modelo | version | tipo_doc | documento_cliente | nombre | apellido | celular | email | sede | fecha | campana
+   *   0   |   1    |    2    |    3     |         4         |   5    |    6     |    7    |   8   |  9   |  10   |   11
+   */
   public function transformRow(array $row)
   {
-    $storeCode = $row[9] ?? $row['codigo_de_tienda'] ?? null;
-    $sedeData = $this->getSedeData($storeCode, $row[10] ?? $row['marca'] ?? null);
-    $vehicleBrandId = $this->getVehicleBrandId($row[10] ?? $row['marca'] ?? null);
+    // Obtener sede desde el nombre de ciudad
+    $ciudad = $row[9] ?? $row['sede'] ?? null;
+    $sedeData = $this->getSedeDataFromCity($ciudad);
+
+    // Obtener marca
+    $marca = $row[0] ?? $row['marca'] ?? null;
+    $vehicleBrandId = $this->getVehicleBrandId($marca);
 
     // Obtener el asesor asignado mediante distribución equitativa
     $workerData = $this->getAssignedWorker($sedeData['id'], $vehicleBrandId);
 
-    // Obtener nombre del distrito desde el código de tienda
-    $normalizedStoreCode = strtoupper(trim($storeCode ?? ''));
-    $districtName = $this->storeCodeToDistrictNameMap[$normalizedStoreCode] ?? null;
+    // Obtener nombre del distrito desde la ciudad
+    $normalizedCity = strtoupper(trim($ciudad ?? ''));
+    $districtName = $this->cityToDistrictNameMap[$normalizedCity] ?? null;
 
     // Consolidar nombre completo eliminando duplicados
-    $nombres = $row[4] ?? $row['nombres'] ?? '';
-    $apellidos = $row[5] ?? $row['apellidos'] ?? '';
-    $fullName = $this->consolidateFullName($nombres, $apellidos);
+    $nombre = $row[5] ?? $row['nombre'] ?? '';
+    $apellido = $row[6] ?? $row['apellido'] ?? '';
+    $fullName = $this->consolidateFullName($nombre, $apellido);
+
+    // Obtener y validar campaña
+    $campana = strtoupper(trim($row[11] ?? $row['campana'] ?? ''));
+
+    // Validar que la campaña sea válida
+    if (!empty($campana) && !in_array($campana, $this->validCampaigns)) {
+      throw new \Exception("Campaña no válida: '{$campana}'. Las campañas válidas son: " . implode(', ', $this->validCampaigns));
+    }
 
     return [
-      'registration_date' => $this->parseDate($row[0] ?? $row['creado'] ?? null),
+      'registration_date' => $this->parseDate($row[10] ?? $row['fecha'] ?? null),
       'model' => strtoupper($row[1] ?? $row['modelo'] ?? ''),
       'version' => strtoupper($row[2] ?? $row['version'] ?? null),
-      'num_doc' => $row[3] ?? $row['nro_documento'] ?? null,
+      'num_doc' => $row[4] ?? $row['documento_cliente'] ?? null,
       'full_name' => $fullName,
-      'phone' => $row[6] ?? $row['celular'] ?? null,
-      'email' => strtolower($row[7] ?? $row['correo'] ?? null),
-      'campaign' => $row[8] ?? $row['campana'] ?? 'DERCO',
+      'phone' => $row[7] ?? $row['celular'] ?? null,
+      'email' => strtolower($row[8] ?? $row['email'] ?? null),
+      'campaign' => $campana, // Campaña como string
       'sede_id' => $sedeData['id'],
       'sede' => $sedeData['abreviatura'],
       'district' => $districtName,
       'vehicle_brand_id' => $vehicleBrandId,
-      'vehicle_brand' => $row[10] ?? $row['marca'] ?? null, // Solo para referencia, no se guarda en BD
+      'vehicle_brand' => $marca, // Solo para referencia
       'worker_id' => $workerData['worker_id'],
       'worker_name' => $workerData['worker_name'],
-      'document_type_id' => $this->getDocumentTypeId($row[11] ?? $row['tipo_documento'] ?? null),
-      'document_type' => $row[11] ?? $row['tipo_documento'] ?? null, // Solo para referencia, no se guarda en BD
-      'type' => $row[12] ?? $row['tipo'] ?? 'LEADS',
-      'income_sector_id' => $row[13] ?? $row['sector_ingresos_id'] ?? 829,
-      'area_id' => $row[14] ?? $row['area_id'] ?? 826,
+      'document_type_id' => $this->getDocumentTypeId($row[3] ?? $row['tipo_doc'] ?? null),
+      'document_type' => $row[3] ?? $row['tipo_doc'] ?? null, // Solo para referencia
+      'type' => 'LEADS', // Por defecto LEADS para redes sociales
+      'income_sector_id' => 829, // Valor por defecto
+      'area_id' => 826, // Valor por defecto
     ];
   }
 
@@ -105,9 +135,10 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
   {
     return [
       '*.num_doc' => 'required|string|max:20',
-      '*.name' => 'required|string|max:100',
+      '*.full_name' => 'required|string|max:100',
       '*.phone' => 'nullable|string|max:20',
       '*.email' => 'nullable|email|max:100',
+      '*.campaign' => 'nullable|string|max:50',
       '*.sede_id' => 'required|exists:sedes,id',
       '*.vehicle_brand_id' => 'nullable|exists:ap_vehicle_brands,id',
       '*.document_type_id' => 'required|exists:ap_commercial_masters,id',
@@ -121,8 +152,9 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
   {
     return [
       '*.num_doc.required' => 'El número de documento es obligatorio',
-      '*.name.required' => 'El nombre es obligatorio',
+      '*.full_name.required' => 'El nombre es obligatorio',
       '*.email.email' => 'El formato del email no es válido',
+      '*.campaign.string' => 'La campaña debe ser un texto válido',
       '*.sede_id.required' => 'La sede es obligatoria',
       '*.sede_id.exists' => 'La sede especificada no existe',
       '*.vehicle_brand_id.exists' => 'La marca de vehículo especificada no existe',
@@ -140,18 +172,25 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
       return null;
     }
 
-    // Si no encuentra, buscar en BD como fallback
+    // Mapeo de tipos de documento
     $documentTypeMap = [
       'DNI' => Constants::TYPE_DOCUMENT_DNI_ID,
       'RUC' => Constants::TYPE_DOCUMENT_RUC_ID,
+//      'CE' => Constants::TYPE_DOCUMENT_CE_ID, // Carnet de extranjería
+//      'PASAPORTE' => Constants::TYPE_DOCUMENT_PASAPORTE_ID,
     ];
 
     $documentTypeUpper = strtoupper(trim($documentType));
     $id_document = $documentTypeMap[$documentTypeUpper] ?? 0;
 
+    if ($id_document === 0) {
+      return null;
+    }
+
     $master = ApCommercialMasters::where('type', 'TIPO_DOCUMENTO')
       ->where('id', $id_document)
       ->first();
+
     return $master ? $master->id : null;
   }
 
@@ -172,17 +211,20 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
     return $brand ? $brand->id : null;
   }
 
-  private function getSedeData($storeCode, $vehicleBrand)
+  /**
+   * Obtiene la sede desde el nombre de la ciudad
+   */
+  private function getSedeDataFromCity($cityName)
   {
     $defaultReturn = ['id' => null, 'abreviatura' => null];
 
-    if (empty($storeCode)) {
+    if (empty($cityName)) {
       return $defaultReturn;
     }
 
-    // 1. Mapear el código de tienda a district_id (puede ser un ID o array de IDs)
-    $normalizedStoreCode = strtoupper(trim($storeCode));
-    $districtId = $this->storeCodeToDistrictMap[$normalizedStoreCode] ?? null;
+    // 1. Mapear el nombre de ciudad a district_id (puede ser un ID o array de IDs)
+    $normalizedCity = strtoupper(trim($cityName));
+    $districtId = $this->cityToDistrictMap[$normalizedCity] ?? null;
 
     if (!$districtId) {
       return $defaultReturn;
@@ -278,44 +320,44 @@ class PotentialBuyersImport implements ToModel, WithHeadingRow, WithValidation
    * Consolida el nombre completo eliminando duplicados entre nombres y apellidos
    *
    * Ejemplo:
-   * - Nombres: "Carloman Saucedo estela"
-   * - Apellidos: "Saucedo estela"
+   * - Nombre: "Carloman Saucedo estela"
+   * - Apellido: "Saucedo estela"
    * - Resultado: "CARLOMAN SAUCEDO ESTELA"
    *
-   * @param string $nombres
-   * @param string $apellidos
+   * @param string $nombre
+   * @param string $apellido
    * @return string
    */
-  private function consolidateFullName($nombres, $apellidos)
+  private function consolidateFullName($nombre, $apellido)
   {
     // Limpiar y normalizar
-    $nombres = trim($nombres ?? '');
-    $apellidos = trim($apellidos ?? '');
+    $nombre = trim($nombre ?? '');
+    $apellido = trim($apellido ?? '');
 
     // Si ambos están vacíos, retornar null
-    if (empty($nombres) && empty($apellidos)) {
+    if (empty($nombre) && empty($apellido)) {
       return null;
     }
 
     // Convertir a mayúsculas y dividir en palabras
-    $nombresArray = array_filter(explode(' ', strtoupper($nombres)));
-    $apellidosArray = array_filter(explode(' ', strtoupper($apellidos)));
+    $nombreArray = array_filter(explode(' ', strtoupper($nombre)));
+    $apellidoArray = array_filter(explode(' ', strtoupper($apellido)));
 
-    // Si solo hay nombres, retornarlos
-    if (empty($apellidosArray)) {
-      return implode(' ', $nombresArray);
+    // Si solo hay nombre, retornarlo
+    if (empty($apellidoArray)) {
+      return implode(' ', $nombreArray);
     }
 
-    // Si solo hay apellidos, retornarlos
-    if (empty($nombresArray)) {
-      return implode(' ', $apellidosArray);
+    // Si solo hay apellido, retornarlo
+    if (empty($nombreArray)) {
+      return implode(' ', $apellidoArray);
     }
 
-    // Eliminar duplicados: quitar de nombres las palabras que están en apellidos
-    $nombresUnicos = array_diff($nombresArray, $apellidosArray);
+    // Eliminar duplicados: quitar de nombre las palabras que están en apellido
+    $nombreUnicos = array_diff($nombreArray, $apellidoArray);
 
     // Combinar nombres únicos + apellidos
-    $fullNameArray = array_merge(array_values($nombresUnicos), $apellidosArray);
+    $fullNameArray = array_merge(array_values($nombreUnicos), $apellidoArray);
 
     // Retornar el nombre completo sin duplicados
     return implode(' ', $fullNameArray);

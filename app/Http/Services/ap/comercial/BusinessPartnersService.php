@@ -6,6 +6,7 @@ use App\Http\Resources\ap\comercial\BusinessPartnersResource;
 use App\Http\Resources\ap\comercial\BusinessPartnersEstablishmentResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\DatabaseSyncService;
 use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Jobs\ProcessEstablishments;
@@ -18,6 +19,12 @@ use Illuminate\Support\Facades\DB;
 
 class BusinessPartnersService extends BaseService implements BaseServiceInterface
 {
+  protected $syncService;
+
+  public function __construct(DatabaseSyncService $syncService)
+  {
+    $this->syncService = $syncService;
+  }
 
   public function list(Request $request)
   {
@@ -46,8 +53,14 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       $data = $this->getData($data);
       $businessPartner = BusinessPartners::create($data);
       if ($data['document_type_id'] == Constants::TYPE_DOCUMENT_RUC_ID) {
+        $businessPartner['first_name'] = '';
         ProcessEstablishments::dispatch($businessPartner->id, $data['num_doc']);
       }
+
+      // Sincronizar a otras bases de datos
+      $this->syncService->sync('business_partners', $businessPartner->toArray(), 'create');
+      $this->syncService->sync('business_partners_directions', $businessPartner->toArray(), 'create');
+
       DB::commit();
       return new BusinessPartnersResource($businessPartner);
     } catch (Exception $e) {
@@ -92,6 +105,9 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
         $businessPartner->establishments()->delete();
       }
 
+      // Sincronizar a otras bases de datos
+      //$this->syncService->sync('business_partners', $businessPartner->toArray(), 'update');
+
       DB::commit();
       return new BusinessPartnersResource($businessPartner);
     } catch (Exception $e) {
@@ -108,6 +124,9 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
 
       // Si no se especifica qué type remover, eliminar completamente
       if (!$typeToRemove) {
+        // Sincronizar eliminación a otras bases de datos
+        //$this->syncService->sync('business_partners', $businessPartner->toArray(), 'delete');
+
         $businessPartner->delete();
         DB::commit();
         return response()->json(['message' => 'Socio comercial eliminado correctamente']);
@@ -126,6 +145,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
         case 'CLIENTE':
           if ($typeToRemove === 'CLIENTE') {
             // Si es solo CLIENTE y quiere remover CLIENTE, eliminar completamente
+            //$this->syncService->sync('business_partners', $businessPartner->toArray(), 'delete');
             $businessPartner->delete();
             $message = 'Cliente eliminado correctamente';
           } else {
@@ -136,6 +156,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
         case 'PROVEEDOR':
           if ($typeToRemove === 'PROVEEDOR') {
             // Si es solo PROVEEDOR y quiere remover PROVEEDOR, eliminar completamente
+            //$this->syncService->sync('business_partners', $businessPartner->toArray(), 'delete');
             $businessPartner->delete();
             $message = 'Proveedor eliminado correctamente';
           } else {
