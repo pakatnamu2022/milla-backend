@@ -142,8 +142,12 @@ class PotentialBuyersService extends BaseService
       foreach ($importResult['data'] as $index => $rowData) {
         try {
           // Verificar si ya existe el DNI en el mes actual
-          $exists = PotentialBuyers::where('num_doc', $rowData['num_doc'])
-            ->whereDate('registration_date', $rowData['registration_date'])
+          $exists = PotentialBuyers::whereBetween('registration_date', [
+            now()->subMonth()->startOfMonth(),
+            now()->endOfMonth()
+          ])
+            ->whereIn('use', [0, 1]) // Considerar solo use 0 y 1 (recien subido o asignado, 3 = descartado)
+            ->where('num_doc', $rowData['num_doc'])
             ->exists();
 
           if ($exists) {
@@ -227,7 +231,7 @@ class PotentialBuyersService extends BaseService
     }
   }
 
-  public function importFromExcelSocialNetworks(UploadedFile $file)
+  public function importFromExcelSocialNetworks(UploadedFile $file): array
   {
     DB::beginTransaction();
     try {
@@ -268,8 +272,12 @@ class PotentialBuyersService extends BaseService
       foreach ($importResult['data'] as $index => $rowData) {
         try {
           // Verificar si ya existe el documento en el mes actual
-          $exists = PotentialBuyers::where('num_doc', $rowData['num_doc'])
-            ->whereDate('registration_date', $rowData['registration_date'])
+          $exists = PotentialBuyers::whereBetween('registration_date', [
+            now()->subMonth()->startOfMonth(),
+            now()->endOfMonth()
+          ])
+            ->whereIn('use', [0, 1]) // Considerar solo use 0 y 1 (recien subido o asignado, 3 = descartado)
+            ->where('num_doc', $rowData['num_doc'])
             ->exists();
 
           if ($exists) {
@@ -353,13 +361,15 @@ class PotentialBuyersService extends BaseService
     }
   }
 
-  public function assignWorkersToUnassigned()
+  public function assignWorkersToUnassigned(): array
   {
     DB::beginTransaction();
     try {
-      // Obtener todos los registros del periodo actual
-      $unassignedBuyers = PotentialBuyers::whereYear('registration_date', now()->year)
-        ->whereMonth('registration_date', now()->month)
+      // Obtener todos los registros del mes anterior y mes actual
+      $unassignedBuyers = PotentialBuyers::whereBetween('registration_date', [
+        now()->subMonth()->startOfMonth(),
+        now()->endOfMonth()
+      ])
         ->where('use', 0)
         ->get();
 
