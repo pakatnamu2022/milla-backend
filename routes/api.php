@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ap\ApCommercialMastersController;
 use App\Http\Controllers\ap\comercial\PotentialBuyersController;
+use App\Http\Controllers\ap\comercial\VehicleVNController;
 use App\Http\Controllers\DocumentValidationController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
@@ -662,6 +663,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
       Route::post('potentialBuyers/import-derco', [PotentialBuyersController::class, 'importDerco']);
       Route::post('potentialBuyers/import-social-networks', [PotentialBuyersController::class, 'importSocialNetworks']);
       Route::post('potentialBuyers/assign-workers', [PotentialBuyersController::class, 'assignWorkers']);
+
+      Route::apiResource('vehicleVN', VehicleVNController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
     });
   });
 
