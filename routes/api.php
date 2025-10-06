@@ -686,13 +686,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'destroy'
       ]);
 
-      Route::apiResource('opportunityActions', OpportunityActionController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
+
     });
   });
 
