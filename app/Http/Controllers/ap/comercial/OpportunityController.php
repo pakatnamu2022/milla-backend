@@ -94,14 +94,10 @@ class OpportunityController extends Controller
   public function myOpportunities(Request $request)
   {
     try {
-      // Obtener el worker_id del request (debe venir del usuario autenticado)
-      $workerId = $request->input('worker_id');
-
-      if (!$workerId) {
-        return $this->error('El worker_id es requerido');
-      }
-
+      $workerId = auth()->user()->partner_id;
+      if (!$workerId) return $this->error('El trabajor es invalido');
       return $this->success($this->service->getMyOpportunities($request, $workerId));
+      
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -114,14 +110,10 @@ class OpportunityController extends Controller
   public function myAgenda(Request $request)
   {
     try {
-      // Obtener el worker_id del request (debe venir del usuario autenticado)
-      $workerId = $request->input('worker_id');
-
-      if (!$workerId) {
-        return $this->error('El worker_id es requerido');
-      }
-
+      $workerId = auth()->user()->partner_id;
+      if (!$workerId) return $this->error('El trabajor es invalido');
       return $this->success($this->service->getMyAgenda($request, $workerId));
+
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

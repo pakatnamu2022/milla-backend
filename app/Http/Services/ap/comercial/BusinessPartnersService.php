@@ -13,6 +13,7 @@ use App\Jobs\ProcessEstablishments;
 use App\Jobs\UpdateEstablishments;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\comercial\Opportunity;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -232,5 +233,20 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
   {
     $businessPartner = $this->find($businessPartnerId);
     return BusinessPartnersEstablishmentResource::collection($businessPartner->establishments);
+  }
+
+  /**
+   * Validar si un socio comercial tiene oportunidades abiertas
+   */
+  public function validateOpportunity($id)
+  {
+    $businessPartner = $this->find($id);
+    if (!$businessPartner->status_ap) throw new Exception('El socio comercial no es un cliente activo');
+    $statusIds = ApCommercialMasters::where('type', 'OPPORTUNITY_STATUS')->whereIn('code', Opportunity::OPEN_STATUS_CODES)->pluck('id')->toArray();
+    $opportunity = Opportunity::where('client_id', $businessPartner->id)->whereIn('opportunity_status_id', $statusIds)->first();
+    if ($opportunity) {
+      throw new Exception('El cliente tiene oportunidades abiertas');
+    }
+    return new BusinessPartnersResource($businessPartner);
   }
 }

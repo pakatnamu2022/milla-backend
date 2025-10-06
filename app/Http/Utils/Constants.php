@@ -7,7 +7,10 @@ class Constants
   public const int DEFAULT_PER_PAGE = 10;
   public const int MAX_ALL_PER_QUERY = 50;
 
+  public const int COMPANY_TP = 1;
+  public const int COMPANY_DP = 2;
   public const int COMPANY_AP = 3;
+  public const int COMPANY_GP = 4;
 
   public const int WORKER_ACTIVE = 22;
 

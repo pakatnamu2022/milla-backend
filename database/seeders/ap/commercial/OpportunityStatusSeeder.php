@@ -9,13 +9,13 @@ class OpportunityStatusSeeder extends Seeder
 {
   public function run(): void
   {
+    ApCommercialMasters::where('type', 'OPPORTUNITY_STATUS')->delete();
+
     $data = [
-      ['description' => 'ABIERTA', 'type' => 'OPPORTUNITY_STATUS', 'code' => 'OPEN'],
-      ['description' => 'FRIA', 'type' => 'OPPORTUNITY_STATUS', 'code' => 'COLD'],
       ['description' => 'TEMPLADA', 'type' => 'OPPORTUNITY_STATUS', 'code' => 'WARM'],
       ['description' => 'CALIENTE', 'type' => 'OPPORTUNITY_STATUS', 'code' => 'HOT'],
-      ['description' => 'GANADA', 'type' => 'OPPORTUNITY_STATUS', 'code' => 'WON'],
-      ['description' => 'PERDIDA', 'type' => 'OPPORTUNITY_STATUS', 'code' => 'LOST'],
+      ['description' => 'VENTA CONCRETADA', 'type' => 'OPPORTUNITY_STATUS', 'code' => 'SOLD'],
+      ['description' => 'CERRADA', 'type' => 'OPPORTUNITY_STATUS', 'code' => 'CLOSED'],
     ];
 
     foreach ($data as $item) {

@@ -9,6 +9,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\OpportunityAction;
 use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\comercial\PotentialBuyers;
 use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
 use Exception;
 use Illuminate\Http\Request;
@@ -70,9 +71,12 @@ class OpportunityService extends BaseService implements BaseServiceInterface
 
   public function store(mixed $data)
   {
+    $data['worker_id'] = auth()->user()->partner_id;
     DB::beginTransaction();
     try {
       $opportunity = Opportunity::create($data);
+      $lead = $opportunity->lead();
+      $lead->update(['use' => PotentialBuyers::USED]);
       DB::commit();
       return new OpportunityResource($opportunity);
     } catch (Exception $e) {
@@ -194,7 +198,7 @@ class OpportunityService extends BaseService implements BaseServiceInterface
     $groupedActions = $actions->groupBy(function ($action) {
       return Carbon::parse($action->datetime)->format('Y-m-d');
     });
-    
+
     return $groupedActions->map(function ($actions, $date) {
       return [
         'date' => $date,

@@ -2,6 +2,7 @@
 
 namespace App\Models\ap;
 
+use App\Models\ap\comercial\Opportunity;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
@@ -25,7 +26,8 @@ class ApCommercialMasters extends Model
   const filters = [
     'search' => ['code', 'description', 'type'],
     'type' => '=',
-    'status' => '='
+    'status' => '=',
+    'open_opportunity_status' => 'accessor_bool',
   ];
 
   const sorts = [
@@ -63,5 +65,10 @@ class ApCommercialMasters extends Model
   public function sedes()
   {
     return $this->hasMany(Sede::class, 'shop_id');
+  }
+
+  public function getOpenOpportunityStatusAttribute()
+  {
+    return in_array($this->code, Opportunity::OPEN_STATUS_CODES);
   }
 }

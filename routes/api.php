@@ -649,10 +649,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
       ]);
       Route::patch('businessPartners/{id}/remove-type', [BusinessPartnersController::class, 'removeType']);
       Route::get('businessPartners/{id}/establishments', [BusinessPartnersController::class, 'establishments']);
+      Route::get('businessPartners/{id}/validateOpportunity', [BusinessPartnersController::class, 'validateOpportunity']);
 
       // Crear oportunidad desde un cliente
       Route::post('businessPartners/{clientId}/opportunities', [OpportunityController::class, 'storeFromClient']);
 
+
+      Route::get('potentialBuyers/my', [PotentialBuyersController::class, 'myPotentialBuyers']);
+      Route::put('potentialBuyers/{id}/discard', [PotentialBuyersController::class, 'discard']);
       Route::apiResource('potentialBuyers', PotentialBuyersController::class)->only([
         'index',
         'show',
@@ -665,6 +669,28 @@ Route::middleware(['auth:sanctum'])->group(function () {
       Route::post('potentialBuyers/assign-workers', [PotentialBuyersController::class, 'assignWorkers']);
 
       Route::apiResource('vehicleVN', VehicleVNController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Rutas especiales de oportunidades (deben ir antes del apiResource)
+      Route::get('opportunities/my', [OpportunityController::class, 'myOpportunities']);
+      Route::get('opportunities/agenda/my', [OpportunityController::class, 'myAgenda']);
+      Route::get('opportunities/{opportunityId}/actions', [OpportunityController::class, 'getActions']);
+      Route::get('opportunities/{opportunityId}/close', [OpportunityController::class, 'getActions']);
+
+      Route::apiResource('opportunities', OpportunityController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::apiResource('opportunityActions', OpportunityActionController::class)->only([
         'index',
         'show',
         'store',
