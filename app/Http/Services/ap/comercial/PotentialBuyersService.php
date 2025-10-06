@@ -30,6 +30,18 @@ class PotentialBuyersService extends BaseService
     );
   }
 
+  public function myPotentialBuyers()
+  {
+    $workerId = auth()->user()->partner_id;
+    if (!$workerId) throw new Exception('El trabajador es inválido');
+
+    $potentialBuyers = PotentialBuyers::where('worker_id', $workerId)
+      ->orderBy('registration_date', 'asc')
+      ->get();
+
+    return PotentialBuyersResource::collection($potentialBuyers);
+  }
+
   public function find($id)
   {
     $businessPartner = PotentialBuyers::where('id', $id)->first();

@@ -24,6 +24,15 @@ class PotentialBuyersController extends Controller
     return $this->service->list($request);
   }
 
+  public function myPotentialBuyers()
+  {
+    try {
+      return $this->success($this->service->myPotentialBuyers());
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function store(StorePotentialBuyersRequest $request)
   {
     try {

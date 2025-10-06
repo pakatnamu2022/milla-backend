@@ -658,6 +658,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
       // Crear oportunidad desde un cliente
       Route::post('businessPartners/{clientId}/opportunities', [OpportunityController::class, 'storeFromClient']);
 
+
+      Route::get('potentialBuyers/my', [PotentialBuyersController::class, 'myPotentialBuyers']);
       Route::apiResource('potentialBuyers', PotentialBuyersController::class)->only([
         'index',
         'show',
@@ -670,8 +672,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
       Route::post('potentialBuyers/assign-workers', [PotentialBuyersController::class, 'assignWorkers']);
 
       // Rutas especiales de oportunidades (deben ir antes del apiResource)
-      Route::get('opportunities/my-opportunities', [OpportunityController::class, 'myOpportunities']);
-      Route::get('opportunities/my-agenda', [OpportunityController::class, 'myAgenda']);
+      Route::get('opportunities/my', [OpportunityController::class, 'myOpportunities']);
+      Route::get('opportunities/agenda/my', [OpportunityController::class, 'myAgenda']);
       Route::get('opportunities/{opportunityId}/actions', [OpportunityController::class, 'getActions']);
 
       Route::apiResource('opportunities', OpportunityController::class)->only([
