@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ap\comercial\DiscardPotentialBuyersRequest;
 use App\Http\Requests\ap\comercial\IndexPotentialBuyersRequest;
 use App\Http\Requests\ap\comercial\StoreBulkPotentialBuyersRequest;
 use App\Http\Requests\ap\comercial\StorePotentialBuyersRequest;
@@ -57,6 +58,15 @@ class PotentialBuyersController extends Controller
       $data = $request->validated();
       $data['id'] = $id;
       return $this->success($this->service->update($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function discard(DiscardPotentialBuyersRequest $request, $id)
+  {
+    try {
+      return $this->success($this->service->discard($id, $request->input('comment')));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

@@ -21,6 +21,7 @@ class Opportunity extends Model
     'opportunity_type_id',
     'client_status_id',
     'opportunity_status_id',
+    'lead_id',
   ];
 
   const filters = [
@@ -53,6 +54,11 @@ class Opportunity extends Model
   public function family()
   {
     return $this->belongsTo(ApFamilies::class, 'family_id');
+  }
+
+  public function lead()
+  {
+    return $this->belongsTo(PotentialBuyers::class, 'lead_id');
   }
 
   public function opportunityType()

@@ -35,7 +35,7 @@ class PotentialBuyersService extends BaseService
     $workerId = auth()->user()->partner_id;
     if (!$workerId) throw new Exception('El trabajador es inválido');
 
-    $potentialBuyers = PotentialBuyers::where('worker_id', $workerId)
+    $potentialBuyers = PotentialBuyers::where('worker_id', $workerId)->where('use', PotentialBuyers::CREATED)
       ->orderBy('registration_date', 'asc')
       ->get();
 
@@ -107,6 +107,24 @@ class PotentialBuyersService extends BaseService
       $businessPartner->delete();
       DB::commit();
       return response()->json(['message' => 'Cliente potencial eliminado correctamente']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw new Exception($e->getMessage());
+    }
+  }
+
+  public function discard($id, $comment)
+  {
+    DB::beginTransaction();
+    try {
+      $businessPartner = $this->find($id);
+      $businessPartner->use = PotentialBuyers::DISCARTED; // Marcar como descartado
+      if ($comment) {
+        $businessPartner->comment = $comment; // Agregar comentario si se proporciona
+      }
+      $businessPartner->save();
+      DB::commit();
+      return ['message' => 'Cliente potencial descartado correctamente'];
     } catch (Exception $e) {
       DB::rollBack();
       throw new Exception($e->getMessage());

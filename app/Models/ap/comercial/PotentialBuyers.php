@@ -34,7 +34,8 @@ class PotentialBuyers extends Model
     'income_sector_id',
     'area_id',
     'status_num_doc',
-    'use'
+    'use',
+    'comment'
   ];
 
   const filters = [
@@ -50,6 +51,10 @@ class PotentialBuyers extends Model
     'status_num_doc' => '=',
     'use' => '=',
   ];
+
+  const CREATED = 0;
+  const USED = 1;
+  const DISCARTED = 2;
 
   const sorts = [
     'registration_date',
