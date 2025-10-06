@@ -83,6 +83,10 @@ class BusinessPartners extends Model
     'marital_status_id' => '=',
     'gender_id' => '=',
     'type' => 'in',
+    'status_gp' => '=',
+    'status_ap' => '=',
+    'status_tp' => '=',
+    'status_dp' => '=',
   ];
 
   const sorts = [

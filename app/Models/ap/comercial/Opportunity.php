@@ -38,6 +38,8 @@ class Opportunity extends Model
     'updated_at',
   ];
 
+  const OpenStatusCodes = ['WARM', 'HOT'];
+
   public function worker()
   {
     return $this->belongsTo(Person::class, 'worker_id');
