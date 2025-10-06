@@ -9,11 +9,11 @@ class StoreVehicleVNRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'vim' => [
+      'vin' => [
         'required',
         'string',
         'max:17',
-        'unique:vehicle_vn,vim'
+        'unique:vehicle_vn,vin'
       ],
       'order_number' => [
         'required',
@@ -56,7 +56,7 @@ class StoreVehicleVNRequest extends StoreRequest
       'sede_id' => [
         'required',
         'integer',
-        'exists:ap_sedes,id'
+        'exists:config_sede,id'
       ],
     ];
   }
@@ -64,10 +64,10 @@ class StoreVehicleVNRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'vim.required' => 'El campo VIN es obligatorio.',
-      'vim.string' => 'El campo VIN debe ser una cadena de texto.',
-      'vim.max' => 'El campo VIN no debe exceder los 17 caracteres.',
-      'vim.unique' => 'El campo VIN ya existe.',
+      'vin.required' => 'El campo VIN es obligatorio.',
+      'vin.string' => 'El campo VIN debe ser una cadena de texto.',
+      'vin.max' => 'El campo VIN no debe exceder los 17 caracteres.',
+      'vin.unique' => 'El campo VIN ya existe.',
 
       'order_number.required' => 'El campo Número de Pedido es obligatorio.',
       'order_number.string' => 'El campo Número de Pedido debe ser una cadena de texto.',

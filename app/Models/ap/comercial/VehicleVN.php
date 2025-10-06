@@ -17,9 +17,9 @@ class VehicleVN extends Model
 
   protected $fillable = [
     'vin',
-    'num_pedido',
+    'order_number',
     'year',
-    'num_motor',
+    'engine_number',
     'status',
     'ap_models_vn_id',
     'vehicle_color_id',
