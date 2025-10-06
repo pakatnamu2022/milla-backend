@@ -86,7 +86,7 @@ class BusinessPartnersController extends Controller
     try {
       return $this->success($this->service->validateOpportunity($id));
     } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
+      return $this->errorValidation($th->getMessage());
     }
   }
 }

@@ -242,10 +242,10 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
   {
     $businessPartner = $this->find($id);
     if (!$businessPartner->status_ap) throw new Exception('El socio comercial no es un cliente activo');
-    $statusIds = ApCommercialMasters::where('type', 'OPPORTUNITY_STATUS')->whereIn('code', Opportunity::OpenStatusCodes)->pluck('id')->toArray();
+    $statusIds = ApCommercialMasters::where('type', 'OPPORTUNITY_STATUS')->whereIn('code', Opportunity::OPEN_STATUS_CODES)->pluck('id')->toArray();
     $opportunity = Opportunity::where('client_id', $businessPartner->id)->whereIn('opportunity_status_id', $statusIds)->first();
     if ($opportunity) {
-      throw new Exception('El socio comercial tiene oportunidades abiertas y no se puede eliminar como cliente');
+      throw new Exception('El cliente tiene oportunidades abiertas');
     }
     return new BusinessPartnersResource($businessPartner);
   }

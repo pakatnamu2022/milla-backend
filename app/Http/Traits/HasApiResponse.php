@@ -16,5 +16,10 @@ trait HasApiResponse
   {
     return response()->json(['message' => $message], 500);
   }
+
+  public function errorValidation(string $message): JsonResponse
+  {
+    return response()->json(['message' => $message], 422);
+  }
 }
 

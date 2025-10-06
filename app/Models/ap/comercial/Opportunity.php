@@ -38,7 +38,7 @@ class Opportunity extends Model
     'updated_at',
   ];
 
-  const OpenStatusCodes = ['WARM', 'HOT'];
+  const OPEN_STATUS_CODES = ['WARM', 'HOT'];
 
   public function worker()
   {

@@ -9,8 +9,9 @@ class StatusClientSeeder extends Seeder
 {
   public function run(): void
   {
+    ApCommercialMasters::where('type', 'STATUS_CLIENT')->delete();
+
     $data = [
-      ['description' => 'FRIO', 'type' => 'STATUS_CLIENT'],
       ['description' => 'TEMPLADO', 'type' => 'STATUS_CLIENT'],
       ['description' => 'CALIENTE', 'type' => 'STATUS_CLIENT'],
     ];
