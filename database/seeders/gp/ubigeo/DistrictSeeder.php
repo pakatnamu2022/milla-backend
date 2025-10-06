@@ -1,6 +1,6 @@
 <?php
 
-namespace Database\Seeders;
+namespace Database\Seeders\gp\ubigeo;
 
 use App\Models\gp\gestionsistema\District;
 use Illuminate\Database\Seeder;

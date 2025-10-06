@@ -1,6 +1,6 @@
 <?php
 
-namespace Database\Seeders;
+namespace Database\Seeders\gp\evaluation;
 
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetailService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetail;
