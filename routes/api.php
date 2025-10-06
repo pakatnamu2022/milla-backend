@@ -675,6 +675,28 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'update',
         'destroy'
       ]);
+
+      // Rutas especiales de oportunidades (deben ir antes del apiResource)
+      Route::get('opportunities/my', [OpportunityController::class, 'myOpportunities']);
+      Route::get('opportunities/agenda/my', [OpportunityController::class, 'myAgenda']);
+      Route::get('opportunities/{opportunityId}/actions', [OpportunityController::class, 'getActions']);
+      Route::get('opportunities/{opportunityId}/close', [OpportunityController::class, 'getActions']);
+
+      Route::apiResource('opportunities', OpportunityController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::apiResource('opportunityActions', OpportunityActionController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
     });
   });
 
