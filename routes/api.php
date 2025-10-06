@@ -4,6 +4,7 @@ use App\Http\Controllers\ap\ApCommercialMastersController;
 use App\Http\Controllers\ap\comercial\OpportunityActionController;
 use App\Http\Controllers\ap\comercial\OpportunityController;
 use App\Http\Controllers\ap\comercial\PotentialBuyersController;
+use App\Http\Controllers\ap\comercial\VehicleVNController;
 use App\Http\Controllers\DocumentValidationController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
@@ -89,7 +90,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     'destroy'
   ]);
 
-//  DIGITAL FILE
+  //  DIGITAL FILE
   Route::apiResource('digital-file', DigitalFileController::class)->only([
     'index',
     'show',
@@ -212,7 +213,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'destroy'
         ]);
 
-//    WORKER
+        //    WORKER
         Route::get('worker-without-categories-and-objectives', [WorkerController::class, 'getWorkersWithoutCategoriesAndObjectives']);
         Route::get('worker-without-objectives', [WorkerController::class, 'getWorkersWithoutObjectives']);
         Route::get('worker-without-categories', [WorkerController::class, 'getWorkersWithoutCategories']);
@@ -227,7 +228,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'destroy'
         ]);
 
-//      POSITIONS
+        //      POSITIONS
         Route::apiResource('position', PositionController::class)->only([
           'index',
           'show',
@@ -235,7 +236,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'update',
           'destroy'
         ]);
-
       });
 
       //    PERFORMANCE EVALUATION
@@ -361,7 +361,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'destroy'
         ]);
 
-//        EVALUATION
+        //        EVALUATION
         Route::get('/evaluation/export', [EvaluationController::class, 'export']);
         Route::get('/evaluation/check', [EvaluationController::class, 'checkActiveEvaluationByDateRange']);
         Route::get('/evaluation/active', [EvaluationController::class, 'active']);
@@ -370,7 +370,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/evaluation/{evaluation}/positions', [EvaluationController::class, 'positions']);
         Route::get('evaluation/{id}/testUpdateAllResultsWithGoals', [EvaluationPersonController::class, 'testUpdateAllResultsWithGoals']);
 
-//        EVALUATION NOTIFICATIONS
+        //        EVALUATION NOTIFICATIONS
         Route::group(['prefix' => 'evaluation/notifications'], function () {
           Route::post('/send-reminders', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'sendReminders']);
           Route::post('/send-hr-summary', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'sendHrSummary']);
@@ -389,7 +389,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/evaluation/{evaluation}/competences', [EvaluationController::class, 'createCompetences'])
           ->name('evaluation.competences.create');
 
-//        EVALUATION PERSON
+        //        EVALUATION PERSON
         Route::apiResource('evaluationPerson', EvaluationPersonController::class)->only([
           'index',
           'show',
@@ -398,7 +398,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'destroy'
         ]);
 
-//        PERSON RESULT
+        //        PERSON RESULT
         Route::get('personResult/export', [EvaluationPersonResultController::class, 'export']);
         Route::get('personResult/getByPersonAndEvaluation', [EvaluationPersonResultController::class, 'getByPersonAndEvaluation']);
         Route::get('personResult/getTeamByChief/{chief}', [EvaluationPersonResultController::class, 'getTeamByChief']);
@@ -421,18 +421,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
           'destroy'
         ]);
 
-// Rutas adicionales para recálculo de resultados
+        // Rutas adicionales para recálculo de resultados
         Route::post('/evaluation/{evaluation}/recalculateResults', [EvaluationPersonController::class, 'recalculateAllResults']);
         Route::get('/evaluation/{evaluation}/stats', [EvaluationPersonController::class, 'getEvaluationStats']);
 
-// Ruta para crear competencias en lote
+        // Ruta para crear competencias en lote
         Route::post('/evaluation/{evaluation}/storeMany', [EvaluationPersonResultController::class, 'storeMany']);
-
-
       });
-
     });
-
   });
 
 
@@ -672,7 +668,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
       Route::post('potentialBuyers/import-social-networks', [PotentialBuyersController::class, 'importSocialNetworks']);
       Route::post('potentialBuyers/assign-workers', [PotentialBuyersController::class, 'assignWorkers']);
 
-
+      Route::apiResource('vehicleVN', VehicleVNController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
     });
   });
 

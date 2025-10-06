@@ -12,7 +12,7 @@ return new class extends Migration {
   {
     Schema::table('potential_buyers', function (Blueprint $table) {
       Schema::table('potential_buyers', function (Blueprint $table) {
-        $table->tinyInteger('use')->default(1)->change();
+        $table->tinyInteger('use')->default(0)->change();
       });
     });
   }
