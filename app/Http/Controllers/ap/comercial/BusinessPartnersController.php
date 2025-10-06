@@ -61,15 +61,6 @@ class BusinessPartnersController extends Controller
     }
   }
 
-  public function destroy($id)
-  {
-    try {
-      return $this->service->destroy($id);
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
   public function removeType(Request $request, $id)
   {
     $request->validate([

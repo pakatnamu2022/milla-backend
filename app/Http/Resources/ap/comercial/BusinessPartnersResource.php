@@ -55,6 +55,7 @@ class BusinessPartnersResource extends JsonResource
       'origin_id' => $this->origin_id,
       'driving_license_category' => $this->driving_license_category,
       'tax_class_type_id' => $this->tax_class_type_id,
+      'supplier_tax_class_id' => $this->supplier_tax_class_id,
       'type_person_id' => $this->type_person_id,
       'district_id' => $this->district_id,
       'document_type_id' => $this->document_type_id,
@@ -76,6 +77,7 @@ class BusinessPartnersResource extends JsonResource
       'gender' => $this->gender?->description,
       'activity_economic' => $this->activityEconomic?->description,
       'company' => $this->company->name,
+      'type' => $this->type,
     ];
   }
 }

@@ -82,7 +82,7 @@ return [
       'mapping' => [
         'EmpresaId' => fn($data) => 'CTEST',
         'Cliente' => fn($data) => $data['num_doc'] ?? '',
-        'DireccionCliente' => fn($data) => 'FISCAL',
+        'Direccion' => fn($data) => 'FISCAL',
         'Contacto' => fn($data) => '',
         'Direccion1' => fn($data) => $data['direction'] ?? '',
         'Direccion2' => fn($data) => $data['direction'] ?? '',

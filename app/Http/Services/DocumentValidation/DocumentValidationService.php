@@ -300,7 +300,7 @@ class DocumentValidationService
           'valid' => true,
           'document_number' => $businessPartner->num_doc,
           'names' => $businessPartner->full_name,
-          'first_name' => $businessPartner->first_name,
+          'first_name' => $businessPartner->first_name . ' ' . $businessPartner->middle_name,
           'paternal_surname' => $businessPartner->paternal_surname,
           'maternal_surname' => $businessPartner->maternal_surname,
           'birth_date' => $businessPartner->birth_date?->format('Y-m-d'),
@@ -332,8 +332,8 @@ class DocumentValidationService
           'district' => $businessPartner->district?->description,
           'address' => $businessPartner->direction,
           'full_address' => $businessPartner->direction,
-          'ubigeo_sunat' => $businessPartner->district?->code,
-          'ubigeo' => $businessPartner->district?->code,
+          'ubigeo_sunat' => $businessPartner->district?->ubigeo,
+          'ubigeo' => $businessPartner->district?->ubigeo,
           'type' => $businessPartner->type,
         ]
       ]);
