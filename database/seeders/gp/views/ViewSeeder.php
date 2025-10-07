@@ -33,6 +33,14 @@ class ViewSeeder extends Seeder
         'ruta' => '-', 'icon' => 'Calendar', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
       ['descripcion' => 'Oportunidades', 'submodule' => false, 'route' => 'oportunidades',
         'ruta' => '-', 'icon' => 'BriefcaseBusiness', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
+      ['descripcion' => 'Clientes', 'submodule' => false, 'route' => 'clientes',
+        'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
+      ['descripcion' => 'Proveedores', 'submodule' => false, 'route' => 'proveedores',
+        'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
+      ['descripcion' => 'Vehículos VN', 'submodule' => false, 'route' => 'vehiculos-vn',
+        'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
+      ['descripcion' => 'Cotización / Solicitud Compra', 'submodule' => false, 'route' => 'cotizacion-solicitud-compra',
+        'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
     ];
 
     foreach ($data as $item) {
