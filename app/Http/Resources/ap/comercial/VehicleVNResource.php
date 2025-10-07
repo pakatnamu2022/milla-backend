@@ -28,6 +28,7 @@ class VehicleVNResource extends JsonResource
       'engine_type' => $this->engineType->description ?? null,
       'sede' => $this->sede->abreviatura ?? null,
       'ap_vehicle_status' => $this->apVehicleStatus->code ?? null,
+      'color_vehicle_status' => $this->apVehicleStatus->color ?? null,
     ];
   }
 }
