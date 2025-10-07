@@ -34,6 +34,7 @@ class VehicleVNService extends BaseService implements BaseServiceInterface
 
   public function store(mixed $data)
   {
+    $data['ap_vehicle_status_id'] = 28;
     $engineType = VehicleVN::create($data);
     return new VehicleVNResource($engineType);
   }

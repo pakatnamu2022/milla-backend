@@ -25,6 +25,8 @@ return new class extends Migration {
         ->constrained('ap_commercial_masters')->onDelete('cascade');
       $table->foreignId('engine_type_id')
         ->constrained('ap_commercial_masters')->onDelete('cascade');
+      $table->foreignId('ap_vehicle_status_id')
+        ->constrained('ap_vehicle_status')->onDelete('cascade');
       $table->integer('sede_id');
       $table->foreign('sede_id')->references('id')->on('config_sede');
       $table->timestamps();
