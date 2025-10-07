@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ap\comercial\CloseOpportunityRequest;
 use App\Http\Requests\ap\comercial\IndexOpportunityRequest;
 use App\Http\Requests\ap\comercial\StoreOpportunityRequest;
 use App\Http\Requests\ap\comercial\UpdateOpportunityRequest;
@@ -88,10 +89,10 @@ class OpportunityController extends Controller
   }
 
 
-  public function close($id)
+  public function close(CloseOpportunityRequest $request, $id)
   {
     try {
-      return $this->success($this->service->close($id));
+      return $this->success($this->service->close($id, $request->input('comment')));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

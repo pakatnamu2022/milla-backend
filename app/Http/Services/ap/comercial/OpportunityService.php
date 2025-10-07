@@ -131,14 +131,14 @@ class OpportunityService extends BaseService implements BaseServiceInterface
     return OpportunityActionResource::collection($actions);
   }
 
-  public function close($id)
+  public function close($id, $message)
   {
     DB::beginTransaction();
     try {
       $opportunity = $this->find($id);
       if ($opportunity->is_closed) throw new Exception('La oportunidad ya está cerrada');
       $status = ApCommercialMasters::where('code', Opportunity::CLOSED)->whereNull('deleted_at')->first();
-      $opportunity->update(['opportunity_status_id' => $status->id]);
+      $opportunity->update(['opportunity_status_id' => $status->id, 'comment' => $message]);
       DB::commit();
       return new OpportunityResource($opportunity);
     } catch (Exception $e) {

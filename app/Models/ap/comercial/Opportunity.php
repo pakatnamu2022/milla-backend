@@ -22,6 +22,7 @@ class Opportunity extends Model
     'client_status_id',
     'opportunity_status_id',
     'lead_id',
+    'comment'
   ];
 
   const filters = [

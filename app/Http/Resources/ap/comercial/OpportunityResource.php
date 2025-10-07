@@ -25,6 +25,7 @@ class OpportunityResource extends JsonResource
       'client_status_id' => $this->client_status_id,
       'opportunity_status_id' => $this->opportunity_status_id,
       'is_closed' => $this->is_closed,
+      'comment' => $this->comment,
 
       // Relaciones
       'worker' => new WorkerResource($this->worker),
