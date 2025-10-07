@@ -42,10 +42,11 @@ class Opportunity extends Model
 
   const CLOSED = 'CLOSED';
   const SOLD = 'SOLD';
+  const COLD = 'COLD';
   const WARM = 'WARM';
   const HOT = 'HOT';
 
-  const OPEN_STATUS_CODES = [self::WARM, self::HOT];
+  const OPEN_STATUS_CODES = [self::COLD, self::WARM, self::HOT];
 
   public function getIsClosedAttribute()
   {

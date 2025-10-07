@@ -52,6 +52,13 @@ class Company extends BaseModel
     'city' => 'asc',
   ];
 
+  const TEST_DYNAMICS = 'CTEST';
+  const AP_DYNAMICS = 'GPAPP';
+  const TP_DYNAMICS = 'GPTRP';
+
+  const DP_DYNAMICS = 'GPDPT';
+  const GP_DYNAMICS = 'GPGP';
+
   public function sedes()
   {
     return $this->hasMany(Sede::class, 'empresa_id', 'id');

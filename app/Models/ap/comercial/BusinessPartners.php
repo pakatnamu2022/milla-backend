@@ -97,6 +97,10 @@ class BusinessPartners extends Model
     'updated_at',
   ];
 
+  const CLIENT = 'CLIENTE';
+  const SUPPLIER = 'PROVEEDOR';
+  const BOTH = 'AMBOS';
+
   public function setFirstNameAttribute($value)
   {
     $this->attributes['first_name'] = Str::upper($value);

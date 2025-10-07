@@ -175,7 +175,6 @@ class OpportunityService extends BaseService implements BaseServiceInterface
     }
 
     $opportunities = $query->orderBy('created_at', 'desc')->get();
-
     return OpportunityResource::collection($opportunities);
   }
 
