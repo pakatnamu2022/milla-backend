@@ -5,6 +5,9 @@ namespace Database\Seeders\ap\commercial;
 use App\Models\ap\ApCommercialMasters;
 use Illuminate\Database\Seeder;
 
+/**
+ * php artisan db:seed --class=Database\Seeders\ap\commercial\OpportunityStatusSeeder
+ */
 class OpportunityStatusSeeder extends Seeder
 {
   public function run(): void
@@ -12,6 +15,7 @@ class OpportunityStatusSeeder extends Seeder
     ApCommercialMasters::where('type', 'OPPORTUNITY_STATUS')->delete();
 
     $data = [
+      ['description' => 'FRIO', 'type' => 'OPPORTUNITY_STATUS', 'code' => 'COLD'],
       ['description' => 'TEMPLADA', 'type' => 'OPPORTUNITY_STATUS', 'code' => 'WARM'],
       ['description' => 'CALIENTE', 'type' => 'OPPORTUNITY_STATUS', 'code' => 'HOT'],
       ['description' => 'VENTA CONCRETADA', 'type' => 'OPPORTUNITY_STATUS', 'code' => 'SOLD'],

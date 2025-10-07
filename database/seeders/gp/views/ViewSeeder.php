@@ -65,8 +65,6 @@ class ViewSeeder extends Seeder
           'status_deleted' => 1,
         ]
       );
-
-
     }
   }
 }

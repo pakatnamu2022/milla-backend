@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\DB;
 
 class BusinessPartnersService extends BaseService implements BaseServiceInterface
 {
-  protected $syncService;
+  protected DatabaseSyncService $syncService;
 
   public function __construct(DatabaseSyncService $syncService)
   {
@@ -60,8 +60,8 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
 
       if ($existingPartner) {
         // Si existe y tiene un type diferente, actualizar a AMBOS
-        if ($existingPartner->type !== $data['type'] && $existingPartner->type !== 'AMBOS') {
-          $data['type'] = 'AMBOS';
+        if ($existingPartner->type !== $data['type'] && $existingPartner->type !== BusinessPartners::BOTH) {
+          $data['type'] = BusinessPartners::BOTH;
           $data['id'] = $existingPartner->id;
           $existingPartner->update($data);
 
@@ -82,8 +82,10 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       }
 
       // Sincronizar a otras bases de datos
-//      $this->syncService->sync('business_partners', $businessPartner->toArray(), 'create');
-//      $this->syncService->sync('business_partners_directions', $businessPartner->toArray(), 'create');
+      if ($businessPartner->type === BusinessPartners::SUPPLIER) {
+        $this->syncService->sync('business_partners_ap_supplier', $businessPartner->toArray(), 'create');
+        $this->syncService->sync('business_partners_directions_ap_supplier', $businessPartner->toArray(), 'create');
+      }
 
       DB::commit();
       return new BusinessPartnersResource($businessPartner);
