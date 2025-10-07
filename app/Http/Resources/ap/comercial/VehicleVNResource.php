@@ -21,7 +21,7 @@ class VehicleVNResource extends JsonResource
       'supplier_order_type_id' => $this->supplier_order_type_id,
       'engine_type_id' => $this->engine_type_id,
       'sede_id' => $this->sede_id,
-      'models_vn' => $this->modelVN->code ?? null,
+      'ap_models_vn' => $this->modelVN->code ?? null,
       'vehicle_color' => $this->vehicleColor->description ?? null,
       'supplier_order_type' => $this->supplierOrderType->description ?? null,
       'engine_type' => $this->engineType->description ?? null,

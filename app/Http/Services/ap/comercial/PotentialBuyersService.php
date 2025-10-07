@@ -176,7 +176,7 @@ class PotentialBuyersService extends BaseService
             now()->subMonth()->startOfMonth(),
             now()->endOfMonth()
           ])
-            ->whereIn('use', [0, 1]) // Considerar solo use 0 y 1 (recien subido o asignado, 3 = descartado)
+            ->whereIn('use', [0, 1]) // Considerar solo use 0 y 1 (recien subido o asignado, 2 = descartado)
             ->where('num_doc', $rowData['num_doc'])
             ->exists();
 
