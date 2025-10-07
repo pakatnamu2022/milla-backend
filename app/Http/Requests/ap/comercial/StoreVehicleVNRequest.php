@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ap\comercial;
 
 use App\Http\Requests\StoreRequest;
+use Illuminate\Validation\Rule;
 
 class StoreVehicleVNRequest extends StoreRequest
 {
@@ -13,13 +14,15 @@ class StoreVehicleVNRequest extends StoreRequest
         'required',
         'string',
         'max:17',
-        'unique:vehicle_vn,vin'
+        Rule::unique('vehicle_vn', 'vin')
+          ->whereNull('deleted_at'),
       ],
       'order_number' => [
         'required',
         'string',
         'max:20',
-        'unique:vehicle_vn,order_number'
+        Rule::unique('vehicle_vn', 'order_number')
+          ->whereNull('deleted_at'),
       ],
       'year' => [
         'required',
@@ -31,7 +34,8 @@ class StoreVehicleVNRequest extends StoreRequest
         'required',
         'string',
         'max:30',
-        'unique:vehicle_vn,engine_number'
+        Rule::unique('vehicle_vn', 'engine_number')
+          ->whereNull('deleted_at'),
       ],
       'ap_models_vn_id' => [
         'required',

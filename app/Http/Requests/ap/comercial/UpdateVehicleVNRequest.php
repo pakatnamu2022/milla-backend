@@ -3,23 +3,28 @@
 namespace App\Http\Requests\ap\comercial;
 
 use App\Http\Requests\StoreRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateVehicleVNRequest extends StoreRequest
 {
   public function rules(): array
   {
     return [
-      'vim' => [
+      'vin' => [
         'nullable',
         'string',
         'max:17',
-        'unique:vehicle_vn,vim'
+        Rule::unique('vehicle_vn', 'vin')
+          ->whereNull('deleted_at')
+          ->ignore($this->route('vehicleVN')),
       ],
       'order_number' => [
         'nullable',
         'string',
         'max:20',
-        'unique:vehicle_vn,order_number'
+        Rule::unique('vehicle_vn', 'order_number')
+          ->whereNull('deleted_at')
+          ->ignore($this->route('vehicleVN')),
       ],
       'year' => [
         'nullable',
@@ -31,7 +36,9 @@ class UpdateVehicleVNRequest extends StoreRequest
         'nullable',
         'string',
         'max:30',
-        'unique:vehicle_vn,engine_number'
+        Rule::unique('vehicle_vn', 'engine_number')
+          ->whereNull('deleted_at')
+          ->ignore($this->route('vehicleVN')),
       ],
       'ap_models_vn_id' => [
         'nullable',
@@ -56,7 +63,7 @@ class UpdateVehicleVNRequest extends StoreRequest
       'sede_id' => [
         'nullable',
         'integer',
-        'exists:ap_sedes,id'
+        'exists:config_sede,id'
       ],
     ];
   }

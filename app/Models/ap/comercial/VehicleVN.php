@@ -29,7 +29,7 @@ class VehicleVN extends Model
   ];
 
   const filters = [
-    'search' => ['vin', 'num_pedido', 'num_motor'],
+    'search' => ['vin', 'order_number', 'engine_number'],
     'year' => '=',
     'status' => '=',
     'ap_models_vn_id' => '=',
