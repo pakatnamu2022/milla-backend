@@ -31,8 +31,6 @@ class ViewSeeder extends Seeder
 //      COMMERCIAL AP
       ['descripcion' => 'Agenda', 'submodule' => false, 'route' => 'agenda',
         'ruta' => '-', 'icon' => 'Calendar', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
-      ['descripcion' => 'Oportunidades', 'submodule' => false, 'route' => 'oportunidades',
-        'ruta' => '-', 'icon' => 'BriefcaseBusiness', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
     ];
 
     foreach ($data as $item) {
