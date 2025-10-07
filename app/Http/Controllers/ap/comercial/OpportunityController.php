@@ -87,6 +87,16 @@ class OpportunityController extends Controller
     }
   }
 
+
+  public function close($id)
+  {
+    try {
+      return $this->success($this->service->close($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   /**
    * Obtener mis oportunidades (con permisos de jefe)
    * GET /api/ap/commercial/opportunities/my-opportunities
@@ -97,7 +107,7 @@ class OpportunityController extends Controller
       $workerId = auth()->user()->partner_id;
       if (!$workerId) return $this->error('El trabajor es invalido');
       return $this->success($this->service->getMyOpportunities($request, $workerId));
-      
+
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

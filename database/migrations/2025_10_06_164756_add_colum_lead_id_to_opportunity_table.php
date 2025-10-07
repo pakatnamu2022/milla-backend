@@ -11,7 +11,7 @@ return new class extends Migration {
   public function up(): void
   {
     Schema::table('ap_opportunity', function (Blueprint $table) {
-      $table->foreignId('lead_id')->constrained('potential_buyers');
+      $table->foreignId('lead_id')->after('opportunity_status_id')->constrained('potential_buyers');
     });
   }
 

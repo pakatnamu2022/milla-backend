@@ -39,7 +39,17 @@ class Opportunity extends Model
     'updated_at',
   ];
 
-  const OPEN_STATUS_CODES = ['WARM', 'HOT'];
+  const CLOSED = 'CLOSED';
+  const SOLD = 'SOLD';
+  const WARM = 'WARM';
+  const HOT = 'HOT';
+
+  const OPEN_STATUS_CODES = [self::WARM, self::HOT];
+
+  public function getIsClosedAttribute()
+  {
+    return !in_array($this->opportunityStatus->code, self::OPEN_STATUS_CODES);
+  }
 
   public function worker()
   {

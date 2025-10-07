@@ -40,15 +40,6 @@ class OpportunityService extends BaseService implements BaseServiceInterface
     return array_merge($workerIds, $teamMembers);
   }
 
-  /**
-   * Verificar si una oportunidad está cerrada (GANADA o PERDIDA)
-   */
-  protected function isOpportunityClosed($opportunityStatusId)
-  {
-    $status = ApCommercialMasters::find($opportunityStatusId);
-    return $status && in_array($status->code, ['WON', 'LOST']);
-  }
-
   public function list(Request $request)
   {
     return $this->getFilteredResults(
@@ -138,6 +129,22 @@ class OpportunityService extends BaseService implements BaseServiceInterface
       ->get();
 
     return OpportunityActionResource::collection($actions);
+  }
+
+  public function close($id)
+  {
+    DB::beginTransaction();
+    try {
+      $opportunity = $this->find($id);
+      if ($opportunity->is_closed) throw new Exception('La oportunidad ya está cerrada');
+      $status = ApCommercialMasters::where('code', Opportunity::CLOSED)->whereNull('deleted_at')->first();
+      $opportunity->update(['opportunity_status_id' => $status->id]);
+      DB::commit();
+      return new OpportunityResource($opportunity);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw new Exception($e->getMessage());
+    }
   }
 
   /**

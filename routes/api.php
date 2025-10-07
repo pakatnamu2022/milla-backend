@@ -680,7 +680,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
       Route::get('opportunities/my', [OpportunityController::class, 'myOpportunities']);
       Route::get('opportunities/agenda/my', [OpportunityController::class, 'myAgenda']);
       Route::get('opportunities/{opportunityId}/actions', [OpportunityController::class, 'getActions']);
-      Route::get('opportunities/{opportunityId}/close', [OpportunityController::class, 'getActions']);
+      Route::get('opportunities/{opportunityId}/close', [OpportunityController::class, 'close']);
 
       Route::apiResource('opportunities', OpportunityController::class)->only([
         'index',
