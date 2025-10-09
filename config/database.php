@@ -140,6 +140,20 @@ return [
       'trust_server_certificate' => env('DBTP2_TRUST_SERVER_CERTIFICATE', 'true'),
     ],
 
+    'dbtp3' => [
+      'driver' => env('DBTP3_CONNECTION', 'sqlsrv'),
+      'host' => env('DBTP3_HOST'),
+      'port' => env('DBTP3_PORT', '2122'),
+      'database' => env('DBTP3_DATABASE'),
+      'username' => env('DBTP3_USERNAME'),
+      'password' => env('DBTP3_PASSWORD'),
+      'charset' => 'utf8',
+      'prefix' => '',
+      'prefix_indexes' => true,
+      'encrypt' => env('DBTP3_ENCRYPT', 'yes'),
+      'trust_server_certificate' => env('DBTP3_TRUST_SERVER_CERTIFICATE', 'true'),
+    ],
+
   ],
 
   /*

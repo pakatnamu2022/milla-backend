@@ -24,3 +24,10 @@ Schedule::command('app:snapshot-assignment-leadership-periods')
 Schedule::command('app:snapshot-commercial-manager-brand-group-periods')
   ->monthlyOn(1, '00:15')
   ->timezone('America/Lima');
+
+// Sincronizar la tasa de cambio cada 5 minutos entre las 8:00 y 9:00 de la mañana
+Schedule::command('app:sync-exchange-rate')
+  ->everyFiveMinutes()
+  ->between('8:00', '14:00')
+  ->timezone('America/Lima')
+  ->withoutOverlapping();

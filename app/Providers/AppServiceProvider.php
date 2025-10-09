@@ -4,6 +4,8 @@ namespace App\Providers;
 
 
 use App\Http\Services\common\EmailService;
+use App\Jobs\SyncExchangeRateJob;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -28,5 +30,16 @@ class AppServiceProvider extends ServiceProvider
     \App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult::observe(\App\Observers\EvaluationPersonResultObserver::class);
     \App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail::observe(\App\Observers\EvaluationPersonCompetenceDetailObserver::class);
     \App\Models\gp\gestionhumana\evaluacion\EvaluationPerson::observe(\App\Observers\EvaluationPersonObserver::class);
+
+    // Programar tarea para sincronizar tasa de cambio
+    $this->app->booted(function () {
+      $schedule = $this->app->make(Schedule::class);
+
+      // Ejecutar cada 5 minutos entre las 8:00 y 9:00 de la mañana
+      $schedule->job(new SyncExchangeRateJob())
+        ->everyFiveMinutes()
+        ->between('8:00', '9:00')
+        ->withoutOverlapping();
+    });
   }
 }
