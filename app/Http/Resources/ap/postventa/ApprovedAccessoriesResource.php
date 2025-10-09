@@ -14,13 +14,12 @@ class ApprovedAccessoriesResource extends JsonResource
       'code' => $this->code,
       'type' => $this->type,
       'description' => $this->description,
-      'exchange_rate' => $this->exchange_rate,
       'price' => $this->price,
       'status' => $this->status,
       'type_currency_id' => $this->type_currency_id,
       'body_type_id' => $this->body_type_id,
-      'type_currency' => $this->typeCurrency,
-      'body_type' => $this->bodyType,
+      'type_currency' => $this->typeCurrency->code ?? null,
+      'body_type' => $this->bodyType->description ?? null,
     ];
   }
 }

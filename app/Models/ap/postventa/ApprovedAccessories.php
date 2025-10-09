@@ -5,7 +5,9 @@ namespace App\Models\ap\postventa;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class ApprovedAccessories extends Model
 {
@@ -17,7 +19,6 @@ class ApprovedAccessories extends Model
     'code',
     'type',
     'description',
-    'exchange_rate',
     'price',
     'status',
     'type_currency_id',
@@ -35,16 +36,36 @@ class ApprovedAccessories extends Model
     'code',
     'type',
     'description',
-    'exchange_rate',
     'price',
   ];
 
-  public function typeCurrency()
+  public function setCodeAttribute($value): void
+  {
+    if ($value) {
+      $this->attributes['code'] = Str::upper($value);
+    }
+  }
+
+  public function setTypeAttribute($value): void
+  {
+    if ($value) {
+      $this->attributes['type'] = Str::upper($value);
+    }
+  }
+  
+  public function setDescriptionAttribute($value): void
+  {
+    if ($value) {
+      $this->attributes['description'] = Str::upper($value);
+    }
+  }
+
+  public function typeCurrency(): BelongsTo
   {
     return $this->belongsTo(TypeCurrency::class, 'type_currency_id');
   }
 
-  public function bodyType()
+  public function bodyType(): BelongsTo
   {
     return $this->belongsTo(ApCommercialMasters::class, 'body_type_id');
   }

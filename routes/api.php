@@ -4,6 +4,7 @@ use App\Http\Controllers\ap\ApCommercialMastersController;
 use App\Http\Controllers\ap\comercial\OpportunityActionController;
 use App\Http\Controllers\ap\comercial\OpportunityController;
 use App\Http\Controllers\ap\comercial\PotentialBuyersController;
+use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\VehicleVNController;
 use App\Http\Controllers\ap\postventa\ApprovedAccessoriesController;
 use App\Http\Controllers\AuditLogsController;
@@ -693,6 +694,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
       ]);
 
       Route::apiResource('opportunityActions', OpportunityActionController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::apiResource('purchaseRequestQuote', PurchaseRequestQuoteController::class)->only([
         'index',
         'show',
         'store',

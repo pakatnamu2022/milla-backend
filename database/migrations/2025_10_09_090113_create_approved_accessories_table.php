@@ -15,7 +15,6 @@ return new class extends Migration {
       $table->string('code', 20);
       $table->enum('type', ['SERVICIO', 'REPUESTO']);
       $table->string('description');
-      $table->decimal('exchange_rate', 12, 4)->nullable();
       $table->decimal('price', 12, 4);
       $table->boolean('status')->default(true);
       $table->foreignId('type_currency_id')

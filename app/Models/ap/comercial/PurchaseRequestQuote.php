@@ -5,6 +5,7 @@ namespace App\Models\ap\comercial;
 use App\Models\ap\ApCommercialMasters;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class PurchaseRequestQuote extends Model
 {
@@ -28,7 +29,7 @@ class PurchaseRequestQuote extends Model
     'doc_type_currency_id',
   ];
 
-  const filter = [
+  const filters = [
     'type_document' => '=',
     'type_vehicle' => '=',
     'quote_deadline' => '=',
@@ -48,6 +49,13 @@ class PurchaseRequestQuote extends Model
     'created_at',
     'updated_at',
   ];
+
+  public function setCommentAttribute($value): void
+  {
+    if ($value) {
+      $this->attributes['comment'] = Str::upper($value);
+    }
+  }
 
   public function discountCoupons()
   {

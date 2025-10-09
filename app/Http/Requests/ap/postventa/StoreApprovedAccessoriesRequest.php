@@ -19,7 +19,6 @@ class StoreApprovedAccessoriesRequest extends StoreRequest
       ],
       'type' => ['required', Rule::in(['SERVICIO', 'REPUESTO'])],
       'description' => ['required', 'string'],
-      'exchange_rate' => ['nullable', 'numeric'],
       'price' => ['required', 'numeric'],
       'type_currency_id' => ['required', 'exists:type_currency,id'],
       'body_type_id' => ['required', 'exists:ap_commercial_masters,id']

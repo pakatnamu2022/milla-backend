@@ -25,18 +25,18 @@ class ApprovedAccessoriesService extends BaseService implements BaseServiceInter
 
   public function find($id)
   {
-    $ApFamilies = ApprovedAccessories::where('id', $id)->first();
-    if (!$ApFamilies) {
+    $ApprovedAccessories = ApprovedAccessories::where('id', $id)->first();
+    if (!$ApprovedAccessories) {
       throw new Exception('Accesorio Homologado no encontrado');
     }
-    return $ApFamilies;
+    return $ApprovedAccessories;
   }
 
   public function store(mixed $data)
   {
     $data['ap_vehicle_status_id'] = 28;
-    $engineType = ApprovedAccessories::create($data);
-    return new ApprovedAccessoriesResource($engineType);
+    $ApprovedAccessories = ApprovedAccessories::create($data);
+    return new ApprovedAccessoriesResource($ApprovedAccessories);
   }
 
   public function show($id)
@@ -46,16 +46,16 @@ class ApprovedAccessoriesService extends BaseService implements BaseServiceInter
 
   public function update(mixed $data)
   {
-    $engineType = $this->find($data['id']);
-    $engineType->update($data);
-    return new ApprovedAccessories($engineType);
+    $ApprovedAccessories = $this->find($data['id']);
+    $ApprovedAccessories->update($data);
+    return new ApprovedAccessoriesResource($ApprovedAccessories);
   }
 
   public function destroy($id)
   {
-    $engineType = $this->find($id);
-    DB::transaction(function () use ($engineType) {
-      $engineType->delete();
+    $ApprovedAccessories = $this->find($id);
+    DB::transaction(function () use ($ApprovedAccessories) {
+      $ApprovedAccessories->delete();
     });
     return response()->json(['message' => 'Accesorio Homologado eliminado correctamente']);
   }

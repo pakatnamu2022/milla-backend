@@ -15,7 +15,8 @@ return new class extends Migration {
       $table->integer('quantity');
       $table->decimal('price', 12, 4);
       $table->decimal('total', 12, 4);
-      $table->decimal('exchange_rate', 12, 4)->nullable();
+      $table->foreignId('exchange_rate_id')
+        ->constrained('exchange_rate')->onDelete('cascade');
       $table->foreignId('purchase_request_quote_id')
         ->constrained('purchase_request_quote', indexName: 'det_acc_prq_fk')
         ->onDelete('cascade');
