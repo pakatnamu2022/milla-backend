@@ -26,23 +26,23 @@ Schedule::command('app:snapshot-commercial-manager-brand-group-periods')
   ->timezone('America/Lima');
 
 Schedule::command('app:sync-exchange-rate')
-  ->everyMinute()
+  ->everyFiveMinutes()
   ->between('8:00', '18:00')
   ->timezone('America/Lima')
-  ->withoutOverlapping()
-  ->before(function () {
-    Log::info('🕐 Iniciando sincronización de tasa de cambio', [
-      'timestamp' => now()->toDateTimeString(),
-    ]);
-  })
-  ->onSuccess(function () {
-    Log::info('✅ Sincronización de tasa de cambio completada exitosamente', [
-      'timestamp' => now()->toDateTimeString(),
-    ]);
-  })
-  ->onFailure(function () {
-    Log::error('❌ Error en la sincronización de tasa de cambio', [
-      'timestamp' => now()->toDateTimeString(),
-    ]);
-  })
-  ->appendOutputTo(storage_path('logs/exchange-rate-sync.log'));
+  ->withoutOverlapping();
+//  ->before(function () {
+//    Log::info('Iniciando sincronización de tasa de cambio', [
+//      'timestamp' => now()->toDateTimeString(),
+//    ]);
+//  })
+//  ->onSuccess(function () {
+//    Log::info('Sincronización de tasa de cambio completada exitosamente', [
+//      'timestamp' => now()->toDateTimeString(),
+//    ]);
+//  })
+//  ->onFailure(function () {
+//    Log::error('Error en la sincronización de tasa de cambio', [
+//      'timestamp' => now()->toDateTimeString(),
+//    ]);
+//  })
+//  ->appendOutputTo(storage_path('logs/exchange-rate-sync.log'));
