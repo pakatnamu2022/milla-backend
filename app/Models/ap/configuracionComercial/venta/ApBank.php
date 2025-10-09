@@ -4,12 +4,12 @@ namespace App\Models\ap\configuracionComercial\venta;
 
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
-use App\Models\gp\gestionsistema\CompanyBranch;
+use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\Sede;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class ApBank extends Model
+class ApBank extends BaseModel
 {
   use softDeletes;
 
@@ -22,7 +22,7 @@ class ApBank extends Model
     'bank_id',
     'currency_id',
     'status',
-    'sede_id', //temporal
+    'sede_id',
   ];
 
   const filters = [
@@ -30,7 +30,7 @@ class ApBank extends Model
     'bank_id' => '=',
     'currency_id' => '=',
     'status' => '=',
-    'sede_id' => '=', //temporal
+    'sede_id' => '=',
   ];
 
   const sorts = [
@@ -40,25 +40,20 @@ class ApBank extends Model
     'bank_id',
     'currency_id',
     'status',
-    'sede_id', //temporal
+    'sede_id',
   ];
 
-  public function bank()
+  public function bank(): BelongsTo
   {
     return $this->belongsTo(ApCommercialMasters::class, 'bank_id');
   }
 
-  public function currency()
+  public function currency(): BelongsTo
   {
     return $this->belongsTo(TypeCurrency::class, 'currency_id');
   }
 
-  public function companyBranch()
-  {
-    return $this->belongsTo(CompanyBranch::class, 'company_branch_id');
-  }
-
-  public function sede()
+  public function sede(): BelongsTo
   {
     return $this->belongsTo(Sede::class, 'sede_id');
   }
