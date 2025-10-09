@@ -25,9 +25,24 @@ Schedule::command('app:snapshot-commercial-manager-brand-group-periods')
   ->monthlyOn(1, '00:15')
   ->timezone('America/Lima');
 
-// Sincronizar la tasa de cambio cada 5 minutos entre las 8:00 y 9:00 de la mañana
 Schedule::command('app:sync-exchange-rate')
   ->everyFiveMinutes()
   ->between('8:00', '16:00')
   ->timezone('America/Lima')
-  ->withoutOverlapping();
+  ->withoutOverlapping()
+  ->before(function () {
+    Log::info('🕐 Iniciando sincronización de tasa de cambio', [
+      'timestamp' => now()->toDateTimeString(),
+    ]);
+  })
+  ->onSuccess(function () {
+    Log::info('✅ Sincronización de tasa de cambio completada exitosamente', [
+      'timestamp' => now()->toDateTimeString(),
+    ]);
+  })
+  ->onFailure(function () {
+    Log::error('❌ Error en la sincronización de tasa de cambio', [
+      'timestamp' => now()->toDateTimeString(),
+    ]);
+  })
+  ->appendOutputTo(storage_path('logs/exchange-rate-sync.log'));
