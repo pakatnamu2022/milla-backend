@@ -4,6 +4,7 @@ namespace App\Models\ap\comercial;
 
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +27,7 @@ class VehicleVN extends Model
     'supplier_order_type_id',
     'engine_type_id',
     'sede_id',
+    'ap_vehicle_status_id'
   ];
 
   const filters = [
@@ -37,6 +39,7 @@ class VehicleVN extends Model
     'supplier_order_type_id' => '=',
     'engine_type_id' => '=',
     'sede_id' => '=',
+    'ap_vehicle_status_id' => '=',
   ];
 
   const sorts = [
@@ -70,5 +73,10 @@ class VehicleVN extends Model
   public function sede(): BelongsTo
   {
     return $this->belongsTo(Sede::class, 'sede_id');
+  }
+
+  public function apVehicleStatus(): BelongsTo
+  {
+    return $this->belongsTo(ApVehicleStatus::class, 'ap_vehicle_status_id');
   }
 }

@@ -13,6 +13,7 @@ class TaxClassTypesResource extends JsonResource
       'id' => $this->id,
       'dyn_code' => $this->dyn_code,
       'description' => $this->description,
+      'tax_class' => $this->tax_class,
       'type' => $this->type,
       'status' => $this->status,
     ];

@@ -12,12 +12,13 @@ class TaxClassTypes extends Model
   protected $fillable = [
     'dyn_code',
     'description',
+    'tax_class',
     'type',
     'status',
   ];
 
   const filters = [
-    'search' => ['dyn_code', 'description', 'type'],
+    'search' => ['dyn_code', 'description', 'type', 'tax_class'],
     'type' => '=',
     'status' => '='
   ];
@@ -36,6 +37,11 @@ class TaxClassTypes extends Model
   public function setDescriptionAttribute($value)
   {
     $this->attributes['description'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setTaxClassAttribute($value)
+  {
+    $this->attributes['tax_class'] = Str::upper(Str::ascii($value));
   }
 
   public function setTypeAttribute($value)

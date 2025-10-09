@@ -28,6 +28,11 @@ class UpdateTaxClassTypesRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('taxClassType')),
       ],
+      'tax_class' => [
+        'nullable',
+        'string',
+        'max:100',
+      ],
       'type' => [
         'nullable',
         'string',
@@ -47,6 +52,9 @@ class UpdateTaxClassTypesRequest extends StoreRequest
       'description.string' => 'La descripción debe ser una cadena de texto.',
       'description.max' => 'La descripción no debe exceder los 255 caracteres.',
       'description.unique' => 'La descripción ingresada ya existe en los registros.',
+
+      'tax_class.string' => 'La clase de impuesto debe ser una cadena de texto.',
+      'tax_class.max' => 'La clase de impuesto no debe exceder los 100 caracteres.',
 
       'type.string' => 'El tipo debe ser una cadena de texto.',
       'type.max' => 'El tipo no debe exceder los 100 caracteres.',
