@@ -27,7 +27,7 @@ Schedule::command('app:snapshot-commercial-manager-brand-group-periods')
 
 Schedule::command('app:sync-exchange-rate')
   ->everyFiveMinutes()
-  ->between('8:00', '16:00')
+  ->between('8:00', '18:00')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->before(function () {
