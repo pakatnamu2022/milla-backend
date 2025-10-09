@@ -28,6 +28,6 @@ Schedule::command('app:snapshot-commercial-manager-brand-group-periods')
 // Sincronizar la tasa de cambio cada 5 minutos entre las 8:00 y 9:00 de la mañana
 Schedule::command('app:sync-exchange-rate')
   ->everyFiveMinutes()
-  ->between('8:00', '14:00')
+  ->between('8:00', '16:00')
   ->timezone('America/Lima')
   ->withoutOverlapping();
