@@ -28,7 +28,7 @@ return new  class extends Migration {
         ->constrained('ap_commercial_masters')->onDelete('cascade');
       $table->foreignId('ap_models_vn_id')->nullable()
         ->constrained('ap_models_vn')->onDelete('cascade');
-      $table->foreignId('vehicle_vn_id')->nullable()
+      $table->foreignId('ap_vehicle_purchase_order_id')->nullable()
         ->constrained('ap_vehicle_purchase_order')->onDelete('cascade');
       $table->foreignId('doc_type_currency_id')
         ->constrained('ap_commercial_masters')->onDelete('cascade');
