@@ -47,7 +47,7 @@ return new class extends Migration {
       $table->string('number');
       $table->string('number_guide');
       $table->foreignId('warehouse_id')->constrained('warehouse');
-      $table->foreignId('warehouse_physical_id')->constrained('warehouse');
+      $table->foreignId('warehouse_physical_id')->nullable()->constrained('warehouse');
 
       $table->timestamps();
       $table->softDeletes();

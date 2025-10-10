@@ -91,4 +91,13 @@ class ExchangeRateService extends BaseService
       ];
     }
   }
+
+  public function getCurrentUSDRate()
+  {
+    $exchangeRate = ExchangeRate::todayUSD();
+    if (!$exchangeRate) {
+      throw new \Exception('No se ha registrado la tasa de cambio para hoy.');
+    }
+    return $exchangeRate;
+  }
 }

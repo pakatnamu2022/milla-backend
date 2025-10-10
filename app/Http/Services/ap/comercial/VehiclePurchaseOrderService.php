@@ -5,13 +5,16 @@ namespace App\Http\Services\ap\comercial;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class VehiclePurchaseOrderService extends BaseService implements BaseServiceInterface
 {
+
   public function list(Request $request)
   {
     return $this->getFilteredResults(
@@ -32,9 +35,33 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     return $vehiclePurchaseOrder;
   }
 
+  public function enrichData(mixed $data)
+  {
+    $unit_price = round($data['unit_price'], 2);
+    $discount = round($data['discount'], 2);
+    $subtotal = round($unit_price - $discount, 2);
+    if ($subtotal < 0) {
+      throw new Exception('El subtotal no puede ser negativo');
+    }
+    $igv = round($subtotal * 0.18, 2);
+    $total = round($subtotal + $igv, 2);
+
+    $data['unit_price'] = $unit_price;
+    $data['discount'] = $discount;
+    $data['igv'] = $igv;
+    $data['total'] = $total;
+    $data['subtotal'] = $subtotal;
+    $data['ap_vehicle_status_id'] = ApVehicleStatus::PEDIDO_VN;
+
+    $exchangeRateService = new ExchangeRateService();
+    $data['exchange_rate_id'] = $exchangeRateService->getCurrentUSDRate()->id;
+
+    return $data;
+  }
+
   public function store(mixed $data)
   {
-    $data['ap_vehicle_status_id'] = 28;
+    $data = $this->enrichData($data);
     $vehiclePurchaseOrder = VehiclePurchaseOrder::create($data);
     return new VehiclePurchaseOrderResource($vehiclePurchaseOrder);
   }
