@@ -36,7 +36,7 @@ class ExchangeRate extends BaseModel
     'rate',
   ];
 
-  const TYPE_VENTA = 'VENTA';
+  const TYPE_VENTA = 'VENDER';
   const TYPE_NEGOCIADOR = 'NEGOCIADOR';
 
 
