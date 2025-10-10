@@ -58,6 +58,16 @@ class VehiclePurchaseOrder extends Model
     'vin',
   ];
 
+  public function setNumberAttribute($value)
+  {
+    $this->attributes['number'] = 'OC' . $value;
+  }
+
+  public function setNumberGuideAttribute($value)
+  {
+    $this->attributes['number_guide'] = 'NI' . $value;
+  }
+
   public function model(): BelongsTo
   {
     return $this->belongsTo(ApModelsVn::class, 'ap_models_vn_id');
