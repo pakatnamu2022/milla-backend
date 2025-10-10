@@ -8,6 +8,7 @@ use App\Models\ap\maestroGeneral\TaxClassTypes;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\gestionsistema\Company;
+use App\Models\gp\maestroGeneral\ExchangeRate;
 
 return [
   /*
@@ -221,20 +222,24 @@ return [
   ],
 
   // Configuración para la entidad "ap_purchase_order"
-  'ap_purchase_order' => [
+  'ap_vehicle_purchase_order' => [
     'dbtp' => [
       'enabled' => env('SYNC_DBTP_ENABLED', false),
       'connection' => 'dbtp',
       'table' => 'neInTbOrdenCompra',
       'mapping' => [
         'EmpresaId' => fn($data) => Company::TEST_DYNAMICS,
-        'OrdenCompraId' => fn($data) => $data['code'],
-        'ProveedorId' => fn($data) => $data['supplier_id'],
-        'FechaEmision' => fn($data) => $data['issue_date'],
-        'MonedaId' => fn($data) => $data['currency'],
-        'TipoTasaId' => fn($data) => $data['exchange_rate_type'] ?? '01',
-        'TasaCambio' => fn($data) => $data['exchange_rate'],
-        'FechaEntrega' => fn($data) => $data['delivery_date']
+        'OrdenCompraId' => fn($data) => $data['number'],
+        'ProveedorId' => fn($data) => BusinessPartners::find($data['supplier_id'])->num_doc,
+        'FechaEmision' => fn($data) => $data['emission_date'],
+        'MonedaId' => fn($data) => TypeCurrency::find($data['currency_id'])->code,
+        'TipoTasaId' => fn($data) => VehiclePurchaseOrder::find($data['id'])->exchangeRate->type,
+        'TasaCambio' => fn($data) => VehiclePurchaseOrder::find($data['id'])->exchangeRate->rate,
+        'PlanImpuestoId' => fn($data) => VehiclePurchaseOrder::find($data['id'])->taxClassType->tax_class,
+        'UsuarioId' => fn($data) => 'USUGP',
+        'Procesar' => 0,
+        'ProcesoEstado' => 0,
+        'ProcesoError' => fn($data) => '',
       ],
       'optional_mapping' => [
       ],

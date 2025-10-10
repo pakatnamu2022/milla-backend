@@ -15,7 +15,6 @@ return new class extends Migration {
 
 //      VEHICLE
       $table->string('vin');
-      $table->string('order_number');
       $table->integer('year');
       $table->string('engine_number');
       $table->boolean('status')->default(true);

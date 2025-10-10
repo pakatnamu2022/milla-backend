@@ -36,7 +36,7 @@ class ExchangeRate extends BaseModel
     'rate',
   ];
 
-  const TYPE_VENTA = 'VENDER';
+  const TYPE_VENDER = 'VENDER';
   const TYPE_NEGOCIADOR = 'NEGOCIADOR';
 
 
@@ -55,7 +55,7 @@ class ExchangeRate extends BaseModel
     return self::where('from_currency_id', TypeCurrency::PEN)
       ->where('to_currency_id', TypeCurrency::USD)
       ->where('date', date('Y-m-d'))
-      ->where('type', self::TYPE_VENTA)
+      ->where('type', self::TYPE_VENDER)
       ->orderBy('created_at', 'desc')
       ->first();
   }
