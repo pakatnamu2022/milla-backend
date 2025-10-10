@@ -53,7 +53,7 @@ class Company extends BaseModel
   ];
 
   const TEST_DYNAMICS = 'CTEST';
-  const AP_DYNAMICS = 'GPAPP';
+  const AP_DYNAMICS = 'CTEST';
   const TP_DYNAMICS = 'GPTRP';
 
   const DP_DYNAMICS = 'GPDPT';
