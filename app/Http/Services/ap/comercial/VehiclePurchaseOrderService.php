@@ -8,12 +8,14 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Models\ap\comercial\VehiclePurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\gp\maestroGeneral\Sede;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class VehiclePurchaseOrderService extends BaseService implements BaseServiceInterface
 {
+  const DELETE = 'DELETE';
 
   public function list(Request $request)
   {
@@ -35,8 +37,22 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     return $vehiclePurchaseOrder;
   }
 
-  public function enrichData(mixed $data)
+  public function enrichData(mixed $data, $isCreate = true)
   {
+    if ($isCreate) {
+      $data['number'] =
+        $this->nextCorrelativeQuery(Sede::where('id', $data['sede_id']), 'id', 2) .
+        $this->nextCorrelativeCount(VehiclePurchaseOrder::class, 8, ['sede_id' => $data['sede_id']]);
+
+      $data['number_guide'] =
+        $this->nextCorrelativeQuery(Sede::where('id', $data['sede_id']), 'id', 2) .
+        $this->nextCorrelativeCount(VehiclePurchaseOrder::class, 8, ['sede_id' => $data['sede_id']]);
+
+      $data['ap_vehicle_status_id'] = ApVehicleStatus::PEDIDO_VN;
+      $exchangeRateService = new ExchangeRateService();
+      $data['exchange_rate_id'] = $exchangeRateService->getCurrentUSDRate()->id;
+    }
+
     $unit_price = round($data['unit_price'], 2);
     $discount = round($data['discount'], 2);
     $subtotal = round($unit_price - $discount, 2);
@@ -51,10 +67,6 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     $data['igv'] = $igv;
     $data['total'] = $total;
     $data['subtotal'] = $subtotal;
-    $data['ap_vehicle_status_id'] = ApVehicleStatus::PEDIDO_VN;
-
-    $exchangeRateService = new ExchangeRateService();
-    $data['exchange_rate_id'] = $exchangeRateService->getCurrentUSDRate()->id;
 
     return $data;
   }
@@ -74,6 +86,17 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
   public function update(mixed $data)
   {
     $vehiclePurchaseOrder = $this->find($data['id']);
+
+    if (isset($data['unit_price']) || isset($data['discount'])) {
+      if (!isset($data['unit_price'])) {
+        $data['unit_price'] = $vehiclePurchaseOrder->unit_price;
+      }
+      if (!isset($data['discount'])) {
+        $data['discount'] = $vehiclePurchaseOrder->discount;
+      }
+      $data = $this->enrichData($data, false);
+    }
+
     $vehiclePurchaseOrder->update($data);
     return new VehiclePurchaseOrderResource($vehiclePurchaseOrder);
   }

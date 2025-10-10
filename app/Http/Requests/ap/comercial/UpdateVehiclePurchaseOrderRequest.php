@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ap\comercial;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\maestroGeneral\Warehouse;
 use Illuminate\Validation\Rule;
 
 class UpdateVehiclePurchaseOrderRequest extends StoreRequest
@@ -19,12 +20,7 @@ class UpdateVehiclePurchaseOrderRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('vehiclePurchaseOrder')),
       ],
-      'year' => [
-        'nullable',
-        'integer',
-        'min:1900',
-        'max:2100'
-      ],
+      'year' => ['nullable', 'integer', 'min:1900', 'max:2100'],
       'engine_number' => [
         'nullable',
         'string',
@@ -33,168 +29,53 @@ class UpdateVehiclePurchaseOrderRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('vehiclePurchaseOrder')),
       ],
-      'ap_models_vn_id' => [
-        'nullable',
-        'integer',
-        'exists:ap_models_vn,id'
-      ],
-      'vehicle_color_id' => [
-        'nullable',
-        'integer',
-        'exists:ap_commercial_masters,id'
-      ],
-      'supplier_order_type_id' => [
-        'nullable',
-        'integer',
-        'exists:ap_commercial_masters,id'
-      ],
-      'engine_type_id' => [
-        'nullable',
-        'integer',
-        'exists:ap_commercial_masters,id'
-      ],
-      'sede_id' => [
-        'nullable',
-        'integer',
-        'exists:config_sede,id'
-      ],
+      'ap_models_vn_id' => ['nullable', 'integer', Rule::exists('ap_models_vn', 'id')->where('status', 1)->whereNull('deleted_at')],
+      'vehicle_color_id' => ['nullable', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'COLOR_VEHICULO')->where('status', 1)->whereNull('deleted_at')],
+      'supplier_order_type_id' => ['nullable', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'TIPO_PEDIDO_PROVEEDOR')->where('status', 1)->whereNull('deleted_at')],
+      'engine_type_id' => ['nullable', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'TIPO_MOTOR')->where('status', 1)->whereNull('deleted_at')],
+      'sede_id' => ['nullable', 'integer', Rule::exists('config_sede', 'id')->where('status', 1)->whereNull('deleted_at')],
 
       // Invoice
-      'invoice_series' => [
-        'nullable',
-        'string',
-        'max:10'
-      ],
-      'invoice_number' => [
-        'nullable',
-        'string',
-        'max:20'
-      ],
-      'emission_date' => [
-        'nullable',
-        'date'
-      ],
-      'unit_price' => [
-        'nullable',
-        'numeric',
-        'min:0'
-      ],
-      'discount' => [
-        'nullable',
-        'numeric',
-        'min:0'
-      ],
-      'subtotal' => [
-        'nullable',
-        'numeric',
-        'min:0'
-      ],
-      'igv' => [
-        'nullable',
-        'numeric',
-        'min:0'
-      ],
-      'total' => [
-        'nullable',
-        'numeric',
-        'min:0'
-      ],
-      'supplier_id' => [
-        'nullable',
-        'integer'
-      ],
-      'currency_id' => [
-        'nullable',
-        'integer'
-      ],
-      'exchange_rate_id' => [
-        'nullable',
-        'integer'
-      ],
+      'invoice_series' => ['nullable', 'string', 'max:10'],
+      'invoice_number' => ['nullable', 'string', 'max:20'],
+      'emission_date' => ['nullable', 'date'],
+      'unit_price' => ['nullable', 'numeric', 'min:0'],
+      'discount' => ['nullable', 'numeric', 'min:0'],
+      'supplier_id' => ['nullable', 'integer', Rule::exists('business_partners', 'id')->where('status_ap', 1)->whereNull('deleted_at')],
+      'currency_id' => ['nullable', 'integer', Rule::exists('type_currency', 'id')->where('status', 1)->whereNull('deleted_at')],
 
       // Guide
-      'number' => [
-        'nullable',
-        'string',
-        'max:20'
-      ],
-      'number_guide' => [
-        'nullable',
-        'string',
-        'max:20'
-      ],
-      'warehouse_id' => [
-        'nullable',
-        'integer'
-      ],
-      'warehouse_physical_id' => [
-        'nullable',
-        'integer'
-      ],
+      'warehouse_id' => ['nullable', 'integer', Rule::exists('warehouse', 'id')->where('type', Warehouse::REAL)->where('status', 1)->whereNull('deleted_at')],
     ];
   }
 
-  public function messages(): array
+  public function attributes()
   {
     return [
       // Vehicle
-      'vin.string' => 'El campo VIN debe ser una cadena de texto.',
-      'vin.max' => 'El campo VIN no debe exceder los 17 caracteres.',
-      'vin.unique' => 'El campo VIN ya existe.',
-
-      'year.integer' => 'El campo Año debe ser un número entero.',
-      'year.min' => 'El campo Año no puede ser menor a 1900.',
-      'year.max' => 'El campo Año no puede ser mayor a 2100.',
-
-      'engine_number.string' => 'El campo Número de Motor debe ser una cadena de texto.',
-      'engine_number.max' => 'El campo Número de Motor no debe exceder los 30 caracteres.',
-      'engine_number.unique' => 'El campo Número de Motor ya existe.',
-
-      'ap_models_vn_id.integer' => 'El campo Modelo VN debe ser un número entero.',
-      'ap_models_vn_id.exists' => 'El modelo VN seleccionado no existe.',
-
-      'vehicle_color_id.integer' => 'El campo Color del Vehículo debe ser un número entero.',
-      'vehicle_color_id.exists' => 'El color del vehículo seleccionado no existe.',
-
-      'supplier_order_type_id.integer' => 'El campo Tipo de Orden de Proveedor debe ser un número entero.',
-      'supplier_order_type_id.exists' => 'El tipo de orden de proveedor seleccionado no existe.',
-
-      'engine_type_id.integer' => 'El campo Tipo de Motor debe ser un número entero.',
-      'engine_type_id.exists' => 'El tipo de motor seleccionado no existe.',
-
-      'sede_id.integer' => 'El campo Sede debe ser un número entero.',
-      'sede_id.exists' => 'La sede seleccionada no existe.',
+      'vin' => 'VIN',
+      'year' => 'Año',
+      'engine_number' => 'Número de Motor',
+      'ap_models_vn_id' => 'Modelo VN',
+      'vehicle_color_id' => 'Color del Vehículo',
+      'supplier_order_type_id' => 'Tipo de Pedido de Proveedor',
+      'engine_type_id' => 'Tipo de Motor',
+      'sede_id' => 'Sede',
 
       // Invoice
-      'invoice_series.string' => 'El campo Serie de Factura debe ser una cadena de texto.',
-      'invoice_series.max' => 'El campo Serie de Factura no debe exceder los 10 caracteres.',
-
-      'invoice_number.string' => 'El campo Número de Factura debe ser una cadena de texto.',
-      'invoice_number.max' => 'El campo Número de Factura no debe exceder los 20 caracteres.',
-
-      'emission_date.date' => 'El campo Fecha de Emisión debe ser una fecha válida.',
-
-      'unit_price.numeric' => 'El campo Precio Unitario debe ser un número.',
-      'unit_price.min' => 'El campo Precio Unitario no puede ser negativo.',
-
-      'discount.numeric' => 'El campo Descuento debe ser un número.',
-      'discount.min' => 'El campo Descuento no puede ser negativo.',
-
-      'subtotal.numeric' => 'El campo Subtotal debe ser un número.',
-      'subtotal.min' => 'El campo Subtotal no puede ser negativo.',
-
-      'igv.numeric' => 'El campo IGV debe ser un número.',
-      'igv.min' => 'El campo IGV no puede ser negativo.',
-
-      'total.numeric' => 'El campo Total debe ser un número.',
-      'total.min' => 'El campo Total no puede ser negativo.',
+      'invoice_series' => 'Serie de la Factura',
+      'invoice_number' => 'Número de la Factura',
+      'emission_date' => 'Fecha de Emisión',
+      'unit_price' => 'Precio Unitario',
+      'discount' => 'Descuento',
+      'subtotal' => 'Subtotal',
+      'igv' => 'IGV',
+      'total' => 'Total',
+      'supplier_id' => 'Proveedor',
+      'currency_id' => 'Moneda',
 
       // Guide
-      'number.string' => 'El campo Número debe ser una cadena de texto.',
-      'number.max' => 'El campo Número no debe exceder los 20 caracteres.',
-
-      'number_guide.string' => 'El campo Número de Guía debe ser una cadena de texto.',
-      'number_guide.max' => 'El campo Número de Guía no debe exceder los 20 caracteres.',
+      'warehouse_id' => 'Almacén',
     ];
   }
 }

@@ -29,13 +29,9 @@ class StoreVehiclePurchaseOrderRequest extends StoreRequest
       'discount' => ['required', 'numeric', 'min:0'],
       'supplier_id' => ['required', 'integer', Rule::exists('business_partners', 'id')->where('status_ap', 1)->whereNull('deleted_at')],
       'currency_id' => ['required', 'integer', Rule::exists('type_currency', 'id')->where('status', 1)->whereNull('deleted_at')],
-//      'exchange_rate_id' => ['required', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'TIPO_MONEDA')->whereNull('deleted_at')],
 
       // Guide
-      'number' => ['required', 'string', 'max:20'],
-      'number_guide' => ['required', 'string', 'max:20'],
       'warehouse_id' => ['required', 'integer', Rule::exists('warehouse', 'id')->where('type', Warehouse::REAL)->where('status', 1)->whereNull('deleted_at')],
-//      'warehouse_physical_id' => ['required', 'integer', Rule::exists('warehouse', 'id')->where('type', Warehouse::PHYSICAL)->where('status', 1)->whereNull('deleted_at')]
     ];
   }
 
@@ -63,13 +59,9 @@ class StoreVehiclePurchaseOrderRequest extends StoreRequest
       'total' => 'Total',
       'supplier_id' => 'Proveedor',
       'currency_id' => 'Moneda',
-      'exchange_rate_id' => 'Tipo de Cambio',
 
       // Guide
-      'number' => 'Número',
-      'number_guide' => 'Número de Guía',
       'warehouse_id' => 'Almacén',
-      'warehouse_physical_id' => 'Almacén Físico',
     ];
   }
 }
