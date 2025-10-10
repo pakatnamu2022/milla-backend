@@ -30,6 +30,8 @@ class ApVehicleStatus extends Model
     'description',
   ];
 
+  const PEDIDO_VN = 28;
+
   public function setCodeAttribute($value)
   {
     $this->attributes['code'] = Str::upper(Str::ascii($value));
