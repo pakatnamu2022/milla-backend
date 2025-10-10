@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 
 class VehiclePurchaseOrderService extends BaseService implements BaseServiceInterface
 {
+  const DELETE = 'DELETE';
 
   public function list(Request $request)
   {
@@ -74,6 +75,17 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
   public function update(mixed $data)
   {
     $vehiclePurchaseOrder = $this->find($data['id']);
+
+    if (isset($data['unit_price']) || isset($data['discount'])) {
+      if (!isset($data['unit_price'])) {
+        $data['unit_price'] = $vehiclePurchaseOrder->unit_price;
+      }
+      if (!isset($data['discount'])) {
+        $data['discount'] = $vehiclePurchaseOrder->discount;
+      }
+      $data = $this->enrichData($data);
+    }
+
     $vehiclePurchaseOrder->update($data);
     return new VehiclePurchaseOrderResource($vehiclePurchaseOrder);
   }
