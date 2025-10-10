@@ -15,7 +15,6 @@ return new class extends Migration {
 
 //      VEHICLE
       $table->string('vin');
-      $table->string('order_number');
       $table->integer('year');
       $table->string('engine_number');
       $table->boolean('status')->default(true);
@@ -35,7 +34,7 @@ return new class extends Migration {
 //      INVOICE
       $table->string('invoice_series');
       $table->string('invoice_number');
-      $table->date('emission_date');
+      $table->datetime('emission_date');
       $table->decimal('total');
       $table->foreignId('supplier_id')->constrained('business_partners');
       $table->foreignId('currency_id')->constrained('type_currency');
@@ -44,6 +43,7 @@ return new class extends Migration {
 //      GUIDE
       $table->string('number');
       $table->string('number_guide');
+      $table->foreignId('invoice_plan_id')->constrained('ap_invoice_plan');
 
 
       $table->timestamps();

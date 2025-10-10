@@ -72,7 +72,7 @@ class ExchangeRateService extends BaseService
       $data = [
         'from_currency_id' => $fromCurrency->id,
         'to_currency_id' => $toCurrency->id,
-        'type' => 'VENTA',
+        'type' => ExchangeRate::TYPE_VENDER,
         'date' => $date,
         'rate' => $exchangeRate,
       ];
