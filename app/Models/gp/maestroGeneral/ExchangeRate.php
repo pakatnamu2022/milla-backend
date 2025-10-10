@@ -38,6 +38,7 @@ class ExchangeRate extends BaseModel
 
   const TYPE_VENTA = 'VENTA';
   const TYPE_NEGOCIADOR = 'NEGOCIADOR';
+  
 
   public function fromCurrency()
   {
@@ -47,5 +48,15 @@ class ExchangeRate extends BaseModel
   public function toCurrency()
   {
     return $this->belongsTo(TypeCurrency::class, 'to_currency_id');
+  }
+
+  public static function todayUSD()
+  {
+    return self::where('from_currency_id', TypeCurrency::PEN)
+      ->where('to_currency_id', TypeCurrency::USD)
+      ->where('date', date('Y-m-d'))
+      ->where('type', self::TYPE_VENTA)
+      ->orderBy('created_at', 'desc')
+      ->first();
   }
 }
