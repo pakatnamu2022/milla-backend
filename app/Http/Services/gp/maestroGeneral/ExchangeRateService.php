@@ -38,7 +38,7 @@ class ExchangeRateService extends BaseService
 
       $exists = ExchangeRate::where('from_currency_id', $fromCurrency->id)
         ->where('to_currency_id', $toCurrency->id)
-        ->where('type', 'VENTA')
+        ->where('type', ExchangeRate::TYPE_VENTA)
         ->where('date', $date)
         ->exists();
 
@@ -72,7 +72,7 @@ class ExchangeRateService extends BaseService
       $data = [
         'from_currency_id' => $fromCurrency->id,
         'to_currency_id' => $toCurrency->id,
-        'type' => ExchangeRate::TYPE_VENDER,
+        'type' => ExchangeRate::TYPE_VENTA,
         'date' => $date,
         'rate' => $exchangeRate,
       ];
