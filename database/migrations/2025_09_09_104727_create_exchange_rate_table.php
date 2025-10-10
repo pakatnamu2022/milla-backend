@@ -15,7 +15,7 @@ return new class extends Migration {
       $table->id();
       $table->foreignId('from_currency_id')->constrained('type_currency');
       $table->foreignId('to_currency_id')->constrained('type_currency');
-      $table->enum('type', ['VENTA', 'NEGOCIADOR']);
+      $table->enum('type', ['VENDER', 'NEGOCIADOR']);
       $table->date('date');
       $table->decimal('rate', 15, 7);
       $table->timestamps();
