@@ -19,6 +19,7 @@ class ApprovedAccessoriesResource extends JsonResource
       'type_currency_id' => $this->type_currency_id,
       'body_type_id' => $this->body_type_id,
       'type_currency' => $this->typeCurrency->code ?? null,
+      'currency_symbol' => $this->typeCurrency->symbol ?? null,
       'body_type' => $this->bodyType->description ?? null,
     ];
   }
