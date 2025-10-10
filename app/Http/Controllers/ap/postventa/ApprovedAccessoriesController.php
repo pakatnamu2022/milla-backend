@@ -1,23 +1,25 @@
 <?php
 
-namespace App\Http\Controllers\ap\comercial;
+namespace App\Http\Controllers\ap\postventa;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\ap\comercial\IndexPurchaseRequestQuoteRequest;
-use App\Http\Requests\ap\comercial\StorePurchaseRequestQuoteRequest;
-use App\Http\Requests\ap\comercial\UpdatePurchaseRequestQuoteRequest;
-use App\Http\Services\ap\comercial\PurchaseRequestQuoteService;
+use App\Http\Requests\ap\postventa\IndexApprovedAccessoriesRequest;
+use App\Http\Requests\ap\postventa\StoreApprovedAccessoriesRequest;
+use App\Http\Requests\ap\postventa\UpdateApprovedAccessoriesRequest;
+use App\Http\Services\ap\postventa\ApprovedAccessoriesService;
+use App\Models\ap\postventa\ApprovedAccessories;
+use Illuminate\Http\Request;
 
-class PurchaseRequestQuoteController extends Controller
+class ApprovedAccessoriesController extends Controller
 {
-  protected PurchaseRequestQuoteService $service;
+  protected ApprovedAccessoriesService $service;
 
-  public function __construct(PurchaseRequestQuoteService $service)
+  public function __construct(ApprovedAccessoriesService $service)
   {
     $this->service = $service;
   }
 
-  public function index(IndexPurchaseRequestQuoteRequest $request)
+  public function index(IndexApprovedAccessoriesRequest $request)
   {
     try {
       return $this->service->list($request);
@@ -26,7 +28,7 @@ class PurchaseRequestQuoteController extends Controller
     }
   }
 
-  public function store(StorePurchaseRequestQuoteRequest $request)
+  public function store(StoreApprovedAccessoriesRequest $request)
   {
     try {
       return $this->success($this->service->store($request->all()));
@@ -44,7 +46,7 @@ class PurchaseRequestQuoteController extends Controller
     }
   }
 
-  public function update(UpdatePurchaseRequestQuoteRequest $request, $id)
+  public function update(UpdateApprovedAccessoriesRequest $request, $id)
   {
     try {
       $data = $request->all();

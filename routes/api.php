@@ -4,7 +4,10 @@ use App\Http\Controllers\ap\ApCommercialMastersController;
 use App\Http\Controllers\ap\comercial\OpportunityActionController;
 use App\Http\Controllers\ap\comercial\OpportunityController;
 use App\Http\Controllers\ap\comercial\PotentialBuyersController;
+use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\VehicleVNController;
+use App\Http\Controllers\ap\postventa\ApprovedAccessoriesController;
+use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\DocumentValidationController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
@@ -697,6 +700,25 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'update',
         'destroy'
       ]);
+
+      Route::apiResource('purchaseRequestQuote', PurchaseRequestQuoteController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+    });
+
+    //      POST-VENTA
+    Route::group(['prefix' => 'postVenta'], function () {
+      Route::apiResource('ApprovedAccessories', ApprovedAccessoriesController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
     });
   });
 
@@ -712,6 +734,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::delete('/cache/all', [DocumentValidationController::class, 'clearAllCache']);
   });
 
-
-  // Add other routes that require authentication here
+  // Audit Logs Routes
+  Route::group(['prefix' => 'audit-logs'], function () {
+    Route::get('/', [AuditLogsController::class, 'index']);
+    Route::get('/stats', [AuditLogsController::class, 'stats']);
+    Route::get('/user/{userId}', [AuditLogsController::class, 'userLogs']);
+    Route::get('/model/{model}/{id}', [AuditLogsController::class, 'modelLogs']);
+    Route::get('/export', [AuditLogsController::class, 'export']);
+    Route::delete('/clean', [AuditLogsController::class, 'clean']);
+  });
 });

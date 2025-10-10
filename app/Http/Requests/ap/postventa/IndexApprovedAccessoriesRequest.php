@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Requests\ap\comercial;
+namespace App\Http\Requests\ap\postventa;
 
 use App\Http\Requests\IndexRequest;
 
-class IndexPurchaseRequestQuoteRequest extends IndexRequest
+class IndexApprovedAccessoriesRequest extends IndexRequest
 {
   public function rules(): array
   {

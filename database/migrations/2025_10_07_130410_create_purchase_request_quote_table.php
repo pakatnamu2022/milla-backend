@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new  class extends Migration {
   /**
    * Run the migrations.
    */
@@ -15,10 +15,11 @@ return new class extends Migration {
       $table->enum('type_document', ['COTIZACION', 'SOLICITUD_COMPRA']);
       $table->enum('type_vehicle', ['NUEVO', 'USADO']);
       $table->date('quote_deadline')->nullable();
-      $table->decimal('exchange_rate', 12, 4)->default(1);
       $table->decimal('subtotal', 12, 4)->default(0);
       $table->decimal('total', 12, 4)->default(0);
       $table->string('comment', 255)->nullable();
+      $table->foreignId('exchange_rate_id')
+        ->constrained('exchange_rate')->onDelete('cascade');
       $table->foreignId('opportunity_id')->nullable()
         ->constrained('ap_opportunity')->onDelete('cascade');
       $table->foreignId('holder_id')
