@@ -1,8 +1,14 @@
 <?php
 
 use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\maestroGeneral\TaxClassTypes;
+use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\gestionsistema\Company;
+use App\Models\gp\maestroGeneral\ExchangeRate;
 
 return [
   /*
@@ -24,7 +30,7 @@ return [
       'connection' => 'dbtp',
       'table' => 'neInTbCliente', // Nombre de la tabla en la BD externa
       'mapping' => [
-        'EmpresaId' => fn($data) => Company::TEST_DYNAMICS,
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
         'DireccionCliente' => fn($data) => 'FISCAL',
         'ProcesoEstado' => 0,
         'ProcesoError' => 0,
@@ -82,7 +88,7 @@ return [
       'connection' => 'dbtp',
       'table' => 'neInTbProveedor', // Nombre de la tabla en la BD externa
       'mapping' => [
-        'EmpresaId' => fn($data) => Company::TEST_DYNAMICS,
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
         'Proveedor' => fn($data) => $data['num_doc'],
         'Nombre' => fn($data) => $data['full_name'],
         'NombreCorto' => fn($data) => $data['full_name'],
@@ -141,7 +147,7 @@ return [
       'connection' => 'dbtp',
       'table' => 'neInTbClienteDireccion',
       'mapping' => [
-        'EmpresaId' => fn($data) => Company::TEST_DYNAMICS,
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
         'Cliente' => fn($data) => $data['num_doc'] ?? '',
         'Direccion' => fn($data) => 'FISCAL',
         'Contacto' => fn($data) => '',
@@ -156,9 +162,8 @@ return [
         'Telefono2' => fn($data) => '',
         'Telefono3' => fn($data) => '',
         'Fax' => fn($data) => '',
-        'PlanImpuesto' => fn($data) => '',
-//        'PlanImpuesto' => fn($data) => ApCommercialMasters::find($data['tax_plan_id'])?->code,
-        'MetodoEnvio' => fn($data) => 'PROVEEDORES',
+        'PlanImpuesto' => fn($data) => BusinessPartners::find($data['id'])->taxClassType->tax_class,
+        'MetodoEnvio' => fn($data) => BusinessPartners::DYNAMICS_CLIENT,
         'CorreoElectronico' => fn($data) => '',
         'PaginaWeb' => fn($data) => '',
         'ProcesoEstado' => 0,
@@ -183,7 +188,7 @@ return [
       'connection' => 'dbtp',
       'table' => 'neInTbClienteDireccion',
       'mapping' => [
-        'EmpresaId' => fn($data) => Company::TEST_DYNAMICS,
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
         'Proveedor' => fn($data) => $data['num_doc'],
         'DireccionId' => fn($data) => 'FISCAL',
         'Contacto' => fn($data) => '',
@@ -196,17 +201,16 @@ return [
         'Telefono2' => fn($data) => $data['secondary_phone'] ?? '',
         'Telefono3' => fn($data) => '',
         'Fax' => fn($data) => '',
-        'PlanImpuesto' => fn($data) => '',
-        'MetodoEnvio' => fn($data) => 'CLIENTES',
+        'PlanImpuesto' => fn($data) => BusinessPartners::find($data['id'])->taxClassType->tax_class,
+        'MetodoEnvio' => fn($data) => BusinessPartners::DYNAMICS_SUPPLIER,
         'CorreoElectronico' => fn($data) => '',
-        'PaginaWeb' => fn($data) => '',
         'ProcesoEstado' => 0,
         'ProcesoError' => 0,
       ],
       'optional_mapping' => [
       ],
       'sync_mode' => 'insert',
-      'unique_key' => 'Cliente',
+      'unique_key' => 'Proveedor',
       'actions' => [
         'create' => true,
         'update' => false,
@@ -216,25 +220,153 @@ return [
   ],
 
   // Configuración para la entidad "ap_purchase_order"
-  'ap_purchase_order' => [
+  'ap_vehicle_purchase_order' => [
     'dbtp' => [
       'enabled' => env('SYNC_DBTP_ENABLED', false),
       'connection' => 'dbtp',
       'table' => 'neInTbOrdenCompra',
       'mapping' => [
-        'EmpresaId' => fn($data) => Company::TEST_DYNAMICS,
-        'OrdenCompraId' => fn($data) => $data['code'],
-        'ProveedorId' => fn($data) => $data['supplier_id'],
-        'FechaEmision' => fn($data) => $data['issue_date'],
-        'MonedaId' => fn($data) => $data['currency'],
-        'TipoTasaId' => fn($data) => $data['exchange_rate_type'] ?? '01',
-        'TasaCambio' => fn($data) => $data['exchange_rate'],
-        'FechaEntrega' => fn($data) => $data['delivery_date']
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
+        'OrdenCompraId' => fn($data) => $data['number'],
+        'ProveedorId' => fn($data) => BusinessPartners::find($data['supplier_id'])->num_doc,
+        'FechaEmision' => fn($data) => $data['emission_date'],
+        'MonedaId' => fn($data) => TypeCurrency::find($data['currency_id'])->code,
+        'TipoTasaId' => fn($data) => VehiclePurchaseOrder::find($data['id'])->exchangeRate->type,
+        'TasaCambio' => fn($data) => VehiclePurchaseOrder::find($data['id'])->exchangeRate->rate,
+        'PlanImpuestoId' => fn($data) => VehiclePurchaseOrder::find($data['id'])->taxClassType->tax_class,
+        'UsuarioId' => fn($data) => 'USUGP',
+        'Procesar' => 0,
+        'ProcesoEstado' => 0,
+        'ProcesoError' => fn($data) => '',
       ],
       'optional_mapping' => [
       ],
       'sync_mode' => 'insert',
       'unique_key' => 'OrdenCompraId',
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false, // Por ejemplo, no sincronizar eliminaciones
+      ],
+    ]
+  ],
+
+  // Configuración para la entidad "ap_purchase_order_det"
+  'ap_vehicle_purchase_order_det' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbOrdenCompraDet',
+      'mapping' => [
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
+        'OrdenCompraId' => fn($data) => $data['number'],
+        'Linea' => 1, // TODO: Aquí deberías implementar la lógica para obtener la línea correcta
+        'ArticuloId' => fn($data) => ApModelsVn::find($data['ap_models_vn_id'])->code,
+        'SitioId' => fn($data) => Warehouse::find($data['warehouse_id'])->code,
+        'UnidadMedidaId' => fn($data) => 'UND', // TODO: Asumiendo que siempre es 'UND', ajusta según sea necesario
+        'Cantidad' => 1, // TODO: Aquí deberías implementar la lógica para obtener la cantidad correcta
+        'CostoUnitario' => fn($data) => $data['subtotal'],
+        'CuentaNumeroInventario' => fn($data) => '',
+        'CodigoDimension1' => fn($data) => '',
+        'CodigoDimension2' => fn($data) => '',
+        'CodigoDimension3' => fn($data) => '',
+        'CodigoDimension4' => fn($data) => '',
+        'CodigoDimension5' => fn($data) => '',
+        'CodigoDimension6' => fn($data) => '',
+        'CodigoDimension7' => fn($data) => '',
+        'CodigoDimension8' => fn($data) => '',
+        'CodigoDimension9' => fn($data) => '',
+        'CodigoDimension10' => fn($data) => ''
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'OrdenCompraId',
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false, // Por ejemplo, no sincronizar eliminaciones
+      ],
+    ]
+  ],
+
+  'ap_vehicle_purchase_order_reception' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbRecepcion',
+      'mapping' => [
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
+        'RecepcionId' => fn($data) => $data['number_guide'],
+        'ProveedorId' => fn($data) => BusinessPartners::find($data['supplier_id'])->num_doc,
+        'FechaEmision' => fn($data) => $data['emission_date'],
+        'FechaContable' => fn($data) => $data['emission_date'],
+        'TipoComprobanteId' => fn($data) => 'GRM',
+        'Serie' => fn($data) => $data['invoice_series'],
+        'Correlativo' => fn($data) => $data['invoice_number'],
+        'Procesar' => 0,
+        'ProcesoEstado' => 0,
+        'ProcesoError' => '',
+        'FechaProceso' => fn($data) => now(),
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'RecepcionId',
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false, // Por ejemplo, no sincronizar eliminaciones
+      ],
+    ]
+  ],
+
+  'ap_vehicle_purchase_order_reception_det' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbRecepcionDt',
+      'mapping' => [
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
+        'RecepcionId' => fn($data) => $data['number_guide'],
+        'Linea' => 1,
+        'OrdenCompraId' => fn($data) => $data['number'],
+        'LineaOC' => '',
+        'ArticuloId' => fn($data) => ApModelsVn::find($data['ap_models_vn_id'])->code,
+        'SitioId' => fn($data) => Warehouse::find($data['warehouse_id'])->code,
+        'UnidadMedidaId' => fn($data) => 'UND', // TODO: Asumiendo que siempre es 'UND', ajusta según sea necesario
+        'Cantidad' => 1, // TODO: Aquí deberías implementar la lógica para obtener la cantidad correcta
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'RecepcionId',
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false, // Por ejemplo, no sincronizar eliminaciones
+      ],
+    ]
+  ],
+
+  'ap_vehicle_purchase_order_reception_det_s' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbRecepcionDtS',
+      'mapping' => [
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
+        'RecepcionId' => fn($data) => $data['number_guide'],
+        'Linea' => 1, // TODO: Aquí deberías implementar la lógica para obtener la línea correcta
+        'Serie' => fn($data) => $data['vin'],
+        'ArticuloId' => fn($data) => ApModelsVn::find($data['ap_models_vn_id'])->code,
+        'DatoUsuario1' => fn($data) => $data['vin'],
+        'DatoUsuario2' => fn($data) => $data['vin'],
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'Serie',
       'actions' => [
         'create' => true,
         'update' => false,

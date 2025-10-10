@@ -101,6 +101,9 @@ class BusinessPartners extends Model
   const SUPPLIER = 'PROVEEDOR';
   const BOTH = 'AMBOS';
 
+  const DYNAMICS_CLIENT = 'CLIENTES';
+  const DYNAMICS_SUPPLIER = 'PROVEEDORES';
+
   public function setFirstNameAttribute($value)
   {
     $this->attributes['first_name'] = Str::upper($value);
