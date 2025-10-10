@@ -15,7 +15,6 @@ class VehiclePurchaseOrderResource extends JsonResource
       'vin' => $this->vin,
       'year' => $this->year,
       'engine_number' => $this->engine_number,
-      'status' => $this->status,
       'ap_models_vn_id' => $this->ap_models_vn_id,
       'vehicle_color_id' => $this->vehicle_color_id,
       'supplier_order_type_id' => $this->supplier_order_type_id,

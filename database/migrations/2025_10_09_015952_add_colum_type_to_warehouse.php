@@ -11,7 +11,7 @@ return new class extends Migration {
   public function up(): void
   {
     Schema::table('warehouse', function (Blueprint $table) {
-      $table->string('type')->after('description')->nullable();
+      $table->enum('type', ['FISICO', 'REAL'])->default('REAL')->after('description');
     });
   }
 

@@ -12,39 +12,31 @@ use Illuminate\Support\Facades\DB;
 
 class VehiclePurchaseOrderService extends BaseService implements BaseServiceInterface
 {
-
-  protected VehiclePurchaseOrder $model;
-
-  public function __construct(VehiclePurchaseOrder $model)
-  {
-    $this->model = $model;
-  }
-
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      $this->model,
+      VehiclePurchaseOrder::class,
       $request,
-      $this->model->filters,
-      $this->model->sorts,
+      VehiclePurchaseOrder::filters,
+      VehiclePurchaseOrder::sorts,
       VehiclePurchaseOrderResource::class
     );
   }
 
   public function find($id)
   {
-    $model = $this->model->where('id', $id)->first();
-    if (!$model) {
+    $vehiclePurchaseOrder = VehiclePurchaseOrder::where('id', $id)->first();
+    if (!$vehiclePurchaseOrder) {
       throw new Exception('Orden de compra de vehículo no encontrada');
     }
-    return $model;
+    return $vehiclePurchaseOrder;
   }
 
   public function store(mixed $data)
   {
     $data['ap_vehicle_status_id'] = 28;
-    $model = $this->model->create($data);
-    return new VehiclePurchaseOrderResource($model);
+    $vehiclePurchaseOrder = VehiclePurchaseOrder::create($data);
+    return new VehiclePurchaseOrderResource($vehiclePurchaseOrder);
   }
 
   public function show($id)
@@ -54,16 +46,16 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
 
   public function update(mixed $data)
   {
-    $model = $this->find($data['id']);
-    $model->update($data);
-    return new VehiclePurchaseOrderResource($model);
+    $vehiclePurchaseOrder = $this->find($data['id']);
+    $vehiclePurchaseOrder->update($data);
+    return new VehiclePurchaseOrderResource($vehiclePurchaseOrder);
   }
 
   public function destroy($id)
   {
-    $model = $this->find($id);
-    DB::transaction(function () use ($model) {
-      $model->delete();
+    $vehiclePurchaseOrder = $this->find($id);
+    DB::transaction(function () use ($vehiclePurchaseOrder) {
+      $vehiclePurchaseOrder->delete();
     });
     return response()->json(['message' => 'Orden de compra de vehículo eliminada correctamente']);
   }

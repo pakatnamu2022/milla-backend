@@ -17,7 +17,6 @@ return new class extends Migration {
       $table->string('vin');
       $table->integer('year');
       $table->string('engine_number');
-      $table->boolean('status')->default(true);
       $table->foreignId('ap_models_vn_id')
         ->constrained('ap_models_vn')->onDelete('cascade');
       $table->foreignId('vehicle_color_id')
