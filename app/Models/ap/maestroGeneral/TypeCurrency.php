@@ -33,6 +33,9 @@ class TypeCurrency extends Model
   const USD = 'USD';
   const PEN = 'PEN';
 
+  const PEN_ID = 3;
+  const USD_ID = 1;
+
   public function setCodeAttribute($value)
   {
     $this->attributes['code'] = Str::upper(Str::ascii($value));
