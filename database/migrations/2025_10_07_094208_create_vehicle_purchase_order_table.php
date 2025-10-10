@@ -47,7 +47,6 @@ return new class extends Migration {
 //      GUIDE
       $table->string('number');
       $table->string('number_guide');
-      $table->foreignId('invoice_plan_id')->constrained('ap_invoice_plan');
       $table->foreignId('warehouse_id')->constrained('warehouse');
       $table->foreignId('warehouse_physical_id')->constrained('warehouse');
 
