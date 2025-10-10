@@ -38,6 +38,9 @@ class Warehouse extends Model
     'status',
   ];
 
+  const REAL = 'REAL';
+  const PHYSICAL = 'FISICO';
+
   public function setDynCodeAttribute($value)
   {
     $this->attributes['dyn_code'] = Str::upper(Str::ascii($value));
