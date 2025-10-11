@@ -33,7 +33,7 @@ return new class extends Migration {
 //      INVOICE
       $table->string('invoice_series');
       $table->string('invoice_number');
-      $table->datetime('emission_date');
+      $table->date('emission_date');
       $table->decimal('unit_price');
       $table->decimal('discount')->default(0);
       $table->decimal('subtotal');

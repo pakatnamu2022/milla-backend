@@ -7,7 +7,6 @@ use App\Http\Requests\ap\maestroGeneral\IndexWarehouseRequest;
 use App\Http\Requests\ap\maestroGeneral\StoreWarehouseRequest;
 use App\Http\Requests\ap\maestroGeneral\UpdateWarehouseRequest;
 use App\Http\Services\ap\maestroGeneral\WarehouseService;
-use App\Models\ap\maestroGeneral\Warehouse;
 use Illuminate\Http\Request;
 
 class WarehouseController extends Controller
@@ -23,6 +22,15 @@ class WarehouseController extends Controller
   {
     try {
       return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function myWarehouses(Request $request)
+  {
+    try {
+      return $this->success($this->service->getMyWarehouses($request));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

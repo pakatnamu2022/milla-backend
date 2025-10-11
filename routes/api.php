@@ -183,6 +183,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
   Route::group(['prefix' => 'gp'], function () {
     Route::group(['prefix' => 'mg'], function () {
       Route::get('sede/availableLocationsShop', [SedeController::class, 'availableLocationsShop']);
+      Route::get('sede/my', [SedeController::class, 'mySedes']);
       Route::apiResource('sede', SedeController::class)->only([
         'index',
         'show',
@@ -618,6 +619,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'destroy'
       ]);
 
+      Route::get('warehouse/my', [WarehouseController::class, 'myWarehouses']);
       Route::apiResource('warehouse', WarehouseController::class)->only([
         'index',
         'show',

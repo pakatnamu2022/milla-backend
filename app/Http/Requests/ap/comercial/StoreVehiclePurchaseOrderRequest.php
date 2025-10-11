@@ -24,7 +24,7 @@ class StoreVehiclePurchaseOrderRequest extends StoreRequest
       // Invoice
       'invoice_series' => ['required', 'string', 'max:10'],
       'invoice_number' => ['required', 'string', 'max:20'],
-      'emission_date' => ['required', 'date'],
+      'emission_date' => ['required', 'date', 'date_format:Y-m-d'],
       'unit_price' => ['required', 'numeric', 'min:0'],
       'discount' => ['required', 'numeric', 'min:0'],
       'supplier_id' => ['required', 'integer', Rule::exists('business_partners', 'id')->where('status_ap', 1)->whereNull('deleted_at')],

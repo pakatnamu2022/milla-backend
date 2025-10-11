@@ -41,23 +41,23 @@ class ViewSeeder extends Seeder
         'ruta' => '-', 'icon' => 'CarFront', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
     ];
 
-    $DELETE = [
-      ['descripcion' => 'Vehículos VN', 'submodule' => false, 'route' => 'vehiculos-vn',
-        'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
-    ];
+//    $DELETE = [
+//      ['descripcion' => 'Vehículos VN', 'submodule' => false, 'route' => 'vehiculos-vn',
+//        'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
+//    ];
 
     // Procesar eliminaciones
-    foreach ($DELETE as $deleteItem) {
-      $view = View::where('descripcion', $deleteItem['descripcion'])
-        ->where('company_id', $deleteItem['company_id'])
-        ->where('route', $deleteItem['route'])
-        ->where('parent_id', $deleteItem['parent_id'])
-        ->first();
-
-      if ($view) {
-        $view->delete();
-      }
-    }
+//    foreach ($DELETE as $deleteItem) {
+//      $view = View::where('descripcion', $deleteItem['descripcion'])
+//        ->where('company_id', $deleteItem['company_id'])
+//        ->where('route', $deleteItem['route'])
+//        ->where('parent_id', $deleteItem['parent_id'])
+//        ->first();
+//
+//      if ($view) {
+//        $view->delete();
+//      }
+//    }
 
     foreach ($data as $item) {
       $view = View::updateOrCreate(

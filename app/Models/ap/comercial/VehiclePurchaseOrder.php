@@ -52,7 +52,14 @@ class VehiclePurchaseOrder extends Model
   ];
 
   const filters = [
-    'search' => ['vin', 'order_number', 'engine_number'],
+    'search' => ['vin', 'order_number', 'engine_number', 'invoice_series', 'invoice_number', 'number', 'number_guide'],
+    'sede_id' => '=',
+    'warehouse_id' => '=',
+    'supplier_id' => '=',
+    'year' => '=',
+    'ap_models_vn_id' => '=',
+    'vehicle_color_id' => '=',
+    'ap_vehicle_status_id' => '=',
   ];
 
   const sorts = [
