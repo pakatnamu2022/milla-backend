@@ -5,6 +5,7 @@ namespace App\Models\ap\comercial;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
@@ -79,6 +80,16 @@ class VehiclePurchaseOrder extends Model
   public function getModelCodeAttribute(): string
   {
     return $this->model->code;
+  }
+
+  public function currency(): BelongsTo
+  {
+    return $this->belongsTo(TypeCurrency::class, 'currency_id');
+  }
+
+  public function supplier(): BelongsTo
+  {
+    return $this->belongsTo(BusinessPartners::class, 'supplier_id');
   }
 
   public function model(): BelongsTo
