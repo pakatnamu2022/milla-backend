@@ -15,8 +15,6 @@ class DetailsApprovedAccessoriesQuote extends Model
     'quantity',
     'price',
     'total',
-    'exchange_rate',
-    'type_currency_id',
     'purchase_request_quote_id',
     'approved_accessory_id',
   ];

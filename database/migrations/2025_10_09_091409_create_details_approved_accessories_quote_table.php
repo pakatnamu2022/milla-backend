@@ -15,15 +15,11 @@ return new class extends Migration {
       $table->integer('quantity');
       $table->decimal('price', 12, 4);
       $table->decimal('total', 12, 4);
-      $table->foreignId('exchange_rate_id')
-        ->constrained('exchange_rate')->onDelete('cascade');
       $table->foreignId('purchase_request_quote_id')
         ->constrained('purchase_request_quote', indexName: 'det_acc_prq_fk')
         ->onDelete('cascade');
       $table->foreignId('approved_accessory_id')
         ->constrained('approved_accessories')->onDelete('cascade');
-      $table->foreignId('type_currency_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
       $table->timestamps();
     });
   }

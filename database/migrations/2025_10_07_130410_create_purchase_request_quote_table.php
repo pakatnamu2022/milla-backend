@@ -12,14 +12,15 @@ return new  class extends Migration {
   {
     Schema::create('purchase_request_quote', function (Blueprint $table) {
       $table->id();
+      $table->string('correlative', 20)->unique()->nullable()->comment('Correlativo generado automáticamente al aprobar la cotización');
       $table->enum('type_document', ['COTIZACION', 'SOLICITUD_COMPRA']);
       $table->enum('type_vehicle', ['NUEVO', 'USADO']);
       $table->date('quote_deadline')->nullable();
       $table->decimal('subtotal', 12, 4)->default(0);
       $table->decimal('total', 12, 4)->default(0);
       $table->string('comment', 255)->nullable();
-      $table->foreignId('exchange_rate_id')
-        ->constrained('exchange_rate')->onDelete('cascade');
+      $table->boolean('is_invoiced')->default(false)->comment('Indica si la cotización ha sido facturada para no poder editarla o eliminarla');
+      $table->boolean('is_approved')->default(false)->comment('Indica si la cotización ha sido aprobada para generar la solicitud de compra');
       $table->foreignId('opportunity_id')->nullable()
         ->constrained('ap_opportunity')->onDelete('cascade');
       $table->foreignId('holder_id')
@@ -32,6 +33,8 @@ return new  class extends Migration {
         ->constrained('ap_vehicle_purchase_order')->onDelete('cascade');
       $table->foreignId('doc_type_currency_id')
         ->constrained('ap_commercial_masters')->onDelete('cascade');
+      $table->foreignId('exchange_rate_id')->nullable()
+        ->constrained('exchange_rate')->onDelete('cascade');
       $table->timestamps();
       $table->softDeletes();
     });
