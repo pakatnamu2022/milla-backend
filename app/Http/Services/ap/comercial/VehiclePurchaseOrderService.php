@@ -12,11 +12,10 @@ use App\Models\gp\maestroGeneral\Sede;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class VehiclePurchaseOrderService extends BaseService implements BaseServiceInterface
 {
-  const DELETE = 'DELETE';
-
   public function list(Request $request)
   {
     return $this->getFilteredResults(
@@ -71,10 +70,16 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     return $data;
   }
 
-  public function store(mixed $data)
+  /**
+   * @throws Exception
+   * @throws Throwable
+   */
+  public function store(mixed $data): VehiclePurchaseOrderResource
   {
     $data = $this->enrichData($data);
     $vehiclePurchaseOrder = VehiclePurchaseOrder::create($data);
+    $vehicleMovementService = new VehicleMovementService();
+    $vehicleMovementService->storeRequestedVehicleMovement($vehiclePurchaseOrder->id);
     return new VehiclePurchaseOrderResource($vehiclePurchaseOrder);
   }
 

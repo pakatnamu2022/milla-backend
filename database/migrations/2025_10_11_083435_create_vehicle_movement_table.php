@@ -15,6 +15,7 @@ return new class extends Migration {
       $table->foreignId('ap_vehicle_status_id')->constrained('ap_vehicle_status');
       $table->foreignId('ap_vehicle_purchase_order_id')->constrained('ap_vehicle_purchase_order');
       $table->text('observation')->nullable();
+      $table->datetime('movement_date');
       $table->timestamps();
       $table->softDeletes();
     });

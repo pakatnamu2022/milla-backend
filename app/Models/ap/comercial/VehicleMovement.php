@@ -17,6 +17,7 @@ class VehicleMovement extends BaseModel
     'ap_vehicle_status_id',
     'ap_vehicle_purchase_order_id',
     'observation',
+    'movement_date',
   ];
 
   const array filters = [

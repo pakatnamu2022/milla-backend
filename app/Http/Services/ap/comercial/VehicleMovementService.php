@@ -7,7 +7,9 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -15,9 +17,9 @@ use Throwable;
 class VehicleMovementService extends BaseService implements BaseServiceInterface
 {
   /**
-   * Listar movimientos de vehículos con filtros y paginación
+   * List all vehicle movements with filtering, sorting, and pagination
    */
-  public function list(Request $request)
+  public function list(Request $request): JsonResponse
   {
     return $this->getFilteredResults(
       VehicleMovement::class,
@@ -29,9 +31,10 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Buscar un movimiento de vehículo por ID
+   * Find a specific vehicle movement by ID
+   * @throws Exception
    */
-  public function find($id)
+  public function find($id): VehicleMovement
   {
     $vehicleMovement = VehicleMovement::where('id', $id)->first();
     if (!$vehicleMovement) {
@@ -55,15 +58,7 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
           throw new Exception('Orden de compra de vehículo no encontrada');
         }
       }
-
       $vehicleMovement = VehicleMovement::create($data);
-
-      // Update vehicle status in purchase order if applicable
-      if (isset($data['ap_vehicle_purchase_order_id']) && isset($data['ap_vehicle_status_id'])) {
-        $vehiclePurchaseOrder->update([
-          'ap_vehicle_status_id' => $data['ap_vehicle_status_id']
-        ]);
-      }
 
       DB::commit();
       return new VehicleMovementResource($vehicleMovement);
@@ -74,23 +69,49 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Mostrar un movimiento de vehículo específico
+   * Create a vehicle movement when a vehicle purchase order is created
+   * @throws Exception|Throwable
    */
-  public function show($id)
+  public function storeRequestedVehicleMovement($vehiclePurchaseOrderId): VehicleMovementResource
+  {
+    DB::beginTransaction();
+    try {
+      $vehiclePurchaseOrder = VehiclePurchaseOrder::find($vehiclePurchaseOrderId);
+      $vehicleMovement = VehicleMovement::create([
+        'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
+        'ap_vehicle_purchase_order_id' => $vehiclePurchaseOrder->id,
+        'movement_date' => now(),
+        'observation' => 'Creación de orden de compra de vehículo',
+      ]);
+
+      DB::commit();
+      return new VehicleMovementResource($vehicleMovement);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw new Exception($e->getMessage());
+    }
+  }
+
+  /**
+   * Show details of a specific vehicle movement
+   * @throws Exception
+   */
+  public function show($id): VehicleMovementResource
   {
     return new VehicleMovementResource($this->find($id));
   }
 
   /**
-   * Actualizar un movimiento de vehículo existente
+   * Update an existing vehicle movement
+   * @throws Exception|Throwable
    */
-  public function update(mixed $data)
+  public function update(mixed $data): VehicleMovementResource
   {
     DB::beginTransaction();
     try {
       $vehicleMovement = $this->find($data['id']);
 
-      // Validar que la orden de compra existe si se está actualizando
+      // Validate that the purchase order exists if provided
       if (isset($data['ap_vehicle_purchase_order_id'])) {
         $vehiclePurchaseOrder = VehiclePurchaseOrder::find($data['ap_vehicle_purchase_order_id']);
         if (!$vehiclePurchaseOrder) {
@@ -100,16 +121,6 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
 
       $vehicleMovement->update($data);
 
-      // Actualizar el estado del vehículo en la orden de compra si corresponde
-      if (isset($data['ap_vehicle_status_id']) && $vehicleMovement->ap_vehicle_purchase_order_id) {
-        $vehiclePurchaseOrder = VehiclePurchaseOrder::find($vehicleMovement->ap_vehicle_purchase_order_id);
-        if ($vehiclePurchaseOrder) {
-          $vehiclePurchaseOrder->update([
-            'ap_vehicle_status_id' => $data['ap_vehicle_status_id']
-          ]);
-        }
-      }
-
       DB::commit();
       return new VehicleMovementResource($vehicleMovement);
     } catch (Exception $e) {
@@ -119,9 +130,10 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Eliminar un movimiento de vehículo (soft delete)
+   * Delete a vehicle movement
+   * @throws Exception|Throwable
    */
-  public function destroy($id)
+  public function destroy($id): JsonResponse
   {
     DB::beginTransaction();
     try {
