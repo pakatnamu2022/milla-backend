@@ -38,5 +38,15 @@ class VehicleMovement extends BaseModel
     return $this->belongsTo(VehiclePurchaseOrder::class, 'ap_vehicle_purchase_order_id');
   }
 
+  public function getStatusAttribute(): string
+  {
+    return $this->vehicleStatus->description;
+  }
+
+  public function getStatusColorAttribute(): string
+  {
+    return $this->vehicleStatus->color;
+  }
+
 
 }

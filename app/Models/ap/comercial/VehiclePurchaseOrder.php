@@ -5,6 +5,7 @@ namespace App\Models\ap\comercial;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -68,6 +69,11 @@ class VehiclePurchaseOrder extends Model
     $this->attributes['number_guide'] = 'NI' . $value;
   }
 
+  public function getModelCodeAttribute(): string
+  {
+    return $this->model->code;
+  }
+
   public function model(): BelongsTo
   {
     return $this->belongsTo(ApModelsVn::class, 'ap_models_vn_id');
@@ -96,5 +102,20 @@ class VehiclePurchaseOrder extends Model
   public function vehicleStatus(): BelongsTo
   {
     return $this->belongsTo(ApVehicleStatus::class, 'ap_vehicle_status_id');
+  }
+
+  public function warehouse(): BelongsTo
+  {
+    return $this->belongsTo(Warehouse::class, 'warehouse_id');
+  }
+
+  public function warehousePhysical(): BelongsTo
+  {
+    return $this->belongsTo(Warehouse::class, 'warehouse_physical_id');
+  }
+
+  public function movements()
+  {
+    return $this->hasMany(VehicleMovement::class, 'ap_vehicle_purchase_order_id');
   }
 }
