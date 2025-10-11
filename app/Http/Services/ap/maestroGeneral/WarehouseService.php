@@ -30,6 +30,7 @@ class WarehouseService extends BaseService implements BaseServiceInterface
       throw new Exception('El usuario no tiene una sede asignada');
     };
     $warehouse = Warehouse::where('sede_id', $sede)
+      ->where('type_operation_id', 794)
       ->where('status', 1)
       ->orderBy('dyn_code', 'asc')
       ->get();

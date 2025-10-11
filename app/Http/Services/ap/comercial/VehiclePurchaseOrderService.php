@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\comercial;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\DatabaseSyncService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Models\ap\comercial\VehiclePurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
@@ -80,6 +81,8 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     $vehiclePurchaseOrder = VehiclePurchaseOrder::create($data);
     $vehicleMovementService = new VehicleMovementService();
     $vehicleMovementService->storeRequestedVehicleMovement($vehiclePurchaseOrder->id);
+//    $syncService = new DatabaseSyncService();
+//    $syncService->sync('ap_vehicle_purchase_order', $vehiclePurchaseOrder->toArray(), 'create');
     return new VehiclePurchaseOrderResource($vehiclePurchaseOrder);
   }
 
