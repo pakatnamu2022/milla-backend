@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ap\maestroGeneral;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ap\maestroGeneral\IndexMyWarehouseRequest;
 use App\Http\Requests\ap\maestroGeneral\IndexWarehouseRequest;
 use App\Http\Requests\ap\maestroGeneral\StoreWarehouseRequest;
 use App\Http\Requests\ap\maestroGeneral\UpdateWarehouseRequest;
@@ -27,7 +28,7 @@ class WarehouseController extends Controller
     }
   }
 
-  public function myWarehouses(Request $request)
+  public function myWarehouses(IndexMyWarehouseRequest $request)
   {
     try {
       return $this->success($this->service->getMyWarehouses($request));

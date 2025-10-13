@@ -25,11 +25,8 @@ class SedeService extends BaseService
   public function getMySedes(Request $request)
   {
     $user = $request->user();
-    $sede = Sede::where('status_deleted', 1)
-      ->whereNotNull('empresa_id')
-      ->whereIn('id', $user->sedes->pluck('id'))
-      ->orderBy('empresa_id', 'asc')->get();
-    return SedeResource::collection($sede);
+    $sedes = $user->sedes;
+    return SedeResource::collection($sedes);
   }
 
   public function getAvailableLocationsShop(Request $request)

@@ -73,14 +73,10 @@ class User extends Authenticatable
 
   public function sedes()
   {
-    return $this->hasManyThrough(
-      Sede::class,
-      Person::class,
-      'id', // Foreign key en la tabla Person
-      'id', // Foreign key en la tabla Sede
-      'partner_id', // Local key en la tabla User
-      'sede_id' // Local key en la tabla Person
-    )->where('config_sede.status_deleted', 1);
+    return $this->belongsToMany(Sede::class, 'assigment_user_sede', 'user_id', 'sede_id')
+      ->withPivot('status')
+      ->wherePivot('status', true)
+      ->whereNull('assigment_user_sede.deleted_at');
   }
 
   public function assignedSedes()

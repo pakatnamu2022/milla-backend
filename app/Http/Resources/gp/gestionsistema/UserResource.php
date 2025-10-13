@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\gp\gestionsistema;
 
+use App\Http\Resources\gp\maestroGeneral\SedeResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -34,6 +35,7 @@ class UserResource extends JsonResource
       'fecha_ingreso' => $this->person?->fecha_inicio,
       'role' => $this->role?->nombre,
       'subordinates' => $this->person?->subordinates->count() ?? 0,
+      'sedes' => SedeResource::collection($this->sedes),
     ];
   }
 }

@@ -91,86 +91,89 @@ class UserSedeService extends BaseService
   }
 
   /**
-   * Sincroniza asignaciones masivas de usuario-sede
+   * Sincroniza asignaciones de sedes para un usuario específico
    * Agrega nuevas asignaciones y elimina las que no están en la lista
    *
-   * @param array $data Array con 'assignments' que contiene arrays de user_id y sede_id
+   * @param array $data Array con 'user_id' y 'sede_ids' (array de IDs de sedes)
    * @return array Resumen de operaciones realizadas
    */
   public function storeMany($data)
   {
-    $assignments = $data['assignments'];
+    $userId = $data['user_id'];
+    $sedeIds = $data['sede_ids'];
     $created = [];
     $restored = [];
     $deleted = [];
     $errors = [];
 
-    // Crear un array de combinaciones user_id-sede_id enviadas
-    $sentCombinations = [];
-    foreach ($assignments as $assignment) {
-      $key = $assignment['user_id'] . '-' . $assignment['sede_id'];
-      $sentCombinations[$key] = $assignment;
+    // Validar que el usuario existe
+    if (!\App\Models\User::find($userId)) {
+      throw new Exception('El usuario no existe');
     }
 
-    // Obtener todas las asignaciones existentes (incluyendo soft deleted)
-    $existingAssignments = UserSede::withTrashed()->get();
+    // Obtener todas las asignaciones existentes para este usuario (incluyendo soft deleted)
+    $existingAssignments = UserSede::withTrashed()
+      ->where('user_id', $userId)
+      ->get();
+
+    // Crear un array de sede_ids enviados para búsqueda rápida
+    $sentSedeIds = array_flip($sedeIds);
 
     // Procesar asignaciones existentes para determinar cuáles eliminar
     foreach ($existingAssignments as $existing) {
-      $key = $existing->user_id . '-' . $existing->sede_id;
-
-      if (!isset($sentCombinations[$key])) {
-        // Esta asignación existe pero no está en la lista enviada, debe eliminarse
+      if (!isset($sentSedeIds[$existing->sede_id])) {
+        // Esta sede ya no está en la lista, debe eliminarse
         if (!$existing->trashed()) {
           $existing->delete();
           $deleted[] = [
-            'user_id' => $existing->user_id,
             'sede_id' => $existing->sede_id,
           ];
         }
       } else {
-        // Esta asignación existe y está en la lista enviada
+        // Esta sede está en la lista enviada
         if ($existing->trashed()) {
           // Si estaba eliminada, restaurarla
           $existing->restore();
-          $existing->update(['status' => $sentCombinations[$key]['status'] ?? true]);
+          $existing->update(['status' => true]);
           $restored[] = [
-            'user_id' => $existing->user_id,
             'sede_id' => $existing->sede_id,
           ];
-        } else {
-          // Si ya existe y está activa, actualizar status si es necesario
-          if (isset($sentCombinations[$key]['status']) && $existing->status !== $sentCombinations[$key]['status']) {
-            $existing->update(['status' => $sentCombinations[$key]['status']]);
-          }
         }
         // Remover de la lista para no intentar crearla después
-        unset($sentCombinations[$key]);
+        unset($sentSedeIds[$existing->sede_id]);
       }
     }
 
     // Crear las nuevas asignaciones que no existían
-    foreach ($sentCombinations as $key => $assignment) {
+    foreach ($sentSedeIds as $sedeId => $index) {
       try {
+        // Validar que la sede existe
+        if (!\App\Models\gp\maestroGeneral\Sede::find($sedeId)) {
+          $errors[] = [
+            'sede_id' => $sedeId,
+            'error' => 'La sede no existe',
+          ];
+          continue;
+        }
+
         $userSede = UserSede::create([
-          'user_id' => $assignment['user_id'],
-          'sede_id' => $assignment['sede_id'],
-          'status' => $assignment['status'] ?? true,
+          'user_id' => $userId,
+          'sede_id' => $sedeId,
+          'status' => true,
         ]);
         $created[] = [
-          'user_id' => $userSede->user_id,
           'sede_id' => $userSede->sede_id,
         ];
       } catch (\Exception $e) {
         $errors[] = [
-          'user_id' => $assignment['user_id'],
-          'sede_id' => $assignment['sede_id'],
+          'sede_id' => $sedeId,
           'error' => $e->getMessage(),
         ];
       }
     }
 
     return [
+      'user_id' => $userId,
       'created' => $created,
       'restored' => $restored,
       'deleted' => $deleted,

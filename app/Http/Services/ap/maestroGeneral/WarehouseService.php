@@ -5,10 +5,12 @@ namespace App\Http\Services\ap\maestroGeneral;
 use App\Http\Resources\ap\maestroGeneral\WarehouseResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\maestroGeneral\Warehouse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Exception;
+use function dd;
 
 class WarehouseService extends BaseService implements BaseServiceInterface
 {
@@ -25,13 +27,23 @@ class WarehouseService extends BaseService implements BaseServiceInterface
 
   public function getMyWarehouses(Request $request)
   {
-    $sede = $request->user()->person->sede_id;
+    $model = $request->get('model_vn_id');
+    $sede = $request->get('sede_id');
+
+    $modelVn = ApModelsVn::where('id', $model)->first();
+    if (!$modelVn) {
+      throw new Exception('El modelo de vehículo no existe');
+    }
+
     if (!$sede) {
-      throw new Exception('El usuario no tiene una sede asignada');
+      throw new Exception('El usuario no tiene sedes asignadas');
     };
-    $warehouse = Warehouse::where('sede_id', $sede)
-      ->where('type_operation_id', 794)
+
+    $warehouse = Warehouse::where('type_operation_id', 794)
+      ->where('article_class_id', $modelVn->class_id)
+      ->where('sede_id', $sede)
       ->where('status', 1)
+      ->where('is_received', 0)
       ->orderBy('dyn_code', 'asc')
       ->get();
     return WarehouseResource::collection($warehouse);
