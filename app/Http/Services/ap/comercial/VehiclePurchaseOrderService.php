@@ -77,13 +77,174 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
    */
   public function store(mixed $data): VehiclePurchaseOrderResource
   {
-    $data = $this->enrichData($data);
-    $vehiclePurchaseOrder = VehiclePurchaseOrder::create($data);
-    $vehicleMovementService = new VehicleMovementService();
-    $vehicleMovementService->storeRequestedVehicleMovement($vehiclePurchaseOrder->id);
-//    $syncService = new DatabaseSyncService();
-//    $syncService->sync('ap_vehicle_purchase_order', $vehiclePurchaseOrder->toArray(), 'create');
-    return new VehiclePurchaseOrderResource($vehiclePurchaseOrder);
+    DB::beginTransaction();
+    try {
+      $data = $this->enrichData($data);
+      $vehiclePurchaseOrder = VehiclePurchaseOrder::create($data);
+      $vehicleMovementService = new VehicleMovementService();
+      $vehicleMovementService->storeRequestedVehicleMovement($vehiclePurchaseOrder->id);
+
+      // Validar y sincronizar antes de enviar la OC
+      $this->validateAndSyncBeforeSending($vehiclePurchaseOrder);
+
+      // Enviar la orden de compra
+      $this->syncPurchaseOrder($vehiclePurchaseOrder);
+
+      DB::commit();
+      return new VehiclePurchaseOrderResource($vehiclePurchaseOrder);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Valida y sincroniza los datos antes de enviar la OC
+   * @throws Exception
+   */
+  protected function validateAndSyncBeforeSending(VehiclePurchaseOrder $purchaseOrder): void
+  {
+    $syncService = new DatabaseSyncService();
+    $resource = new VehiclePurchaseOrderResource($purchaseOrder);
+    $resourceData = $resource->toArray(request());
+
+    // 1. Validar que no existe la OC
+    $existingPO = DB::connection('dbtp')
+      ->table('neInTbOrdenCompra')
+      ->where('OrdenCompraId', $purchaseOrder->number)
+      ->first();
+
+    if ($existingPO) {
+      throw new Exception("La orden de compra {$purchaseOrder->number} ya existe en el sistema de destino");
+    }
+
+    // 2. Validar y sincronizar el proveedor
+    $this->validateAndSyncSupplier($purchaseOrder, $syncService);
+
+    // 3. Validar y sincronizar el artículo
+    $this->validateAndSyncArticle($purchaseOrder, $syncService);
+  }
+
+  /**
+   * Valida y sincroniza el proveedor
+   * @throws Exception
+   */
+  protected function validateAndSyncSupplier(VehiclePurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
+  {
+    $supplier = $purchaseOrder->supplier;
+
+    if (!$supplier) {
+      throw new Exception("No se encontró el proveedor asociado a la orden de compra");
+    }
+
+    // 2. Validar que existe el proveedor en la BD intermedia
+    $existingSupplier = DB::connection('dbtp')
+      ->table('neInTbProveedor')
+      ->where('NumeroDocumento', $supplier->num_doc)
+      ->first();
+
+    // 2.1. Si no existe, enviar el proveedor
+    if (!$existingSupplier) {
+      $syncService->sync('business_partners_ap_supplier', $supplier->toArray(), 'create');
+
+      // 2.2. Crear un job para enviar la dirección del proveedor
+      \App\Jobs\SyncSupplierDirectionJob::dispatch($supplier->id);
+    } else {
+      // Verificar que el proveedor esté sincronizado correctamente
+      if ($existingSupplier->ProcesoEstado != 1) {
+        throw new Exception("El proveedor aún no ha sido procesado en el sistema de destino");
+      }
+
+      if (!empty($existingSupplier->ProcesoError)) {
+        throw new Exception("Error en el proveedor: {$existingSupplier->ProcesoError}");
+      }
+    }
+  }
+
+  /**
+   * Valida y sincroniza el artículo (modelo)
+   * @throws Exception
+   */
+  protected function validateAndSyncArticle(VehiclePurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
+  {
+    $model = $purchaseOrder->model;
+
+    if (!$model) {
+      throw new Exception("No se encontró el modelo asociado a la orden de compra");
+    }
+
+    // 3. Validar que existe el artículo en la BD intermedia
+    $existingArticle = DB::connection('dbtp')
+      ->table('neInTbArticulo')
+      ->where('Articulo', $model->code)
+      ->first();
+
+    // 3.1. Si no existe, enviar el artículo
+    if (!$existingArticle) {
+      \App\Jobs\SyncArticleJob::dispatch($model->id);
+
+      // Esperar a que el artículo sea sincronizado
+      $this->waitForArticleSync($model->code);
+    } else {
+      // Verificar que el artículo esté sincronizado correctamente
+      if ($existingArticle->ProcesoEstado != 1) {
+        throw new Exception("El artículo aún no ha sido procesado en el sistema de destino");
+      }
+
+      if (!empty($existingArticle->ProcesoError)) {
+        throw new Exception("Error en el artículo: {$existingArticle->ProcesoError}");
+      }
+    }
+  }
+
+  /**
+   * Espera a que el artículo sea sincronizado
+   * @throws Exception
+   */
+  protected function waitForArticleSync(string $articleCode): void
+  {
+    $maxAttempts = 30;
+    $attempt = 0;
+
+    while ($attempt < $maxAttempts) {
+      $article = DB::connection('dbtp')
+        ->table('neInTbArticulo')
+        ->where('Articulo', $articleCode)
+        ->first();
+
+      if ($article && $article->ProcesoEstado == 1) {
+        if (!empty($article->ProcesoError)) {
+          throw new Exception("Error en la sincronización del artículo: {$article->ProcesoError}");
+        }
+        return;
+      }
+
+      sleep(2);
+      $attempt++;
+    }
+
+    throw new Exception("Timeout esperando la sincronización del artículo");
+  }
+
+  /**
+   * Sincroniza la orden de compra y programa los jobs de detalles
+   * @throws Exception
+   */
+  protected function syncPurchaseOrder(VehiclePurchaseOrder $purchaseOrder): void
+  {
+    $syncService = new DatabaseSyncService();
+    $resource = new VehiclePurchaseOrderResource($purchaseOrder);
+    $resourceData = $resource->toArray(request());
+
+    // 1. Enviar la OC
+    $syncService->sync('ap_vehicle_purchase_order', $resourceData, 'create');
+
+    // 2. Crear un job para enviar el detalle de la OC
+    \App\Jobs\SyncPurchaseOrderDetailJob::dispatch($purchaseOrder->id);
+
+    // 3. Crear un job para enviar la recepción (NI)
+    // Este job validará que la OC esté en estado 1 antes de proceder
+    \App\Jobs\SyncPurchaseOrderReceptionJob::dispatch($purchaseOrder->id);
   }
 
   public function show($id)

@@ -7,6 +7,7 @@ use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -135,5 +136,16 @@ class VehiclePurchaseOrder extends Model
   public function movements()
   {
     return $this->hasMany(VehicleMovement::class, 'ap_vehicle_purchase_order_id');
+  }
+
+  public function exchangeRate(): BelongsTo
+  {
+    return $this->belongsTo(ExchangeRate::class, 'exchange_rate_id');
+  }
+
+  public function taxClassType()
+  {
+    // Obtener el tax_class_type desde el proveedor
+    return $this->supplier->taxClassType ?? null;
   }
 }
