@@ -373,4 +373,55 @@ return [
       ],
     ]
   ],
+
+//  ENVIAR UN MODEL_VN_RESOURCE A 'neInTbArticulo'
+  'article_model' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbArticulo',
+      'mapping' => [
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
+        'Articulo' => fn($data) => $data['code'],
+        'Nombre' => fn($data) => $data['version'],
+        'DescripcionBreve' => fn($data) => $data['version'],
+        'DescripcionGenerica' => fn($data) => $data['version'],
+        'Nota' => fn($data) => '',
+        'ClaseArticulo' => fn($data) => $data['class_dyn'],
+        'PlanUnidadMedida' => fn($data) => 'UNIDAD',
+        'CostoEstandar' => 0,
+        'CostoActual' => 0,
+        'PesoEnvio' => 0,
+        'Seguimiento' => 1,
+        'Sitio' => fn($data) => '',
+        'UnidadMedidaCompra' => fn($data) => 'UND',
+        'MetodoPrecio' => 1,
+        'UnidadMedidaVenta' => fn($data) => '',
+        'NivelPrecio' => fn($data) => 'LISTA',
+        'GrupoPrecio' => fn($data) => 'GRUPO',
+        'CategoriaArticulo1' => fn($data) => $data['marca_dyn'],
+        'CategoriaArticulo2' => fn($data) => $data['family_dyn'],
+        'CategoriaArticulo3' => '',
+        'CategoriaArticulo4' => '',
+        'CategoriaArticulo5' => '',
+        'CategoriaArticulo6' => '',
+        'CodigoABC' => 1,
+        'TipoArticulo' => 1,
+        'DetraccionId' => fn($data) => '',
+        'CuentaInventario' => fn($data) => '',
+        'CuentaContrapartida' => fn($data) => '',
+        'ProcesoEstado' => 0,
+        'ProcesoError' => fn($data) => '',
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'Articulo',
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false, // Por ejemplo, no sincronizar eliminaciones
+      ],
+    ]
+  ],
 ];
