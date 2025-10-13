@@ -53,3 +53,10 @@ Schedule::command('po:verify-migration --all')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
+
+// Sincronizar invoice_dynamics desde Dynamics
+Schedule::command('po:sync-invoice-dynamics --all')
+  ->everyMinute()
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
