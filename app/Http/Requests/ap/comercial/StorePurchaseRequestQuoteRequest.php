@@ -14,14 +14,10 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
         'string',
         'in:COTIZACION,SOLICITUD_COMPRA'
       ],
-      'type_vehicle' => [
-        'required',
-        'string',
-        'in:NUEVO,USADO'
-      ],
       'quote_deadline' => ['nullable', 'date'],
-      'subtotal' => ['required', 'numeric'],
-      'total' => ['required', 'numeric'],
+      'base_selling_price' => ['required', 'numeric'],
+      'sale_price' => ['required', 'numeric', 'min:0'],
+      'doc_sale_price' => ['required', 'numeric', 'min:0'],
       'comment' => ['nullable', 'string', 'max:255'],
       'opportunity_id' => ['nullable', 'exists:ap_opportunity,id'],
       'holder_id' => ['required', 'exists:business_partners,id'],
@@ -31,19 +27,20 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'doc_type_currency_id' => ['required', 'exists:type_currency,id'],
       'ap_vehicle_purchase_order_id' => ['nullable', 'exists:vehicle_purchase_order,id'],
       'with_vin' => ['nullable', 'boolean'],
-      'sale_price' => ['required', 'numeric', 'min:0'],
 
       // Validaciones para bonus_discounts
       'bonus_discounts' => ['nullable', 'array'],
       'bonus_discounts.*.concept_id' => ['required', 'exists:ap_commercial_masters,id'],
       'bonus_discounts.*.description' => ['required', 'string', 'max:255'],
-      'bonus_discounts.*.type' => ['required', 'string', 'in:MONTO_FIJO,PORCENTAJE'],
+      'bonus_discounts.*.type' => ['required', 'string', 'in:FIJO,PORCENTAJE'],
       'bonus_discounts.*.value' => ['required', 'numeric', 'min:0'],
 
       // Validaciones para accessories
       'accessories' => ['nullable', 'array'],
       'accessories.*.accessory_id' => ['required', 'exists:approved_accessories,id'],
       'accessories.*.quantity' => ['required', 'integer', 'min:1'],
+
+      'type_currency_id' => ['required', 'exists:ap_commercial_masters,id'],
     ];
   }
 
@@ -54,17 +51,18 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'type_document.string' => 'El campo tipo de documento debe ser una cadena de texto.',
       'type_document.in' => 'El campo tipo de documento debe ser COTIZACION o SOLICITUD_COMPRA.',
 
-      'type_vehicle.required' => 'El campo tipo de vehículo es obligatorio.',
-      'type_vehicle.string' => 'El campo tipo de vehículo debe ser una cadena de texto.',
-      'type_vehicle.in' => 'El campo tipo de vehículo debe ser NUEVO o USADO.',
-
       'quote_deadline.date' => 'El campo fecha límite de cotización debe ser una fecha válida.',
 
-      'subtotal.required' => 'El campo subtotal es obligatorio.',
-      'subtotal.numeric' => 'El campo subtotal debe ser un número.',
+      'base_selling_price.required' => 'El campo precio de venta base es obligatorio.',
+      'base_selling_price.numeric' => 'El campo precio de venta base debe ser un número.',
 
-      'total.required' => 'El campo total es obligatorio.',
-      'total.numeric' => 'El campo total debe ser un número.',
+      'sale_price.required' => 'El campo precio venta con descuento es obligatorio.',
+      'sale_price.numeric' => 'El campo precio venta con descuento debe ser un número.',
+      'sale_price.min' => 'El campo precio venta con descuento debe ser mayor o igual a 0.',
+
+      'doc_sale_price.required' => 'El campo precio venta es obligatorio.',
+      'doc_sale_price.numeric' => 'El campo precio venta debe ser un número.',
+      'doc_sale_price.min' => 'El campo precio venta debe ser mayor o igual a 0.',
 
       'comment.string' => 'El campo comentario debe ser una cadena de texto.',
       'comment.max' => 'El campo comentario no debe exceder los 255 caracteres.',
@@ -88,10 +86,6 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
 
       'with_vin.boolean' => 'El campo con VIN debe ser verdadero o falso.',
 
-      'sale_price.required' => 'El campo precio de venta es obligatorio.',
-      'sale_price.numeric' => 'El campo precio de venta debe ser un número.',
-      'sale_price.min' => 'El campo precio de venta debe ser mayor o igual a 0.',
-
       // Mensajes para bonus_discounts
       'bonus_discounts.array' => 'Los descuentos/bonos deben ser una lista.',
       'bonus_discounts.*.concept_id.required' => 'El concepto es obligatorio para cada descuento/bono.',
@@ -100,7 +94,7 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'bonus_discounts.*.description.string' => 'La descripción debe ser una cadena de texto.',
       'bonus_discounts.*.description.max' => 'La descripción no debe exceder los 255 caracteres.',
       'bonus_discounts.*.type.required' => 'El tipo es obligatorio para cada descuento/bono.',
-      'bonus_discounts.*.type.in' => 'El tipo debe ser MONTO_FIJO o PORCENTAJE.',
+      'bonus_discounts.*.type.in' => 'El tipo debe ser FIJO o PORCENTAJE.',
       'bonus_discounts.*.value.required' => 'El valor es obligatorio para cada descuento/bono.',
       'bonus_discounts.*.value.numeric' => 'El valor debe ser un número.',
       'bonus_discounts.*.value.min' => 'El valor debe ser mayor o igual a 0.',
@@ -112,6 +106,9 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'accessories.*.quantity.required' => 'La cantidad es obligatoria para cada accesorio.',
       'accessories.*.quantity.integer' => 'La cantidad debe ser un número entero.',
       'accessories.*.quantity.min' => 'La cantidad debe ser al menos 1.',
+
+      'type_currency_id.required' => 'El campo tipo de moneda es obligatorio.',
+      'type_currency_id.exists' => 'El tipo de moneda seleccionado no es válido.',
     ];
   }
 }

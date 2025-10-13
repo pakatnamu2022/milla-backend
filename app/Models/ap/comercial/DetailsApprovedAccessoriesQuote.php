@@ -12,6 +12,7 @@ class DetailsApprovedAccessoriesQuote extends Model
   protected $table = 'details_approved_accessories_quote';
 
   protected $fillable = [
+    'type',
     'quantity',
     'price',
     'total',

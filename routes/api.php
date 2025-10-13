@@ -704,6 +704,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'destroy'
       ]);
 
+      Route::get('purchaseRequestQuote/pdf/{purchaseRequestQuote}', [PurchaseRequestQuoteController::class, 'reportPDF']); // Descargar
       Route::apiResource('purchaseRequestQuote', PurchaseRequestQuoteController::class)->only([
         'index',
         'show',

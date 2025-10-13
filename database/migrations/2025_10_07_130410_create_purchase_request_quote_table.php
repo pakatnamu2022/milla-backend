@@ -14,13 +14,15 @@ return new  class extends Migration {
       $table->id();
       $table->string('correlative', 20)->unique()->nullable()->comment('Correlativo generado automáticamente al aprobar la cotización');
       $table->enum('type_document', ['COTIZACION', 'SOLICITUD_COMPRA']);
-      $table->enum('type_vehicle', ['NUEVO', 'USADO']);
       $table->date('quote_deadline')->nullable();
-      $table->decimal('subtotal', 12, 4)->default(0);
-      $table->decimal('total', 12, 4)->default(0);
+      $table->decimal('base_selling_price', 12, 4)->default(0);
+      $table->decimal('sale_price', 12, 4)->default(0);
+      $table->decimal('doc_sale_price', 12, 4)->default(0);
       $table->string('comment', 255)->nullable();
       $table->boolean('is_invoiced')->default(false)->comment('Indica si la cotización ha sido facturada para no poder editarla o eliminarla');
       $table->boolean('is_approved')->default(false)->comment('Indica si la cotización ha sido aprobada para generar la solicitud de compra');
+      $table->foreignId('type_currency_id')
+        ->constrained('ap_commercial_masters')->onDelete('cascade');
       $table->foreignId('opportunity_id')->nullable()
         ->constrained('ap_opportunity')->onDelete('cascade');
       $table->foreignId('holder_id')
