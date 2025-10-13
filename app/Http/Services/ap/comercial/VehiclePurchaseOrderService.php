@@ -8,7 +8,9 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\DatabaseSyncService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\Sede;
 use Exception;
 use Illuminate\Http\Request;
@@ -80,9 +82,16 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     DB::beginTransaction();
     try {
       $data = $this->enrichData($data);
+
+      // Establecer estado de migración inicial
+      $data['migration_status'] = 'pending';
+
       $vehiclePurchaseOrder = VehiclePurchaseOrder::create($data);
       $vehicleMovementService = new VehicleMovementService();
       $vehicleMovementService->storeRequestedVehicleMovement($vehiclePurchaseOrder->id);
+
+      // Crear logs iniciales de migración
+      $this->createInitialMigrationLogs($vehiclePurchaseOrder);
 
       // Validar y sincronizar antes de enviar la OC
       $this->validateAndSyncBeforeSending($vehiclePurchaseOrder);
@@ -90,11 +99,77 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
       // Enviar la orden de compra
       $this->syncPurchaseOrder($vehiclePurchaseOrder);
 
+      // Despachar job de verificación y migración
+      \App\Jobs\VerifyAndMigratePurchaseOrderJob::dispatch($vehiclePurchaseOrder->id)
+        ->delay(now()->addSeconds(30)); // Esperar 30 segundos antes de verificar
+
       DB::commit();
       return new VehiclePurchaseOrderResource($vehiclePurchaseOrder);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
+    }
+  }
+
+  /**
+   * Crea los logs iniciales de migración para todos los pasos
+   */
+  protected function createInitialMigrationLogs(VehiclePurchaseOrder $purchaseOrder): void
+  {
+    $supplier = $purchaseOrder->supplier;
+    $model = $purchaseOrder->model;
+
+    $steps = [
+      [
+        'step' => VehiclePurchaseOrderMigrationLog::STEP_SUPPLIER,
+        'table_name' => VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_SUPPLIER],
+        'external_id' => $supplier?->num_doc,
+      ],
+      [
+        'step' => VehiclePurchaseOrderMigrationLog::STEP_SUPPLIER_ADDRESS,
+        'table_name' => VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_SUPPLIER_ADDRESS],
+        'external_id' => $supplier?->num_doc,
+      ],
+      [
+        'step' => VehiclePurchaseOrderMigrationLog::STEP_ARTICLE,
+        'table_name' => VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_ARTICLE],
+        'external_id' => $model?->code,
+      ],
+      [
+        'step' => VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER,
+        'table_name' => VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER],
+        'external_id' => $purchaseOrder->number,
+      ],
+      [
+        'step' => VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER_DETAIL,
+        'table_name' => VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER_DETAIL],
+        'external_id' => $purchaseOrder->number,
+      ],
+      [
+        'step' => VehiclePurchaseOrderMigrationLog::STEP_RECEPTION,
+        'table_name' => VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_RECEPTION],
+        'external_id' => $purchaseOrder->number_guide,
+      ],
+      [
+        'step' => VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL,
+        'table_name' => VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL],
+        'external_id' => $purchaseOrder->number_guide,
+      ],
+      [
+        'step' => VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL_SERIAL,
+        'table_name' => VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL_SERIAL],
+        'external_id' => $purchaseOrder->vin,
+      ],
+    ];
+
+    foreach ($steps as $stepData) {
+      VehiclePurchaseOrderMigrationLog::create([
+        'vehicle_purchase_order_id' => $purchaseOrder->id,
+        'step' => $stepData['step'],
+        'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+        'table_name' => $stepData['table_name'],
+        'external_id' => $stepData['external_id'],
+      ]);
     }
   }
 
@@ -111,6 +186,7 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     // 1. Validar que no existe la OC
     $existingPO = DB::connection('dbtp')
       ->table('neInTbOrdenCompra')
+      ->where('EmpresaId', Company::AP_DYNAMICS)
       ->where('OrdenCompraId', $purchaseOrder->number)
       ->first();
 
@@ -140,6 +216,7 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     // 2. Validar que existe el proveedor en la BD intermedia
     $existingSupplier = DB::connection('dbtp')
       ->table('neInTbProveedor')
+      ->where('EmpresaId', Company::AP_DYNAMICS)
       ->where('NumeroDocumento', $supplier->num_doc)
       ->first();
 
@@ -170,6 +247,7 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     // 3. Validar que existe el artículo en la BD intermedia
     $existingArticle = DB::connection('dbtp')
       ->table('neInTbArticulo')
+      ->where('EmpresaId', Company::AP_DYNAMICS)
       ->where('Articulo', $model->code)
       ->first();
 

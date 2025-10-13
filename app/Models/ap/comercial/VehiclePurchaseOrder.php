@@ -11,6 +11,7 @@ use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class VehiclePurchaseOrder extends Model
@@ -51,6 +52,14 @@ class VehiclePurchaseOrder extends Model
     'warehouse_id',
     'warehouse_physical_id',
 
+//    Migration status
+    'migration_status',
+    'migrated_at',
+
+  ];
+
+  protected $casts = [
+    'migrated_at' => 'datetime',
   ];
 
   const filters = [
@@ -62,6 +71,7 @@ class VehiclePurchaseOrder extends Model
     'ap_models_vn_id' => '=',
     'vehicle_color_id' => '=',
     'ap_vehicle_status_id' => '=',
+    'migration_status' => '=',
   ];
 
   const sorts = [
@@ -141,5 +151,34 @@ class VehiclePurchaseOrder extends Model
   public function exchangeRate(): BelongsTo
   {
     return $this->belongsTo(ExchangeRate::class, 'exchange_rate_id');
+  }
+
+  public function migrationLogs(): HasMany
+  {
+    return $this->hasMany(VehiclePurchaseOrderMigrationLog::class, 'vehicle_purchase_order_id');
+  }
+
+  /**
+   * Scope para filtrar por estado de migración
+   */
+  public function scopeMigrationStatus($query, string $status)
+  {
+    return $query->where('migration_status', $status);
+  }
+
+  /**
+   * Scope para obtener órdenes no migradas
+   */
+  public function scopeNotMigrated($query)
+  {
+    return $query->whereIn('migration_status', ['pending', 'in_progress', 'failed']);
+  }
+
+  /**
+   * Scope para obtener órdenes migradas
+   */
+  public function scopeMigrated($query)
+  {
+    return $query->where('migration_status', 'completed');
   }
 }
