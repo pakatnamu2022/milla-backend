@@ -148,6 +148,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     ]);
 
     //        USER-SEDE ASSIGNMENT
+    Route::post('user-sede/store-many', [UserSedeController::class, 'storeMany'])->name('user-sede.store-many');
     Route::get('user-sede/user/{userId}/sedes', [UserSedeController::class, 'getSedesByUser'])->name('user-sede.sedes-by-user');
     Route::get('user-sede/sede/{sedeId}/users', [UserSedeController::class, 'getUsersBySede'])->name('user-sede.users-by-sede');
     Route::apiResource('user-sede', UserSedeController::class)->only([

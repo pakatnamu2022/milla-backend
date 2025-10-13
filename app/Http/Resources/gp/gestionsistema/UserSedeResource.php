@@ -20,10 +20,8 @@ class UserSedeResource extends JsonResource
       'user_id' => $this->user_id,
       'sede_id' => $this->sede_id,
       'status' => $this->status,
-      'created_at' => $this->created_at,
-      'updated_at' => $this->updated_at,
-      'user' => new UserResource($this->whenLoaded('user')),
-      'sede' => new SedeResource($this->whenLoaded('sede')),
+      'user' => new UserResource($this->user),
+      'sede' => new SedeResource($this->sede),
     ];
   }
 }

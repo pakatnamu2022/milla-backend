@@ -4,6 +4,7 @@ namespace App\Http\Controllers\gp\gestionsistema;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionsistema\IndexUserSedeRequest;
+use App\Http\Requests\gp\gestionsistema\StoreManyUserSedeRequest;
 use App\Http\Requests\gp\gestionsistema\StoreUserSedeRequest;
 use App\Http\Requests\gp\gestionsistema\UpdateUserSedeRequest;
 use App\Http\Services\gp\gestionsistema\UserSedeService;
@@ -77,6 +78,16 @@ class UserSedeController extends Controller
   {
     try {
       return $this->success($this->service->getUsersBySede($sedeId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function storeMany(StoreManyUserSedeRequest $request)
+  {
+    try {
+      $result = $this->service->storeMany($request->validated());
+      return $this->success($result);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
