@@ -53,6 +53,7 @@ class VehiclePurchaseOrder extends Model
     'warehouse_physical_id',
 
 //    Migration status
+    'invoice_dynamics',
     'migration_status',
     'migrated_at',
 
