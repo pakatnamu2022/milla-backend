@@ -31,6 +31,7 @@ class ApVehicleStatus extends Model
   ];
 
   const PEDIDO_VN = 28;
+  const VEHICULO_EN_TRAVESIA = 38;
 
   public function setCodeAttribute($value)
   {

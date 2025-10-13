@@ -93,6 +93,38 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
   }
 
   /**
+   * Create a vehicle movement when invoice_dynamics is set (vehicle in transit)
+   * @throws Exception|Throwable
+   */
+  public function storeInTransitVehicleMovement($vehiclePurchaseOrderId): VehicleMovementResource
+  {
+    DB::beginTransaction();
+    try {
+      $vehiclePurchaseOrder = VehiclePurchaseOrder::find($vehiclePurchaseOrderId);
+      if (!$vehiclePurchaseOrder) {
+        throw new Exception('Orden de compra de vehículo no encontrada');
+      }
+
+      $vehicleMovement = VehicleMovement::create([
+        'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+        'ap_vehicle_purchase_order_id' => $vehiclePurchaseOrder->id,
+        'movement_date' => now(),
+        'observation' => 'Vehículo en tránsito - Factura Dynamics: ' . $vehiclePurchaseOrder->invoice_dynamics,
+      ]);
+
+      $vehiclePurchaseOrder->update([
+        'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+      ]);
+
+      DB::commit();
+      return new VehicleMovementResource($vehicleMovement);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw new Exception($e->getMessage());
+    }
+  }
+
+  /**
    * Show details of a specific vehicle movement
    * @throws Exception
    */
