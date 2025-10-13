@@ -185,7 +185,7 @@ return [
     'dbtp' => [
       'enabled' => env('SYNC_DBTP_ENABLED', false),
       'connection' => 'dbtp',
-      'table' => 'neInTbClienteDireccion',
+      'table' => 'neInTbProveedorDireccion',
       'mapping' => [
         'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
         'Proveedor' => fn($data) => $data['num_doc'],

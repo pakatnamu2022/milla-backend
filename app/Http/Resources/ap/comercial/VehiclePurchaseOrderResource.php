@@ -43,6 +43,7 @@ class VehiclePurchaseOrderResource extends JsonResource
 
       // Relations
       'supplier' => $this->supplier->full_name,
+      'supplier_num_doc' => $this->supplier->num_doc,
       'currency' => $this->currency->name,
       'model_code' => $this->model_code,
       'vehicle_color' => $this->color->description,
