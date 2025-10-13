@@ -46,3 +46,10 @@ Schedule::command('app:sync-exchange-rate')
 //    ]);
 //  })
 //  ->appendOutputTo(storage_path('logs/exchange-rate-sync.log'));
+
+// Verificar y migrar órdenes de compra de vehículos pendientes
+Schedule::command('po:verify-migration --all')
+  ->everyMinute()
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
