@@ -6,6 +6,7 @@ use App\Http\Controllers\ap\comercial\OpportunityController;
 use App\Http\Controllers\ap\comercial\PotentialBuyersController;
 use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderController;
+use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
 use App\Http\Controllers\ap\comercial\VehicleVNController;
 use App\Http\Controllers\ap\postventa\ApprovedAccessoriesController;
 use App\Http\Controllers\AuditLogsController;
@@ -732,6 +733,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'update',
         'destroy'
       ]);
+
+      // Vehicle Purchase Order Migration Monitoring
+      Route::group(['prefix' => 'vehiclePurchaseOrder/migration'], function () {
+        Route::get('/summary', [VehiclePurchaseOrderMigrationController::class, 'summary']);
+        Route::get('/statistics', [VehiclePurchaseOrderMigrationController::class, 'statistics']);
+        Route::get('/orders', [VehiclePurchaseOrderMigrationController::class, 'index']);
+        Route::get('/{id}/logs', [VehiclePurchaseOrderMigrationController::class, 'logs']);
+        Route::get('/{id}/history', [VehiclePurchaseOrderMigrationController::class, 'history']);
+      });
     });
 
     //      POST-VENTA
