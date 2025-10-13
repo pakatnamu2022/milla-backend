@@ -40,6 +40,15 @@ class UpdateWarehouseRequest extends StoreRequest
         'nullable',
         'boolean',
       ],
+      'article_class_id' => [
+        'nullable',
+        'integer',
+        'exists:ap_class_article,id',
+      ],
+      'is_received' => [
+        'nullable',
+        'boolean',
+      ],
     ];
   }
 
@@ -59,6 +68,11 @@ class UpdateWarehouseRequest extends StoreRequest
 
       'type_operation_id.integer' => 'El tipo de operación debe ser un número entero.',
       'type_operation_id.exists' => 'El tipo de operación seleccionada no existe.',
+
+      'article_class_id.integer' => 'La clase de artículo debe ser un número entero.',
+      'article_class_id.exists' => 'La clase de artículo seleccionada no existe.',
+
+      'is_received.boolean' => 'El campo de recibido debe ser verdadero o falso.',
     ];
   }
 }
