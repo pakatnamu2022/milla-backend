@@ -142,10 +142,4 @@ class VehiclePurchaseOrder extends Model
   {
     return $this->belongsTo(ExchangeRate::class, 'exchange_rate_id');
   }
-
-  public function taxClassType()
-  {
-    // Obtener el tax_class_type desde el proveedor
-    return $this->supplier->taxClassType ?? null;
-  }
 }

@@ -52,32 +52,27 @@ class SyncSupplierDirectionJob implements ShouldQueue
     }
 
     /**
-     * Espera a que el proveedor tenga ProcesoEstado = 1
+     * Verifica que el proveedor tenga ProcesoEstado = 1
      */
     protected function waitForSupplierSync(BusinessPartners $supplier): void
     {
-        $maxAttempts = 30; // 30 intentos
-        $attempt = 0;
+        $dbtp = DB::connection('dbtp')
+            ->table('neInTbProveedor')
+            ->where('NumeroDocumento', $supplier->num_doc)
+            ->first();
 
-        while ($attempt < $maxAttempts) {
-            $dbtp = DB::connection('dbtp')
-                ->table('neInTbProveedor')
-                ->where('NumeroDocumento', $supplier->num_doc)
-                ->first();
-
-            if ($dbtp && $dbtp->ProcesoEstado == 1) {
-                // Verificar si hay error
-                if (!empty($dbtp->ProcesoError)) {
-                    throw new \Exception("Error en sincronización del proveedor: {$dbtp->ProcesoError}");
-                }
-                return;
-            }
-
-            sleep(2); // Esperar 2 segundos antes de reintentar
-            $attempt++;
+        if (!$dbtp) {
+            throw new \Exception("Proveedor no encontrado en tabla intermedia");
         }
 
-        throw new \Exception("Timeout esperando sincronización del proveedor");
+        if ($dbtp->ProcesoEstado != 1) {
+            throw new \Exception("Proveedor aún no procesado. ProcesoEstado: {$dbtp->ProcesoEstado}");
+        }
+
+        // Verificar si hay error
+        if (!empty($dbtp->ProcesoError)) {
+            throw new \Exception("Error en sincronización del proveedor: {$dbtp->ProcesoError}");
+        }
     }
 
     public function failed(\Throwable $exception): void

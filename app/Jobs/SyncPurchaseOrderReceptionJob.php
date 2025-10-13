@@ -57,32 +57,27 @@ class SyncPurchaseOrderReceptionJob implements ShouldQueue
     }
 
     /**
-     * Espera a que la OC tenga ProcesoEstado = 1
+     * Verifica que la OC tenga ProcesoEstado = 1
      */
     protected function waitForPurchaseOrderSync(VehiclePurchaseOrder $purchaseOrder): void
     {
-        $maxAttempts = 30;
-        $attempt = 0;
+        $dbtp = DB::connection('dbtp')
+            ->table('neInTbOrdenCompra')
+            ->where('OrdenCompraId', $purchaseOrder->number)
+            ->first();
 
-        while ($attempt < $maxAttempts) {
-            $dbtp = DB::connection('dbtp')
-                ->table('neInTbOrdenCompra')
-                ->where('OrdenCompraId', $purchaseOrder->number)
-                ->first();
-
-            if ($dbtp && $dbtp->ProcesoEstado == 1) {
-                // Verificar si hay error
-                if (!empty($dbtp->ProcesoError)) {
-                    throw new \Exception("Error en sincronización de la OC: {$dbtp->ProcesoError}");
-                }
-                return;
-            }
-
-            sleep(2);
-            $attempt++;
+        if (!$dbtp) {
+            throw new \Exception("OC no encontrada en tabla intermedia");
         }
 
-        throw new \Exception("Timeout esperando sincronización de la OC");
+        if ($dbtp->ProcesoEstado != 1) {
+            throw new \Exception("OC aún no procesada. ProcesoEstado: {$dbtp->ProcesoEstado}");
+        }
+
+        // Verificar si hay error
+        if (!empty($dbtp->ProcesoError)) {
+            throw new \Exception("Error en sincronización de la OC: {$dbtp->ProcesoError}");
+        }
     }
 
     public function failed(\Throwable $exception): void

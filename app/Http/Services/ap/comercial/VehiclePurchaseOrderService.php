@@ -150,13 +150,9 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
       // 2.2. Crear un job para enviar la dirección del proveedor
       \App\Jobs\SyncSupplierDirectionJob::dispatch($supplier->id);
     } else {
-      // Verificar que el proveedor esté sincronizado correctamente
-      if ($existingSupplier->ProcesoEstado != 1) {
-        throw new Exception("El proveedor aún no ha sido procesado en el sistema de destino");
-      }
-
+      // Si existe pero tiene error, notificar
       if (!empty($existingSupplier->ProcesoError)) {
-        throw new Exception("Error en el proveedor: {$existingSupplier->ProcesoError}");
+        \Illuminate\Support\Facades\Log::warning("El proveedor {$supplier->num_doc} tiene un error previo: {$existingSupplier->ProcesoError}");
       }
     }
   }
@@ -179,51 +175,15 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
       ->where('Articulo', $model->code)
       ->first();
 
-    // 3.1. Si no existe, enviar el artículo
+    // 3.1. Si no existe, enviar el artículo mediante job
     if (!$existingArticle) {
       \App\Jobs\SyncArticleJob::dispatch($model->id);
-
-      // Esperar a que el artículo sea sincronizado
-      $this->waitForArticleSync($model->code);
     } else {
-      // Verificar que el artículo esté sincronizado correctamente
-      if ($existingArticle->ProcesoEstado != 1) {
-        throw new Exception("El artículo aún no ha sido procesado en el sistema de destino");
-      }
-
+      // Si existe pero tiene error, notificar
       if (!empty($existingArticle->ProcesoError)) {
-        throw new Exception("Error en el artículo: {$existingArticle->ProcesoError}");
+        \Illuminate\Support\Facades\Log::warning("El artículo {$model->code} tiene un error previo: {$existingArticle->ProcesoError}");
       }
     }
-  }
-
-  /**
-   * Espera a que el artículo sea sincronizado
-   * @throws Exception
-   */
-  protected function waitForArticleSync(string $articleCode): void
-  {
-    $maxAttempts = 30;
-    $attempt = 0;
-
-    while ($attempt < $maxAttempts) {
-      $article = DB::connection('dbtp')
-        ->table('neInTbArticulo')
-        ->where('Articulo', $articleCode)
-        ->first();
-
-      if ($article && $article->ProcesoEstado == 1) {
-        if (!empty($article->ProcesoError)) {
-          throw new Exception("Error en la sincronización del artículo: {$article->ProcesoError}");
-        }
-        return;
-      }
-
-      sleep(2);
-      $attempt++;
-    }
-
-    throw new Exception("Timeout esperando la sincronización del artículo");
   }
 
   /**

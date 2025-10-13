@@ -57,32 +57,27 @@ class SyncReceptionDetailsJob implements ShouldQueue
     }
 
     /**
-     * Espera a que la recepción tenga ProcesoEstado = 1
+     * Verifica que la recepción tenga ProcesoEstado = 1
      */
     protected function waitForReceptionSync(VehiclePurchaseOrder $purchaseOrder): void
     {
-        $maxAttempts = 30;
-        $attempt = 0;
+        $dbtp = DB::connection('dbtp')
+            ->table('neInTbRecepcion')
+            ->where('RecepcionId', $purchaseOrder->number_guide)
+            ->first();
 
-        while ($attempt < $maxAttempts) {
-            $dbtp = DB::connection('dbtp')
-                ->table('neInTbRecepcion')
-                ->where('RecepcionId', $purchaseOrder->number_guide)
-                ->first();
-
-            if ($dbtp && $dbtp->ProcesoEstado == 1) {
-                // Verificar si hay error
-                if (!empty($dbtp->ProcesoError)) {
-                    throw new \Exception("Error en sincronización de la recepción: {$dbtp->ProcesoError}");
-                }
-                return;
-            }
-
-            sleep(2);
-            $attempt++;
+        if (!$dbtp) {
+            throw new \Exception("Recepción no encontrada en tabla intermedia");
         }
 
-        throw new \Exception("Timeout esperando sincronización de la recepción");
+        if ($dbtp->ProcesoEstado != 1) {
+            throw new \Exception("Recepción aún no procesada. ProcesoEstado: {$dbtp->ProcesoEstado}");
+        }
+
+        // Verificar si hay error
+        if (!empty($dbtp->ProcesoError)) {
+            throw new \Exception("Error en sincronización de la recepción: {$dbtp->ProcesoError}");
+        }
     }
 
     public function failed(\Throwable $exception): void
