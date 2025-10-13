@@ -82,4 +82,17 @@ class User extends Authenticatable
       'sede_id' // Local key en la tabla Person
     )->where('config_sede.status_deleted', 1);
   }
+
+  public function assignedSedes()
+  {
+    return $this->belongsToMany(
+      Sede::class,
+      'config_asig_user_sede',
+      'user_id',
+      'sede_id'
+    )->withTimestamps()
+      ->withPivot('status')
+      ->wherePivot('status', true)
+      ->whereNull('config_asig_user_sede.deleted_at');
+  }
 }

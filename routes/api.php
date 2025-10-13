@@ -62,6 +62,7 @@ use App\Http\Controllers\gp\gestionsistema\PositionController;
 use App\Http\Controllers\gp\gestionsistema\ProvinceController;
 use App\Http\Controllers\gp\gestionsistema\RoleController;
 use App\Http\Controllers\gp\gestionsistema\UserController;
+use App\Http\Controllers\gp\gestionsistema\UserSedeController;
 use App\Http\Controllers\gp\gestionsistema\ViewController;
 use App\Http\Controllers\gp\maestroGeneral\SedeController;
 use App\Http\Controllers\gp\tics\EquipmentController;
@@ -136,9 +137,20 @@ Route::middleware(['auth:sanctum'])->group(function () {
       'destroy'
     ]);
 
-    //        ACCESS
+    //        USERS
     Route::get('user/{user}/complete', [UserController::class, 'showComplete'])->name('user.showComplete');
     Route::apiResource('user', UserController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
+
+    //        USER-SEDE ASSIGNMENT
+    Route::get('user-sede/user/{userId}/sedes', [UserSedeController::class, 'getSedesByUser'])->name('user-sede.sedes-by-user');
+    Route::get('user-sede/sede/{sedeId}/users', [UserSedeController::class, 'getUsersBySede'])->name('user-sede.users-by-sede');
+    Route::apiResource('user-sede', UserSedeController::class)->only([
       'index',
       'show',
       'store',
