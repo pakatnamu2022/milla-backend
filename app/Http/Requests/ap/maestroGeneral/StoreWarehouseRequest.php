@@ -34,6 +34,15 @@ class StoreWarehouseRequest extends StoreRequest
         'integer',
         'exists:ap_commercial_masters,id',
       ],
+      'article_class_id' => [
+        'required',
+        'integer',
+        'exists:ap_class_article,id',
+      ],
+      'is_received' => [
+        'required',
+        'boolean',
+      ],
     ];
   }
 
@@ -57,6 +66,13 @@ class StoreWarehouseRequest extends StoreRequest
       'type_operation_id.required' => 'El tipo de operación es obligatorio.',
       'type_operation_id.integer' => 'El tipo de operación debe ser un número entero.',
       'type_operation_id.exists' => 'El tipo de operación seleccionada no existe.',
+
+      'article_class_id.required' => 'La clase de artículo es obligatoria.',
+      'article_class_id.integer' => 'La clase de artículo debe ser un número entero.',
+      'article_class_id.exists' => 'La clase de artículo seleccionada no existe.',
+
+      'is_received.required' => 'El campo de recibido es obligatorio.',
+      'is_received.boolean' => 'El campo de recibido debe ser verdadero o falso.',
     ];
   }
 }

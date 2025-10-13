@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\comercial;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\DatabaseSyncService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Models\ap\comercial\VehiclePurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
@@ -12,11 +13,10 @@ use App\Models\gp\maestroGeneral\Sede;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class VehiclePurchaseOrderService extends BaseService implements BaseServiceInterface
 {
-  const DELETE = 'DELETE';
-
   public function list(Request $request)
   {
     return $this->getFilteredResults(
@@ -71,10 +71,18 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     return $data;
   }
 
-  public function store(mixed $data)
+  /**
+   * @throws Exception
+   * @throws Throwable
+   */
+  public function store(mixed $data): VehiclePurchaseOrderResource
   {
     $data = $this->enrichData($data);
     $vehiclePurchaseOrder = VehiclePurchaseOrder::create($data);
+    $vehicleMovementService = new VehicleMovementService();
+    $vehicleMovementService->storeRequestedVehicleMovement($vehiclePurchaseOrder->id);
+//    $syncService = new DatabaseSyncService();
+//    $syncService->sync('ap_vehicle_purchase_order', $vehiclePurchaseOrder->toArray(), 'create');
     return new VehiclePurchaseOrderResource($vehiclePurchaseOrder);
   }
 

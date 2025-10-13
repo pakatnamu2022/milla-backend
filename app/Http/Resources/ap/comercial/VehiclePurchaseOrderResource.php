@@ -42,13 +42,18 @@ class VehiclePurchaseOrderResource extends JsonResource
       'warehouse_physical_id' => $this->warehouse_physical_id,
 
       // Relations
-      'ap_models_vn' => $this->model->code ?? null,
-      'vehicle_color' => $this->color->description ?? null,
-      'supplier_order_type' => $this->supplierType->description ?? null,
-      'engine_type' => $this->engineType->description ?? null,
-      'sede' => $this->sede->abreviatura ?? null,
-      'ap_vehicle_status' => $this->vehicleStatus->code ?? null,
-      'color_vehicle_status' => $this->vehicleStatus->color ?? null,
+      'supplier' => $this->supplier->full_name,
+      'currency' => $this->currency->name,
+      'model_code' => $this->model_code,
+      'vehicle_color' => $this->color->description,
+      'supplier_order_type' => $this->supplierType->description,
+      'engine_type' => $this->engineType->description,
+      'sede' => $this->sede->abreviatura,
+      'status' => $this->vehicleStatus->description,
+      'status_color' => $this->vehicleStatus->color,
+      'warehouse' => $this->warehouse->description,
+      'warehouse_physical' => $this->warehousePhysical?->description,
+      'movements' => VehicleMovementResource::collection($this->movements),
     ];
   }
 }

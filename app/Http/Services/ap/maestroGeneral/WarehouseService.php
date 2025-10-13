@@ -23,6 +23,20 @@ class WarehouseService extends BaseService implements BaseServiceInterface
     );
   }
 
+  public function getMyWarehouses(Request $request)
+  {
+    $sede = $request->user()->person->sede_id;
+    if (!$sede) {
+      throw new Exception('El usuario no tiene una sede asignada');
+    };
+    $warehouse = Warehouse::where('sede_id', $sede)
+      ->where('type_operation_id', 794)
+      ->where('status', 1)
+      ->orderBy('dyn_code', 'asc')
+      ->get();
+    return WarehouseResource::collection($warehouse);
+  }
+
   public function find($id)
   {
     $Warehouse = Warehouse::where('id', $id)->first();

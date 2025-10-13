@@ -5,6 +5,8 @@ namespace App\Models\ap\comercial;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -51,7 +53,14 @@ class VehiclePurchaseOrder extends Model
   ];
 
   const filters = [
-    'search' => ['vin', 'order_number', 'engine_number'],
+    'search' => ['vin', 'order_number', 'engine_number', 'invoice_series', 'invoice_number', 'number', 'number_guide'],
+    'sede_id' => '=',
+    'warehouse_id' => '=',
+    'supplier_id' => '=',
+    'year' => '=',
+    'ap_models_vn_id' => '=',
+    'vehicle_color_id' => '=',
+    'ap_vehicle_status_id' => '=',
   ];
 
   const sorts = [
@@ -66,6 +75,21 @@ class VehiclePurchaseOrder extends Model
   public function setNumberGuideAttribute($value)
   {
     $this->attributes['number_guide'] = 'NI' . $value;
+  }
+
+  public function getModelCodeAttribute(): string
+  {
+    return $this->model->code;
+  }
+
+  public function currency(): BelongsTo
+  {
+    return $this->belongsTo(TypeCurrency::class, 'currency_id');
+  }
+
+  public function supplier(): BelongsTo
+  {
+    return $this->belongsTo(BusinessPartners::class, 'supplier_id');
   }
 
   public function model(): BelongsTo
@@ -96,5 +120,20 @@ class VehiclePurchaseOrder extends Model
   public function vehicleStatus(): BelongsTo
   {
     return $this->belongsTo(ApVehicleStatus::class, 'ap_vehicle_status_id');
+  }
+
+  public function warehouse(): BelongsTo
+  {
+    return $this->belongsTo(Warehouse::class, 'warehouse_id');
+  }
+
+  public function warehousePhysical(): BelongsTo
+  {
+    return $this->belongsTo(Warehouse::class, 'warehouse_physical_id');
+  }
+
+  public function movements()
+  {
+    return $this->hasMany(VehicleMovement::class, 'ap_vehicle_purchase_order_id');
   }
 }

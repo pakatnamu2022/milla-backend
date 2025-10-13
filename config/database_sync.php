@@ -8,7 +8,6 @@ use App\Models\ap\maestroGeneral\TaxClassTypes;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\gestionsistema\Company;
-use App\Models\gp\maestroGeneral\ExchangeRate;
 
 return [
   /*
