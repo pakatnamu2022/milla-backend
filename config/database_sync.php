@@ -330,9 +330,9 @@ return [
         'RecepcionId' => fn($data) => $data['number_guide'],
         'Linea' => 1,
         'OrdenCompraId' => fn($data) => $data['number'],
-        'LineaOC' => fn($data) => '',
+        'LineaOC' => 1,
         'ArticuloId' => fn($data) => ApModelsVn::find($data['ap_models_vn_id'])->code,
-        'SitioId' => fn($data) => Warehouse::find($data['warehouse_id'])->code,
+        'SitioId' => fn($data) => Warehouse::find($data['warehouse_id'])->dyn_code,
         'UnidadMedidaId' => fn($data) => 'UND', // TODO: Asumiendo que siempre es 'UND', ajusta según sea necesario
         'Cantidad' => 1, // TODO: Aquí deberías implementar la lógica para obtener la cantidad correcta
       ],
