@@ -13,10 +13,12 @@ class WarehouseResource extends JsonResource
       'id' => $this->id,
       'dyn_code' => $this->dyn_code,
       'description' => $this->description,
+      'article_class_id' => $this->article_class_id,
+      'article_class' => $this->articleClass->description,
       'sede_id' => $this->sede_id,
-      'sede' => $this->sede->abreviatura ?? null,
+      'sede' => $this->sede->abreviatura,
       'type_operation_id' => $this->type_operation_id,
-      'type_operation' => $this->typeOperation->description ?? null,
+      'type_operation' => $this->typeOperation->description,
       'status' => $this->status,
     ];
   }

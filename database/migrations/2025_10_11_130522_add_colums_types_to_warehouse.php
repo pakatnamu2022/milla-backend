@@ -11,9 +11,8 @@ return new class extends Migration {
   public function up(): void
   {
     Schema::table('warehouse', function (Blueprint $table) {
-      $table->string('article_class_id')->nullable()->change();
-//      otro tipo EXISTENCIAS Y ALMACEN
-      $table->string('article_class_id')->nullable()->change();
+      $table->foreignId('article_class_id')->default(3)->after('description')->constrained('ap_class_article');
+      $table->boolean('is_received')->default(true)->after('status');
     });
   }
 
@@ -23,7 +22,9 @@ return new class extends Migration {
   public function down(): void
   {
     Schema::table('warehouse', function (Blueprint $table) {
-      //
+      $table->dropForeign(['article_class_id']);
+      $table->dropColumn('article_class_id');
+      $table->dropColumn('is_received');
     });
   }
 };
