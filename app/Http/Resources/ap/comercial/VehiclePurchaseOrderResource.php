@@ -40,11 +40,13 @@ class VehiclePurchaseOrderResource extends JsonResource
       'number_guide' => $this->number_guide,
       'warehouse_id' => $this->warehouse_id,
       'warehouse_physical_id' => $this->warehouse_physical_id,
+      'invoice_dynamics' => $this->invoice_dynamics,
 
       // Relations
       'supplier' => $this->supplier->full_name,
       'supplier_num_doc' => $this->supplier->num_doc,
       'currency' => $this->currency->name,
+      'currency_code' => $this->currency->code,
       'model_code' => $this->model_code,
       'vehicle_color' => $this->color->description,
       'supplier_order_type' => $this->supplierType->description,

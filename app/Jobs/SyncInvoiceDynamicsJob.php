@@ -125,9 +125,9 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
     protected function consultStoredProcedure(string $orderNumber): ?object
     {
         try {
-            // Ejecutar el PA: EXEC nePoReporteSeguimientoOrdenCompra_Factura @OrdenCompraId = ?
+            // Ejecutar el PA: EXEC nePoReporteSeguimientoOrdenCompra_Factura @pOrdenCompraId = 'OC1400000001'
             $results = DB::connection('dbtest')
-                ->select('EXEC nePoReporteSeguimientoOrdenCompra_Factura @OrdenCompraId = ?', [$orderNumber]);
+                ->select("EXEC nePoReporteSeguimientoOrdenCompra_Factura @pOrdenCompraId = '{$orderNumber}'");
 
             // El PA debería retornar un resultado con el campo NumeroDocumento
             if (!empty($results) && isset($results[0])) {
