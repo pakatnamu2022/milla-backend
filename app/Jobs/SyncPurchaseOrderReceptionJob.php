@@ -42,14 +42,15 @@ class SyncPurchaseOrderReceptionJob implements ShouldQueue
             // Validar que la OC esté en estado 1 (procesada)
             $this->waitForPurchaseOrderSync($purchaseOrder);
 
-            // Sincronizar la recepción (NI)
+            // Sincronizar la recepción (NI) Y sus detalles juntos
             $resource = new VehiclePurchaseOrderResource($purchaseOrder);
-            $syncService->sync('ap_vehicle_purchase_order_reception', $resource->toArray(request()), 'create');
+            $resourceData = $resource->toArray(request());
 
-            // Despachar el job para sincronizar los detalles de la recepción
-            SyncReceptionDetailsJob::dispatch($this->purchaseOrderId);
+            $syncService->sync('ap_vehicle_purchase_order_reception', $resourceData, 'create');
+            $syncService->sync('ap_vehicle_purchase_order_reception_det', $resourceData, 'create');
+            $syncService->sync('ap_vehicle_purchase_order_reception_det_s', $resourceData, 'create');
 
-            Log::info("Purchase order reception synced successfully for PO: {$this->purchaseOrderId}");
+            Log::info("Purchase order reception with details synced successfully for PO: {$this->purchaseOrderId}");
         } catch (\Exception $e) {
             Log::error("Failed to sync purchase order reception for PO {$this->purchaseOrderId}: {$e->getMessage()}");
             throw $e;

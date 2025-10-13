@@ -143,12 +143,10 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
       ->where('NumeroDocumento', $supplier->num_doc)
       ->first();
 
-    // 2.1. Si no existe, enviar el proveedor
+    // 2.1. Si no existe, enviar el proveedor Y su dirección juntos
     if (!$existingSupplier) {
       $syncService->sync('business_partners_ap_supplier', $supplier->toArray(), 'create');
-
-      // 2.2. Crear un job para enviar la dirección del proveedor
-      \App\Jobs\SyncSupplierDirectionJob::dispatch($supplier->id);
+      $syncService->sync('business_partners_directions_ap_supplier', $supplier->toArray(), 'create');
     } else {
       // Si existe pero tiene error, notificar
       if (!empty($existingSupplier->ProcesoError)) {
@@ -196,13 +194,11 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     $resource = new VehiclePurchaseOrderResource($purchaseOrder);
     $resourceData = $resource->toArray(request());
 
-    // 1. Enviar la OC
+    // 1. Enviar la OC Y su detalle juntos
     $syncService->sync('ap_vehicle_purchase_order', $resourceData, 'create');
+    $syncService->sync('ap_vehicle_purchase_order_det', $resourceData, 'create');
 
-    // 2. Crear un job para enviar el detalle de la OC
-    \App\Jobs\SyncPurchaseOrderDetailJob::dispatch($purchaseOrder->id);
-
-    // 3. Crear un job para enviar la recepción (NI)
+    // 2. Crear un job para enviar la recepción (NI) con sus detalles
     // Este job validará que la OC esté en estado 1 antes de proceder
     \App\Jobs\SyncPurchaseOrderReceptionJob::dispatch($purchaseOrder->id);
   }

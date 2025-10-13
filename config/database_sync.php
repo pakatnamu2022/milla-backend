@@ -261,7 +261,7 @@ return [
         'OrdenCompraId' => fn($data) => $data['number'],
         'Linea' => 1, // TODO: Aquí deberías implementar la lógica para obtener la línea correcta
         'ArticuloId' => fn($data) => ApModelsVn::find($data['ap_models_vn_id'])->code,
-        'SitioId' => fn($data) => Warehouse::find($data['warehouse_id'])->code,
+        'SitioId' => fn($data) => Warehouse::find($data['warehouse_id'])->dyn_code,
         'UnidadMedidaId' => fn($data) => 'UND', // TODO: Asumiendo que siempre es 'UND', ajusta según sea necesario
         'Cantidad' => 1, // TODO: Aquí deberías implementar la lógica para obtener la cantidad correcta
         'CostoUnitario' => fn($data) => $data['subtotal'],
