@@ -12,7 +12,7 @@ class UserSede extends BaseModel
 {
   use SoftDeletes;
 
-  protected $table = 'config_asig_user_sede';
+  protected $table = 'assigment_user_sede';
 
   protected $fillable = [
     'user_id',
