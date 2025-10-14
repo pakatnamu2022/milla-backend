@@ -375,4 +375,82 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     });
     return response()->json(['message' => 'Orden de compra de vehículo eliminada correctamente']);
   }
+
+  /**
+   * Reenvía una OC anulada (con NC) con datos corregidos
+   * Crea nueva OC con punto (.) al final del número
+   *
+   * @throws Exception
+   * @throws Throwable
+   */
+  public function resend(mixed $data, $originalId): VehiclePurchaseOrderResource
+  {
+    DB::beginTransaction();
+    try {
+      $originalPO = $this->find($originalId);
+
+      // Validar que la OC original tenga NC y esté anulada
+      if (empty($originalPO->credit_note_dynamics)) {
+        throw new Exception("La orden de compra {$originalPO->number} no tiene nota de crédito. No puede ser reenviada.");
+      }
+
+      if ($originalPO->status !== false) {
+        throw new Exception("La orden de compra {$originalPO->number} no está anulada. No puede ser reenviada.");
+      }
+
+      Log::info("Reenviando OC anulada {$originalPO->number} con datos corregidos");
+
+      // Preparar datos para la nueva OC
+      $newPOData = $data;
+
+      // Agregar punto (.) al número y guía
+      $newPOData['number'] = $originalPO->number . '.';
+      $newPOData['number_guide'] = $originalPO->number_guide . '.';
+
+      // Establecer relación con la OC original
+      $newPOData['original_purchase_order_id'] = $originalPO->id;
+
+      // Estado inicial de migración
+      $newPOData['migration_status'] = 'pending';
+
+      // Asegurar que la nueva OC esté activa
+      $newPOData['status'] = true;
+
+      // No copiar campos de NC de la original
+      $newPOData['credit_note_dynamics'] = null;
+
+      // Enriquecer datos (calcular precios)
+      $newPOData = $this->enrichData($newPOData, false);
+
+      // Crear la nueva OC
+      $newPurchaseOrder = VehiclePurchaseOrder::create($newPOData);
+
+      // Crear movimiento para la nueva OC
+      $vehicleMovementService = new VehicleMovementService();
+      $vehicleMovementService->storeRequestedVehicleMovement($newPurchaseOrder->id);
+
+      // Crear logs de migración
+      $this->createInitialMigrationLogs($newPurchaseOrder);
+
+      Log::info("Nueva OC creada con punto: {$newPurchaseOrder->number} (ID: {$newPurchaseOrder->id})");
+
+      // Validar y sincronizar a tabla intermedia
+      $this->validateAndSyncBeforeSending($newPurchaseOrder);
+      $this->syncPurchaseOrder($newPurchaseOrder);
+
+      // Despachar job de verificación y migración
+      \App\Jobs\VerifyAndMigratePurchaseOrderJob::dispatch($newPurchaseOrder->id)
+        ->delay(now()->addSeconds(30));
+
+      DB::commit();
+
+      Log::info("OC {$newPurchaseOrder->number} reenviada exitosamente. Original: {$originalPO->number}");
+
+      return new VehiclePurchaseOrderResource($newPurchaseOrder);
+    } catch (Exception $e) {
+      DB::rollBack();
+      Log::error("Error al reenviar OC {$originalId}: {$e->getMessage()}");
+      throw $e;
+    }
+  }
 }

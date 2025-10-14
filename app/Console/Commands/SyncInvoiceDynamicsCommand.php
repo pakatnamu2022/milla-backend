@@ -74,12 +74,24 @@ class SyncInvoiceDynamicsCommand extends Command
 
   /**
    * Sincroniza todas las órdenes pendientes
+   * O las que están completed con NC (para detectar cambios de factura)
    */
   protected function syncAllPurchaseOrders(): int
   {
+    // Obtener OCs que:
+    // 1. No tienen invoice_dynamics (flujo normal)
+    // 2. Están completed y tienen credit_note_dynamics (para detectar cambio de factura)
     $count = VehiclePurchaseOrder::where(function ($query) {
-      $query->whereNull('invoice_dynamics')
-        ->orWhere('invoice_dynamics', '');
+      $query->where(function ($q) {
+        // Caso 1: Sin invoice
+        $q->whereNull('invoice_dynamics')
+          ->orWhere('invoice_dynamics', '');
+      })->orWhere(function ($q) {
+        // Caso 2: Completed con NC (para detectar cambio de factura)
+        $q->where('migration_status', 'completed')
+          ->whereNotNull('credit_note_dynamics')
+          ->where('credit_note_dynamics', '!=', '');
+      });
     })->whereNotNull('number')->count();
 
     if ($count === 0) {

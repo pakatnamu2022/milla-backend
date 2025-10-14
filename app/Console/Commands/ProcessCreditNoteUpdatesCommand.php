@@ -46,11 +46,22 @@ class ProcessCreditNoteUpdatesCommand extends Command
     $this->info("Encontradas {$pendingOrders->count()} órdenes de compra con NC pendientes");
 
     foreach ($pendingOrders as $order) {
-      $this->info("Procesando OC: {$order->number} (ID: {$order->id})");
+      $this->info("Procesando OC original: {$order->number} (ID: {$order->id})");
+
+      // Buscar la nueva OC (la que tiene el punto) relacionada
+      $newOrder = VehiclePurchaseOrder::where('original_purchase_order_id', $order->id)
+        ->first();
+
+      if (!$newOrder) {
+        $this->warn("⚠ No se encontró nueva OC relacionada para {$order->number}. Omitiendo...");
+        continue;
+      }
+
+      $this->info("Nueva OC encontrada: {$newOrder->number} (ID: {$newOrder->id})");
 
       try {
-        UpdatePurchaseOrderWithCreditNoteJob::dispatch($order->id);
-        $this->info("✓ Job despachado para OC {$order->number}");
+        UpdatePurchaseOrderWithCreditNoteJob::dispatch($order->id, $newOrder->id);
+        $this->info("✓ Job despachado para actualizar {$order->number} -> {$newOrder->number}");
       } catch (\Exception $e) {
         $this->error("✗ Error al despachar job para OC {$order->number}: {$e->getMessage()}");
       }

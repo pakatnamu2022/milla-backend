@@ -63,4 +63,17 @@ class VehiclePurchaseOrderController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Reenvía una OC anulada con datos corregidos
+   * Crea nueva OC con punto (.) y la sincroniza a tabla intermedia
+   */
+  public function resend(StoreVehiclePurchaseOrderRequest $request, $id)
+  {
+    try {
+      return $this->success($this->service->resend($request->all(), $id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

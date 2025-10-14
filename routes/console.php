@@ -68,9 +68,9 @@ Schedule::command('po:sync-credit-note-dynamics --all')
   ->withoutOverlapping()
   ->runInBackground();
 
-// Procesar actualizaciones de OC con NC en Dynamics
-Schedule::command('po:process-credit-note-updates')
-  ->everyMinute()
-  ->timezone('America/Lima')
-  ->withoutOverlapping()
-  ->runInBackground();
+// DESHABILITADO: Ya no se usa, el reenvío se hace desde frontend con endpoint /resend
+// Schedule::command('po:process-credit-note-updates')
+//   ->everyMinute()
+//   ->timezone('America/Lima')
+//   ->withoutOverlapping()
+//   ->runInBackground();
