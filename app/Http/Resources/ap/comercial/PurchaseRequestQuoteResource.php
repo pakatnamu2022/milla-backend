@@ -22,6 +22,7 @@ class PurchaseRequestQuoteResource extends JsonResource
       'doc_sale_price' => round($this->doc_sale_price, 2),
       'type_currency_id' => $this->type_currency_id,
       'type_currency' => $this->typeCurrency->code ?? null,
+      'type_currency_symbol' => $this->typeCurrency->code . ' ' . $this->typeCurrency->symbol ?? null,
       'comment' => $this->comment,
       'is_invoiced' => $this->is_invoiced,
       'is_approved' => $this->is_approved,
@@ -38,6 +39,7 @@ class PurchaseRequestQuoteResource extends JsonResource
       'doc_type_currency_id' => $this->doc_type_currency_id ?? null,
       'doc_type_currency' => $this->docTypeCurrency->code ?? null,
       'advisor_name' => $this->oportunity->worker->nombre_completo ?? null,
+      'warranty' => $this->warranty,
       'bonus_discounts' => $this->discountCoupons->map(function ($discount) {
         return [
           'id' => $discount->id,
@@ -53,6 +55,7 @@ class PurchaseRequestQuoteResource extends JsonResource
         return [
           'id' => $accessory->id,
           'approved_accessory_id' => $accessory->approved_accessory_id,
+          'description' => $accessory->approvedAccessory->description ?? null,
           'type' => $accessory->type,
           'quantity' => $accessory->quantity,
           'price' => $accessory->price,

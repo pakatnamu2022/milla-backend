@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\comercial;
 use App\Http\Resources\ap\comercial\PurchaseRequestQuoteResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Constants;
 use App\Models\ap\comercial\DetailsApprovedAccessoriesQuote;
 use App\Models\ap\comercial\DiscountCoupons;
 use App\Models\ap\comercial\PurchaseRequestQuote;
@@ -53,6 +54,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'type_document' => $data['type_document'],
         'opportunity_id' => $data['opportunity_id'],
         'comment' => $data['comment'] ?? null,
+        'warranty' => $data['warranty'] ?? null,
         'holder_id' => $data['holder_id'],
         'vehicle_color_id' => $data['vehicle_color_id'],
         'ap_models_vn_id' => $data['ap_models_vn_id'],
@@ -141,12 +143,15 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $purchaseRequestQuote = $this->find($data['id']);
     $dataResource = new PurchaseRequestQuoteResource($purchaseRequestQuote);
     $dataArray = $dataResource->resolve();
+    $isPersonJuridica = $purchaseRequestQuote->oportunity->client->type_person_id === Constants::TYPE_PERSON_JURIDICA_ID;
     // Agregar datos adicionales directamente al array
-    $dataArray['dni_client'] = $purchaseRequestQuote->oportunity->client->num_doc ?? null;
-    $dataArray['birth_date'] = $purchaseRequestQuote->oportunity->client->birth_date ?? null;
-    $dataArray['marital_status'] = $purchaseRequestQuote->oportunity->client->maritalStatus->description ?? null;
-    $dataArray['spouse_full_name'] = $purchaseRequestQuote->oportunity->client->spouse_full_name ?? null;
-    $dataArray['spouse_num_doc'] = $purchaseRequestQuote->oportunity->client->spouse_num_doc ?? null;
+    $dataArray['num_doc_client'] = $purchaseRequestQuote->oportunity->client->num_doc ?? null;
+    $dataArray['birth_date'] = ($isPersonJuridica) ? '- / - / -' : ($purchaseRequestQuote->oportunity->client->birth_date ?? '- / - / -');
+    $dataArray['marital_status'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->oportunity->client->maritalStatus->description ?? '-');
+    $dataArray['spouse_full_name'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->oportunity->client->spouse_full_name ?? '-');
+    $dataArray['spouse_num_doc'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->oportunity->client->spouse_num_doc ?? '-');
+    $dataArray['legal_representative'] = $purchaseRequestQuote->oportunity->client->legal_representative_full_name ?? '-';
+    $dataArray['dni_legal_representative'] = $purchaseRequestQuote->oportunity->client->legal_representative_num_doc ?? '-';
     $dataArray['address'] = $purchaseRequestQuote->oportunity->client->direction ?? null;
     $dataArray['email'] = $purchaseRequestQuote->oportunity->client->email ?? null;
     $dataArray['phone'] = $purchaseRequestQuote->oportunity->client->phone ?? null;
@@ -155,6 +160,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $dataArray['engine_number'] = $purchaseRequestQuote->vehicleVn->engine_number ?? null;
     $dataArray['vin'] = $purchaseRequestQuote->vehicleVn->vin ?? null;
     $dataArray['model_year'] = $purchaseRequestQuote->apModelsVn->model_year ?? null;
+    $dataArray['selling_price_soles'] = round($purchaseRequestQuote->sale_price * ($purchaseRequestQuote->exchangeRate->rate ?? 1), 2);
 
     $pdf = PDF::loadView('reports.ap.comercial.request-purchase-quote', ['quote' => $dataArray]);
 

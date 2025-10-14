@@ -1,4 +1,15 @@
-<!doctype html>
+@php
+  function getBase64Image($path) {
+    $fullPath = public_path($path);
+    if (!file_exists($fullPath)) {
+      return '';
+    }
+    $imageData = base64_encode(file_get_contents($fullPath));
+    $mimeType = mime_content_type($fullPath);
+    return "data:{$mimeType};base64,{$imageData}";
+  }
+@endphp
+  <!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -28,40 +39,6 @@
       font-weight: bold;
       z-index: -1;
       white-space: nowrap;
-    }
-
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 15px;
-      padding-bottom: 10px;
-      border-bottom: 2px solid #000;
-    }
-
-    .company-info {
-      flex: 1;
-    }
-
-    .company-logo {
-      font-size: 24px;
-      font-weight: bold;
-      margin-bottom: 5px;
-    }
-
-    .company-details {
-      font-size: 8px;
-      line-height: 1.3;
-    }
-
-    .document-number {
-      text-align: right;
-      font-weight: bold;
-    }
-
-    .document-number .number {
-      font-size: 14px;
-      margin-top: 5px;
     }
 
     .title {
@@ -118,30 +95,6 @@
       font-weight: bold;
     }
 
-    .value {
-      min-height: 18px;
-      display: inline-block;
-    }
-
-    .signature-section {
-      display: flex;
-      margin-top: 15px;
-    }
-
-    .signature-box {
-      flex: 1;
-      border: 1px solid #000;
-      min-height: 80px;
-      text-align: center;
-      padding: 5px;
-    }
-
-    .signature-box .label {
-      background-color: #e0e0e0;
-      padding: 5px;
-      margin: -5px -5px 10px -5px;
-    }
-
     .notes {
       font-size: 8px;
       margin-top: 15px;
@@ -151,38 +104,35 @@
     .notes ol {
       margin-left: 15px;
     }
-
-    .footer-brands {
-      text-align: center;
-      margin-top: 15px;
-      padding-top: 10px;
-      border-top: 1px solid #000;
-      font-size: 9px;
-    }
   </style>
 </head>
 <body>
 <div class="watermark">PAKATNAMU</div>
 
 <!-- Encabezado -->
-<div class="header">
-  <div class="company-info">
-    <div class="company-logo">AP AUTOMOTORES<br>PAKATNAMU SAC</div>
-    <div class="company-details">
-      www.automotoraspakatnamu.com<br>
-      CAR. PANAMERICANA NORTE KM 1088 - MALLA - FONE<br>
-      CHIMBOTE - ANCASH - SANTA MAEONE<br>
-      CHICLAYO - LAMBAYEQUE - CHICLAYO<br>
-      CAR. A PIMENTEL KM 8 - PIMENTEL - CHICLAYO<br>
-      LAMBAYEQUE
-    </div>
-  </div>
-  <div class="document-number">
-    <div>Nº {{ $quote['correlative'] }}</div>
-    <div class="number">Nº {{ str_pad($quote['id'], 6, '0', STR_PAD_LEFT) }}</div>
-    <img src="data:image/png;base64,..." alt="Logo" style="width: 80px; margin-top: 10px;">
-  </div>
-</div>
+<table style="margin-bottom: 15px;">
+  <tr>
+    <td style="width: 15%; text-align: center; vertical-align: middle; border: none;">
+      <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="AP Logo" style="max-width: 80px; height: auto;">
+    </td>
+    <td style="width: 50%; vertical-align: middle; padding: 5px; border: none;">
+      <div style="font-size: 14px; font-weight: bold; margin-bottom: 5px;">AP AUTOMOTORES PAKATNAMU SAC</div>
+      <div style="font-size: 8px; line-height: 1.3;">
+        www.automotorespakatnamu.com<br>
+        CAR. A PIMENTEL KM 5 - PIMENTEL - CHICLAYO - LAMBAYEQUE<br>
+        Tel: (044) 123-4567 | Email: ventas@automotoraspakatnamu.com
+      </div>
+    </td>
+    <td style="width: 20%; text-align: center; vertical-align: middle; padding: 0 10px; border: none;">
+      <div style="font-size: 10px; font-weight: bold;">Núm Documento</div>
+      <div style="font-size: 14px; font-weight: bold; margin-top: 5px;">
+        Nº {{ $quote['correlative'] }}</div>
+    </td>
+    <td style="width: 15%; text-align: center; vertical-align: middle; border: none;">
+      <img src="{{ getBase64Image('images/ap/derco.jpg') }}" alt="Derco Logo" style="max-width: 100px; height: auto;">
+    </td>
+  </tr>
+</table>
 
 <!-- Título -->
 <div class="title">SOLICITUD DE COMPRA</div>
@@ -203,7 +153,7 @@
     <td class="label">Estado Civil</td>
     <td colspan="1">{{ $quote['marital_status'] ?? '' }}</td>
     <td class="label">DNI</td>
-    <td colspan="1">{{ $quote['dni_client'] ?? '' }}</td>
+    <td colspan="1">{{ $quote['num_doc_client'] ?? '' }}</td>
   </tr>
   <tr>
     <td class="label">Cónyuge</td>
@@ -215,23 +165,38 @@
     <td class="label">Dirección</td>
     <td colspan="7">{{ $quote['address'] ?? '' }}</td>
   </tr>
+  @php
+    $numDoc = $quote['num_doc_client'] ?? '';
+    $docLength = strlen($numDoc);
+    $docType = 'natural'; // Por defecto Persona natural
+
+    if ($docLength == 11) {
+      $firstTwo = substr($numDoc, 0, 2);
+      if ($firstTwo == '10') {
+        $docType = 'natural_ruc';
+      } elseif ($firstTwo == '20') {
+        $docType = 'juridica';
+      }
+    }
+  @endphp
   <tr>
     <td class="label">Tarjeta de propiedad a nombre de:</td>
-    <td colspan="3">Persona natural <span class="checkbox checked"></span></td>
-    <td colspan="2">P. Natural con RUC <span class="checkbox"></span></td>
-    <td colspan="2">Persona Jurídica <span class="checkbox"></span></td>
+    <td colspan="3">Persona natural <span class="checkbox {{ $docType == 'natural' ? 'checked' : '' }}"></span></td>
+    <td colspan="2">P. Natural con RUC <span class="checkbox {{ $docType == 'natural_ruc' ? 'checked' : '' }}"></span>
+    </td>
+    <td colspan="2">Persona Jurídica <span class="checkbox {{ $docType == 'juridica' ? 'checked' : '' }}"></span></td>
   </tr>
   <tr>
     <td class="label">Razón Social</td>
-    <td colspan="5"></td>
+    <td colspan="5">{{ $quote['client_name'] ?? '' }}</td>
     <td class="label">RUC</td>
-    <td></td>
+    <td>{{ $quote['num_doc_client'] ?? '' }}</td>
   </tr>
   <tr>
     <td class="label">Repres. Legal</td>
-    <td colspan="5"></td>
+    <td colspan="5">{{ $quote['legal_representative'] ?? '' }}</td>
     <td class="label">DNI</td>
-    <td></td>
+    <td>{{ $quote['dni_legal_representative'] ?? '' }}</td>
   </tr>
   <tr>
     <td class="label">Dirección</td>
@@ -263,7 +228,7 @@
     <td>{{ $quote['class'] ?? '' }}</td>
     <td>{{ $quote['brand'] ?? '' }}</td>
     <td>{{ $quote['ap_model_vn'] ?? '' }}</td>
-    <td colspan="2">3 años o 100,000 Km</td>
+    <td colspan="2">{{ $quote['warranty'] ?? '' }}</td>
   </tr>
   <tr>
     <td class="label">Motor</td>
@@ -282,95 +247,172 @@
   </tr>
 </table>
 
-<!-- Precios -->
+<!-- Precios el rowspan="9" indica que va usar 9 filas y colspan="2" utiliza 2 columnas -->
 <table>
+  @php
+    $addedAccessories = collect($quote['accessories'] ?? [])->filter(function($item) {
+      return $item['type'] === 'ACCESORIO_ADICIONAL';
+    });
+    $gifts = collect($quote['accessories'] ?? [])->filter(function($item) {
+      return $item['type'] === 'OBSEQUIO';
+    });
+  @endphp
   <tr>
     <td rowspan="8" class="section-title" style="writing-mode: vertical-lr; width: 30px;">Valor de la Compra</td>
     <td class="label">Precio de venta</td>
-    <td style="width: 25%;">US$ {{ number_format($quote['sale_price'], 2) }}</td>
+    <td
+      style="width: 25%;">{{ $quote['type_currency_symbol'] }} {{ number_format($quote['base_selling_price'], 2) }}</td>
     <td style="width: 5%;">1</td>
     <td rowspan="8" class="section-title" style="writing-mode: vertical-lr; width: 30px;">Forma de Pago</td>
     <td class="label" style="width: 15%;">A cuenta:</td>
-    <td>US$</td>
+    <td>{{ $quote['type_currency_symbol'] }}</td>
     <td style="width: 5%;">4</td>
   </tr>
-  <tr>
-    <td class="label">Equipamiento adicional</td>
-    <td>US$</td>
-    <td></td>
-    <td class="label">Nº de OP.:</td>
-    <td colspan="2"></td>
-  </tr>
-  @for($i = 0; $i < 4; $i++)
-    <tr>
-      <td></td>
-      <td>US$</td>
-      <td></td>
-      @if($i == 0)
-        <td class="label">Banco:</td>
-        <td colspan="2"></td>
-      @elseif($i == 1)
-        <td class="label">Saldo(3-4)</td>
-        <td>US$</td>
-        <td>5</td>
-      @elseif($i == 2)
-        <td class="label">Forma de pago:</td>
-        <td colspan="2"></td>
-      @else
+  @if($addedAccessories->count() > 0)
+    @foreach($addedAccessories as $index => $accessory)
+      <tr>
+        @if($index == 0)
+          <td class="label">Equipamiento adicional</td>
+        @else
+          <td></td>
+        @endif
+        <td>{{ $accessory['description'] ?? '' }} (Cant: {{ $accessory['quantity'] ?? 1 }})
+          {{ $quote['type_currency_symbol'] }} {{ number_format(($accessory['total'] ?? 0) / ($quote['exchange_rate'] ?? 1), 2) }}</td>
         <td></td>
-        <td colspan="2"></td>
-      @endif
+        @if($index == 0)
+          <td class="label">Nº de OP.:</td>
+          <td colspan="2"></td>
+        @elseif($index == 1)
+          <td class="label">Banco:</td>
+          <td colspan="2"></td>
+        @elseif($index == 2)
+          <td class="label">Saldo(3-4)</td>
+          <td>{{ $quote['type_currency_symbol'] }}</td>
+          <td>5</td>
+        @elseif($index == 3)
+          <td class="label">Forma de pago:</td>
+          <td colspan="2"></td>
+        @else
+          <td></td>
+          <td colspan="2"></td>
+        @endif
+      </tr>
+    @endforeach
+    @php
+      $remainingRows = max(0, 4 - $addedAccessories->count());
+    @endphp
+    @for($i = 0; $i < $remainingRows; $i++)
+      @php
+        $rowIndex = $addedAccessories->count() + $i;
+      @endphp
+      <tr>
+        <td></td>
+        <td>{{ $quote['type_currency_symbol'] }}</td>
+        <td></td>
+        @if($rowIndex == 1)
+          <td class="label">Banco:</td>
+          <td colspan="2"></td>
+        @elseif($rowIndex == 2)
+          <td class="label">Saldo(3-4)</td>
+          <td>{{ $quote['type_currency_symbol'] }}</td>
+          <td>5</td>
+        @elseif($rowIndex == 3)
+          <td class="label">Forma de pago:</td>
+          <td colspan="2"></td>
+        @else
+          <td></td>
+          <td colspan="2"></td>
+        @endif
+      </tr>
+    @endfor
+  @else
+    <tr>
+      <td class="label">Equipamiento adicional</td>
+      <td>{{ $quote['type_currency_symbol'] }}</td>
+      <td></td>
+      <td class="label">Nº de OP.:</td>
+      <td colspan="2"></td>
     </tr>
-  @endfor
+    @for($i = 0; $i < 4; $i++)
+      <tr>
+        <td></td>
+        <td>{{ $quote['type_currency_symbol'] }}</td>
+        <td></td>
+        @if($i == 0)
+          <td class="label">Banco:</td>
+          <td colspan="2"></td>
+        @elseif($i == 1)
+          <td class="label">Saldo(3-4)</td>
+          <td>{{ $quote['type_currency_symbol'] }}</td>
+          <td>5</td>
+        @elseif($i == 2)
+          <td class="label">Forma de pago:</td>
+          <td colspan="2"></td>
+        @else
+          <td></td>
+          <td colspan="2"></td>
+        @endif
+      </tr>
+    @endfor
+  @endif
   <tr>
     <td class="label">Total equipamiento</td>
-    <td>US$</td>
+    <td>{{ $quote['type_currency_symbol'] }}</td>
     <td>2</td>
     <td class="label">Banco:</td>
     <td colspan="2"></td>
   </tr>
   <tr>
     <td class="label">Precio de compra total (1+2)</td>
-    <td>US$ {{ number_format($quote['doc_sale_price'], 2) }}</td>
+    <td>{{ $quote['type_currency_symbol'] }} {{ number_format($quote['doc_sale_price'], 2) }}</td>
     <td>3</td>
     <td class="label">Sectorista:</td>
     <td colspan="2"></td>
   </tr>
   <tr>
     <td class="label">T.C. referencial S/</td>
-    <td>S/</td>
+    <td>S/ {{ number_format($quote['selling_price_soles'], 2) }}</td>
     <td></td>
     <td class="label">Oficina:</td>
-    <td colspan="4"></td>
+    <td colspan="2"></td>
   </tr>
   <tr>
-    <td colspan="3" class="section-title">Obsequios/Cortesía</td>
-    <td class="label">Telf.:</td>
-    <td colspan="4"></td>
+    <td colspan="8" class="section-title">Obsequios / Cortesía</td>
   </tr>
-</table>
-
-<!-- Obsequios -->
-<table>
-  <tr>
-    <td>
-      <ul style="list-style: none; padding-left: 20px;">
-        <li>• {{ $quote['comment'] ?? 'TARJETA Y PLACA' }}</li>
-      </ul>
-    </td>
-  </tr>
+  @if($gifts->count() > 0)
+    @foreach($gifts as $gift)
+      <tr>
+        <td colspan="8">• {{ $gift['description'] ?? '' }} (Cant: {{ $gift['quantity'] ?? 1 }})</td>
+      </tr>
+    @endforeach
+  @endif
+  @if($gifts->count() === 0)
+    <tr>
+      <td colspan="8">• {{ $quote['comment'] ?? 'TARJETA Y PLACA' }}</td>
+    </tr>
+  @endif
 </table>
 
 <!-- Firmas -->
-<div class="signature-section">
-  <div class="signature-box">
-    <div class="label">APROBADO</div>
-  </div>
-  <div class="signature-box">
-    <div class="label">FIRMA DEL COMPRADOR</div>
-    <div style="margin-top: 30px;">Huella digital</div>
-  </div>
-</div>
+<table>
+  <tr>
+    <td class="signature-box"
+        style="width: 50%; min-height: 80px; text-align: center; padding: 5px; vertical-align: top;">
+      <div class="label"
+           style="background-color: #e0e0e0; padding: 5px; margin: -5px -5px 10px -5px; font-weight: bold; font-size: 10px;">
+        APROBADO
+      </div>
+    </td>
+    <td class="signature-box"
+        style="width: 50%; min-height: 80px; text-align: center; padding: 5px; vertical-align: top;">
+      <div class="label"
+           style="background-color: #e0e0e0; padding: 5px; margin: -5px -5px 10px -5px; font-weight: bold; font-size: 10px;">
+        FIRMA DEL COMPRADOR
+      </div>
+      <div style="margin-top: 30px;">Huella digital</div>
+    </td>
+  </tr>
+</table>
 
 <!-- Notas importantes -->
 <div class="notes">
@@ -380,24 +422,51 @@
     <li>Cualquier pedido de equipamiento adicional a las características de la presente solicitud será por cuenta y
       costo del cliente.
     </li>
-    <li>El trámite completo de la documentación necesaria para la inscripción de esta unidad ante la SUNARP y nuestra
-      empresa se encuentra sujeta a los criterios de regulación autónoma de cada regulador...
+    <li>El trámite de placas de rodaje y tarjeta de propiedad es una cortesía que otorgamos a nuestros clientes. Dicho
+      trámite se encuentra sujeta a los criterios de calificación
+      autónomos de cada registrador, por lo que nuestra empresa no se hace responsable por la demora ocasionada como
+      consecuencia de la aplicación de los criterios registrales empleados por SUNARP.
     </li>
     <li>El solicitante acepta formalmente todas las características del vehículo descrito en el presente documento.</li>
-    <li>El cliente deberá conocer que en caso el vehículo no se encuentre en stock, libera a la empresa de cualquier
-      responsabilidad relacionada a los plazos de entrega...
+    <li>El cliente declara conocer que en caso el vehículo no se encuentre en stock, libera a la empresa de cualquier
+      responsabilidad relacionada a los plazos de entrega. Las fechas de entrega son variables y están sujetas a cambio,
+      con previa comunicación al cliente.
     </li>
-    <li>Mantiene los datos consignados correctos.</li>
+    <li>Manifesto que los datos consignados son exactos y se ajustan fielmente a la realidad.</li>
   </ol>
   <div style="margin-top: 10px;">
-    <strong>Números de cuenta BCP:</strong> 305-2041120-0-42 MN / 305-2041105-0-39 MN<br>
-    <strong>BBVA CONTINENTAL:</strong> Código de Rescudo (Soles): 9600 | Código de Rescudo (Dólares): 9601
+    <strong>Números de cuenta BCP:</strong> (305-2041120-0-42 MN / 305-2041105-0-39 MN) (305-2035096-1-39 MN /
+    305-2035097-1-49 ME)<br>
+    <strong>BBVA CONTINENTAL:</strong> Código de Recaudo (Soles): 9600 | Código de Recaudo (Dólares): 9601
   </div>
 </div>
 
 <!-- Footer con marcas -->
-<div class="footer-brands">
-  🚗 SUZUKI ⚡ SUBARU DFSK ⊕MAZDA 🦁CITROËN 🔧RENAULT 🏁HAVAL ⭕Great Wall 🚙CHANGAN ⚫JAC
-</div>
+<table style="border: none; border-top: 1px solid #000; margin-top: 15px; padding-top: 10px;">
+  <tr>
+    <td style="text-align: center; border: none; padding: 10px 0;">
+      <img src="{{ getBase64Image('images/ap/brands/suzuki.png') }}" alt="Suzuki"
+           style="height: 13px; width: auto; margin: 0 8px;">
+      <img src="{{ getBase64Image('images/ap/brands/subaru.png') }}" alt="Subaru"
+           style="height: 13px; width: auto; margin: 0 8px;">
+      <img src="{{ getBase64Image('images/ap/brands/dfsk.png') }}" alt="DFSK"
+           style="height: 13px; width: auto; margin: 0 8px;">
+      <img src="{{ getBase64Image('images/ap/brands/mazda.png') }}" alt="Mazda"
+           style="height: 13px; width: auto; margin: 0 8px;">
+      <img src="{{ getBase64Image('images/ap/brands/citroen.jpg') }}" alt="Citroën"
+           style="height: 13px; width: auto; margin: 0 8px;">
+      <img src="{{ getBase64Image('images/ap/brands/renault.png') }}" alt="Renault"
+           style="height: 13px; width: auto; margin: 0 8px;">
+      <img src="{{ getBase64Image('images/ap/brands/haval.png') }}" alt="Haval"
+           style="height: 13px; width: auto; margin: 0 8px;">
+      <img src="{{ getBase64Image('images/ap/brands/great-wall.png') }}" alt="Great Wall"
+           style="height: 13px; width: auto; margin: 0 8px;">
+      <img src="{{ getBase64Image('images/ap/brands/changan.png') }}" alt="Changan"
+           style="height: 13px; width: auto; margin: 0 8px;">
+      <img src="{{ getBase64Image('images/ap/brands/jac.png') }}" alt="JAC"
+           style="height: 13px; width: auto; margin: 0 8px;">
+    </td>
+  </tr>
+</table>
 </body>
 </html>

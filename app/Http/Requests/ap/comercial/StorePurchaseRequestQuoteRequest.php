@@ -19,6 +19,7 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'sale_price' => ['required', 'numeric', 'min:0'],
       'doc_sale_price' => ['required', 'numeric', 'min:0'],
       'comment' => ['nullable', 'string', 'max:255'],
+      'warranty' => ['nullable', 'string', 'max:100'],
       'opportunity_id' => ['nullable', 'exists:ap_opportunity,id'],
       'holder_id' => ['required', 'exists:business_partners,id'],
       'vehicle_color_id' => ['required', 'exists:ap_commercial_masters,id'],
@@ -66,6 +67,9 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
 
       'comment.string' => 'El campo comentario debe ser una cadena de texto.',
       'comment.max' => 'El campo comentario no debe exceder los 255 caracteres.',
+
+      'warranty.string' => 'El campo garantía debe ser una cadena de texto.',
+      'warranty.max' => 'El campo garantía no debe exceder los 100 caracteres.',
 
       'opportunity_id.exists' => 'La oportunidad seleccionada no es válida.',
 

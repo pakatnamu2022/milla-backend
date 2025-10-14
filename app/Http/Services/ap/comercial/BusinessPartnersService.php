@@ -57,6 +57,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       $existingPartner = BusinessPartners::where('num_doc', $data['num_doc'])
         ->whereNull('deleted_at')
         ->first();
+      $data['legal_representative_full_name'] = $data['legal_representative_name'] . ' ' . $data['legal_representative_paternal_surname'] . ' ' . $data['legal_representative_maternal_surname'];
 
       if ($existingPartner) {
         // Si existe y tiene un type diferente, actualizar a AMBOS
@@ -109,6 +110,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       // Guardar el RUC anterior para comparar
       $previousNumDoc = $businessPartner->num_doc;
       $previousDocumentTypeId = $businessPartner->document_type_id;
+      $data['legal_representative_full_name'] = $data['legal_representative_name'] . ' ' . $data['legal_representative_paternal_surname'] . ' ' . $data['legal_representative_maternal_surname'];
 
       $data = $this->getData($data);
       $businessPartner->update($data);

@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
+use App\Models\ap\postventa\ApprovedAccessories;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -19,4 +20,9 @@ class DetailsApprovedAccessoriesQuote extends Model
     'purchase_request_quote_id',
     'approved_accessory_id',
   ];
+
+  public function approvedAccessory()
+  {
+    return $this->belongsTo(ApprovedAccessories::class, 'approved_accessory_id');
+  }
 }

@@ -30,6 +30,7 @@ class PurchaseRequestQuote extends Model
     'comment',
     'is_invoiced',
     'is_approved',
+    'warranty',
     'opportunity_id',
     'holder_id',
     'vehicle_color_id',
@@ -66,6 +67,13 @@ class PurchaseRequestQuote extends Model
   {
     if ($value) {
       $this->attributes['comment'] = Str::upper($value);
+    }
+  }
+
+  public function setWarrantyAttribute($value): void
+  {
+    if ($value) {
+      $this->attributes['warranty'] = Str::upper($value);
     }
   }
 

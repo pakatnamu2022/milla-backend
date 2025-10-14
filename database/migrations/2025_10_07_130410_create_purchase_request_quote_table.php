@@ -21,6 +21,7 @@ return new  class extends Migration {
       $table->string('comment', 255)->nullable();
       $table->boolean('is_invoiced')->default(false)->comment('Indica si la cotización ha sido facturada para no poder editarla o eliminarla');
       $table->boolean('is_approved')->default(false)->comment('Indica si la cotización ha sido aprobada para generar la solicitud de compra');
+      $table->string('warranty', 100)->nullable();
       $table->foreignId('type_currency_id')
         ->constrained('ap_commercial_masters')->onDelete('cascade');
       $table->foreignId('opportunity_id')->nullable()
