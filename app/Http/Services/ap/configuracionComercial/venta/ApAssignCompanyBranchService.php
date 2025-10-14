@@ -98,8 +98,8 @@ class ApAssignCompanyBranchService extends BaseService
 
   public function show($id, Request $request)
   {
-    $year = $request->query('year');
-    $month = $request->query('month');
+    $year = $request->query('year') ?? now()->year;
+    $month = $request->query('month') ?? now()->month;
 
     $query = ApAssignCompanyBranch::where('sede_id', $id)
       ->when($year, fn($q) => $q->where('year', $year))
