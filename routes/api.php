@@ -674,8 +674,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
       // Crear oportunidad desde un cliente
       Route::post('businessPartners/{clientId}/opportunities', [OpportunityController::class, 'storeFromClient']);
-
-
+      
       Route::get('potentialBuyers/my', [PotentialBuyersController::class, 'myPotentialBuyers']);
       Route::put('potentialBuyers/{id}/discard', [PotentialBuyersController::class, 'discard']);
       Route::apiResource('potentialBuyers', PotentialBuyersController::class)->only([
@@ -746,6 +745,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/orders', [VehiclePurchaseOrderMigrationController::class, 'index']);
         Route::get('/{id}/logs', [VehiclePurchaseOrderMigrationController::class, 'logs']);
         Route::get('/{id}/history', [VehiclePurchaseOrderMigrationController::class, 'history']);
+      });
+
       // DASHBOARD - Indicadores Comerciales
       Route::group(['prefix' => 'dashboard'], function () {
         Route::get('/indicators/by-date-range', [DashboardComercialController::class, 'getTotalsByDateRange']);
@@ -753,39 +754,39 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/indicators/by-sede-and-brand', [DashboardComercialController::class, 'getTotalsBySedeAndBrand']);
         Route::get('/indicators/by-advisor', [DashboardComercialController::class, 'getTotalsByAdvisor']);
       });
+
+      //      POST-VENTA
+      Route::group(['prefix' => 'postVenta'], function () {
+        Route::apiResource('ApprovedAccessories', ApprovedAccessoriesController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+      });
     });
 
-    //      POST-VENTA
-    Route::group(['prefix' => 'postVenta'], function () {
-      Route::apiResource('ApprovedAccessories', ApprovedAccessoriesController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
+    // Document Validation Routes
+    Route::group(['prefix' => 'document-validation'], function () {
+      Route::post('/validate/general', [DocumentValidationController::class, 'validateGeneral']);
+      Route::post('/validate/dni', [DocumentValidationController::class, 'validateDni']);
+      Route::post('/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
+      Route::post('/validate/license', [DocumentValidationController::class, 'validateLicense']);
+      Route::get('/document-types', [DocumentValidationController::class, 'documentTypes']);
+      Route::get('/provider-info', [DocumentValidationController::class, 'providerInfo']);
+      Route::delete('/cache', [DocumentValidationController::class, 'clearCache']);
+      Route::delete('/cache/all', [DocumentValidationController::class, 'clearAllCache']);
     });
-  });
 
-  // Document Validation Routes
-  Route::group(['prefix' => 'document-validation'], function () {
-    Route::post('/validate/general', [DocumentValidationController::class, 'validateGeneral']);
-    Route::post('/validate/dni', [DocumentValidationController::class, 'validateDni']);
-    Route::post('/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
-    Route::post('/validate/license', [DocumentValidationController::class, 'validateLicense']);
-    Route::get('/document-types', [DocumentValidationController::class, 'documentTypes']);
-    Route::get('/provider-info', [DocumentValidationController::class, 'providerInfo']);
-    Route::delete('/cache', [DocumentValidationController::class, 'clearCache']);
-    Route::delete('/cache/all', [DocumentValidationController::class, 'clearAllCache']);
-  });
-
-  // Audit Logs Routes
-  Route::group(['prefix' => 'audit-logs'], function () {
-    Route::get('/', [AuditLogsController::class, 'index']);
-    Route::get('/stats', [AuditLogsController::class, 'stats']);
-    Route::get('/user/{userId}', [AuditLogsController::class, 'userLogs']);
-    Route::get('/model/{model}/{id}', [AuditLogsController::class, 'modelLogs']);
-    Route::get('/export', [AuditLogsController::class, 'export']);
-    Route::delete('/clean', [AuditLogsController::class, 'clean']);
+    // Audit Logs Routes
+    Route::group(['prefix' => 'audit-logs'], function () {
+      Route::get('/', [AuditLogsController::class, 'index']);
+      Route::get('/stats', [AuditLogsController::class, 'stats']);
+      Route::get('/user/{userId}', [AuditLogsController::class, 'userLogs']);
+      Route::get('/model/{model}/{id}', [AuditLogsController::class, 'modelLogs']);
+      Route::get('/export', [AuditLogsController::class, 'export']);
+      Route::delete('/clean', [AuditLogsController::class, 'clean']);
+    });
   });
 });
