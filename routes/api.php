@@ -674,7 +674,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
       // Crear oportunidad desde un cliente
       Route::post('businessPartners/{clientId}/opportunities', [OpportunityController::class, 'storeFromClient']);
-      
+
       Route::get('potentialBuyers/my', [PotentialBuyersController::class, 'myPotentialBuyers']);
       Route::put('potentialBuyers/{id}/discard', [PotentialBuyersController::class, 'discard']);
       Route::apiResource('potentialBuyers', PotentialBuyersController::class)->only([
@@ -754,17 +754,17 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/indicators/by-sede-and-brand', [DashboardComercialController::class, 'getTotalsBySedeAndBrand']);
         Route::get('/indicators/by-advisor', [DashboardComercialController::class, 'getTotalsByAdvisor']);
       });
+    });
 
-      //      POST-VENTA
-      Route::group(['prefix' => 'postVenta'], function () {
-        Route::apiResource('ApprovedAccessories', ApprovedAccessoriesController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-      });
+    //      POST-VENTA
+    Route::group(['prefix' => 'postVenta'], function () {
+      Route::apiResource('ApprovedAccessories', ApprovedAccessoriesController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
     });
 
     // Document Validation Routes
