@@ -60,3 +60,10 @@ Schedule::command('po:sync-invoice-dynamics --all')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
+
+// Sincronizar credit_note_dynamics desde Dynamics
+Schedule::command('po:sync-credit-note-dynamics --all')
+  ->everyMinute()
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();

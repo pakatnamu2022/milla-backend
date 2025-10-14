@@ -54,6 +54,7 @@ class VehiclePurchaseOrder extends Model
 
 //    Migration status
     'invoice_dynamics',
+    'credit_note_dynamics',
     'migration_status',
     'migrated_at',
 

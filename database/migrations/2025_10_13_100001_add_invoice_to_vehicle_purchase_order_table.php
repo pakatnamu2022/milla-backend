@@ -15,6 +15,16 @@ return new class extends Migration {
         ->nullable()
         ->after('migration_status')
         ->comment('Número de factura en el sistema Dynamics');
+
+      $table->string('invoice_reference_dynamics')
+        ->nullable()
+        ->after('migration_status')
+        ->comment('Número de factura en el sistema Dynamics');
+
+      $table->string('credit_note_dynamics')
+        ->nullable()
+        ->after('migration_status')
+        ->comment('Número de factura en el sistema Dynamics');
     });
   }
 
