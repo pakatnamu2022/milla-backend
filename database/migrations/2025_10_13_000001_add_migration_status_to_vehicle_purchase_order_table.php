@@ -11,7 +11,7 @@ return new class extends Migration {
   public function up(): void
   {
     Schema::table('ap_vehicle_purchase_order', function (Blueprint $table) {
-      $table->enum('migration_status', ['pending', 'in_progress', 'completed', 'failed'])
+      $table->enum('migration_status', ['pending', 'in_progress', 'completed', 'failed', 'updated_with_nc'])
         ->default('pending')
         ->after('warehouse_physical_id')
         ->comment('Estado de la migración a la BD intermedia');

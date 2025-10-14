@@ -244,8 +244,8 @@ return [
       'unique_key' => 'OrdenCompraId',
       'actions' => [
         'create' => true,
-        'update' => false,
-        'delete' => false, // Por ejemplo, no sincronizar eliminaciones
+        'update' => true,
+        'delete' => false,
       ],
     ]
   ],
@@ -314,7 +314,7 @@ return [
       'unique_key' => 'RecepcionId',
       'actions' => [
         'create' => true,
-        'update' => false,
+        'update' => true,
         'delete' => false, // Por ejemplo, no sincronizar eliminaciones
       ],
     ]
@@ -368,7 +368,7 @@ return [
       'unique_key' => 'Serie',
       'actions' => [
         'create' => true,
-        'update' => false,
+        'update' => true,
         'delete' => false, // Por ejemplo, no sincronizar eliminaciones
       ],
     ]

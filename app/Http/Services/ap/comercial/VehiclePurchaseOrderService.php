@@ -15,6 +15,7 @@ use App\Models\gp\maestroGeneral\Sede;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class VehiclePurchaseOrderService extends BaseService implements BaseServiceInterface
@@ -288,20 +289,34 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
 
   public function update(mixed $data)
   {
-    $vehiclePurchaseOrder = $this->find($data['id']);
+    DB::beginTransaction();
+    try {
+      $vehiclePurchaseOrder = $this->find($data['id']);
 
-    if (isset($data['unit_price']) || isset($data['discount'])) {
-      if (!isset($data['unit_price'])) {
-        $data['unit_price'] = $vehiclePurchaseOrder->unit_price;
+      if (isset($data['unit_price']) || isset($data['discount'])) {
+        if (!isset($data['unit_price'])) {
+          $data['unit_price'] = $vehiclePurchaseOrder->unit_price;
+        }
+        if (!isset($data['discount'])) {
+          $data['discount'] = $vehiclePurchaseOrder->discount;
+        }
+        $data = $this->enrichData($data, false);
       }
-      if (!isset($data['discount'])) {
-        $data['discount'] = $vehiclePurchaseOrder->discount;
+
+      $vehiclePurchaseOrder->update($data);
+
+      // Si la OC tiene NC, despachar job para actualizar en Dynamics
+      if (!empty($vehiclePurchaseOrder->credit_note_dynamics)) {
+        \App\Jobs\UpdatePurchaseOrderWithCreditNoteJob::dispatch($vehiclePurchaseOrder->id);
+        Log::info("Dispatched UpdatePurchaseOrderWithCreditNoteJob for updated PO {$vehiclePurchaseOrder->id} with NC");
       }
-      $data = $this->enrichData($data, false);
+
+      DB::commit();
+      return new VehiclePurchaseOrderResource($vehiclePurchaseOrder);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
     }
-
-    $vehiclePurchaseOrder->update($data);
-    return new VehiclePurchaseOrderResource($vehiclePurchaseOrder);
   }
 
   public function destroy($id)

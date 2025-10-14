@@ -2,10 +2,9 @@
 
 namespace App\Jobs;
 
-use App\Models\ap\comercial\VehiclePurchaseOrder;
-use App\Models\ap\comercial\VehicleMovement;
-use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Http\Services\ap\comercial\VehicleMovementService;
+use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -129,6 +128,9 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
         $movementService = new VehicleMovementService();
         $movementService->storeReturnedVehicleMovement($purchaseOrder->id, $credit_note);
         Log::info("Credit Note Dynamics updated for PO {$purchaseOrder->number}: {$credit_note}");
+
+        // NOTA: El job de actualización en Dynamics se disparará cuando el usuario edite manualmente la OC
+        Log::info("OC {$purchaseOrder->number} marcada con NC. Esperando edición manual para sincronizar con Dynamics.");
       } else {
         Log::info("No credit note found yet for PO {$purchaseOrder->number}");
       }
