@@ -283,7 +283,7 @@ return [
       'unique_key' => 'OrdenCompraId',
       'actions' => [
         'create' => true,
-        'update' => false,
+        'update' => true,
         'delete' => false, // Por ejemplo, no sincronizar eliminaciones
       ],
     ]
@@ -342,7 +342,7 @@ return [
       'unique_key' => 'RecepcionId',
       'actions' => [
         'create' => true,
-        'update' => false,
+        'update' => true,
         'delete' => false, // Por ejemplo, no sincronizar eliminaciones
       ],
     ]
