@@ -142,8 +142,8 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       // CASO 2: OC con factura y migration_status='completed' y tiene NC
       // Verificar si la factura cambió (nueva OC con punto)
       if ($purchaseOrder->migration_status === 'completed' &&
-          !empty($purchaseOrder->credit_note_dynamics) &&
-          $purchaseOrder->invoice_dynamics !== $newInvoice) {
+        !empty($purchaseOrder->credit_note_dynamics) &&
+        $purchaseOrder->invoice_dynamics !== $newInvoice) {
 
         Log::info("Invoice changed detected for PO {$purchaseOrder->number}: {$purchaseOrder->invoice_dynamics} -> {$newInvoice}");
 
@@ -151,7 +151,8 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         $purchaseOrder->update([
           'invoice_dynamics' => $newInvoice,
           'receipt_dynamics' => $newReceipt,
-          'migration_status' => 'updated_with_nc'
+          'migration_status' => 'updated_with_nc',
+          'status' => false, // Marcar OC como anulada
         ]);
 
         Log::info("PO {$purchaseOrder->number} updated with new invoice and marked as 'updated_with_nc'");
