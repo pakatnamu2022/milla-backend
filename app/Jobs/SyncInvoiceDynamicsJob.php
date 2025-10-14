@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -97,7 +98,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
     if (!empty($purchaseOrder->invoice_dynamics)) {
       // Verificar si ya existe un movimiento con estado VEHICULO_EN_TRAVESIA
       $hasInTransitMovement = $purchaseOrder->movements()
-        ->where('ap_vehicle_status_id', \App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus::VEHICULO_EN_TRAVESIA)
+        ->where('ap_vehicle_status_id', ApVehicleStatus::VEHICULO_EN_TRAVESIA)
         ->exists();
 
       if ($hasInTransitMovement) {
@@ -126,7 +127,8 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       if ($result && !empty($result->NumeroDocumento) && !empty($result->NroDocProvDocumento)) {
         // Actualizar el campo invoice_dynamics
         $purchaseOrder->update([
-          'invoice_dynamics' => $result->NumeroDocumento . ' | ' . $result->NroDocProvDocumento
+          'invoice_dynamics' => $result->NroDocProvDocumento,
+          'receipt_dynamics' => $result->NumeroDocumento
         ]);
 
         Log::info("Invoice Dynamics updated for PO {$purchaseOrder->number}: {$result->NumeroDocumento} | {$result->NroDocProvDocumento}");

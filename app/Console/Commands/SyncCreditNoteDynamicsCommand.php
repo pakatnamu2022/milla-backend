@@ -64,6 +64,11 @@ class SyncCreditNoteDynamicsCommand extends Command
       return Command::FAILURE;
     }
 
+    if (empty($purchaseOrder->invoice_dynamics)) {
+      $this->warn("La orden de compra {$purchaseOrder->number} no tiene invoice_dynamics. No se puede sincronizar nota de crédito sin factura.");
+      return Command::SUCCESS;
+    }
+
     $this->info("Sincronizando credit_note_dynamics para OC: {$purchaseOrder->number}");
 
     SyncCreditNoteDynamicsJob::dispatch($purchaseOrder->id);
@@ -73,7 +78,7 @@ class SyncCreditNoteDynamicsCommand extends Command
   }
 
   /**
-   * Sincroniza todas las órdenes pendientes
+   * Sincroniza todas las órdenes pendientes que tienen invoice_dynamics
    */
   protected function syncAllPurchaseOrders(): int
   {
@@ -82,6 +87,8 @@ class SyncCreditNoteDynamicsCommand extends Command
             ->orWhere('credit_note_dynamics', '');
     })
     ->whereNotNull('number')
+    ->whereNotNull('invoice_dynamics')
+    ->where('invoice_dynamics', '!=', '')
     ->count();
 
     if ($count === 0) {

@@ -46,15 +46,19 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
 
   /**
    * Procesa todas las órdenes de compra sin credit_note_dynamics
+   * pero que SÍ tienen invoice_dynamics
    */
   protected function processAllPurchaseOrders(): void
   {
     // Obtener OCs que no tienen credit_note_dynamics o está vacío
+    // pero que SÍ tienen invoice_dynamics (porque sin factura no puede haber NC)
     $purchaseOrders = VehiclePurchaseOrder::where(function ($query) {
       $query->whereNull('credit_note_dynamics')
         ->orWhere('credit_note_dynamics', '');
     })
       ->whereNotNull('number')
+      ->whereNotNull('invoice_dynamics')
+      ->where('invoice_dynamics', '!=', '')
       ->get();
 
     if ($purchaseOrders->isEmpty()) {
@@ -89,6 +93,12 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
 
     if (!$purchaseOrder->number) {
       Log::warning("Purchase order {$purchaseOrderId} has no number, skipping");
+      return;
+    }
+
+    // Si no tiene invoice_dynamics, no puede tener nota de crédito
+    if (empty($purchaseOrder->invoice_dynamics)) {
+      Log::info("Purchase order {$purchaseOrder->number} has no invoice_dynamics, skipping credit note sync");
       return;
     }
 
