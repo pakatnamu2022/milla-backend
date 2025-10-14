@@ -9,6 +9,7 @@ use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
 use App\Http\Controllers\ap\comercial\VehicleVNController;
 use App\Http\Controllers\ap\postventa\ApprovedAccessoriesController;
+use App\Http\Controllers\Dashboard\DashboardComercialController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\DocumentValidationController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
@@ -745,6 +746,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/orders', [VehiclePurchaseOrderMigrationController::class, 'index']);
         Route::get('/{id}/logs', [VehiclePurchaseOrderMigrationController::class, 'logs']);
         Route::get('/{id}/history', [VehiclePurchaseOrderMigrationController::class, 'history']);
+      });
+
+      // DASHBOARD - Indicadores Comerciales
+      Route::group(['prefix' => 'dashboard'], function () {
+        Route::get('/indicators/by-date-range', [DashboardComercialController::class, 'getTotalsByDateRange']);
+        Route::get('/indicators/by-sede', [DashboardComercialController::class, 'getTotalsBySede']);
+        Route::get('/indicators/by-sede-and-brand', [DashboardComercialController::class, 'getTotalsBySedeAndBrand']);
+        Route::get('/indicators/by-advisor', [DashboardComercialController::class, 'getTotalsByAdvisor']);
       });
     });
 
