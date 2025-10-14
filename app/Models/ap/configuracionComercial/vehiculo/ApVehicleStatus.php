@@ -30,8 +30,15 @@ class ApVehicleStatus extends Model
     'description',
   ];
 
-  const PEDIDO_VN = 28;
-  const VEHICULO_EN_TRAVESIA = 38;
+  const USE_VENTAS = 'VENTAS';
+  const USE_TALLER = 'TALLER';
+
+  const PEDIDO_VN = 1;
+  const VEHICULO_EN_TRAVESIA = 2;
+  const VEHICULO_TRANSITO_DEVUELTO = 3;
+  const VENDIDO_NO_ENTREGADO = 4;
+  const INVENTARIO_VN = 5;
+  const VENDIDO_ENTREGADO = 6;
 
   public function setCodeAttribute($value)
   {
