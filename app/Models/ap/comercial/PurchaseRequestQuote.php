@@ -19,18 +19,24 @@ class PurchaseRequestQuote extends Model
   protected $table = 'purchase_request_quote';
 
   protected $fillable = [
+    'correlative',
     'type_document',
     'type_vehicle',
     'quote_deadline',
     'exchange_rate_id',
-    'subtotal',
-    'total',
+    'base_selling_price',
+    'sale_price',
+    'doc_sale_price',
     'comment',
+    'is_invoiced',
+    'is_approved',
+    'warranty',
     'opportunity_id',
     'holder_id',
     'vehicle_color_id',
     'ap_models_vn_id',
     'ap_vehicle_purchase_order_id',
+    'type_currency_id',
     'doc_type_currency_id',
   ];
 
@@ -39,14 +45,16 @@ class PurchaseRequestQuote extends Model
     'type_vehicle' => '=',
     'quote_deadline' => '=',
     'exchange_rate_id' => '=',
-    'subtotal' => '=',
-    'total' => '=',
+    'base_selling_price' => '=',
+    'sale_price' => '=',
     'opportunity_id' => '=',
     'holder_id' => '=',
     'vehicle_color_id' => '=',
     'ap_models_vn_id' => '=',
     'ap_vehicle_purchase_order_id' => '=',
     'doc_type_currency_id' => '=',
+    'is_invoiced' => '=',
+    'is_approved' => '=',
   ];
 
   const sorts = [
@@ -62,9 +70,21 @@ class PurchaseRequestQuote extends Model
     }
   }
 
+  public function setWarrantyAttribute($value): void
+  {
+    if ($value) {
+      $this->attributes['warranty'] = Str::upper($value);
+    }
+  }
+
   public function discountCoupons()
   {
     return $this->hasMany(DiscountCoupons::class, 'purchase_request_quote_id');
+  }
+
+  public function accessories(): HasMany
+  {
+    return $this->hasMany(DetailsApprovedAccessoriesQuote::class, 'purchase_request_quote_id');
   }
 
   public function vehicleColor(): BelongsTo
@@ -77,6 +97,11 @@ class PurchaseRequestQuote extends Model
     return $this->belongsTo(TypeCurrency::class, 'doc_type_currency_id');
   }
 
+  public function typeCurrency(): BelongsTo
+  {
+    return $this->belongsTo(TypeCurrency::class, 'type_currency_id');
+  }
+
   public function apModelsVn(): BelongsTo
   {
     return $this->belongsTo(ApModelsVn::class, 'ap_models_vn_id');
@@ -84,7 +109,7 @@ class PurchaseRequestQuote extends Model
 
   public function vehicleVn(): BelongsTo
   {
-    return $this->belongsTo(VehicleVn::class, 'vehicle_vn_id');
+    return $this->belongsTo(VehiclePurchaseOrder::class, 'vehicle_vn_id');
   }
 
   public function oportunity(): BelongsTo

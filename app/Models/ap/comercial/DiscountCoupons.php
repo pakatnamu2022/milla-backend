@@ -15,6 +15,7 @@ class DiscountCoupons extends Model
 
   protected $fillable = [
     'description',
+    'type',
     'percentage',
     'amount',
     'concept_code_id',
@@ -24,6 +25,7 @@ class DiscountCoupons extends Model
   const filter = [
     'concept_code_id' => '=',
     'purchase_request_quote_id' => '=',
+    'type' => '=',
   ];
 
   const sorts = [

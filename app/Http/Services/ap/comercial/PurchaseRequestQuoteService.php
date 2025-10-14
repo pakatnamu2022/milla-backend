@@ -5,7 +5,14 @@ namespace App\Http\Services\ap\comercial;
 use App\Http\Resources\ap\comercial\PurchaseRequestQuoteResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Constants;
+use App\Models\ap\comercial\DetailsApprovedAccessoriesQuote;
+use App\Models\ap\comercial\DiscountCoupons;
 use App\Models\ap\comercial\PurchaseRequestQuote;
+use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\postventa\ApprovedAccessories;
+use App\Models\gp\maestroGeneral\ExchangeRate;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -34,9 +41,47 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
   public function store(mixed $data)
   {
-    $data['ap_vehicle_status_id'] = 28;
-    $PurchaseRequestQuote = PurchaseRequestQuote::create($data);
-    return new PurchaseRequestQuoteResource($PurchaseRequestQuote);
+    return DB::transaction(function () use ($data) {
+      // Obtener el exchange_rate_id según la moneda del documento
+      $exchangeRateId = $this->getExchangeRateId($data['doc_type_currency_id']);
+
+      // Generar el correlativo
+      $correlative = $this->nextCorrelativeField(PurchaseRequestQuote::class, 'correlative', 8);
+
+      // Preparar datos para crear el PurchaseRequestQuote
+      $quoteData = [
+        'correlative' => $correlative,
+        'type_document' => $data['type_document'],
+        'opportunity_id' => $data['opportunity_id'],
+        'comment' => $data['comment'] ?? null,
+        'warranty' => $data['warranty'] ?? null,
+        'holder_id' => $data['holder_id'],
+        'vehicle_color_id' => $data['vehicle_color_id'],
+        'ap_models_vn_id' => $data['ap_models_vn_id'],
+        'ap_vehicle_purchase_order_id' => $data['ap_vehicle_purchase_order_id'] ?? null,
+        'type_currency_id' => $data['type_currency_id'],
+        'doc_type_currency_id' => $data['doc_type_currency_id'],
+        'exchange_rate_id' => $exchangeRateId,
+        'base_selling_price' => $data['base_selling_price'],
+        'sale_price' => $data['sale_price'],
+        'doc_sale_price' => $data['doc_sale_price'],
+      ];
+
+      // Crear el registro principal
+      $purchaseRequestQuote = PurchaseRequestQuote::create($quoteData);
+
+      // Guardar bonus_discounts en DiscountCoupons
+      if (isset($data['bonus_discounts']) && is_array($data['bonus_discounts'])) {
+        $this->saveBonusDiscounts($purchaseRequestQuote->id, $data['bonus_discounts'], $data['sale_price']);
+      }
+
+      // Guardar accessories en DetailsApprovedAccessoriesQuote
+      if (isset($data['accessories']) && is_array($data['accessories'])) {
+        $this->saveAccessories($purchaseRequestQuote->id, $data['accessories']);
+      }
+
+      return new PurchaseRequestQuoteResource($purchaseRequestQuote);
+    });
   }
 
   public function show($id)
@@ -46,9 +91,42 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
   public function update(mixed $data)
   {
-    $PurchaseRequestQuote = $this->find($data['id']);
-    $PurchaseRequestQuote->update($data);
-    return new PurchaseRequestQuoteResource($PurchaseRequestQuote);
+    return DB::transaction(function () use ($data) {
+      $purchaseRequestQuote = $this->find($data['id']);
+
+      // Si se actualiza la moneda del documento, actualizar el exchange_rate_id
+      if (isset($data['doc_type_currency_id'])) {
+        $data['exchange_rate_id'] = $this->getExchangeRateId($data['doc_type_currency_id']);
+      }
+
+      // Actualizar el registro principal
+      $purchaseRequestQuote->update($data);
+
+      // Si se envían bonus_discounts, reemplazar los existentes
+      if (isset($data['bonus_discounts'])) {
+        // Eliminar los descuentos existentes
+        DiscountCoupons::where('purchase_request_quote_id', $purchaseRequestQuote->id)->delete();
+
+        // Crear los nuevos descuentos si el array no está vacío
+        if (is_array($data['bonus_discounts']) && count($data['bonus_discounts']) > 0) {
+          $salePrice = $data['sale_price'];
+          $this->saveBonusDiscounts($purchaseRequestQuote->id, $data['bonus_discounts'], $salePrice);
+        }
+      }
+
+      // Si se envían accessories, reemplazar los existentes
+      if (isset($data['accessories'])) {
+        // Eliminar los accesorios existentes
+        DetailsApprovedAccessoriesQuote::where('purchase_request_quote_id', $purchaseRequestQuote->id)->delete();
+
+        // Crear los nuevos accesorios si el array no está vacío
+        if (is_array($data['accessories']) && count($data['accessories']) > 0) {
+          $this->saveAccessories($purchaseRequestQuote->id, $data['accessories']);
+        }
+      }
+
+      return new PurchaseRequestQuoteResource($purchaseRequestQuote->fresh());
+    });
   }
 
   public function destroy($id)
@@ -58,5 +136,135 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $PurchaseRequestQuote->delete();
     });
     return response()->json(['message' => 'Registro eliminado correctamente']);
+  }
+
+  public function generateReportPDF($data)
+  {
+    $purchaseRequestQuote = $this->find($data['id']);
+    $dataResource = new PurchaseRequestQuoteResource($purchaseRequestQuote);
+    $dataArray = $dataResource->resolve();
+    $isPersonJuridica = $purchaseRequestQuote->oportunity->client->type_person_id === Constants::TYPE_PERSON_JURIDICA_ID;
+    // Agregar datos adicionales directamente al array
+    $dataArray['num_doc_client'] = $purchaseRequestQuote->oportunity->client->num_doc ?? null;
+    $dataArray['birth_date'] = ($isPersonJuridica) ? '- / - / -' : ($purchaseRequestQuote->oportunity->client->birth_date ?? '- / - / -');
+    $dataArray['marital_status'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->oportunity->client->maritalStatus->description ?? '-');
+    $dataArray['spouse_full_name'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->oportunity->client->spouse_full_name ?? '-');
+    $dataArray['spouse_num_doc'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->oportunity->client->spouse_num_doc ?? '-');
+    $dataArray['legal_representative'] = $purchaseRequestQuote->oportunity->client->legal_representative_full_name ?? '-';
+    $dataArray['dni_legal_representative'] = $purchaseRequestQuote->oportunity->client->legal_representative_num_doc ?? '-';
+    $dataArray['address'] = $purchaseRequestQuote->oportunity->client->direction ?? null;
+    $dataArray['email'] = $purchaseRequestQuote->oportunity->client->email ?? null;
+    $dataArray['phone'] = $purchaseRequestQuote->oportunity->client->phone ?? null;
+    $dataArray['class'] = $purchaseRequestQuote->apModelsVn->classArticle->description ?? null;
+    $dataArray['brand'] = $purchaseRequestQuote->apModelsVn->family->brand->name ?? null;
+    $dataArray['engine_number'] = $purchaseRequestQuote->vehicleVn->engine_number ?? null;
+    $dataArray['vin'] = $purchaseRequestQuote->vehicleVn->vin ?? null;
+    $dataArray['model_year'] = $purchaseRequestQuote->apModelsVn->model_year ?? null;
+    $dataArray['selling_price_soles'] = round($purchaseRequestQuote->sale_price * ($purchaseRequestQuote->exchangeRate->rate ?? 1), 2);
+
+    $pdf = PDF::loadView('reports.ap.comercial.request-purchase-quote', ['quote' => $dataArray]);
+
+    // Configurar PDF
+    $pdf->setOptions([
+      'defaultFont' => 'Arial',
+      'isHtml5ParserEnabled' => true,
+      'isRemoteEnabled' => false,
+      'dpi' => 96,
+    ]);
+
+    return $pdf;
+  }
+
+  /**
+   * Obtiene el exchange_rate_id según la moneda del documento
+   */
+  private function getExchangeRateId($docTypeCurrencyId)
+  {
+    // Si la moneda es PEN (Sol Peruano), no necesita exchange_rate
+    if ($docTypeCurrencyId == TypeCurrency::PEN_ID) {
+      return null;
+    }
+
+    // Para USD, buscar el exchange_rate de hoy de PEN a USD
+    if ($docTypeCurrencyId == TypeCurrency::USD_ID) {
+      $exchangeRate = ExchangeRate::todayUSD();
+      if (!$exchangeRate) {
+        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      }
+      return $exchangeRate->id;
+    }
+
+    // Para EUR u otras monedas, buscar el exchange_rate de hoy
+    $exchangeRate = ExchangeRate::where('from_currency_id', TypeCurrency::PEN_ID)
+      ->where('to_currency_id', $docTypeCurrencyId)
+      ->where('date', date('Y-m-d'))
+      ->where('type', ExchangeRate::TYPE_VENTA)
+      ->orderBy('created_at', 'desc')
+      ->first();
+
+    if (!$exchangeRate) {
+      throw new Exception('No se ha registrado la tasa de cambio para la moneda seleccionada en la fecha de hoy.');
+    }
+
+    return $exchangeRate->id;
+  }
+
+  /**
+   * Guarda los bonus_discounts en la tabla DiscountCoupons
+   */
+  private function saveBonusDiscounts($purchaseRequestQuoteId, $bonusDiscounts, $salePrice)
+  {
+    foreach ($bonusDiscounts as $discount) {
+      $percentage = 0;
+      $amount = 0;
+
+      if ($discount['type'] === 'FIJO') {
+        // Si es monto fijo, guardar en amount y calcular el porcentaje
+        $amount = $discount['value'];
+        $percentage = ($salePrice > 0) ? ($amount / $salePrice) * 100 : 0;
+      } elseif ($discount['type'] === 'PORCENTAJE') {
+        // Si es porcentaje, guardar en percentage y calcular el monto
+        $percentage = $discount['value'];
+        $amount = ($salePrice * $percentage) / 100;
+      }
+
+      DiscountCoupons::create([
+        'description' => $discount['description'],
+        'type' => $discount['type'],
+        'percentage' => $percentage,
+        'amount' => $amount,
+        'concept_code_id' => $discount['concept_id'],
+        'purchase_request_quote_id' => $purchaseRequestQuoteId,
+      ]);
+    }
+  }
+
+  /**
+   * Guarda los accesorios en la tabla DetailsApprovedAccessoriesQuote
+   */
+  private function saveAccessories($purchaseRequestQuoteId, $accessories)
+  {
+    foreach ($accessories as $accessory) {
+      // Obtener el accesorio aprobado para obtener su precio y moneda
+      $approvedAccessory = ApprovedAccessories::find($accessory['accessory_id']);
+
+      if (!$approvedAccessory) {
+        throw new Exception('Accesorio con ID ' . $accessory['accessory_id'] . ' no encontrado.');
+      }
+
+      $type = $accessory['type'];
+      $quantity = $accessory['quantity'];
+      $price = $approvedAccessory->price;
+      $total = $quantity * $price;
+
+      DetailsApprovedAccessoriesQuote::create([
+        'approved_accessory_id' => $accessory['accessory_id'],
+        'type' => $type,
+        'quantity' => $quantity,
+        'price' => $price,
+        'total' => $total,
+        'purchase_request_quote_id' => $purchaseRequestQuoteId,
+      ]);
+    }
   }
 }

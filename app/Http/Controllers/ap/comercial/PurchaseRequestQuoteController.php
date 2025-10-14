@@ -7,6 +7,7 @@ use App\Http\Requests\ap\comercial\IndexPurchaseRequestQuoteRequest;
 use App\Http\Requests\ap\comercial\StorePurchaseRequestQuoteRequest;
 use App\Http\Requests\ap\comercial\UpdatePurchaseRequestQuoteRequest;
 use App\Http\Services\ap\comercial\PurchaseRequestQuoteService;
+use Illuminate\Http\Request;
 
 class PurchaseRequestQuoteController extends Controller
 {
@@ -59,6 +60,23 @@ class PurchaseRequestQuoteController extends Controller
   {
     try {
       return $this->service->destroy($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function reportPDF(Request $request, $id)
+  {
+    try {
+      $data = $request->all();
+      $data['id'] = $id;
+
+      $pdf = $this->service->generateReportPDF($data);
+
+      $filename = "metas.pdf";
+
+      return $pdf->download($filename);
+
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
