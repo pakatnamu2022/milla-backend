@@ -430,6 +430,12 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
       // No copiar campos de NC de la original
       $newPOData['credit_note_dynamics'] = null;
 
+      // Calcular campos que normalmente se calculan en enrichData cuando $isCreate = true
+      // porque estamos creando una nueva OC
+      $newPOData['ap_vehicle_status_id'] = ApVehicleStatus::PEDIDO_VN;
+      $exchangeRateService = new ExchangeRateService();
+      $newPOData['exchange_rate_id'] = $exchangeRateService->getCurrentUSDRate()->id;
+
       // Enriquecer datos (calcular precios)
       $newPOData = $this->enrichData($newPOData, false);
 

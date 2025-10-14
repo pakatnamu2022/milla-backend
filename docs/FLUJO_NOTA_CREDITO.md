@@ -52,22 +52,41 @@ Status: true (activa)
   "year": 2024,
   "unit_price": 50000,
   "discount": 1000,
-  ... // Datos corregidos
+  "ap_models_vn_id": 1,
+  "vehicle_color_id": 2,
+  "supplier_order_type_id": 3,
+  "engine_type_id": 4,
+  "sede_id": 14,
+  "invoice_series": "F001",
+  "invoice_number": "00123456",
+  "emission_date": "2024-10-14",
+  "supplier_id": 5,
+  "currency_id": 1,
+  "warehouse_id": 1,
+  "warehouse_physical_id": 2,
+  "engine_number": "ABC123"
+  ... // Todos los campos de la OC original (pueden ser corregidos)
 }
 ```
 
+**Campos calculados automáticamente por el backend:**
+- `number`: OC1400000001. (número original + punto)
+- `number_guide`: NI1400000001. (guía original + punto)
+- `original_purchase_order_id`: ID de la OC anulada
+- `status`: true (activa)
+- `migration_status`: 'pending'
+- `credit_note_dynamics`: null
+- `ap_vehicle_status_id`: PEDIDO_VN (valor inicial)
+- `exchange_rate_id`: Tasa de cambio USD actual
+- `subtotal`, `igv`, `total`: Calculados a partir de unit_price y discount
+
 **Backend automáticamente:**
 1. Valida que tenga `credit_note_dynamics` y `status=false`
-2. Crea nueva OC con:
-   ```
-   number: OC1400000001.  (con punto)
-   number_guide: NI1400000001.  (con punto)
-   original_purchase_order_id: 123
-   status: true
-   migration_status: 'pending'
-   ```
-3. Sincroniza a tabla intermedia (`dbtp`) **con los números con punto**
-4. Dynamics procesa normalmente
+2. Valida que no haya sido reenviada previamente
+3. Marca la OC original como `resent=true`
+4. Crea nueva OC con punto (.) en number y number_guide
+5. Sincroniza a tabla intermedia (`dbtp`) **con los números con punto**
+6. Dynamics procesa normalmente
 
 ---
 
