@@ -45,11 +45,11 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     if ($isCreate) {
       $data['number'] =
         $this->nextCorrelativeQuery(Sede::where('id', $data['sede_id']), 'id', 2) .
-        $this->nextCorrelativeCount(VehiclePurchaseOrder::class, 8, ['sede_id' => $data['sede_id']]);
+        $this->nextCorrelativeCount(VehiclePurchaseOrder::class, 8, ['sede_id' => $data['sede_id'], 'status' => true]);
 
       $data['number_guide'] =
         $this->nextCorrelativeQuery(Sede::where('id', $data['sede_id']), 'id', 2) .
-        $this->nextCorrelativeCount(VehiclePurchaseOrder::class, 8, ['sede_id' => $data['sede_id']]);
+        $this->nextCorrelativeCount(VehiclePurchaseOrder::class, 8, ['sede_id' => $data['sede_id'], 'status' => true]);
 
       $data['ap_vehicle_status_id'] = ApVehicleStatus::PEDIDO_VN;
       $exchangeRateService = new ExchangeRateService();
