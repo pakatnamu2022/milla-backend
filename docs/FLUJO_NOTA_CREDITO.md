@@ -160,12 +160,31 @@ Credit Note Dynamics updated for PO OC1400000001: NC-00123
 
 ## Frontend - Condición para Mostrar "Reenviar"
 
+**Condición correcta (4 validaciones):**
 ```javascript
-if (purchaseOrder.status === false && purchaseOrder.credit_note_dynamics) {
-  // Mostrar botón "Reenviar"
-  // Cargar datos de la OC original
+if (
+  purchaseOrder.po_status === false &&              // OC anulada
+  purchaseOrder.credit_note_dynamics &&             // Tiene NC
+  purchaseOrder.migration_status === 'updated_with_nc' &&  // Factura cambió
+  purchaseOrder.resent === false                    // NO ha sido reenviada
+) {
+  // ✅ Habilitar botón "Reenviar"
+  // Cargar datos de la OC original para edición
 }
 ```
+
+**Estados durante el proceso:**
+
+| Momento | po_status | credit_note_dynamics | migration_status | resent | Botón |
+|---------|-----------|---------------------|------------------|--------|-------|
+| 1. OC migrada | `true` | `null` | `completed` | `false` | ❌ No |
+| 2. Se detecta NC | `false` | `NC-00123` | `completed` | `false` | ❌ No (aún no lista) |
+| 3. Factura cambia | `false` | `NC-00123` | `updated_with_nc` | `false` | ✅ **Sí** |
+| 4. Usuario reenvía | `false` | `NC-00123` | `updated_with_nc` | **`true`** | ❌ No (ya reenviada) |
+
+**Razones:**
+1. Esperamos a que Dynamics elimine el dato tributario (`updated_with_nc`)
+2. El campo `resent` evita reenvíos múltiples de la misma OC
 
 ---
 

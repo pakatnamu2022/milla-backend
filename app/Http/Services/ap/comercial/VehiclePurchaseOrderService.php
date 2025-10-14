@@ -398,7 +398,18 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
         throw new Exception("La orden de compra {$originalPO->number} no está anulada. No puede ser reenviada.");
       }
 
+      // Validar que no haya sido reenviada previamente
+      $alreadyResent = VehiclePurchaseOrder::where('original_purchase_order_id', $originalPO->id)
+        ->exists();
+
+      if ($alreadyResent) {
+        throw new Exception("La orden de compra {$originalPO->number} ya ha sido reenviada previamente. No se puede reenviar nuevamente.");
+      }
+
       Log::info("Reenviando OC anulada {$originalPO->number} con datos corregidos");
+
+      // Marcar la OC original como reenviada
+      $originalPO->update(['resent' => true]);
 
       // Preparar datos para la nueva OC
       $newPOData = $data;

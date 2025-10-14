@@ -44,6 +44,8 @@ class VehiclePurchaseOrderResource extends JsonResource
       'receipt_dynamics' => $this->receipt_dynamics,
       'credit_note_dynamics' => $this->credit_note_dynamics,
       'po_status' => $this->status, // Boolean: true=activa, false=anulada
+      'migration_status' => $this->migration_status, // Estado de migración
+      'resent' => $this->resent, // Boolean: true=ya reenviada, false=no reenviada
 
       // Relations
       'supplier' => $this->supplier->full_name,

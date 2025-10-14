@@ -59,12 +59,14 @@ class VehiclePurchaseOrder extends Model
     'credit_note_dynamics',
     'migration_status',
     'migrated_at',
+    'resent',
 
   ];
 
   protected $casts = [
     'migrated_at' => 'datetime',
     'status' => 'boolean',
+    'resent' => 'boolean',
   ];
 
   const filters = [
@@ -85,12 +87,22 @@ class VehiclePurchaseOrder extends Model
 
   public function setNumberAttribute($value)
   {
-    $this->attributes['number'] = 'OC' . $value;
+    // Si el valor ya empieza con 'OC', no agregar el prefijo nuevamente
+    if (str_starts_with($value, 'OC')) {
+      $this->attributes['number'] = $value;
+    } else {
+      $this->attributes['number'] = 'OC' . $value;
+    }
   }
 
   public function setNumberGuideAttribute($value)
   {
-    $this->attributes['number_guide'] = 'NI' . $value;
+    // Si el valor ya empieza con 'NI', no agregar el prefijo nuevamente
+    if (str_starts_with($value, 'NI')) {
+      $this->attributes['number_guide'] = $value;
+    } else {
+      $this->attributes['number_guide'] = 'NI' . $value;
+    }
   }
 
   public function getModelCodeAttribute(): string
