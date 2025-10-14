@@ -3,6 +3,9 @@
 namespace App\Jobs;
 
 use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Http\Services\ap\comercial\VehicleMovementService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -117,9 +120,12 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
       if ($result && !empty($result->DocumentoNumero)) {
         // Actualizar el campo credit_note_dynamics
         $purchaseOrder->update([
-          'credit_note_dynamics' => $result->DocumentoNumero
+          'credit_note_dynamics' => $result->DocumentoNumero,
+          'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
         ]);
-
+        // Crear movimiento usando el servicio
+        $movementService = new VehicleMovementService();
+        $movementService->storeReturnedVehicleMovement($purchaseOrder->id, $result->DocumentoNumero);
         Log::info("Credit Note Dynamics updated for PO {$purchaseOrder->number}: {$result->DocumentoNumero}");
       } else {
         Log::info("No credit note found yet for PO {$purchaseOrder->number}");

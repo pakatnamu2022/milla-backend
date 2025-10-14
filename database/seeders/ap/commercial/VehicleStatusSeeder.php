@@ -16,36 +16,37 @@ class VehicleStatusSeeder extends Seeder
   {
     $data = [
       [
-        'code' => 'PEDIDO_VN',
+        'code' => 'PVN',
         'description' => 'Pedido VN',
         'color' => '#3B82F6'
       ],
       [
-        'code' => 'VEHICULO_TRANSITO',
-        'description' => 'Vehículo en Tránsito (Asocia la factura en Dynamics)',
+        'code' => 'VTR',
+        'description' => 'Vehículo en Tránsito',
         'color' => '#F59E0B'
       ],
       [
-        'code' => 'VEHICULO_TRANSITO_DEVUELTO',
-        'description' => 'Vehículo en Tránsito Devuelto (Devolución de PDI)',
+        'code' => 'VTD',
+        'description' => 'Vehículo en Tránsito Devuelto',
         'color' => '#F97316'
       ],
       [
-        'code' => 'VENDIDO_NO_ENTREGADO',
+        'code' => 'VNE',
         'description' => 'Vehículo Vendido No Entregado',
         'color' => '#8B5CF6'
       ],
       [
-        'code' => 'INVENTARIO_VN',
-        'description' => 'Inventario VN (Recepción con PDI)',
+        'code' => 'IVN',
+        'description' => 'Inventario VN',
         'color' => '#10B981'
       ],
       [
-        'code' => 'VENDIDO_ENTREGADO',
+        'code' => 'VEN',
         'description' => 'Vehículo Vendido Entregado',
         'color' => '#059669'
       ]
     ];
+
     DB::statement('SET FOREIGN_KEY_CHECKS=0;');
     ApVehicleStatus::truncate();
     DB::statement('SET FOREIGN_KEY_CHECKS=1;');
