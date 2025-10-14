@@ -140,7 +140,7 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
         'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
         'ap_vehicle_purchase_order_id' => $vehiclePurchaseOrder->id,
         'movement_date' => now(),
-        'observation' => 'Vehículo devuelto por NC' . ($creditNote ? ' - NC: ' . $creditNote : ''),
+        'observation' => 'Vehículo devuelto por NC: ' . ($creditNote ?? ''),
       ]);
       $vehiclePurchaseOrder->update([
         'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
