@@ -80,9 +80,7 @@ class SyncInvoiceDynamicsCommand extends Command
     $count = VehiclePurchaseOrder::where(function ($query) {
       $query->whereNull('invoice_dynamics')
         ->orWhere('invoice_dynamics', '');
-    })
-      ->whereNotNull('number')
-      ->count();
+    })->whereNotNull('number')->count();
 
     if ($count === 0) {
       $this->info('No hay órdenes de compra pendientes de sincronizar invoice_dynamics');

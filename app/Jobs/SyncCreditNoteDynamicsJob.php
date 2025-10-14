@@ -118,15 +118,17 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
       $result = $this->consultStoredProcedure($purchaseOrder->number);
 
       if ($result && !empty($result->DocumentoNumero)) {
+        $credit_note = trim($result->DocumentoNumero);
+
         // Actualizar el campo credit_note_dynamics
         $purchaseOrder->update([
-          'credit_note_dynamics' => $result->DocumentoNumero,
+          'credit_note_dynamics' => $credit_note,
           'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
         ]);
         // Crear movimiento usando el servicio
         $movementService = new VehicleMovementService();
-        $movementService->storeReturnedVehicleMovement($purchaseOrder->id, $result->DocumentoNumero);
-        Log::info("Credit Note Dynamics updated for PO {$purchaseOrder->number}: {$result->DocumentoNumero}");
+        $movementService->storeReturnedVehicleMovement($purchaseOrder->id, $credit_note);
+        Log::info("Credit Note Dynamics updated for PO {$purchaseOrder->number}: {$credit_note}");
       } else {
         Log::info("No credit note found yet for PO {$purchaseOrder->number}");
       }
