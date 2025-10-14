@@ -25,6 +25,11 @@ return new class extends Migration {
         ->nullable()
         ->after('migration_status')
         ->comment('Número de nota de crédito en el sistema Dynamics');
+
+      $table->boolean('status')
+        ->default(true)
+        ->after('migration_status')
+        ->comment('Estado de la OC: true=activa, false=anulada (con NC)');
     });
   }
 
@@ -34,7 +39,7 @@ return new class extends Migration {
   public function down(): void
   {
     Schema::table('ap_vehicle_purchase_order', function (Blueprint $table) {
-      $table->dropColumn(['invoice_dynamics', 'receipt_dynamics', 'credit_note_dynamics']);
+      $table->dropColumn(['invoice_dynamics', 'receipt_dynamics', 'credit_note_dynamics', 'status']);
     });
   }
 };

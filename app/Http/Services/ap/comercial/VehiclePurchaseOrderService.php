@@ -293,6 +293,59 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     try {
       $vehiclePurchaseOrder = $this->find($data['id']);
 
+      // Si la OC tiene NC, crear una nueva OC con punto en vez de actualizar
+      if (!empty($vehiclePurchaseOrder->credit_note_dynamics)) {
+        Log::info("OC {$vehiclePurchaseOrder->id} tiene NC, creando nueva OC con punto");
+
+        // Crear nueva OC basada en los datos actualizados
+        $newPOData = array_merge($vehiclePurchaseOrder->toArray(), $data);
+        unset($newPOData['id']); // Quitar el ID para crear nuevo registro
+        unset($newPOData['created_at']);
+        unset($newPOData['updated_at']);
+        unset($newPOData['deleted_at']);
+
+        // Agregar punto al número y guía automáticamente
+        $newPOData['number'] = $vehiclePurchaseOrder->number . '.';
+        $newPOData['number_guide'] = $vehiclePurchaseOrder->number_guide . '.';
+        $newPOData['migration_status'] = 'pending';
+        $newPOData['original_purchase_order_id'] = $vehiclePurchaseOrder->id; // CLAVE: Vincular con la original
+
+        // Recalcular precios si fueron modificados
+        if (isset($data['unit_price']) || isset($data['discount'])) {
+          if (!isset($data['unit_price'])) {
+            $newPOData['unit_price'] = $vehiclePurchaseOrder->unit_price;
+          }
+          if (!isset($data['discount'])) {
+            $newPOData['discount'] = $vehiclePurchaseOrder->discount;
+          }
+          $newPOData = $this->enrichData($newPOData, false);
+        }
+
+        // Crear la nueva OC
+        $newPurchaseOrder = VehiclePurchaseOrder::create($newPOData);
+
+        // Crear movimiento para la nueva OC
+        $vehicleMovementService = new VehicleMovementService();
+        $vehicleMovementService->storeRequestedVehicleMovement($newPurchaseOrder->id);
+
+        // Crear logs de migración
+        $this->createInitialMigrationLogs($newPurchaseOrder);
+
+        Log::info("Nueva OC creada con punto: {$newPurchaseOrder->number} (ID: {$newPurchaseOrder->id})");
+
+        // Sincronizar la nueva OC (que actualizará la intermedia en vez de insertar)
+        $this->validateAndSyncBeforeSending($newPurchaseOrder);
+        $this->syncPurchaseOrder($newPurchaseOrder);
+
+        // Despachar job de verificación
+        \App\Jobs\VerifyAndMigratePurchaseOrderJob::dispatch($newPurchaseOrder->id)
+          ->delay(now()->addSeconds(30));
+
+        DB::commit();
+        return new VehiclePurchaseOrderResource($newPurchaseOrder);
+      }
+
+      // Flujo normal: actualizar OC sin NC
       if (isset($data['unit_price']) || isset($data['discount'])) {
         if (!isset($data['unit_price'])) {
           $data['unit_price'] = $vehiclePurchaseOrder->unit_price;
@@ -305,11 +358,6 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
 
       $vehiclePurchaseOrder->update($data);
 
-      // Si la OC tiene NC, despachar job para actualizar en Dynamics
-      if (!empty($vehiclePurchaseOrder->credit_note_dynamics)) {
-        \App\Jobs\UpdatePurchaseOrderWithCreditNoteJob::dispatch($vehiclePurchaseOrder->id);
-        Log::info("Dispatched UpdatePurchaseOrderWithCreditNoteJob for updated PO {$vehiclePurchaseOrder->id} with NC");
-      }
 
       DB::commit();
       return new VehiclePurchaseOrderResource($vehiclePurchaseOrder);

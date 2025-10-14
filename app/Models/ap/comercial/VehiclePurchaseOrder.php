@@ -25,13 +25,14 @@ class VehiclePurchaseOrder extends Model
     'vin',
     'year',
     'engine_number',
-    'status',
+    'status', // Boolean: true=activa, false=anulada
     'ap_models_vn_id',
     'vehicle_color_id',
     'supplier_order_type_id',
     'engine_type_id',
     'ap_vehicle_status_id',
     'sede_id',
+    'original_purchase_order_id',
 
 //    Invoice
     'invoice_series',
@@ -63,6 +64,7 @@ class VehiclePurchaseOrder extends Model
 
   protected $casts = [
     'migrated_at' => 'datetime',
+    'status' => 'boolean',
   ];
 
   const filters = [

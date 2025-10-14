@@ -23,7 +23,8 @@ class UpdatePurchaseOrderWithCreditNoteJob implements ShouldQueue
    * Create a new job instance.
    */
   public function __construct(
-    public int $purchaseOrderId
+    public int $purchaseOrderId,
+    public int $newPurchaseOrderId
   )
   {
     $this->onQueue('sync');
@@ -31,44 +32,44 @@ class UpdatePurchaseOrderWithCreditNoteJob implements ShouldQueue
 
   /**
    * Execute the job.
-   * Actualiza una OC que tiene NC, agregando punto al final de number y number_guide
-   * y actualizando los registros en Dynamics (no creando nuevos)
+   * Actualiza los registros en la tabla intermedia apuntando a la nueva OC (con punto)
+   * NO crea nuevos registros, ACTUALIZA los existentes
    */
   public function handle(DatabaseSyncService $syncService): void
   {
     try {
-      $purchaseOrder = VehiclePurchaseOrder::with(['supplier', 'model'])->find($this->purchaseOrderId);
+      $originalPO = VehiclePurchaseOrder::find($this->purchaseOrderId);
+      $newPO = VehiclePurchaseOrder::with(['supplier', 'model'])->find($this->newPurchaseOrderId);
 
-      if (!$purchaseOrder) {
-        Log::error("Purchase order not found: {$this->purchaseOrderId}");
+      if (!$originalPO || !$newPO) {
+        Log::error("Purchase orders not found: original={$this->purchaseOrderId}, new={$this->newPurchaseOrderId}");
         return;
       }
 
-      // Verificar que tenga NC
-      if (empty($purchaseOrder->credit_note_dynamics)) {
-        Log::warning("Purchase order {$purchaseOrder->id} does not have credit note, skipping update");
+      // Verificar que la original tenga NC
+      if (empty($originalPO->credit_note_dynamics)) {
+        Log::warning("Original PO {$originalPO->id} does not have credit note, skipping");
         return;
       }
 
-      Log::info("Processing purchase order update with credit note: {$purchaseOrder->number}");
+      Log::info("Processing intermediate DB update: {$originalPO->number} -> {$newPO->number}");
 
-      // Paso 1: Actualizar OC en Milla agregando punto al final
-      $this->updatePurchaseOrderNumbers($purchaseOrder);
-
-      // Paso 2: Verificar que la OC original esté migrada (ProcesoEstado = 1)
-      if (!$this->verifyOriginalMigrationCompleted($purchaseOrder)) {
-        Log::info("Original migration not completed yet for PO: {$purchaseOrder->number}");
+      // Paso 1: Verificar que la OC original esté migrada (ProcesoEstado = 1)
+      if (!$this->verifyOriginalMigrationCompleted($originalPO)) {
+        Log::info("Original migration not completed yet for PO: {$originalPO->number}");
         return;
       }
 
-      // Paso 3: Actualizar tablas en Dynamics (OC y Detalle)
-      $this->updatePurchaseOrderInDynamics($purchaseOrder, $syncService);
+      // Paso 2: Sincronizar la nueva OC normalmente (sigue flujo estándar)
+      $this->syncNewPurchaseOrder($newPO, $syncService);
 
-      // Paso 4: Actualizar tablas de Recepción en Dynamics
-      $this->updateReceptionInDynamics($purchaseOrder, $syncService);
+      // Paso 3: Una vez sincronizada, actualizar los registros de la original en la intermedia
+      if ($this->checkNewPurchaseOrderSynced($newPO)) {
+        $this->updateIntermediateDBReferences($originalPO, $newPO);
+      }
 
-      // Paso 5: Verificar estado de actualización
-      $this->checkUpdateCompletionStatus($purchaseOrder);
+      // Paso 4: Verificar estado de actualización completa
+      $this->checkUpdateCompletionStatus($newPO);
 
     } catch (\Exception $e) {
       Log::error("Error in UpdatePurchaseOrderWithCreditNoteJob: {$e->getMessage()}");
@@ -77,48 +78,19 @@ class UpdatePurchaseOrderWithCreditNoteJob implements ShouldQueue
   }
 
   /**
-   * Actualiza los números de OC y NI agregando un punto al final
-   */
-  protected function updatePurchaseOrderNumbers(VehiclePurchaseOrder $purchaseOrder): void
-  {
-    $originalNumber = $purchaseOrder->number;
-    $originalGuide = $purchaseOrder->number_guide;
-
-    // Solo agregar punto si no lo tiene ya
-    $newNumber = !str_ends_with($originalNumber, '.') ? $originalNumber . '.' : $originalNumber;
-    $newGuide = !str_ends_with($originalGuide, '.') ? $originalGuide . '.' : $originalGuide;
-
-    if ($newNumber !== $originalNumber || $newGuide !== $originalGuide) {
-      $purchaseOrder->update([
-        'number' => $newNumber,
-        'number_guide' => $newGuide,
-      ]);
-
-      Log::info("Updated PO numbers: {$originalNumber} -> {$newNumber}, {$originalGuide} -> {$newGuide}");
-
-      // Registrar en historial
-      $this->logAction($purchaseOrder->id, 'update_numbers',
-        "Números actualizados por NC: OC {$originalNumber} -> {$newNumber}, NI {$originalGuide} -> {$newGuide}");
-    }
-  }
-
-  /**
    * Verifica que la migración original esté completada
    */
   protected function verifyOriginalMigrationCompleted(VehiclePurchaseOrder $purchaseOrder): bool
   {
-    // Obtener el número original (sin el punto)
-    $originalNumber = rtrim($purchaseOrder->number, '.');
-
     // Verificar en la BD intermedia que la OC original esté procesada
     $existingPO = DB::connection('dbtp')
       ->table('neInTbOrdenCompra')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('OrdenCompraId', $originalNumber)
+      ->where('OrdenCompraId', $purchaseOrder->number)
       ->first();
 
     if (!$existingPO) {
-      Log::warning("Original PO not found in intermediate DB: {$originalNumber}");
+      Log::warning("Original PO not found in intermediate DB: {$purchaseOrder->number}");
       return false;
     }
 
@@ -132,118 +104,161 @@ class UpdatePurchaseOrderWithCreditNoteJob implements ShouldQueue
   }
 
   /**
-   * Actualiza la OC y su detalle en Dynamics
+   * Sincroniza la nueva OC siguiendo el flujo normal
    */
-  protected function updatePurchaseOrderInDynamics(VehiclePurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
+  protected function syncNewPurchaseOrder(VehiclePurchaseOrder $newPO, DatabaseSyncService $syncService): void
   {
-    $purchaseOrderLog = $this->getOrCreateLog(
-      $purchaseOrder->id,
-      'update_purchase_order_nc',
-      'neInTbOrdenCompra',
-      $purchaseOrder->number
-    );
-
-    $purchaseOrderDetailLog = $this->getOrCreateLog(
-      $purchaseOrder->id,
-      'update_purchase_order_detail_nc',
-      'neInTbOrdenCompraDet',
-      $purchaseOrder->number
-    );
-
     try {
-      $resource = new VehiclePurchaseOrderResource($purchaseOrder);
+      $resource = new VehiclePurchaseOrderResource($newPO);
       $resourceData = $resource->toArray(request());
 
-      // Actualizar OC principal
-      $purchaseOrderLog->markAsInProgress();
-      $syncService->sync('ap_vehicle_purchase_order', $resourceData, 'update');
-      $purchaseOrderLog->updateProcesoEstado(0);
+      // Sincronizar OC y su detalle normalmente
+      $syncService->sync('ap_vehicle_purchase_order', $resourceData, 'create');
+      $syncService->sync('ap_vehicle_purchase_order_det', $resourceData, 'create');
 
-      Log::info("Purchase order update synced: {$purchaseOrder->number}");
-      $this->logAction($purchaseOrder->id, 'update_po', "Orden de compra actualizada en Dynamics: {$purchaseOrder->number}");
+      Log::info("New purchase order synced: {$newPO->number}");
 
-      // Actualizar detalle de OC
-      $purchaseOrderDetailLog->markAsInProgress();
-      $syncService->sync('ap_vehicle_purchase_order_det', $resourceData, 'update');
-      $purchaseOrderDetailLog->updateProcesoEstado(0);
+      // Sincronizar recepción y detalles normalmente
+      $syncService->sync('ap_vehicle_purchase_order_reception', $resourceData, 'create');
+      $syncService->sync('ap_vehicle_purchase_order_reception_det', $resourceData, 'create');
+      $syncService->sync('ap_vehicle_purchase_order_reception_det_s', $resourceData, 'create');
 
-      Log::info("Purchase order detail update synced: {$purchaseOrder->number}");
-      $this->logAction($purchaseOrder->id, 'update_po_detail', "Detalle de OC actualizado en Dynamics: {$purchaseOrder->number}");
+      Log::info("New reception synced: {$newPO->number_guide}");
 
     } catch (\Exception $e) {
-      $purchaseOrderLog->markAsFailed("Error al actualizar orden de compra: {$e->getMessage()}");
-      Log::error("Failed to update purchase order {$purchaseOrder->number}: {$e->getMessage()}");
+      Log::error("Failed to sync new purchase order {$newPO->number}: {$e->getMessage()}");
       throw $e;
     }
   }
 
   /**
-   * Actualiza la recepción y sus detalles en Dynamics
+   * Verifica si la nueva OC ya fue sincronizada y procesada
    */
-  protected function updateReceptionInDynamics(VehiclePurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
+  protected function checkNewPurchaseOrderSynced(VehiclePurchaseOrder $newPO): bool
   {
-    // Verificar que la OC actualizada esté procesada
-    $purchaseOrderLog = VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $purchaseOrder->id)
-      ->where('step', 'update_purchase_order_nc')
+    // Verificar OC
+    $syncedPO = DB::connection('dbtp')
+      ->table('neInTbOrdenCompra')
+      ->where('EmpresaId', Company::AP_DYNAMICS)
+      ->where('OrdenCompraId', $newPO->number)
       ->first();
 
-    if (!$purchaseOrderLog || $purchaseOrderLog->proceso_estado !== 1) {
-      Log::info("Waiting for updated purchase order to be processed before updating reception: {$purchaseOrder->number}");
-      return;
+    if (!$syncedPO || $syncedPO->ProcesoEstado != 1 || !empty($syncedPO->ProcesoError)) {
+      Log::info("New PO not yet processed: {$newPO->number}");
+      return false;
     }
 
-    $receptionLog = $this->getOrCreateLog(
-      $purchaseOrder->id,
-      'update_reception_nc',
-      'neInTbRecepcion',
-      $purchaseOrder->number_guide
-    );
+    // Verificar Recepción
+    $syncedReception = DB::connection('dbtp')
+      ->table('neInTbRecepcion')
+      ->where('EmpresaId', Company::AP_DYNAMICS)
+      ->where('RecepcionId', $newPO->number_guide)
+      ->first();
 
-    $receptionDetailLog = $this->getOrCreateLog(
-      $purchaseOrder->id,
-      'update_reception_detail_nc',
-      'neInTbRecepcionDet',
-      $purchaseOrder->number_guide
-    );
+    if (!$syncedReception || $syncedReception->ProcesoEstado != 1 || !empty($syncedReception->ProcesoError)) {
+      Log::info("New reception not yet processed: {$newPO->number_guide}");
+      return false;
+    }
 
-    $receptionSerialLog = $this->getOrCreateLog(
-      $purchaseOrder->id,
-      'update_reception_serial_nc',
-      'neInTbRecepcionDetSerie',
-      $purchaseOrder->vin
-    );
+    return true;
+  }
 
+  /**
+   * Actualiza los registros antiguos en la tabla intermedia apuntando a los nuevos números
+   * Esto evita duplicados y mantiene la integridad referencial
+   */
+  protected function updateIntermediateDBReferences(VehiclePurchaseOrder $originalPO, VehiclePurchaseOrder $newPO): void
+  {
     try {
-      $resource = new VehiclePurchaseOrderResource($purchaseOrder);
-      $resourceData = $resource->toArray(request());
+      // Eliminar los registros de la OC nueva (se crearon temporalmente)
+      DB::connection('dbtp')
+        ->table('neInTbOrdenCompra')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('OrdenCompraId', $newPO->number)
+        ->delete();
 
-      // Actualizar recepción
-      $receptionLog->markAsInProgress();
-      $syncService->sync('ap_vehicle_purchase_order_reception', $resourceData, 'update');
-      $receptionLog->updateProcesoEstado(0);
+      DB::connection('dbtp')
+        ->table('neInTbOrdenCompraDet')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('OrdenCompraId', $newPO->number)
+        ->delete();
 
-      Log::info("Reception update synced: {$purchaseOrder->number_guide}");
-      $this->logAction($purchaseOrder->id, 'update_reception', "Recepción actualizada en Dynamics: {$purchaseOrder->number_guide}");
+      // Actualizar la OC original con el nuevo número (con punto)
+      DB::connection('dbtp')
+        ->table('neInTbOrdenCompra')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('OrdenCompraId', $originalPO->number)
+        ->update([
+          'OrdenCompraId' => $newPO->number,
+          'Procesar' => 1,
+          'ProcesoEstado' => 0,
+          'ProcesoError' => ''
+        ]);
 
-      // Actualizar detalle de recepción
-      $receptionDetailLog->markAsInProgress();
-      $syncService->sync('ap_vehicle_purchase_order_reception_det', $resourceData, 'update');
-      $receptionDetailLog->updateProcesoEstado(0);
+      DB::connection('dbtp')
+        ->table('neInTbOrdenCompraDet')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('OrdenCompraId', $originalPO->number)
+        ->update([
+          'OrdenCompraId' => $newPO->number
+        ]);
 
-      Log::info("Reception detail update synced: {$purchaseOrder->number_guide}");
-      $this->logAction($purchaseOrder->id, 'update_reception_detail', "Detalle de recepción actualizado en Dynamics: {$purchaseOrder->number_guide}");
+      Log::info("Updated PO references in intermediate DB: {$originalPO->number} -> {$newPO->number}");
 
-      // Actualizar serial de recepción
-      $receptionSerialLog->markAsInProgress();
-      $syncService->sync('ap_vehicle_purchase_order_reception_det_s', $resourceData, 'update');
-      $receptionSerialLog->updateProcesoEstado(0);
+      // Eliminar registros de la recepción nueva
+      DB::connection('dbtp')
+        ->table('neInTbRecepcion')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('RecepcionId', $newPO->number_guide)
+        ->delete();
 
-      Log::info("Reception serial update synced: {$purchaseOrder->vin}");
-      $this->logAction($purchaseOrder->id, 'update_reception_serial', "Serial de recepción actualizado en Dynamics: {$purchaseOrder->vin}");
+      DB::connection('dbtp')
+        ->table('neInTbRecepcionDt')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('RecepcionId', $newPO->number_guide)
+        ->delete();
+
+      DB::connection('dbtp')
+        ->table('neInTbRecepcionDtS')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('RecepcionId', $newPO->number_guide)
+        ->delete();
+
+      // Actualizar la recepción original con el nuevo número (con punto)
+      DB::connection('dbtp')
+        ->table('neInTbRecepcion')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('RecepcionId', $originalPO->number_guide)
+        ->update([
+          'RecepcionId' => $newPO->number_guide,
+          'Procesar' => 1,
+          'ProcesoEstado' => 0,
+          'ProcesoError' => ''
+        ]);
+
+      DB::connection('dbtp')
+        ->table('neInTbRecepcionDt')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('RecepcionId', $originalPO->number_guide)
+        ->update([
+          'RecepcionId' => $newPO->number_guide,
+          'OrdenCompraId' => $newPO->number
+        ]);
+
+      DB::connection('dbtp')
+        ->table('neInTbRecepcionDtS')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('RecepcionId', $originalPO->number_guide)
+        ->update([
+          'RecepcionId' => $newPO->number_guide
+        ]);
+
+      Log::info("Updated reception references in intermediate DB: {$originalPO->number_guide} -> {$newPO->number_guide}");
+
+      $this->logAction($newPO->id, 'update_intermediate_refs', "Referencias actualizadas en tabla intermedia exitosamente");
 
     } catch (\Exception $e) {
-      $receptionLog->markAsFailed("Error al actualizar recepción: {$e->getMessage()}");
-      Log::error("Failed to update reception {$purchaseOrder->number_guide}: {$e->getMessage()}");
+      Log::error("Failed to update intermediate DB references: {$e->getMessage()}");
       throw $e;
     }
   }
@@ -251,26 +266,28 @@ class UpdatePurchaseOrderWithCreditNoteJob implements ShouldQueue
   /**
    * Verifica y actualiza el estado de completitud de la actualización
    */
-  protected function checkUpdateCompletionStatus(VehiclePurchaseOrder $purchaseOrder): void
+  protected function checkUpdateCompletionStatus(VehiclePurchaseOrder $newPO): void
   {
-    $logs = VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $purchaseOrder->id)
-      ->whereIn('step', [
-        'update_purchase_order_nc',
-        'update_purchase_order_detail_nc',
-        'update_reception_nc',
-        'update_reception_detail_nc',
-        'update_reception_serial_nc'
-      ])
-      ->get();
+    // Verificar que los registros actualizados estén procesados
+    $updatedPO = DB::connection('dbtp')
+      ->table('neInTbOrdenCompra')
+      ->where('EmpresaId', Company::AP_DYNAMICS)
+      ->where('OrdenCompraId', $newPO->number)
+      ->first();
 
-    $allCompleted = $logs->every(function ($log) {
-      return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED;
-    });
+    $updatedReception = DB::connection('dbtp')
+      ->table('neInTbRecepcion')
+      ->where('EmpresaId', Company::AP_DYNAMICS)
+      ->where('RecepcionId', $newPO->number_guide)
+      ->first();
 
-    if ($allCompleted) {
-      $purchaseOrder->update(['migration_status' => 'updated_with_nc']);
-      Log::info("Purchase order update with NC completed: {$purchaseOrder->number}");
-      $this->logAction($purchaseOrder->id, 'update_completed', "Actualización por NC completada exitosamente");
+    if ($updatedPO && $updatedPO->ProcesoEstado == 1 &&
+      $updatedReception && $updatedReception->ProcesoEstado == 1) {
+
+      // Marcar como completado
+      $newPO->update(['migration_status' => 'updated_with_nc']);
+      Log::info("Purchase order update with NC completed: {$newPO->number}");
+      $this->logAction($newPO->id, 'update_completed', "Actualización por NC completada exitosamente");
     }
   }
 

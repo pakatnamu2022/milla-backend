@@ -70,7 +70,7 @@ Schedule::command('po:sync-credit-note-dynamics --all')
 
 // Procesar actualizaciones de OC con NC en Dynamics
 Schedule::command('po:process-credit-note-updates')
-  ->everyFiveMinutes()
+  ->everyMinute()
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();

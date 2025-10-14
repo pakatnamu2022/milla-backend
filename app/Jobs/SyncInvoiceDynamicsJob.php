@@ -48,13 +48,24 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
 
   /**
    * Procesa todas las órdenes de compra sin invoice_dynamics
+   * O las que están completed con NC (para detectar cambios de factura)
    */
   protected function processAllPurchaseOrders(): void
   {
-    // Obtener OCs que no tienen invoice_dynamics o está vacío
+    // Obtener OCs que:
+    // 1. No tienen invoice_dynamics (flujo normal)
+    // 2. Están completed y tienen credit_note_dynamics (para detectar cambio de factura)
     $purchaseOrders = VehiclePurchaseOrder::where(function ($query) {
-      $query->whereNull('invoice_dynamics')
-        ->orWhere('invoice_dynamics', '');
+      $query->where(function ($q) {
+        // Caso 1: Sin invoice
+        $q->whereNull('invoice_dynamics')
+          ->orWhere('invoice_dynamics', '');
+      })->orWhere(function ($q) {
+        // Caso 2: Completed con NC (para detectar cambio de factura)
+        $q->where('migration_status', 'completed')
+          ->whereNotNull('credit_note_dynamics')
+          ->where('credit_note_dynamics', '!=', '');
+      });
     })
       ->whereNotNull('number')
       ->get();
@@ -94,44 +105,28 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       return;
     }
 
-    // Si ya tiene invoice_dynamics, verificar si ya tiene el movimiento
-    if (!empty($purchaseOrder->invoice_dynamics)) {
-      // Verificar si ya existe un movimiento con estado VEHICULO_EN_TRAVESIA
-      $hasInTransitMovement = $purchaseOrder->movements()
-        ->where('ap_vehicle_status_id', ApVehicleStatus::VEHICULO_EN_TRAVESIA)
-        ->exists();
-
-      if ($hasInTransitMovement) {
-        Log::info("Purchase order {$purchaseOrder->number} already has invoice_dynamics and movement: {$purchaseOrder->invoice_dynamics}");
-        return;
-      }
-
-      // Si tiene invoice_dynamics pero no tiene movimiento, crearlo
-      Log::info("Purchase order {$purchaseOrder->number} has invoice_dynamics but no movement, creating it");
-      try {
-        $vehicleMovementService = new VehicleMovementService();
-        $vehicleMovementService->storeInTransitVehicleMovement($purchaseOrder->id);
-        Log::info("Vehicle movement created for PO {$purchaseOrder->number} with status VEHICULO EN TRAVESIA");
-      } catch (\Exception $e) {
-        Log::error("Error creating vehicle movement for PO {$purchaseOrder->number}: {$e->getMessage()}");
-      }
-      return;
-    }
-
+    // Consultar el PA para obtener la factura actual de Dynamics
     Log::info("Consulting PA for purchase order: {$purchaseOrder->number}");
 
     try {
-      // Ejecutar el Procedimiento Almacenado
       $result = $this->consultStoredProcedure($purchaseOrder->number);
 
-      if ($result && !empty($result->NumeroDocumento) && !empty($result->NroDocProvDocumento)) {
-        // Actualizar el campo invoice_dynamics
+      if (!$result || empty($result->NumeroDocumento) || empty($result->NroDocProvDocumento)) {
+        Log::info("No invoice found yet for PO {$purchaseOrder->number}");
+        return;
+      }
+
+      $newInvoice = trim($result->NroDocProvDocumento);
+      $newReceipt = trim($result->NumeroDocumento);
+
+      // CASO 1: OC sin factura (flujo normal inicial)
+      if (empty($purchaseOrder->invoice_dynamics)) {
         $purchaseOrder->update([
-          'invoice_dynamics' => $result->NroDocProvDocumento,
-          'receipt_dynamics' => $result->NumeroDocumento
+          'invoice_dynamics' => $newInvoice,
+          'receipt_dynamics' => $newReceipt
         ]);
 
-        Log::info("Invoice Dynamics updated for PO {$purchaseOrder->number}: {$result->NumeroDocumento} | {$result->NroDocProvDocumento}");
+        Log::info("Invoice Dynamics updated for PO {$purchaseOrder->number}: {$newReceipt} | {$newInvoice}");
 
         // Crear movimiento de vehículo en tránsito
         try {
@@ -140,11 +135,49 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           Log::info("Vehicle movement created for PO {$purchaseOrder->number} with status VEHICULO EN TRAVESIA");
         } catch (\Exception $e) {
           Log::error("Error creating vehicle movement for PO {$purchaseOrder->number}: {$e->getMessage()}");
-          // No lanzar excepción para no fallar el job si el movimiento falla
         }
-      } else {
-        Log::info("No invoice found yet for PO {$purchaseOrder->number}");
+        return;
       }
+
+      // CASO 2: OC con factura y migration_status='completed' y tiene NC
+      // Verificar si la factura cambió (nueva OC con punto)
+      if ($purchaseOrder->migration_status === 'completed' &&
+          !empty($purchaseOrder->credit_note_dynamics) &&
+          $purchaseOrder->invoice_dynamics !== $newInvoice) {
+
+        Log::info("Invoice changed detected for PO {$purchaseOrder->number}: {$purchaseOrder->invoice_dynamics} -> {$newInvoice}");
+
+        // Actualizar la factura y cambiar el estado a 'updated_with_nc'
+        $purchaseOrder->update([
+          'invoice_dynamics' => $newInvoice,
+          'receipt_dynamics' => $newReceipt,
+          'migration_status' => 'updated_with_nc'
+        ]);
+
+        Log::info("PO {$purchaseOrder->number} updated with new invoice and marked as 'updated_with_nc'");
+        return;
+      }
+
+      // CASO 3: OC con factura pero sin movimiento (recuperación)
+      if (!empty($purchaseOrder->invoice_dynamics)) {
+        $hasInTransitMovement = $purchaseOrder->movements()
+          ->where('ap_vehicle_status_id', ApVehicleStatus::VEHICULO_EN_TRAVESIA)
+          ->exists();
+
+        if (!$hasInTransitMovement) {
+          Log::info("Purchase order {$purchaseOrder->number} has invoice_dynamics but no movement, creating it");
+          try {
+            $vehicleMovementService = new VehicleMovementService();
+            $vehicleMovementService->storeInTransitVehicleMovement($purchaseOrder->id);
+            Log::info("Vehicle movement created for PO {$purchaseOrder->number} with status VEHICULO EN TRAVESIA");
+          } catch (\Exception $e) {
+            Log::error("Error creating vehicle movement for PO {$purchaseOrder->number}: {$e->getMessage()}");
+          }
+        } else {
+          Log::info("Purchase order {$purchaseOrder->number} already has invoice_dynamics and movement: {$purchaseOrder->invoice_dynamics}");
+        }
+      }
+
     } catch (\Exception $e) {
       Log::error("Error consulting PA for PO {$purchaseOrder->number}: {$e->getMessage()}");
       throw $e;
