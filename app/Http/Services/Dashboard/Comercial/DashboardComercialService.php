@@ -308,6 +308,155 @@ class DashboardComercialService
 
     return array_values($result);
   }
+
+  public function getTotalsByUser($dateFrom, $dateTo, $type)
+  {
+    $stats = PotentialBuyers::with(['user'])
+      ->whereBetween('registration_date', [$dateFrom, $dateTo])
+      ->where('type', $type)
+      ->select(
+        'user_id',
+        'use',
+        DB::raw('count(*) as total')
+      )
+      ->groupBy('user_id', 'use')
+      ->get();
+
+    $result = [];
+
+    foreach ($stats as $stat) {
+      $userId = $stat->user_id;
+
+      if (!isset($result[$userId])) {
+        $result[$userId] = [
+          'user_id' => $userId,
+          'user_nombre' => $stat->user->nombre_completo ?? 'SIN_USUARIO',
+          'total_visitas' => 0,
+          'estados_visita' => [
+            'no_atendidos' => 0,
+            'atendidos' => 0,
+            'descartados' => 0,
+          ],
+          'por_estado_oportunidad' => [],
+        ];
+      }
+
+      $result[$userId]['total_visitas'] += $stat->total;
+
+      switch ($stat->use) {
+        case PotentialBuyers::CREATED:
+          $result[$userId]['estados_visita']['no_atendidos'] = $stat->total;
+          break;
+        case PotentialBuyers::USED:
+          $result[$userId]['estados_visita']['atendidos'] = $stat->total;
+          break;
+        case PotentialBuyers::DISCARTED:
+          $result[$userId]['estados_visita']['descartados'] = $stat->total;
+          break;
+      }
+    }
+
+    // Agregar estadísticas de oportunidades por usuario
+    $potentialBuyersIds = PotentialBuyers::whereBetween('registration_date', [$dateFrom, $dateTo])
+      ->where('type', $type)
+      ->pluck('id', 'user_id')
+      ->groupBy(function ($item, $key) {
+        return $key;
+      });
+
+    foreach ($result as $userId => &$userData) {
+      $userLeadIds = PotentialBuyers::where('user_id', $userId)
+        ->whereBetween('registration_date', [$dateFrom, $dateTo])
+        ->where('type', $type)
+        ->pluck('id');
+
+      $opportunityStats = Opportunity::whereHas('lead', function ($query) use ($userLeadIds) {
+        $query->whereIn('id', $userLeadIds);
+      })
+        ->with('opportunityStatus')
+        ->get()
+        ->groupBy(function ($opportunity) {
+          return $opportunity->opportunityStatus->description ?? 'SIN_ESTADO';
+        })
+        ->map(function ($group) {
+          return $group->count();
+        });
+
+      $userData['por_estado_oportunidad'] = $opportunityStats->toArray();
+    }
+
+    return array_values($result);
+  }
+
+  public function getTotalsByCampaign($dateFrom, $dateTo, $type)
+  {
+    $stats = PotentialBuyers::whereBetween('registration_date', [$dateFrom, $dateTo])
+      ->where('type', $type)
+      ->select(
+        'campaign',
+        'use',
+        DB::raw('count(*) as total')
+      )
+      ->groupBy('campaign', 'use')
+      ->get();
+
+    $result = [];
+
+    foreach ($stats as $stat) {
+      $campaign = $stat->campaign ?? 'SIN_CAMPAÑA';
+
+      if (!isset($result[$campaign])) {
+        $result[$campaign] = [
+          'campaign' => $campaign,
+          'total_visitas' => 0,
+          'estados_visita' => [
+            'no_atendidos' => 0,
+            'atendidos' => 0,
+            'descartados' => 0,
+          ],
+          'por_estado_oportunidad' => [],
+        ];
+      }
+
+      $result[$campaign]['total_visitas'] += $stat->total;
+
+      switch ($stat->use) {
+        case PotentialBuyers::CREATED:
+          $result[$campaign]['estados_visita']['no_atendidos'] = $stat->total;
+          break;
+        case PotentialBuyers::USED:
+          $result[$campaign]['estados_visita']['atendidos'] = $stat->total;
+          break;
+        case PotentialBuyers::DISCARTED:
+          $result[$campaign]['estados_visita']['descartados'] = $stat->total;
+          break;
+      }
+    }
+
+    // Agregar estadísticas de oportunidades por campaña
+    foreach ($result as $campaign => &$campaignData) {
+      $campaignLeadIds = PotentialBuyers::where('campaign', $campaign === 'SIN_CAMPAÑA' ? null : $campaign)
+        ->whereBetween('registration_date', [$dateFrom, $dateTo])
+        ->where('type', $type)
+        ->pluck('id');
+
+      $opportunityStats = Opportunity::whereHas('lead', function ($query) use ($campaignLeadIds) {
+        $query->whereIn('id', $campaignLeadIds);
+      })
+        ->with('opportunityStatus')
+        ->get()
+        ->groupBy(function ($opportunity) {
+          return $opportunity->opportunityStatus->description ?? 'SIN_ESTADO';
+        })
+        ->map(function ($group) {
+          return $group->count();
+        });
+
+      $campaignData['por_estado_oportunidad'] = $opportunityStats->toArray();
+    }
+
+    return array_values($result);
+  }
   
   private function getUseLabel($use)
   {

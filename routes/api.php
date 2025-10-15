@@ -748,15 +748,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
       });
 
       // DASHBOARD - Indicadores Comerciales
-      Route::group(['prefix' => 'dashboard'], function () {
-        //tienda
-        Route::get('/indicators/by-date-range-total', [DashboardComercialController::class, 'getTotalsByDateRangeTotal']);
-        Route::get('/indicators/by-date-range', [DashboardComercialController::class, 'getTotalsByDateRange']);
-        Route::get('/indicators/by-sede', [DashboardComercialController::class, 'getTotalsBySede']);
-        Route::get('/indicators/by-sede-and-brand', [DashboardComercialController::class, 'getTotalsBySedeAndBrand']);
-        Route::get('/indicators/by-advisor', [DashboardComercialController::class, 'getTotalsByAdvisor']);
-        //leads
-
+      Route::group(['prefix' => 'dashboard-visit-leads'], function () {
+        Route::get('/by-date-range-total', [DashboardComercialController::class, 'getTotalsByDateRangeTotal']);
+        Route::get('/by-date-range', [DashboardComercialController::class, 'getTotalsByDateRange']);
+        Route::get('/by-sede', [DashboardComercialController::class, 'getTotalsBySede']);
+        Route::get('/by-sede-and-brand', [DashboardComercialController::class, 'getTotalsBySedeAndBrand']);
+        Route::get('/by-advisor', [DashboardComercialController::class, 'getTotalsByAdvisor']);
+        Route::get('/by-user', [DashboardComercialController::class, 'getTotalsByUser']);
+        Route::get('/by-campaign', [DashboardComercialController::class, 'getTotalsByCampaign']);
       });
     });
 
