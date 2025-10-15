@@ -264,7 +264,9 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
   }
 
   /**
-   * Sincroniza la orden de compra y programa los jobs de detalles
+   * Sincroniza la orden de compra
+   * La recepción se sincronizará automáticamente mediante VerifyAndMigratePurchaseOrderJob
+   * cuando la OC esté procesada (ProcesoEstado = 1)
    * @throws Exception
    */
   protected function syncPurchaseOrder(VehiclePurchaseOrder $purchaseOrder): void
@@ -273,13 +275,14 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     $resource = new VehiclePurchaseOrderResource($purchaseOrder);
     $resourceData = $resource->toArray(request());
 
-    // 1. Enviar la OC Y su detalle juntos
+    // Enviar la OC Y su detalle juntos a la tabla intermedia
     $syncService->sync('ap_vehicle_purchase_order', $resourceData, 'create');
     $syncService->sync('ap_vehicle_purchase_order_det', $resourceData, 'create');
 
-    // 2. Crear un job para enviar la recepción (NI) con sus detalles
-    // Este job validará que la OC esté en estado 1 antes de proceder
-    \App\Jobs\SyncPurchaseOrderReceptionJob::dispatch($purchaseOrder->id);
+    // NOTA: No despachamos SyncPurchaseOrderReceptionJob aquí porque crearía una condición de carrera.
+    // El job VerifyAndMigratePurchaseOrderJob (despachado en store/update/resend) se encarga de:
+    // 1. Esperar a que la OC sea procesada (ProcesoEstado = 1)
+    // 2. Sincronizar la recepción (NI) solo cuando la OC esté lista
   }
 
   public function show($id)

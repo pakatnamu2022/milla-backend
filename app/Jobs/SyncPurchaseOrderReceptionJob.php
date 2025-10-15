@@ -18,6 +18,7 @@ class SyncPurchaseOrderReceptionJob implements ShouldQueue
 
     public int $tries = 3;
     public int $timeout = 120;
+    public int $backoff = 30; // Esperar 30 segundos entre reintentos
 
     /**
      * Create a new job instance.
@@ -105,17 +106,22 @@ class SyncPurchaseOrderReceptionJob implements ShouldQueue
             ->first();
 
         if (!$dbtp) {
-            throw new \Exception("OC no encontrada en tabla intermedia");
+            Log::warning("OC {$purchaseOrder->number} no encontrada en tabla intermedia para PO ID: {$purchaseOrder->id}");
+            throw new \Exception("OC no encontrada en tabla intermedia: {$purchaseOrder->number}");
         }
 
         if ($dbtp->ProcesoEstado != 1) {
+            Log::info("OC {$purchaseOrder->number} aún no procesada. ProcesoEstado: {$dbtp->ProcesoEstado}. El job se reintentará.");
             throw new \Exception("OC aún no procesada. ProcesoEstado: {$dbtp->ProcesoEstado}");
         }
 
         // Verificar si hay error
         if (!empty($dbtp->ProcesoError)) {
+            Log::error("Error en sincronización de la OC {$purchaseOrder->number}: {$dbtp->ProcesoError}");
             throw new \Exception("Error en sincronización de la OC: {$dbtp->ProcesoError}");
         }
+
+        Log::info("OC {$purchaseOrder->number} verificada exitosamente (ProcesoEstado = 1). Procediendo con la recepción.");
     }
 
     /**
@@ -154,11 +160,21 @@ class SyncPurchaseOrderReceptionJob implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
-        Log::error("Failed SyncPurchaseOrderReceptionJob for PO {$this->purchaseOrderId}: {$exception->getMessage()}");
+        Log::error("Failed SyncPurchaseOrderReceptionJob definitivamente para PO ID {$this->purchaseOrderId} después de {$this->tries} intentos: {$exception->getMessage()}");
 
         // Marcar los logs como fallidos
         if ($this->purchaseOrderId) {
-            $this->markLogsAsFailed($this->purchaseOrderId, $exception->getMessage());
+            $purchaseOrder = VehiclePurchaseOrder::find($this->purchaseOrderId);
+            $errorMessage = "Job de recepción falló después de {$this->tries} intentos: {$exception->getMessage()}";
+
+            if ($purchaseOrder) {
+                Log::error("OC {$purchaseOrder->number}: {$errorMessage}");
+
+                // Actualizar estado de migración general
+                $purchaseOrder->update(['migration_status' => 'failed']);
+            }
+
+            $this->markLogsAsFailed($this->purchaseOrderId, $errorMessage);
         }
     }
 }
