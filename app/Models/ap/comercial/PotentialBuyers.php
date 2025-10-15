@@ -35,7 +35,10 @@ class PotentialBuyers extends Model
     'area_id',
     'status_num_doc',
     'use',
-    'comment'
+    'comment',
+    'user_id',
+    'created_at',
+    'updated_at',
   ];
 
   const filters = [
@@ -120,5 +123,10 @@ class PotentialBuyers extends Model
   public function worker(): BelongsTo
   {
     return $this->belongsTo(Worker::class, 'worker_id');
+  }
+
+  public function user(): BelongsTo
+  {
+    return $this->belongsTo(Worker::class, 'user_id');
   }
 }

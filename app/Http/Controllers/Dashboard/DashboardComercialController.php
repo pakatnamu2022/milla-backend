@@ -20,22 +20,42 @@ class DashboardComercialController extends Controller
     $this->dashboardService = $dashboardService;
   }
 
-  /**
-   * Obtiene indicadores totales por rango de fechas
-   *
-   * @param Request $request
-   * @return \Illuminate\Http\JsonResponse
-   */
+  public function getTotalsByDateRangeTotal(Request $request)
+  {
+    $request->validate([
+      'date_from' => 'required|date|date_format:Y-m-d',
+      'date_to' => 'required|date|date_format:Y-m-d|after_or_equal:date_from',
+      'type' => 'required|in:VISITA,LEADS',
+    ]);
+
+    $data = $this->dashboardService->getTotalsByDateRangeTotal(
+      $request->date_from,
+      $request->date_to,
+      $request->type
+    );
+
+    return response()->json([
+      'success' => true,
+      'data' => $data,
+      'periodo' => [
+        'fecha_inicio' => $request->date_from,
+        'fecha_fin' => $request->date_to,
+      ],
+    ]);
+  }
+
   public function getTotalsByDateRange(Request $request)
   {
     $request->validate([
       'date_from' => 'required|date|date_format:Y-m-d',
       'date_to' => 'required|date|date_format:Y-m-d|after_or_equal:date_from',
+      'type' => 'required|in:VISITA,LEADS',
     ]);
 
-    $data = $this->dashboardService->getTotalsByDateRange(
+    $data = $this->dashboardService->getTotalsByDateRangeGrouped(
       $request->date_from,
-      $request->date_to
+      $request->date_to,
+      $request->type
     );
 
     return response()->json([
@@ -48,22 +68,18 @@ class DashboardComercialController extends Controller
     ]);
   }
 
-  /**
-   * Obtiene indicadores totales agrupados por sede
-   *
-   * @param Request $request
-   * @return \Illuminate\Http\JsonResponse
-   */
   public function getTotalsBySede(Request $request)
   {
     $request->validate([
       'date_from' => 'required|date|date_format:Y-m-d',
       'date_to' => 'required|date|date_format:Y-m-d|after_or_equal:date_from',
+      'type' => 'required|in:VISITA,LEADS',
     ]);
 
     $data = $this->dashboardService->getTotalsBySede(
       $request->date_from,
-      $request->date_to
+      $request->date_to,
+      $request->type
     );
 
     return response()->json([
@@ -76,22 +92,18 @@ class DashboardComercialController extends Controller
     ]);
   }
 
-  /**
-   * Obtiene indicadores agrupados por sede y marca de vehículo
-   *
-   * @param Request $request
-   * @return \Illuminate\Http\JsonResponse
-   */
   public function getTotalsBySedeAndBrand(Request $request)
   {
     $request->validate([
       'date_from' => 'required|date|date_format:Y-m-d',
       'date_to' => 'required|date|date_format:Y-m-d|after_or_equal:date_from',
+      'type' => 'required|in:VISITA,LEADS',
     ]);
 
     $data = $this->dashboardService->getTotalsBySedeAndBrand(
       $request->date_from,
-      $request->date_to
+      $request->date_to,
+      $request->type
     );
 
     return response()->json([
@@ -104,22 +116,18 @@ class DashboardComercialController extends Controller
     ]);
   }
 
-  /**
-   * Obtiene indicadores agrupados por asesor
-   *
-   * @param Request $request
-   * @return \Illuminate\Http\JsonResponse
-   */
   public function getTotalsByAdvisor(Request $request)
   {
     $request->validate([
       'date_from' => 'required|date|date_format:Y-m-d',
       'date_to' => 'required|date|date_format:Y-m-d|after_or_equal:date_from',
+      'type' => 'required|in:VISITA,LEADS',
     ]);
 
     $data = $this->dashboardService->getTotalsByAdvisor(
       $request->date_from,
-      $request->date_to
+      $request->date_to,
+      $request->type
     );
 
     return response()->json([

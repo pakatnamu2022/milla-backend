@@ -749,10 +749,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
       // DASHBOARD - Indicadores Comerciales
       Route::group(['prefix' => 'dashboard'], function () {
+        //tienda
+        Route::get('/indicators/by-date-range-total', [DashboardComercialController::class, 'getTotalsByDateRangeTotal']);
         Route::get('/indicators/by-date-range', [DashboardComercialController::class, 'getTotalsByDateRange']);
         Route::get('/indicators/by-sede', [DashboardComercialController::class, 'getTotalsBySede']);
         Route::get('/indicators/by-sede-and-brand', [DashboardComercialController::class, 'getTotalsBySedeAndBrand']);
         Route::get('/indicators/by-advisor', [DashboardComercialController::class, 'getTotalsByAdvisor']);
+        //leads
+
       });
     });
 
@@ -766,27 +770,27 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'destroy'
       ]);
     });
+  });
 
-    // Document Validation Routes
-    Route::group(['prefix' => 'document-validation'], function () {
-      Route::post('/validate/general', [DocumentValidationController::class, 'validateGeneral']);
-      Route::post('/validate/dni', [DocumentValidationController::class, 'validateDni']);
-      Route::post('/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
-      Route::post('/validate/license', [DocumentValidationController::class, 'validateLicense']);
-      Route::get('/document-types', [DocumentValidationController::class, 'documentTypes']);
-      Route::get('/provider-info', [DocumentValidationController::class, 'providerInfo']);
-      Route::delete('/cache', [DocumentValidationController::class, 'clearCache']);
-      Route::delete('/cache/all', [DocumentValidationController::class, 'clearAllCache']);
-    });
+  // Document Validation Routes
+  Route::group(['prefix' => 'document-validation'], function () {
+    Route::post('/validate/general', [DocumentValidationController::class, 'validateGeneral']);
+    Route::post('/validate/dni', [DocumentValidationController::class, 'validateDni']);
+    Route::post('/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
+    Route::post('/validate/license', [DocumentValidationController::class, 'validateLicense']);
+    Route::get('/document-types', [DocumentValidationController::class, 'documentTypes']);
+    Route::get('/provider-info', [DocumentValidationController::class, 'providerInfo']);
+    Route::delete('/cache', [DocumentValidationController::class, 'clearCache']);
+    Route::delete('/cache/all', [DocumentValidationController::class, 'clearAllCache']);
+  });
 
-    // Audit Logs Routes
-    Route::group(['prefix' => 'audit-logs'], function () {
-      Route::get('/', [AuditLogsController::class, 'index']);
-      Route::get('/stats', [AuditLogsController::class, 'stats']);
-      Route::get('/user/{userId}', [AuditLogsController::class, 'userLogs']);
-      Route::get('/model/{model}/{id}', [AuditLogsController::class, 'modelLogs']);
-      Route::get('/export', [AuditLogsController::class, 'export']);
-      Route::delete('/clean', [AuditLogsController::class, 'clean']);
-    });
+  // Audit Logs Routes
+  Route::group(['prefix' => 'audit-logs'], function () {
+    Route::get('/', [AuditLogsController::class, 'index']);
+    Route::get('/stats', [AuditLogsController::class, 'stats']);
+    Route::get('/user/{userId}', [AuditLogsController::class, 'userLogs']);
+    Route::get('/model/{model}/{id}', [AuditLogsController::class, 'modelLogs']);
+    Route::get('/export', [AuditLogsController::class, 'export']);
+    Route::delete('/clean', [AuditLogsController::class, 'clean']);
   });
 });

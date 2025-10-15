@@ -58,6 +58,7 @@ class PotentialBuyersService extends BaseService
       if ($data['type'] === 'VISITA') {
         $data['registration_date'] = now();
       }
+      $data['user_id'] = auth()->id();
 
       $TypeDocument = ApCommercialMasters::findOrFail($data['document_type_id']);
       $NumCharDoc = strlen($data['num_doc']);
@@ -206,6 +207,7 @@ class PotentialBuyersService extends BaseService
 
           // Agregar status_num_doc al array de datos
           $rowData['status_num_doc'] = $statusNumDoc;
+          $rowData['user_id'] = auth()->id();
 
           // Crear el registro
           $buyer = PotentialBuyers::create($rowData);
@@ -336,6 +338,7 @@ class PotentialBuyersService extends BaseService
 
           // Agregar status_num_doc al array de datos
           $rowData['status_num_doc'] = $statusNumDoc;
+          $rowData['user_id'] = auth()->id();
 
           // Crear el registro
           $buyer = PotentialBuyers::create($rowData);
