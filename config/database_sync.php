@@ -232,7 +232,7 @@ return [
         'MonedaId' => fn($data) => TypeCurrency::find($data['currency_id'])->code,
         'TipoTasaId' => fn($data) => VehiclePurchaseOrder::find($data['id'])->exchangeRate->type,
         'TasaCambio' => fn($data) => VehiclePurchaseOrder::find($data['id'])->exchangeRate->rate,
-        'PlanImpuestoId' => fn($data) => VehiclePurchaseOrder::find($data['id'])->supplier->taxClassType->tax_class,
+        'PlanImpuestoId' => fn($data) => VehiclePurchaseOrder::find($data['id'])->supplier?->taxClassType?->tax_class ?? throw new \Exception("Supplier or TaxClassType not found for PO {$data['id']}"),
         'UsuarioId' => fn($data) => 'USUGP',
         'Procesar' => 1,
         'ProcesoEstado' => 0,
