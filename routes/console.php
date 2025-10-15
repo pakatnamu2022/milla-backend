@@ -49,21 +49,21 @@ Schedule::command('app:sync-exchange-rate')
 
 // Verificar y migrar órdenes de compra de vehículos pendientes
 Schedule::command('po:verify-migration --all')
-  ->everyMinute()
+  ->everyThirtySeconds()
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
 
 // Sincronizar invoice_dynamics desde Dynamics
 Schedule::command('po:sync-invoice-dynamics --all')
-  ->everyMinute()
+  ->everyThirtySeconds()
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
 
 // Sincronizar credit_note_dynamics desde Dynamics
 Schedule::command('po:sync-credit-note-dynamics --all')
-  ->everyMinute()
+  ->everyThirtySeconds()
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
