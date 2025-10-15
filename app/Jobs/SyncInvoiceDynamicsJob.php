@@ -139,23 +139,42 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         return;
       }
 
-      // CASO 2: OC con factura y migration_status='completed' y tiene NC
-      // Verificar si la factura cambió (nueva OC con punto)
+      // CASO 2: OC con punto (nueva OC creada después de NC)
+      // Detectar por el punto en el número y original_purchase_order_id
+      if (str_contains($purchaseOrder->number, '.') && !empty($purchaseOrder->original_purchase_order_id)) {
+        Log::info("Nueva OC con punto detectada: {$purchaseOrder->number}. Verificando si necesita actualizar factura.");
+
+        // Si la factura en Dynamics es diferente a la guardada, actualizar
+        if ($purchaseOrder->invoice_dynamics !== $newInvoice) {
+          Log::info("Nueva factura detectada para OC {$purchaseOrder->number}: {$newInvoice}");
+
+          $purchaseOrder->update([
+            'invoice_dynamics' => $newInvoice,
+            'receipt_dynamics' => $newReceipt,
+          ]);
+
+          Log::info("Factura actualizada para OC con punto {$purchaseOrder->number}: {$newReceipt} | {$newInvoice}");
+        } else {
+          Log::info("OC con punto {$purchaseOrder->number} ya tiene la factura actualizada: {$newInvoice}");
+        }
+        return;
+      }
+
+      // CASO 3: OC con factura y migration_status='completed' y tiene NC
+      // (mantener para compatibilidad con lógica anterior)
       if ($purchaseOrder->migration_status === 'completed' &&
         !empty($purchaseOrder->credit_note_dynamics) &&
         $purchaseOrder->invoice_dynamics !== $newInvoice) {
 
         Log::info("Invoice changed detected for PO {$purchaseOrder->number}: {$purchaseOrder->invoice_dynamics} -> {$newInvoice}");
 
-        // Actualizar la factura y cambiar el estado a 'updated_with_nc'
+        // Actualizar la factura
         $purchaseOrder->update([
           'invoice_dynamics' => $newInvoice,
           'receipt_dynamics' => $newReceipt,
-          'migration_status' => 'updated_with_nc',
-          'status' => false, // Marcar OC como anulada
         ]);
 
-        Log::info("PO {$purchaseOrder->number} updated with new invoice and marked as 'updated_with_nc'");
+        Log::info("PO {$purchaseOrder->number} updated with new invoice after NC");
         return;
       }
 
