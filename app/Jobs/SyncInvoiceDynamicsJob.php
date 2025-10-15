@@ -116,11 +116,12 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         return;
       }
 
+      $status = trim($result->EstadoDocumento) == 'Hist. Recep.';
       $newInvoice = trim($result->NroDocProvDocumento);
       $newReceipt = trim($result->NumeroDocumento);
 
       // CASO 1: OC sin factura (flujo normal inicial)
-      if (empty($purchaseOrder->invoice_dynamics)) {
+      if (empty($purchaseOrder->invoice_dynamics) && $status) {
         $purchaseOrder->update([
           'invoice_dynamics' => $newInvoice,
           'receipt_dynamics' => $newReceipt
@@ -152,7 +153,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           'invoice_dynamics' => $newInvoice,
           'receipt_dynamics' => $newReceipt,
           'migration_status' => 'updated_with_nc',
-          'status' => false
+          'status' => $newInvoice != $newReceipt
         ]);
 
         Log::info("PO {$purchaseOrder->number} updated with new invoice and marked as 'updated_with_nc'");
