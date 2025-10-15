@@ -310,8 +310,17 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
         // Agregar punto al número y guía automáticamente
         $newPOData['number'] = $vehiclePurchaseOrder->number . '.';
         $newPOData['number_guide'] = $vehiclePurchaseOrder->number_guide . '.';
-        $newPOData['migration_status'] = 'pending';
+        $newPOData['migration_status'] = 'completed'; // La OC original ya estaba en Dynamics
         $newPOData['original_purchase_order_id'] = $vehiclePurchaseOrder->id; // CLAVE: Vincular con la original
+
+        // Limpiar campos de documentos antiguos - se generarán nuevos en Dynamics
+        $newPOData['invoice_dynamics'] = null;
+        $newPOData['receipt_dynamics'] = null;
+        $newPOData['credit_note_dynamics'] = null;
+
+        // Asegurar que la nueva OC esté activa
+        $newPOData['status'] = true;
+        $newPOData['ap_vehicle_status_id'] = ApVehicleStatus::PEDIDO_VN;
 
         // Recalcular precios si fueron modificados
         if (isset($data['unit_price']) || isset($data['discount'])) {
@@ -324,25 +333,18 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
           $newPOData = $this->enrichData($newPOData, false);
         }
 
-        // Crear la nueva OC
+        // Crear la nueva OC localmente (NO sincronizar porque la OC original ya existe en Dynamics)
         $newPurchaseOrder = VehiclePurchaseOrder::create($newPOData);
 
         // Crear movimiento para la nueva OC
         $vehicleMovementService = new VehicleMovementService();
         $vehicleMovementService->storeRequestedVehicleMovement($newPurchaseOrder->id);
 
-        // Crear logs de migración
-        $this->createInitialMigrationLogs($newPurchaseOrder);
-
         Log::info("Nueva OC creada con punto: {$newPurchaseOrder->number} (ID: {$newPurchaseOrder->id})");
 
-        // Sincronizar la nueva OC (que actualizará la intermedia en vez de insertar)
-        $this->validateAndSyncBeforeSending($newPurchaseOrder);
-        $this->syncPurchaseOrder($newPurchaseOrder);
-
-        // Despachar job de verificación
-        \App\Jobs\VerifyAndMigratePurchaseOrderJob::dispatch($newPurchaseOrder->id)
-          ->delay(now()->addSeconds(30));
+        // IMPORTANTE: Solo sincronizar la FACTURA actualizada a Dynamics, no toda la OC
+        // La OC original ya existe en Dynamics, solo necesitamos actualizar la factura
+        \App\Jobs\SyncInvoiceDynamicsJob::dispatch($newPurchaseOrder->id);
 
         DB::commit();
         return new VehiclePurchaseOrderResource($newPurchaseOrder);
