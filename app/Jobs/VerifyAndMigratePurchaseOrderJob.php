@@ -18,8 +18,9 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
 {
     use Queueable;
 
-    public int $tries = 3;
+    public int $tries = 5; // Aumentar intentos porque este job coordina todo el flujo
     public int $timeout = 300;
+    public int $backoff = 60; // Esperar 60 segundos entre reintentos para dar tiempo al sistema intermedio
 
     /**
      * Create a new job instance.
@@ -335,10 +336,17 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
             ->where('step', VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER)
             ->first();
 
-        if (!$purchaseOrderLog || $purchaseOrderLog->proceso_estado !== 1) {
-            Log::info("Waiting for purchase order to be processed before syncing reception: {$purchaseOrder->number}");
+        if (!$purchaseOrderLog) {
+            Log::warning("No se encontró log de OC para PO ID {$purchaseOrder->id}. No se puede sincronizar recepción.");
             return;
         }
+
+        if ($purchaseOrderLog->proceso_estado !== 1) {
+            Log::info("Esperando a que la OC {$purchaseOrder->number} sea procesada (ProcesoEstado actual: {$purchaseOrderLog->proceso_estado}). Recepción se sincronizará en el próximo intento.");
+            return;
+        }
+
+        Log::info("OC {$purchaseOrder->number} está procesada (ProcesoEstado = 1). Procediendo con la sincronización de la recepción.");
 
         $receptionLog = $this->getOrCreateLog(
             $purchaseOrder->id,
