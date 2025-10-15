@@ -98,8 +98,8 @@ class DashboardComercialService
 
       $result[] = [
         'sede_id' => $sedeId,
-        'sede_nombre' => $sede->name ?? 'SIN_SEDE',
-        'sede_abreviatura' => $sede->abreviatura ?? 'N/A',
+        'sede_nombre' => $sede->abreviatura ?? 'SIN_SEDE',
+        'sede_abreviatura' => $sede->district->name ?? 'N/A',
         'total_visitas' => $buyers->count(),
         'no_atendidos' => $attentionStats[PotentialBuyers::CREATED] ?? 0,
         'atendidos' => $attentionStats[PotentialBuyers::USED] ?? 0,
@@ -131,8 +131,8 @@ class DashboardComercialService
     foreach ($stats as $stat) {
       $result[] = [
         'sede_id' => $stat->sede_id,
-        'sede_nombre' => $stat->sede->name ?? 'SIN_SEDE',
-        'sede_abreviatura' => $stat->sede->abreviatura ?? 'N/A',
+        'sede_nombre' => $stat->sede->abreviatura ?? 'SIN_SEDE',
+        'sede_abreviatura' => $stat->sede->district->name ?? 'N/A',
         'vehicle_brand_id' => $stat->vehicle_brand_id,
         'marca_nombre' => $stat->vehicleBrand->name ?? 'SIN_MARCA',
         'total_visitas' => $stat->total_visitas,
@@ -173,8 +173,8 @@ class DashboardComercialService
           'worker_id' => $stat->worker_id,
           'worker_nombre' => $stat->worker->nombre_completo ?? 'SIN_ASESOR',
           'sede_id' => $stat->sede_id,
-          'sede_nombre' => $stat->sede->name ?? 'SIN_SEDE',
-          'sede_abreviatura' => $stat->sede->abreviatura ?? 'N/A',
+          'sede_nombre' => $stat->sede->abreviatura ?? 'SIN_SEDE',
+          'sede_abreviatura' => $stat->sede->district->name ?? 'N/A',
           'vehicle_brand_id' => $stat->vehicle_brand_id,
           'marca_nombre' => $stat->vehicleBrand->name ?? 'SIN_MARCA',
           'total_visitas' => 0,

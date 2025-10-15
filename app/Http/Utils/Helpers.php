@@ -2,6 +2,7 @@
 
 namespace App\Http\Utils;
 
+use App\Models\gp\gestionsistema\District;
 use Carbon\Carbon;
 
 class Helpers
@@ -23,5 +24,19 @@ class Helpers
     $age = $birth->diffInYears(Carbon::now());
 
     return $age >= $adultAge;
+  }
+
+  public static function getDistrictFullLocation(int $districtId): ?string
+  {
+    $district = District::with('province.department')
+      ->find($districtId);
+
+    if (!$district) {
+      return null;
+    }
+
+    return $district->name . ' - ' .
+      $district->province->name . ' - ' .
+      $district->province->department->name;
   }
 }
