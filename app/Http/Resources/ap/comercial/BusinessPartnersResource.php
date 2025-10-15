@@ -68,6 +68,7 @@ class BusinessPartnersResource extends JsonResource
       // Relaciones cargadas
       'origin' => $this->origin?->description,
       'tax_class_type' => $this->taxClassType?->description,
+      'supplier_tax_class_type' => $this->suplierTaxClassType?->description,
       'type_road' => $this->typeRoad?->description,
       'type_person' => $this->typePerson?->description,
       'district' => $this->district->name . ' - ' . $this->district->province->name . ' - ' . $this->district->province->department->name,

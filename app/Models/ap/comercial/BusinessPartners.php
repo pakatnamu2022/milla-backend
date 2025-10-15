@@ -209,6 +209,11 @@ class BusinessPartners extends Model
     return $this->belongsTo(TaxClassTypes::class, 'tax_class_type_id');
   }
 
+  public function supplierTaxClassType()
+  {
+    return $this->belongsTo(TaxClassTypes::class, 'supplier_tax_class_id');
+  }
+
   public function typePerson()
   {
     return $this->belongsTo(ApCommercialMasters::class, 'type_person_id');
