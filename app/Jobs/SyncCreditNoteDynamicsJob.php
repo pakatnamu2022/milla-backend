@@ -59,8 +59,6 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
         ->orWhere('credit_note_dynamics', '');
     })
       ->whereNotNull('number')
-      ->whereNotNull('invoice_dynamics')
-      ->where('invoice_dynamics', '!=', '')
       ->get();
 
     if ($purchaseOrders->isEmpty()) {
