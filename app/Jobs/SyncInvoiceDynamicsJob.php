@@ -153,7 +153,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           'invoice_dynamics' => $newInvoice,
           'receipt_dynamics' => $newReceipt,
           'migration_status' => 'updated_with_nc',
-          'status' => $newInvoice != $newReceipt
+          'status' => !($newInvoice == $newReceipt) // Si son iguales, marcar como false (anulada)
         ]);
 
         Log::info("PO {$purchaseOrder->number} updated with new invoice and marked as 'updated_with_nc'");

@@ -123,7 +123,6 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
         $purchaseOrder->update([
           'credit_note_dynamics' => $credit_note,
           'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
-          'status' => false, // Marcar OC como anulada
         ]);
         // Crear movimiento usando el servicio
         $movementService = new VehicleMovementService();
