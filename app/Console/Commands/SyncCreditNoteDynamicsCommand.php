@@ -41,7 +41,7 @@ class SyncCreditNoteDynamicsCommand extends Command
     }
 
     if ($purchaseOrderId) {
-      return $this->syncSinglePurchaseOrder((int) $purchaseOrderId);
+      return $this->syncSinglePurchaseOrder((int)$purchaseOrderId);
     }
 
     return $this->syncAllPurchaseOrders();
@@ -84,12 +84,10 @@ class SyncCreditNoteDynamicsCommand extends Command
   {
     $count = VehiclePurchaseOrder::where(function ($query) {
       $query->whereNull('credit_note_dynamics')
-            ->orWhere('credit_note_dynamics', '');
+        ->orWhere('credit_note_dynamics', '');
     })
-    ->whereNotNull('number')
-    ->whereNotNull('invoice_dynamics')
-    ->where('invoice_dynamics', '!=', '')
-    ->count();
+      ->whereNotNull('number')
+      ->count();
 
     if ($count === 0) {
       $this->info('No hay órdenes de compra pendientes de sincronizar credit_note_dynamics');
