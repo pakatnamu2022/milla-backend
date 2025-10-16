@@ -7,6 +7,7 @@ use App\Http\Requests\ap\comercial\IndexVehiclePurchaseOrderRequest;
 use App\Http\Requests\ap\comercial\StoreVehiclePurchaseOrderRequest;
 use App\Http\Requests\ap\comercial\UpdateVehiclePurchaseOrderRequest;
 use App\Http\Services\ap\comercial\VehiclePurchaseOrderService;
+use Illuminate\Http\Request;
 
 class VehiclePurchaseOrderController extends Controller
 {
@@ -15,6 +16,15 @@ class VehiclePurchaseOrderController extends Controller
   public function __construct(VehiclePurchaseOrderService $service)
   {
     $this->service = $service;
+  }
+
+  public function export(Request $request)
+  {
+    try {
+      return $this->service->export($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   public function index(IndexVehiclePurchaseOrderRequest $request)

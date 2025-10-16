@@ -34,6 +34,7 @@ class VehiclePurchaseOrderResource extends JsonResource
       'supplier_id' => $this->supplier_id,
       'currency_id' => $this->currency_id,
       'exchange_rate_id' => $this->exchange_rate_id,
+      'exchange_rate' => $this->exchangeRate->rate,
 
       // Guide
       'number' => $this->number,

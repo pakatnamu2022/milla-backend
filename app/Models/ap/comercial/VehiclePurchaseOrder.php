@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
+use App\Http\Traits\Reportable;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
@@ -16,7 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class VehiclePurchaseOrder extends Model
 {
-  use softDeletes;
+  use softDeletes, Reportable;
 
   protected $table = 'ap_vehicle_purchase_order';
 
@@ -198,4 +199,159 @@ class VehiclePurchaseOrder extends Model
   {
     return $query->where('migration_status', 'completed');
   }
+
+  public function getStatusAttribute($value)
+  {
+    return $value ? 'Activa' : 'Anulada';
+  }
+
+  public function getStatusMigrationAttribute($value)
+  {
+    return match ($value) {
+      'pending' => 'Pendiente',
+      'in_progress' => 'En Proceso',
+      'completed' => 'Completada',
+      'failed' => 'Fallida',
+      'updated_with_nc' => 'Actualizada con NC',
+      default => 'Desconocido',
+    };
+  }
+
+  // ← CONFIGURACIÓN DEL REPORTE CON FORMATO SOLICITADO
+  protected $reportColumns = [
+    'sede.abreviatura' => [
+      'label' => 'Sede',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'vin' => [
+      'label' => 'VIN',
+      'formatter' => null,
+      'width' => 15,
+//      'accessor' => 'vin'
+    ],
+    'year' => [
+      'label' => 'Año',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'engine_number' => [
+      'label' => 'Número Motor',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'engineType.description' => [
+      'label' => 'Tipo Orden',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'supplier.full_name' => [
+      'label' => 'Proveedor',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'supplier.num_doc' => [
+      'label' => 'RUC',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'currency.name' => [
+      'label' => 'Moneda',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'model.version' => [
+      'label' => 'Modelo',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'model_code' => [
+      'label' => 'Código Modelo',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'color.description' => [
+      'label' => 'Color',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'supplierType.description' => [
+      'label' => 'Tipo Orden',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'vehicleStatus.description' => [
+      'label' => 'Estado',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'warehouse.description' => [
+      'label' => 'Almacén',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'warehousePhysical.description' => [
+      'label' => 'Almacén Físico',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'exchangeRate.rate' => [
+      'label' => 'Tipo Cambio',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'number' => [
+      'label' => 'N° Orden',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'number_guide' => [
+      'label' => 'N° Ingreso',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'invoice_dynamics' => [
+      'label' => 'N° Factura Dynamics',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'receipt_dynamics' => [
+      'label' => 'N° Recibo Dynamics',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'credit_note_dynamics' => [
+      'label' => 'N° Nota Crédito Dynamics',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'status' => [
+      'label' => 'Estado',
+      'formatter' => null,
+      'width' => 20,
+      'accessor' => 'getStatusAttribute'
+    ],
+    'migration_status' => [
+      'label' => 'Estado Migración',
+      'formatter' => null,
+      'width' => 20,
+      'accessor' => 'getStatusMigrationAttribute'
+    ],
+  ];
+
+  protected $reportRelations = [
+    'supplier',
+    'currency',
+    'model',
+    'color',
+    'supplierType',
+    'engineType',
+    'sede',
+    'vehicleStatus',
+    'warehouse',
+    'warehousePhysical',
+    'exchangeRate',
+    'exchangeRate'
+
+  ];
 }

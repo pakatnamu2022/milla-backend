@@ -727,6 +727,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'destroy'
       ]);
 
+      Route::get('vehiclePurchaseOrder/export', [VehiclePurchaseOrderController::class, 'export']);
       Route::apiResource('vehiclePurchaseOrder', VehiclePurchaseOrderController::class)->only([
         'index',
         'show',

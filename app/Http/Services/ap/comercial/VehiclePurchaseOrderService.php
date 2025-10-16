@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\comercial;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\ExportService;
 use App\Http\Services\DatabaseSyncService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Models\ap\comercial\VehiclePurchaseOrder;
@@ -20,6 +21,21 @@ use Throwable;
 
 class VehiclePurchaseOrderService extends BaseService implements BaseServiceInterface
 {
+
+  protected ExportService $exportService;
+
+  public function __construct(
+    ExportService $exportService
+  )
+  {
+    $this->exportService = $exportService;
+  }
+
+  public function export(Request $request)
+  {
+    return $this->exportService->exportFromRequest($request, VehiclePurchaseOrder::class);
+  }
+
   public function list(Request $request)
   {
     return $this->getFilteredResults(
