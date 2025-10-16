@@ -127,6 +127,25 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       $newInvoice = trim($result->NroDocProvDocumento);
       $newReceipt = trim($result->NumeroDocumento);
 
+
+      // CASO 2: OC con factura y migration_status='completed' y tiene NC
+      // Verificar si la factura cambió (nueva OC con punto)
+      if ($purchaseOrder->migration_status === 'completed' && !empty($purchaseOrder->credit_note_dynamics)) {
+
+        Log::info("Invoice changed detected for PO {$purchaseOrder->number}: {$purchaseOrder->invoice_dynamics} -> {$newInvoice}");
+
+        // Actualizar la factura y cambiar el estado a 'updated_with_nc'
+        $purchaseOrder->update([
+          'invoice_dynamics' => $newInvoice,
+          'receipt_dynamics' => $newReceipt,
+          'migration_status' => 'updated_with_nc',
+          'status' => !empty($purchaseOrder->invoice_dynamics) && !($newInvoice == $newReceipt) // Si son iguales, marcar como false (anulada)
+        ]);
+
+        Log::info("PO {$purchaseOrder->number} updated with new invoice and marked as 'updated_with_nc'");
+        return;
+      }
+
       // CASO 1: OC sin factura (flujo normal inicial)
       if (empty($purchaseOrder->invoice_dynamics)) {
         $purchaseOrder->update([
@@ -144,24 +163,6 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         } catch (\Exception $e) {
           Log::error("Error creating vehicle movement for PO {$purchaseOrder->number}: {$e->getMessage()}");
         }
-        return;
-      }
-
-      // CASO 2: OC con factura y migration_status='completed' y tiene NC
-      // Verificar si la factura cambió (nueva OC con punto)
-      if ($purchaseOrder->migration_status === 'completed' && !empty($purchaseOrder->credit_note_dynamics)) {
-
-        Log::info("Invoice changed detected for PO {$purchaseOrder->number}: {$purchaseOrder->invoice_dynamics} -> {$newInvoice}");
-
-        // Actualizar la factura y cambiar el estado a 'updated_with_nc'
-        $purchaseOrder->update([
-          'invoice_dynamics' => $newInvoice,
-          'receipt_dynamics' => $newReceipt,
-          'migration_status' => 'updated_with_nc',
-          'status' => !($newInvoice == $newReceipt) // Si son iguales, marcar como false (anulada)
-        ]);
-
-        Log::info("PO {$purchaseOrder->number} updated with new invoice and marked as 'updated_with_nc'");
         return;
       }
 
