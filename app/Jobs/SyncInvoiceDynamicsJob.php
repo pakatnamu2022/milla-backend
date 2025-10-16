@@ -116,14 +116,18 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         return;
       }
 
-      $status = trim($result->EstadoDocumento) == 'Hist. Recep.';
+      $status = trim($result->EstadoDocumento) === 'Hist. Recep.';
+
+      if (!$status) {
+        Log::info("Invoice for PO {$purchaseOrder->number} is not in 'Hist. Recep.' status, skipping");
+        return;
+      }
+
       $newInvoice = trim($result->NroDocProvDocumento);
       $newReceipt = trim($result->NumeroDocumento);
 
-      Log::info("PA result for PO `{$purchaseOrder->number}`: Invoice=`{$newInvoice}`, Receipt=`{$newReceipt}`, Status=`{$result->EstadoDocumento}`");
-
       // CASO 1: OC sin factura (flujo normal inicial)
-      if (empty($purchaseOrder->invoice_dynamics) && $status) {
+      if (empty($purchaseOrder->invoice_dynamics)) {
         $purchaseOrder->update([
           'invoice_dynamics' => $newInvoice,
           'receipt_dynamics' => $newReceipt
@@ -144,7 +148,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
 
       // CASO 2: OC con factura y migration_status='completed' y tiene NC
       // Verificar si la factura cambió (nueva OC con punto)
-      if ($purchaseOrder->migration_status === 'completed' && !empty($purchaseOrder->credit_note_dynamics) && $status) {
+      if ($purchaseOrder->migration_status === 'completed' && !empty($purchaseOrder->credit_note_dynamics)) {
 
         Log::info("Invoice changed detected for PO {$purchaseOrder->number}: {$purchaseOrder->invoice_dynamics} -> {$newInvoice}");
 
