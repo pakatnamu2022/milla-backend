@@ -13,7 +13,7 @@ class ExportService
   {
     $model = app($modelClass);
     $data = $this->getData($model, $options);
-    $columns = $this->getColumns($model, $options['columns'] ?? null);
+    $columns = $this->getColumns($model, $options['columns'] ?? null, $options['context'] ?? []);
     $title = $options['title'] ?? 'Reporte';
     $styles = $options['styles'] ?? $model->getReportStyles();
 
@@ -28,7 +28,7 @@ class ExportService
   {
     $model = app($modelClass);
     $data = $this->getData($model, $options);
-    $columns = $this->getColumns($model, $options['columns'] ?? null);
+    $columns = $this->getColumns($model, $options['columns'] ?? null, $options['context'] ?? []);
     $title = $options['title'] ?? 'Reporte';
 
     $viewData = [
@@ -66,10 +66,17 @@ class ExportService
     $format = $request->get('format', 'excel');
     $filters = $this->buildFiltersFromRequest($request, $modelClass);
 
+    // Construir contexto desde el request para el filtrado de columnas
+    $context = [];
+    if ($request->filled('type')) {
+      $context['type'] = $request->get('type');
+    }
+
     $options = [
       'title' => $request->get('title', 'Reporte'),
       'filters' => $filters,
       'columns' => $request->get('columns'),
+      'context' => $context,
       'summary' => $this->generateSummary($modelClass, $filters)
     ];
 
@@ -93,10 +100,16 @@ class ExportService
     return $data;
   }
 
-  protected function getColumns($model, $requestedColumns = null)
+  protected function getColumns($model, $requestedColumns = null, $context = [])
   {
     $availableColumns = $model->getReportableColumns();
 
+    // Si el modelo tiene método para filtrar columnas según contexto, usarlo
+    if (method_exists($model, 'filterReportColumns')) {
+      $availableColumns = $model->filterReportColumns($availableColumns, $context);
+    }
+
+    // Si se solicitaron columnas específicas, filtrar
     if ($requestedColumns && is_array($requestedColumns)) {
       $columns = [];
       foreach ($requestedColumns as $column) {

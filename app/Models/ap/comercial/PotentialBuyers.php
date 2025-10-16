@@ -214,4 +214,22 @@ class PotentialBuyers extends Model
     $nombreCompleto = $this->worker ? $this->worker->nombre_completo : 'SIN ASESOR';
     return $nombreCompleto;
   }
+
+  /**
+   * Filtrar columnas de reporte según contexto (tipo)
+   * Si type = 'VISITA', ocultar 'model' y 'version'
+   * Si type = 'LEADS', mostrar todas las columnas
+   */
+  public function filterReportColumns($columns, $context = [])
+  {
+    $type = $context['type'] ?? null;
+
+    // Si es tipo VISITA, remover las columnas de modelo y versión
+    if ($type === 'VISITA') {
+      unset($columns['model']);
+      unset($columns['version']);
+    }
+
+    return $columns;
+  }
 }

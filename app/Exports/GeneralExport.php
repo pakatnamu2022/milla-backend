@@ -54,7 +54,18 @@ class GeneralExport implements
   {
     $mapped = [];
     foreach ($this->columns as $key => $column) {
-      $value = is_array($row) ? ($row[$key] ?? '') : data_get($row, $key, '');
+      // Si hay un accessor definido, usarlo
+      if (is_array($column) && isset($column['accessor'])) {
+        $accessor = $column['accessor'];
+        // Llamar al accessor del modelo si existe
+        if (is_object($row) && method_exists($row, $accessor)) {
+          $value = $row->$accessor();
+        } else {
+          $value = is_array($row) ? ($row[$key] ?? '') : data_get($row, $key, '');
+        }
+      } else {
+        $value = is_array($row) ? ($row[$key] ?? '') : data_get($row, $key, '');
+      }
 
       if (is_array($column) && isset($column['formatter'])) {
         $value = $this->formatValue($value, $column['formatter']);
