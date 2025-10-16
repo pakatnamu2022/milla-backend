@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Http\Controllers\Dashboard;
+namespace App\Http\Controllers\Dashboard\ap\comercial;
 
 use App\Http\Controllers\Controller;
-use App\Http\Services\Dashboard\Comercial\DashboardComercialService;
+use App\Http\Services\Dashboard\ap\comercial\DashboardComercialService;
 use Illuminate\Http\Request;
 
 /**
- * Controlador para endpoints de indicadores del Dashboard Comercial
+ * Controlador para endpoints de indicadores del Dashboard comercial
  *
  * Maneja las peticiones HTTP y delega la lógica al servicio correspondiente
  */
@@ -125,6 +125,54 @@ class DashboardComercialController extends Controller
     ]);
 
     $data = $this->dashboardService->getTotalsByAdvisor(
+      $request->date_from,
+      $request->date_to,
+      $request->type
+    );
+
+    return response()->json([
+      'success' => true,
+      'data' => $data,
+      'periodo' => [
+        'fecha_inicio' => $request->date_from,
+        'fecha_fin' => $request->date_to,
+      ],
+    ]);
+  }
+
+  public function getTotalsByUser(Request $request)
+  {
+    $request->validate([
+      'date_from' => 'required|date|date_format:Y-m-d',
+      'date_to' => 'required|date|date_format:Y-m-d|after_or_equal:date_from',
+      'type' => 'required|in:VISITA,LEADS',
+    ]);
+
+    $data = $this->dashboardService->getTotalsByUser(
+      $request->date_from,
+      $request->date_to,
+      $request->type
+    );
+
+    return response()->json([
+      'success' => true,
+      'data' => $data,
+      'periodo' => [
+        'fecha_inicio' => $request->date_from,
+        'fecha_fin' => $request->date_to,
+      ],
+    ]);
+  }
+
+  public function getTotalsByCampaign(Request $request)
+  {
+    $request->validate([
+      'date_from' => 'required|date|date_format:Y-m-d',
+      'date_to' => 'required|date|date_format:Y-m-d|after_or_equal:date_from',
+      'type' => 'required|in:VISITA,LEADS',
+    ]);
+
+    $data = $this->dashboardService->getTotalsByCampaign(
       $request->date_from,
       $request->date_to,
       $request->type

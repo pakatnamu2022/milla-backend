@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ap\ApCommercialMastersController;
+use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\comercial\OpportunityActionController;
 use App\Http\Controllers\ap\comercial\OpportunityController;
 use App\Http\Controllers\ap\comercial\PotentialBuyersController;
@@ -8,11 +9,6 @@ use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
 use App\Http\Controllers\ap\comercial\VehicleVNController;
-use App\Http\Controllers\ap\postventa\ApprovedAccessoriesController;
-use App\Http\Controllers\Dashboard\DashboardComercialController;
-use App\Http\Controllers\AuditLogsController;
-use App\Http\Controllers\DocumentValidationController;
-use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFamiliesController;
@@ -35,7 +31,11 @@ use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
 use App\Http\Controllers\ap\maestroGeneral\UnitMeasurementController;
 use App\Http\Controllers\ap\maestroGeneral\UserSeriesAssignmentController;
 use App\Http\Controllers\ap\maestroGeneral\WarehouseController;
+use App\Http\Controllers\ap\postventa\ApprovedAccessoriesController;
+use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Dashboard\ap\comercial\DashboardComercialController;
+use App\Http\Controllers\DocumentValidationController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCompetenceController;
@@ -69,7 +69,6 @@ use App\Http\Controllers\gp\gestionsistema\ViewController;
 use App\Http\Controllers\gp\maestroGeneral\SedeController;
 use App\Http\Controllers\gp\tics\EquipmentController;
 use App\Http\Controllers\gp\tics\EquipmentTypeController;
-use App\Http\Controllers\Api\EmailTestController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login'])->name('login');
@@ -675,6 +674,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
       // Crear oportunidad desde un cliente
       Route::post('businessPartners/{clientId}/opportunities', [OpportunityController::class, 'storeFromClient']);
 
+      Route::get('potentialBuyers/export', [PotentialBuyersController::class, 'export']);
       Route::get('potentialBuyers/my', [PotentialBuyersController::class, 'myPotentialBuyers']);
       Route::put('potentialBuyers/{id}/discard', [PotentialBuyersController::class, 'discard']);
       Route::apiResource('potentialBuyers', PotentialBuyersController::class)->only([
@@ -749,15 +749,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
       });
 
       // DASHBOARD - Indicadores Comerciales
-      Route::group(['prefix' => 'dashboard'], function () {
-        //tienda
-        Route::get('/indicators/by-date-range-total', [DashboardComercialController::class, 'getTotalsByDateRangeTotal']);
-        Route::get('/indicators/by-date-range', [DashboardComercialController::class, 'getTotalsByDateRange']);
-        Route::get('/indicators/by-sede', [DashboardComercialController::class, 'getTotalsBySede']);
-        Route::get('/indicators/by-sede-and-brand', [DashboardComercialController::class, 'getTotalsBySedeAndBrand']);
-        Route::get('/indicators/by-advisor', [DashboardComercialController::class, 'getTotalsByAdvisor']);
-        //leads
-
+      Route::group(['prefix' => 'dashboard-visit-leads'], function () {
+        Route::get('/by-date-range-total', [DashboardComercialController::class, 'getTotalsByDateRangeTotal']);
+        Route::get('/by-date-range', [DashboardComercialController::class, 'getTotalsByDateRange']);
+        Route::get('/by-sede', [DashboardComercialController::class, 'getTotalsBySede']);
+        Route::get('/by-sede-and-brand', [DashboardComercialController::class, 'getTotalsBySedeAndBrand']);
+        Route::get('/by-advisor', [DashboardComercialController::class, 'getTotalsByAdvisor']);
+        Route::get('/by-user', [DashboardComercialController::class, 'getTotalsByUser']);
+        Route::get('/by-campaign', [DashboardComercialController::class, 'getTotalsByCampaign']);
       });
     });
 
