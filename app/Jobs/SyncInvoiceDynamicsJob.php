@@ -120,6 +120,8 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       $newInvoice = trim($result->NroDocProvDocumento);
       $newReceipt = trim($result->NumeroDocumento);
 
+      Log::info("PA result for PO `{$purchaseOrder->number}`: Invoice=`{$newInvoice}`, Receipt=`{$newReceipt}`, Status=`{$result->EstadoDocumento}`");
+
       // CASO 1: OC sin factura (flujo normal inicial)
       if (empty($purchaseOrder->invoice_dynamics) && $status) {
         $purchaseOrder->update([
