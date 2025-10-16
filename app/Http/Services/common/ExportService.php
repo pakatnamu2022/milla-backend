@@ -13,7 +13,7 @@ class ExportService
   {
     $model = app($modelClass);
     $data = $this->getData($model, $options);
-    $columns = $this->getColumns($model, $options['columns'] ?? null);
+    $columns = $this->getColumns($model, $options['columns'] ?? null, $options['context'] ?? []);
     $title = $options['title'] ?? 'Reporte';
     $styles = $options['styles'] ?? $model->getReportStyles();
 
@@ -28,7 +28,7 @@ class ExportService
   {
     $model = app($modelClass);
     $data = $this->getData($model, $options);
-    $columns = $this->getColumns($model, $options['columns'] ?? null);
+    $columns = $this->getColumns($model, $options['columns'] ?? null, $options['context'] ?? []);
     $title = $options['title'] ?? 'Reporte';
 
     $viewData = [
@@ -64,12 +64,19 @@ class ExportService
   public function exportFromRequest($request, $modelClass)
   {
     $format = $request->get('format', 'excel');
-    $filters = $this->buildFiltersFromRequest($request);
+    $filters = $this->buildFiltersFromRequest($request, $modelClass);
+
+    // Construir contexto desde el request para el filtrado de columnas
+    $context = [];
+    if ($request->filled('type')) {
+      $context['type'] = $request->get('type');
+    }
 
     $options = [
       'title' => $request->get('title', 'Reporte'),
       'filters' => $filters,
       'columns' => $request->get('columns'),
+      'context' => $context,
       'summary' => $this->generateSummary($modelClass, $filters)
     ];
 
@@ -93,10 +100,16 @@ class ExportService
     return $data;
   }
 
-  protected function getColumns($model, $requestedColumns = null)
+  protected function getColumns($model, $requestedColumns = null, $context = [])
   {
     $availableColumns = $model->getReportableColumns();
 
+    // Si el modelo tiene método para filtrar columnas según contexto, usarlo
+    if (method_exists($model, 'filterReportColumns')) {
+      $availableColumns = $model->filterReportColumns($availableColumns, $context);
+    }
+
+    // Si se solicitaron columnas específicas, filtrar
     if ($requestedColumns && is_array($requestedColumns)) {
       $columns = [];
       foreach ($requestedColumns as $column) {
@@ -110,28 +123,72 @@ class ExportService
     return $availableColumns;
   }
 
-  protected function buildFiltersFromRequest($request)
+  protected function buildFiltersFromRequest($request, $modelClass = null)
   {
     $filters = [];
 
-    // Filtros comunes
-    if ($request->filled('search')) {
-      $filters[] = [
-        'column' => 'name',
-        'operator' => 'like',
-        'value' => $request->get('search')
-      ];
+    // Si se proporciona el modelo, intentar obtener los filtros definidos
+    if ($modelClass) {
+      $model = app($modelClass);
+
+      // Verificar si el modelo tiene filtros definidos
+      if (defined("$modelClass::filters")) {
+        $modelFilters = $modelClass::filters;
+
+        // Iterar sobre los filtros definidos en el modelo
+        foreach ($modelFilters as $filterKey => $filterOperator) {
+          // Si es un filtro de búsqueda (array de columnas)
+          if ($filterKey === 'search' && is_array($filterOperator)) {
+            if ($request->filled('search')) {
+              // Aplicar búsqueda OR en todas las columnas definidas
+              // Nota: Este caso requiere lógica especial, por ahora lo saltamos
+              // y dejamos que el BaseService lo maneje
+              continue;
+            }
+          }
+          // Si el parámetro existe en el request
+          elseif ($request->filled($filterKey)) {
+            $value = $request->get($filterKey);
+
+            // Determinar el operador basado en el tipo de filtro
+            if ($filterOperator === 'between') {
+              // Para filtros between, esperar un array [from, to] o [0 => from, 1 => to]
+              if (is_array($value) && count($value) === 2) {
+                // Reindexar el array para asegurar que sea [0, 1]
+                $betweenValues = array_values($value);
+                $filters[] = [
+                  'column' => $filterKey,
+                  'operator' => 'between',
+                  'value' => $betweenValues
+                ];
+              }
+            } elseif ($filterOperator === 'like') {
+              $filters[] = [
+                'column' => $filterKey,
+                'operator' => 'like',
+                'value' => $value
+              ];
+            } elseif ($filterOperator === 'in') {
+              $filters[] = [
+                'column' => $filterKey,
+                'operator' => 'in',
+                'value' => is_array($value) ? $value : [$value]
+              ];
+            } else {
+              // Para operadores como '=', '>', '<', '>=', '<=', '!='
+              $filters[] = [
+                'column' => $filterKey,
+                'operator' => $filterOperator,
+                'value' => $value
+              ];
+            }
+          }
+        }
+      }
     }
 
-    if ($request->filled('status')) {
-      $filters[] = [
-        'column' => 'status',
-        'operator' => '=',
-        'value' => $request->get('status')
-      ];
-    }
-
-    if ($request->filled('date_from')) {
+    // Mantener compatibilidad con filtros genéricos legacy
+    if ($request->filled('date_from') && !$this->filterExists($filters, 'date_from')) {
       $filters[] = [
         'column' => 'created_at',
         'operator' => '>=',
@@ -139,7 +196,7 @@ class ExportService
       ];
     }
 
-    if ($request->filled('date_to')) {
+    if ($request->filled('date_to') && !$this->filterExists($filters, 'date_to')) {
       $filters[] = [
         'column' => 'created_at',
         'operator' => '<=',
@@ -148,6 +205,16 @@ class ExportService
     }
 
     return $filters;
+  }
+
+  protected function filterExists($filters, $column)
+  {
+    foreach ($filters as $filter) {
+      if ($filter['column'] === $column) {
+        return true;
+      }
+    }
+    return false;
   }
 
   protected function generateSummary($modelClass, $filters = [])

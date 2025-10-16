@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\PotentialBuyersResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\common\ExportService;
 use App\Http\Services\common\ImportService;
 use App\Imports\ap\comercial\PotentialBuyersDercoImport;
 use App\Imports\ap\comercial\PotentialBuyersSocialNetworksImport;
@@ -19,6 +20,15 @@ use Illuminate\Support\Facades\DB;
 
 class PotentialBuyersService extends BaseService
 {
+  protected $exportService;
+
+  public function __construct(
+    ExportService $exportService
+  )
+  {
+    $this->exportService = $exportService;
+  }
+
   public function list(Request $request)
   {
     return $this->getFilteredResults(
@@ -505,5 +515,10 @@ class PotentialBuyersService extends BaseService
         'error' => $e->getMessage()
       ];
     }
+  }
+
+  public function export(Request $request)
+  {
+    return $this->exportService->exportFromRequest($request, PotentialBuyers::class);
   }
 }

@@ -133,7 +133,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "71447834",
@@ -142,7 +142,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "71447834",
@@ -151,7 +151,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "71319927",
@@ -160,7 +160,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 13,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "71319927",
@@ -169,7 +169,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 3,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "71319927",
@@ -178,7 +178,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "47620737",
@@ -349,7 +349,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 6,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "40502833",
@@ -358,7 +358,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "40502833",
@@ -367,7 +367,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "40619365",
@@ -664,7 +664,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 6,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "70086807",
@@ -673,7 +673,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "70086807",
@@ -682,7 +682,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "44063728",
@@ -871,7 +871,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 94,
         "isAscending" => 1,
         "weight" => 20,
-        "categoria" => "Gerente Comercial Ap"
+        "categoria" => "Gerente comercial Ap"
       ],
       [
         "dni" => "80541083",
@@ -880,7 +880,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => "5.1",
         "isAscending" => 1,
         "weight" => 20,
-        "categoria" => "Gerente Comercial Ap"
+        "categoria" => "Gerente comercial Ap"
       ],
       [
         "dni" => "80541083",
@@ -889,7 +889,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 24,
         "isAscending" => 1,
         "weight" => 20,
-        "categoria" => "Gerente Comercial Ap"
+        "categoria" => "Gerente comercial Ap"
       ],
       [
         "dni" => "80541083",
@@ -898,7 +898,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 18,
         "isAscending" => 1,
         "weight" => 20,
-        "categoria" => "Gerente Comercial Ap"
+        "categoria" => "Gerente comercial Ap"
       ],
       [
         "dni" => "80541083",
@@ -907,7 +907,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 11.5,
         "isAscending" => 1,
         "weight" => 20,
-        "categoria" => "Gerente Comercial Ap"
+        "categoria" => "Gerente comercial Ap"
       ],
       [
         "dni" => "70860579",
@@ -1159,7 +1159,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 135000,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Supervisor Comercial"
+        "categoria" => "Supervisor comercial"
       ],
       [
         "dni" => "45695736",
@@ -1168,7 +1168,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 350,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Supervisor Comercial"
+        "categoria" => "Supervisor comercial"
       ],
       [
         "dni" => "71325400",
@@ -1204,7 +1204,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "42704083",
@@ -1213,7 +1213,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "46466488",
@@ -1222,7 +1222,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 7,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "46466488",
@@ -1231,7 +1231,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "46466488",
@@ -1240,7 +1240,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "45577414",
@@ -1429,7 +1429,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "41399449",
@@ -1438,7 +1438,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "41399449",
@@ -1447,7 +1447,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "41399449",
@@ -1456,7 +1456,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "72904816",
@@ -1474,7 +1474,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 12,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "05644606",
@@ -1483,7 +1483,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 3,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "05644606",
@@ -1492,7 +1492,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "70408777",
@@ -2194,7 +2194,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 136,
         "isAscending" => 1,
         "weight" => 20,
-        "categoria" => "Gerente Comercial Ap"
+        "categoria" => "Gerente comercial Ap"
       ],
       [
         "dni" => "16787219",
@@ -2203,7 +2203,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => "5.1",
         "isAscending" => 1,
         "weight" => 20,
-        "categoria" => "Gerente Comercial Ap"
+        "categoria" => "Gerente comercial Ap"
       ],
       [
         "dni" => "16787219",
@@ -2212,7 +2212,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 32,
         "isAscending" => 1,
         "weight" => 20,
-        "categoria" => "Gerente Comercial Ap"
+        "categoria" => "Gerente comercial Ap"
       ],
       [
         "dni" => "16787219",
@@ -2221,7 +2221,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 12,
         "isAscending" => 1,
         "weight" => 20,
-        "categoria" => "Gerente Comercial Ap"
+        "categoria" => "Gerente comercial Ap"
       ],
       [
         "dni" => "16787219",
@@ -2230,7 +2230,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 13,
         "isAscending" => 1,
         "weight" => 20,
-        "categoria" => "Gerente Comercial Ap"
+        "categoria" => "Gerente comercial Ap"
       ],
       [
         "dni" => "80547267",
@@ -2302,7 +2302,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "45243028",
@@ -2311,7 +2311,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "45243028",
@@ -2320,7 +2320,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "73033157",
@@ -2347,7 +2347,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 6,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "80350561",
@@ -2356,7 +2356,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "80350561",
@@ -2365,7 +2365,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "72342187",
@@ -2374,7 +2374,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 8,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "72342187",
@@ -2383,7 +2383,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "72342187",
@@ -2392,7 +2392,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
 //      [
 //        "dni" => "43112264",
@@ -2617,7 +2617,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 13,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "42606028",
@@ -2626,7 +2626,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 3,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "42606028",
@@ -2635,7 +2635,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "02683938",
@@ -2761,7 +2761,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 7,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "02786294",
@@ -2770,7 +2770,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "41340413",
@@ -3418,7 +3418,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 12,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "40654637",
@@ -3427,7 +3427,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 3,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "40654637",
@@ -3436,7 +3436,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "40803935",
@@ -3445,7 +3445,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "40803935",
@@ -3454,7 +3454,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "40803935",
@@ -3463,7 +3463,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "40803935",
@@ -3472,7 +3472,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "45838857",
@@ -3526,7 +3526,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 8,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "47189021",
@@ -3535,7 +3535,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "47189021",
@@ -3544,7 +3544,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "44868919",
@@ -3571,7 +3571,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "43945322",
@@ -3580,7 +3580,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "43945322",
@@ -3589,7 +3589,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "43579923",
@@ -3733,7 +3733,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 12,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "42298543",
@@ -3742,7 +3742,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 3,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "42298543",
@@ -3751,7 +3751,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "17861917",
@@ -3760,7 +3760,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 9,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "17861917",
@@ -3769,7 +3769,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 3,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "17861917",
@@ -3778,7 +3778,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "44579660",
@@ -3787,7 +3787,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 6,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "44579660",
@@ -3796,7 +3796,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "44579660",
@@ -3805,7 +3805,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "71622182",
@@ -3841,7 +3841,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 95,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Gestor Comercial"
+        "categoria" => "Gestor comercial"
       ],
       [
         "dni" => "48493374",
@@ -3850,7 +3850,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Gestor Comercial"
+        "categoria" => "Gestor comercial"
       ],
       [
         "dni" => "48493374",
@@ -3859,7 +3859,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 15,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Gestor Comercial"
+        "categoria" => "Gestor comercial"
       ],
       [
         "dni" => "48493374",
@@ -3868,7 +3868,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Gestor Comercial"
+        "categoria" => "Gestor comercial"
       ],
       [
         "dni" => "46720670",
@@ -3877,7 +3877,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 20,
-        "categoria" => "Gestor Comercial"
+        "categoria" => "Gestor comercial"
       ],
       [
         "dni" => "46720670",
@@ -3886,7 +3886,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 20,
-        "categoria" => "Gestor Comercial"
+        "categoria" => "Gestor comercial"
       ],
       [
         "dni" => "46720670",
@@ -3895,7 +3895,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 20,
-        "categoria" => "Gestor Comercial"
+        "categoria" => "Gestor comercial"
       ],
       [
         "dni" => "46720670",
@@ -3904,7 +3904,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 20,
-        "categoria" => "Gestor Comercial"
+        "categoria" => "Gestor comercial"
       ],
       [
         "dni" => "46720670",
@@ -3913,7 +3913,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 95,
         "isAscending" => 1,
         "weight" => 20,
-        "categoria" => "Gestor Comercial"
+        "categoria" => "Gestor comercial"
       ],
       [
         "dni" => "45801393",
@@ -4066,7 +4066,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 6,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "46891277",
@@ -4075,7 +4075,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "46891277",
@@ -4084,7 +4084,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "41998623",
@@ -4138,7 +4138,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "44236861",
@@ -4147,7 +4147,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "44236861",
@@ -4156,7 +4156,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "44236861",
@@ -4165,7 +4165,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "02851958",
@@ -4336,7 +4336,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 9,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "48299990",
@@ -4345,7 +4345,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "48299990",
@@ -4354,7 +4354,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "44498939",
@@ -4525,7 +4525,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "16589869",
@@ -4534,7 +4534,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "16589869",
@@ -4543,7 +4543,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "16589869",
@@ -4552,7 +4552,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "77499375",
@@ -4930,7 +4930,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 12,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "41544958",
@@ -4939,7 +4939,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 3,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "41544958",
@@ -4948,7 +4948,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "74202439",
@@ -5047,7 +5047,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 6,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "44517042",
@@ -5056,7 +5056,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "44517042",
@@ -5065,7 +5065,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "72722099",
@@ -5299,7 +5299,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 6,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "75618646",
@@ -5308,7 +5308,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "75618646",
@@ -5317,7 +5317,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "72650523",
@@ -5326,7 +5326,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "72650523",
@@ -5335,7 +5335,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "72650523",
@@ -5344,7 +5344,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "72650523",
@@ -5353,7 +5353,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "73855265",
@@ -5497,7 +5497,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 13,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "73235748",
@@ -5506,7 +5506,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 3,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "73235748",
@@ -5515,7 +5515,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "70478021",
@@ -5542,7 +5542,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "41337449",
@@ -5551,7 +5551,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "41337449",
@@ -5560,7 +5560,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "41337449",
@@ -5569,7 +5569,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "72700680",
@@ -5614,7 +5614,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 7,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "05641617",
@@ -5623,7 +5623,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "05641617",
@@ -5632,7 +5632,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "46613975",
@@ -6217,7 +6217,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 6,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "77127044",
@@ -6226,7 +6226,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "77127044",
@@ -6235,7 +6235,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "73777585",
@@ -6244,7 +6244,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "73777585",
@@ -6253,7 +6253,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "73777585",
@@ -6262,7 +6262,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "73777585",
@@ -6271,7 +6271,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "42772411",
@@ -6478,7 +6478,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "43315473",
@@ -6487,7 +6487,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "43315473",
@@ -6496,7 +6496,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "43315473",
@@ -6505,7 +6505,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "72865261",
@@ -6577,7 +6577,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "19037052",
@@ -6586,7 +6586,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "19037052",
@@ -6595,7 +6595,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "19037052",
@@ -6604,7 +6604,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "71960403",
@@ -7045,7 +7045,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 34,
-        "categoria" => "Gestor Comercial"
+        "categoria" => "Gestor comercial"
       ],
       [
         "dni" => "75560129",
@@ -7054,7 +7054,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 95,
         "isAscending" => 1,
         "weight" => 33,
-        "categoria" => "Gestor Comercial"
+        "categoria" => "Gestor comercial"
       ],
       [
         "dni" => "75560129",
@@ -7063,7 +7063,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 33,
-        "categoria" => "Gestor Comercial"
+        "categoria" => "Gestor comercial"
       ],
       [
         "dni" => "73629364",
@@ -7342,7 +7342,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "42838742",
@@ -7351,7 +7351,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "42838742",
@@ -7360,7 +7360,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "42838742",
@@ -7369,7 +7369,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "16657698",
@@ -7414,7 +7414,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "45509583",
@@ -7423,7 +7423,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "45509583",
@@ -7432,7 +7432,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "45509583",
@@ -7441,7 +7441,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "46792789",
@@ -7477,7 +7477,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 7,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "18217261",
@@ -7486,7 +7486,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "18217261",
@@ -7495,7 +7495,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "48502011",
@@ -7558,7 +7558,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 3,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "73365479",
@@ -7567,7 +7567,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "73657400",
@@ -7729,7 +7729,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "45464734",
@@ -7738,7 +7738,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "45464734",
@@ -7747,7 +7747,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "72757329",
@@ -8116,7 +8116,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 7,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "45795895",
@@ -8125,7 +8125,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "45795895",
@@ -8134,7 +8134,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "71702184",
@@ -8197,7 +8197,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 3,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "43488881",
@@ -8206,7 +8206,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "41941867",
@@ -8215,7 +8215,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "41941867",
@@ -8224,7 +8224,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "41941867",
@@ -8233,7 +8233,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "41941867",
@@ -8242,7 +8242,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "42795204",
@@ -8350,7 +8350,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "43084165",
@@ -8359,7 +8359,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 100,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "43084165",
@@ -8368,7 +8368,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 5,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "43084165",
@@ -8377,7 +8377,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Ejecutivo Comercial"
+        "categoria" => "Ejecutivo comercial"
       ],
       [
         "dni" => "41903472",
@@ -8386,7 +8386,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 6,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "41903472",
@@ -8395,7 +8395,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "41903472",
@@ -8404,7 +8404,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "71248855",
@@ -8458,7 +8458,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 9,
         "isAscending" => 1,
         "weight" => 50,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "16736017",
@@ -8467,7 +8467,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 2,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "16736017",
@@ -8476,7 +8476,7 @@ class ObjectiveSeeder extends Seeder
         "goal" => 1,
         "isAscending" => 1,
         "weight" => 25,
-        "categoria" => "Asesor Comercial"
+        "categoria" => "Asesor comercial"
       ],
       [
         "dni" => "42040791",

@@ -20,8 +20,7 @@ use Illuminate\Support\Facades\DB;
 class EvaluationPersonResultService extends BaseService
 {
   protected $exportService;
-
-
+  
   public function __construct(
     ExportService $exportService
   )

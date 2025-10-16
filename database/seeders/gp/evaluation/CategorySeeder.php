@@ -104,8 +104,8 @@ class CategorySeeder extends Seeder
     ]);
 
     $categoryJefeAdministracionComercial = HierarchicalCategory::create([
-      'name' => 'Jefe de Administración Comercial',
-      'description' => 'Description for the category Jefe de Administración Comercial',
+      'name' => 'Jefe de Administración comercial',
+      'description' => 'Description for the category Jefe de Administración comercial',
       'hasObjectives' => false,
       'excluded_from_evaluation' => false,
     ]);
