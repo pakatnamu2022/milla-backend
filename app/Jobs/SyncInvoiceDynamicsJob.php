@@ -9,6 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class SyncInvoiceDynamicsJob implements ShouldQueue
 {
@@ -164,23 +165,19 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         return;
       }
 
-      // CASO 3: OC con factura pero sin movimiento (recuperación)
-      if (!empty($purchaseOrder->invoice_dynamics)) {
-        $hasInTransitMovement = $purchaseOrder->movements()
-          ->where('ap_vehicle_status_id', ApVehicleStatus::VEHICULO_EN_TRAVESIA)
-          ->exists();
+      $hasInTransitMovement = $purchaseOrder->movements()
+        ->where('ap_vehicle_status_id', ApVehicleStatus::VEHICULO_EN_TRAVESIA)
+        ->exists();
 
-        if (!$hasInTransitMovement) {
-          Log::info("Purchase order {$purchaseOrder->number} has invoice_dynamics but no movement, creating it");
-          try {
-            $vehicleMovementService = new VehicleMovementService();
-            $vehicleMovementService->storeInTransitVehicleMovement($purchaseOrder->id);
-            Log::info("Vehicle movement created for PO {$purchaseOrder->number} with status VEHICULO EN TRAVESIA");
-          } catch (\Exception $e) {
-            Log::error("Error creating vehicle movement for PO {$purchaseOrder->number}: {$e->getMessage()}");
-          }
-        } else {
-          Log::info("Purchase order {$purchaseOrder->number} already has invoice_dynamics and movement: {$purchaseOrder->invoice_dynamics}");
+      // CASO 3: OC con factura pero sin movimiento (recuperación)
+      if (!empty($purchaseOrder->invoice_dynamics) && !$hasInTransitMovement) {
+        Log::info("Purchase order {$purchaseOrder->number} has invoice_dynamics but no movement, creating it");
+        try {
+          $vehicleMovementService = new VehicleMovementService();
+          $vehicleMovementService->storeInTransitVehicleMovement($purchaseOrder->id);
+          Log::info("Vehicle movement created for PO {$purchaseOrder->number} with status VEHICULO EN TRAVESIA");
+        } catch (Throwable $e) {
+          Log::error("Error creating vehicle movement for PO {$purchaseOrder->number}: {$e->getMessage()}");
         }
       }
 
