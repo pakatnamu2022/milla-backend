@@ -275,7 +275,7 @@
 
     <div class="company-info">
       <p><strong>Estimados señores AUTOMOTORES PAKATNAMU S.A.C.,</strong></p>
-      <p>Sirva la presente para saludarlos cordialmente y a su vez comunicarles los objetivos del PDG Comercial para el
+      <p>Sirva la presente para saludarlos cordialmente y a su vez comunicarles los objetivos del PDG comercial para el
         presente mes:</p>
     </div>
 

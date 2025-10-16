@@ -6,7 +6,7 @@
 app/Http/
 ├── Services/
 │   └── Dashboard/
-│       ├── Comercial/
+│       ├── comercial/
 │       │   └── DashboardComercialService.php
 │       └── README.md (este archivo)
 ├── Controllers/
@@ -19,33 +19,34 @@ app/Http/
 ### Principios de Diseño
 
 1. **Centralización**: Todos los servicios de dashboard están en `app/Http/Services/Dashboard/`
-2. **Modularidad**: Cada módulo (Comercial, Ventas, etc.) tiene su propio subdirectorio
+2. **Modularidad**: Cada módulo (comercial, Ventas, etc.) tiene su propio subdirectorio
 3. **Separación de Responsabilidades**:
-   - **Servicios**: Contienen la lógica de negocio
-   - **Controladores**: Manejan las peticiones HTTP y validaciones
-   - **Modelos**: Acceso a datos
+  - **Servicios**: Contienen la lógica de negocio
+  - **Controladores**: Manejan las peticiones HTTP y validaciones
+  - **Modelos**: Acceso a datos
 4. **Escalabilidad**: Fácil agregar nuevos módulos siguiendo la misma estructura
 
-### Dashboard Comercial
+### Dashboard comercial
 
 #### Ubicación de Archivos
 
-- **Servicio**: `app/Http/Services/Dashboard/Comercial/DashboardComercialService.php`
+- **Servicio**: `app/Http/Services/Dashboard/comercial/DashboardComercialService.php`
 - **Controlador**: `app/Http/Controllers/Dashboard/DashboardComercialController.php`
 - **Rutas**: `routes/api.php` (dentro del grupo `ap/commercial/dashboard`)
 
 #### Endpoints Disponibles
 
-| Endpoint | Método | Descripción |
-|----------|--------|-------------|
-| `/ap/commercial/dashboard/indicators/by-date-range` | GET | Indicadores totales por rango de fechas |
-| `/ap/commercial/dashboard/indicators/by-sede` | GET | Indicadores agrupados por sede |
-| `/ap/commercial/dashboard/indicators/by-sede-and-brand` | GET | Indicadores por sede y marca |
-| `/ap/commercial/dashboard/indicators/by-advisor` | GET | Indicadores por asesor |
+| Endpoint                                                | Método | Descripción                             |
+|---------------------------------------------------------|--------|-----------------------------------------|
+| `/ap/commercial/dashboard/indicators/by-date-range`     | GET    | Indicadores totales por rango de fechas |
+| `/ap/commercial/dashboard/indicators/by-sede`           | GET    | Indicadores agrupados por sede          |
+| `/ap/commercial/dashboard/indicators/by-sede-and-brand` | GET    | Indicadores por sede y marca            |
+| `/ap/commercial/dashboard/indicators/by-advisor`        | GET    | Indicadores por asesor                  |
 
 #### Parámetros
 
 Todos los endpoints requieren:
+
 - `date_from` (string, formato: Y-m-d): Fecha de inicio
 - `date_to` (string, formato: Y-m-d): Fecha de fin
 
@@ -58,6 +59,7 @@ GET /api/ap/commercial/dashboard/indicators/by-date-range?date_from=2025-01-01&d
 ```
 
 **Respuesta:**
+
 ```json
 {
   "success": true,
@@ -88,6 +90,7 @@ GET /api/ap/commercial/dashboard/indicators/by-sede?date_from=2025-01-01&date_to
 ```
 
 **Respuesta:**
+
 ```json
 {
   "success": true,
@@ -119,6 +122,7 @@ GET /api/ap/commercial/dashboard/indicators/by-sede-and-brand?date_from=2025-01-
 ```
 
 **Respuesta:**
+
 ```json
 {
   "success": true,
@@ -143,6 +147,7 @@ GET /api/ap/commercial/dashboard/indicators/by-advisor?date_from=2025-01-01&date
 ```
 
 **Respuesta:**
+
 ```json
 {
   "success": true,
@@ -178,6 +183,7 @@ GET /api/ap/commercial/dashboard/indicators/by-advisor?date_from=2025-01-01&date
 Representa a los posibles compradores (leads).
 
 **Campos Importantes:**
+
 - `registration_date`: Fecha de registro
 - `use`: Estado de atención (0 = NO ATENDIDO, 1 = ATENDIDO, 2 = DESCARTADO)
 - `sede_id`: Sede donde se registró
@@ -189,6 +195,7 @@ Representa a los posibles compradores (leads).
 Representa las oportunidades de venta generadas a partir de leads.
 
 **Campos Importantes:**
+
 - `lead_id`: Referencia al PotentialBuyer
 - `opportunity_status_id`: Estado de la oportunidad (FRIO, TEMPLADO, CALIENTE, VENTA CONCRETADA, CERRADA)
 - `client_status_id`: Estado del cliente
@@ -199,6 +206,7 @@ Representa las oportunidades de venta generadas a partir de leads.
 Registra las acciones realizadas para captar al cliente.
 
 **Campos Importantes:**
+
 - `opportunity_id`: Referencia a la oportunidad
 - `action_type_id`: Tipo de acción
 - `datetime`: Fecha y hora de la acción
@@ -214,7 +222,7 @@ Registra las acciones realizadas para captar al cliente.
 
 ### Paso 1: Agregar Método al Servicio
 
-Editar: `app/Http/Services/Dashboard/Comercial/DashboardComercialService.php`
+Editar: `app/Http/Services/Dashboard/comercial/DashboardComercialService.php`
 
 ```php
 /**

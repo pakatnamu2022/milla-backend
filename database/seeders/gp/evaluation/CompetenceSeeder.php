@@ -93,27 +93,27 @@ class CompetenceSeeder extends Seeder
         "category" => "Jefe De Operaciones Y Mantenimiento"
       ],
       [
-        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "competence" => "Gestión de Proveedores - comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
         "subCompetence" => "Traspase De Información",
         "category" => "Logística TP"
       ],
       [
-        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "competence" => "Gestión de Proveedores - comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
         "subCompetence" => "Solución De Problemas V1",
         "category" => "Logística TP"
       ],
       [
-        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "competence" => "Gestión de Proveedores - comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
         "subCompetence" => "Seguimiento De Cobranzas",
         "category" => "Logística TP"
       ],
       [
-        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "competence" => "Gestión de Proveedores - comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
         "subCompetence" => "Relación Con El Proveedor",
         "category" => "Logística TP"
       ],
       [
-        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "competence" => "Gestión de Proveedores - comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
         "subCompetence" => "Persuasión",
         "category" => "Logística TP"
       ],
@@ -1180,97 +1180,97 @@ class CompetenceSeeder extends Seeder
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Claridad En El Mensaje",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Asertividad",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Escucha",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Respuesta Oportuna",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
         "subCompetence" => "Convicción",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
         "subCompetence" => "Dirección De Equipos",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
         "subCompetence" => "Resolución De Conflictos",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
         "subCompetence" => "Alineamiento",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Negociación: Capacidad para dirigir o controlar una discusión utilizando técnicas ganar-ganar planificando alternativas para negociar los mejores acuerdos.",
         "subCompetence" => "Comunicación Asertiva",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Negociación: Capacidad para dirigir o controlar una discusión utilizando técnicas ganar-ganar planificando alternativas para negociar los mejores acuerdos.",
         "subCompetence" => "Cierre De Acuerdos",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Negociación: Capacidad para dirigir o controlar una discusión utilizando técnicas ganar-ganar planificando alternativas para negociar los mejores acuerdos.",
         "subCompetence" => "Planificación De La Estrategia",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Negociación: Capacidad para dirigir o controlar una discusión utilizando técnicas ganar-ganar planificando alternativas para negociar los mejores acuerdos.",
         "subCompetence" => "Recolección De Información",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
         "subCompetence" => "Creación De Planes",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
         "subCompetence" => "Definir Metas e indicadores",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
         "subCompetence" => "Planificación De Los Recursos",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
         "subCompetence" => "Priorización",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Supervisión Efectiva: Supervisar el desempeño de los colaboradores brindando retrolimentación a partir del mismo y gestionar los resultados obtenidos.",
         "subCompetence" => "Gestión De Consecuencias Del Desempeño",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Supervisión Efectiva: Supervisar el desempeño de los colaboradores brindando retrolimentación a partir del mismo y gestionar los resultados obtenidos.",
         "subCompetence" => "Retroalimentación Sobre El Proceso",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Supervisión Efectiva: Supervisar el desempeño de los colaboradores brindando retrolimentación a partir del mismo y gestionar los resultados obtenidos.",
         "subCompetence" => "Seguimiento Efectivo",
-        "category" => "Supervisor Comercial"
+        "category" => "Supervisor comercial"
       ],
       [
         "competence" => "Cooperación Operativa: Coopera de manera activa con las necesidades del equipo y unidades con las que interactúa. Respeta los acuerdos generando un espacio colaborativo y de confianza.",
@@ -1485,72 +1485,72 @@ class CompetenceSeeder extends Seeder
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Asertividad",
-        "category" => "Gestor Comercial"
+        "category" => "Gestor comercial"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Claridad En El Mensaje",
-        "category" => "Gestor Comercial"
+        "category" => "Gestor comercial"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Escucha",
-        "category" => "Gestor Comercial"
+        "category" => "Gestor comercial"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Respuesta Oportuna",
-        "category" => "Gestor Comercial"
+        "category" => "Gestor comercial"
       ],
       [
         "competence" => "Ejecución Efectiva: Realizar una ejecución efectiva a partir de una adecuada gestión de los recursos y el uso de metodologías o procesos estandarizados en tiempos previamente establecidos.",
         "subCompetence" => "Gestión De Recursos",
-        "category" => "Gestor Comercial"
+        "category" => "Gestor comercial"
       ],
       [
         "competence" => "Ejecución Efectiva: Realizar una ejecución efectiva a partir de una adecuada gestión de los recursos y el uso de metodologías o procesos estandarizados en tiempos previamente establecidos.",
         "subCompetence" => "Metodología",
-        "category" => "Gestor Comercial"
+        "category" => "Gestor comercial"
       ],
       [
         "competence" => "Ejecución Efectiva: Realizar una ejecución efectiva a partir de una adecuada gestión de los recursos y el uso de metodologías o procesos estandarizados en tiempos previamente establecidos.",
         "subCompetence" => "Orientación Al Logro",
-        "category" => "Gestor Comercial"
+        "category" => "Gestor comercial"
       ],
       [
         "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
         "subCompetence" => "Amabilidad Y Cercanía",
-        "category" => "Gestor Comercial"
+        "category" => "Gestor comercial"
       ],
       [
         "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
         "subCompetence" => "Atención Efectiva A Consultas",
-        "category" => "Gestor Comercial"
+        "category" => "Gestor comercial"
       ],
       [
         "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
         "subCompetence" => "Atención Presencial Oportuna",
-        "category" => "Gestor Comercial"
+        "category" => "Gestor comercial"
       ],
       [
         "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
         "subCompetence" => "Seguimiento A La Atención",
-        "category" => "Gestor Comercial"
+        "category" => "Gestor comercial"
       ],
       [
         "competence" => "Supervisión Efectiva: Supervisar el desempeño de los colaboradores brindando retrolimentación a partir del mismo y gestionar los resultados obtenidos.",
         "subCompetence" => "Gestión De Consecuencias Del Desempeño",
-        "category" => "Gestor Comercial"
+        "category" => "Gestor comercial"
       ],
       [
         "competence" => "Supervisión Efectiva: Supervisar el desempeño de los colaboradores brindando retrolimentación a partir del mismo y gestionar los resultados obtenidos.",
         "subCompetence" => "Retroalimentación Sobre El Proceso",
-        "category" => "Gestor Comercial"
+        "category" => "Gestor comercial"
       ],
       [
         "competence" => "Supervisión Efectiva: Supervisar el desempeño de los colaboradores brindando retrolimentación a partir del mismo y gestionar los resultados obtenidos.",
         "subCompetence" => "Seguimiento Efectivo",
-        "category" => "Gestor Comercial"
+        "category" => "Gestor comercial"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
@@ -2158,7 +2158,7 @@ class CompetenceSeeder extends Seeder
         "category" => "Auditor Interno"
       ],
       [
-        "competence" => "Gestión Comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "competence" => "Gestión comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
         "subCompetence" => "Conocimiento Del Negocio",
         "category" => "Auditor Interno"
       ],
@@ -2965,122 +2965,122 @@ class CompetenceSeeder extends Seeder
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Respuesta Oportuna",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Asertividad",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Escucha",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Claridad En El Mensaje",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
-        "competence" => "Habilidad Comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
-        "subCompetence" => "Seguimiento Comercial",
-        "category" => "Asesor Comercial"
+        "competence" => "Habilidad comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
+        "subCompetence" => "Seguimiento comercial",
+        "category" => "Asesor comercial"
       ],
       [
-        "competence" => "Habilidad Comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
-        "subCompetence" => "Negociación Comercial",
-        "category" => "Asesor Comercial"
+        "competence" => "Habilidad comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
+        "subCompetence" => "Negociación comercial",
+        "category" => "Asesor comercial"
       ],
       [
-        "competence" => "Habilidad Comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
+        "competence" => "Habilidad comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
         "subCompetence" => "Manejo De Objeciones",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
-        "competence" => "Habilidad Comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
-        "subCompetence" => "Disciplina Comercial",
-        "category" => "Asesor Comercial"
+        "competence" => "Habilidad comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
+        "subCompetence" => "Disciplina comercial",
+        "category" => "Asesor comercial"
       ],
       [
-        "competence" => "Habilidad Comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
+        "competence" => "Habilidad comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
         "subCompetence" => "Búsqueda De Oportunidades",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Negociación: Capacidad para dirigir o controlar una discusión utilizando técnicas ganar-ganar planificando alternativas para negociar los mejores acuerdos.",
         "subCompetence" => "Cierre De Acuerdos",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Negociación: Capacidad para dirigir o controlar una discusión utilizando técnicas ganar-ganar planificando alternativas para negociar los mejores acuerdos.",
         "subCompetence" => "Comunicación Asertiva",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Negociación: Capacidad para dirigir o controlar una discusión utilizando técnicas ganar-ganar planificando alternativas para negociar los mejores acuerdos.",
         "subCompetence" => "Planificación De La Estrategia",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Negociación: Capacidad para dirigir o controlar una discusión utilizando técnicas ganar-ganar planificando alternativas para negociar los mejores acuerdos.",
         "subCompetence" => "Recolección De Información",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Persuasión: Convencer e influir en los procesos de toma de decisiones de los clientes con el fin de lograr que éstos sigan una línea de acción alineada a concretar las ventas.",
         "subCompetence" => "Impacto",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Persuasión: Convencer e influir en los procesos de toma de decisiones de los clientes con el fin de lograr que éstos sigan una línea de acción alineada a concretar las ventas.",
         "subCompetence" => "Influencia",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Persuasión: Convencer e influir en los procesos de toma de decisiones de los clientes con el fin de lograr que éstos sigan una línea de acción alineada a concretar las ventas.",
         "subCompetence" => "Anticipación Asertiva",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Persuasión: Convencer e influir en los procesos de toma de decisiones de los clientes con el fin de lograr que éstos sigan una línea de acción alineada a concretar las ventas.",
         "subCompetence" => "Adaptación",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Registro y manejo de información: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
         "subCompetence" => "Cumplimiento De Procedimientos",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Registro y manejo de información: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
         "subCompetence" => "Organización De Información",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Registro y manejo de información: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
         "subCompetence" => "Orientación Al Registro Detallado",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
         "subCompetence" => "Atención Presencial Oportuna",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
         "subCompetence" => "Atención Efectiva A Consultas",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
         "subCompetence" => "Amabilidad Y Cercanía",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
         "subCompetence" => "Seguimiento A La Atención",
-        "category" => "Asesor Comercial"
+        "category" => "Asesor comercial"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
@@ -3103,22 +3103,22 @@ class CompetenceSeeder extends Seeder
         "category" => "Jefe De Ventas Ap"
       ],
       [
-        "competence" => "Gestión Comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "competence" => "Gestión comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
         "subCompetence" => "Conocimiento De La Competencia",
         "category" => "Jefe De Ventas Ap"
       ],
       [
-        "competence" => "Gestión Comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "competence" => "Gestión comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
         "subCompetence" => "Conocimiento Del Negocio",
         "category" => "Jefe De Ventas Ap"
       ],
       [
-        "competence" => "Gestión Comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "competence" => "Gestión comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
         "subCompetence" => "Propone Estrategias, Objetivos Y Metas",
         "category" => "Jefe De Ventas Ap"
       ],
       [
-        "competence" => "Gestión Comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "competence" => "Gestión comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
         "subCompetence" => "Reajustes Comerciales",
         "category" => "Jefe De Ventas Ap"
       ],
@@ -3218,22 +3218,22 @@ class CompetenceSeeder extends Seeder
         "category" => "Jefe de Ventas - Camiones"
       ],
       [
-        "competence" => "Gestión Comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "competence" => "Gestión comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
         "subCompetence" => "Conocimiento De La Competencia",
         "category" => "Jefe de Ventas - Camiones"
       ],
       [
-        "competence" => "Gestión Comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "competence" => "Gestión comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
         "subCompetence" => "Conocimiento Del Negocio",
         "category" => "Jefe de Ventas - Camiones"
       ],
       [
-        "competence" => "Gestión Comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "competence" => "Gestión comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
         "subCompetence" => "Propone Estrategias, Objetivos Y Metas",
         "category" => "Jefe de Ventas - Camiones"
       ],
       [
-        "competence" => "Gestión Comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "competence" => "Gestión comercial - Versión 2 AP: Propone las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
         "subCompetence" => "Reajustes Comerciales",
         "category" => "Jefe de Ventas - Camiones"
       ],
@@ -4534,7 +4534,7 @@ class CompetenceSeeder extends Seeder
       ],
       [
         "competence" => "Gestión de Presupuesto: Define el presupuesto de inversión adecuado considerando los costos y la rentabilidad del negocio.",
-        "subCompetence" => "Control Y Monitoreo Comercial",
+        "subCompetence" => "Control Y Monitoreo comercial",
         "category" => "Jefe De Marketing"
       ],
       [
@@ -6010,217 +6010,217 @@ class CompetenceSeeder extends Seeder
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Asertividad",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Respuesta Oportuna",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Claridad En El Mensaje",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Escucha",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
         "competence" => "Gestión de Clientes Relevantes: Fideliza clientes relevantes del negocio y resuelve sus problemas. Cuenta con un profundo conocimiento del cliente.",
         "subCompetence" => "Manejo De Clientes Díficiles",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
         "competence" => "Gestión de Clientes Relevantes: Fideliza clientes relevantes del negocio y resuelve sus problemas. Cuenta con un profundo conocimiento del cliente.",
         "subCompetence" => "Resolución De Problemas",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
         "competence" => "Gestión de Clientes Relevantes: Fideliza clientes relevantes del negocio y resuelve sus problemas. Cuenta con un profundo conocimiento del cliente.",
         "subCompetence" => "Relación Con El Cliente",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
         "competence" => "Gestión de Clientes Relevantes: Fideliza clientes relevantes del negocio y resuelve sus problemas. Cuenta con un profundo conocimiento del cliente.",
         "subCompetence" => "Fidelización Con El Cliente",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
         "competence" => "Gestión de Clientes Relevantes: Fideliza clientes relevantes del negocio y resuelve sus problemas. Cuenta con un profundo conocimiento del cliente.",
         "subCompetence" => "Conocimiento Del Cliente",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
-        "competence" => "Habilidad Comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
-        "subCompetence" => "Disciplina Comercial",
-        "category" => "Ejecutivo Comercial"
+        "competence" => "Habilidad comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
+        "subCompetence" => "Disciplina comercial",
+        "category" => "Ejecutivo comercial"
       ],
       [
-        "competence" => "Habilidad Comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
+        "competence" => "Habilidad comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
         "subCompetence" => "Manejo De Objeciones",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
-        "competence" => "Habilidad Comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
-        "subCompetence" => "Negociación Comercial",
-        "category" => "Ejecutivo Comercial"
+        "competence" => "Habilidad comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
+        "subCompetence" => "Negociación comercial",
+        "category" => "Ejecutivo comercial"
       ],
       [
-        "competence" => "Habilidad Comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
+        "competence" => "Habilidad comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
         "subCompetence" => "Búsqueda De Oportunidades",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
-        "competence" => "Habilidad Comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
-        "subCompetence" => "Seguimiento Comercial",
-        "category" => "Ejecutivo Comercial"
+        "competence" => "Habilidad comercial: Logra persuadir al cliente a través de argumentos poderosos, realiza seguimiento oportuno manteniéndose cerca del cliente y aprovechando oportunidades.",
+        "subCompetence" => "Seguimiento comercial",
+        "category" => "Ejecutivo comercial"
       ],
       [
         "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
         "subCompetence" => "Amabilidad Y Cercanía",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
         "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
         "subCompetence" => "Atención Presencial Oportuna",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
         "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
         "subCompetence" => "Atención Efectiva A Consultas",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
         "competence" => "Servicio al Cliente: Atiende las solicitudes del cliente de manera amable y oportuna garantizando su experiencia de principio a fin.",
         "subCompetence" => "Seguimiento A La Atención",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
         "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
         "subCompetence" => "Colaboración",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
         "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
         "subCompetence" => "Pasión",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
         "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
         "subCompetence" => "Responsabilidad",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
         "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
         "subCompetence" => "Resuelve Conflictos",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
         "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
         "subCompetence" => "Traspase De Información En Equipo",
-        "category" => "Ejecutivo Comercial"
+        "category" => "Ejecutivo comercial"
       ],
       [
-        "competence" => "Gestión Comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
-        "subCompetence" => "Conocimiento De La Competencia Comercial",
-        "category" => "Gerente Comercial Dp"
+        "competence" => "Gestión comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "subCompetence" => "Conocimiento De La Competencia comercial",
+        "category" => "Gerente comercial Dp"
       ],
       [
-        "competence" => "Gestión Comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "competence" => "Gestión comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
         "subCompetence" => "Reajustes Comerciales V1",
-        "category" => "Gerente Comercial Dp"
+        "category" => "Gerente comercial Dp"
       ],
       [
-        "competence" => "Gestión Comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "competence" => "Gestión comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
         "subCompetence" => "Definición Estrategias, Objetivos Y Metas",
-        "category" => "Gerente Comercial Dp"
+        "category" => "Gerente comercial Dp"
       ],
       [
-        "competence" => "Gestión Comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
-        "subCompetence" => "Conocimiento Del Negocio Comercial",
-        "category" => "Gerente Comercial Dp"
+        "competence" => "Gestión comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "subCompetence" => "Conocimiento Del Negocio comercial",
+        "category" => "Gerente comercial Dp"
       ],
       [
         "competence" => "Gestión de Marketing: Define las estrategias de marketing, analiza el funcionamiento del mercado para definir las acciones adecuadas.",
         "subCompetence" => "Análisis De Mercado",
-        "category" => "Gerente Comercial Dp"
+        "category" => "Gerente comercial Dp"
       ],
       [
         "competence" => "Gestión de Marketing: Define las estrategias de marketing, analiza el funcionamiento del mercado para definir las acciones adecuadas.",
         "subCompetence" => "Evaluación De La Demanda",
-        "category" => "Gerente Comercial Dp"
+        "category" => "Gerente comercial Dp"
       ],
       [
         "competence" => "Gestión de Marketing: Define las estrategias de marketing, analiza el funcionamiento del mercado para definir las acciones adecuadas.",
         "subCompetence" => "Definición Del Precio De Venta",
-        "category" => "Gerente Comercial Dp"
+        "category" => "Gerente comercial Dp"
       ],
       [
         "competence" => "Gestión de Marketing: Define las estrategias de marketing, analiza el funcionamiento del mercado para definir las acciones adecuadas.",
         "subCompetence" => "Definición De Estrategias Y Objetivos",
-        "category" => "Gerente Comercial Dp"
+        "category" => "Gerente comercial Dp"
       ],
       [
         "competence" => "Gestión de Presupuesto: Define el presupuesto de inversión adecuado considerando los costos y la rentabilidad del negocio.",
-        "subCompetence" => "Control Y Monitoreo Comercial",
-        "category" => "Gerente Comercial Dp"
+        "subCompetence" => "Control Y Monitoreo comercial",
+        "category" => "Gerente comercial Dp"
       ],
       [
         "competence" => "Gestión de Presupuesto: Define el presupuesto de inversión adecuado considerando los costos y la rentabilidad del negocio.",
         "subCompetence" => "Ajustes Comerciales",
-        "category" => "Gerente Comercial Dp"
+        "category" => "Gerente comercial Dp"
       ],
       [
         "competence" => "Gestión de Presupuesto: Define el presupuesto de inversión adecuado considerando los costos y la rentabilidad del negocio.",
         "subCompetence" => "Definición Presupuestal",
-        "category" => "Gerente Comercial Dp"
+        "category" => "Gerente comercial Dp"
       ],
       [
         "competence" => "Gestión de Presupuesto: Define el presupuesto de inversión adecuado considerando los costos y la rentabilidad del negocio.",
         "subCompetence" => "Evaluación De Estructura De Costos Comerciales",
-        "category" => "Gerente Comercial Dp"
+        "category" => "Gerente comercial Dp"
       ],
       [
         "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
         "subCompetence" => "Dirección De Equipos",
-        "category" => "Gerente Comercial Dp"
+        "category" => "Gerente comercial Dp"
       ],
       [
         "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
         "subCompetence" => "Resolución De Conflictos",
-        "category" => "Gerente Comercial Dp"
+        "category" => "Gerente comercial Dp"
       ],
       [
         "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
         "subCompetence" => "Convicción",
-        "category" => "Gerente Comercial Dp"
+        "category" => "Gerente comercial Dp"
       ],
       [
         "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
         "subCompetence" => "Alineamiento",
-        "category" => "Gerente Comercial Dp"
+        "category" => "Gerente comercial Dp"
       ],
       [
         "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
         "subCompetence" => "Creación De Planes",
-        "category" => "Gerente Comercial Dp"
+        "category" => "Gerente comercial Dp"
       ],
       [
         "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
         "subCompetence" => "Priorización",
-        "category" => "Gerente Comercial Dp"
+        "category" => "Gerente comercial Dp"
       ],
       [
         "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
         "subCompetence" => "Definir Metas E Indciadores",
-        "category" => "Gerente Comercial Dp"
+        "category" => "Gerente comercial Dp"
       ],
       [
         "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
         "subCompetence" => "Planificación De Los Recursos",
-        "category" => "Gerente Comercial Dp"
+        "category" => "Gerente comercial Dp"
       ],
       [
         "competence" => "Gestión de Equipos: Dirige a su equipo a realizar las acciones necesarias para el logro de resultados. Realiza seguimiento y corrige comportamientos. Motiva a que se logren los resultados.",
@@ -6348,23 +6348,23 @@ class CompetenceSeeder extends Seeder
         "category" => "Jefe De Ventas Dp"
       ],
       [
-        "competence" => "Gestión Comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
-        "subCompetence" => "Conocimiento De La Competencia Comercial",
+        "competence" => "Gestión comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "subCompetence" => "Conocimiento De La Competencia comercial",
         "category" => "Jefe De Ventas Dp"
       ],
       [
-        "competence" => "Gestión Comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "competence" => "Gestión comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
         "subCompetence" => "Reajustes Comerciales V1",
         "category" => "Jefe De Ventas Dp"
       ],
       [
-        "competence" => "Gestión Comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "competence" => "Gestión comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
         "subCompetence" => "Definición Estrategias, Objetivos Y Metas",
         "category" => "Jefe De Ventas Dp"
       ],
       [
-        "competence" => "Gestión Comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
-        "subCompetence" => "Conocimiento Del Negocio Comercial",
+        "competence" => "Gestión comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "subCompetence" => "Conocimiento Del Negocio comercial",
         "category" => "Jefe De Ventas Dp"
       ],
       [
@@ -6393,27 +6393,27 @@ class CompetenceSeeder extends Seeder
         "category" => "Jefe De Ventas Dp"
       ],
       [
-        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "competence" => "Gestión de Proveedores - comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
         "subCompetence" => "Seguimiento De Cobranzas",
         "category" => "Jefe De Ventas Dp"
       ],
       [
-        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "competence" => "Gestión de Proveedores - comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
         "subCompetence" => "Solución De Problemas V1",
         "category" => "Jefe De Ventas Dp"
       ],
       [
-        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "competence" => "Gestión de Proveedores - comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
         "subCompetence" => "Relación Con El Proveedor",
         "category" => "Jefe De Ventas Dp"
       ],
       [
-        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "competence" => "Gestión de Proveedores - comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
         "subCompetence" => "Persuasión",
         "category" => "Jefe De Ventas Dp"
       ],
       [
-        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "competence" => "Gestión de Proveedores - comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
         "subCompetence" => "Traspase De Información",
         "category" => "Jefe De Ventas Dp"
       ],
@@ -6543,129 +6543,129 @@ class CompetenceSeeder extends Seeder
         "category" => "Supervisor De Almacen"
       ],
       [
-        "competence" => "Gestión Comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
-        "subCompetence" => "Conocimiento De La Competencia Comercial",
-        "category" => "Gerente Comercial Ap"
+        "competence" => "Gestión comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "subCompetence" => "Conocimiento De La Competencia comercial",
+        "category" => "Gerente comercial Ap"
       ],
       [
-        "competence" => "Gestión Comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
-        "subCompetence" => "Conocimiento Del Negocio Comercial",
-        "category" => "Gerente Comercial Ap"
+        "competence" => "Gestión comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "subCompetence" => "Conocimiento Del Negocio comercial",
+        "category" => "Gerente comercial Ap"
       ],
       [
-        "competence" => "Gestión Comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "competence" => "Gestión comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
         "subCompetence" => "Reajustes Comerciales V1",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
-        "competence" => "Gestión Comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
+        "competence" => "Gestión comercial: Define las estrategias comerciales, objetivos y metas de acuerdo al conocimiento del negocio, producto y el funcionamiento de la competencia.",
         "subCompetence" => "Definición Estrategias, Objetivos Y Metas",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Gestión de Marketing: Define las estrategias de marketing, analiza el funcionamiento del mercado para definir las acciones adecuadas.",
         "subCompetence" => "Análisis De Mercado",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Gestión de Marketing: Define las estrategias de marketing, analiza el funcionamiento del mercado para definir las acciones adecuadas.",
         "subCompetence" => "Evaluación De La Demanda",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Gestión de Marketing: Define las estrategias de marketing, analiza el funcionamiento del mercado para definir las acciones adecuadas.",
         "subCompetence" => "Definición De Estrategias Y Objetivos",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Gestión de Marketing: Define las estrategias de marketing, analiza el funcionamiento del mercado para definir las acciones adecuadas.",
         "subCompetence" => "Definición Del Precio De Venta",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Gestión de Presupuesto: Define el presupuesto de inversión adecuado considerando los costos y la rentabilidad del negocio.",
         "subCompetence" => "Ajustes Comerciales",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Gestión de Presupuesto: Define el presupuesto de inversión adecuado considerando los costos y la rentabilidad del negocio.",
-        "subCompetence" => "Control Y Monitoreo Comercial",
-        "category" => "Gerente Comercial Ap"
+        "subCompetence" => "Control Y Monitoreo comercial",
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Gestión de Presupuesto: Define el presupuesto de inversión adecuado considerando los costos y la rentabilidad del negocio.",
         "subCompetence" => "Evaluación De Estructura De Costos Comerciales",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Gestión de Presupuesto: Define el presupuesto de inversión adecuado considerando los costos y la rentabilidad del negocio.",
         "subCompetence" => "Definición Presupuestal",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
         "subCompetence" => "Alineamiento",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
         "subCompetence" => "Resolución De Conflictos",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
         "subCompetence" => "Dirección De Equipos",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Liderazgo: Dirige a su equipo de Líderes al logro de objetivos, destraba decisiones que impacten en el desempeño del negocio.",
         "subCompetence" => "Convicción",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
         "subCompetence" => "Cumplimiento De Acuerdos",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
         "subCompetence" => "Proactividad",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
         "subCompetence" => "Asumo Las Consecuencias",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
         "subCompetence" => "Resultados",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Mentalidad de Dueño: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
         "subCompetence" => "Solución De Problema",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
         "subCompetence" => "Definir Metas E Indciadores",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
         "subCompetence" => "Creación De Planes",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
         "subCompetence" => "Planificación De Los Recursos",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Planificación: Determinar las metas y prioridades de los proyectos, estableciendo las acciones, los plazos y los recursos necesarios. Así como los instrumentos de medición y segumiento.",
         "subCompetence" => "Priorización",
-        "category" => "Gerente Comercial Ap"
+        "category" => "Gerente comercial Ap"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
@@ -7123,27 +7123,27 @@ class CompetenceSeeder extends Seeder
         "category" => "Asistente De Logistica"
       ],
       [
-        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "competence" => "Gestión de Proveedores - comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
         "subCompetence" => "Traspase De Información",
         "category" => "Asistente De Logistica"
       ],
       [
-        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "competence" => "Gestión de Proveedores - comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
         "subCompetence" => "Solución De Problemas V1",
         "category" => "Asistente De Logistica"
       ],
       [
-        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "competence" => "Gestión de Proveedores - comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
         "subCompetence" => "Seguimiento De Cobranzas",
         "category" => "Asistente De Logistica"
       ],
       [
-        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "competence" => "Gestión de Proveedores - comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
         "subCompetence" => "Relación Con El Proveedor",
         "category" => "Asistente De Logistica"
       ],
       [
-        "competence" => "Gestión de Proveedores - Comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
+        "competence" => "Gestión de Proveedores - comercial: Garantizar una adecuada relación con los proveedores. Lograr convencerlos para obtener beneficios preferenciales manejando de manera adecuada los reclamos.",
         "subCompetence" => "Persuasión",
         "category" => "Asistente De Logistica"
       ],
@@ -7201,92 +7201,92 @@ class CompetenceSeeder extends Seeder
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Asertividad",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Respuesta Oportuna",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Claridad En El Mensaje",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
       [
         "competence" => "Comunicación Efectiva: Intercambia opiniones e información respetando las emociones de los demás y expresando sus ideas de manera clara y oportuna.",
         "subCompetence" => "Escucha",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
       [
         "competence" => "Gestión de Trámites: Garantiza la recepción y entrega de documentos asegurando que cumpla con los requisitos solicitados.",
         "subCompetence" => "Despacho Documentario",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
       [
         "competence" => "Gestión de Trámites: Garantiza la recepción y entrega de documentos asegurando que cumpla con los requisitos solicitados.",
         "subCompetence" => "Control Documentario",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
       [
         "competence" => "Gestión de Trámites: Garantiza la recepción y entrega de documentos asegurando que cumpla con los requisitos solicitados.",
         "subCompetence" => "Perseverancia En La Entrega",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
       [
         "competence" => "Gestión de Trámites: Garantiza la recepción y entrega de documentos asegurando que cumpla con los requisitos solicitados.",
         "subCompetence" => "Construcción De Red De Contactos",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
       [
         "competence" => "Registro y Manejo de Información - Versión 2 AP: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
         "subCompetence" => "Orientación Al Detalle",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
       [
         "competence" => "Registro y Manejo de Información - Versión 2 AP: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
         "subCompetence" => "Organización",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
       [
         "competence" => "Registro y Manejo de Información - Versión 2 AP: Controla y Registra información de manera adecuada garantizando la calidad en el registro y cumpliendo con los procedimientos establecidos.",
         "subCompetence" => "Cumplimiento De Procesos Operativos",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
       [
         "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
         "subCompetence" => "Colaboración",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
       [
         "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
         "subCompetence" => "Responsabilidad",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
       [
         "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
         "subCompetence" => "Resuelve Conflictos",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
       [
         "competence" => "Trabajo en Equipo: Promueve el trabajo colaborativo asumiendo la responsabilidad que le corresponde para el logro de los objetivos. Comparte la información de manera oportuna y correcta.",
         "subCompetence" => "Pasión",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
       [
         "competence" => "Mentalidad de Dueño V2: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
         "subCompetence" => "Anticipación A Requerimientos",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
       [
         "competence" => "Mentalidad de Dueño V2: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
         "subCompetence" => "Solución De Problemas Difíciles",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
       [
         "competence" => "Mentalidad de Dueño V2: Asume los problemas como propios, mostrando predisposición y esforzándose por conseguir los resultados que se le plantean.",
         "subCompetence" => "Pertenencia",
-        "category" => "Jefe de Administración Comercial"
+        "category" => "Jefe de Administración comercial"
       ],
 //      ASISTENTE DE BIENESTAR Y CLIMA LABORAL
       [

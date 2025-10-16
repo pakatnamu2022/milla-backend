@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Http\Controllers\Dashboard;
+namespace App\Http\Controllers\Dashboard\ap\comercial;
 
 use App\Http\Controllers\Controller;
-use App\Http\Services\Dashboard\Comercial\DashboardComercialService;
+use App\Http\Services\Dashboard\ap\comercial\DashboardComercialService;
 use Illuminate\Http\Request;
 
 /**
- * Controlador para endpoints de indicadores del Dashboard Comercial
+ * Controlador para endpoints de indicadores del Dashboard comercial
  *
  * Maneja las peticiones HTTP y delega la lógica al servicio correspondiente
  */

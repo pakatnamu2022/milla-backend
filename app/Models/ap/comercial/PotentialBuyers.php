@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
+use App\Http\Traits\Reportable;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\gp\gestionhumana\personal\Worker;
@@ -13,7 +14,7 @@ use Illuminate\Support\Str;
 
 class PotentialBuyers extends Model
 {
-  use SoftDeletes;
+  use SoftDeletes, Reportable;
 
   protected $table = 'potential_buyers';
 
@@ -128,5 +129,89 @@ class PotentialBuyers extends Model
   public function user(): BelongsTo
   {
     return $this->belongsTo(Worker::class, 'user_id');
+  }
+
+  // ← CONFIGURACIÓN DEL REPORTE CON FORMATO SOLICITADO
+  protected $reportColumns = [
+    'registration_date' => [
+      'label' => 'Fecha de registro',
+      'formatter' => 'date:d/m/Y',
+      'width' => 20,
+    ],
+    'status_num_doc' => [
+      'label' => 'Estado Validación',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'sede.abreviatura' => [
+      'label' => 'Sede',
+      'formatter' => null,
+      'width' => 20
+    ],
+    'vehicleBrand.name' => [
+      'label' => 'Marca Vehículo',
+      'formatter' => null,
+      'width' => 20
+    ],
+    'asesor' => [
+      'label' => 'Asesor',
+      'formatter' => null,
+      'width' => 20,
+      'accessor' => 'getAdvisorFullNameAttribute'
+    ],
+    'sede.district.name' => [
+      'label' => 'Distrito Sede',
+      'formatter' => null,
+      'width' => 20
+    ],
+    'model' => [
+      'label' => 'Modelo',
+      'formatter' => null,
+      'width' => 20
+    ],
+    'version' => [
+      'label' => 'Versión',
+      'formatter' => null,
+      'width' => 20
+    ],
+    'documentType.description' => [
+      'label' => 'Tipo Documento',
+      'formatter' => null,
+      'width' => 20
+    ],
+    'num_doc' => [
+      'label' => 'N° Documento',
+      'formatter' => null,
+      'width' => 20
+    ],
+    'full_name' => [
+      'label' => 'Nombre Completo',
+      'formatter' => null,
+      'width' => 30
+    ],
+    'email' => [
+      'label' => 'Email',
+      'formatter' => null,
+      'width' => 30
+    ],
+    'phone' => [
+      'label' => 'Teléfono',
+      'formatter' => null,
+      'width' => 20
+    ],
+  ];
+
+  protected $reportRelations = [
+    'sede',
+    'vehicleBrand',
+    'documentType',
+    'worker',
+    'sede.district',
+  ];
+
+  public function getAdvisorFullNameAttribute()
+  {
+    $nombreCompleto = $this->worker ? $this->worker->nombre_completo : 'SIN ASESOR';
+    return $nombreCompleto;
   }
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Services\Dashboard\Comercial;
+namespace App\Http\Services\Dashboard\ap\comercial;
 
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PotentialBuyers;
@@ -457,7 +457,7 @@ class DashboardComercialService
 
     return array_values($result);
   }
-  
+
   private function getUseLabel($use)
   {
     switch ($use) {

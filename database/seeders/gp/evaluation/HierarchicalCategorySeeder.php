@@ -94,7 +94,7 @@ class HierarchicalCategorySeeder extends Seeder
         "objectives" => [["name" => "Optimizar los tiempos de reparacion en un 55%", "metric" => 2], ["name" => "Mantenimentos correctivos de emergencia(Auxilios Mecánicos), no supere el 5% mensual de la flota", "metric" => 2]]
       ],
       [
-        "name" => "Supervisor Comercial",
+        "name" => "Supervisor comercial",
         "positions" => ["324"],
         "objectives" => [["name" => "Utilidad Operativa", "metric" => 2], ["name" => "Número de viajes", "metric" => 2], ["name" => "Utilidad Operativa", "metric" => 8], ["name" => "Número de viajes", "metric" => 2]]
       ],
@@ -114,7 +114,7 @@ class HierarchicalCategorySeeder extends Seeder
         "objectives" => [["name" => "Promedio de vacaciones DP y TP", "metric" => 2], ["name" => "Procesos dentro del plazo", "metric" => 2], ["name" => "6 de legajos digitalizados", "metric" => 2], ["name" => "Plazo de envio de boletas DP", "metric" => 2], ["name" => "Plazo de envio de boletas TP", "metric" => 2], ["name" => "Promedio de vacaciones DP y TP", "metric" => 9], ["name" => "Procesos dentro del plazo", "metric" => 6], ["name" => "6 de legajos digitalizados", "metric" => 6], ["name" => "Plazo de envio de boletas DP", "metric" => 2], ["name" => "Plazo de envio de boletas TP", "metric" => 2]]
       ],
       [
-        "name" => "Gestor Comercial",
+        "name" => "Gestor comercial",
         "positions" => ["3"],
         "objectives" => [["name" => "Programación de flota", "metric" => 2], ["name" => "Incremento en ventas", "metric" => 2], ["name" => "Rentabilidad", "metric" => 2], ["name" => "Generación de guías", "metric" => 2], ["name" => "Actualización del sistema", "metric" => 2], ["name" => "Actualización de pesos en sistema", "metric" => 2], ["name" => "Recuperación y control de parihuelas cerámicos", "metric" => 2], ["name" => "Control de parihuelas Celima", "metric" => 2], ["name" => "Cumplimiento de facturación cerámicos", "metric" => 2], ["name" => "Generación de guías", "metric" => 6], ["name" => "Actualización del sistema", "metric" => 6], ["name" => "Actualización de pesos en sistema", "metric" => 6], ["name" => "Programación de flota", "metric" => 6], ["name" => "Incremento en ventas", "metric" => 6], ["name" => "Rentabilidad", "metric" => 6], ["name" => "Captación y propuesta de nuevos clientes", "metric" => 2], ["name" => "Seguimiento, solicitud y cumplimiento de citas cerámicos", "metric" => 6], ["name" => "Recuperación de documentos cerámicos", "metric" => 6], ["name" => "Recuperación y control de parihuelas cerámicos", "metric" => 6], ["name" => "Control de parihuelas Celima", "metric" => 6], ["name" => "Cumplimiento de facturación cerámicos", "metric" => 6]]
       ],
@@ -304,7 +304,7 @@ class HierarchicalCategorySeeder extends Seeder
         "objectives" => [["name" => "Seguimiento de pedidos de compra de vehículos, conciliando con el sistema de emisión de facturas", "metric" => 6], ["name" => "Obtener un resultado mayor o igual a 80% en NPS.", "metric" => 6], ["name" => "Cumplimiento del 100% del envío de las solicitudes de nota de crédito (7 días hábiles)", "metric" => 6]]
       ],
       [
-        "name" => "Asesor Comercial",
+        "name" => "Asesor comercial",
         "positions" => ["60", "80", "103", "108", "111", "119", "332", "328"],
         "objectives" => [["name" => "Sell Out: Cumplimiento de ventas establecido mensual", "metric" => 9], ["name" => "Colocación de créditos", "metric" => 9], ["name" => "Colocación de seguros", "metric" => 9]]
       ],
@@ -469,7 +469,7 @@ class HierarchicalCategorySeeder extends Seeder
         "objectives" => [["name" => "Cumplimiento de facturación de las 4 sedes", "metric" => 6]]
       ],
       [
-        "name" => "Analista Comercial Dp",
+        "name" => "Analista comercial Dp",
         "positions" => ["303"],
         "objectives" => [["name" => [], "metric" => []]]
       ],
@@ -524,7 +524,7 @@ class HierarchicalCategorySeeder extends Seeder
         "objectives" => [["name" => "Cumplimiento mensual de los limites de velocidad en ruta", "metric" => 6], ["name" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza", "metric" => 5], ["name" => "Cero multas por infringir las normas de tránsito en el desarrollo de sus funciones", "metric" => 9], ["name" => "Cero incidencias en la ruta asignada (robos, choques,etc)", "metric" => 9]]
       ],
       [
-        "name" => "Gerente Comercial Dp",
+        "name" => "Gerente comercial Dp",
         "positions" => ["217"],
         "objectives" => [["name" => "Rentabilidad bruta mayor igual a 5.6%", "metric" => 6], ["name" => "% de Efectividad de Cobranza", "metric" => 6], ["name" => "Meses de stock/ % Días de antigüedad -  fierro", "metric" => 2], ["name" => "Meses de stock/ % Días de antigüedad -  Koplast", "metric" => 2], ["name" => "Meses de stock/ % Días de antigüedad - Eternit", "metric" => 2]]
       ],
@@ -544,12 +544,12 @@ class HierarchicalCategorySeeder extends Seeder
         "objectives" => [["name" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza", "metric" => 5]]
       ],
       [
-        "name" => "Ejecutivo Comercial",
+        "name" => "Ejecutivo comercial",
         "positions" => [],
         "objectives" => [["name" => [], "metric" => []]]
       ],
       [
-        "name" => "Ejecutivo Comercial Industria",
+        "name" => "Ejecutivo comercial Industria",
         "positions" => [],
         "objectives" => [["name" => "Cumplimiento de presupuesto comercial", "metric" => 6], ["name" => "% de Efectividad de Cobranza", "metric" => 6]]
       ]
