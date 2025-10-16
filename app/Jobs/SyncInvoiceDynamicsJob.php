@@ -112,8 +112,8 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
     try {
       $result = $this->consultStoredProcedure($purchaseOrder->number);
 
-      if (!$result || empty($result->NumeroDocumento) || empty($result->NroDocProvDocumento)) {
-        Log::info("No invoice found yet for PO {$purchaseOrder->number}");
+      if (!$result) {
+        Log::info("No result from PA for PO {$purchaseOrder->number}, skipping");
         return;
       }
 
@@ -143,6 +143,11 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         ]);
 
         Log::info("PO {$purchaseOrder->number} updated with new invoice and marked as 'updated_with_nc'");
+        return;
+      }
+
+      if (empty($result->NumeroDocumento) || empty($result->NroDocProvDocumento)) {
+        Log::info("No invoice found yet for PO {$purchaseOrder->number}");
         return;
       }
 
