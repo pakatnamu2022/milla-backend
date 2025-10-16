@@ -118,15 +118,15 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       }
 
       $status = trim($result->EstadoDocumento) === 'Hist. Recep.';
+      $statusReception = trim($result->EstadoRecepcion) === 'Hist. Recep.';
 
-      if (!$status) {
-        Log::info("Invoice for PO {$purchaseOrder->number} is not in 'Hist. Recep.' status, skipping");
+      if (!$statusReception) {
+        Log::info("Invoice for PO {$purchaseOrder->number} is not in 'Hist. Recep.' Estado de Recepción, skipping");
         return;
       }
 
       $newInvoice = trim($result->NroDocProvDocumento);
       $newReceipt = trim($result->NumeroDocumento);
-
 
       // CASO 2: OC con factura y migration_status='completed' y tiene NC
       // Verificar si la factura cambió (nueva OC con punto)
@@ -143,6 +143,11 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         ]);
 
         Log::info("PO {$purchaseOrder->number} updated with new invoice and marked as 'updated_with_nc'");
+        return;
+      }
+
+      if (!$status) {
+        Log::info("Invoice for PO {$purchaseOrder->number} is not in 'Hist. Recep.' status, skipping");
         return;
       }
 
