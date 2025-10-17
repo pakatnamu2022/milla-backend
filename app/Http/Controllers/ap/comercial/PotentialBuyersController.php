@@ -66,7 +66,7 @@ class PotentialBuyersController extends Controller
   public function discard(DiscardPotentialBuyersRequest $request, $id)
   {
     try {
-      return $this->success($this->service->discard($id, $request->input('comment')));
+      return $this->success($this->service->discard($id, $request->input('comment'), $request->input('reason_discarding_id')));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
