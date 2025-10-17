@@ -14,167 +14,168 @@ use Illuminate\Support\Facades\Log;
 
 class SyncPurchaseOrderReceptionJob implements ShouldQueue
 {
-    use Queueable;
+  use Queueable;
 
-    public int $tries = 3;
-    public int $timeout = 120;
-    public int $backoff = 30; // Esperar 30 segundos entre reintentos
+  public int $tries = 3;
+  public int $timeout = 120;
+  public int $backoff = 30; // Esperar 30 segundos entre reintentos
 
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(
-        public int $purchaseOrderId
-    ) {
-        $this->onQueue('sync');
+  /**
+   * Create a new job instance.
+   */
+  public function __construct(
+    public int $purchaseOrderId
+  )
+  {
+    $this->onQueue('sync');
+  }
+
+  /**
+   * Execute the job.
+   */
+  public function handle(DatabaseSyncService $syncService): void
+  {
+    $purchaseOrder = VehiclePurchaseOrder::with(['vehicleStatus'])->find($this->purchaseOrderId);
+
+    if (!$purchaseOrder) {
+      // Log::error("Purchase order not found: {$this->purchaseOrderId}");
+      return;
     }
 
-    /**
-     * Execute the job.
-     */
-    public function handle(DatabaseSyncService $syncService): void
-    {
-        $purchaseOrder = VehiclePurchaseOrder::with(['vehicleStatus'])->find($this->purchaseOrderId);
+    try {
+      // Validar que la OC esté en estado 1 (procesada)
+      $this->waitForPurchaseOrderSync($purchaseOrder);
 
-        if (!$purchaseOrder) {
-            Log::error("Purchase order not found: {$this->purchaseOrderId}");
-            return;
-        }
+      // Obtener los logs de migración
+      $receptionLog = $this->getOrCreateLog(
+        $purchaseOrder->id,
+        VehiclePurchaseOrderMigrationLog::STEP_RECEPTION,
+        VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_RECEPTION],
+        $purchaseOrder->number_guide
+      );
 
-        try {
-            // Validar que la OC esté en estado 1 (procesada)
-            $this->waitForPurchaseOrderSync($purchaseOrder);
+      $receptionDetailLog = $this->getOrCreateLog(
+        $purchaseOrder->id,
+        VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL,
+        VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL],
+        $purchaseOrder->number_guide
+      );
 
-            // Obtener los logs de migración
-            $receptionLog = $this->getOrCreateLog(
-                $purchaseOrder->id,
-                VehiclePurchaseOrderMigrationLog::STEP_RECEPTION,
-                VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_RECEPTION],
-                $purchaseOrder->number_guide
-            );
+      $receptionSerialLog = $this->getOrCreateLog(
+        $purchaseOrder->id,
+        VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL_SERIAL,
+        VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL_SERIAL],
+        $purchaseOrder->vin
+      );
 
-            $receptionDetailLog = $this->getOrCreateLog(
-                $purchaseOrder->id,
-                VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL,
-                VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL],
-                $purchaseOrder->number_guide
-            );
+      // Sincronizar la recepción (NI) Y sus detalles juntos
+      $resource = new VehiclePurchaseOrderResource($purchaseOrder);
+      $resourceData = $resource->toArray(request());
 
-            $receptionSerialLog = $this->getOrCreateLog(
-                $purchaseOrder->id,
-                VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL_SERIAL,
-                VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL_SERIAL],
-                $purchaseOrder->vin
-            );
+      $receptionLog->markAsInProgress();
+      $syncService->sync('ap_vehicle_purchase_order_reception', $resourceData, 'create');
+      $receptionLog->updateProcesoEstado(0);
 
-            // Sincronizar la recepción (NI) Y sus detalles juntos
-            $resource = new VehiclePurchaseOrderResource($purchaseOrder);
-            $resourceData = $resource->toArray(request());
+      $receptionDetailLog->markAsInProgress();
+      $syncService->sync('ap_vehicle_purchase_order_reception_det', $resourceData, 'create');
+      $receptionDetailLog->updateProcesoEstado(0);
 
-            $receptionLog->markAsInProgress();
-            $syncService->sync('ap_vehicle_purchase_order_reception', $resourceData, 'create');
-            $receptionLog->updateProcesoEstado(0);
+      $receptionSerialLog->markAsInProgress();
+      $syncService->sync('ap_vehicle_purchase_order_reception_det_s', $resourceData, 'create');
+      $receptionSerialLog->updateProcesoEstado(0);
 
-            $receptionDetailLog->markAsInProgress();
-            $syncService->sync('ap_vehicle_purchase_order_reception_det', $resourceData, 'create');
-            $receptionDetailLog->updateProcesoEstado(0);
+      // Log::info("Purchase order reception with details synced successfully for PO: {$this->purchaseOrderId}");
+    } catch (\Exception $e) {
+      // Log::error("Failed to sync purchase order reception for PO {$this->purchaseOrderId}: {$e->getMessage()}");
 
-            $receptionSerialLog->markAsInProgress();
-            $syncService->sync('ap_vehicle_purchase_order_reception_det_s', $resourceData, 'create');
-            $receptionSerialLog->updateProcesoEstado(0);
+      // Marcar los logs como fallidos
+      $this->markLogsAsFailed($purchaseOrder->id, $e->getMessage());
 
-            Log::info("Purchase order reception with details synced successfully for PO: {$this->purchaseOrderId}");
-        } catch (\Exception $e) {
-            Log::error("Failed to sync purchase order reception for PO {$this->purchaseOrderId}: {$e->getMessage()}");
+      throw $e;
+    }
+  }
 
-            // Marcar los logs como fallidos
-            $this->markLogsAsFailed($purchaseOrder->id, $e->getMessage());
+  /**
+   * Verifica que la OC tenga ProcesoEstado = 1
+   */
+  protected function waitForPurchaseOrderSync(VehiclePurchaseOrder $purchaseOrder): void
+  {
+    $dbtp = DB::connection('dbtp')
+      ->table('neInTbOrdenCompra')
+      ->where('EmpresaId', Company::AP_DYNAMICS)
+      ->where('OrdenCompraId', $purchaseOrder->number)
+      ->first();
 
-            throw $e;
-        }
+    if (!$dbtp) {
+      // Log::warning("OC {$purchaseOrder->number} no encontrada en tabla intermedia para PO ID: {$purchaseOrder->id}");
+      throw new \Exception("OC no encontrada en tabla intermedia: {$purchaseOrder->number}");
     }
 
-    /**
-     * Verifica que la OC tenga ProcesoEstado = 1
-     */
-    protected function waitForPurchaseOrderSync(VehiclePurchaseOrder $purchaseOrder): void
-    {
-        $dbtp = DB::connection('dbtp')
-            ->table('neInTbOrdenCompra')
-            ->where('EmpresaId', Company::AP_DYNAMICS)
-            ->where('OrdenCompraId', $purchaseOrder->number)
-            ->first();
-
-        if (!$dbtp) {
-            Log::warning("OC {$purchaseOrder->number} no encontrada en tabla intermedia para PO ID: {$purchaseOrder->id}");
-            throw new \Exception("OC no encontrada en tabla intermedia: {$purchaseOrder->number}");
-        }
-
-        if ($dbtp->ProcesoEstado != 1) {
-            Log::info("OC {$purchaseOrder->number} aún no procesada. ProcesoEstado: {$dbtp->ProcesoEstado}. El job se reintentará.");
-            throw new \Exception("OC aún no procesada. ProcesoEstado: {$dbtp->ProcesoEstado}");
-        }
-
-        // Verificar si hay error
-        if (!empty($dbtp->ProcesoError)) {
-            Log::error("Error en sincronización de la OC {$purchaseOrder->number}: {$dbtp->ProcesoError}");
-            throw new \Exception("Error en sincronización de la OC: {$dbtp->ProcesoError}");
-        }
-
-        Log::info("OC {$purchaseOrder->number} verificada exitosamente (ProcesoEstado = 1). Procediendo con la recepción.");
+    if ($dbtp->ProcesoEstado != 1) {
+      // Log::info("OC {$purchaseOrder->number} aún no procesada. ProcesoEstado: {$dbtp->ProcesoEstado}. El job se reintentará.");
+      throw new \Exception("OC aún no procesada. ProcesoEstado: {$dbtp->ProcesoEstado}");
     }
 
-    /**
-     * Obtiene o crea un registro de log
-     */
-    protected function getOrCreateLog(int $purchaseOrderId, string $step, string $tableName, ?string $externalId = null): VehiclePurchaseOrderMigrationLog
-    {
-        return VehiclePurchaseOrderMigrationLog::firstOrCreate(
-            [
-                'vehicle_purchase_order_id' => $purchaseOrderId,
-                'step' => $step,
-            ],
-            [
-                'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
-                'table_name' => $tableName,
-                'external_id' => $externalId,
-            ]
-        );
+    // Verificar si hay error
+    if (!empty($dbtp->ProcesoError)) {
+      // Log::error("Error en sincronización de la OC {$purchaseOrder->number}: {$dbtp->ProcesoError}");
+      throw new \Exception("Error en sincronización de la OC: {$dbtp->ProcesoError}");
     }
 
-    /**
-     * Marca los logs de recepción como fallidos
-     */
-    protected function markLogsAsFailed(int $purchaseOrderId, string $errorMessage): void
-    {
-        VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $purchaseOrderId)
-            ->whereIn('step', [
-                VehiclePurchaseOrderMigrationLog::STEP_RECEPTION,
-                VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL,
-                VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL_SERIAL,
-            ])
-            ->each(function ($log) use ($errorMessage) {
-                $log->markAsFailed($errorMessage);
-            });
+    // Log::info("OC {$purchaseOrder->number} verificada exitosamente (ProcesoEstado = 1). Procediendo con la recepción.");
+  }
+
+  /**
+   * Obtiene o crea un registro de log
+   */
+  protected function getOrCreateLog(int $purchaseOrderId, string $step, string $tableName, ?string $externalId = null): VehiclePurchaseOrderMigrationLog
+  {
+    return VehiclePurchaseOrderMigrationLog::firstOrCreate(
+      [
+        'vehicle_purchase_order_id' => $purchaseOrderId,
+        'step' => $step,
+      ],
+      [
+        'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+        'table_name' => $tableName,
+        'external_id' => $externalId,
+      ]
+    );
+  }
+
+  /**
+   * Marca los logs de recepción como fallidos
+   */
+  protected function markLogsAsFailed(int $purchaseOrderId, string $errorMessage): void
+  {
+    VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $purchaseOrderId)
+      ->whereIn('step', [
+        VehiclePurchaseOrderMigrationLog::STEP_RECEPTION,
+        VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL,
+        VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL_SERIAL,
+      ])
+      ->each(function ($log) use ($errorMessage) {
+        $log->markAsFailed($errorMessage);
+      });
+  }
+
+  public function failed(\Throwable $exception): void
+  {
+    // Log::error("Failed SyncPurchaseOrderReceptionJob definitivamente para PO ID {$this->purchaseOrderId} después de {$this->tries} intentos: {$exception->getMessage()}");
+
+    // Marcar los logs como fallidos
+    if ($this->purchaseOrderId) {
+      $purchaseOrder = VehiclePurchaseOrder::find($this->purchaseOrderId);
+      $errorMessage = "Job de recepción falló después de {$this->tries} intentos: {$exception->getMessage()}";
+
+      if ($purchaseOrder) {
+        // Log::error("OC {$purchaseOrder->number}: {$errorMessage}");
+
+        // Actualizar estado de migración general
+        $purchaseOrder->update(['migration_status' => 'failed']);
+      }
+
+      $this->markLogsAsFailed($this->purchaseOrderId, $errorMessage);
     }
-
-    public function failed(\Throwable $exception): void
-    {
-        Log::error("Failed SyncPurchaseOrderReceptionJob definitivamente para PO ID {$this->purchaseOrderId} después de {$this->tries} intentos: {$exception->getMessage()}");
-
-        // Marcar los logs como fallidos
-        if ($this->purchaseOrderId) {
-            $purchaseOrder = VehiclePurchaseOrder::find($this->purchaseOrderId);
-            $errorMessage = "Job de recepción falló después de {$this->tries} intentos: {$exception->getMessage()}";
-
-            if ($purchaseOrder) {
-                Log::error("OC {$purchaseOrder->number}: {$errorMessage}");
-
-                // Actualizar estado de migración general
-                $purchaseOrder->update(['migration_status' => 'failed']);
-            }
-
-            $this->markLogsAsFailed($this->purchaseOrderId, $errorMessage);
-        }
-    }
+  }
 }

@@ -41,7 +41,7 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
         $this->processAllPurchaseOrders();
       }
     } catch (\Exception $e) {
-      Log::error("Error in SyncCreditNoteDynamicsJob: {$e->getMessage()}");
+      // Log::error("Error in SyncCreditNoteDynamicsJob: {$e->getMessage()}");
       throw $e;
     }
   }
@@ -60,17 +60,17 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
       ->get();
 
     if ($purchaseOrders->isEmpty()) {
-      Log::info("No hay órdenes de compra pendientes de sincronizar credit_note_dynamics");
+      // Log::info("No hay órdenes de compra pendientes de sincronizar credit_note_dynamics");
       return;
     }
 
-    Log::info("Procesando {$purchaseOrders->count()} órdenes de compra para sincronizar credit_note_dynamics");
+    // Log::info("Procesando {$purchaseOrders->count()} órdenes de compra para sincronizar credit_note_dynamics");
 
     foreach ($purchaseOrders as $order) {
       try {
         $this->processPurchaseOrder($order->id);
       } catch (\Exception $e) {
-        Log::error("Failed to process credit_note_dynamics for purchase order {$order->id}: {$e->getMessage()}");
+        // Log::error("Failed to process credit_note_dynamics for purchase order {$order->id}: {$e->getMessage()}");
         // Continuar con la siguiente orden
         continue;
       }
@@ -85,22 +85,22 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
     $purchaseOrder = VehiclePurchaseOrder::find($purchaseOrderId);
 
     if (!$purchaseOrder) {
-      Log::error("Purchase order not found: {$purchaseOrderId}");
+      // Log::error("Purchase order not found: {$purchaseOrderId}");
       return;
     }
 
     if (!$purchaseOrder->number) {
-      Log::warning("Purchase order {$purchaseOrderId} has no number, skipping");
+      // Log::warning("Purchase order {$purchaseOrderId} has no number, skipping");
       return;
     }
 
     // Si ya tiene credit_note_dynamics, no volver a procesar
     if (!empty($purchaseOrder->credit_note_dynamics)) {
-      Log::info("Purchase order {$purchaseOrder->number} already has credit_note_dynamics: {$purchaseOrder->credit_note_dynamics}");
+      // Log::info("Purchase order {$purchaseOrder->number} already has credit_note_dynamics: {$purchaseOrder->credit_note_dynamics}");
       return;
     }
 
-    Log::info("Consulting PA for credit note of purchase order: {$purchaseOrder->number}");
+    // Log::info("Consulting PA for credit note of purchase order: {$purchaseOrder->number}");
 
     try {
       // Ejecutar el Procedimiento Almacenado
@@ -117,15 +117,15 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
         // Crear movimiento usando el servicio
         $movementService = new VehicleMovementService();
         $movementService->storeReturnedVehicleMovement($purchaseOrder->id, $credit_note);
-        Log::info("Credit Note Dynamics updated for PO {$purchaseOrder->number}: {$credit_note}");
+        // Log::info("Credit Note Dynamics updated for PO {$purchaseOrder->number}: {$credit_note}");
 
         // NOTA: El job de actualización en Dynamics se disparará cuando el usuario edite manualmente la OC
-        Log::info("OC {$purchaseOrder->number} marcada con NC. Esperando edición manual para sincronizar con Dynamics.");
+        // Log::info("OC {$purchaseOrder->number} marcada con NC. Esperando edición manual para sincronizar con Dynamics.");
       } else {
-        Log::info("No credit note found yet for PO {$purchaseOrder->number}");
+        // Log::info("No credit note found yet for PO {$purchaseOrder->number}");
       }
     } catch (\Exception $e) {
-      Log::error("Error consulting PA for credit note PO {$purchaseOrder->number}: {$e->getMessage()}");
+      // Log::error("Error consulting PA for credit note PO {$purchaseOrder->number}: {$e->getMessage()}");
       throw $e;
     }
   }
@@ -147,13 +147,13 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
 
       return null;
     } catch (\Exception $e) {
-      Log::error("Error executing stored procedure for credit note order {$orderNumber}: {$e->getMessage()}");
+      // Log::error("Error executing stored procedure for credit note order {$orderNumber}: {$e->getMessage()}");
       throw $e;
     }
   }
 
   public function failed(\Throwable $exception): void
   {
-    Log::error("Failed SyncCreditNoteDynamicsJob: {$exception->getMessage()}");
+    // Log::error("Failed SyncCreditNoteDynamicsJob: {$exception->getMessage()}");
   }
 }

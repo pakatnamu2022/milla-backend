@@ -31,12 +31,12 @@ class SyncExchangeRateJob implements ShouldQueue
       $result = $exchangeRateService->syncExchangeRate();
 
       if ($result) {
-        Log::info('Tasa de cambio sincronizada correctamente', $result);
+        // Log::info('Tasa de cambio sincronizada correctamente', $result);
       } else {
-        Log::info('No se encontró tasa de cambio para sincronizar o ya existe');
+        // Log::info('No se encontró tasa de cambio para sincronizar o ya existe');
       }
     } catch (\Exception $e) {
-      Log::error('Error al sincronizar tasa de cambio: ' . $e->getMessage());
+      // Log::error('Error al sincronizar tasa de cambio: ' . $e->getMessage());
     }
   }
 }

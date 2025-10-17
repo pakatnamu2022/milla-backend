@@ -91,8 +91,6 @@ class UpdateEvaluationDashboards implements ShouldQueue
       $competencesProgress = $personResult->competences_progress_fallback;
       $groupedCompetences = $personResult->getGroupedCompetences();
 
-      if ($personResult->person_id == 8887) Log::info($totalProgress);
-
       EvaluationPersonDashboard::updateOrCreate(
         [
           'evaluation_id' => $evaluation->id,

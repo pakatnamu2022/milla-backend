@@ -42,7 +42,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         $this->processAllPurchaseOrders();
       }
     } catch (\Exception $e) {
-      Log::error("Error in SyncInvoiceDynamicsJob: {$e->getMessage()}");
+      // Log::error("Error in SyncInvoiceDynamicsJob: {$e->getMessage()}");
       throw $e;
     }
   }
@@ -72,17 +72,17 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       ->get();
 
     if ($purchaseOrders->isEmpty()) {
-      Log::info("No hay órdenes de compra pendientes de sincronizar invoice_dynamics");
+      // Log::info("No hay órdenes de compra pendientes de sincronizar invoice_dynamics");
       return;
     }
 
-    Log::info("Procesando {$purchaseOrders->count()} órdenes de compra para sincronizar invoice_dynamics");
+    // Log::info("Procesando {$purchaseOrders->count()} órdenes de compra para sincronizar invoice_dynamics");
 
     foreach ($purchaseOrders as $order) {
       try {
         $this->processPurchaseOrder($order->id);
       } catch (\Exception $e) {
-        Log::error("Failed to process invoice_dynamics for purchase order {$order->id}: {$e->getMessage()}");
+        // Log::error("Failed to process invoice_dynamics for purchase order {$order->id}: {$e->getMessage()}");
         // Continuar con la siguiente orden
         continue;
       }
@@ -97,23 +97,23 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
     $purchaseOrder = VehiclePurchaseOrder::find($purchaseOrderId);
 
     if (!$purchaseOrder) {
-      Log::error("Purchase order not found: {$purchaseOrderId}");
+      // Log::error("Purchase order not found: {$purchaseOrderId}");
       return;
     }
 
     if (!$purchaseOrder->number) {
-      Log::warning("Purchase order {$purchaseOrderId} has no number, skipping");
+      // Log::warning("Purchase order {$purchaseOrderId} has no number, skipping");
       return;
     }
 
     // Consultar el PA para obtener la factura actual de Dynamics
-    Log::info("Consulting PA for purchase order: {$purchaseOrder->number}");
+    // Log::info("Consulting PA for purchase order: {$purchaseOrder->number}");
 
     try {
       $result = $this->consultStoredProcedure($purchaseOrder->number);
 
       if (!$result) {
-        Log::info("No result from PA for PO {$purchaseOrder->number}, skipping");
+        // Log::info("No result from PA for PO {$purchaseOrder->number}, skipping");
         return;
       }
 
@@ -121,7 +121,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       $statusReception = trim($result->EstadoRecepcion) === 'Hist. Recep.';
 
       if (!$statusReception) {
-        Log::info("Invoice for PO {$purchaseOrder->number} is not in 'Hist. Recep.' Estado de Recepción, skipping");
+        // Log::info("Invoice for PO {$purchaseOrder->number} is not in 'Hist. Recep.' Estado de Recepción, skipping");
         return;
       }
 
@@ -132,7 +132,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       // Verificar si la factura cambió (nueva OC con punto)
       if ($purchaseOrder->migration_status === 'completed' && !empty($purchaseOrder->credit_note_dynamics)) {
 
-        Log::info("Invoice changed detected for PO {$purchaseOrder->number}: {$purchaseOrder->invoice_dynamics} -> {$newInvoice}");
+        // Log::info("Invoice changed detected for PO {$purchaseOrder->number}: {$purchaseOrder->invoice_dynamics} -> {$newInvoice}");
 
         // Actualizar la factura y cambiar el estado a 'updated_with_nc'
         $purchaseOrder->update([
@@ -142,17 +142,17 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           'status' => !empty($purchaseOrder->invoice_dynamics) && !($newInvoice == $newReceipt) // Si son iguales, marcar como false (anulada)
         ]);
 
-        Log::info("PO {$purchaseOrder->number} updated with new invoice and marked as 'updated_with_nc'");
+        // Log::info("PO {$purchaseOrder->number} updated with new invoice and marked as 'updated_with_nc'");
         return;
       }
 
       if (!$status) {
-        Log::info("Invoice for PO {$purchaseOrder->number} is not in 'Hist. Recep.' status, skipping");
+        // Log::info("Invoice for PO {$purchaseOrder->number} is not in 'Hist. Recep.' status, skipping");
         return;
       }
 
       if (empty($result->NumeroDocumento) || empty($result->NroDocProvDocumento)) {
-        Log::info("No invoice found yet for PO {$purchaseOrder->number}");
+        // Log::info("No invoice found yet for PO {$purchaseOrder->number}");
         return;
       }
 
@@ -163,15 +163,15 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           'receipt_dynamics' => $newReceipt
         ]);
 
-        Log::info("Invoice Dynamics updated for PO {$purchaseOrder->number}: {$newReceipt} | {$newInvoice}");
+        // Log::info("Invoice Dynamics updated for PO {$purchaseOrder->number}: {$newReceipt} | {$newInvoice}");
 
         // Crear movimiento de vehículo en tránsito
         try {
           $vehicleMovementService = new VehicleMovementService();
           $vehicleMovementService->storeInTransitVehicleMovement($purchaseOrder->id);
-          Log::info("Vehicle movement created for PO {$purchaseOrder->number} with status VEHICULO EN TRAVESIA");
+          // Log::info("Vehicle movement created for PO {$purchaseOrder->number} with status VEHICULO EN TRAVESIA");
         } catch (\Exception $e) {
-          Log::error("Error creating vehicle movement for PO {$purchaseOrder->number}: {$e->getMessage()}");
+          // Log::error("Error creating vehicle movement for PO {$purchaseOrder->number}: {$e->getMessage()}");
         }
         return;
       }
@@ -182,18 +182,18 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
 
       // CASO 3: OC con factura pero sin movimiento (recuperación)
       if (!empty($purchaseOrder->invoice_dynamics) && !$hasInTransitMovement) {
-        Log::info("Purchase order {$purchaseOrder->number} has invoice_dynamics but no movement, creating it");
+        // Log::info("Purchase order {$purchaseOrder->number} has invoice_dynamics but no movement, creating it");
         try {
           $vehicleMovementService = new VehicleMovementService();
           $vehicleMovementService->storeInTransitVehicleMovement($purchaseOrder->id);
-          Log::info("Vehicle movement created for PO {$purchaseOrder->number} with status VEHICULO EN TRAVESIA");
+          // Log::info("Vehicle movement created for PO {$purchaseOrder->number} with status VEHICULO EN TRAVESIA");
         } catch (Throwable $e) {
-          Log::error("Error creating vehicle movement for PO {$purchaseOrder->number}: {$e->getMessage()}");
+          // Log::error("Error creating vehicle movement for PO {$purchaseOrder->number}: {$e->getMessage()}");
         }
       }
 
     } catch (\Exception $e) {
-      Log::error("Error consulting PA for PO {$purchaseOrder->number}: {$e->getMessage()}");
+      // Log::error("Error consulting PA for PO {$purchaseOrder->number}: {$e->getMessage()}");
       throw $e;
     }
   }
@@ -215,13 +215,13 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
 
       return null;
     } catch (\Exception $e) {
-      Log::error("Error executing stored procedure for order {$orderNumber}: {$e->getMessage()}");
+      // Log::error("Error executing stored procedure for order {$orderNumber}: {$e->getMessage()}");
       throw $e;
     }
   }
 
   public function failed(\Throwable $exception): void
   {
-    Log::error("Failed SyncInvoiceDynamicsJob: {$exception->getMessage()}");
+    // Log::error("Failed SyncInvoiceDynamicsJob: {$exception->getMessage()}");
   }
 }
