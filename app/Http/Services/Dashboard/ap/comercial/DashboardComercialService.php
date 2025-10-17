@@ -330,7 +330,7 @@ class DashboardComercialService
       if (!isset($result[$userId])) {
         $result[$userId] = [
           'user_id' => $userId,
-          'user_nombre' => $stat->user->nombre_completo ?? 'SIN_USUARIO',
+          'user_nombre' => $stat->user->name ?? 'SIN_USUARIO',
           'total_visitas' => 0,
           'estados_visita' => [
             'no_atendidos' => 0,

@@ -14,7 +14,7 @@ return new class extends Migration {
       $table->integer('user_id')->after('area_id')->nullable();
       $table->foreign('user_id')
         ->references('id')
-        ->on('rrhh_persona');
+        ->on('usr_users');
     });
   }
 
