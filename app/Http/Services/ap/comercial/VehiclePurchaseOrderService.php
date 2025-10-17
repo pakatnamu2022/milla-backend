@@ -244,7 +244,7 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     } else {
       // Si existe pero tiene error, notificar
       if (!empty($existingSupplier->ProcesoError)) {
-        \Illuminate\Support\Facades\Log::warning("El proveedor {$supplier->num_doc} tiene un error previo: {$existingSupplier->ProcesoError}");
+        // Log::warning("El proveedor {$supplier->num_doc} tiene un error previo: {$existingSupplier->ProcesoError}");
       }
     }
   }
@@ -274,7 +274,7 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     } else {
       // Si existe pero tiene error, notificar
       if (!empty($existingArticle->ProcesoError)) {
-        \Illuminate\Support\Facades\Log::warning("El artículo {$model->code} tiene un error previo: {$existingArticle->ProcesoError}");
+        // Log::warning("El artículo {$model->code} tiene un error previo: {$existingArticle->ProcesoError}");
       }
     }
   }
@@ -314,7 +314,7 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
 
       // Si la OC tiene NC, crear una nueva OC con punto en vez de actualizar
       if (!empty($vehiclePurchaseOrder->credit_note_dynamics)) {
-        Log::info("OC {$vehiclePurchaseOrder->id} tiene NC, creando nueva OC con punto");
+        // Log::info("OC {$vehiclePurchaseOrder->id} tiene NC, creando nueva OC con punto");
 
         // Crear nueva OC basada en los datos actualizados
         $newPOData = array_merge($vehiclePurchaseOrder->toArray(), $data);
@@ -356,7 +356,7 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
         $vehicleMovementService = new VehicleMovementService();
         $vehicleMovementService->storeRequestedVehicleMovement($newPurchaseOrder->id);
 
-        Log::info("Nueva OC creada con punto: {$newPurchaseOrder->number} (ID: {$newPurchaseOrder->id})");
+        // Log::info("Nueva OC creada con punto: {$newPurchaseOrder->number} (ID: {$newPurchaseOrder->id})");
 
         // IMPORTANTE: Solo sincronizar la FACTURA actualizada a Dynamics, no toda la OC
         // La OC original ya existe en Dynamics, solo necesitamos actualizar la factura
@@ -427,7 +427,7 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
         throw new Exception("La orden de compra {$originalPO->number} ya ha sido reenviada previamente. No se puede reenviar nuevamente.");
       }
 
-      Log::info("Reenviando OC anulada {$originalPO->number} con datos corregidos");
+      // Log::info("Reenviando OC anulada {$originalPO->number} con datos corregidos");
 
       // Marcar la OC original como reenviada
       $originalPO->update(['resent' => true]);
@@ -470,7 +470,7 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
       // Crear logs de migración
       $this->createInitialMigrationLogs($newPurchaseOrder);
 
-      Log::info("Nueva OC creada con punto: {$newPurchaseOrder->number} (ID: {$newPurchaseOrder->id})");
+      // Log::info("Nueva OC creada con punto: {$newPurchaseOrder->number} (ID: {$newPurchaseOrder->id})");
 
       // Validar y sincronizar a tabla intermedia
       $this->validateAndSyncBeforeSending($newPurchaseOrder);
@@ -482,12 +482,12 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
 
       DB::commit();
 
-      Log::info("OC {$newPurchaseOrder->number} reenviada exitosamente. Original: {$originalPO->number}");
+      // Log::info("OC {$newPurchaseOrder->number} reenviada exitosamente. Original: {$originalPO->number}");
 
       return new VehiclePurchaseOrderResource($newPurchaseOrder);
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error("Error al reenviar OC {$originalId}: {$e->getMessage()}");
+      // Log::error("Error al reenviar OC {$originalId}: {$e->getMessage()}");
       throw $e;
     }
   }

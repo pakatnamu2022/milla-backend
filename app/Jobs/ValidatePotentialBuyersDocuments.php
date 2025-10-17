@@ -158,8 +158,8 @@ class ValidatePotentialBuyersDocuments implements ShouldQueue
    */
   public function failed(Exception $exception): void
   {
-    Log::error('Job de validación de documentos falló: ' . $exception->getMessage(), [
-      'total_ids' => count($this->potentialBuyerIds)
-    ]);
+//    Log::error('Job de validación de documentos falló: ' . $exception->getMessage(), [
+//      'total_ids' => count($this->potentialBuyerIds)
+//    ]);
   }
 }

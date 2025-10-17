@@ -103,7 +103,6 @@ class EvaluationController extends Controller
     try {
       return $this->success($this->service->show($id));
     } catch (\Throwable $th) {
-      logger()->error($th);
       return $this->error($th->getMessage());
     }
   }

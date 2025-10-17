@@ -43,7 +43,7 @@ class EvaluationNotificationService
       ];
 
     } catch (\Exception $e) {
-      Log::error('Error sending evaluation reminders: ' . $e->getMessage());
+      // Log::error('Error sending evaluation reminders: ' . $e->getMessage());
 
       return [
         'success' => false,
@@ -195,7 +195,7 @@ class EvaluationNotificationService
       ];
 
     } catch (\Exception $e) {
-      Log::error("Error sending reminder to leader {$leader->id}: " . $e->getMessage());
+      // Log::error("Error sending reminder to leader {$leader->id}: " . $e->getMessage());
 
       return [
         'leader_id' => $leader->id,
@@ -301,7 +301,7 @@ class EvaluationNotificationService
       ];
 
     } catch (\Exception $e) {
-      Log::error('Error sending HR summary: ' . $e->getMessage());
+      // Log::error('Error sending HR summary: ' . $e->getMessage());
 
       return [
         'success' => false,

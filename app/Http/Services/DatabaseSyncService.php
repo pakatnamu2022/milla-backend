@@ -45,11 +45,11 @@ class DatabaseSyncService
         ];
 
         // Log del error pero no detiene el proceso principal
-        Log::error("Error sincronizando a {$connectionName}: {$e->getMessage()}", [
-          'entity' => $entity,
-          'action' => $action,
-          'data' => $data,
-        ]);
+//        Log::error("Error sincronizando a {$connectionName}: {$e->getMessage()}", [
+//          'entity' => $entity,
+//          'action' => $action,
+//          'data' => $data,
+//        ]);
       }
     }
 

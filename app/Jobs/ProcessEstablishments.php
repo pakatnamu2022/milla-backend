@@ -34,7 +34,7 @@ class ProcessEstablishments implements ShouldQueue
     $businessPartner = BusinessPartners::find($this->businessPartnerId);
 
     if (!$businessPartner) {
-      Log::error("BusinessPartner not found: {$this->businessPartnerId}");
+      // Log::error("BusinessPartner not found: {$this->businessPartnerId}");
       return;
     }
 
@@ -68,6 +68,6 @@ class ProcessEstablishments implements ShouldQueue
   public function failed(\Throwable $exception): void
   {
     // Manejar el fallo del job
-    Log::error("Failed to process establishments for BusinessPartner {$this->businessPartnerId}: {$exception->getMessage()}");
+    // Log::error("Failed to process establishments for BusinessPartner {$this->businessPartnerId}: {$exception->getMessage()}");
   }
 }

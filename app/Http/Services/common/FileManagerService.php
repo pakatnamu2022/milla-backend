@@ -182,7 +182,7 @@ class FileManagerService
       $logData['mime_type'] = $file->getMimeType();
     }
 
-    Log::info('File operation', $logData);
+    // Log::info('File operation', $logData);
   }
 
   /**

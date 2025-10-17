@@ -12,71 +12,72 @@ use Illuminate\Support\Facades\Log;
 
 class SyncArticleJob implements ShouldQueue
 {
-    use Queueable;
+  use Queueable;
 
-    public int $tries = 3;
-    public int $timeout = 60;
+  public int $tries = 3;
+  public int $timeout = 60;
 
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(
-        public int $modelId
-    ) {
-        $this->onQueue('sync');
+  /**
+   * Create a new job instance.
+   */
+  public function __construct(
+    public int $modelId
+  )
+  {
+    $this->onQueue('sync');
+  }
+
+  /**
+   * Execute the job.
+   */
+  public function handle(DatabaseSyncService $syncService): void
+  {
+    $model = ApModelsVn::find($this->modelId);
+
+    if (!$model) {
+      // Log::error("Model not found: {$this->modelId}");
+      return;
     }
 
-    /**
-     * Execute the job.
-     */
-    public function handle(DatabaseSyncService $syncService): void
-    {
-        $model = ApModelsVn::find($this->modelId);
+    try {
+      // Buscar logs relacionados con este modelo
+      $articleLogs = VehiclePurchaseOrderMigrationLog::where('step', VehiclePurchaseOrderMigrationLog::STEP_ARTICLE)
+        ->where('external_id', $model->code)
+        ->get();
 
-        if (!$model) {
-            Log::error("Model not found: {$this->modelId}");
-            return;
-        }
+      // Marcar como en progreso
+      foreach ($articleLogs as $log) {
+        $log->markAsInProgress();
+      }
 
-        try {
-            // Buscar logs relacionados con este modelo
-            $articleLogs = VehiclePurchaseOrderMigrationLog::where('step', VehiclePurchaseOrderMigrationLog::STEP_ARTICLE)
-                ->where('external_id', $model->code)
-                ->get();
+      // Sincronizar el artículo
+      $resource = new ApModelsVnResource($model);
+      $syncService->sync('article_model', $resource->toArray(request()), 'create');
 
-            // Marcar como en progreso
-            foreach ($articleLogs as $log) {
-                $log->markAsInProgress();
-            }
+      // Marcar como completado (con ProcesoEstado = 0, se actualizará después)
+      foreach ($articleLogs as $log) {
+        $log->updateProcesoEstado(0);
+      }
 
-            // Sincronizar el artículo
-            $resource = new ApModelsVnResource($model);
-            $syncService->sync('article_model', $resource->toArray(request()), 'create');
+      // Log::info("Article synced successfully for model: {$this->modelId}");
+    } catch (\Exception $e) {
+      // Log::error("Failed to sync article for model {$this->modelId}: {$e->getMessage()}");
 
-            // Marcar como completado (con ProcesoEstado = 0, se actualizará después)
-            foreach ($articleLogs as $log) {
-                $log->updateProcesoEstado(0);
-            }
+      // Marcar logs como fallidos
+      $articleLogs = VehiclePurchaseOrderMigrationLog::where('step', VehiclePurchaseOrderMigrationLog::STEP_ARTICLE)
+        ->where('external_id', $model->code)
+        ->get();
 
-            Log::info("Article synced successfully for model: {$this->modelId}");
-        } catch (\Exception $e) {
-            Log::error("Failed to sync article for model {$this->modelId}: {$e->getMessage()}");
+      foreach ($articleLogs as $log) {
+        $log->markAsFailed($e->getMessage());
+      }
 
-            // Marcar logs como fallidos
-            $articleLogs = VehiclePurchaseOrderMigrationLog::where('step', VehiclePurchaseOrderMigrationLog::STEP_ARTICLE)
-                ->where('external_id', $model->code)
-                ->get();
-
-            foreach ($articleLogs as $log) {
-                $log->markAsFailed($e->getMessage());
-            }
-
-            throw $e;
-        }
+      throw $e;
     }
+  }
 
-    public function failed(\Throwable $exception): void
-    {
-        Log::error("Failed SyncArticleJob for model {$this->modelId}: {$exception->getMessage()}");
-    }
+  public function failed(\Throwable $exception): void
+  {
+    // Log::error("Failed SyncArticleJob for model {$this->modelId}: {$exception->getMessage()}");
+  }
 }

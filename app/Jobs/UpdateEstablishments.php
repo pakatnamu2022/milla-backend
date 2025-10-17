@@ -32,7 +32,7 @@ class UpdateEstablishments implements ShouldQueue
     $businessPartner = BusinessPartners::find($this->businessPartnerId);
 
     if (!$businessPartner) {
-      Log::error("BusinessPartner not found: {$this->businessPartnerId}");
+      // Log::error("BusinessPartner not found: {$this->businessPartnerId}");
       return;
     }
 
@@ -40,7 +40,7 @@ class UpdateEstablishments implements ShouldQueue
       // Si cambió el RUC, eliminar todos los establecimientos anteriores
       if ($this->previousNumDoc && $this->previousNumDoc !== $this->numDoc) {
         $businessPartner->establishments()->delete();
-        Log::info("Deleted all establishments for BusinessPartner {$this->businessPartnerId} due to RUC change");
+        // Log::info("Deleted all establishments for BusinessPartner {$this->businessPartnerId} due to RUC change");
       }
 
       // Obtener establecimientos actuales de la API
@@ -62,7 +62,7 @@ class UpdateEstablishments implements ShouldQueue
         $codesToDelete = array_diff($existingCodes, $apiCodes);
         if (!empty($codesToDelete)) {
           $businessPartner->establishments()->whereIn('code', $codesToDelete)->delete();
-          Log::info("Deleted establishments with codes: " . implode(', ', $codesToDelete));
+          // Log::info("Deleted establishments with codes: " . implode(', ', $codesToDelete));
         }
 
         // Procesar cada establecimiento de la API
@@ -84,17 +84,17 @@ class UpdateEstablishments implements ShouldQueue
           );
         }
 
-        Log::info("Synchronized establishments for BusinessPartner {$this->businessPartnerId}");
+        // Log::info("Synchronized establishments for BusinessPartner {$this->businessPartnerId}");
       } else {
         // Si no hay establecimientos en la API, eliminar todos los existentes
         $businessPartner->establishments()->delete();
-        Log::info("No establishments found in API, deleted all for BusinessPartner {$this->businessPartnerId}");
+        // Log::info("No establishments found in API, deleted all for BusinessPartner {$this->businessPartnerId}");
       }
 
       $businessPartner->update(['establishments_status' => 'completed']);
     } catch (\Exception $e) {
       $businessPartner->update(['establishments_status' => 'failed']);
-      Log::error("Failed to update establishments for BusinessPartner {$this->businessPartnerId}: {$e->getMessage()}");
+      // Log::error("Failed to update establishments for BusinessPartner {$this->businessPartnerId}: {$e->getMessage()}");
       throw $e;
     }
   }
@@ -102,6 +102,6 @@ class UpdateEstablishments implements ShouldQueue
   public function failed(\Throwable $exception): void
   {
     // Manejar el fallo del job
-    Log::error("Failed to update establishments for BusinessPartner {$this->businessPartnerId}: {$exception->getMessage()}");
+    // Log::error("Failed to update establishments for BusinessPartner {$this->businessPartnerId}: {$exception->getMessage()}");
   }
 }

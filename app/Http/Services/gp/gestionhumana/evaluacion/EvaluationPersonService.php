@@ -10,12 +10,9 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
-use App\Jobs\UpdateEvaluationDashboards;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use function dd;
-use function logger;
 
 class EvaluationPersonService extends BaseService
 {
@@ -342,7 +339,6 @@ class EvaluationPersonService extends BaseService
             }
           }
           $status = 'completado';
-          logger("Persona completamente evaluada - Person ID: {$personId}, Evaluaciones: " . $personEvaluations->count() . ", Estado: {$status}");
 
         } elseif ($processedCount < $completedCount + $inProgressCount) {
           // 30% en progreso - completar SOLO LA MITAD de las evaluaciones de esta persona
@@ -364,12 +360,10 @@ class EvaluationPersonService extends BaseService
             }
           }
           $status = 'en progreso';
-          logger("Persona parcialmente evaluada - Person ID: {$personId}, Completadas: {$completedEvaluations}/{$personEvaluations->count()}, Estado: {$status}");
 
         } else {
           // 20% sin responder - NO ACTUALIZAR NINGUNA evaluación de esta persona
           $status = 'sin responder';
-          logger("Persona sin evaluar - Person ID: {$personId}, Evaluaciones: " . $personEvaluations->count() . ", Estado: {$status}");
         }
 
         $processedCount++;
@@ -392,7 +386,6 @@ class EvaluationPersonService extends BaseService
 
     } catch (\Exception $e) {
       DB::rollBack();
-      logger("Error en prueba de evaluación: " . $e->getMessage());
       throw new Exception("Error al ejecutar la prueba: " . $e->getMessage());
     }
   }
@@ -431,7 +424,6 @@ class EvaluationPersonService extends BaseService
 
           $updatedCount++;
 
-          logger("Evaluación de prueba actualizada - Persona ID: {$evaluationPerson->person_id}, Meta: {$goal}, Resultado: {$testResult} ({$percentage}%)");
         }
       }
 
@@ -448,7 +440,6 @@ class EvaluationPersonService extends BaseService
 
     } catch (\Exception $e) {
       DB::rollBack();
-      logger("Error en prueba de evaluación con porcentaje: " . $e->getMessage());
       throw new Exception("Error al ejecutar la prueba: " . $e->getMessage());
     }
   }

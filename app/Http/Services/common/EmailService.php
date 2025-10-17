@@ -34,7 +34,7 @@ class EmailService
 
       return true;
     } catch (\Exception $e) {
-      \Log::error('Error sending email: ' . $e->getMessage());
+      // Log::error('Error sending email: ' . $e->getMessage());
       return false;
     }
   }
@@ -55,7 +55,7 @@ class EmailService
 
       return true;
     } catch (\Exception $e) {
-      \Log::error('Error queuing email: ' . $e->getMessage());
+      // Log::error('Error queuing email: ' . $e->getMessage());
       return false;
     }
   }

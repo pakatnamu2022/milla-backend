@@ -20,6 +20,7 @@ use App\Models\gp\gestionsistema\Position;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class EvaluationService extends BaseService
 {
@@ -177,13 +178,13 @@ class EvaluationService extends BaseService
       if (in_array($evaluation->typeEvaluation, [self::EVALUACION_180, self::EVALUACION_360])) {
         $competencesResult = $this->crearCompetenciasEvaluacion($evaluation);
 
-        if (!$competencesResult['success']) {
-          // Log del error pero no fallar la creación de la evaluación
-          \Log::warning('Error al crear competencias automáticamente', [
-            'evaluation_id' => $evaluation->id,
-            'error' => $competencesResult['message']
-          ]);
-        }
+//        if (!$competencesResult['success']) {
+        // Log del error pero no fallar la creación de la evaluación
+//          Log::warning('Error al crear competencias automáticamente', [
+//            'evaluation_id' => $evaluation->id,
+//            'error' => $competencesResult['message']
+//          ]);
+//        }
       }
 
       DB::commit();
@@ -492,7 +493,7 @@ class EvaluationService extends BaseService
    */
   private function executeFullReset($evaluation, $resetProgress = false)
   {
-    \Log::info("Iniciando regeneración completa para evaluación {$evaluation->id}");
+    // Log::info("Iniciando regeneración completa para evaluación {$evaluation->id}");
 
     // 1. Limpiar completamente todos los datos existentes
     EvaluationPersonResult::where('evaluation_id', $evaluation->id)->delete();
@@ -526,7 +527,7 @@ class EvaluationService extends BaseService
    */
   private function executeSyncWithCycle($evaluation, $resetProgress = false)
   {
-    \Log::info("Iniciando sincronización con ciclo para evaluación {$evaluation->id}");
+    // Log::info("Iniciando sincronización con ciclo para evaluación {$evaluation->id}");
 
     // Personas actualmente en la evaluación
     $currentPersons = EvaluationPersonResult::where('evaluation_id', $evaluation->id)
@@ -624,7 +625,7 @@ class EvaluationService extends BaseService
    */
   private function executeAddMissingOnly($evaluation)
   {
-    \Log::info("Agregando solo participantes faltantes para evaluación {$evaluation->id}");
+    // Log::info("Agregando solo participantes faltantes para evaluación {$evaluation->id}");
 
     // Personas actualmente en la evaluación
     $currentPersons = EvaluationPersonResult::where('evaluation_id', $evaluation->id)
