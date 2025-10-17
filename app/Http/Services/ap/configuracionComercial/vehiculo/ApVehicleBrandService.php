@@ -6,29 +6,27 @@ use App\Http\Resources\ap\configuracionComercial\vehiculo\ApVehicleBrandResource
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Http\Services\BaseService;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
+use App\Models\gp\gestionsistema\DigitalFile;
 use Illuminate\Support\Facades\DB;
-use App\Http\Traits\HandlesFiles;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Http\Request;
 use Exception;
 
 class ApVehicleBrandService extends BaseService implements BaseServiceInterface
 {
-  use HandlesFiles;
+  protected DigitalFileService $digitalFileService;
 
-  // Configuración de campos de archivos
-  private const FILE_FIELDS = [
-    'logo' => [
-      'directory' => 'brands/logos',
-      'options' => ['max_size' => 2 * 1024 * 1024] // 2MB
-    ],
-    'logo_min' => [
-      'directory' => 'brands/logos-min',
-      'options' => ['max_size' => 1 * 1024 * 1024] // 1MB
-    ]
+  // Configuración de rutas para archivos
+  private const FILE_PATHS = [
+    'logo' => '/ap/marcas/logos/',
+    'logo_min' => '/ap/marcas/logos-min/'
   ];
 
-  private const FILE_FIELD_NAMES = ['logo', 'logo_min'];
+  public function __construct(DigitalFileService $digitalFileService)
+  {
+    $this->digitalFileService = $digitalFileService;
+  }
 
   public function list(Request $request)
   {
@@ -55,12 +53,16 @@ class ApVehicleBrandService extends BaseService implements BaseServiceInterface
     try {
       DB::beginTransaction();
 
-      // Validar archivos primero
-      $this->validateFiles($data, self::FILE_FIELDS);
+      // Extraer archivos del array de datos
+      $files = $this->extractFiles($data);
 
-      // Procesar archivos públicos
-      $processedData = $this->processMultipleFilesPublic($data, self::FILE_FIELDS);
-      $brand = ApVehicleBrand::create($processedData);
+      // Crear la marca sin los archivos
+      $brand = ApVehicleBrand::create($data);
+
+      // Subir archivos y actualizar URLs
+      if (!empty($files)) {
+        $this->uploadAndAttachFiles($brand, $files);
+      }
 
       DB::commit();
       return new ApVehicleBrandResource($brand);
@@ -73,14 +75,7 @@ class ApVehicleBrandService extends BaseService implements BaseServiceInterface
   public function show($id)
   {
     $brand = $this->find($id);
-    $resource = new ApVehicleBrandResource($brand);
-    $resourceArray = $resource->toArray(request());
-
-    // Generar URLs automáticamente
-    $urls = $this->generateFileUrls($brand, self::FILE_FIELD_NAMES);
-    $resourceArray = array_merge($resourceArray, $urls);
-
-    return $resourceArray;
+    return new ApVehicleBrandResource($brand);
   }
 
   public function update(mixed $data)
@@ -90,21 +85,16 @@ class ApVehicleBrandService extends BaseService implements BaseServiceInterface
 
       $brand = $this->find($data['id']);
 
-      // Validar archivos si los hay
-      if ($this->hasFileUploads($data)) {
-        $this->validateFiles($data, self::FILE_FIELDS);
+      // Extraer archivos del array de datos
+      $files = $this->extractFiles($data);
+
+      // Actualizar datos de la marca
+      $brand->update($data);
+
+      // Si hay nuevos archivos, subirlos y actualizar URLs
+      if (!empty($files)) {
+        $this->uploadAndAttachFiles($brand, $files);
       }
-
-      // Detectar tipo de storage actual y procesar en consecuencia
-      $isCurrentPublic = $this->isModelFilesPublic($brand);
-
-      if ($isCurrentPublic) {
-        $processedData = $this->processMultipleFilesPublic($data, self::FILE_FIELDS, $brand);
-      } else {
-        $processedData = $this->processMultipleFilesSecure($data, self::FILE_FIELDS, $brand);
-      }
-
-      $brand->update($processedData);
 
       DB::commit();
       return new ApVehicleBrandResource($brand);
@@ -116,30 +106,69 @@ class ApVehicleBrandService extends BaseService implements BaseServiceInterface
 
   public function destroy($id)
   {
-    $engineType = $this->find($id);
-    DB::transaction(function () use ($engineType) {
-      $engineType->delete();
+    $brand = $this->find($id);
+
+    DB::transaction(function () use ($brand) {
+      // Eliminar archivos asociados si existen
+      $this->deleteAttachedFiles($brand);
+
+      // Eliminar la marca
+      $brand->delete();
     });
+
     return response()->json(['message' => 'Marca de vehículo eliminado correctamente']);
   }
 
-  private function hasFileUploads(array $data): bool
+  /**
+   * Extrae los archivos del array de datos
+   */
+  private function extractFiles(array &$data): array
   {
-    foreach (self::FILE_FIELD_NAMES as $field) {
+    $files = [];
+
+    foreach (array_keys(self::FILE_PATHS) as $field) {
       if (isset($data[$field]) && $data[$field] instanceof UploadedFile) {
-        return true;
+        $files[$field] = $data[$field];
+        unset($data[$field]); // Remover del array para no guardarlo en la BD
       }
     }
-    return false;
+
+    return $files;
   }
 
-  private function isModelFilesPublic($model): bool
+  /**
+   * Sube archivos y actualiza el modelo con las URLs
+   */
+  private function uploadAndAttachFiles($brand, array $files): void
   {
-    foreach (self::FILE_FIELD_NAMES as $field) {
-      if ($model->{$field}) {
-        return $this->isFilePublic($model->{$field});
+    foreach ($files as $field => $file) {
+      $path = self::FILE_PATHS[$field];
+      $model = $brand->getTable();
+
+      // Subir archivo usando DigitalFileService
+      $digitalFile = $this->digitalFileService->store($file, $path, 'public', $model);
+
+      // Actualizar el campo del brand con la URL
+      $brand->{$field} = $digitalFile->url;
+    }
+
+    $brand->save();
+  }
+
+  /**
+   * Elimina archivos asociados al modelo
+   */
+  private function deleteAttachedFiles($brand): void
+  {
+    foreach (array_keys(self::FILE_PATHS) as $field) {
+      if ($brand->{$field}) {
+        // Buscar el archivo digital asociado y eliminarlo
+        $digitalFile = DigitalFile::where('url', $brand->{$field})->first();
+
+        if ($digitalFile) {
+          $this->digitalFileService->destroy($digitalFile->id);
+        }
       }
     }
-    return true;
   }
 }
