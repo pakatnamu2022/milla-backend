@@ -24,7 +24,6 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'holder_id' => ['required', 'exists:business_partners,id'],
       'vehicle_color_id' => ['required', 'exists:ap_commercial_masters,id'],
       'ap_models_vn_id' => ['nullable', 'exists:ap_models_vn,id'],
-      'vehicle_vn_id' => ['nullable', 'exists:vehicle_vn,id'],
       'doc_type_currency_id' => ['required', 'exists:type_currency,id'],
       'ap_vehicle_purchase_order_id' => ['nullable', 'exists:vehicle_purchase_order,id'],
       'with_vin' => ['nullable', 'boolean'],
@@ -80,8 +79,6 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'vehicle_color_id.exists' => 'El color del vehículo seleccionado no es válido.',
 
       'ap_models_vn_id.exists' => 'El modelo VN seleccionado no es válido.',
-
-      'vehicle_vn_id.exists' => 'El vehículo VN seleccionado no es válido.',
 
       'doc_type_currency_id.required' => 'El campo tipo de moneda es obligatorio.',
       'doc_type_currency_id.exists' => 'El tipo de moneda seleccionado no es válido.',

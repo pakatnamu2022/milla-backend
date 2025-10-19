@@ -25,7 +25,7 @@ return new class extends Migration {
       // Status changes
       $table->foreignId('previous_status_id')->nullable()->after('cancelled_at')
         ->constrained('ap_vehicle_status');
-      $table->foreignId('new_status_id')->after('previous_status_id')
+      $table->foreignId('new_status_id')->nullable()->after('previous_status_id')
         ->constrained('ap_vehicle_status');
       $table->integer('created_by')->after('new_status_id')->nullable();
       $table->foreign('created_by')

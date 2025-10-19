@@ -28,14 +28,24 @@ return new class extends Migration {
       $table->string('file_type')->nullable(); // pdf, jpg, png, xml
       $table->string('file_url')->nullable(); // URL pública temporal
       // Datos del transporte (asociados a la guía de remisión)
-      $table->string('num_doc')->nullable();
+      $table->string('driver_doc')->nullable();
       $table->string('company_name')->nullable();
+      $table->string('license')->nullable();
+      $table->string('plate')->nullable();
+      $table->string('driver_name')->nullable();
       // Cancelación
       $table->text('cancellation_reason')->nullable();
-      $table->foreignId('cancelled_by')->nullable()->constrained('users');
+      $table->integer('cancelled_by')->nullable();
+      $table->foreign('cancelled_by')
+        ->references('id')
+        ->on('usr_users');
       $table->datetime('cancelled_at')->nullable();
       $table->text('notes')->nullable();
       $table->boolean('status')->default(true);
+      $table->foreignId('transfer_reason_id')->nullable()
+        ->constrained('sunat_concepts')->onDelete('cascade');
+      $table->foreignId('transfer_modality_id')->nullable()
+        ->constrained('sunat_concepts')->onDelete('cascade');
       $table->timestamps();
       $table->softDeletes();
     });

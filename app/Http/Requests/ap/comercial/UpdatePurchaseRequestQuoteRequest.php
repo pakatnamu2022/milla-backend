@@ -25,7 +25,6 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'holder_id' => ['sometimes', 'exists:business_partners,id'],
       'vehicle_color_id' => ['sometimes', 'exists:ap_commercial_masters,id'],
       'ap_models_vn_id' => ['nullable', 'exists:ap_models_vn,id'],
-      'vehicle_vn_id' => ['nullable', 'exists:vehicle_vn,id'],
       'doc_type_currency_id' => ['sometimes', 'exists:type_currency,id'],
       'ap_vehicle_purchase_order_id' => ['nullable', 'exists:vehicle_purchase_order,id'],
 
@@ -74,8 +73,6 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'vehicle_color_id.exists' => 'El color del vehículo seleccionado no es válido.',
 
       'ap_models_vn_id.exists' => 'El modelo VN seleccionado no es válido.',
-
-      'vehicle_vn_id.exists' => 'El vehículo VN seleccionado no es válido.',
 
       'doc_type_currency_id.exists' => 'El tipo de moneda seleccionado no es válido.',
 
