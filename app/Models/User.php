@@ -6,6 +6,7 @@ use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionsistema\Role;
 use App\Models\gp\gestionsistema\UserRole;
 use App\Models\gp\maestroGeneral\Sede;
+use App\Traits\ChecksPermissions;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -13,7 +14,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-  use HasApiTokens, HasFactory, Notifiable;
+  use HasApiTokens, HasFactory, Notifiable, ChecksPermissions;
 
   protected $table = 'usr_users';
 
@@ -68,6 +69,20 @@ class User extends Authenticatable
       'id', // Foreign key en la tabla Role
       'id', // Local key en la tabla User
       'role_id' // Local key en la tabla UserRole
+    )->where('config_asig_role_user.status_deleted', 1);
+  }
+
+  /**
+   * Relación con roles (many-to-many a través de UserRole)
+   * Útil para obtener TODOS los roles del usuario
+   */
+  public function roles()
+  {
+    return $this->belongsToMany(
+      Role::class,
+      'config_asig_role_user',
+      'user_id',
+      'role_id'
     )->where('config_asig_role_user.status_deleted', 1);
   }
 
