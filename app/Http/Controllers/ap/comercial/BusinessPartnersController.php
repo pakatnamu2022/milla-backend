@@ -81,6 +81,15 @@ class BusinessPartnersController extends Controller
     }
   }
 
+  public function opportunities($id)
+  {
+    try {
+      return $this->success($this->service->getOpportunities($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function validateOpportunity($id)
   {
     try {

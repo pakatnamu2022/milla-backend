@@ -675,6 +675,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     //      COMMERCIAL
     Route::group(['prefix' => 'commercial'], function () {
+      Route::get('businessPartners/{id}/opportunities', [BusinessPartnersController::class, 'opportunities']);
       Route::apiResource('businessPartners', BusinessPartnersController::class)->only([
         'index',
         'show',

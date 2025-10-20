@@ -258,4 +258,9 @@ class BusinessPartners extends Model
   {
     return $this->hasMany(BusinessPartnersEstablishment::class, 'business_partner_id');
   }
+
+  public function opportunities()
+  {
+    return $this->hasMany(Opportunity::class, 'client_id');
+  }
 }

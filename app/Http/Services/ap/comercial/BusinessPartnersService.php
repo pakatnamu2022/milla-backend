@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\BusinessPartnersResource;
 use App\Http\Resources\ap\comercial\BusinessPartnersEstablishmentResource;
+use App\Http\Resources\ap\comercial\OpportunityResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\DatabaseSyncService;
@@ -243,6 +244,15 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
   {
     $businessPartner = $this->find($businessPartnerId);
     return BusinessPartnersEstablishmentResource::collection($businessPartner->establishments);
+  }
+
+  /**
+   * Obtener establecimientos de un socio comercial
+   */
+  public function getOpportunities($businessPartnerId)
+  {
+    $businessPartner = $this->find($businessPartnerId);
+    return OpportunityResource::collection($businessPartner->opportunities);
   }
 
   /**
