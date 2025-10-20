@@ -107,10 +107,15 @@ class OpportunityController extends Controller
   public function myOpportunities(MyOpportunityRequest $request)
   {
     try {
+      $user = auth()->user();
       $requestWorkerId = $request->asesor_id;
-      $canViewAllUsers = $this->authorize('view_all_users', Opportunity::class);
-      $workerId = auth()->user()->partner_id;
-      if (!$workerId) return $this->error('El trabajor es invalido');
+
+      // Verificar si el usuario puede ver oportunidades de todos (usando Policy)
+      $canViewAllUsers = $user->can('viewAllUsers', Opportunity::class);
+
+      $workerId = $user->partner_id;
+      if (!$workerId) return $this->error('El trabajador es inválido');
+
       return $this->success($this->service->getMyOpportunities($request, $workerId, $requestWorkerId, $canViewAllUsers));
 
     } catch (\Throwable $th) {

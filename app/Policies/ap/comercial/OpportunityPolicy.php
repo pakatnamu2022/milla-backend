@@ -7,13 +7,16 @@ use App\Policies\BasePolicy;
 
 class OpportunityPolicy extends BasePolicy
 {
-
   /**
    * Módulo/vista para verificar permisos
    */
   protected string $module = 'opportunity';
 
-  public function myOpportunities(User $user): bool
+  /**
+   * Determina si el usuario puede ver oportunidades de todos los usuarios
+   * Usa el permiso granular: opportunity.view_all_users
+   */
+  public function viewAllUsers(User $user): bool
   {
     return $this->hasPermission($user, 'view_all_users');
   }
