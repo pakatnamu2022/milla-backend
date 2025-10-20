@@ -18,6 +18,7 @@ class BusinessPartnersEstablishmentResource extends JsonResource
     return [
       'id' => $this->id,
       'code' => $this->code,
+      'description' => $this->description,
       'type' => $this->type,
       'activity_economic' => $this->activity_economic,
       'address' => $this->address,
@@ -25,6 +26,7 @@ class BusinessPartnersEstablishmentResource extends JsonResource
       'ubigeo' => $this->ubigeo,
       'location' => $this->getLocation(),
       'business_partner_id' => $this->business_partner_id,
+      'status' => $this->status,
     ];
   }
 

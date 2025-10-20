@@ -13,6 +13,7 @@ use App\Jobs\ProcessEstablishments;
 use App\Jobs\UpdateEstablishments;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\Opportunity;
 use Exception;
 use Illuminate\Http\Request;
@@ -234,15 +235,6 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       throw new Exception("El número de documento debe tener {$TypeDocument->code} caracteres para el tipo de documento seleccionado");
     }
     return $data;
-  }
-
-  /**
-   * Obtener establecimientos de un socio comercial
-   */
-  public function getEstablishments($businessPartnerId)
-  {
-    $businessPartner = $this->find($businessPartnerId);
-    return BusinessPartnersEstablishmentResource::collection($businessPartner->establishments);
   }
 
   /**

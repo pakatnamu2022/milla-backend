@@ -1,12 +1,13 @@
 <?php
 
 use App\Http\Controllers\ap\ApCommercialMastersController;
-use App\Http\Controllers\ap\comercial\ApVehicleDocumentsController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
+use App\Http\Controllers\ap\comercial\BusinessPartnersEstablishmentController;
 use App\Http\Controllers\ap\comercial\OpportunityActionController;
 use App\Http\Controllers\ap\comercial\OpportunityController;
 use App\Http\Controllers\ap\comercial\PotentialBuyersController;
 use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
+use App\Http\Controllers\ap\comercial\ShippingGuidesController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
@@ -67,6 +68,7 @@ use App\Http\Controllers\gp\gestionsistema\UserController;
 use App\Http\Controllers\gp\gestionsistema\UserSedeController;
 use App\Http\Controllers\gp\gestionsistema\ViewController;
 use App\Http\Controllers\gp\maestroGeneral\SedeController;
+use App\Http\Controllers\gp\maestroGeneral\SunatConceptsController;
 use App\Http\Controllers\gp\tics\EquipmentController;
 use App\Http\Controllers\gp\tics\EquipmentTypeController;
 use Illuminate\Support\Facades\Route;
@@ -204,6 +206,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'store',
         'update',
         'destroy'
+      ]);
+
+      Route::apiResource('sunatConcepts', SunatConceptsController::class)->only([
+        'index',
       ]);
     });
 
@@ -668,8 +674,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'update',
       ]);
       Route::patch('businessPartners/{id}/remove-type', [BusinessPartnersController::class, 'removeType']);
-      Route::get('businessPartners/{id}/establishments', [BusinessPartnersController::class, 'establishments']);
       Route::get('businessPartners/{id}/validateOpportunity', [BusinessPartnersController::class, 'validateOpportunity']);
+
+      Route::apiResource('businessPartnersEstablishments', BusinessPartnersEstablishmentController::class)->only([
+        'index',
+        'update',
+      ]);
 
       // Crear oportunidad desde un cliente
       Route::post('businessPartners/{clientId}/opportunities', [OpportunityController::class, 'storeFromClient']);
@@ -741,8 +751,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
       });
 
       // Vehicle Documents (Guías de Remisión/Traslado)
-      Route::post('apVehicleDocuments/{id}/cancel', [ApVehicleDocumentsController::class, 'cancel']);
-      Route::apiResource('apVehicleDocuments', ApVehicleDocumentsController::class)->only([
+      Route::post('shippingGuides/{id}/cancel', [ShippingGuidesController::class, 'cancel']);
+      Route::apiResource('shippingGuides', ShippingGuidesController::class)->only([
         'index',
         'show',
         'store',

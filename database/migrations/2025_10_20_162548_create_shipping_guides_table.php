@@ -10,7 +10,7 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('ap_vehicle_documents', function (Blueprint $table) {
+    Schema::create('shipping_guides', function (Blueprint $table) {
       $table->id();
       $table->string('document_type', 100);
       $table->string('issuer_type', 100)->comment('Representa quien emitio el documento');
@@ -20,16 +20,16 @@ return new class extends Migration {
       $table->boolean('requires_sunat')->default(false); // ¿Se declara en SUNAT?
       $table->boolean('is_sunat_registered')->default(false); // ¿Ya se envió a SUNAT?
       $table->foreignId('vehicle_movement_id')->constrained('ap_vehicle_movement')->onDelete('cascade');
-      $table->foreignId('transmitter_id')->constrained('business_partners')->onDelete('cascade');
-      $table->foreignId('receiver_id')->constrained('business_partners')->onDelete('cascade');
+      $table->foreignId('transmitter_id')->constrained('business_partners_establishment')->onDelete('cascade');
+      $table->foreignId('receiver_id')->constrained('business_partners_establishment')->onDelete('cascade');
       // Archivo en DigitalOcean
       $table->string('file_path')->nullable(); // Ruta en DO Spaces
       $table->string('file_name')->nullable();
       $table->string('file_type')->nullable(); // pdf, jpg, png, xml
       $table->string('file_url')->nullable(); // URL pública temporal
       // Datos del transporte (asociados a la guía de remisión)
+      $table->foreignId('transport_company_id')->constrained('business_partners')->onDelete('cascade');
       $table->string('driver_doc')->nullable();
-      $table->string('company_name')->nullable();
       $table->string('license')->nullable();
       $table->string('plate')->nullable();
       $table->string('driver_name')->nullable();
@@ -56,6 +56,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('ap_vehicle_documents');
+    Schema::dropIfExists('shipping_guides');
   }
 };

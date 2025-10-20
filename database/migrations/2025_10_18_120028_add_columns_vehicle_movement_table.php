@@ -31,6 +31,7 @@ return new class extends Migration {
       $table->foreign('created_by')
         ->references('id')
         ->on('usr_users');
+      $table->unsignedBigInteger('ap_vehicle_status_id')->nullable()->change();
     });
   }
 
@@ -40,6 +41,15 @@ return new class extends Migration {
   public function down(): void
   {
     Schema::table('ap_vehicle_movement', function (Blueprint $table) {
+      // PRIMERO: Eliminar las claves foráneas
+      $table->dropForeign(['cancelled_by']);
+      $table->dropForeign(['previous_status_id']);
+      $table->dropForeign(['new_status_id']);
+      $table->dropForeign(['created_by']);
+      // Luego cambiar la columna ap_vehicle_status_id a no nullable
+      $table->unsignedBigInteger('ap_vehicle_status_id')->nullable(false)->change();
+
+      // SEGUNDO: Eliminar las columnas
       $table->dropColumn([
         'movement_type',
         'origin_address',

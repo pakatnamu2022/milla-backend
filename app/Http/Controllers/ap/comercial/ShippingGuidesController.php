@@ -3,23 +3,23 @@
 namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\ap\comercial\IndexApVehicleDocumentsRequest;
-use App\Http\Requests\ap\comercial\StoreApVehicleDocumentsRequest;
-use App\Http\Requests\ap\comercial\UpdateApVehicleDocumentsRequest;
-use App\Http\Services\ap\comercial\ApVehicleDocumentsService;
-use App\Models\ap\comercial\ApVehicleDocuments;
+use App\Http\Requests\ap\comercial\IndexShippingGuidesRequest;
+use App\Http\Requests\ap\comercial\StoreShippingGuidesRequest;
+use App\Http\Requests\ap\comercial\UpdateShippingGuidesRequest;
+use App\Http\Services\ap\comercial\ShippingGuidesService;
+use App\Models\ap\comercial\ShippingGuides;
 use Illuminate\Http\Request;
 
-class ApVehicleDocumentsController extends Controller
+class ShippingGuidesController extends Controller
 {
-  protected ApVehicleDocumentsService $service;
+  protected ShippingGuidesService $service;
 
-  public function __construct(ApVehicleDocumentsService $service)
+  public function __construct(ShippingGuidesService $service)
   {
     $this->service = $service;
   }
 
-  public function index(IndexApVehicleDocumentsRequest $request)
+  public function index(IndexShippingGuidesRequest $request)
   {
     try {
       return $this->service->list($request);
@@ -28,7 +28,7 @@ class ApVehicleDocumentsController extends Controller
     }
   }
 
-  public function store(StoreApVehicleDocumentsRequest $request)
+  public function store(StoreShippingGuidesRequest $request)
   {
     try {
       $data = $request->validated();
@@ -53,7 +53,7 @@ class ApVehicleDocumentsController extends Controller
     }
   }
 
-  public function update(UpdateApVehicleDocumentsRequest $request, $id)
+  public function update(UpdateShippingGuidesRequest $request, $id)
   {
     try {
       $data = $request->validated();
