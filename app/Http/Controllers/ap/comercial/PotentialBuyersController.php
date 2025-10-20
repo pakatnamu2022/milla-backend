@@ -5,10 +5,12 @@ namespace App\Http\Controllers\ap\comercial;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\DiscardPotentialBuyersRequest;
 use App\Http\Requests\ap\comercial\IndexPotentialBuyersRequest;
+use App\Http\Requests\ap\comercial\MyLeadsRequest;
 use App\Http\Requests\ap\comercial\StoreBulkPotentialBuyersRequest;
 use App\Http\Requests\ap\comercial\StorePotentialBuyersRequest;
 use App\Http\Requests\ap\comercial\UpdatePotentialBuyersRequest;
 use App\Http\Services\ap\comercial\PotentialBuyersService;
+use App\Models\ap\comercial\Opportunity;
 use Illuminate\Http\Request;
 
 class PotentialBuyersController extends Controller
@@ -25,10 +27,15 @@ class PotentialBuyersController extends Controller
     return $this->service->list($request);
   }
 
-  public function myPotentialBuyers()
+  public function myPotentialBuyers(MyLeadsRequest $request)
   {
     try {
-      return $this->success($this->service->myPotentialBuyers());
+      $user = auth()->user();
+      $requestWorkerId = $request->worker_id;
+      $canViewAllUsers = $user->can('viewAllUsers', Opportunity::class);
+      $workerId = $user->partner_id;
+      if (!$workerId) return $this->error('El trabajador es inválido');
+      return $this->success($this->service->myPotentialBuyers($workerId, $requestWorkerId, $canViewAllUsers));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
