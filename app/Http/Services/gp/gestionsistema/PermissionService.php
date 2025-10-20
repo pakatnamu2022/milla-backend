@@ -21,7 +21,7 @@ class PermissionService extends BaseService implements BaseServiceInterface
   /**
    * Asignar un permiso a un rol
    */
-  public function assignPermissionToRole(int $roleId, int $permissionId, bool $granted = true): bool
+  public function assignPermissionToRole(int $roleId, int $permissionId, bool $granted = true): array
   {
     try {
       RolePermission::updateOrCreate(
@@ -34,7 +34,7 @@ class PermissionService extends BaseService implements BaseServiceInterface
         ]
       );
 
-      return true;
+      return ['message' => 'Permiso asignado correctamente'];
     } catch (\Exception $e) {
       throw new \Exception("Error al asignar permiso: " . $e->getMessage());
     }
@@ -46,7 +46,7 @@ class PermissionService extends BaseService implements BaseServiceInterface
    * @param int $roleId
    * @param array $permissions Array de IDs de permisos o array de ['permission_id' => int, 'granted' => bool]
    */
-  public function assignMultiplePermissionsToRole(int $roleId, array $permissions): bool
+  public function assignMultiplePermissionsToRole(int $roleId, array $permissions): array
   {
     DB::beginTransaction();
     try {
@@ -65,7 +65,7 @@ class PermissionService extends BaseService implements BaseServiceInterface
       }
 
       DB::commit();
-      return true;
+      return ['message' => 'Permisos asignados correctamente'];
     } catch (\Exception $e) {
       DB::rollBack();
       throw new \Exception("Error al asignar múltiples permisos: " . $e->getMessage());
@@ -94,7 +94,7 @@ class PermissionService extends BaseService implements BaseServiceInterface
    * @param int $roleId
    * @param array $permissionIds Array de IDs de permisos
    */
-  public function syncPermissionsToRole(int $roleId, array $permissionIds): bool
+  public function syncPermissionsToRole(int $roleId, array $permissionIds): array
   {
     DB::beginTransaction();
     try {
@@ -104,7 +104,7 @@ class PermissionService extends BaseService implements BaseServiceInterface
       $role->permissions()->sync($permissionIds);
 
       DB::commit();
-      return true;
+      return ['message' => 'Permisos sincronizados correctamente'];
     } catch (\Exception $e) {
       DB::rollBack();
       throw new \Exception("Error al sincronizar permisos: " . $e->getMessage());
@@ -130,9 +130,13 @@ class PermissionService extends BaseService implements BaseServiceInterface
       ->orderBy('module')
       ->orderBy('name')
       ->get()
-      ->groupBy('module');
+      ->groupBy('module')
+      ->map(function ($items) {
+        // Convertir cada grupo a un array de recursos serializados
+        return PermissionResource::collection($items)->resolve();
+      });
 
-    return PermissionResource::collection($permissionGrouped);
+    return new JsonResource($permissionGrouped);
   }
 
   /**

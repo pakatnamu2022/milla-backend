@@ -34,6 +34,7 @@ class UserResource extends JsonResource
       'sede' => $this->person?->sede?->suc_abrev,
       'fecha_ingreso' => $this->person?->fecha_inicio,
       'role' => $this->role?->nombre,
+      'role_id' => $this->role?->id,
       'subordinates' => $this->person?->subordinates->count() ?? 0,
       'sedes' => SedeResource::collection($this->sedes),
     ];
