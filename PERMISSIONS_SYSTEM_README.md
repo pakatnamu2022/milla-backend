@@ -355,7 +355,7 @@ $user->hasAnyPermission(array $permissions): bool
 $user->hasAllPermissions(array $permissions): bool
 $user->getAllPermissions(): Collection
 $user->getPermissionsByModule(string $module): Collection
-$user->can(string $action, string $vistaSlug): bool
+$user->canAccessView(string $vistaSlug, string $action): bool
 ```
 
 ### En Policies (vía BasePolicy)

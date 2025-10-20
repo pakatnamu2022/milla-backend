@@ -60,6 +60,7 @@ use App\Http\Controllers\gp\gestionsistema\CompanyController;
 use App\Http\Controllers\gp\gestionsistema\DepartmentController;
 use App\Http\Controllers\gp\gestionsistema\DigitalFileController;
 use App\Http\Controllers\gp\gestionsistema\DistrictController;
+use App\Http\Controllers\gp\gestionsistema\PermissionController;
 use App\Http\Controllers\gp\gestionsistema\PositionController;
 use App\Http\Controllers\gp\gestionsistema\ProvinceController;
 use App\Http\Controllers\gp\gestionsistema\RoleController;
@@ -131,6 +132,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     //        ACCESS
     Route::apiResource('access', AccessController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
+
+    //        PERMISSION
+    Route::get('permission/grouped-by-module', [PermissionController::class, 'groupedByModule'])->name('permission.grouped-by-module');
+    Route::apiResource('permission', PermissionController::class)->only([
       'index',
       'show',
       'store',

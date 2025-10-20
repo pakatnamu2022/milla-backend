@@ -20,6 +20,7 @@ return new class extends Migration {
       $table->enum('type', ['basic', 'special', 'custom'])->default('custom')->comment('Tipo de permiso: basic (CRUD), special (común), custom (específico)');
       $table->boolean('is_active')->default(true)->comment('Estado del permiso');
       $table->timestamps();
+      $table->softDeletes();
 
       // Índices para optimizar consultas
       $table->index(['module', 'is_active']);

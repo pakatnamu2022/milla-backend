@@ -23,6 +23,7 @@ return new class extends Migration {
 
       $table->boolean('granted')->default(true)->comment('Si el permiso está otorgado (true) o denegado (false)');
       $table->timestamps();
+      $table->softDeletes();
 
       // Índice único para evitar duplicados
       $table->unique(['role_id', 'permission_id']);

@@ -159,14 +159,14 @@ trait ChecksPermissions
     }
 
     /**
-     * Verifica si el usuario puede realizar una acción básica (CRUD)
+     * Verifica si el usuario puede realizar una acción básica (CRUD) en una vista
      * Es un alias más semántico de hasAccessToView
      *
      * @param string $vistaSlug Slug de la vista
      * @param string $action 'create', 'read', 'update', 'delete'
      * @return bool
      */
-    public function can(string $action, string $vistaSlug): bool
+    public function canAccessView(string $vistaSlug, string $action): bool
     {
         // Mapear acciones en inglés a español
         $actionMap = [
