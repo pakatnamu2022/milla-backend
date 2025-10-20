@@ -5,9 +5,11 @@ namespace App\Http\Controllers\ap\comercial;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\CloseOpportunityRequest;
 use App\Http\Requests\ap\comercial\IndexOpportunityRequest;
+use App\Http\Requests\ap\comercial\MyOpportunityRequest;
 use App\Http\Requests\ap\comercial\StoreOpportunityRequest;
 use App\Http\Requests\ap\comercial\UpdateOpportunityRequest;
 use App\Http\Services\ap\comercial\OpportunityService;
+use App\Models\ap\comercial\Opportunity;
 use Illuminate\Http\Request;
 
 class OpportunityController extends Controller
@@ -102,12 +104,14 @@ class OpportunityController extends Controller
    * Obtener mis oportunidades (con permisos de jefe)
    * GET /api/ap/commercial/opportunities/my-opportunities
    */
-  public function myOpportunities(Request $request)
+  public function myOpportunities(MyOpportunityRequest $request)
   {
     try {
+      $requestWorkerId = $request->asesor_id;
+      $canViewAllUsers = $this->authorize('view_all_users', Opportunity::class);
       $workerId = auth()->user()->partner_id;
       if (!$workerId) return $this->error('El trabajor es invalido');
-      return $this->success($this->service->getMyOpportunities($request, $workerId));
+      return $this->success($this->service->getMyOpportunities($request, $workerId, $requestWorkerId, $canViewAllUsers));
 
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
