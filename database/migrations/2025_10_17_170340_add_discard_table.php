@@ -11,10 +11,8 @@ return new class extends Migration {
   public function up(): void
   {
     Schema::table('potential_buyers', function (Blueprint $table) {
-      $table->integer('user_id')->after('area_id')->nullable();
-      $table->foreign('user_id')
-        ->references('id')
-        ->on('usr_users');
+      $table->foreignId('reason_discarding_id')->after('user_id')->nullable()
+        ->constrained('ap_commercial_masters')->onDelete('cascade');
     });
   }
 
@@ -24,8 +22,8 @@ return new class extends Migration {
   public function down(): void
   {
     Schema::table('potential_buyers', function (Blueprint $table) {
-      $table->dropForeign(['user_id']);
-      $table->dropColumn('user_id');
+      $table->dropForeign(['reason_discarding_id']);
+      $table->dropColumn('reason_discarding_id');
     });
   }
 };

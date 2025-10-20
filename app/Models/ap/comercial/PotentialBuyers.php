@@ -7,6 +7,7 @@ use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -128,7 +129,7 @@ class PotentialBuyers extends Model
 
   public function user(): BelongsTo
   {
-    return $this->belongsTo(Worker::class, 'user_id');
+    return $this->belongsTo(User::class, 'user_id');
   }
 
   // ← CONFIGURACIÓN DEL REPORTE CON FORMATO SOLICITADO

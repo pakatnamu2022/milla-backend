@@ -126,14 +126,15 @@ class PotentialBuyersService extends BaseService
     }
   }
 
-  public function discard($id, $comment)
+  public function discard($id, $comment, $reasonDiscardingId)
   {
     DB::beginTransaction();
     try {
       $businessPartner = $this->find($id);
       $businessPartner->use = PotentialBuyers::DISCARTED; // Marcar como descartado
-      if ($comment) {
+      if ($comment || $reasonDiscardingId) {
         $businessPartner->comment = $comment; // Agregar comentario si se proporciona
+        $businessPartner->reason_discarding_id = $reasonDiscardingId;
       }
       $businessPartner->save();
       DB::commit();
