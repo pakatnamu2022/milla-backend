@@ -7,6 +7,7 @@ use App\Models\gp\gestionsistema\Permission;
 use App\Models\gp\gestionsistema\RolePermission;
 use Illuminate\Database\Seeder;
 
+// sudo docker compose exec app php artisan db:seed --class=Database\\Seeders\\PermissionSeeder
 // artisan db:seed --class=PermissionSeeder
 class PermissionSeeder extends Seeder
 {

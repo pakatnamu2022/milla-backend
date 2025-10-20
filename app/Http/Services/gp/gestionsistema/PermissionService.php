@@ -124,9 +124,9 @@ class PermissionService extends BaseService implements BaseServiceInterface
   /**
    * Obtener permisos agrupados por módulo
    */
-  public function getPermissionsGroupedByModule(): JsonResource
+  public function getPermissionsGroupedByModule()
   {
-    $permissionGrouped = Permission::active()
+    return Permission::active()
       ->orderBy('module')
       ->orderBy('name')
       ->get()
@@ -135,8 +135,6 @@ class PermissionService extends BaseService implements BaseServiceInterface
         // Convertir cada grupo a un array de recursos serializados
         return PermissionResource::collection($items)->resolve();
       });
-
-    return new JsonResource($permissionGrouped);
   }
 
   /**

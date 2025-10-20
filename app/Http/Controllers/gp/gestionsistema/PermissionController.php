@@ -191,14 +191,10 @@ class PermissionController extends Controller
   /**
    * Obtener permisos de un rol
    */
-  public function getByRole(Request $request)
+  public function getByRole(int $id)
   {
     try {
-      $request->validate([
-        'role_id' => 'required|exists:config_roles,id',
-      ]);
-
-      return $this->success($this->service->getPermissionsByRole($request->role_id));
+      return $this->success($this->service->getPermissionsByRole($id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
