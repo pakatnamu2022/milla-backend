@@ -72,6 +72,12 @@ class PotentialBuyers extends Model
     'vehicle_brand_id',
   ];
 
+  public function getClientIdAttribute(): ?int
+  {
+    $client = BusinessPartners::where('num_doc', $this->num_doc)->first();
+    return $client ? $client->id : null;
+  }
+
   public function setModelAttribute($value): void
   {
     $this->attributes['model'] = Str::upper($value);
