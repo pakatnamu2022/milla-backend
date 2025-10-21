@@ -161,7 +161,7 @@ return [
         'Telefono2' => fn($data) => '',
         'Telefono3' => fn($data) => '',
         'Fax' => fn($data) => '',
-        'PlanImpuesto' => fn($data) => BusinessPartners::find($data['id'])->supplierTaxClassType->tax_class,
+        'PlanImpuesto' => fn($data) => BusinessPartners::find($data['id'])->taxClassType->tax_class,
         'MetodoEnvio' => fn($data) => BusinessPartners::DYNAMICS_CLIENT,
         'CorreoElectronico' => fn($data) => '',
         'PaginaWeb' => fn($data) => '',
