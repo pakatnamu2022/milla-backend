@@ -15,6 +15,7 @@ class StoreWarehouseRequest extends StoreRequest
         'string',
         'max:10',
         Rule::unique('warehouse', 'dyn_code')
+          ->where('sede_id', $this->input('sede_id'))
           ->whereNull('deleted_at'),
       ],
       'description' => [
