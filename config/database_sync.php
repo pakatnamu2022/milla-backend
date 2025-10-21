@@ -161,7 +161,7 @@ return [
         'Telefono2' => fn($data) => '',
         'Telefono3' => fn($data) => '',
         'Fax' => fn($data) => '',
-        'PlanImpuesto' => fn($data) => BusinessPartners::find($data['id'])->taxClassType->tax_class,
+        'PlanImpuesto' => fn($data) => BusinessPartners::find($data['id'])->supplierTaxClassType->tax_class,
         'MetodoEnvio' => fn($data) => BusinessPartners::DYNAMICS_CLIENT,
         'CorreoElectronico' => fn($data) => '',
         'PaginaWeb' => fn($data) => '',
@@ -424,4 +424,53 @@ return [
       ],
     ]
   ],
+
+//  Configuración para la entidad "ap_sales_receipts"
+  'ap_sales_receipts' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbOrdenCompra',
+      'mapping' => [
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
+        'TipoId' => 1, //  TODO:FXX1
+        'DocumentoId' => 1, //  TODO:FXX1-00000003
+        'LoteId' => 1, // TODO:74202439
+        'ClienteId' => 1, // TODO:06740217
+        'TerritorioId' => fn($data) => '',
+        'VendedorId' => fn($data) => '',
+        'FechaEmision' => fn($data) => $data['emission_date'],
+        'FechaContable' => fn($data) => $data['emission_date'],
+        'TipoComprobanteId' => 1, // TODO:FAC o BOL
+        'Serie' => 1, // TODO: FXX1
+        'Correlativo' => 1, // TODO: 4002
+        'MonedaId' => fn($data) => TypeCurrency::find($data['currency_id'])->code,
+        'TipoTasaId' => fn($data) => VehiclePurchaseOrder::find($data['id'])->exchangeRate->type,
+        'TasaCambio' => fn($data) => VehiclePurchaseOrder::find($data['id'])->exchangeRate->rate,
+        'PlanImpuestoId' => fn($data) => VehiclePurchaseOrder::find($data['id'])->supplier?->supplierTaxClassType?->tax_class ?? throw new \Exception("Supplier or TaxClassType not found for PO {$data['id']}"),
+        'TipoOperacionDetraccionId' => fn($data) => '01',  // TODO: confirmar
+        'CategoriaDetraccionId' => 1, // TODO: vacio o confirmar
+        'SitioPredeterminadoId' => 1, // TODO: ALM-VN-CIX
+        'UsuarioId' => fn($data) => 'USUGP',
+        'Procesar' => 1,
+        'ProcesoEstado' => 0,
+        'ProcesoError' => fn($data) => '',
+        'FechaProceso' => 1,
+        'Total' => 1,
+        'Detraccion' => 1,
+        'EsAnticipo' => 1,
+        'ApAnticipo' => 1,
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'OrdenCompraId',
+      'actions' => [
+        'create' => true,
+        'update' => true,
+        'delete' => false,
+      ],
+    ]
+  ],
+
 ];
