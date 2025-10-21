@@ -11,7 +11,7 @@ class UserSeriesAssignmentResource extends JsonResource
   {
     return [
       'worker_id' => $this->id,
-      'worker_name' => $this->nombre_completo,
+      'worker_name' => $this->person->nombre_completo,
       'vouchers' => $this->whenLoaded('vouchers', function () {
         return $this->vouchers->map(function ($voucher) {
           return [

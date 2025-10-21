@@ -29,6 +29,11 @@ class VehicleMovement extends BaseModel
     'created_by',
   ];
 
+  protected $casts = [
+    'movement_date' => 'datetime',
+    'cancelled_at' => 'datetime',
+  ];
+
   const array filters = [
     'id',
     'movement_type',

@@ -7,8 +7,6 @@ use App\Http\Requests\ap\maestroGeneral\IndexUserSeriesAssignmentRequest;
 use App\Http\Requests\ap\maestroGeneral\StoreUserSeriesAssignmentRequest;
 use App\Http\Requests\ap\maestroGeneral\UpdateUserSeriesAssignmentRequest;
 use App\Http\Services\ap\maestroGeneral\UserSeriesAssignmentService;
-use App\Models\ap\maestroGeneral\UserSeriesAssignment;
-use Illuminate\Http\Request;
 
 class UserSeriesAssignmentController extends Controller
 {
@@ -52,6 +50,15 @@ class UserSeriesAssignmentController extends Controller
       $data = $request->validated();
       $data['worker_id'] = $id;
       return $this->success($this->service->update($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function getAuthorizedSeries(IndexUserSeriesAssignmentRequest $request)
+  {
+    try {
+      return $this->service->getAuthorizedSeries($request);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

@@ -78,7 +78,7 @@ class VehiclePurchaseOrder extends Model
     'year' => '=',
     'ap_models_vn_id' => '=',
     'vehicle_color_id' => '=',
-    'ap_vehicle_status_id' => '=',
+    'ap_vehicle_status_id' => 'in',
     'migration_status' => '=',
   ];
 

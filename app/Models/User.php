@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionsistema\Role;
 use App\Models\gp\gestionsistema\UserRole;
@@ -38,6 +39,7 @@ class User extends Authenticatable
     'username' => 'like',
     'person.position.name' => 'like',
     'role.nombre' => 'like',
+    'person.cargo_id' => 'in',
   ];
 
   const sorts = [
@@ -90,5 +92,15 @@ class User extends Authenticatable
       ->withPivot('status')
       ->wherePivot('status', true)
       ->whereNull('config_asig_user_sede.deleted_at');
+  }
+
+  public function vouchers()
+  {
+    return $this->belongsToMany(
+      AssignSalesSeries::class,
+      'user_series_assignment',
+      'worker_id',
+      'voucher_id'
+    )->withTimestamps()->withTrashed();
   }
 }

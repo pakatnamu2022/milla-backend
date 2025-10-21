@@ -631,6 +631,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'destroy'
       ]);
 
+      Route::get('userSeriesAssignment/authorized-series', [UserSeriesAssignmentController::class, 'getAuthorizedSeries']);
       Route::apiResource('userSeriesAssignment', UserSeriesAssignmentController::class)->only([
         'index',
         'show',

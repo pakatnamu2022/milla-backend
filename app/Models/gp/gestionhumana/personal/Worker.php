@@ -49,25 +49,15 @@ class Worker extends Person
     return $query->whereHas('sede', fn($q) => $q->where('empresa_id', $empresaId));
   }
 
-  public function vouchers()
-  {
-    return $this->belongsToMany(
-      AssignSalesSeries::class,
-      'user_series_assignment',
-      'worker_id',
-      'voucher_id'
-    )->withTimestamps()->withTrashed();
-  }
-
   public function objectives()
   {
     return $this->hasMany(EvaluationCategoryObjectiveDetail::class, 'person_id')
-        ->where('active', true);
+      ->where('active', true);
   }
 
   public function competences()
   {
     return $this->hasMany(EvaluationCategoryCompetenceDetail::class, 'person_id')
-        ->where('active', true);
+      ->where('active', true);
   }
 }

@@ -2,18 +2,17 @@
 
 namespace App\Http\Services\ap\maestroGeneral;
 
+use App\Http\Resources\ap\maestroGeneral\AssignSalesSeriesResource;
 use App\Http\Resources\ap\maestroGeneral\UserSeriesAssignmentResource;
 use App\Http\Services\BaseService;
-use App\Models\ap\maestroGeneral\UserSeriesAssignment;
-use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Exception;
 
 class UserSeriesAssignmentService extends BaseService
 {
   public function list(Request $request)
   {
-    $query = Worker::with('vouchers.sede')->whereHas('vouchers');
+    $query = User::with('vouchers.sede')->whereHas('vouchers');
     $this->applyWorkerFilters($query, $request);
 
     $all = $request->query('all', false) === 'true';
@@ -59,7 +58,7 @@ class UserSeriesAssignmentService extends BaseService
 
   public function store(Mixed $data)
   {
-    $worker = Worker::findOrFail($data['worker_id']);
+    $worker = User::findOrFail($data['worker_id']);
     $worker->vouchers()->sync($data['vouchers']);
     $worker->load('vouchers');
     return new UserSeriesAssignmentResource($worker);
@@ -67,17 +66,48 @@ class UserSeriesAssignmentService extends BaseService
 
   public function show($id)
   {
-    $worker = Worker::with('vouchers')->findOrFail($id);
+    $worker = User::with('vouchers')->findOrFail($id);
     return new UserSeriesAssignmentResource($worker);
   }
 
   public function update(Mixed $data)
   {
     $workerId = $data['worker_id'];
-    $worker = Worker::with('vouchers')->findOrFail($workerId);
+    $worker = User::with('vouchers')->findOrFail($workerId);
     $worker->vouchers()->sync($data['vouchers']);
     $worker->load('vouchers');
 
     return new UserSeriesAssignmentResource($worker);
+  }
+
+  public function getAuthorizedSeries(Request $request)
+  {
+    $user = auth()->user();
+
+    if (!$user) {
+      return response()->json(['message' => 'Usuario no autenticado'], 401);
+    }
+
+    $query = $user->vouchers()
+      ->with(['typeReceipt', 'typeOperation', 'sede']);
+
+    // Filtrar por tipo de comprobante
+    if ($typeReceiptId = $request->query('type_receipt_id')) {
+      $query->where('assign_sales_series.type_receipt_id', $typeReceiptId);
+    }
+
+    // Filtrar por tipo de operación
+    if ($typeOperationId = $request->query('type_operation_id')) {
+      $query->where('assign_sales_series.type_operation_id', $typeOperationId);
+    }
+
+    // Filtrar por sede
+    if ($sedeId = $request->query('sede_id')) {
+      $query->where('assign_sales_series.sede_id', $sedeId);
+    }
+
+    $series = $query->get();
+
+    return response()->json(AssignSalesSeriesResource::collection($series));
   }
 }

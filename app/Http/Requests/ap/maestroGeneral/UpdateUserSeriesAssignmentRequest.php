@@ -9,7 +9,7 @@ class UpdateUserSeriesAssignmentRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'worker_id' => 'nullable|integer|exists:rrhh_persona,id',
+      'worker_id' => 'nullable|integer|exists:usr_users,id',
       'vouchers' => 'nullable|array',
       'vouchers.*' => 'integer|exists:assign_sales_series,id'
     ];

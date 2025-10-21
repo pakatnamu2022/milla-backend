@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\maestroGeneral;
 
-use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -19,13 +19,13 @@ class UserSeriesAssignment extends Model
 
   public function worker()
   {
-    return $this->belongsTo(Worker::class, 'worker_id');
+    return $this->belongsTo(User::class, 'worker_id');
   }
 
   public function workers()
   {
     return $this->belongsToMany(
-      Worker::class,
+      User::class,
       'user_series_assignment',
       'voucher_id',
       'user_id'

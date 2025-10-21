@@ -5,7 +5,12 @@ namespace App\Http\Services\ap\comercial;
 use App\Http\Resources\ap\comercial\ShippingGuidesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
+use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,26 +26,13 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       $request,
       ShippingGuides::filters,
       ShippingGuides::search,
-      ShippingGuidesResource::class,
-      [
-        'vehicleMovement',
-        'transmitter',
-        'receiver',
-        'transferModality',
-        'transferReason'
-      ]
+      ShippingGuidesResource::class
     );
   }
 
   public function find($id)
   {
-    $document = ShippingGuides::with([
-      'vehicleMovement',
-      'transmitter',
-      'receiver',
-      'transferModality',
-      'transferReason'
-    ])->find($id);
+    $document = ShippingGuides::find($id);
 
     if (!$document) {
       throw new Exception('Documento no encontrado');
@@ -52,20 +44,29 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
   public function store(mixed $data)
   {
     return DB::transaction(function () use ($data) {
-      // 1. Crear el registro de movimiento del vehículo
+      // 1. Crear el vehicle_movement automáticamente
+      $originAddress = BusinessPartnersEstablishment::find($data['transmitter_id'])->address ?? '-';
+      $destinationAddress = BusinessPartnersEstablishment::find($data['receiver_id'])->address ?? '-';
+      $statusCurrentVehicle = VehiclePurchaseOrder::find($data['ap_vehicle_purchase_order_id'])->ap_vehicle_status_id ?? null;
+
       $vehicleMovementData = [
-        'movement_type' => $data['movement_type'],
-        'ap_vehicle_purchase_order_id' => $data['ap_vehicle_purchase_order_id'] ?? null,
-        'observation' => $data['observation'] ?? null,
-        'movement_date' => $data['movement_date'],
-        'origin_address' => $data['origin_address'] ?? null,
-        'destination_address' => $data['destination_address'] ?? null,
-        'previous_status_id' => $data['previous_status_id'] ?? null,
-        'new_status_id' => $data['new_status_id'] ?? null,
+        'ap_vehicle_purchase_order_id' => $data['ap_vehicle_purchase_order_id'],
+        'movement_type' => 'TRAVESIA',
+        'movement_date' => $data['issue_date'],
+        'observation' => $data['notes'] ?? null,
+        'origin_address' => $originAddress,
+        'destination_address' => $destinationAddress,
+        'previous_status_id' => $statusCurrentVehicle,
+        'new_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+        'ap_vehicle_status_id' => $statusCurrentVehicle,
         'created_by' => Auth::id(),
       ];
 
-      $vehicleMovement = ShippingGuides::create($vehicleMovementData);
+      VehiclePurchaseOrder::find($data['ap_vehicle_purchase_order_id'])->update([
+        'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+      ]);
+
+      $vehicleMovement = VehicleMovement::create($vehicleMovementData);
 
       // 2. Manejar la carga del archivo si existe
       $filePath = null;
@@ -83,24 +84,40 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $fileUrl = Storage::disk('do_spaces')->url($filePath);
       }
 
-      // 3. Crear el documento del vehículo
+      // 3. Generar el document_number automáticamente
+      $assignSeries = AssignSalesSeries::findOrFail($data['document_series_id']);
+      $series = $assignSeries->series;
+      $correlativeStart = $assignSeries->correlative_start;
+
+      // Contar documentos existentes con la misma serie
+      $existingCount = ShippingGuides::where('document_series_id', $data['document_series_id'])->count();
+      $correlativeNumber = $correlativeStart + $existingCount;
+
+      // Formato: {SERIE}-{CORRELATIVO} (ej: T001-00000001)
+      $documentNumber = $series . '-' . str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
+
+      // 4. Crear la guía de remisión
       $documentData = [
         'document_type' => $data['document_type'],
         'issuer_type' => $data['issuer_type'],
-        'document_series' => $data['document_series'] ?? null,
-        'document_number' => $data['document_number'] ?? null,
-        'issue_date' => $data['issue_date'] ?? null,
+        'document_series_id' => $data['document_series_id'],
+        'document_number' => $documentNumber, // Generado automáticamente
+        'issue_date' => $data['issue_date'],
         'requires_sunat' => $data['requires_sunat'] ?? false,
-        'is_sunat_registered' => $data['is_sunat_registered'] ?? false,
-        'vehicle_movement_id' => $vehicleMovement->id,
+        // is_sunat_registered se procesará después con nubefac
+        'total_packages' => $data['total_packages'] ?? null,
+        'total_weight' => $data['total_weight'] ?? null,
+        'vehicle_movement_id' => $vehicleMovement->id, // ID del movimiento creado
+        'sede_transmitter_id' => $data['sede_transmitter_id'],
+        'sede_receiver_id' => $data['sede_receiver_id'],
         'transmitter_id' => $data['transmitter_id'],
         'receiver_id' => $data['receiver_id'],
         'file_path' => $filePath,
         'file_name' => $fileName,
         'file_type' => $fileType,
         'file_url' => $fileUrl,
+        'transport_company_id' => $data['transport_company_id'] ?? null,
         'driver_doc' => $data['driver_doc'] ?? null,
-        'company_name' => $data['company_name'] ?? null,
         'license' => $data['license'] ?? null,
         'plate' => $data['plate'] ?? null,
         'driver_name' => $data['driver_name'] ?? null,
@@ -108,18 +125,12 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'status' => $data['status'] ?? true,
         'transfer_reason_id' => $data['transfer_reason_id'] ?? null,
         'transfer_modality_id' => $data['transfer_modality_id'] ?? null,
+        'created_by' => Auth::id(), // Se establece automáticamente
       ];
 
       $document = ShippingGuides::create($documentData);
 
-      // 4. Cargar relaciones y retornar
-      return new ShippingGuidesResource($document->load([
-        'vehicleMovement',
-        'transmitter',
-        'receiver',
-        'transferModality',
-        'transferReason'
-      ]));
+      return new ShippingGuidesResource($document);
     });
   }
 
@@ -153,18 +164,22 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $data['file_url'] = $fileUrl;
       }
 
-      // 2. Actualizar el documento
-      unset($data['id'], $data['file']);
+      // 2. Remover campos que no se pueden actualizar
+      unset(
+        $data['id'],
+        $data['file'],
+        $data['document_series'], // Generado por la API
+        $data['document_number'], // Generado por la API
+        $data['is_sunat_registered'], // Se procesa con nubefac
+        $data['created_by'], // No se puede modificar el creador
+        $data['cancellation_reason'], // Solo se actualiza con el método cancel()
+        $data['cancelled_by'], // Solo se actualiza con el método cancel()
+        $data['cancelled_at'] // Solo se actualiza con el método cancel()
+      );
+
       $document->update($data);
 
-      // 3. Retornar con relaciones
-      return new ShippingGuidesResource($document->fresh()->load([
-        'vehicleMovement',
-        'transmitter',
-        'receiver',
-        'transferModality',
-        'transferReason'
-      ]));
+      return new ShippingGuidesResource($document);
     });
   }
 
@@ -200,13 +215,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'status' => false,
       ]);
 
-      return new ShippingGuidesResource($document->fresh()->load([
-        'vehicleMovement',
-        'transmitter',
-        'receiver',
-        'transferModality',
-        'transferReason'
-      ]));
+      return new ShippingGuidesResource($document);
     });
   }
 }

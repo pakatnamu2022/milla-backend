@@ -9,7 +9,7 @@ class StoreUserSeriesAssignmentRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'worker_id' => 'required|integer|exists:rrhh_persona,id',
+      'worker_id' => 'required|integer|exists:usr_users,id',
       'vouchers' => 'required|array',
       'vouchers.*' => 'integer|exists:assign_sales_series,id'
     ];

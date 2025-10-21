@@ -23,7 +23,7 @@ class AssignSalesSeries extends Model
   ];
 
   const filters = [
-    'search' => ['series'],
+    'search' => ['series', 'typeReceipt.description', 'typeOperation.description', 'sede.abreviatura'],
     'type_receipt_id' => '=',
     'type_operation_id' => '=',
     'sede_id' => '=',
