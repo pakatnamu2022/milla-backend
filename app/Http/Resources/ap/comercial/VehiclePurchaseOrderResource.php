@@ -63,7 +63,7 @@ class VehiclePurchaseOrderResource extends JsonResource
       'status_color' => $this->vehicleStatus->color,
       'warehouse' => $this->warehouse->description,
       'warehouse_physical' => $this->warehousePhysical?->description,
-      'taxClassType' => $this->supplier->taxClassType->tax_class,
+      'taxClassType' => $this->supplier->supplierTaxClassType->tax_class,
       'movements' => VehicleMovementResource::collection($this->movements),
     ];
   }
