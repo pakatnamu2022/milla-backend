@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ap\ApCommercialMastersController;
+use App\Http\Controllers\ap\comercial\ApVehicleDocumentsController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\comercial\OpportunityActionController;
 use App\Http\Controllers\ap\comercial\OpportunityController;
@@ -8,7 +9,6 @@ use App\Http\Controllers\ap\comercial\PotentialBuyersController;
 use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
-use App\Http\Controllers\ap\comercial\VehicleVNController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFamiliesController;
@@ -704,14 +704,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('potentialBuyers/import-social-networks', [PotentialBuyersController::class, 'importSocialNetworks']);
       Route::post('potentialBuyers/assign-workers', [PotentialBuyersController::class, 'assignWorkers']);
 
-      Route::apiResource('vehicleVN', VehicleVNController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
       // Rutas especiales de oportunidades (deben ir antes del apiResource)
       Route::get('opportunities/my', [OpportunityController::class, 'myOpportunities']);
       Route::get('opportunities/agenda/my', [OpportunityController::class, 'myAgenda']);
@@ -763,6 +755,16 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/{id}/logs', [VehiclePurchaseOrderMigrationController::class, 'logs']);
         Route::get('/{id}/history', [VehiclePurchaseOrderMigrationController::class, 'history']);
       });
+
+      // Vehicle Documents (Guías de Remisión/Traslado)
+      Route::post('apVehicleDocuments/{id}/cancel', [ApVehicleDocumentsController::class, 'cancel']);
+      Route::apiResource('apVehicleDocuments', ApVehicleDocumentsController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
 
       // DASHBOARD - Indicadores Comerciales
       Route::group(['prefix' => 'dashboard-visit-leads'], function () {

@@ -107,11 +107,6 @@ class PurchaseRequestQuote extends Model
     return $this->belongsTo(ApModelsVn::class, 'ap_models_vn_id');
   }
 
-  public function vehicleVn(): BelongsTo
-  {
-    return $this->belongsTo(VehiclePurchaseOrder::class, 'vehicle_vn_id');
-  }
-
   public function oportunity(): BelongsTo
   {
     return $this->belongsTo(Opportunity::class, 'opportunity_id');

@@ -157,8 +157,8 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $dataArray['phone'] = $purchaseRequestQuote->oportunity->client->phone ?? null;
     $dataArray['class'] = $purchaseRequestQuote->apModelsVn->classArticle->description ?? null;
     $dataArray['brand'] = $purchaseRequestQuote->apModelsVn->family->brand->name ?? null;
-    $dataArray['engine_number'] = $purchaseRequestQuote->vehicleVn->engine_number ?? null;
-    $dataArray['vin'] = $purchaseRequestQuote->vehicleVn->vin ?? null;
+    $dataArray['engine_number'] = $purchaseRequestQuote->vehiclePurchaseOrders->engine_number ?? null;
+    $dataArray['vin'] = $purchaseRequestQuote->vehiclePurchaseOrders->vin ?? null;
     $dataArray['model_year'] = $purchaseRequestQuote->apModelsVn->model_year ?? null;
     $dataArray['selling_price_soles'] = round($purchaseRequestQuote->sale_price * ($purchaseRequestQuote->exchangeRate->rate ?? 1), 2);
 
