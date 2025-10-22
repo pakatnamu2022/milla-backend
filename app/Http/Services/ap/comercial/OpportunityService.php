@@ -150,9 +150,14 @@ class OpportunityService extends BaseService implements BaseServiceInterface
   /**
    * Obtener oportunidades del asesor (con permisos de jefe)
    */
-  public function getMyOpportunities(Request $request, $workerId)
+  public function getMyOpportunities(Request $request, $workerId, $requestWorkerId, $canViewAllUsers)
   {
-    $accessibleWorkerIds = $this->getAccessibleWorkerIds($workerId);
+    $workerIdToUse = $workerId;
+    if ($canViewAllUsers && $requestWorkerId) {
+      $workerIdToUse = $requestWorkerId;
+    }
+
+    $accessibleWorkerIds = $this->getAccessibleWorkerIds($workerIdToUse);
 
     $query = Opportunity::whereIn('worker_id', $accessibleWorkerIds)
       ->with(['worker', 'client', 'family', 'opportunityType', 'clientStatus', 'opportunityStatus']);
@@ -181,9 +186,14 @@ class OpportunityService extends BaseService implements BaseServiceInterface
   /**
    * Obtener agenda del asesor (acciones agrupadas por fecha)
    */
-  public function getMyAgenda(Request $request, $workerId)
+  public function getMyAgenda(Request $request, $workerId, $requestWorkerId, $canViewAllUsers)
   {
-    $accessibleWorkerIds = $this->getAccessibleWorkerIds($workerId);
+    $workerIdToUse = $workerId;
+    if ($canViewAllUsers && $requestWorkerId) {
+      $workerIdToUse = $requestWorkerId;
+    }
+
+    $accessibleWorkerIds = $this->getAccessibleWorkerIds($workerIdToUse);
 
     $query = OpportunityAction::whereHas('opportunity', function ($q) use ($accessibleWorkerIds) {
       $q->whereIn('worker_id', $accessibleWorkerIds);

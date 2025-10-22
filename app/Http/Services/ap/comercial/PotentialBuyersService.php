@@ -40,12 +40,14 @@ class PotentialBuyersService extends BaseService
     );
   }
 
-  public function myPotentialBuyers()
+  public function myPotentialBuyers($workerId, $requestWorkerId, $canViewAllUsers)
   {
-    $workerId = auth()->user()->partner_id;
-    if (!$workerId) throw new Exception('El trabajador es inválido');
+    $workerIdToUse = $workerId;
+    if ($canViewAllUsers && $requestWorkerId) {
+      $workerIdToUse = $requestWorkerId;
+    }
 
-    $potentialBuyers = PotentialBuyers::where('worker_id', $workerId)->where('use', PotentialBuyers::CREATED)
+    $potentialBuyers = PotentialBuyers::where('worker_id', $workerIdToUse)->where('use', PotentialBuyers::CREATED)
       ->orderBy('registration_date', 'asc')
       ->get();
 

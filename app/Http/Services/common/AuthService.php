@@ -21,15 +21,15 @@ class AuthService
       $token = $user->createToken('AuthToken', expiresAt: now()->addDays(7));
 
       $user = User::with('person')->find($user->id);
-      $permissions = $this->permissions();
+      $permissionsData = $this->permissions();
 
       return response()->json([
         'access_token' => $token->plainTextToken,
         'user' => UserResource::make($user),
-        'permissions' => $permissions['permissions'],
+        'permissions' => $permissionsData['permissions'],
       ]);
     } else {
-      return response()->json(['message' => 'Credenciales Inválidades'], 422);
+      return response()->json(['message' => 'Credenciales Inválidas'], 422);
     }
   }
 
@@ -39,10 +39,10 @@ class AuthService
 
     if ($user) {
       $user = User::with('person')->find($user->id);
-      $permissions = $this->permissions();
+      $permissionsData = $this->permissions();
       return response()->json([
         'user' => UserResource::make($user),
-        'permissions' => $permissions['permissions'],
+        'permissions' => $permissionsData['permissions'],
       ]);
     } else {
       return response()->json(['message' => 'No autenticado'], 401);
@@ -64,6 +64,7 @@ class AuthService
   {
     $userId = Auth::id();
 
+    // Árbol de Access (permisos básicos CRUD por vista)
     $vistas = $this->getAllVistasConEmpresa();
     $permitidas = $this->getVistasPermitidas($userId);
     $vistasFiltradas = $this->filtrarVistas($vistas, $permitidas);
@@ -83,7 +84,15 @@ class AuthService
       }
     }
 
-    return ['permissions' => $menuPorEmpresa];
+    // Permisos granulares (permisos específicos por módulo)
+    $granularPermissions = $this->getGranularPermissions($userId);
+
+    return [
+      'permissions' => [
+        'access_tree' => $menuPorEmpresa,
+        'granular_permissions' => $granularPermissions,
+      ]
+    ];
   }
 
   public function modules(Request $request)
@@ -292,5 +301,25 @@ class AuthService
     return $construir(0);
   }
 
+  /**
+   * Obtener permisos granulares del usuario
+   * Retorna un array plano de códigos de permisos
+   *
+   * @param int $userId
+   * @return array
+   */
+  private function getGranularPermissions(int $userId): array
+  {
+    return DB::table('permission as p')
+      ->join('role_permission as rp', 'p.id', '=', 'rp.permission_id')
+      ->join('config_asig_role_user as aru', 'rp.role_id', '=', 'aru.role_id')
+      ->where('aru.user_id', $userId)
+      ->where('aru.status_deleted', 1)
+      ->where('rp.granted', true)
+      ->where('p.is_active', true)
+      ->distinct()
+      ->pluck('p.code')
+      ->toArray();
+  }
 
 }

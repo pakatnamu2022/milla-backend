@@ -12,6 +12,8 @@ interface BaseServiceInterface
 
   public function find(int $id);
 
+  public function show(int $id);
+
   public function update(Mixed $data);
 
   public function destroy(int $id);

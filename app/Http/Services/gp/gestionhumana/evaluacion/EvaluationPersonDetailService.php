@@ -52,4 +52,9 @@ class EvaluationPersonDetailService extends BaseService implements BaseServiceIn
     });
     return response()->json(['message' => 'Detalle de Evaluacion Persona eliminado correctamente']);
   }
+
+  public function show(int $id)
+  {
+    // TODO: Implement show() method.
+  }
 }

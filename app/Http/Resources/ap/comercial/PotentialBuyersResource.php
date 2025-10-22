@@ -33,6 +33,7 @@ class PotentialBuyersResource extends JsonResource
       'area_id' => $this->area_id,
       'district' => $this->sede->district->name ?? null,
       'status_num_doc' => $this->status_num_doc,
+      'client_id' => $this->client_id,
     ];
   }
 }

@@ -25,7 +25,8 @@ class SedeService extends BaseService
   public function getMySedes(Request $request)
   {
     $user = $request->user();
-    $sedes = $user->sedes;
+    $company = $request->company;
+    $sedes = $user->sedes->where('empresa_id', $company);
     return SedeResource::collection($sedes);
   }
 

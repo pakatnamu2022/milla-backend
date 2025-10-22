@@ -39,6 +39,8 @@ class ViewSeeder extends Seeder
         'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
       ['descripcion' => 'Compra Vehiculo Nuevo', 'submodule' => false, 'route' => 'compra-vehiculo-nuevo',
         'ruta' => '-', 'icon' => 'CarFront', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
+      ['descripcion' => 'Comprobantes de Venta', 'submodule' => false, 'route' => 'compra-venta',
+        'ruta' => '-', 'icon' => 'ReceiptText', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
     ];
 
 //    $DELETE = [

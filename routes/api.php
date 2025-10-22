@@ -61,6 +61,7 @@ use App\Http\Controllers\gp\gestionsistema\CompanyController;
 use App\Http\Controllers\gp\gestionsistema\DepartmentController;
 use App\Http\Controllers\gp\gestionsistema\DigitalFileController;
 use App\Http\Controllers\gp\gestionsistema\DistrictController;
+use App\Http\Controllers\gp\gestionsistema\PermissionController;
 use App\Http\Controllers\gp\gestionsistema\PositionController;
 use App\Http\Controllers\gp\gestionsistema\ProvinceController;
 use App\Http\Controllers\gp\gestionsistema\RoleController;
@@ -83,7 +84,7 @@ Route::group(['prefix' => 'email/test'], function () {
   Route::post('/notification-template', [App\Http\Controllers\Api\EmailTestController::class, 'testNotificationTemplate']);
 });
 
-Route::middleware(['auth:sanctum'])->group(function () {
+Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::get('/authenticate', [AuthController::class, 'authenticate'])->name('authenticate');
   Route::get('/permissions', [AuthController::class, 'permissions'])->name('permissions');
   Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -133,6 +134,20 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     //        ACCESS
     Route::apiResource('access', AccessController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
+
+    //        PERMISSION
+    Route::get('permission/grouped-by-module', [PermissionController::class, 'groupedByModule'])->name('permission.grouped-by-module');
+    Route::get('permission/{id}/getByRole', [PermissionController::class, 'getByRole'])->name('permission.getByRole');
+    Route::post('permission/assign-to-role', [PermissionController::class, 'assignToRole'])->name('permission.assign-to-role');
+    Route::post('permission/assigns-to-role', [PermissionController::class, 'assignMultipleToRole'])->name('permission.assigns-to-role');
+    Route::post('permission/syncPermissionsToRole', [PermissionController::class, 'syncToRole'])->name('permission.syncPermissionsToRole');
+    Route::apiResource('permission', PermissionController::class)->only([
       'index',
       'show',
       'store',
@@ -668,6 +683,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     //      COMMERCIAL
     Route::group(['prefix' => 'commercial'], function () {
+      Route::get('businessPartners/{id}/opportunities', [BusinessPartnersController::class, 'opportunities']);
       Route::apiResource('businessPartners', BusinessPartnersController::class)->only([
         'index',
         'show',

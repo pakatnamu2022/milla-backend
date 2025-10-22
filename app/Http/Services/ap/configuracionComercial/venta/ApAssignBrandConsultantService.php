@@ -217,4 +217,9 @@ class ApAssignBrandConsultantService extends BaseService implements BaseServiceI
 
     return response()->json($advisorsData);
   }
+
+  public function show(int $id)
+  {
+    // TODO: Implement show() method.
+  }
 }

@@ -200,7 +200,7 @@ class VehiclePurchaseOrder extends Model
     return $query->where('migration_status', 'completed');
   }
 
-  public function getStatusAttribute($value)
+  public function getStatusNameAttribute($value)
   {
     return $value ? 'Activa' : 'Anulada';
   }
@@ -329,7 +329,7 @@ class VehiclePurchaseOrder extends Model
       'label' => 'Estado',
       'formatter' => null,
       'width' => 20,
-      'accessor' => 'getStatusAttribute'
+      'accessor' => 'getStatusNameAttribute'
     ],
     'migration_status' => [
       'label' => 'Estado Migración',

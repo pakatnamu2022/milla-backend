@@ -54,4 +54,28 @@ class Role extends BaseModel
             'user_id' // Local key on UserRole table
         )->where('config_asig_role_user.status_deleted', 1);
     }
+
+    /**
+     * Relación con permisos granulares a través de role_permission (many-to-many)
+     */
+    public function permissions()
+    {
+        return $this->belongsToMany(
+            Permission::class,
+            'role_permission',
+            'role_id',
+            'permission_id'
+        )
+        ->using(RolePermission::class)
+        ->withPivot('granted')
+        ->withTimestamps();
+    }
+
+    /**
+     * Relación con accesos básicos (CRUD) por vista
+     */
+    public function accesses()
+    {
+        return $this->hasMany(Access::class, 'role_id');
+    }
 }

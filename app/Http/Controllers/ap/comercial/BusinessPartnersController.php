@@ -72,6 +72,27 @@ class BusinessPartnersController extends Controller
     return $this->service->destroy($id, $request->type);
   }
 
+<<<<<<< HEAD
+=======
+  public function establishments($id)
+  {
+    try {
+      return $this->success($this->service->getEstablishments($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function opportunities($id)
+  {
+    try {
+      return $this->success($this->service->getOpportunities($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+>>>>>>> main
   public function validateOpportunity($id)
   {
     try {
