@@ -71,9 +71,7 @@ class BusinessPartnersController extends Controller
 
     return $this->service->destroy($id, $request->type);
   }
-
-<<<<<<< HEAD
-=======
+  
   public function establishments($id)
   {
     try {
@@ -92,7 +90,6 @@ class BusinessPartnersController extends Controller
     }
   }
 
->>>>>>> main
   public function validateOpportunity($id)
   {
     try {
