@@ -31,11 +31,21 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     $this->exportService = $exportService;
   }
 
+  /**
+   * Exporta las órdenes de compra de vehículos según los filtros proporcionados
+   * @param Request $request
+   * @return \Illuminate\Http\Response|\Symfony\Component\HttpFoundation\BinaryFileResponse
+   */
   public function export(Request $request)
   {
     return $this->exportService->exportFromRequest($request, VehiclePurchaseOrder::class);
   }
 
+  /**
+   * Lista las órdenes de compra de vehículos con filtros y paginación
+   * @param Request $request
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function list(Request $request)
   {
     return $this->getFilteredResults(
@@ -47,6 +57,12 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     );
   }
 
+  /**
+   * Busca una orden de compra de vehículo por ID
+   * @param $id
+   * @return mixed
+   * @throws Exception
+   */
   public function find($id)
   {
     $vehiclePurchaseOrder = VehiclePurchaseOrder::where('id', $id)->first();
@@ -56,6 +72,13 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     return $vehiclePurchaseOrder;
   }
 
+  /**
+   * Enriquece los datos de la orden de compra antes de crear o actualizar
+   * @param mixed $data
+   * @param $isCreate
+   * @return mixed
+   * @throws Exception
+   */
   public function enrichData(mixed $data, $isCreate = true)
   {
     if ($isCreate) {
@@ -91,6 +114,7 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
   }
 
   /**
+   * Crea una nueva orden de compra de vehículo
    * @throws Exception
    * @throws Throwable
    */
@@ -301,11 +325,23 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     // 2. Sincronizar la recepción (NI) solo cuando la OC esté lista
   }
 
+  /**
+   * Muestra una orden de compra de vehículo
+   * @param $id
+   * @return VehiclePurchaseOrderResource
+   * @throws Exception
+   */
   public function show($id)
   {
     return new VehiclePurchaseOrderResource($this->find($id));
   }
 
+  /**
+   * Actualiza una orden de compra de vehículo
+   * @param mixed $data
+   * @return VehiclePurchaseOrderResource
+   * @throws Throwable
+   */
   public function update(mixed $data)
   {
     DB::beginTransaction();
@@ -388,6 +424,12 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     }
   }
 
+  /**
+   * Elimina una orden de compra de vehículo
+   * @param $id
+   * @return \Illuminate\Http\JsonResponse
+   * @throws Throwable
+   */
   public function destroy($id)
   {
     $vehiclePurchaseOrder = $this->find($id);
