@@ -82,6 +82,7 @@ class VehiclePurchaseOrder extends Model
     'vehicle_color_id' => '=',
     'ap_vehicle_status_id' => 'in',
     'migration_status' => '=',
+    'modelVn.family_id' => '=',
   ];
 
   const sorts = [
@@ -123,7 +124,7 @@ class VehiclePurchaseOrder extends Model
     return $this->belongsTo(BusinessPartners::class, 'supplier_id');
   }
 
-  public function model(): BelongsTo
+  public function modelVn(): BelongsTo
   {
     return $this->belongsTo(ApModelsVn::class, 'ap_models_vn_id');
   }

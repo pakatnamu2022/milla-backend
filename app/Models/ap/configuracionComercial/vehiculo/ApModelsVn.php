@@ -56,6 +56,7 @@ class ApModelsVn extends Model
   const filters = [
     'search' => ['code', 'version'],
     'status' => '=',
+    'family_id' => '=',
   ];
 
   const sorts = [

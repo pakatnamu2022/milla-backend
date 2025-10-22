@@ -18,7 +18,7 @@ return new class extends Migration {
       $table->integer('worker_id')->after('type')->nullable();
       $table->foreign('worker_id')
         ->references('id')
-        ->on('rrhh_persona');
+        ->on('usr_users');
     });
   }
 
