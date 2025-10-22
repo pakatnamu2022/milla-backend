@@ -12,7 +12,7 @@ class StoreMultiplePermissionRoleRequest extends StoreRequest
   {
     return [
       'role_id' => 'required|exists:config_roles,id',
-      'permissions' => 'required|array',
+      'permissions' => 'nullable|array',
       'permissions.*' => 'exists:permission,id',
     ];
   }

@@ -17,6 +17,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class PotentialBuyersService extends BaseService
 {
@@ -133,7 +134,7 @@ class PotentialBuyersService extends BaseService
       $businessPartner = $this->find($id);
       $businessPartner->use = PotentialBuyers::DISCARTED; // Marcar como descartado
       if ($comment || $reasonDiscardingId) {
-        $businessPartner->comment = $comment; // Agregar comentario si se proporciona
+        $businessPartner->comment = Str::upper(Str::ascii($comment));
         $businessPartner->reason_discarding_id = $reasonDiscardingId;
       }
       $businessPartner->save();
