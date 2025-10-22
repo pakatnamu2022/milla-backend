@@ -41,6 +41,7 @@ class VehiclePurchaseOrder extends Model
     'emission_date',
     'unit_price',
     'discount',
+    'has_isc',
     'subtotal',
     'igv',
     'total',
@@ -68,6 +69,7 @@ class VehiclePurchaseOrder extends Model
     'migrated_at' => 'datetime',
     'status' => 'boolean',
     'resent' => 'boolean',
+    'has_isc' => 'boolean',
   ];
 
   const filters = [
@@ -174,6 +176,14 @@ class VehiclePurchaseOrder extends Model
   public function migrationLogs(): HasMany
   {
     return $this->hasMany(VehiclePurchaseOrderMigrationLog::class, 'vehicle_purchase_order_id');
+  }
+
+  /**
+   * Relación con los accesorios del vehículo
+   */
+  public function accessories(): HasMany
+  {
+    return $this->hasMany(VehicleAccessory::class, 'vehicle_purchase_order_id');
   }
 
   /**

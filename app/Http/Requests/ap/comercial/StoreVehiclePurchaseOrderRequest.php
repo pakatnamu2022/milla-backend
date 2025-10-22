@@ -27,8 +27,15 @@ class StoreVehiclePurchaseOrderRequest extends StoreRequest
       'emission_date' => ['required', 'date', 'date_format:Y-m-d'],
       'unit_price' => ['required', 'numeric', 'min:0'],
       'discount' => ['required', 'numeric', 'min:0'],
+      'has_isc' => ['nullable', 'boolean'],
       'supplier_id' => ['required', 'integer', Rule::exists('business_partners', 'id')->where('status_ap', 1)->whereNull('deleted_at')],
       'currency_id' => ['required', 'integer', Rule::exists('type_currency', 'id')->where('status', 1)->whereNull('deleted_at')],
+
+      // Accessories
+      'accessories' => ['nullable', 'array'],
+      'accessories.*.accessory_id' => ['required', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'VEHICLE_ACCESSORY')->where('status', 1)->whereNull('deleted_at')],
+      'accessories.*.unit_price' => ['required', 'numeric', 'min:0'],
+      'accessories.*.quantity' => ['nullable', 'integer', 'min:1'],
 
       // Guide
       'warehouse_id' => ['required', 'integer', Rule::exists('warehouse', 'id')->where('type', Warehouse::REAL)->where('status', 1)->whereNull('deleted_at')],

@@ -26,8 +26,9 @@ class VehiclePurchaseOrderResource extends JsonResource
       'invoice_series' => $this->invoice_series,
       'invoice_number' => $this->invoice_number,
       'emission_date' => $this->emission_date,
-      'unit_price' => $this->unit_price,
+      'unit_price' => $this->unit_price, // Precio unitario solo del vehículo (para envío a Dynamics)
       'discount' => $this->discount,
+      'has_isc' => $this->has_isc,
       'subtotal' => $this->subtotal,
       'igv' => $this->igv,
       'total' => $this->total,
@@ -65,6 +66,17 @@ class VehiclePurchaseOrderResource extends JsonResource
       'warehouse_physical' => $this->warehousePhysical?->description,
       'taxClassType' => $this->supplier->supplierTaxClassType->tax_class,
       'movements' => VehicleMovementResource::collection($this->movements),
+      'accessories' => $this->accessories->map(function ($accessory) {
+        return [
+          'id' => $accessory->id,
+          'accessory_id' => $accessory->accessory_id,
+          'accessory_code' => $accessory->accessory->code,
+          'accessory_description' => $accessory->accessory->description,
+          'unit_price' => $accessory->unit_price,
+          'quantity' => $accessory->quantity,
+          'total' => $accessory->total,
+        ];
+      }),
     ];
   }
 }

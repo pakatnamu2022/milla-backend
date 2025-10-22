@@ -95,17 +95,46 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
       $data['exchange_rate_id'] = $exchangeRateService->getCurrentUSDRate()->id;
     }
 
+    // unit_price: precio unitario del vehículo (sin accesorios)
     $unit_price = round($data['unit_price'], 2);
-    $discount = round($data['discount'], 2);
-    $subtotal = round($unit_price - $discount, 2);
+    $discount = round($data['discount'] ?? 0, 2);
+    $has_isc = $data['has_isc'] ?? false;
+
+    // Calcular el total de accesorios si existen
+    $accessories_total = 0;
+    if (isset($data['accessories']) && is_array($data['accessories'])) {
+      foreach ($data['accessories'] as $accessory) {
+        $accessory_unit_price = round($accessory['unit_price'] ?? 0, 2);
+        $accessory_quantity = $accessory['quantity'] ?? 1;
+        $accessories_total += $accessory_unit_price * $accessory_quantity;
+      }
+    }
+
+    // subtotal = unit_price - discount + accesorios
+    $subtotal = round($unit_price - $discount + $accessories_total, 2);
+
     if ($subtotal < 0) {
       throw new Exception('El subtotal no puede ser negativo');
     }
-    $igv = round($subtotal * 0.18, 2);
-    $total = round($subtotal + $igv, 2);
+
+    // Calcular IGV y total según si tiene ISC o no
+    if ($has_isc) {
+      // Con ISC:
+      // IGV = subtotal * 1.1 * 0.18 (ISC 10% + IGV 18%)
+      // Total = subtotal * 1.1 * 1.18
+      $igv = round($subtotal * 1.1 * 0.18, 2);
+      $total = round($subtotal * 1.1 * 1.18, 2);
+    } else {
+      // Sin ISC:
+      // IGV = subtotal * 0.18
+      // Total = subtotal * 1.18
+      $igv = round($subtotal * 0.18, 2);
+      $total = round($subtotal * 1.18, 2);
+    }
 
     $data['unit_price'] = $unit_price;
     $data['discount'] = $discount;
+    $data['has_isc'] = $has_isc;
     $data['igv'] = $igv;
     $data['total'] = $total;
     $data['subtotal'] = $subtotal;
@@ -122,12 +151,27 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
   {
     DB::beginTransaction();
     try {
+      // Guardar accesorios temporalmente
+      $accessories = $data['accessories'] ?? [];
+
       $data = $this->enrichData($data);
 
       // Establecer estado de migración inicial
       $data['migration_status'] = 'pending';
 
       $vehiclePurchaseOrder = VehiclePurchaseOrder::create($data);
+
+      // Guardar accesorios si existen
+      if (!empty($accessories)) {
+        foreach ($accessories as $accessory) {
+          $vehiclePurchaseOrder->accessories()->create([
+            'accessory_id' => $accessory['accessory_id'],
+            'unit_price' => $accessory['unit_price'],
+            'quantity' => $accessory['quantity'] ?? 1,
+          ]);
+        }
+      }
+
       $vehicleMovementService = new VehicleMovementService();
       $vehicleMovementService->storeRequestedVehicleMovement($vehiclePurchaseOrder->id);
 
@@ -403,18 +447,52 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
       }
 
       // Flujo normal: actualizar OC sin NC
-      if (isset($data['unit_price']) || isset($data['discount'])) {
+      // Guardar accesorios temporalmente
+      $accessories = $data['accessories'] ?? null;
+
+      if (isset($data['unit_price']) || isset($data['discount']) || isset($data['has_isc']) || $accessories !== null) {
         if (!isset($data['unit_price'])) {
           $data['unit_price'] = $vehiclePurchaseOrder->unit_price;
         }
         if (!isset($data['discount'])) {
           $data['discount'] = $vehiclePurchaseOrder->discount;
         }
+        if (!isset($data['has_isc'])) {
+          $data['has_isc'] = $vehiclePurchaseOrder->has_isc;
+        }
+
+        // Cargar accesorios actuales si no se pasaron nuevos
+        if ($accessories === null) {
+          $data['accessories'] = $vehiclePurchaseOrder->accessories->map(function ($acc) {
+            return [
+              'accessory_id' => $acc->accessory_id,
+              'unit_price' => $acc->unit_price,
+              'quantity' => $acc->quantity,
+            ];
+          })->toArray();
+        }
+
         $data = $this->enrichData($data, false);
       }
 
       $vehiclePurchaseOrder->update($data);
 
+      // Actualizar accesorios si se proporcionaron
+      if ($accessories !== null) {
+        // Eliminar accesorios existentes
+        $vehiclePurchaseOrder->accessories()->delete();
+
+        // Crear nuevos accesorios
+        if (!empty($accessories)) {
+          foreach ($accessories as $accessory) {
+            $vehiclePurchaseOrder->accessories()->create([
+              'accessory_id' => $accessory['accessory_id'],
+              'unit_price' => $accessory['unit_price'],
+              'quantity' => $accessory['quantity'] ?? 1,
+            ]);
+          }
+        }
+      }
 
       DB::commit();
       return new VehiclePurchaseOrderResource($vehiclePurchaseOrder);
