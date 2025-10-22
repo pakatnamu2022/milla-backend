@@ -21,11 +21,11 @@ class PotentialBuyersDercoImport implements ToModel, WithHeadingRow, WithValidat
   private $vehicleBrandMap = [
     'GWM' => 'GREAT WALL',
     'GREAT WALL' => 'GREAT WALL',
+    'HAVAL' => 'GREAT WALL',
     'JAC' => 'JAC',
     'JAC CARS' => 'JAC',
     'JAC TRUCK' => 'JAC CAMIONES',
     'JAC CAMIONES' => 'JAC CAMIONES',
-    // Agregar más mapeos según necesites
   ];
 
   // Mapeo de código de tienda a district_id (puede ser un ID o array de IDs)
@@ -188,7 +188,10 @@ class PotentialBuyersDercoImport implements ToModel, WithHeadingRow, WithValidat
       return $defaultReturn;
     }
 
-    // 2. Buscar la sede por district_id (soporta un ID o array de IDs)
+    // 2. Obtener el brand_id para buscar sedes con consultores asignados
+    $brandId = $this->getVehicleBrandId($vehicleBrand);
+
+    // 3. Obtener todas las sedes del distrito
     $query = Sede::query();
 
     if (is_array($districtId)) {
@@ -197,12 +200,34 @@ class PotentialBuyersDercoImport implements ToModel, WithHeadingRow, WithValidat
       $query->where('district_id', $districtId);
     }
 
-    $sede = $query->first();
+    $sedes = $query->get();
 
-    if (!$sede) {
+    if ($sedes->isEmpty()) {
       return $defaultReturn;
     }
 
+    // 4. Si tenemos brand_id, buscar la sede que tenga consultores asignados para esa marca
+    if ($brandId) {
+      $currentYear = date('Y');
+      $currentMonth = date('m');
+
+      foreach ($sedes as $sede) {
+        // Verificar si esta sede tiene consultores asignados para la marca
+        $hasConsultants = ApAssignBrandConsultant::where('sede_id', $sede->id)
+          ->where('brand_id', $brandId)
+          ->where('year', $currentYear)
+          ->where('month', $currentMonth)
+          ->where('status', 1)
+          ->exists();
+
+        if ($hasConsultants) {
+          return ['id' => $sede->id, 'abreviatura' => $sede->abreviatura];
+        }
+      }
+    }
+
+    // 5. Si no encontramos sede con consultores asignados, retornar la primera disponible
+    $sede = $sedes->first();
     return ['id' => $sede->id, 'abreviatura' => $sede->abreviatura];
   }
 
