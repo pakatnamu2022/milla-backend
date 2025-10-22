@@ -11,15 +11,13 @@ return new class extends Migration {
   public function up(): void
   {
     Schema::create('user_series_assignment', function (Blueprint $table) {
-      Schema::create('user_series_assignment', function (Blueprint $table) {
-        $table->id();
-        $table->integer('worker_id');
-        $table->foreign('worker_id')->references('id')->on('usr_users');
-        $table->foreignId('voucher_id')
-          ->constrained('assign_sales_series')->onDelete('cascade');
-        $table->timestamps();
-        $table->softDeletes();
-      });
+      $table->id();
+      $table->integer('worker_id');
+      $table->foreign('worker_id')->references('id')->on('usr_users');
+      $table->foreignId('voucher_id')
+        ->constrained('assign_sales_series')->onDelete('cascade');
+      $table->timestamps();
+      $table->softDeletes();
     });
   }
 
