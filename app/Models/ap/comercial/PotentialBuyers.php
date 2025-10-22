@@ -10,6 +10,7 @@ use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -138,20 +139,25 @@ class PotentialBuyers extends Model
     return $this->belongsTo(User::class, 'user_id');
   }
 
+  public function opportunity(): HasOne
+  {
+    return $this->hasOne(Opportunity::class, 'lead_id');
+  }
+
   // ← CONFIGURACIÓN DEL REPORTE CON FORMATO SOLICITADO
   protected $reportColumns = [
     'registration_date' => [
-      'label' => 'Fecha de registro',
+      'label' => 'Fecha de Registro',
       'formatter' => 'date:d/m/Y',
-      'width' => 20,
-    ],
-    'status_num_doc' => [
-      'label' => 'Estado Validación',
-      'formatter' => null,
       'width' => 20,
     ],
     'sede.abreviatura' => [
       'label' => 'Sede',
+      'formatter' => null,
+      'width' => 20
+    ],
+    'sede.district.name' => [
+      'label' => 'Ciudad',
       'formatter' => null,
       'width' => 20
     ],
@@ -166,11 +172,6 @@ class PotentialBuyers extends Model
       'width' => 20,
       'accessor' => 'getAdvisorFullNameAttribute'
     ],
-    'sede.district.name' => [
-      'label' => 'Distrito Sede',
-      'formatter' => null,
-      'width' => 20
-    ],
     'model' => [
       'label' => 'Modelo',
       'formatter' => null,
@@ -180,6 +181,11 @@ class PotentialBuyers extends Model
       'label' => 'Versión',
       'formatter' => null,
       'width' => 20
+    ],
+    'status_num_doc' => [
+      'label' => 'Estado Validación',
+      'formatter' => null,
+      'width' => 20,
     ],
     'documentType.description' => [
       'label' => 'Tipo Documento',
@@ -206,6 +212,40 @@ class PotentialBuyers extends Model
       'formatter' => null,
       'width' => 20
     ],
+    'attention_status' => [
+      'label' => 'Estado de Atención',
+      'formatter' => null,
+      'width' => 20,
+      'accessor' => 'getAttentionStatusAttribute'
+    ],
+    'opportunity_status_name' => [
+      'label' => 'Estado',
+      'formatter' => null,
+      'width' => 20,
+      'accessor' => 'getOpportunityStatusNameAttribute'
+    ],
+    'attention_description' => [
+      'label' => 'Descripción de la Atención',
+      'formatter' => null,
+      'width' => 40,
+      'accessor' => 'getAttentionDescriptionAttribute'
+    ],
+    'created_at' => [
+      'label' => 'Fecha y Hora de Registro',
+      'formatter' => 'date:d/m/Y H:i',
+      'width' => 25,
+    ],
+    'attention_updated_at' => [
+      'label' => 'Fecha y Hora de Atención',
+      'formatter' => 'date:d/m/Y H:i',
+      'width' => 25,
+      'accessor' => 'getAttentionUpdatedAtAttribute'
+    ],
+    'campaign' => [
+      'label' => 'Campaña',
+      'formatter' => null,
+      'width' => 20
+    ],
   ];
 
   protected $reportRelations = [
@@ -214,12 +254,55 @@ class PotentialBuyers extends Model
     'documentType',
     'worker',
     'sede.district',
+    'opportunity.opportunityStatus',
+    'opportunity.actions',
   ];
 
   public function getAdvisorFullNameAttribute()
   {
     $nombreCompleto = $this->worker ? $this->worker->nombre_completo : 'SIN ASESOR';
     return $nombreCompleto;
+  }
+
+  public function getAttentionStatusAttribute()
+  {
+    switch ($this->use) {
+      case self::CREATED:
+        return 'NO ATENDIDO';
+      case self::USED:
+        return 'ATENDIDO';
+      case self::DISCARTED:
+        return 'DESCARTADO';
+      default:
+        return 'NO ATENDIDO';
+    }
+  }
+
+  public function getOpportunityStatusNameAttribute()
+  {
+    if (!$this->opportunity || !$this->opportunity->opportunityStatus) {
+      return 'SIN OPORTUNIDAD';
+    }
+    return $this->opportunity->opportunityStatus->description;
+  }
+
+  public function getAttentionDescriptionAttribute()
+  {
+    if (!$this->opportunity || !$this->opportunity->actions || $this->opportunity->actions->isEmpty()) {
+      return null;
+    }
+    // Retornar la última descripción
+    $lastAction = $this->opportunity->actions->sortByDesc('datetime')->first();
+    return $lastAction ? $lastAction->description : null;
+  }
+
+  public function getAttentionUpdatedAtAttribute()
+  {
+    // Si use = 0 (NO ATENDIDO), no mostrar la fecha de cierre
+    if ($this->use == self::CREATED) {
+      return null;
+    }
+    return $this->updated_at;
   }
 
   /**
