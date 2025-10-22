@@ -135,7 +135,7 @@
 </table>
 
 <!-- Título -->
-<div class="title">SOLICITUD DE COMPRA</div>
+<div class="title">{{ $quote['document_title'] ?? 'SOLICITUD DE COMPRA' }}</div>
 
 <!-- Información del comprador -->
 <table>

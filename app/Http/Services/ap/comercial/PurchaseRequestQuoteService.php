@@ -162,6 +162,11 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $dataArray['model_year'] = $purchaseRequestQuote->apModelsVn->model_year ?? null;
     $dataArray['selling_price_soles'] = round($purchaseRequestQuote->sale_price * ($purchaseRequestQuote->exchangeRate->rate ?? 1), 2);
 
+    // Definir el título según el type_document
+    $dataArray['document_title'] = ($purchaseRequestQuote->type_document === 'COTIZACION')
+      ? 'COTIZACIÓN'
+      : 'SOLICITUD DE COMPRA';
+
     $pdf = PDF::loadView('reports.ap.comercial.request-purchase-quote', ['quote' => $dataArray]);
 
     // Configurar PDF
