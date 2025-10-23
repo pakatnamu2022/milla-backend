@@ -107,7 +107,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         // is_sunat_registered se procesará después con nubefac
         'total_packages' => $data['total_packages'] ?? null,
         'total_weight' => $data['total_weight'] ?? null,
-        'vehicle_movement_id' => $vehicleMovement->id, // ID del movimiento creado
+        'vehicle_movement_id' => $vehicleMovement->id,
         'sede_transmitter_id' => $data['sede_transmitter_id'],
         'sede_receiver_id' => $data['sede_receiver_id'],
         'transmitter_id' => $data['transmitter_id'],
