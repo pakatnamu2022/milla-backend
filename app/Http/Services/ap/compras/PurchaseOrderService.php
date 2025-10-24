@@ -73,6 +73,8 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
   /**
    * Enriquece los datos de la orden de compra antes de crear o actualizar
+   * Solo genera números correlativos y establece valores por defecto
+   * Los valores de la factura (subtotal, igv, total, etc.) vienen del request
    * @param mixed $data
    * @param $isCreate
    * @return mixed
@@ -85,47 +87,28 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       $data['number'] = $this->nextCorrelativeCount(PurchaseOrder::class, 8, ['status' => true]);
       $data['number_guide'] = $this->nextCorrelativeCount(PurchaseOrder::class, 8, ['status' => true]);
 
-      // Obtener tipo de cambio actual
-      $exchangeRateService = new ExchangeRateService();
-      $data['exchange_rate_id'] = $exchangeRateService->getCurrentUSDRate()->id;
+      // Obtener tipo de cambio actual si no viene en el request
+      if (!isset($data['exchange_rate_id'])) {
+        $exchangeRateService = new ExchangeRateService();
+        $data['exchange_rate_id'] = $exchangeRateService->getCurrentUSDRate()->id;
+      }
 
       // Estado inicial de migración
       $data['migration_status'] = 'pending';
       $data['status'] = true;
     }
 
-    // Calcular subtotal basado en los items
-    $subtotal = 0;
-    if (isset($data['items']) && is_array($data['items'])) {
-      foreach ($data['items'] as $item) {
-        $itemPrice = round($item['unit_price'] ?? 0, 2);
-        $itemQuantity = $item['quantity'] ?? 1;
-        $subtotal += $itemPrice * $itemQuantity;
+    // Validar que los valores requeridos de la factura estén presentes
+    $requiredFields = ['subtotal', 'igv', 'total'];
+    foreach ($requiredFields as $field) {
+      if (!isset($data[$field])) {
+        throw new Exception("El campo '{$field}' es requerido");
       }
     }
 
-    // Aplicar descuento
-    $discount = round($data['discount'] ?? 0, 2);
-    $subtotal = round($subtotal - $discount, 2);
-
-    if ($subtotal < 0) {
-      throw new Exception('El subtotal no puede ser negativo');
-    }
-
-    // Calcular ISC si aplica (10%)
-    $isc = isset($data['has_isc']) && $data['has_isc'] ? round($subtotal * 0.10, 2) : 0;
-
-    // Calcular IGV (18% sobre subtotal + ISC)
-    $igv = round(($subtotal + $isc) * 0.18, 2);
-
-    // Calcular total
-    $total = round($subtotal + $isc + $igv, 2);
-
-    $data['discount'] = $discount;
-    $data['isc'] = $isc;
-    $data['igv'] = $igv;
-    $data['total'] = $total;
-    $data['subtotal'] = $subtotal;
+    // Establecer valores por defecto para campos opcionales
+    $data['discount'] = $data['discount'] ?? 0;
+    $data['isc'] = $data['isc'] ?? 0;
 
     return $data;
   }
@@ -206,6 +189,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
   /**
    * Actualiza una orden de compra
+   * No recalcula valores de factura, estos deben venir en el request
    * @param mixed $data
    * @return PurchaseOrderResource
    * @throws Throwable
@@ -219,21 +203,8 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       // Guardar items temporalmente
       $items = $data['items'] ?? null;
 
-      // Si se modifican items o precios, recalcular
-      if ($items !== null || isset($data['discount'])) {
-        // Cargar items actuales si no se pasaron nuevos
-        if ($items === null) {
-          $data['items'] = $purchaseOrder->items->map(function ($item) {
-            return [
-              'unit_measurement_id' => $item->unit_measurement_id,
-              'description' => $item->description,
-              'unit_price' => $item->unit_price,
-              'quantity' => $item->quantity,
-              'is_vehicle' => $item->is_vehicle,
-            ];
-          })->toArray();
-        }
-
+      // Validar datos si vienen valores de factura (sin recalcular)
+      if (isset($data['subtotal']) || isset($data['igv']) || isset($data['total'])) {
         $data = $this->enrichData($data, false);
       }
 

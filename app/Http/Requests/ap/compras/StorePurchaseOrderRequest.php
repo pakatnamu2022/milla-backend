@@ -11,7 +11,7 @@ class StorePurchaseOrderRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      // Vehicle
+//      Vehicle
       'vin' => ['required', 'string', 'max:17', Rule::unique('ap_vehicles', 'vin')->whereNull('deleted_at')->where('status', 1),],
       'year' => ['required', 'integer', 'min:1900', 'max:2100'],
       'engine_number' => ['required', 'string', 'max:30', Rule::unique('ap_vehicles', 'engine_number')->whereNull('deleted_at')->where('status', 1),],
@@ -21,24 +21,36 @@ class StorePurchaseOrderRequest extends StoreRequest
       'engine_type_id' => ['required', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'TIPO_MOTOR')->where('status', 1)->whereNull('deleted_at')],
       'sede_id' => ['required', 'integer', Rule::exists('config_sede', 'id')->where('status', 1)->whereNull('deleted_at')],
 
-      // Invoice
+
+      // Información de la Factura (Cabecera)
       'invoice_series' => ['required', 'string', 'max:10'],
       'invoice_number' => ['required', 'string', 'max:20'],
       'emission_date' => ['required', 'date', 'date_format:Y-m-d'],
-      'unit_price' => ['required', 'numeric', 'min:0'],
-      'discount' => ['required', 'numeric', 'min:0'],
-      'has_isc' => ['nullable', 'boolean'],
+      'due_date' => ['nullable', 'date', 'date_format:Y-m-d', 'after_or_equal:emission_date'],
+
+      // Valores de la Factura (vienen de la factura física, NO se calculan)
+      'subtotal' => ['required', 'numeric', 'min:0'],
+      'igv' => ['required', 'numeric', 'min:0'],
+      'total' => ['required', 'numeric', 'min:0'],
+      'discount' => ['nullable', 'numeric', 'min:0'],
+      'isc' => ['nullable', 'numeric', 'min:0'],
+
+      // Relaciones
       'supplier_id' => ['required', 'integer', Rule::exists('business_partners', 'id')->where('status_ap', 1)->whereNull('deleted_at')],
       'currency_id' => ['required', 'integer', Rule::exists('type_currency', 'id')->where('status', 1)->whereNull('deleted_at')],
-
-      // Accessories
-      'accessories' => ['nullable', 'array'],
-      'accessories.*.accessory_id' => ['required', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'VEHICLE_ACCESSORY')->where('status', 1)->whereNull('deleted_at')],
-      'accessories.*.unit_price' => ['required', 'numeric', 'min:0'],
-      'accessories.*.quantity' => ['required', 'integer', 'min:1'],
-
-      // Guide
+      'exchange_rate_id' => ['nullable', 'integer', Rule::exists('ap_exchange_rate', 'id')],
       'warehouse_id' => ['required', 'integer', Rule::exists('warehouse', 'id')->where('type', Warehouse::REAL)->where('status', 1)->whereNull('deleted_at')],
+
+      // Movimiento de Vehículo (opcional, solo si la OC está relacionada a un movimiento)
+      'vehicle_movement_id' => ['nullable', 'integer', Rule::exists('ap_vehicle_movement', 'id')->whereNull('deleted_at')],
+
+      // Items de la Orden de Compra
+      'items' => ['required', 'array', 'min:1'],
+      'items.*.unit_measurement_id' => ['required', 'integer', Rule::exists('unit_measurement', 'id')->where('status', 1)->whereNull('deleted_at')],
+      'items.*.description' => ['required', 'string', 'max:255'],
+      'items.*.unit_price' => ['required', 'numeric', 'min:0'],
+      'items.*.quantity' => ['required', 'integer', 'min:1'],
+      'items.*.is_vehicle' => ['nullable', 'boolean'],
     ];
   }
 
@@ -55,20 +67,45 @@ class StorePurchaseOrderRequest extends StoreRequest
       'engine_type_id' => 'Tipo de Motor',
       'sede_id' => 'Sede',
 
-      // Invoice
+      // Factura
       'invoice_series' => 'Serie de la Factura',
       'invoice_number' => 'Número de la Factura',
       'emission_date' => 'Fecha de Emisión',
-      'unit_price' => 'Precio Unitario',
-      'discount' => 'Descuento',
+      'due_date' => 'Fecha de Vencimiento',
+
+      // Valores
       'subtotal' => 'Subtotal',
       'igv' => 'IGV',
       'total' => 'Total',
+      'discount' => 'Descuento',
+      'isc' => 'ISC',
+
+      // Relaciones
       'supplier_id' => 'Proveedor',
       'currency_id' => 'Moneda',
-
-      // Guide
+      'exchange_rate_id' => 'Tipo de Cambio',
       'warehouse_id' => 'Almacén',
+      'vehicle_movement_id' => 'Movimiento de Vehículo',
+
+      // Items
+      'items' => 'Items de la Orden',
+      'items.*.unit_measurement_id' => 'Unidad de Medida',
+      'items.*.description' => 'Descripción del Item',
+      'items.*.unit_price' => 'Precio Unitario',
+      'items.*.quantity' => 'Cantidad',
+      'items.*.is_vehicle' => 'Es Vehículo',
+    ];
+  }
+
+  public function messages()
+  {
+    return [
+      'items.required' => 'Debe agregar al menos un item a la orden de compra',
+      'items.min' => 'Debe agregar al menos un item a la orden de compra',
+      'due_date.after_or_equal' => 'La fecha de vencimiento debe ser igual o posterior a la fecha de emisión',
+      'subtotal.required' => 'El subtotal es requerido (debe venir de la factura)',
+      'igv.required' => 'El IGV es requerido (debe venir de la factura)',
+      'total.required' => 'El total es requerido (debe venir de la factura)',
     ];
   }
 }
