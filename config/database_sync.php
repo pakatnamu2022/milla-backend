@@ -380,18 +380,18 @@ return [
       'connection' => 'dbtp',
       'table' => 'neInTbRecepcion',
       'mapping' => [
-        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
-        'RecepcionId' => fn($data) => $data['number_guide'],
-        'ProveedorId' => fn($data) => BusinessPartners::find($data['supplier_id'])->num_doc,
-        'FechaEmision' => fn($data) => $data['emission_date'],
-        'FechaContable' => fn($data) => $data['emission_date'],
-        'TipoComprobanteId' => fn($data) => 'GRM',
-        'Serie' => fn($data) => $data['invoice_series'],
-        'Correlativo' => fn($data) => $data['invoice_number'],
-        'Procesar' => 1,
-        'ProcesoEstado' => 0,
-        'ProcesoError' => fn($data) => '',
-        'FechaProceso' => fn($data) => now(),
+        'EmpresaId' => fn($data) => $data['EmpresaId'],
+        'RecepcionId' => fn($data) => $data['RecepcionId'],
+        'ProveedorId' => fn($data) => $data['ProveedorId'],
+        'FechaEmision' => fn($data) => $data['FechaEmision'],
+        'FechaContable' => fn($data) => $data['FechaContable'],
+        'TipoComprobanteId' => fn($data) => $data['TipoComprobanteId'],
+        'Serie' => fn($data) => $data['Serie'],
+        'Correlativo' => fn($data) => $data['Correlativo'],
+        'Procesar' => fn($data) => $data['Procesar'],
+        'ProcesoEstado' => fn($data) => $data['ProcesoEstado'],
+        'ProcesoError' => fn($data) => $data['ProcesoError'],
+        'FechaProceso' => fn($data) => $data['FechaProceso'],
       ],
       'optional_mapping' => [
       ],
@@ -400,7 +400,7 @@ return [
       'actions' => [
         'create' => true,
         'update' => true,
-        'delete' => false, // Por ejemplo, no sincronizar eliminaciones
+        'delete' => false,
       ],
     ]
   ],
@@ -412,15 +412,15 @@ return [
       'connection' => 'dbtp',
       'table' => 'neInTbRecepcionDt',
       'mapping' => [
-        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
-        'RecepcionId' => fn($data) => $data['number_guide'],
-        'Linea' => 1,
-        'OrdenCompraId' => fn($data) => $data['number'],
-        'LineaOC' => 1,
-        'ArticuloId' => fn($data) => ApModelsVn::find($data['ap_models_vn_id'])->code,
-        'SitioId' => fn($data) => Warehouse::find($data['warehouse_id'])->dyn_code,
-        'UnidadMedidaId' => fn($data) => 'UND', // TODO: Asumiendo que siempre es 'UND', ajusta según sea necesario
-        'Cantidad' => 1, // TODO: Aquí deberías implementar la lógica para obtener la cantidad correcta
+        'EmpresaId' => fn($data) => $data['EmpresaId'],
+        'RecepcionId' => fn($data) => $data['RecepcionId'],
+        'Linea' => fn($data) => $data['Linea'],
+        'OrdenCompraId' => fn($data) => $data['OrdenCompraId'],
+        'LineaOC' => fn($data) => $data['LineaOC'],
+        'ArticuloId' => fn($data) => $data['ArticuloId'],
+        'SitioId' => fn($data) => $data['SitioId'],
+        'UnidadMedidaId' => fn($data) => $data['UnidadMedidaId'],
+        'Cantidad' => fn($data) => $data['Cantidad'],
       ],
       'optional_mapping' => [
       ],
@@ -429,7 +429,7 @@ return [
       'actions' => [
         'create' => true,
         'update' => true,
-        'delete' => false, // Por ejemplo, no sincronizar eliminaciones
+        'delete' => false,
       ],
     ]
   ],
@@ -441,13 +441,13 @@ return [
       'connection' => 'dbtp',
       'table' => 'neInTbRecepcionDtS',
       'mapping' => [
-        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
-        'RecepcionId' => fn($data) => $data['number_guide'],
-        'Linea' => 1, // TODO: Aquí deberías implementar la lógica para obtener la línea correcta
-        'Serie' => fn($data) => $data['vin'],
-        'ArticuloId' => fn($data) => ApModelsVn::find($data['ap_models_vn_id'])->code,
-        'DatoUsuario1' => fn($data) => $data['vin'],
-        'DatoUsuario2' => fn($data) => $data['vin'],
+        'EmpresaId' => fn($data) => $data['EmpresaId'],
+        'RecepcionId' => fn($data) => $data['RecepcionId'],
+        'Linea' => fn($data) => $data['Linea'],
+        'Serie' => fn($data) => $data['Serie'],
+        'ArticuloId' => fn($data) => $data['ArticuloId'],
+        'DatoUsuario1' => fn($data) => $data['DatoUsuario1'],
+        'DatoUsuario2' => fn($data) => $data['DatoUsuario2'],
       ],
       'optional_mapping' => [
       ],
@@ -456,7 +456,7 @@ return [
       'actions' => [
         'create' => true,
         'update' => true,
-        'delete' => false, // Por ejemplo, no sincronizar eliminaciones
+        'delete' => false,
       ],
     ]
   ],

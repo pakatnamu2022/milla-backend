@@ -5,6 +5,9 @@ namespace App\Jobs;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderDetailDynamicsResource;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderDynamicsResource;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderResource;
+use App\Http\Resources\ap\compras\PurchaseOrderVehicleReceptionResource;
+use App\Http\Resources\ap\compras\PurchaseOrderVehicleReceptionDetailResource;
+use App\Http\Resources\ap\compras\PurchaseOrderVehicleReceptionSerialResource;
 use App\Http\Services\DatabaseSyncService;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\VehiclePurchaseOrder;
@@ -380,19 +383,29 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
     if (!$existingReception) {
       // No existe, intentar sincronizar
       try {
-        $resource = new VehiclePurchaseOrderResource($purchaseOrder);
-        $resourceData = $resource->toArray(request());
+        // Crear los 3 resources específicos para cada tabla de recepción
+        $receptionResource = new PurchaseOrderVehicleReceptionResource($purchaseOrder);
+        $receptionData = $receptionResource->toArray(request());
 
+        $receptionDetailResource = new PurchaseOrderVehicleReceptionDetailResource($purchaseOrder);
+        $receptionDetailData = $receptionDetailResource->toArray(request());
+
+        $receptionSerialResource = new PurchaseOrderVehicleReceptionSerialResource($purchaseOrder);
+        $receptionSerialData = $receptionSerialResource->toArray(request());
+
+        // Sincronizar cabecera de recepción
         $receptionLog->markAsInProgress();
-        $syncService->sync('ap_vehicle_purchase_order_reception', $resourceData, 'create');
+        $syncService->sync('ap_vehicle_purchase_order_reception', $receptionData, 'create');
         $receptionLog->updateProcesoEstado(0);
 
+        // Sincronizar detalle de recepción
         $receptionDetailLog->markAsInProgress();
-        $syncService->sync('ap_vehicle_purchase_order_reception_det', $resourceData, 'create');
+        $syncService->sync('ap_vehicle_purchase_order_reception_det', $receptionDetailData, 'create');
         $receptionDetailLog->updateProcesoEstado(0);
 
+        // Sincronizar series/VIN de recepción
         $receptionSerialLog->markAsInProgress();
-        $syncService->sync('ap_vehicle_purchase_order_reception_det_s', $resourceData, 'create');
+        $syncService->sync('ap_vehicle_purchase_order_reception_det_s', $receptionSerialData, 'create');
         $receptionSerialLog->updateProcesoEstado(0);
 
         // Log::info("Reception synced: {$purchaseOrder->number_guide}");
