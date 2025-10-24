@@ -16,27 +16,32 @@ class VehiclePurchaseOrderDetailDynamicsResource extends JsonResource
    */
   public function toArray(Request $request): array
   {
+    $modelCode = ApModelsVn::find($this->ap_models_vn_id)?->code;
+    $warehouseCode = Warehouse::find($this->warehouse_id)?->dyn_code;
+
+    if (!$modelCode) throw new Exception("Model code not found for vehicle purchase order {$this->id}");
+    if (!$warehouseCode) throw new Exception("Warehouse code not found for vehicle purchase order {$this->id}");
 
     return [
-      'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
-      'OrdenCompraId' => fn($data) => $data['number'],
-      'Linea' => 1, // TODO: Aquí deberías implementar la lógica para obtener la línea correcta
-      'ArticuloId' => fn($data) => ApModelsVn::find($data['ap_models_vn_id'])->code,
-      'SitioId' => fn($data) => Warehouse::find($data['warehouse_id'])->dyn_code,
-      'UnidadMedidaId' => fn($data) => 'UND', // TODO: Asumiendo que siempre es 'UND', ajusta según sea necesario
-      'Cantidad' => 1, // TODO: Aquí deberías implementar la lógica para obtener la cantidad correcta
-      'CostoUnitario' => fn($data) => $data['subtotal'],
-      'CuentaNumeroInventario' => fn($data) => '',
-      'CodigoDimension1' => fn($data) => '',
-      'CodigoDimension2' => fn($data) => '',
-      'CodigoDimension3' => fn($data) => '',
-      'CodigoDimension4' => fn($data) => '',
-      'CodigoDimension5' => fn($data) => '',
-      'CodigoDimension6' => fn($data) => '',
-      'CodigoDimension7' => fn($data) => '',
-      'CodigoDimension8' => fn($data) => '',
-      'CodigoDimension9' => fn($data) => '',
-      'CodigoDimension10' => fn($data) => ''
+      'EmpresaId' => Company::AP_DYNAMICS,
+      'OrdenCompraId' => $this->number,
+      'Linea' => 1,
+      'ArticuloId' => $modelCode,
+      'SitioId' => $warehouseCode,
+      'UnidadMedidaId' => 'UND',
+      'Cantidad' => 1,
+      'CostoUnitario' => $this->subtotal,
+      'CuentaNumeroInventario' => '',
+      'CodigoDimension1' => '',
+      'CodigoDimension2' => '',
+      'CodigoDimension3' => '',
+      'CodigoDimension4' => '',
+      'CodigoDimension5' => '',
+      'CodigoDimension6' => '',
+      'CodigoDimension7' => '',
+      'CodigoDimension8' => '',
+      'CodigoDimension9' => '',
+      'CodigoDimension10' => ''
     ];
   }
 }
