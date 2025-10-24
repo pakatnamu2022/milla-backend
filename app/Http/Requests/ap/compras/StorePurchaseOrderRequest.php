@@ -10,18 +10,37 @@ class StorePurchaseOrderRequest extends StoreRequest
 {
   public function rules(): array
   {
-    return [
-//      Vehicle
-      'vin' => ['required', 'string', 'max:17', Rule::unique('ap_vehicles', 'vin')->whereNull('deleted_at')->where('status', 1),],
+    $hasVehicle = false;
+    if ($this->has('items') && is_array($this->items)) {
+      foreach ($this->items as $item) {
+        if (isset($item['is_vehicle']) && $item['is_vehicle'] === true) {
+          $hasVehicle = true;
+          break;
+        }
+      }
+    }
+
+    $vehicleRules = $hasVehicle ? [
+      'vin' => ['required', 'string', 'max:17', Rule::unique('ap_vehicles', 'vin')->whereNull('deleted_at')],
       'year' => ['required', 'integer', 'min:1900', 'max:2100'],
-      'engine_number' => ['required', 'string', 'max:30', Rule::unique('ap_vehicles', 'engine_number')->whereNull('deleted_at')->where('status', 1),],
+      'engine_number' => ['required', 'string', 'max:30', Rule::unique('ap_vehicles', 'engine_number')->whereNull('deleted_at')],
       'ap_models_vn_id' => ['required', 'integer', Rule::exists('ap_models_vn', 'id')->where('status', 1)->whereNull('deleted_at')],
       'vehicle_color_id' => ['required', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'COLOR_VEHICULO')->where('status', 1)->whereNull('deleted_at')],
       'supplier_order_type_id' => ['required', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'TIPO_PEDIDO_PROVEEDOR')->where('status', 1)->whereNull('deleted_at')],
       'engine_type_id' => ['required', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'TIPO_MOTOR')->where('status', 1)->whereNull('deleted_at')],
       'sede_id' => ['required', 'integer', Rule::exists('config_sede', 'id')->where('status', 1)->whereNull('deleted_at')],
+    ] : [
+      'vin' => ['nullable', 'string', 'max:17'],
+      'year' => ['nullable', 'integer', 'min:1900', 'max:2100'],
+      'engine_number' => ['nullable', 'string', 'max:30'],
+      'ap_models_vn_id' => ['nullable', 'integer', Rule::exists('ap_models_vn', 'id')->where('status', 1)->whereNull('deleted_at')],
+      'vehicle_color_id' => ['nullable', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'COLOR_VEHICULO')->where('status', 1)->whereNull('deleted_at')],
+      'supplier_order_type_id' => ['nullable', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'TIPO_PEDIDO_PROVEEDOR')->where('status', 1)->whereNull('deleted_at')],
+      'engine_type_id' => ['nullable', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'TIPO_MOTOR')->where('status', 1)->whereNull('deleted_at')],
+      'sede_id' => ['nullable', 'integer', Rule::exists('config_sede', 'id')->where('status', 1)->whereNull('deleted_at')],
+    ];
 
-
+    return array_merge($vehicleRules, [
       // Información de la Factura (Cabecera)
       'invoice_series' => ['required', 'string', 'max:10'],
       'invoice_number' => ['required', 'string', 'max:20'],
@@ -51,7 +70,7 @@ class StorePurchaseOrderRequest extends StoreRequest
       'items.*.unit_price' => ['required', 'numeric', 'min:0'],
       'items.*.quantity' => ['required', 'integer', 'min:1'],
       'items.*.is_vehicle' => ['nullable', 'boolean'],
-    ];
+    ]);
   }
 
   public function attributes()

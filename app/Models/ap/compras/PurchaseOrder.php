@@ -5,12 +5,14 @@ namespace App\Models\ap\compras;
 use App\Http\Traits\Reportable;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PurchaseOrder extends Model
@@ -108,6 +110,22 @@ class PurchaseOrder extends Model
   public function originalPurchaseOrder(): BelongsTo
   {
     return $this->belongsTo(PurchaseOrder::class, 'original_purchase_order_id');
+  }
+
+  /**
+   * Relación con Vehicle a través de VehicleMovement
+   * Si la PurchaseOrder tiene un vehicle_movement_id, podemos obtener el vehículo
+   */
+  public function vehicle(): HasOneThrough
+  {
+    return $this->hasOneThrough(
+      Vehicles::class,
+      VehicleMovement::class,
+      'id', // Foreign key en vehicle_movement
+      'id', // Foreign key en vehicles
+      'vehicle_movement_id', // Local key en purchase_order
+      'ap_vehicle_id' // Local key en vehicle_movement
+    );
   }
 
   // Accessor para el número con prefijo OC

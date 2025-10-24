@@ -5,13 +5,17 @@ namespace App\Http\Services\ap\compras;
 use App\Http\Resources\ap\compras\PurchaseOrderDynamicsResource;
 use App\Http\Resources\ap\compras\PurchaseOrderItemDynamicsResource;
 use App\Http\Resources\ap\compras\PurchaseOrderResource;
+use App\Http\Services\ap\comercial\VehicleMovementService;
+use App\Http\Services\ap\comercial\VehicleService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\DatabaseSyncService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
+use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseOrderItem;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\Sede;
 use Exception;
@@ -115,6 +119,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
   /**
    * Crea una nueva orden de compra
+   * Si tiene datos de vehículo, crea: Vehicle → VehicleMovement → PurchaseOrder
    * @throws Exception
    * @throws Throwable
    */
@@ -124,6 +129,23 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     try {
       // Guardar items temporalmente
       $items = $data['items'] ?? [];
+
+      // Verificar si la orden incluye un vehículo
+      $hasVehicle = false;
+      foreach ($items as $item) {
+        if (isset($item['is_vehicle']) && $item['is_vehicle'] === true) {
+          $hasVehicle = true;
+          break;
+        }
+      }
+
+      $vehicleMovementId = null;
+
+      // Si tiene vehículo, crear el flujo completo: Vehicle → VehicleMovement
+      if ($hasVehicle) {
+        $vehicleMovementId = $this->createVehicleAndMovement($data);
+        $data['vehicle_movement_id'] = $vehicleMovementId;
+      }
 
       // Enriquecer datos de la orden
       $data = $this->enrichData($data);
@@ -145,6 +167,45 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       DB::rollBack();
       throw $e;
     }
+  }
+
+  /**
+   * Crea el vehículo y su movimiento inicial
+   * @param array $data
+   * @return int ID del VehicleMovement creado
+   * @throws Exception
+   */
+  protected function createVehicleAndMovement(array $data): int
+  {
+    // 1. Crear el vehículo
+    $vehicleService = new VehicleService();
+    $vehicleData = [
+      'vin' => $data['vin'],
+      'year' => $data['year'],
+      'engine_number' => $data['engine_number'],
+      'ap_models_vn_id' => $data['ap_models_vn_id'],
+      'vehicle_color_id' => $data['vehicle_color_id'],
+      'supplier_order_type_id' => $data['supplier_order_type_id'],
+      'engine_type_id' => $data['engine_type_id'],
+      'sede_id' => $data['sede_id'],
+      'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
+    ];
+
+    $vehicle = $vehicleService->store($vehicleData);
+
+    // 2. Crear el movimiento del vehículo
+    $vehicleMovement = VehicleMovement::create([
+      'movement_type' => VehicleMovement::ORDERED,
+      'ap_vehicle_id' => $vehicle->id,
+      'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
+      'observation' => 'Creación de orden de compra con vehículo',
+      'movement_date' => now(),
+      'previous_status_id' => null,
+      'new_status_id' => ApVehicleStatus::PEDIDO_VN,
+      'created_by' => auth()->id(),
+    ]);
+
+    return $vehicleMovement->id;
   }
 
   /**
