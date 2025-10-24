@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\comercial;
 
+use App\Http\Resources\ap\configuracionComercial\vehiculo\VehicleAccessoryResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -66,17 +67,7 @@ class VehiclePurchaseOrderResource extends JsonResource
       'warehouse_physical' => $this->warehousePhysical?->description,
       'taxClassType' => $this->supplier->supplierTaxClassType->tax_class,
       'movements' => VehicleMovementResource::collection($this->movements),
-      'accessories' => $this->accessories->map(function ($accessory) {
-        return [
-          'id' => $accessory->id,
-          'accessory_id' => $accessory->accessory_id,
-          'accessory_code' => $accessory->accessory->code,
-          'accessory_description' => $accessory->accessory->description,
-          'unit_price' => $accessory->unit_price,
-          'quantity' => $accessory->quantity,
-          'total' => $accessory->total,
-        ];
-      }),
+      'accessories' => VehicleAccessoryResource::collection($this->accessories),
     ];
   }
 }

@@ -8,6 +8,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\DatabaseSyncService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
+use App\Jobs\VerifyAndMigratePurchaseOrderJob;
 use App\Models\ap\comercial\VehiclePurchaseOrder;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
@@ -83,11 +84,11 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
   {
     if ($isCreate) {
       $data['number'] =
-        $this->nextCorrelativeQuery(Sede::where('id', $data['sede_id']), 'id', 2) .
+        str_pad(Sede::where('id', $data['sede_id'])->first()->id, '0', 2) .
         $this->nextCorrelativeCount(VehiclePurchaseOrder::class, 8, ['sede_id' => $data['sede_id'], 'status' => true]);
 
       $data['number_guide'] =
-        $this->nextCorrelativeQuery(Sede::where('id', $data['sede_id']), 'id', 2) .
+        str_pad(Sede::where('id', $data['sede_id'])->first()->id, '0', 2) .
         $this->nextCorrelativeCount(VehiclePurchaseOrder::class, 8, ['sede_id' => $data['sede_id'], 'status' => true]);
 
       $data['ap_vehicle_status_id'] = ApVehicleStatus::PEDIDO_VN;
@@ -99,6 +100,10 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
     $unit_price = round($data['unit_price'], 2);
     $discount = round($data['discount'] ?? 0, 2);
     $has_isc = $data['has_isc'] ?? false;
+    $isc = round($unit_price * 0.1, 2); // ISC 10%
+    if ($has_isc) {
+      $unit_price += $isc;
+    }
 
     // Calcular el total de accesorios si existen
     $accessories_total = 0;
@@ -164,10 +169,14 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
       // Guardar accesorios si existen
       if (!empty($accessories)) {
         foreach ($accessories as $accessory) {
+          $unit_price = round($accessory['unit_price'], 2);
+          $quantity = $accessory['quantity'] ?? 1;
+          $total = round($unit_price * $quantity, 2);
           $vehiclePurchaseOrder->accessories()->create([
             'accessory_id' => $accessory['accessory_id'],
-            'unit_price' => $accessory['unit_price'],
-            'quantity' => $accessory['quantity'] ?? 1,
+            'unit_price' => $unit_price,
+            'quantity' => $quantity,
+            'total' => $total,
           ]);
         }
       }
@@ -179,14 +188,13 @@ class VehiclePurchaseOrderService extends BaseService implements BaseServiceInte
       $this->createInitialMigrationLogs($vehiclePurchaseOrder);
 
       // Validar y sincronizar antes de enviar la OC
-      $this->validateAndSyncBeforeSending($vehiclePurchaseOrder);
+      // $this->validateAndSyncBeforeSending($vehiclePurchaseOrder);
 
       // Enviar la orden de compra
-      $this->syncPurchaseOrder($vehiclePurchaseOrder);
+      //$this->syncPurchaseOrder($vehiclePurchaseOrder);
 
       // Despachar job de verificación y migración
-      \App\Jobs\VerifyAndMigratePurchaseOrderJob::dispatch($vehiclePurchaseOrder->id)
-        ->delay(now()->addSeconds(30)); // Esperar 30 segundos antes de verificar
+//      VerifyAndMigratePurchaseOrderJob::dispatch($vehiclePurchaseOrder->id)->delay(now()->addSeconds(30)); // Esperar 30 segundos antes de verificar
 
       DB::commit();
       return new VehiclePurchaseOrderResource($vehiclePurchaseOrder);

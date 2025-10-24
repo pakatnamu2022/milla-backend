@@ -78,10 +78,14 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
     try {
       $vehiclePurchaseOrder = VehiclePurchaseOrder::find($vehiclePurchaseOrderId);
       $vehicleMovement = VehicleMovement::create([
+        'movement_type' => VehicleMovement::ORDERED,
         'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
         'ap_vehicle_purchase_order_id' => $vehiclePurchaseOrder->id,
-        'movement_date' => now(),
         'observation' => 'Creación de orden de compra de vehículo',
+        'movement_date' => now(),
+        'previous_status_id' => null,
+        'new_status_id' => ApVehicleStatus::PEDIDO_VN,
+        'created_by' => auth()->id(),
       ]);
 
       DB::commit();

@@ -46,6 +46,9 @@ class VehicleMovement extends BaseModel
 
   const array sorts = ['id'];
 
+  const ORDERED = 'EN PEDIDO';
+  const IN_TRANSIT = 'TRAVESIA';
+
   public function vehicleStatus(): BelongsTo
   {
     return $this->belongsTo(ApVehicleStatus::class, 'ap_vehicle_status_id');

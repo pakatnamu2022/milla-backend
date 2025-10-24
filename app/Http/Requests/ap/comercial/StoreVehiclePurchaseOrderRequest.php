@@ -35,7 +35,7 @@ class StoreVehiclePurchaseOrderRequest extends StoreRequest
       'accessories' => ['nullable', 'array'],
       'accessories.*.accessory_id' => ['required', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'VEHICLE_ACCESSORY')->where('status', 1)->whereNull('deleted_at')],
       'accessories.*.unit_price' => ['required', 'numeric', 'min:0'],
-      'accessories.*.quantity' => ['nullable', 'integer', 'min:1'],
+      'accessories.*.quantity' => ['required', 'integer', 'min:1'],
 
       // Guide
       'warehouse_id' => ['required', 'integer', Rule::exists('warehouse', 'id')->where('type', Warehouse::REAL)->where('status', 1)->whereNull('deleted_at')],

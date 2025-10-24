@@ -6,6 +6,7 @@ use App\Http\Traits\Reportable;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\configuracionComercial\vehiculo\VehicleAccessory;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\maestroGeneral\ExchangeRate;
@@ -41,6 +42,7 @@ class VehiclePurchaseOrder extends Model
     'emission_date',
     'unit_price',
     'discount',
+    'isc',
     'has_isc',
     'subtotal',
     'igv',
