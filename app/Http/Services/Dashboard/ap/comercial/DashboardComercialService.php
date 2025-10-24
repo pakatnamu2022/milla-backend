@@ -11,12 +11,12 @@ class DashboardComercialService
   public function getTotalsByDateRangeTotal($dateFrom, $dateTo, $type)
   {
     // Total de visitas (todos los registros en el rango)
-    $totalVisits = PotentialBuyers::whereBetween('created_at', [$dateFrom, $dateTo])
+    $totalVisits = PotentialBuyers::whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
       ->where('type', $type)
       ->count();
 
     // Conteo por estado de atención
-    $attentionStats = PotentialBuyers::whereBetween('created_at', [$dateFrom, $dateTo])
+    $attentionStats = PotentialBuyers::whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
       ->where('type', $type)
       ->select('use', DB::raw('count(*) as total'))
       ->groupBy('use')
@@ -27,7 +27,7 @@ class DashboardComercialService
 
     // Conteo por estado de oportunidad (a través de opportunities)
     $opportunityStats = Opportunity::whereHas('lead', function ($query) use ($dateFrom, $dateTo, $type) {
-      $query->whereBetween('created_at', [$dateFrom, $dateTo])
+      $query->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
         ->where('type', $type);
     })
       ->with('opportunityStatus')
@@ -51,7 +51,7 @@ class DashboardComercialService
   public function getTotalsByDateRangeGrouped($dateFrom, $dateTo, $type)
   {
     // Agrupa posibles compradores por fecha y estado de atención
-    $stats = PotentialBuyers::whereBetween('created_at', [$dateFrom, $dateTo])
+    $stats = PotentialBuyers::whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
       ->where('type', $type)
       ->select(
         DB::raw('DATE(created_at) as fecha'),
@@ -129,7 +129,7 @@ class DashboardComercialService
 
     // Agrupa oportunidades por fecha y estado de oportunidad
     $opportunityStats = Opportunity::whereHas('lead', function ($query) use ($dateFrom, $dateTo, $type) {
-      $query->whereBetween('created_at', [$dateFrom, $dateTo])
+      $query->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
         ->where('type', $type);
     })
       ->with(['opportunityStatus', 'lead'])
@@ -161,7 +161,7 @@ class DashboardComercialService
   public function getTotalsBySede($dateFrom, $dateTo, $type)
   {
     $potentialBuyers = PotentialBuyers::with(['sede'])
-      ->whereBetween('created_at', [$dateFrom, $dateTo])
+      ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
       ->where('type', $type)
       ->get()
       ->groupBy('sede_id');
@@ -207,7 +207,7 @@ class DashboardComercialService
   public function getTotalsBySedeAndBrand($dateFrom, $dateTo, $type)
   {
     $stats = PotentialBuyers::with(['sede', 'vehicleBrand'])
-      ->whereBetween('created_at', [$dateFrom, $dateTo])
+      ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
       ->where('type', $type)
       ->select('sede_id', 'vehicle_brand_id', DB::raw('count(*) as total_visitas'))
       ->groupBy('sede_id', 'vehicle_brand_id')
@@ -232,7 +232,7 @@ class DashboardComercialService
   public function getTotalsByAdvisor($dateFrom, $dateTo, $type)
   {
     $stats = PotentialBuyers::with(['worker', 'sede', 'vehicleBrand'])
-      ->whereBetween('created_at', [$dateFrom, $dateTo])
+      ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
       ->where('type', $type)
       ->select(
         'worker_id',
@@ -283,7 +283,7 @@ class DashboardComercialService
     // Agregar estadísticas de oportunidades por asesor
     $opportunities = Opportunity::with(['opportunityStatus', 'lead'])
       ->whereHas('lead', function ($query) use ($dateFrom, $dateTo, $type) {
-        $query->whereBetween('created_at', [$dateFrom, $dateTo])
+        $query->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
           ->where('type', $type);
       })
       ->get();
@@ -312,7 +312,7 @@ class DashboardComercialService
   public function getTotalsByUser($dateFrom, $dateTo, $type)
   {
     $stats = PotentialBuyers::with(['user'])
-      ->whereBetween('created_at', [$dateFrom, $dateTo])
+      ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
       ->where('type', $type)
       ->select(
         'user_id',
@@ -357,7 +357,7 @@ class DashboardComercialService
     }
 
     // Agregar estadísticas de oportunidades por usuario
-    $potentialBuyersIds = PotentialBuyers::whereBetween('created_at', [$dateFrom, $dateTo])
+    $potentialBuyersIds = PotentialBuyers::whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
       ->where('type', $type)
       ->pluck('id', 'user_id')
       ->groupBy(function ($item, $key) {
@@ -366,7 +366,7 @@ class DashboardComercialService
 
     foreach ($result as $userId => &$userData) {
       $userLeadIds = PotentialBuyers::where('user_id', $userId)
-        ->whereBetween('created_at', [$dateFrom, $dateTo])
+        ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
         ->where('type', $type)
         ->pluck('id');
 
@@ -390,7 +390,7 @@ class DashboardComercialService
 
   public function getTotalsByCampaign($dateFrom, $dateTo, $type)
   {
-    $stats = PotentialBuyers::whereBetween('created_at', [$dateFrom, $dateTo])
+    $stats = PotentialBuyers::whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
       ->where('type', $type)
       ->select(
         'campaign',
@@ -436,7 +436,7 @@ class DashboardComercialService
     // Agregar estadísticas de oportunidades por campaña
     foreach ($result as $campaign => &$campaignData) {
       $campaignLeadIds = PotentialBuyers::where('campaign', $campaign === 'SIN_CAMPAÑA' ? null : $campaign)
-        ->whereBetween('created_at', [$dateFrom, $dateTo])
+        ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
         ->where('type', $type)
         ->pluck('id');
 
