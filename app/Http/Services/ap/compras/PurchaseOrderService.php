@@ -167,7 +167,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       }
 
       // Sincronizar con Dynamics si está habilitado
-      if (env('SYNC_DBTP_ENABLED', false)) {
+      if (config('database_sync.enabled', false)) {
         $this->syncPurchaseOrderToDynamics($purchaseOrder);
       }
 
@@ -280,7 +280,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       }
 
       // Sincronizar con Dynamics si está habilitado y la orden está pendiente de migración
-      if (env('SYNC_DBTP_ENABLED', false) && $purchaseOrder->migration_status !== 'completed') {
+      if (config('database_sync.enabled', false) && $purchaseOrder->migration_status !== 'completed') {
         $this->syncPurchaseOrderToDynamics($purchaseOrder);
       }
 

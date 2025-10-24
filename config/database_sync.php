@@ -21,6 +21,19 @@ return [
   |
   */
 
+  /*
+  |--------------------------------------------------------------------------
+  | Configuración Global
+  |--------------------------------------------------------------------------
+  */
+  'enabled' => env('SYNC_DBTP_ENABLED', false),
+
+  /*
+  |--------------------------------------------------------------------------
+  | Configuraciones de Entidades
+  |--------------------------------------------------------------------------
+  */
+
   // Configuración para la entidad "business_partners"
   'business_partners' => [
     // Primera base de datos externa (GPIN)
