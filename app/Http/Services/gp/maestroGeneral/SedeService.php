@@ -26,7 +26,7 @@ class SedeService extends BaseService
   {
     $user = $request->user();
     $company = $request->company;
-    $sedes = $user->sedes->where('empresa_id', $company);
+    $sedes = $user->sedes->where('empresa_id', $company)->whereNotNull('shop_id');
     return SedeResource::collection($sedes);
   }
 
