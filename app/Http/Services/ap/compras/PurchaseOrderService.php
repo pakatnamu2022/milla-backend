@@ -149,22 +149,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       $purchaseOrder = PurchaseOrder::create($data);
 
       // Guardar items si existen
-      if (!empty($items)) {
-        foreach ($items as $itemData) {
-          $unitPrice = round($itemData['unit_price'], 2);
-          $quantity = $itemData['quantity'] ?? 1;
-          $total = round($unitPrice * $quantity, 2);
-
-          $purchaseOrder->items()->create([
-            'unit_measurement_id' => $itemData['unit_measurement_id'],
-            'description' => $itemData['description'],
-            'unit_price' => $unitPrice,
-            'quantity' => $quantity,
-            'total' => $total,
-            'is_vehicle' => $itemData['is_vehicle'] ?? false,
-          ]);
-        }
-      }
+      $this->saveItemsIfExists($items, $purchaseOrder);
 
       // Sincronizar con Dynamics si está habilitado
       if (config('database_sync.enabled', false)) {
@@ -261,22 +246,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         $purchaseOrder->items()->delete();
 
         // Crear nuevos items
-        if (!empty($items)) {
-          foreach ($items as $itemData) {
-            $unitPrice = round($itemData['unit_price'], 2);
-            $quantity = $itemData['quantity'] ?? 1;
-            $total = round($unitPrice * $quantity, 2);
-
-            $purchaseOrder->items()->create([
-              'unit_measurement_id' => $itemData['unit_measurement_id'],
-              'description' => $itemData['description'],
-              'unit_price' => $unitPrice,
-              'quantity' => $quantity,
-              'total' => $total,
-              'is_vehicle' => $itemData['is_vehicle'] ?? false,
-            ]);
-          }
-        }
+        $this->saveItemsIfExists($items, $purchaseOrder);
       }
 
       // Sincronizar con Dynamics si está habilitado y la orden está pendiente de migración
@@ -308,6 +278,31 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       $purchaseOrder->delete();
     });
     return response()->json(['message' => 'Orden de compra eliminada correctamente']);
+  }
+
+  /**
+   * @param mixed $items
+   * @param $purchaseOrder
+   * @return void
+   */
+  public function saveItemsIfExists(mixed $items, $purchaseOrder): void
+  {
+    if (!empty($items)) {
+      foreach ($items as $itemData) {
+        $unitPrice = round($itemData['unit_price'], 2);
+        $quantity = $itemData['quantity'] ?? 1;
+        $total = round($unitPrice * $quantity, 2);
+
+        $purchaseOrder->items()->create([
+          'unit_measurement_id' => $itemData['unit_measurement_id'],
+          'description' => $itemData['description'],
+          'unit_price' => $unitPrice,
+          'quantity' => $quantity,
+          'total' => $total,
+          'is_vehicle' => $itemData['is_vehicle'] ?? false,
+        ]);
+      }
+    }
   }
 
 }
