@@ -3,64 +3,87 @@
 namespace App\Http\Controllers\ap\compras;
 
 use App\Http\Controllers\Controller;
-use App\Models\ap\compras\PurchaseOrder;
+use App\Http\Requests\ap\compras\IndexPurchaseOrderRequest;
+use App\Http\Requests\ap\compras\StorePurchaseOrderRequest;
+use App\Http\Requests\ap\compras\UpdatePurchaseOrderRequest;
+use App\Http\Services\ap\compras\PurchaseOrderService;
 use Illuminate\Http\Request;
 
 class PurchaseOrderController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+  protected PurchaseOrderService $service;
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+  public function __construct(PurchaseOrderService $service)
+  {
+    $this->service = $service;
+  }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
+  public function export(Request $request)
+  {
+    try {
+      return $this->service->export($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(PurchaseOrder $purchaseOrder)
-    {
-        //
+  public function index(IndexPurchaseOrderRequest $request)
+  {
+    try {
+      return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(PurchaseOrder $purchaseOrder)
-    {
-        //
+  public function store(StorePurchaseOrderRequest $request)
+  {
+    try {
+      return $this->success($this->service->store($request->all()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, PurchaseOrder $purchaseOrder)
-    {
-        //
+  public function show($id)
+  {
+    try {
+      return $this->success($this->service->show($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PurchaseOrder $purchaseOrder)
-    {
-        //
+  public function update(UpdatePurchaseOrderRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->update($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
+
+  public function destroy($id)
+  {
+    try {
+      return $this->service->destroy($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Reenvía una OC anulada con datos corregidos
+   * Crea nueva OC con punto (.) y la sincroniza a tabla intermedia
+   */
+  public function resend(StorePurchaseOrderRequest $request, $id)
+  {
+    try {
+      return $this->success($this->service->resend($request->all(), $id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

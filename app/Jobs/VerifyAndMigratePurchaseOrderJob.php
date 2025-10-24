@@ -2,6 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Http\Resources\ap\comercial\VehiclePurchaseOrderDetailDynamicsResource;
+use App\Http\Resources\ap\comercial\VehiclePurchaseOrderDynamicsResource;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderResource;
 use App\Http\Services\DatabaseSyncService;
 use App\Models\ap\comercial\BusinessPartners;
@@ -116,7 +118,6 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
     $supplier = $purchaseOrder->supplier;
 
     if (!$supplier) {
-      // Log::error("Supplier not found for purchase order: {$purchaseOrder->id}");
       return;
     }
 
@@ -256,13 +257,11 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       $purchaseOrder->number
     );
 
-    // Si ya está completado, no hacer nada
     if ($purchaseOrderLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED &&
       $purchaseOrderDetailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
       return;
     }
 
-    // Verificar que las dependencias estén completas
     $supplierLog = VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $purchaseOrder->id)
       ->where('step', VehiclePurchaseOrderMigrationLog::STEP_SUPPLIER)
       ->first();
@@ -272,16 +271,13 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       ->first();
 
     if (!$supplierLog || $supplierLog->proceso_estado !== 1) {
-      // Log::info("Waiting for supplier to be processed for PO: {$purchaseOrder->number}");
       return;
     }
 
     if (!$articleLog || $articleLog->proceso_estado !== 1) {
-      // Log::info("Waiting for article to be processed for PO: {$purchaseOrder->number}");
       return;
     }
 
-    // Verificar en la BD intermedia
     $existingPO = DB::connection('dbtp')
       ->table('neInTbOrdenCompra')
       ->where('EmpresaId', Company::AP_DYNAMICS)
@@ -289,32 +285,29 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       ->first();
 
     if (!$existingPO) {
-      // No existe, intentar sincronizar
       try {
-        $resource = new VehiclePurchaseOrderResource($purchaseOrder);
-        $resourceData = $resource->toArray(request());
+        $resourcePurchaseOrder = new VehiclePurchaseOrderDynamicsResource($purchaseOrder);
+        $resourceDataPurchaseOrder = $resourcePurchaseOrder->toArray(request());
+
+        $resourcePurchaseOrderDetail = new VehiclePurchaseOrderDetailDynamicsResource($purchaseOrder);
+        $resourceDataPurchaseOrderDetail = $resourcePurchaseOrderDetail->toArray(request());
 
         $purchaseOrderLog->markAsInProgress();
-        $syncService->sync('ap_vehicle_purchase_order', $resourceData, 'create');
+        $syncService->sync('ap_vehicle_purchase_order', $resourceDataPurchaseOrder);
         $purchaseOrderLog->updateProcesoEstado(0);
 
         $purchaseOrderDetailLog->markAsInProgress();
-        $syncService->sync('ap_vehicle_purchase_order_det', $resourceData, 'create');
+        $syncService->sync('ap_vehicle_purchase_order_det', $resourceDataPurchaseOrderDetail);
         $purchaseOrderDetailLog->updateProcesoEstado(0);
-
-        // Log::info("Purchase order synced: {$purchaseOrder->number}");
       } catch (\Exception $e) {
         $purchaseOrderLog->markAsFailed("Error al sincronizar orden de compra: {$e->getMessage()}");
-        // Log::error("Failed to sync purchase order {$purchaseOrder->number}: {$e->getMessage()}");
       }
     } else {
-      // Existe, actualizar el estado del log
       $purchaseOrderLog->updateProcesoEstado(
         $existingPO->ProcesoEstado ?? 0,
         $existingPO->ProcesoError ?? null
       );
 
-      // Verificar detalle
       $existingPODetail = DB::connection('dbtp')
         ->table('neInTbOrdenCompraDet')
         ->where('EmpresaId', Company::AP_DYNAMICS)

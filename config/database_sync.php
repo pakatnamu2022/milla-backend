@@ -225,18 +225,18 @@ return [
       'connection' => 'dbtp',
       'table' => 'neInTbOrdenCompra',
       'mapping' => [
-        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
-        'OrdenCompraId' => fn($data) => $data['number'],
-        'ProveedorId' => fn($data) => BusinessPartners::find($data['supplier_id'])->num_doc,
-        'FechaEmision' => fn($data) => $data['emission_date'],
-        'MonedaId' => fn($data) => TypeCurrency::find($data['currency_id'])->code,
-        'TipoTasaId' => fn($data) => VehiclePurchaseOrder::find($data['id'])->exchangeRate->type,
-        'TasaCambio' => fn($data) => VehiclePurchaseOrder::find($data['id'])->exchangeRate->rate,
-        'PlanImpuestoId' => fn($data) => VehiclePurchaseOrder::find($data['id'])->supplier?->supplierTaxClassType?->tax_class ?? throw new \Exception("Supplier or TaxClassType not found for PO {$data['id']}"),
-        'UsuarioId' => fn($data) => 'USUGP',
-        'Procesar' => 1,
-        'ProcesoEstado' => 0,
-        'ProcesoError' => fn($data) => '',
+        'EmpresaId' => fn($data) => $data['EmpresaId'],
+        'OrdenCompraId' => fn($data) => $data['OrdenCompraId'],
+        'ProveedorId' => fn($data) => $data['ProveedorId'],
+        'FechaEmision' => fn($data) => $data['FechaEmision'],
+        'MonedaId' => fn($data) => $data['MonedaId'],
+        'TipoTasaId' => fn($data) => $data['TipoTasaId'],
+        'TasaCambio' => fn($data) => $data['TasaCambio'],
+        'PlanImpuestoId' => fn($data) => $data['PlanImpuestoId'],
+        'UsuarioId' => fn($data) => $data['UsuarioId'],
+        'Procesar' => fn($data) => $data['Procesar'],
+        'ProcesoEstado' => fn($data) => $data['ProcesoEstado'],
+        'ProcesoError' => fn($data) => $data['ProcesoError'],
       ],
       'optional_mapping' => [
       ],
@@ -289,6 +289,7 @@ return [
     ]
   ],
 
+//  Configuración para la entidad "ap_vehicle_purchase_order_reception"
   'ap_vehicle_purchase_order_reception' => [
     'dbtp' => [
       'enabled' => env('SYNC_DBTP_ENABLED', false),
@@ -320,6 +321,7 @@ return [
     ]
   ],
 
+//  Configuración para la entidad "ap_vehicle_purchase_order_reception_det"
   'ap_vehicle_purchase_order_reception_det' => [
     'dbtp' => [
       'enabled' => env('SYNC_DBTP_ENABLED', false),
@@ -348,6 +350,7 @@ return [
     ]
   ],
 
+//  Configuración para la entidad "ap_vehicle_purchase_order_reception_det_s"
   'ap_vehicle_purchase_order_reception_det_s' => [
     'dbtp' => [
       'enabled' => env('SYNC_DBTP_ENABLED', false),

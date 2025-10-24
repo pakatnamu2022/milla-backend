@@ -10,6 +10,7 @@ use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\ShippingGuidesController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
+use App\Http\Controllers\ap\compras\PurchaseOrderController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFamiliesController;
@@ -746,8 +747,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
-      Route::get('vehiclePurchaseOrder/export', [VehiclePurchaseOrderController::class, 'export']);
-      Route::apiResource('vehiclePurchaseOrder', VehiclePurchaseOrderController::class)->only([
+      Route::get('vehiclePurchaseOrder/export', [PurchaseOrderController::class, 'export']);
+      Route::apiResource('vehiclePurchaseOrder', PurchaseOrderController::class)->only([
         'index',
         'show',
         'store',
@@ -756,7 +757,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Resend purchase order with credit note (creates new OC with point)
-      Route::post('vehiclePurchaseOrder/{id}/resend', [VehiclePurchaseOrderController::class, 'resend']);
+      Route::post('vehiclePurchaseOrder/{id}/resend', [PurchaseOrderController::class, 'resend']);
 
       // Vehicle Purchase Order Migration Monitoring
       Route::group(['prefix' => 'vehiclePurchaseOrder/migration'], function () {
