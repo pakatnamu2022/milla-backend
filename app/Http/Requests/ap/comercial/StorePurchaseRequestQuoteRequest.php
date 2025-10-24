@@ -41,6 +41,9 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'accessories.*.quantity' => ['required', 'integer', 'min:1'],
 
       'type_currency_id' => ['required', 'exists:ap_commercial_masters,id'],
+
+      // Sede
+      'sede_id' => ['required', 'exists:config_sede,id']
     ];
   }
 
@@ -110,6 +113,9 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
 
       'type_currency_id.required' => 'El campo tipo de moneda es obligatorio.',
       'type_currency_id.exists' => 'El tipo de moneda seleccionado no es válido.',
+
+      'sede_id.required' => 'El campo sede es obligatorio.',
+      'sede_id.exists' => 'La sede seleccionada no es válida.'
     ];
   }
 }

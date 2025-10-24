@@ -6,6 +6,7 @@ use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\gp\maestroGeneral\ExchangeRate;
+use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -38,6 +39,7 @@ class PurchaseRequestQuote extends Model
     'ap_vehicle_purchase_order_id',
     'type_currency_id',
     'doc_type_currency_id',
+    'sede_id'
   ];
 
   const filters = [
@@ -55,6 +57,7 @@ class PurchaseRequestQuote extends Model
     'doc_type_currency_id' => '=',
     'is_invoiced' => '=',
     'is_approved' => '=',
+    'sede_id' => '=',
   ];
 
   const sorts = [
@@ -125,5 +128,10 @@ class PurchaseRequestQuote extends Model
   public function vehiclePurchaseOrders(): belongsTo
   {
     return $this->belongsTo(VehiclePurchaseOrder::class, 'ap_vehicle_purchase_order_id');
+  }
+
+  public function sede(): BelongsTo
+  {
+    return $this->belongsTo(Sede::class, 'sede_id');
   }
 }
