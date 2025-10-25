@@ -46,6 +46,10 @@ class ShippingGuides extends Model
     'created_by',
     'transfer_reason_id',
     'transfer_modality_id',
+    'is_received',
+    'note_received',
+    'received_by',
+    'received_date',
     'cancellation_reason',
     'cancelled_by',
     'cancelled_at',
@@ -103,6 +107,16 @@ class ShippingGuides extends Model
   public function setDriverNameAttribute($value)
   {
     $this->attributes['driver_name'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setNotesAttribute($value): void
+  {
+    $this->attributes['notes'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setNoteReceivedAttribute($value): void
+  {
+    $this->attributes['note_received'] = Str::upper(Str::ascii($value));
   }
 
   public function vehicleMovement(): BelongsTo

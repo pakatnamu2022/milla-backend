@@ -57,6 +57,7 @@ class ShippingGuidesResource extends JsonResource
       'transport_company_id' => $this->transport_company_id,
       'sede_transmitter_id' => $this->sede_transmitter_id,
       'sede_receiver_id' => $this->sede_receiver_id,
+      'is_received' => $this->is_received,
       // Relaciones
       'sede_transmitter' => $this->sedeTransmitter->abreviatura ?? "-",
       'sede_receiver' => $this->sedeReceiver->abreviatura ?? "-",

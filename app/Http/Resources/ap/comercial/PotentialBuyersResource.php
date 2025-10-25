@@ -34,6 +34,7 @@ class PotentialBuyersResource extends JsonResource
       'district' => $this->sede->district->name ?? null,
       'status_num_doc' => $this->status_num_doc,
       'client_id' => $this->client_id,
+      'created_at' => $this->created_at ? $this->created_at->format('Y-m-d') : null,
     ];
   }
 }

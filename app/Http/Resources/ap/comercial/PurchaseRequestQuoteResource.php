@@ -62,6 +62,8 @@ class PurchaseRequestQuoteResource extends JsonResource
           'total' => $accessory->total,
         ];
       }),
+      'sede_id' => $this->sede_id ?? null,
+      'sede' => $this->sede->abreviatura ?? null,
       'created_at' => $this->created_at,
       'updated_at' => $this->updated_at,
     ];

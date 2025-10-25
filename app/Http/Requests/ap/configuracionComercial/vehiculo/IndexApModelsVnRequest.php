@@ -9,7 +9,7 @@ class IndexApModelsVnRequest extends IndexRequest
   public function rules(): array
   {
     return [
-      //
+      'all' => 'sometimes|in:true,false',
     ];
   }
 }

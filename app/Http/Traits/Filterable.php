@@ -178,6 +178,13 @@ trait Filterable
           $query->whereBetween($filter, $value);
         }
         break;
+      case 'date_btw':
+      case 'date_between':
+        if (is_array($value) && count($value) === 2) {
+          $query->whereDate($filter, '>=', $value[0])
+            ->whereDate($filter, '<=', $value[1]);
+        }
+        break;
       case '>':
         $query->where($filter, '>', $value);
         break;

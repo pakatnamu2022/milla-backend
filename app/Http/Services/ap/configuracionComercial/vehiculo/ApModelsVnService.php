@@ -9,12 +9,37 @@ use App\Models\ap\configuracionComercial\vehiculo\ApFamilies;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class ApModelsVnService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
+    $all = $request->query('all') === 'true';
+    $onlyAll = $all && count($request->except(['all'])) === 0;
+
+    if ($onlyAll) {
+      $isCached = Cache::has('models.all');
+      \Log::info('ApModelsVn - Usando caché: ' . ($isCached ? 'SI (desde caché)' : 'NO (generando nueva)'));
+
+      // Cachear solo los datos, no la respuesta completa
+      $data = Cache::remember('models.all', now()->addMonth(), function () use ($request) { // 1 mes
+        $response = $this->getFilteredResults(
+          ApModelsVn::class,
+          $request,
+          ApModelsVn::filters,
+          ApModelsVn::sorts,
+          ApModelsVnResource::class,
+        );
+        // Retornar solo el contenido JSON decodificado
+        return json_decode($response->content(), true);
+      });
+
+      // Crear respuesta y agregar header para indicar si viene de caché
+      return response()->json($data)->header('X-Cache-Status', $isCached ? 'HIT' : 'MISS');
+    }
+
     return $this->getFilteredResults(
       ApModelsVn::class,
       $request,
@@ -37,6 +62,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
   {
     $existe = ApModelsVn::where('family_id', $data['family_id'])
       ->where('model_year', $data['model_year'])
+      ->where('version', $data['version'])
       ->whereNull('deleted_at')
       ->exists();
 
@@ -47,11 +73,15 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     $familia = ApFamilies::findOrFail($data['family_id']);
     $anioCorto = substr($data['model_year'], -2);
     $data['code'] = $familia->code . $anioCorto . $this->nextCorrelativeCount(
-      ApModelsVn::class,
-      3,
-      ['family_id' => $data['family_id']]
-    );
+        ApModelsVn::class,
+        3,
+        ['family_id' => $data['family_id']]
+      );
     $engineType = ApModelsVn::create($data);
+
+    // Invalidar caché
+    Cache::forget('models.all');
+
     return new ApModelsVnResource($engineType);
   }
 
@@ -64,11 +94,11 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
   {
     $modelVn = $this->find($data['id']);
 
-    $familyId   = $data['family_id'] ?? null;
-    $modelYear  = $data['model_year'] ?? null;
+    $familyId = $data['family_id'] ?? null;
+    $modelYear = $data['model_year'] ?? null;
 
     $familiaChanged = $familyId !== null && $modelVn->family_id != $familyId;
-    $anioChanged    = $modelYear !== null && $modelVn->model_year != $modelYear;
+    $anioChanged = $modelYear !== null && $modelVn->model_year != $modelYear;
 
     if ($familiaChanged || $anioChanged) {
       $existe = ApModelsVn::where('family_id', $familyId)
@@ -81,17 +111,20 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
         throw new Exception('Ya existe un modelo con esa familia y año.');
       }
 
-      $familia   = ApFamilies::findOrFail($familyId);
+      $familia = ApFamilies::findOrFail($familyId);
       $anioCorto = substr($modelYear, -2);
 
       $data['code'] = $familia->code . $anioCorto . $this->nextCorrelativeCount(
-        ApModelsVn::class,
-        3,
-        ['family_id' => $familyId]
-      );
+          ApModelsVn::class,
+          3,
+          ['family_id' => $familyId]
+        );
     }
 
     $modelVn->update($data);
+
+    // Invalidar caché
+    Cache::forget('models.all');
 
     return new ApModelsVnResource($modelVn);
   }
@@ -103,6 +136,10 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     DB::transaction(function () use ($engineType) {
       $engineType->delete();
     });
+
+    // Invalidar caché
+    Cache::forget('models.all');
+
     return response()->json(['message' => 'Modelo VN eliminado correctamente']);
   }
 }
