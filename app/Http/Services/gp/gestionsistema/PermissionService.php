@@ -211,7 +211,13 @@ class PermissionService extends BaseService implements BaseServiceInterface
 
   public function list(Request $request)
   {
-    return $this->getFilteredResults(Permission::class, $request, [], [], PermissionResource::class);
+    return $this->getFilteredResults(
+      Permission::class,
+      $request,
+      Permission::filters,
+      Permission::sorts,
+      PermissionResource::class,
+    );
   }
 
   public function find(int $id)
@@ -233,5 +239,95 @@ class PermissionService extends BaseService implements BaseServiceInterface
   public function show(int $id)
   {
     return new PermissionResource($this->find($id));
+  }
+
+  /**
+   * Crear múltiples permisos para un módulo/vista
+   *
+   * @param array $data ['module', 'module_name', 'actions', 'vista_id', 'type', 'is_active']
+   * @return array ['created' => [...permissions], 'ids' => [...ids]]
+   */
+  public function bulkCreate(array $data): array
+  {
+    DB::beginTransaction();
+    try {
+      $module = $data['module'];
+      $moduleName = $data['module_name'];
+      $actions = $data['actions'];
+      $vistaId = $data['vista_id'] ?? null;
+      $type = $data['type'] ?? 'basic';
+      $isActive = $data['is_active'] ?? true;
+
+      $permissionsConfig = config('permissions.actions');
+      $createdPermissions = [];
+      $createdIds = [];
+
+      foreach ($actions as $action) {
+        // Validar que la acción existe en el config
+        if (!isset($permissionsConfig[$action])) {
+          throw new \Exception("Acción '{$action}' no es válida");
+        }
+
+        $actionConfig = $permissionsConfig[$action];
+        $code = "{$module}.{$action}";
+
+        // Verificar si ya existe el permiso
+        $existingPermission = Permission::where('code', $code)->first();
+
+        if ($existingPermission) {
+          // Si ya existe, lo agregamos a la respuesta
+          $createdPermissions[] = new PermissionResource($existingPermission);
+          $createdIds[] = $existingPermission->id;
+          continue;
+        }
+
+        // Crear el permiso
+        $permission = Permission::create([
+          'code' => $code,
+          'name' => "{$actionConfig['label']} {$moduleName}",
+          'description' => $actionConfig['description'],
+          'module' => $module,
+          'vista_id' => $vistaId,
+          'policy_method' => $actionConfig['policy_method'] ?? $action,
+          'type' => $type,
+          'is_active' => $isActive,
+        ]);
+
+        $createdPermissions[] = new PermissionResource($permission);
+        $createdIds[] = $permission->id;
+      }
+
+      DB::commit();
+
+      return [
+        'created' => $createdPermissions,
+        'ids' => $createdIds,
+        'count' => count($createdIds),
+        'message' => count($createdIds) . ' permiso(s) creado(s) correctamente',
+      ];
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw new \Exception("Error al crear permisos: " . $e->getMessage());
+    }
+  }
+
+  /**
+   * Obtener las acciones disponibles desde la configuración
+   */
+  public function getAvailableActions(): array
+  {
+    $actions = config('permissions.actions');
+    $formatted = [];
+
+    foreach ($actions as $value => $config) {
+      $formatted[] = [
+        'value' => $value,
+        'label' => $config['label'],
+        'description' => $config['description'],
+        'icon' => $config['icon'] ?? null,
+      ];
+    }
+
+    return $formatted;
   }
 }

@@ -42,6 +42,7 @@ class Permission extends BaseModel
     'module' => '=',
     'type' => '=',
     'is_active' => '=',
+    'vista_id' => '=',
   ];
 
   const sorts = [

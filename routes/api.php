@@ -145,7 +145,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     // PERMISSIONS
     Route::get('permission/grouped-by-module', [PermissionController::class, 'groupedByModule'])->name('permission.grouped-by-module');
+    Route::get('permission/available-actions', [PermissionController::class, 'getAvailableActions'])->name('permission.available-actions');
     Route::get('permission/{id}/get-by-role', [PermissionController::class, 'getByRole'])->name('permission.getByRole');
+    Route::post('permission/bulk-create', [PermissionController::class, 'bulkCreate'])->name('permission.bulk-create');
     Route::post('permission/assign-to-role', [PermissionController::class, 'assignToRole'])->name('permission.assign-to-role');
     Route::post('permission/assigns-to-role', [PermissionController::class, 'assignMultipleToRole'])->name('permission.assigns-to-role');
     Route::post('permission/sync-permissions-to-role', [PermissionController::class, 'syncToRole'])->name('permission.syncPermissionsToRole');

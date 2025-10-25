@@ -4,6 +4,7 @@ namespace App\Http\Controllers\gp\gestionsistema;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionsistema\IndexPermissionRequest;
+use App\Http\Requests\gp\gestionsistema\StoreBulkPermissionRequest;
 use App\Http\Requests\gp\gestionsistema\StoreMultiplePermissionRoleRequest;
 use App\Http\Requests\gp\gestionsistema\StorePermissionRequest;
 use App\Http\Requests\gp\gestionsistema\StorePermissionRoleRequest;
@@ -195,6 +196,35 @@ class PermissionController extends Controller
   {
     try {
       return $this->success($this->service->getPermissionsByRole($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Crear múltiples permisos para una vista/módulo
+   */
+  public function bulkCreate(StoreBulkPermissionRequest $request)
+  {
+    try {
+      $result = $this->service->bulkCreate($request->validated());
+      return $this->success($result);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Obtener acciones disponibles desde la configuración
+   */
+  public function getAvailableActions()
+  {
+    try {
+      $actions = $this->service->getAvailableActions();
+      return $this->success([
+        'actions' => $actions,
+        'default_actions' => config('permissions.default_actions'),
+      ]);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
