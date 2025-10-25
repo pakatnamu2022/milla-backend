@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ap\ApCommercialMastersController;
+use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersEstablishmentController;
 use App\Http\Controllers\ap\comercial\OpportunityActionController;
@@ -770,6 +771,17 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Vehicle Documents (Guías de Remisión/Traslado)
       Route::post('shippingGuides/{id}/cancel', [ShippingGuidesController::class, 'cancel']);
       Route::apiResource('shippingGuides', ShippingGuidesController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Receiving Checklist
+      Route::get('receivingChecklist/byShippingGuide/{shippingGuideId}', [ApReceivingChecklistController::class, 'getByShippingGuide']);
+      Route::delete('receivingChecklist/byShippingGuide/{shippingGuideId}', [ApReceivingChecklistController::class, 'destroyByShippingGuide']);
+      Route::apiResource('receivingChecklist', ApReceivingChecklistController::class)->only([
         'index',
         'show',
         'store',

@@ -49,6 +49,11 @@ return new class extends Migration {
       $table->foreign('created_by')
         ->references('id')
         ->on('usr_users');
+      // Info de recepcion
+      $table->boolean('is_received')->default(false);
+      $table->string('note_received', 250)->nullable();
+      $table->integer('received_by')->nullable();
+      $table->date('received_date')->nullable();
       // Cancelación
       $table->text('cancellation_reason')->nullable();
       $table->integer('cancelled_by')->nullable();

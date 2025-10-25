@@ -41,6 +41,8 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'accessories.*.quantity' => ['required', 'integer', 'min:1'],
 
       'type_currency_id' => ['sometimes', 'exists:ap_commercial_masters,id'],
+
+      'sede_id' => ['sometimes', 'exists:config_sede,id']
     ];
   }
 
@@ -100,6 +102,8 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'accessories.*.quantity.min' => 'La cantidad debe ser al menos 1.',
 
       'type_currency_id.exists' => 'El tipo de moneda seleccionado no es válido.',
+
+      'sede_id.exists' => 'La sede seleccionada no es válida.',
     ];
   }
 }

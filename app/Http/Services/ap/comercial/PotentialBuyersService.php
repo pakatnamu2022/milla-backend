@@ -248,7 +248,7 @@ class PotentialBuyersService extends BaseService
       // Construir mensaje descriptivo
       $message = "Importación completada: {$imported} de {$totalRows} registros importados exitosamente";
       if ($duplicated > 0) {
-        $message .= ", {$duplicated} ya están registrados en el mes actual";
+        $message .= ", {$duplicated} registros estan duplicados en el archivo o ya están registrados en el mes actual";
       }
       if ($errors > 0) {
         $message .= ", {$errors} con errores";
@@ -379,7 +379,7 @@ class PotentialBuyersService extends BaseService
       // Construir mensaje descriptivo
       $message = "Importación de redes sociales completada: {$imported} de {$totalRows} registros importados exitosamente";
       if ($duplicated > 0) {
-        $message .= ", {$duplicated} ya están registrados en el mes actual";
+        $message .= ", {$duplicated} registros estan duplicados en el archivo o ya están registrados en el mes actual";
       }
       if ($errors > 0) {
         $message .= ", {$errors} con errores";

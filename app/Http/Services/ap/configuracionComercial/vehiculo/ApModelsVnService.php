@@ -62,6 +62,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
   {
     $existe = ApModelsVn::where('family_id', $data['family_id'])
       ->where('model_year', $data['model_year'])
+      ->where('version', $data['version'])
       ->whereNull('deleted_at')
       ->exists();
 

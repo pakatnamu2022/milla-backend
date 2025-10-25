@@ -50,6 +50,7 @@ class PotentialBuyers extends Model
     'vehicle_brand_id' => '=',
     'document_type_id' => '=',
     'registration_date' => 'between',
+    'created_at' => 'date_btw',
     'type' => '=',
     'income_sector_id' => '=',
     'area_id' => '=',
@@ -71,6 +72,7 @@ class PotentialBuyers extends Model
     'campaign',
     'sede_id',
     'vehicle_brand_id',
+    'created_at'
   ];
 
   public function getClientIdAttribute(): ?int
