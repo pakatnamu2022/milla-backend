@@ -17,7 +17,8 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
   public function list(Request $request)
   {
     $all = $request->query('all') === 'true';
-    $onlyAll = $all && count($request->except(['all'])) === 0;
+    $status = $request->query('status') == 1;
+    $onlyAll = $all && $status && count($request->except(['all'])) === 1;
 
     if ($onlyAll) {
       $isCached = Cache::has('models.all');
