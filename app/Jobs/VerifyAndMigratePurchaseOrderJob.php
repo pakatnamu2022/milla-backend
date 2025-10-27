@@ -4,20 +4,16 @@ namespace App\Jobs;
 
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderDetailDynamicsResource;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderDynamicsResource;
-use App\Http\Resources\ap\comercial\VehiclePurchaseOrderResource;
 use App\Http\Resources\ap\compras\PurchaseOrderVehicleReceptionResource;
 use App\Http\Resources\ap\compras\PurchaseOrderVehicleReceptionDetailResource;
 use App\Http\Resources\ap\compras\PurchaseOrderVehicleReceptionSerialResource;
 use App\Http\Services\DatabaseSyncService;
-use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
-use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\gp\gestionsistema\Company;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
 {

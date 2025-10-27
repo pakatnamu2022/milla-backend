@@ -36,18 +36,19 @@ class VehicleMovement extends BaseModel
 
   const array filters = [
     'id',
+    'ap_vehicle_id',
     'movement_type',
     'ap_vehicle_status_id',
-    'ap_vehicle_purchase_order_id',
     'previous_status_id',
     'new_status_id',
     'created_by',
   ];
 
-  const array sorts = ['id'];
+  const array sorts = ['id', 'ap_vehicle_id'];
 
-  const ORDERED = 'EN PEDIDO';
-  const IN_TRANSIT = 'TRAVESIA';
+  const ORDERED = 'PEDIDO';
+  const IN_TRANSIT = 'EN TRAVESIA';
+  const IN_TRANSIT_RETURNED = 'EN TRAVESIA DEVUELTO';
 
   public function vehicleStatus(): BelongsTo
   {

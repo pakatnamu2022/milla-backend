@@ -12,6 +12,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\DatabaseSyncService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
+use App\Http\Utils\Constants;
 use App\Jobs\VerifyAndMigratePurchaseOrderJob;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\compras\PurchaseOrder;
@@ -187,10 +188,10 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       'engine_number' => $data['engine_number'],
       'ap_models_vn_id' => $data['ap_models_vn_id'],
       'vehicle_color_id' => $data['vehicle_color_id'],
-      'supplier_order_type_id' => $data['supplier_order_type_id'],
       'engine_type_id' => $data['engine_type_id'],
       'sede_id' => $data['sede_id'],
       'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
+      'type_operation_id' => Constants::TYPE_OPERATION_COMERCIAL_ID,
     ];
 
     $vehicle = $vehicleService->store($vehicleData);
@@ -212,8 +213,8 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
   /**
    * Sincroniza la orden de compra con Dynamics
-   * @deprecated Usar VerifyAndMigratePurchaseOrderJob en su lugar
    * @throws Exception
+   * @deprecated Usar VerifyAndMigratePurchaseOrderJob en su lugar
    */
   // protected function syncPurchaseOrderToDynamics(PurchaseOrder $purchaseOrder): void
   // {

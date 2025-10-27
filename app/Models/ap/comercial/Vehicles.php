@@ -24,10 +24,10 @@ class Vehicles extends Model
     'engine_number',
     'ap_models_vn_id',
     'vehicle_color_id',
-    'supplier_order_type_id',
     'engine_type_id',
     'ap_vehicle_status_id',
-    'sede_id',
+    'type_operation_id',
+    'status',
     'warehouse_physical_id',
   ];
 
@@ -41,7 +41,6 @@ class Vehicles extends Model
     'ap_vehicle_status_id' => '=',
     'vehicle_color_id' => '=',
     'engine_type_id' => '=',
-    'sede_id' => '=',
     'warehouse_physical_id' => '=',
     'year' => '=',
   ];
@@ -64,17 +63,12 @@ class Vehicles extends Model
     return $this->belongsTo(ApCommercialMasters::class, 'vehicle_color_id');
   }
 
-  public function supplierOrderType(): BelongsTo
-  {
-    return $this->belongsTo(ApCommercialMasters::class, 'supplier_order_type_id');
-  }
-
   public function engineType(): BelongsTo
   {
     return $this->belongsTo(ApCommercialMasters::class, 'engine_type_id');
   }
 
-  public function status(): BelongsTo
+  public function vehicleStatus(): BelongsTo
   {
     return $this->belongsTo(ApVehicleStatus::class, 'ap_vehicle_status_id');
   }

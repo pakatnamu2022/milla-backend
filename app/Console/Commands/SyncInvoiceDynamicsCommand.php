@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Jobs\SyncInvoiceDynamicsJob;
-use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\compras\PurchaseOrder;
 use Illuminate\Console\Command;
 
 class SyncInvoiceDynamicsCommand extends Command
@@ -52,7 +52,7 @@ class SyncInvoiceDynamicsCommand extends Command
    */
   protected function syncSinglePurchaseOrder(int $purchaseOrderId): int
   {
-    $purchaseOrder = VehiclePurchaseOrder::find($purchaseOrderId);
+    $purchaseOrder = PurchaseOrder::find($purchaseOrderId);
 
     if (!$purchaseOrder) {
       $this->error("Orden de compra #{$purchaseOrderId} no encontrada");
@@ -81,7 +81,7 @@ class SyncInvoiceDynamicsCommand extends Command
     // Obtener OCs que:
     // 1. No tienen invoice_dynamics (flujo normal)
     // 2. Están completed y tienen credit_note_dynamics (para detectar cambio de factura)
-    $count = VehiclePurchaseOrder::where(function ($query) {
+    $count = PurchaseOrder::where(function ($query) {
       $query->where(function ($q) {
         // Caso 1: Sin invoice
         $q->whereNull('invoice_dynamics')

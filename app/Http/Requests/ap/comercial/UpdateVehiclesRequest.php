@@ -2,19 +2,11 @@
 
 namespace App\Http\Requests\ap\comercial;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\StoreRequest;
 use Illuminate\Validation\Rule;
 
-class UpdateVehiclesRequest extends FormRequest
+class UpdateVehiclesRequest extends StoreRequest
 {
-  /**
-   * Determine if the user is authorized to make this request.
-   */
-  public function authorize(): bool
-  {
-    return true;
-  }
-
   /**
    * Get the validation rules that apply to the request.
    *
@@ -33,7 +25,7 @@ class UpdateVehiclesRequest extends FormRequest
         'min:17',
         Rule::unique('ap_vehicles', 'vin')->ignore($vehicleId)->whereNull('deleted_at')
       ],
-      'year' => 'sometimes|required|integer|min:1900|max:' . (date('Y') + 2),
+      'year' => 'sometimes|required|integer|min:1900|max:' . ((int)date('Y') + 2),
       'engine_number' => [
         'sometimes',
         'required',
@@ -66,7 +58,7 @@ class UpdateVehiclesRequest extends FormRequest
       'year.required' => 'El año es requerido',
       'year.integer' => 'El año debe ser un número entero',
       'year.min' => 'El año debe ser mayor a 1900',
-      'year.max' => 'El año no puede ser mayor a ' . (date('Y') + 2),
+      'year.max' => 'El año no puede ser mayor a ' . ((int)date('Y') + 2),
       'engine_number.required' => 'El número de motor es requerido',
       'engine_number.unique' => 'El número de motor ya existe en el sistema',
       'ap_models_vn_id.required' => 'El modelo es requerido',

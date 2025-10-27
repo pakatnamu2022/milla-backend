@@ -48,10 +48,7 @@ return new class extends Migration {
       $table->enum('migration_status', ['pending', 'in_progress', 'completed', 'failed', 'updated_with_nc'])->default('pending')->comment('Estado de la migración a la BD intermedia');
       $table->boolean('status')->default(true)->comment('Estado de la OC: true=activa, false=anulada (con NC)');
 
-      $table->foreignId('vehicle_movement_id')->constrained('ap_vehicle_movement')->onDelete('cascade');
-      
-      $table->integer('sede_id');
-      $table->foreign('sede_id')->references('id')->on('config_sede');
+      $table->foreignId('vehicle_movement_id')->nullable()->constrained('ap_vehicle_movement')->onDelete('cascade');
 
 //      TIMESTAMPS
       $table->timestamp('migrated_at')->nullable()->comment('Fecha y hora en que se completó la migración');

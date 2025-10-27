@@ -6,7 +6,8 @@ use App\Http\Resources\ap\comercial\VehicleMovementResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\comercial\VehicleMovement;
-use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -53,7 +54,7 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
     try {
       // Validate that the purchase order exists if provided
       if (isset($data['ap_vehicle_purchase_order_id'])) {
-        $vehiclePurchaseOrder = VehiclePurchaseOrder::find($data['ap_vehicle_purchase_order_id']);
+        $vehiclePurchaseOrder = PurchaseOrder::find($data['ap_vehicle_purchase_order_id']);
         if (!$vehiclePurchaseOrder) {
           throw new Exception('Orden de compra de vehículo no encontrada');
         }
@@ -76,11 +77,11 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
   {
     DB::beginTransaction();
     try {
-      $vehiclePurchaseOrder = VehiclePurchaseOrder::find($vehiclePurchaseOrderId);
+      $vehiclePurchaseOrder = PurchaseOrder::find($vehiclePurchaseOrderId);
       $vehicleMovement = VehicleMovement::create([
         'movement_type' => VehicleMovement::ORDERED,
         'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
-        'ap_vehicle_purchase_order_id' => $vehiclePurchaseOrder->id,
+        'ap_vehicle_id' => $vehiclePurchaseOrder->id,
         'observation' => 'Creación de orden de compra de vehículo',
         'movement_date' => now(),
         'previous_status_id' => null,
@@ -104,19 +105,24 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
   {
     DB::beginTransaction();
     try {
-      $vehiclePurchaseOrder = VehiclePurchaseOrder::find($vehiclePurchaseOrderId);
-      if (!$vehiclePurchaseOrder) {
+      $vehiclePurchaseOrder = PurchaseOrder::find($vehiclePurchaseOrderId);
+      $vehicleId = $vehiclePurchaseOrder->vehicle->id;
+      $vehicle = Vehicles::find($vehicleId);
+      if (!$vehiclePurchaseOrder || !$vehicleId || !$vehicle) {
         throw new Exception('Orden de compra de vehículo no encontrada');
       }
 
       $vehicleMovement = VehicleMovement::create([
+        'movement_type' => VehicleMovement::IN_TRANSIT,
+        'ap_vehicle_id' => $vehicleId,
         'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-        'ap_vehicle_purchase_order_id' => $vehiclePurchaseOrder->id,
         'movement_date' => now(),
         'observation' => 'Vehículo en tránsito - Factura Dynamics: ' . $vehiclePurchaseOrder->invoice_dynamics,
+        'previous_status_id' => ApVehicleStatus::PEDIDO_VN,
+        'new_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
       ]);
 
-      $vehiclePurchaseOrder->update([
+      $vehicle->update([
         'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
       ]);
 
@@ -136,17 +142,22 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
   {
     DB::beginTransaction();
     try {
-      $vehiclePurchaseOrder = VehiclePurchaseOrder::find($vehiclePurchaseOrderId);
-      if (!$vehiclePurchaseOrder) {
+      $vehiclePurchaseOrder = PurchaseOrder::find($vehiclePurchaseOrderId);
+      $vehicleId = $vehiclePurchaseOrder->vehicle->id;
+      $vehicle = Vehicles::find($vehicleId);
+      if (!$vehiclePurchaseOrder || !$vehicleId || !$vehicle) {
         throw new Exception('Orden de compra de vehículo no encontrada');
       }
       $vehicleMovement = VehicleMovement::create([
+        'movement_type' => VehicleMovement::IN_TRANSIT_RETURNED,
+        'ap_vehicle_id' => $vehicleId,
         'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
-        'ap_vehicle_purchase_order_id' => $vehiclePurchaseOrder->id,
         'movement_date' => now(),
         'observation' => 'Vehículo devuelto por NC: ' . ($creditNote ?? ''),
+        'previous_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+        'new_status_id' => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
       ]);
-      $vehiclePurchaseOrder->update([
+      $vehicle->update([
         'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
       ]);
       DB::commit();
@@ -178,7 +189,7 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
 
       // Validate that the purchase order exists if provided
       if (isset($data['ap_vehicle_purchase_order_id'])) {
-        $vehiclePurchaseOrder = VehiclePurchaseOrder::find($data['ap_vehicle_purchase_order_id']);
+        $vehiclePurchaseOrder = PurchaseOrder::find($data['ap_vehicle_purchase_order_id']);
         if (!$vehiclePurchaseOrder) {
           throw new Exception('Orden de compra de vehículo no encontrada');
         }

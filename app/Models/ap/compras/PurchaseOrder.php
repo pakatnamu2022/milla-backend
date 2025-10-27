@@ -3,6 +3,7 @@
 namespace App\Models\ap\compras;
 
 use App\Http\Traits\Reportable;
+use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
@@ -35,7 +36,9 @@ class PurchaseOrder extends Model
     'supplier_id',
     'currency_id',
     'exchange_rate_id',
+    'supplier_order_type_id',
     'number_guide',
+    'sede_id',
     'warehouse_id',
     'invoice_dynamics',
     'receipt_dynamics',
@@ -110,6 +113,11 @@ class PurchaseOrder extends Model
   public function originalPurchaseOrder(): BelongsTo
   {
     return $this->belongsTo(PurchaseOrder::class, 'original_purchase_order_id');
+  }
+
+  public function supplierOrderType(): BelongsTo
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'supplier_order_type_id');
   }
 
   /**

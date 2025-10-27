@@ -10,6 +10,7 @@ use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Services\ap\comercial\VehicleService;
 use App\Http\Traits\HasApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Throwable;
 
 class VehiclesController extends Controller
@@ -24,6 +25,21 @@ class VehiclesController extends Controller
   }
 
   /**
+   * Export vehicles data
+   * @param Request $request
+   * @return JsonResponse
+   */
+  public function export(Request $request)
+  {
+    try {
+//      return $this->service->export($request);
+      return true;
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
    * Display a listing of vehicles with filters
    *
    * @param IndexVehiclesRequest $request
@@ -31,7 +47,11 @@ class VehiclesController extends Controller
    */
   public function index(IndexVehiclesRequest $request): JsonResponse
   {
-    return $this->service->list($request);
+    try {
+      return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   /**
@@ -43,8 +63,7 @@ class VehiclesController extends Controller
   public function store(StoreVehiclesRequest $request): JsonResponse
   {
     try {
-      $vehicle = $this->service->store($request->validated());
-      return $this->success(new VehiclesResource($vehicle), 'Vehículo creado exitosamente', 201);
+      return $this->success($this->service->store($request->validated()));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -59,18 +78,7 @@ class VehiclesController extends Controller
   public function show(int $id): JsonResponse
   {
     try {
-      $vehicle = $this->service->find($id);
-      $vehicle->load([
-        'model',
-        'color',
-        'engineType',
-        'status',
-        'sede',
-        'warehousePhysical',
-        'vehicleMovements.status',
-        'vehicleMovements.user'
-      ]);
-      return $this->success(new VehiclesResource($vehicle));
+      return $this->success($this->service->show($id));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -87,8 +95,7 @@ class VehiclesController extends Controller
   {
     try {
       $data = array_merge($request->validated(), ['id' => $id]);
-      $vehicle = $this->service->update($data);
-      return $this->success(new VehiclesResource($vehicle), 'Vehículo actualizado exitosamente');
+      return $this->success($this->service->update($data));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -103,8 +110,8 @@ class VehiclesController extends Controller
   public function destroy(int $id): JsonResponse
   {
     try {
-      $this->service->destroy($id);
-      return $this->success(null, 'Vehículo eliminado exitosamente');
+      ;
+      return $this->success($this->service->destroy($id));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }

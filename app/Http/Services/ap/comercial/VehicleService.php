@@ -4,14 +4,17 @@ namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Constants;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
-class VehicleService extends BaseService
+class VehicleService extends BaseService implements BaseServiceInterface
 {
   /**
    * Lista vehículos con filtros, búsqueda y paginación
@@ -51,7 +54,7 @@ class VehicleService extends BaseService
    * @return Vehicles
    * @throws Exception|Throwable
    */
-  public function store(mixed $data): Vehicles
+  public function store(mixed $data): JsonResource
   {
     DB::beginTransaction();
     try {
@@ -62,7 +65,7 @@ class VehicleService extends BaseService
       $vehicle = Vehicles::create($data);
 
       DB::commit();
-      return $vehicle;
+      return VehiclesResource::make($vehicle);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -85,6 +88,7 @@ class VehicleService extends BaseService
     // Validar que el VIN no exista
     $existingVehicle = Vehicles::where('vin', $data['vin'])
       ->whereNull('deleted_at')
+      ->where('status', 1)
       ->first();
 
     if ($existingVehicle) {
@@ -94,13 +98,29 @@ class VehicleService extends BaseService
     // Validar que el número de motor no exista
     $existingEngine = Vehicles::where('engine_number', $data['engine_number'])
       ->whereNull('deleted_at')
+      ->where('status', 1)
       ->first();
 
     if ($existingEngine) {
       throw new Exception("El número de motor {$data['engine_number']} ya existe en el sistema");
     }
 
+    $data['type_operation_id'] = Constants::TYPE_OPERATION_POSTVENTA_ID;
+
     return $data;
+  }
+
+
+  /**
+   * Muestra un vehículo por ID
+   * @param int $id
+   * @return VehiclesResource
+   * @throws Exception
+   */
+  public function show(int $id): JsonResource
+  {
+    $vehicle = $this->find($id);
+    return new VehiclesResource($vehicle);
   }
 
   /**
@@ -109,7 +129,7 @@ class VehicleService extends BaseService
    * @return Vehicles
    * @throws Exception|Throwable
    */
-  public function update(mixed $data): Vehicles
+  public function update(mixed $data): JsonResource
   {
     DB::beginTransaction();
     try {
@@ -142,7 +162,7 @@ class VehicleService extends BaseService
       $vehicle->update($data);
 
       DB::commit();
-      return $vehicle;
+      return VehiclesResource::make($vehicle);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -155,14 +175,14 @@ class VehicleService extends BaseService
    * @return void
    * @throws Exception|Throwable
    */
-  public function destroy($id)
+  public function destroy($id): array
   {
     DB::beginTransaction();
     try {
       $vehicle = $this->find($id);
       $vehicle->delete();
-
       DB::commit();
+      return ['message' => 'Vehículo eliminado correctamente'];
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;

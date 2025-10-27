@@ -37,7 +37,7 @@ class PurchaseOrderResource extends JsonResource
       // Relaciones básicas
       'supplier' => $this->supplier->full_name,
       'supplier_num_doc' => $this->supplier->num_doc,
-//      'supplier_order_type' => $this->supplierType->description,
+      'supplier_order_type' => $this->supplierOrderType->description,
 
       'currency' => $this->currency->name,
       'currency_code' => $this->currency->code,

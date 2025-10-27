@@ -24,9 +24,12 @@ return new class extends Migration {
         ->constrained('ap_commercial_masters')->onDelete('cascade');
       $table->foreignId('ap_vehicle_status_id')
         ->constrained('ap_vehicle_status')->onDelete('cascade');
+      $table->foreignId('type_operation_id')
+        ->constrained('ap_commercial_masters')->onDelete('cascade');
 
       $table->foreignId('warehouse_physical_id')->nullable()->constrained('warehouse');
 
+      $table->boolean('status')->default(true)->comment('Estado del vehículo: true=activo, false=inactivo');
       $table->timestamps();
       $table->softDeletes();
     });
