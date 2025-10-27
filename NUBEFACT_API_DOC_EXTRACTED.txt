@@ -1,0 +1,821 @@
+============================================
+DOCUMENTO 1: NUBEFACT DOC API JSON V1.docx
+============================================
+
+MANUAL DE INTEGRACIÓN
+ARCHIVO .JSON
+FUNCIONA PARA VERSIÓN ONLINE, OFFLINE Y REVENDEDOR(RESELLER)
+
+HISTORIAL DE VERSIONES:
+========================
+FECHA       VERSIÓN    DETALLE
+4/05/2017   1.1        Nuevas estructuras archivo JSON
+10/10/2018  1.2        Generar para contingencia
+5/12/2018   1.3        Código de Producto SUNAT
+24/12/2018  1.4        Crear cuenta para DEMO
+10/03/2019  1.5        Enlace de PDF, XML Y CDR en las respuestas
+19/07/2019  1.6        Operación Sujeta a Detracción y Detracción Servicios de Transporte Carga
+17/09/2019  1.7        Agregado Tipo de Detracción: 001, 003, 019, 020, 022, 025, 027
+28/10/2019  1.8        Agregado Tipo de operación: Operación Sujeta a Percepción
+31/03/2020  1.9        Agregado IVAP
+11/04/2020  2.0        Agregados nuevos tipos de Detracción
+15/04/2020  2.1        Agregado Medios de Pago para operaciones de Detracciones
+22/05/2020  2.2        Operación Sujeta a Detracción Servicios de Transporte de Pasajeros y Detracción de Recursos Hidrobiológicos
+17/09/2020  2.3        Agregado el campo "anulado" para verificar el estado del comprobante en el API "consultar_comprobante"
+23/09/2020  2.4        Agregado campo "detraccion_porcentaje"
+17/03/2021  2.5        Agregado "venta_al_credito"
+13/08/2021  2.6        Hoja de cálculos de los comprobantes por API
+01/10/2021  2.7        Agregado Facturas con Retención
+14/02/2023  2.8        Agregado Tipo de Venta Código NubeCont
+31/05/2023  2.9        Agregado Tipo de Operación: VENTA NACIONAL A TURISTAS - TAX FREE
+
+INTRODUCCIÓN:
+=============
+NUBEFACT es una empresa autorizada por la SUNAT para emitir documentos electrónicos.
+Sin importar el lenguaje de programación que uses puedes consumir nuestra API vía ONLINE y OFFLINE para emitir documentos electrónicos autorizados en cuestión de minutos.
+
+VERSIONES DE NUBEFACT:
+======================
+1. VERSIÓN ONLINE: Consumes directamente el WEB SERVICE publicado en www.nubefact.com. Requiere internet.
+2. VERSIÓN OFFLINE: Instalamos la aplicación en el servidor o PC para que consumas el WEB SERVICE vía LOCALHOST. NO requiere internet.
+3. VERSIÓN RESELLER: Consumes el WEB SERVICE publicado en tu subdominio https://xxxxxxxx.pse.pe
+
+FORMATOS SOPORTADOS:
+====================
+- JSON
+- TXT
+
+AUTENTICACIÓN:
+==============
+Se requieren DOS datos para autenticarse:
+1. RUTA: Cada cliente tiene una RUTA distinta y única
+   Ejemplo (ONLINE): https://api.nubefact.com/api/v1/48239908-7ae7-4353-824d-071765d4
+   Ejemplo (OFFLINE): http://localhost:8000/api/v1/48239908-7ae7-4353-824d-071765d4
+
+2. TOKEN: Puedes tener uno o varios TOKEN
+   Ejemplo: 1c4239064a3f441880d7ced75eea4383b831c0bf26944169b
+
+CÓMO USAR LA RUTA Y EL TOKEN:
+==============================
+- Todas las solicitudes se hacen vía POST a la RUTA
+- Debes enviar en el HEADER:
+  Authorization: [TOKEN]
+  Content-Type: application/json
+- Adjuntar en el BODY el archivo JSON
+- Recibirás una respuesta inmediatamente
+
+TIPOS DE DATOS:
+===============
+Integer  - Número entero
+String   - Texto de 0 hasta 250 caracteres
+Text     - Texto de 0 hasta 1000 caracteres
+Numeric  - Número con decimales, separador punto, sin comas. Ej: 2034.56
+Date     - Formato DD-MM-YYYY. Ej: 21-05-2017
+Boolean  - false o true (en minúsculas)
+
+4 OPERACIONES DISPONIBLES:
+===========================
+1. GENERAR FACTURAS, BOLETAS Y NOTAS
+2. CONSULTAR FACTURAS, BOLETAS Y NOTAS
+3. ANULAR FACTURAS, BOLETAS Y NOTAS
+4. CONSULTAR ANULACIÓN DE FACTURAS, BOLETAS Y NOTAS
+
+=====================================
+OPERACIÓN 1: GENERAR COMPROBANTES
+=====================================
+
+EJEMPLO JSON PARA ENVIAR:
+{
+  "operacion": "generar_comprobante",
+  "tipo_de_comprobante": 1,
+  "serie": "FFF1",
+  "numero": 1,
+  "sunat_transaction": 1,
+  "cliente_tipo_de_documento": 6,
+  "cliente_numero_de_documento": "20600695771",
+  "cliente_denominacion": "NUBEFACT SA",
+  "cliente_direccion": "CALLE LIBERTAD 116 MIRAFLORES - LIMA - PERU",
+  "cliente_email": "tucliente@gmail.com",
+  "cliente_email_1": "",
+  "cliente_email_2": "",
+  "fecha_de_emision": "09-05-2017",
+  "fecha_de_vencimiento": "",
+  "moneda": 1,
+  "tipo_de_cambio": "",
+  "porcentaje_de_igv": 18.00,
+  "descuento_global": "",
+  "total_descuento": "",
+  "total_anticipo": "",
+  "total_gravada": 600,
+  "total_inafecta": "",
+  "total_exonerada": "",
+  "total_igv": 108,
+  "total_gratuita": "",
+  "total_otros_cargos": "",
+  "total": 708,
+  "percepcion_tipo": "",
+  "percepcion_base_imponible": "",
+  "total_percepcion": "",
+  "total_incluido_percepcion": "",
+  "retencion_tipo": "",
+  "retencion_base_imponible": "",
+  "total_retencion": "",
+  "total_impuestos_bolsas": "",
+  "detraccion": false,
+  "observaciones": "",
+  "documento_que_se_modifica_tipo": "",
+  "documento_que_se_modifica_serie": "",
+  "documento_que_se_modifica_numero": "",
+  "tipo_de_nota_de_credito": "",
+  "tipo_de_nota_de_debito": "",
+  "enviar_automaticamente_a_la_sunat": true,
+  "enviar_automaticamente_al_cliente": false,
+  "condiciones_de_pago": "",
+  "medio_de_pago": "",
+  "placa_vehiculo": "",
+  "orden_compra_servicio": "",
+  "formato_de_pdf": "",
+  "generado_por_contingencia": "",
+  "bienes_region_selva": "",
+  "servicios_region_selva": "",
+  "items": [
+    {
+      "unidad_de_medida": "NIU",
+      "codigo": "001",
+      "codigo_producto_sunat": "10000000",
+      "descripcion": "DETALLE DEL PRODUCTO",
+      "cantidad": 1,
+      "valor_unitario": 500,
+      "precio_unitario": 590,
+      "descuento": "",
+      "subtotal": 500,
+      "tipo_de_igv": 1,
+      "igv": 90,
+      "total": 590,
+      "anticipo_regularizacion": false,
+      "anticipo_documento_serie": "",
+      "anticipo_documento_numero": ""
+    },
+    {
+      "unidad_de_medida": "ZZ",
+      "codigo": "001",
+      "codigo_producto_sunat": "20000000",
+      "descripcion": "DETALLE DEL SERVICIO",
+      "cantidad": 5,
+      "valor_unitario": 20,
+      "precio_unitario": 23.60,
+      "descuento": "",
+      "subtotal": 100,
+      "tipo_de_igv": 1,
+      "igv": 18,
+      "total": 118,
+      "anticipo_regularizacion": false,
+      "anticipo_documento_serie": "",
+      "anticipo_documento_numero": ""
+    }
+  ],
+  "guias": [
+    {
+      "guia_tipo": 1,
+      "guia_serie_numero": "0001-23"
+    }
+  ],
+  "venta_al_credito": [
+    {
+      "cuota": 1,
+      "fecha_de_pago": "11-03-2021",
+      "importe": 600
+    },
+    {
+      "cuota": 2,
+      "fecha_de_pago": "11-04-2021",
+      "importe": 100
+    },
+    {
+      "cuota": 3,
+      "fecha_de_pago": "11-05-2021",
+      "importe": 8
+    }
+  ]
+}
+
+RESPUESTA DE NUBEFACT:
+{
+  "tipo_de_comprobante": 1,
+  "serie": "FFF1",
+  "numero": 1,
+  "enlace": "https://www.nubefact.com/cpe/d268f882-4554-a403c6712e6",
+  "enlace_del_pdf": "",
+  "enlace_del_xml": "",
+  "enlace_del_cdr": "",
+  "aceptada_por_sunat": true,
+  "sunat_description": "La Factura numero FFF1-1, ha sido aceptada",
+  "sunat_note": null,
+  "sunat_responsecode": "0",
+  "sunat_soap_error": "",
+  "cadena_para_codigo_qr": "20600695771 | 01 | FFF1 | 000001 | ...",
+  "codigo_hash": "xMLFMnbgp1/bHEy572RKRTE9hPY="
+}
+
+=====================================
+ESTRUCTURA DETALLADA DE CAMPOS
+=====================================
+
+CABECERA DEL DOCUMENTO:
+------------------------
+
+operacion (String, Obligatorio, 11 exactos)
+- Valor: "generar_comprobante" para enviar FACTURAS, BOLETAS, NOTAS DE CRÉDITO o DÉBITO
+
+tipo_de_comprobante (Integer, Obligatorio, 1 exacto)
+- 1 = FACTURA
+- 2 = BOLETA
+- 3 = NOTA DE CRÉDITO
+- 4 = NOTA DE DÉBITO
+
+serie (String, Obligatorio, 4 exactos)
+- Empieza con "F" para FACTURAS y NOTAS ASOCIADAS
+- Empieza con "B" para BOLETAS DE VENTA y NOTAS ASOCIADAS
+- Si es contingencia, NO debe empezar con "F" ni "B", debe empezar con "0", ejemplo: "0001"
+
+numero (Integer, Obligatorio, 1 hasta 8)
+- Número correlativo del documento, sin ceros a la izquierda
+
+sunat_transaction (Integer, Obligatorio, 1 hasta 2)
+- 1 = VENTA INTERNA
+- 2 = EXPORTACIÓN
+- 4 = VENTA INTERNA – ANTICIPOS
+- 29 = VENTAS NO DOMICILIADOS QUE NO CALIFICAN COMO EXPORTACIÓN
+- 30 = OPERACIÓN SUJETA A DETRACCIÓN
+- 31 = DETRACCIÓN - RECURSOS HIDROBIOLÓGICOS
+- 32 = DETRACCIÓN - SERVICIOS DE TRANSPORTE DE PASAJEROS
+- 33 = DETRACCIÓN - SERVICIOS DE TRANSPORTE CARGA
+- 34 = OPERACIÓN SUJETA A PERCEPCIÓN
+- 35 = VENTA NACIONAL A TURISTAS - TAX FREE
+
+DATOS DEL CLIENTE:
+------------------
+
+cliente_tipo_de_documento (String, Obligatorio, 1 exacto)
+- 6 = RUC - REGISTRO ÚNICO DE CONTRIBUYENTE
+- 1 = DNI - DOC. NACIONAL DE IDENTIDAD
+- - = VARIOS - VENTAS MENORES A S/.700.00 Y OTROS
+- 4 = CARNET DE EXTRANJERÍA
+- 7 = PASAPORTE
+- A = CÉDULA DIPLOMÁTICA DE IDENTIDAD
+- B = DOC.IDENT.PAIS.RESIDENCIA-NO.D
+- 0 = NO DOMICILIADO, SIN RUC (EXPORTACIÓN)
+- G = Salvoconducto
+
+cliente_numero_de_documento (String, Obligatorio, 1 hasta 15)
+- Ejemplo: RUC del CLIENTE, número de DNI, etc.
+
+cliente_denominacion (String, Obligatorio, 1 hasta 100)
+- Razón o nombre completo del CLIENTE
+
+cliente_direccion (String, Obligatorio, 1 hasta 100)
+- Dirección completa (OPCIONAL en caso de ser BOLETA DE VENTA o NOTA ASOCIADA)
+
+cliente_email (String, Opcional, 1 hasta 250)
+- Dirección de email válido
+
+cliente_email_1 (String, Opcional, 1 hasta 250)
+- Dirección de email válido adicional
+
+cliente_email_2 (String, Opcional, 1 hasta 250)
+- Dirección de email válido adicional
+
+FECHAS Y MONEDA:
+----------------
+
+fecha_de_emision (Date, Obligatorio, 10 exactos)
+- Debe ser la fecha actual. Formato DD-MM-YYYY
+- Ejemplo: 10-05-2017
+
+fecha_de_vencimiento (Date, Opcional, 10 exactos)
+- Debe ser fecha posterior a la fecha de emisión
+
+moneda (Integer, Obligatorio, 1 exacto)
+- 1 = SOLES
+- 2 = DÓLARES
+- 3 = EUROS
+- 4 = LIBRA ESTERLINA
+
+tipo_de_cambio (Numeric, Condicional, 1 entero con 3 decimales)
+- Ejemplo: 3.421
+
+porcentaje_de_igv (Numeric, Obligatorio, 1 hasta 2 enteros con 2 decimales)
+- Ejemplo: 18.00
+
+TOTALES Y MONTOS:
+-----------------
+
+descuento_global (Numeric, Condicional, 1 hasta 12 enteros con 2 decimales)
+- Ejemplo: 1305.05
+
+total_descuento (Numeric, Condicional, 1 hasta 12 enteros con 2 decimales)
+- Ejemplo: 1305.05
+
+total_anticipo (Numeric, Condicional, 1 hasta 12 enteros con 2 decimales)
+- Ejemplo: 1305.05
+
+total_gravada (Numeric, Condicional, 1 hasta 12 enteros con 2 decimales)
+- Ejemplo: 1305.05
+
+total_inafecta (Numeric, Condicional, 1 hasta 12 enteros con 2 decimales)
+- Ejemplo: 1305.05
+
+total_exonerada (Numeric, Condicional, 1 hasta 12 enteros con 2 decimales)
+- Ejemplo: 1305.05
+
+total_igv (Numeric, Condicional, 1 hasta 12 enteros con 2 decimales)
+- Ejemplo: 1305.05
+
+total_gratuita (Numeric, Condicional, 1 hasta 12 enteros con 2 decimales)
+- Ejemplo: 1305.05
+
+total_otros_cargos (Numeric, Condicional, 1 hasta 12 enteros con 2 decimales)
+- Ejemplo: 1305.05
+
+total_isc (Numeric, Condicional, 1 hasta 12 enteros con 2 decimales)
+
+total (Numeric, Obligatorio, 1 hasta 12 enteros con 2 decimales)
+- Ejemplo: 1305.05
+
+PERCEPCIONES:
+-------------
+
+percepcion_tipo (Integer, Condicional, 1 exacto)
+- 1 = PERCEPCIÓN VENTA INTERNA - TASA 2%
+- 2 = PERCEPCIÓN ADQUISICIÓN DE COMBUSTIBLE-TASA 1%
+- 3 = PERCEPCIÓN REALIZADA AL AGENTE DE PERCEPCIÓN CON TASA ESPECIAL - TASA 0.5%
+
+percepcion_base_imponible (Numeric, Condicional, 1 hasta 12 enteros con 2 decimales)
+
+total_percepcion (Numeric, Condicional, 1 hasta 12 enteros con 2 decimales)
+
+total_incluido_percepcion (Numeric, Condicional, 1 hasta 12 enteros con 2 decimales)
+
+RETENCIONES:
+------------
+
+retencion_tipo (Integer, Condicional, 1 exacto)
+- 1 = TASA 3%
+- 2 = TASA 6%
+
+retencion_base_imponible (Numeric, Condicional, 1 hasta 12 enteros con 2 decimales)
+
+total_retencion (Numeric, Condicional, 1 hasta 12 enteros con 2 decimales)
+
+total_impuestos_bolsas (Numeric, Condicional, 1 hasta 12 enteros con 2 decimales)
+- Ejemplo: 0.10
+
+observaciones (Text, Opcional, Hasta 5)
+- Texto de 0 hasta 1000 caracteres
+- Si se desea saltos de línea usar <br>
+- Ejemplo: XXXXX <br> YYYYYY
+
+NOTAS DE CRÉDITO/DÉBITO:
+------------------------
+
+documento_que_se_modifica_tipo (Integer, Condicional, 1 exacto)
+- 1 = FACTURAS ELECTRÓNICAS
+- 2 = BOLETAS DE VENTA ELECTRÓNICAS
+
+documento_que_se_modifica_serie (String, Condicional, 4 exactos)
+- SERIE de la FACTURA o BOLETA que se modifica
+
+documento_que_se_modifica_numero (Integer, Condicional, 1 hasta 8)
+- NÚMERO de la FACTURA o BOLETA que se modifica
+
+tipo_de_nota_de_credito (Integer, Condicional, 1 hasta 2)
+- 1 = ANULACIÓN DE LA OPERACIÓN
+- 2 = ANULACIÓN POR ERROR EN EL RUC
+- 3 = CORRECCIÓN POR ERROR EN LA DESCRIPCIÓN
+- 4 = DESCUENTO GLOBAL
+- 5 = DESCUENTO POR ÍTEM
+- 6 = DEVOLUCIÓN TOTAL
+- 7 = DEVOLUCIÓN POR ÍTEM
+- 8 = BONIFICACIÓN
+- 9 = DISMINUCIÓN EN EL VALOR
+- 10 = OTROS CONCEPTOS
+- 11 = AJUSTES AFECTOS AL IVAP
+- 12 = AJUSTES DE OPERACIONES DE EXPORTACIÓN
+- 13 = AJUSTES - MONTOS Y/O FECHAS DE PAGO
+
+tipo_de_nota_de_debito (Integer, Condicional, 1 exacto)
+- 1 = INTERESES POR MORA
+- 2 = AUMENTO DE VALOR
+- 3 = PENALIDADES
+- 4 = AJUSTES AFECTOS AL IVAP
+- 5 = AJUSTES DE OPERACIONES DE EXPORTACIÓN
+
+ENVÍOS Y CONFIGURACIÓN:
+-----------------------
+
+enviar_automaticamente_a_la_sunat (Boolean, Condicional, Hasta 5)
+- false o true
+
+enviar_automaticamente_al_cliente (Boolean, Condicional, Hasta 5)
+- false o true
+
+codigo_unico (String, Opcional, 1 hasta 20)
+- Código único generado y asignado por tu sistema
+
+condiciones_de_pago (String, Opcional, 1 hasta 250)
+- Ejemplo: CRÉDITO 15 DÍAS
+
+medio_de_pago (String, Opcional, 1 hasta 250)
+- Ejemplo: TARJETA VISA OP: 232231
+- Nota: Si es al Crédito, se debe usar "venta_al_credito"
+
+placa_vehiculo (String, Opcional, 1 hasta 8)
+- Ejemplo: ALF-321
+
+orden_compra_servicio (String, Opcional, 1 hasta 20)
+- Ejemplo: 21344
+
+DETRACCIONES:
+-------------
+
+detraccion (Boolean, Condicional, Hasta 5)
+- false o true
+
+detraccion_tipo (Integer, Condicional, 1 hasta 2)
+- 1 = 001 Azúcar y melaza de caña
+- 2 = 002 Arroz
+- 3 = 003 Alcohol etílico
+- 4 = 004 Recursos Hidrobiológicos
+- 5 = 005 Maíz amarillo duro
+- 7 = 007 Caña de azúcar
+- 8 = 008 Madera
+- 9 = 009 Arena y piedra
+- 10 = 010 Residuos, subproductos, desechos, recortes y desperdicios
+- 11 = 011 Bienes gravados con el IGV, o renuncia a la exoneración
+- 12 = 012 Intermediación laboral y tercerización
+- 13 = 014 Carnes y despojos comestibles
+- 14 = 016 Aceite de pescado
+- 15 = 017 Harina, polvo y "pellets" de pescado
+- 17 = 019 Arrendamiento de bienes muebles
+- 18 = 020 Mantenimiento y reparación de bienes muebles
+- 19 = 021 Movimiento de carga
+- 20 = 022 Otros servicios empresariales
+- 21 = 023 Leche
+- 22 = 024 Comisión mercantil
+- 23 = 025 Fabricación de bienes por encargo
+- 24 = 026 Servicio de transporte de personas
+- 25 = 027 Servicio de transporte de carga
+- 26 = 028 Transporte de pasajeros
+- 28 = 030 Contratos de construcción
+- 29 = 031 Oro gravado con el IGV
+- 30 = 032 Paprika y otros frutos
+- 32 = 034 Minerales metálicos no auríferos
+- 33 = 035 Bienes exonerados del IGV
+- 34 = 036 Oro y demás minerales metálicos exonerados del IGV
+- 35 = 037 Demás servicios gravados con el IGV
+- 37 = 039 Minerales no metálicos
+- 38 = 040 Bien inmueble gravado con IGV
+- 39 = 041 Plomo
+- 40 = 013 ANIMALES VIVOS
+- 41 = 015 ABONOS, CUEROS Y PIELES DE ORIGEN ANIMAL
+- 42 = 099 LEY 30737
+- 43 = 044 Servicio de beneficio de minerales metálicos gravado con el IGV
+- 44 = 045 Minerales de oro y sus concentrados gravados con el IGV
+
+detraccion_total (Numeric, Condicional, 1 hasta 12 enteros, hasta 10 decimales)
+- Total de la Detracción
+
+detraccion_porcentaje (Numeric, Condicional, 1 hasta 3 enteros, hasta 5 decimales)
+- Porcentaje - Detracción
+
+medio_de_pago_detraccion (Integer, Condicional, 1 hasta 3)
+- 1 = 001 - Depósito en cuenta
+- 2 = 002 - Giro
+- 3 = 003 - Transferencia de fondos
+- 4 = 004 - Orden de pago
+- 5 = 005 - Tarjeta de débito
+- 6 = 006 - Tarjeta de crédito emitida en el país
+- 7 = 007 - Cheques con la cláusula de NO NEGOCIABLE
+- 8 = 008 - Efectivo, por operaciones sin obligación
+- 9 = 009 - Efectivo, en los demás casos
+- 10 = 010 - Medios de pago usados en comercio exterior
+- 11 = 011 - Documentos emitidos por EDPYMES y cooperativas
+- 12 = 012 - Tarjeta de crédito emitida en el exterior
+
+ITEMS DEL COMPROBANTE:
+----------------------
+
+items (Array de objetos)
+
+Cada item contiene:
+
+unidad_de_medida (String, Obligatorio, 3 exactos)
+- Ejemplos: NIU, ZZ, KGM, etc.
+
+codigo (String, Opcional, 1 hasta 30)
+- Código interno del producto
+
+codigo_producto_sunat (String, Opcional, 1 hasta 8)
+- Código de producto SUNAT
+
+descripcion (String, Obligatorio, 1 hasta 250)
+- Descripción del producto o servicio
+
+cantidad (Numeric, Obligatorio, 1 hasta 12 enteros con 10 decimales)
+
+valor_unitario (Numeric, Obligatorio, 1 hasta 12 enteros con 10 decimales)
+- Valor sin IGV
+
+precio_unitario (Numeric, Obligatorio, 1 hasta 12 enteros con 10 decimales)
+- Precio con IGV
+
+descuento (Numeric, Opcional, 1 hasta 12 enteros con 2 decimales)
+
+subtotal (Numeric, Obligatorio, 1 hasta 12 enteros con 10 decimales)
+- cantidad * valor_unitario
+
+tipo_de_igv (Integer, Obligatorio, 1 hasta 2)
+- 1 = GRAVADO - OPERACIÓN ONEROSA
+- 2 = GRAVADO – RETIRO POR PREMIO
+- 3 = GRAVADO – RETIRO POR DONACIÓN
+- 4 = GRAVADO – RETIRO
+- 5 = GRAVADO – RETIRO POR PUBLICIDAD
+- 6 = GRAVADO – BONIFICACIONES
+- 7 = GRAVADO – RETIRO POR ENTREGA A TRABAJADORES
+- 8 = GRAVADO – IVAP
+- 9 = EXONERADO - OPERACIÓN ONEROSA
+- 10 = INAFECTO - OPERACIÓN ONEROSA
+- 11 = INAFECTO – RETIRO POR BONIFICACIÓN
+- 12 = INAFECTO – RETIRO
+- 13 = INAFECTO – RETIRO POR MUESTRAS MÉDICAS
+- 14 = INAFECTO – RETIRO POR CONVENIO COLECTIVO
+- 15 = INAFECTO – RETIRO POR PREMIO
+- 16 = INAFECTO – RETIRO POR PUBLICIDAD
+- 17 = EXPORTACIÓN
+- 21 = GRATUITO - OPERACIÓN ONEROSA (NO ENTRA EN EL TOTAL, CÓDIGO ESPECIAL NUBEFACT)
+- 31 = INAFECTO - RETIRO BIENES ZONA AMAZONAS
+- 32 = INAFECTO - RETIRO SERVICIOS ZONA AMAZONAS
+- 33 = GRAVADO - ZONA AMAZONAS
+- 34 = EXONERADO – ZONA AMAZONAS
+- 35 = INAFECTO - OPERACIÓN ONEROSA - TRANSFERENCIA DE BIENES Y SERVICIOS NO COMERCIALES
+- 36 = INAFECTO - RETIRO OTRAS ZONAS
+
+igv (Numeric, Obligatorio, 1 hasta 12 enteros con 10 decimales)
+
+total (Numeric, Obligatorio, 1 hasta 12 enteros con 10 decimales)
+
+anticipo_regularizacion (Boolean, Condicional, Hasta 5)
+- false o true
+
+anticipo_documento_serie (String, Condicional, 4 exactos)
+
+anticipo_documento_numero (Integer, Condicional, 1 hasta 8)
+
+GUÍAS DE REMISIÓN:
+------------------
+
+guias (Array de objetos)
+
+Cada guía contiene:
+
+guia_tipo (Integer, Obligatorio, 1 hasta 2)
+- 1 = GUIA DE REMISION REMITENTE
+- 2 = GUIA DE REMISION TRANSPORTISTA
+
+guia_serie_numero (String, Obligatorio, 1 hasta 20)
+- Ejemplo: 0001-23
+
+VENTA AL CRÉDITO:
+-----------------
+
+venta_al_credito (Array de objetos)
+
+Cada cuota contiene:
+
+cuota (Integer, Obligatorio, 1 hasta 3)
+- Número de cuota
+
+fecha_de_pago (Date, Obligatorio, 10 exactos)
+- Formato DD-MM-YYYY
+
+importe (Numeric, Obligatorio, 1 hasta 12 enteros con 2 decimales)
+
+=====================================
+OPERACIÓN 2: CONSULTAR COMPROBANTES
+=====================================
+
+JSON PARA ENVIAR:
+{
+  "operacion": "consultar_comprobante",
+  "tipo_de_comprobante": 1,
+  "serie": "FFF1",
+  "numero": 1
+}
+
+RESPUESTA:
+{
+  "tipo_de_comprobante": 1,
+  "serie": "FFF1",
+  "numero": 1,
+  "enlace": "https://www.nubefact.com/cpe/d268f882-4554-a403c6712e6",
+  "enlace_del_pdf": "",
+  "enlace_del_xml": "",
+  "enlace_del_cdr": "",
+  "aceptada_por_sunat": true,
+  "sunat_description": "La Factura numero FFF1-1, ha sido aceptada",
+  "sunat_note": null,
+  "sunat_responsecode": "0",
+  "sunat_soap_error": "",
+  "anulado": false,
+  "cadena_para_codigo_qr": "20600695771 | 01 | FFF1 | 000001 | ...",
+  "codigo_hash": "xMLFMnbgp1/bHEy572RKRTE9hPY="
+}
+
+=====================================
+OPERACIÓN 3: ANULAR COMPROBANTES
+=====================================
+
+JSON PARA ENVIAR:
+{
+  "operacion": "generar_anulacion",
+  "tipo_de_comprobante": 1,
+  "serie": "FFF1",
+  "numero": 1,
+  "motivo": "ERROR DEL SISTEMA",
+  "codigo_unico": ""
+}
+
+RESPUESTA:
+{
+  "numero": 1,
+  "enlace": "https://www.nubefact.com/anulacion/b7fc0c001-b31a",
+  "sunat_ticket_numero": "1494358661332",
+  "aceptada_por_sunat": false,
+  "sunat_description": null,
+  "sunat_note": null,
+  "sunat_responsecode": null,
+  "sunat_soap_error": "",
+  "enlace_del_pdf": "https://www.nubefact.com/anulacion/b7fc0c001-b31a.pdf",
+  "enlace_del_xml": "https://www.nubefact.com/anulacion/b7fc0c001-b31a.xml",
+  "enlace_del_cdr": "https://www.nubefact.com/anulacion/b7fc0c001-b31a.cdr"
+}
+
+=====================================
+OPERACIÓN 4: CONSULTAR ANULACIÓN
+=====================================
+
+JSON PARA ENVIAR:
+{
+  "operacion": "consultar_anulacion",
+  "tipo_de_comprobante": 1,
+  "serie": "FFF1",
+  "numero": 1
+}
+
+RESPUESTA:
+{
+  "numero": 1,
+  "enlace": "https://www.nubefact.com/anulacion/b7fc0c001-b31a",
+  "sunat_ticket_numero": "1494358661332",
+  "aceptada_por_sunat": false,
+  "sunat_description": null,
+  "sunat_note": null,
+  "sunat_responsecode": null,
+  "sunat_soap_error": "",
+  "enlace_del_pdf": "https://www.nubefact.com/anulacion/b7fc0c001-b31a.pdf",
+  "enlace_del_xml": "https://www.nubefact.com/anulacion/b7fc0c001-b31a.xml",
+  "enlace_del_cdr": "https://www.nubefact.com/anulacion/b7fc0c001-b31a.cdr"
+}
+
+=====================================
+CÓDIGO QR - REQUISITOS
+=====================================
+
+Simbología: QR Code 2005 (ISO/IEC 18004:2006)
+Nivel de corrección: nivel Q
+Ancho mínimo de módulo: 0,0075 pulgadas (0,190 mm)
+Codificación: UTF8
+
+INFORMACIÓN DEL CÓDIGO QR:
+1. Número de RUC del emisor
+2. Tipo de comprobante
+3. Numeración (serie y número)
+4. Sumatoria IGV
+5. Importe total
+6. Fecha de emisión
+7. Tipo de documento del cliente
+8. Número de documento del cliente
+9. Código HASH
+
+FORMATO: RUC | TIPO DOC | SERIE | NUMERO | IGV | TOTAL | FECHA | TIPO DOC CLIENTE | NUM DOC CLIENTE | HASH |
+
+CARACTERÍSTICAS DE IMPRESIÓN:
+- Posición: Parte inferior de la representación impresa
+- Tamaño máximo: 6 cm x 6 cm
+- Zona de silencio mínimo: 1 mm
+- Color: Negro
+
+=====================================
+NOTAS IMPORTANTES
+=====================================
+
+1. Construir el JSON en codificación UTF-8
+2. No usar comillas dobles en atributos, descripciones, direcciones
+   - Usar escape: "clavos 3\" pulgadas" o eliminarlas
+3. La suma de cada línea debe coincidir con los totales
+4. Emitir de forma CORRELATIVA, empezando con número 1
+5. El número correlativo es independiente entre tipos de documento
+6. Las NOTAS DE CRÉDITO tienen correlativo separado para FACTURAS (F) y BOLETAS (B)
+
+=====================================
+EJEMPLOS DISPONIBLES
+=====================================
+
+- OPERACIONES GRAVADAS
+- OPERACIONES EXONERADAS
+- OPERACIONES INAFECTAS
+- OPERACIONES GRATUITAS
+- OPERACIONES COMBINADAS GRAVADAS CON GRATUITAS
+- OPERACIONES DE EXPORTACIÓN NO DOMICILIADO
+- DESCUENTO GLOBAL
+- DESCUENTO POR ÍTEM
+- DESCUENTO GLOBAL Y POR ÍTEM
+- OPERACIONES GRAVADA CON OTROS CARGOS
+- OPERACIONES CON PERCEPCIÓN
+- OPERACIONES EN DÓLARES
+- OPERACIONES CON GUIA DE REMISION ADJUNTA
+- OPERACIONES CON PRIMER ANTICIPO
+- OPERACIONES CON ANTICIPO REGULARIZACIÓN
+- OPERACIONES CON ISC
+- OPERACIONES POR CONTINGENCIA
+- OTROS CARGOS POR ÍTEM
+- Y MUCHOS MÁS
+
+Descargar ejemplos en: https://www.nubefact.com/downloads/EJEMPLOS-DE-ARCHIVOS-JSON
+
+=====================================
+CÓDIGO DE EJEMPLO - LENGUAJES
+=====================================
+
+PHP: https://www.nubefact.com/downloads/PHP-INTEGRACION-CON-NUBEFACT-EJEMPLO-CODIGO-JSON
+C#: https://www.nubefact.com/downloads/CSHARP-INTEGRACION-CON-NUBEFACT-EJEMPLO-CODIGO-JSON
+JAVA: https://www.nubefact.com/downloads/JAVA-INTEGRACION-CON-NUBEFACT-EJEMPLO-CODIGO-JSON
+VB.NET: https://www.nubefact.com/downloads/VBNET-INTEGRACION-CON-NUBEFACT-EJEMPLO-CODIGO-JSON
+VISUAL BASIC 6: https://www.nubefact.com/downloads/VB6-INTEGRACION-CON-NUBEFACT-EJEMPLO-CODIGO-JSON
+VISUAL FOX PRO: https://www.nubefact.com/downloads/VFPRO-INTEGRACION-CON-NUBEFACT-EJEMPLO-CODIGO-JSON
+POWER BUILDER: https://www.nubefact.com/downloads/POWER-BUILDER-INTEGRACION-CON-NUBEFACT-EJEMPLO-CODIGO-JSON
+
+=====================================
+FORMATOS DE PDF
+=====================================
+
+NUBEFACT genera 3 tipos de formatos:
+1. FORMATO A4
+2. FORMATO A5 (Mitad de A4)
+3. FORMATO TICKET
+
+También es posible personalizar el tamaño y diseño.
+
+Si generas tu propia representación impresa debe incluir:
+- La información mínima de los PDF de Nubefact
+- EL CÓDIGO QR (Obligatorio desde 01/01/2019)
+
+=====================================
+PASAR A PRODUCCIÓN
+=====================================
+
+Antes de pasar a producción, se debe generar vía API:
+- 1 Factura Electrónica en Soles
+- 1 Factura Electrónica en Dólares
+- 1 Factura para operaciones Exoneradas o Inafectas
+- 1 Factura para Exportación
+- 1 Nota de Crédito modificando/anulando Factura
+- 1 Nota de Débito modificando Factura
+- 1 Factura combinada (Gravadas, Inafectas o Exoneradas)
+- 1 Consulta de Estado SUNAT de Factura
+- 1 Boleta de Venta en Soles
+- 1 Boleta de Venta en Dólares
+- 1 Boleta para operaciones Exoneradas o Inafectas
+- 1 Boleta para Exportación
+- 1 Boleta combinada (Gravadas, Inafectas o Exoneradas)
+- 1 Nota de Crédito modificando/anulando Boleta
+- 1 Nota de Débito modificando Boleta
+- 1 Consulta de Estado SUNAT de Boleta
+- 1 Comunicación de Baja de Factura
+- 1 Comunicación de Baja de Boleta
+- 1 Consulta de Estado de Comunicación de Baja
+
+=====================================
+MANEJO DE ERRORES
+=====================================
+
+Los errores serán devueltos en formato JSON con:
+- Código de error
+- Descripción del error
+- Detalles adicionales según corresponda
+
+Verificar siempre:
+- aceptada_por_sunat (true/false)
+- sunat_responsecode
+- sunat_description
+- sunat_soap_error
