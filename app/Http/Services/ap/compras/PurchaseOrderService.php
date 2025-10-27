@@ -158,9 +158,9 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       // Guardar items si existen
       $this->saveItemsIfExists($items, $purchaseOrder);
 
-      // Sincronizar con Dynamics si está habilitado
+      // Despachar job de migración y sincronización si está habilitado
       if (config('database_sync.enabled', false)) {
-        $this->syncPurchaseOrderToDynamics($purchaseOrder);
+        VerifyAndMigratePurchaseOrderJob::dispatch($purchaseOrder->id);
       }
 
       DB::commit();
@@ -212,32 +212,33 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
   /**
    * Sincroniza la orden de compra con Dynamics
+   * @deprecated Usar VerifyAndMigratePurchaseOrderJob en su lugar
    * @throws Exception
    */
-  protected function syncPurchaseOrderToDynamics(PurchaseOrder $purchaseOrder): void
-  {
-    $syncService = new DatabaseSyncService();
-
-    // Validar que existan items
-    $purchaseOrder->load('items');
-    if ($purchaseOrder->items->isEmpty()) {
-      throw new Exception("La orden de compra debe tener al menos un ítem");
-    }
-
-    // Sincronizar cabecera de la orden
-    $headerResource = new PurchaseOrderDynamicsResource($purchaseOrder);
-    $headerData = $headerResource->toArray(request());
-    $syncService->sync('ap_purchase_order', $headerData);
-
-    // Sincronizar items de la orden
-    $itemsResource = new PurchaseOrderItemDynamicsResource($purchaseOrder->items);
-    $itemsData = $itemsResource->toArray(request());
-
-    // Los items vienen como un array, cada uno debe sincronizarse
-    foreach ($itemsData as $itemData) {
-      $syncService->sync('ap_purchase_order_item', $itemData);
-    }
-  }
+  // protected function syncPurchaseOrderToDynamics(PurchaseOrder $purchaseOrder): void
+  // {
+  //   $syncService = new DatabaseSyncService();
+  //
+  //   // Validar que existan items
+  //   $purchaseOrder->load('items');
+  //   if ($purchaseOrder->items->isEmpty()) {
+  //     throw new Exception("La orden de compra debe tener al menos un ítem");
+  //   }
+  //
+  //   // Sincronizar cabecera de la orden
+  //   $headerResource = new PurchaseOrderDynamicsResource($purchaseOrder);
+  //   $headerData = $headerResource->toArray(request());
+  //   $syncService->sync('ap_purchase_order', $headerData);
+  //
+  //   // Sincronizar items de la orden
+  //   $itemsResource = new PurchaseOrderItemDynamicsResource($purchaseOrder->items);
+  //   $itemsData = $itemsResource->toArray(request());
+  //
+  //   // Los items vienen como un array, cada uno debe sincronizarse
+  //   foreach ($itemsData as $itemData) {
+  //     $syncService->sync('ap_purchase_order_item', $itemData);
+  //   }
+  // }
 
   /**
    * Muestra una orden de compra
@@ -283,9 +284,9 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         $this->saveItemsIfExists($items, $purchaseOrder);
       }
 
-      // Sincronizar con Dynamics si está habilitado y la orden está pendiente de migración
+      // Despachar job de migración si está habilitado y la orden está pendiente de migración
       if (config('database_sync.enabled', false) && $purchaseOrder->migration_status !== 'completed') {
-        $this->syncPurchaseOrderToDynamics($purchaseOrder);
+        VerifyAndMigratePurchaseOrderJob::dispatch($purchaseOrder->id);
       }
 
       DB::commit();

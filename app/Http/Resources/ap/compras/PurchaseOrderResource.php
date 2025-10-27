@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\compras;
 
+use App\Http\Resources\ap\comercial\VehiclesResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -26,73 +27,30 @@ class PurchaseOrderResource extends JsonResource
       'due_date' => $this->due_date?->format('Y-m-d'),
 
       // Valores
-      'subtotal' => (float) $this->subtotal,
-      'igv' => (float) $this->igv,
-      'total' => (float) $this->total,
-      'discount' => (float) $this->discount,
-      'isc' => (float) $this->isc,
+      'subtotal' => (float)$this->subtotal,
+      'igv' => (float)$this->igv,
+      'total' => (float)$this->total,
+      'discount' => (float)$this->discount,
+      'isc' => (float)$this->isc,
 
       // Relaciones básicas
-      'supplier' => [
-        'id' => $this->supplier?->id,
-        'full_name' => $this->supplier?->full_name,
-        'num_doc' => $this->supplier?->num_doc,
-      ],
+      'supplier' => $this->supplier->full_name,
+      'supplier_num_doc' => $this->supplier->num_doc,
+//      'supplier_order_type' => $this->supplierType->description,
 
-      'currency' => [
-        'id' => $this->currency?->id,
-        'code' => $this->currency?->code,
-        'description' => $this->currency?->description,
-      ],
-
-      'warehouse' => [
-        'id' => $this->warehouse?->id,
-        'description' => $this->warehouse?->description,
-        'dyn_code' => $this->warehouse?->dyn_code,
-      ],
+      'currency' => $this->currency->name,
+      'currency_code' => $this->currency->code,
+      'warehouse' => $this->warehouse->description,
 
       // Vehículo (si existe)
-      'vehicle' => $this->when($this->vehicle_movement_id, function () {
-        return [
-          'id' => $this->vehicle?->id,
-          'vin' => $this->vehicle?->vin,
-          'year' => $this->vehicle?->year,
-          'engine_number' => $this->vehicle?->engine_number,
-          'model' => [
-            'id' => $this->vehicle?->model?->id,
-            'code' => $this->vehicle?->model?->code,
-            'version' => $this->vehicle?->model?->version,
-          ],
-          'color' => [
-            'id' => $this->vehicle?->color?->id,
-            'description' => $this->vehicle?->color?->description,
-          ],
-          'status' => [
-            'id' => $this->vehicle?->status?->id,
-            'description' => $this->vehicle?->status?->description,
-          ],
-        ];
-      }),
+      'vehicle' => VehiclesResource::make($this->vehicle),
 
       // Items de la orden
-      'items' => $this->items->map(function ($item) {
-        return [
-          'id' => $item->id,
-          'description' => $item->description,
-          'unit_price' => (float) $item->unit_price,
-          'quantity' => $item->quantity,
-          'total' => (float) $item->total,
-          'is_vehicle' => $item->is_vehicle,
-          'unit_measurement' => [
-            'id' => $item->unitMeasurement?->id,
-            'code' => $item->unitMeasurement?->code,
-            'description' => $item->unitMeasurement?->description,
-          ],
-        ];
-      }),
+      'items' => PurchaseOrderItemResource::collection($this->items),
+
 
       // Estados
-      'status' => $this->status,
+      'status' => (bool)$this->status,
       'migration_status' => $this->migration_status,
       'invoice_dynamics' => $this->invoice_dynamics,
       'receipt_dynamics' => $this->receipt_dynamics,

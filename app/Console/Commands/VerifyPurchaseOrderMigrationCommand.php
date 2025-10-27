@@ -4,7 +4,7 @@ namespace App\Console\Commands;
 
 use App\Http\Services\DatabaseSyncService;
 use App\Jobs\VerifyAndMigratePurchaseOrderJob;
-use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\compras\PurchaseOrder;
 use Illuminate\Console\Command;
 
 class VerifyPurchaseOrderMigrationCommand extends Command
@@ -37,7 +37,7 @@ class VerifyPurchaseOrderMigrationCommand extends Command
 
         if ($purchaseOrderId) {
             // Verificar una orden específica
-            $purchaseOrder = VehiclePurchaseOrder::find($purchaseOrderId);
+            $purchaseOrder = PurchaseOrder::find($purchaseOrderId);
 
             if (!$purchaseOrder) {
                 $this->error("Orden de compra no encontrada: {$purchaseOrderId}");
@@ -67,7 +67,7 @@ class VerifyPurchaseOrderMigrationCommand extends Command
 
         if ($all) {
             // Verificar todas las órdenes pendientes
-            $pendingOrders = VehiclePurchaseOrder::whereIn('migration_status', [
+            $pendingOrders = PurchaseOrder::whereIn('migration_status', [
                 'pending',
                 'in_progress',
                 'failed'

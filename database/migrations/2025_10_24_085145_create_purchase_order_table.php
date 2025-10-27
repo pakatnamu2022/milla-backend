@@ -28,6 +28,8 @@ return new class extends Migration {
       $table->foreignId('supplier_id')->constrained('business_partners');
       $table->foreignId('currency_id')->constrained('type_currency');
       $table->foreignId('exchange_rate_id')->constrained('ap_commercial_masters');
+      $table->foreignId('supplier_order_type_id')
+        ->constrained('ap_commercial_masters')->onDelete('cascade');
 
 //      GUIDE
       $table->string('number_guide');

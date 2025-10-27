@@ -73,6 +73,6 @@ class Vehicles extends Model
 
   public function vehicleMovements(): HasMany
   {
-    return $this->hasMany(VehicleMovement::class, 'vehicle_id');
+    return $this->hasMany(VehicleMovement::class, 'ap_vehicle_id');
   }
 }

@@ -128,13 +128,31 @@ class PurchaseOrder extends Model
     );
   }
 
-  // Accessor para el número con prefijo OC
+  /**
+   * Mutator para el número de orden de compra con prefijo OC
+   * @param $value
+   * @return void
+   */
   public function setNumberAttribute($value)
   {
     if (str_starts_with($value, 'OC')) {
       $this->attributes['number'] = $value;
     } else {
       $this->attributes['number'] = 'OC' . $value;
+    }
+  }
+
+  /**
+   * Mutator para el número de guía con prefijo NI
+   * @param $value
+   * @return void
+   */
+  public function setNumberGuideAttribute($value)
+  {
+    if (str_starts_with($value, 'NI')) {
+      $this->attributes['number_guide'] = $value;
+    } else {
+      $this->attributes['number_guide'] = 'NI' . $value;
     }
   }
 }
