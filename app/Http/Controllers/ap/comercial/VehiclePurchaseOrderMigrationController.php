@@ -4,7 +4,7 @@ namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
-use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,11 +17,11 @@ class VehiclePurchaseOrderMigrationController extends Controller
   public function summary(): JsonResponse
   {
     $summary = [
-      'total' => VehiclePurchaseOrder::count(),
-      'pending' => VehiclePurchaseOrder::where('migration_status', 'pending')->count(),
-      'in_progress' => VehiclePurchaseOrder::where('migration_status', 'in_progress')->count(),
-      'completed' => VehiclePurchaseOrder::where('migration_status', 'completed')->count(),
-      'failed' => VehiclePurchaseOrder::where('migration_status', 'failed')->count(),
+      'total' => PurchaseOrder::count(),
+      'pending' => PurchaseOrder::where('migration_status', 'pending')->count(),
+      'in_progress' => PurchaseOrder::where('migration_status', 'in_progress')->count(),
+      'completed' => PurchaseOrder::where('migration_status', 'completed')->count(),
+      'failed' => PurchaseOrder::where('migration_status', 'failed')->count(),
     ];
 
     return response()->json([
@@ -35,7 +35,7 @@ class VehiclePurchaseOrderMigrationController extends Controller
    */
   public function logs(int $purchaseOrderId): JsonResponse
   {
-    $purchaseOrder = VehiclePurchaseOrder::find($purchaseOrderId);
+    $purchaseOrder = PurchaseOrder::find($purchaseOrderId);
 
     if (!$purchaseOrder) {
       return response()->json([
@@ -72,7 +72,7 @@ class VehiclePurchaseOrderMigrationController extends Controller
     $perPage = $request->get('per_page', 15);
     $status = $request->get('status'); // pending, in_progress, completed, failed
 
-    $query = VehiclePurchaseOrder::query()
+    $query = PurchaseOrder::query()
       ->select([
         'id',
         'number',
@@ -121,7 +121,7 @@ class VehiclePurchaseOrderMigrationController extends Controller
    */
   public function history(int $purchaseOrderId): JsonResponse
   {
-    $purchaseOrder = VehiclePurchaseOrder::find($purchaseOrderId);
+    $purchaseOrder = PurchaseOrder::find($purchaseOrderId);
 
     if (!$purchaseOrder) {
       return response()->json([
@@ -197,9 +197,9 @@ class VehiclePurchaseOrderMigrationController extends Controller
   public function statistics(): JsonResponse
   {
     // Estadísticas generales
-    $totalOrders = VehiclePurchaseOrder::count();
-    $completedOrders = VehiclePurchaseOrder::where('migration_status', 'completed')->count();
-    $failedOrders = VehiclePurchaseOrder::where('migration_status', 'failed')->count();
+    $totalOrders = PurchaseOrder::count();
+    $completedOrders = PurchaseOrder::where('migration_status', 'completed')->count();
+    $failedOrders = PurchaseOrder::where('migration_status', 'failed')->count();
 
     // Promedio de intentos por paso
     $avgAttempts = VehiclePurchaseOrderMigrationLog::avg('attempts');
@@ -229,7 +229,7 @@ class VehiclePurchaseOrderMigrationController extends Controller
       });
 
     // Tiempo promedio de migración (desde creación hasta completado)
-    $avgMigrationTime = VehiclePurchaseOrder::whereNotNull('migrated_at')
+    $avgMigrationTime = PurchaseOrder::whereNotNull('migrated_at')
       ->selectRaw('AVG(TIMESTAMPDIFF(SECOND, created_at, migrated_at)) as avg_seconds')
       ->value('avg_seconds');
 

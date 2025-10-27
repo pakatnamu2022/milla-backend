@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
+/**
+ * php artisan queue:work --tries=3
+ */
 class SyncInvoiceDynamicsJob implements ShouldQueue
 {
   use Queueable;

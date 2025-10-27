@@ -88,8 +88,9 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
   {
     if ($isCreate) {
       // Generar número de OC correlativo
-      $data['number'] = $this->nextCorrelativeCount(PurchaseOrder::class, 8, ['status' => true]);
-      $data['number_guide'] = $this->nextCorrelativeCount(PurchaseOrder::class, 8, ['status' => true]);
+      $series = $this->completeSeries(Sede::find($data['sede_id'])->id);
+      $data['number'] = $series . $this->nextCorrelativeCount(PurchaseOrder::class, 8, ['status' => true]);
+      $data['number_guide'] = $series . $this->nextCorrelativeCount(PurchaseOrder::class, 8, ['status' => true]);
 
       // Obtener tipo de cambio actual si no viene en el request
       if (!isset($data['exchange_rate_id'])) {
@@ -225,7 +226,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     // Sincronizar cabecera de la orden
     $headerResource = new PurchaseOrderDynamicsResource($purchaseOrder);
     $headerData = $headerResource->toArray(request());
-    $syncService->sync('ap_purchase_order', $headerData, 'create');
+    $syncService->sync('ap_purchase_order', $headerData);
 
     // Sincronizar items de la orden
     $itemsResource = new PurchaseOrderItemDynamicsResource($purchaseOrder->items);

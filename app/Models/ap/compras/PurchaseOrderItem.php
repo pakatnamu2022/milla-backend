@@ -42,13 +42,17 @@ class PurchaseOrderItem extends Model
   }
 
   /**
-   * Relación polimórfica para obtener información específica del vehículo si es_vehicle = true
-   * Esta relación se implementará cuando tengamos la tabla de vehículos asociada
+   * Accessor para obtener información del vehículo si es_vehicle = true
+   * Accede al vehículo a través de la orden de compra -> vehicle_movement -> vehicle
    */
-  public function vehicleInfo()
+  public function getVehicleInfoAttribute()
   {
-    // TODO: Implementar relación con tabla de información de vehículos
-    // Por ahora retornamos null
-    return null;
+    // Si no es un vehículo, retornar null
+    if (!$this->is_vehicle) {
+      return null;
+    }
+
+    // Acceder al vehículo a través de la orden de compra
+    return $this->purchaseOrder?->vehicle;
   }
 }

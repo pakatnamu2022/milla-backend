@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
+use App\Models\ap\compras\PurchaseOrder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -62,7 +63,7 @@ class VehiclePurchaseOrderMigrationLog extends Model
    */
   public function purchaseOrder(): BelongsTo
   {
-    return $this->belongsTo(VehiclePurchaseOrder::class, 'vehicle_purchase_order_id');
+    return $this->belongsTo(PurchaseOrder::class, 'vehicle_purchase_order_id');
   }
 
   /**
