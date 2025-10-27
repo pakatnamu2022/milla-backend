@@ -12,6 +12,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\DatabaseSyncService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
+use App\Jobs\VerifyAndMigratePurchaseOrderJob;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseOrderItem;
@@ -234,7 +235,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
     // Los items vienen como un array, cada uno debe sincronizarse
     foreach ($itemsData as $itemData) {
-      $syncService->sync('ap_purchase_order_item', $itemData, 'create');
+      $syncService->sync('ap_purchase_order_item', $itemData);
     }
   }
 
