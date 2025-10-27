@@ -89,4 +89,9 @@ class View extends BaseModel
     return $this->hasMany(View::class, 'parent_id')->where('status_deleted', 1);
   }
 
+  public function permissions()
+  {
+    return $this->hasMany(Permission::class, 'vista_id');
+  }
+
 }

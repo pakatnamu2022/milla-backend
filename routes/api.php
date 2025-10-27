@@ -63,7 +63,6 @@ use App\Http\Controllers\gp\gestionsistema\DepartmentController;
 use App\Http\Controllers\gp\gestionsistema\DigitalFileController;
 use App\Http\Controllers\gp\gestionsistema\DistrictController;
 use App\Http\Controllers\gp\gestionsistema\PermissionController;
-use App\Http\Controllers\gp\gestionsistema\UserPermissionController;
 use App\Http\Controllers\gp\gestionsistema\PositionController;
 use App\Http\Controllers\gp\gestionsistema\ProvinceController;
 use App\Http\Controllers\gp\gestionsistema\RoleController;
@@ -89,7 +88,7 @@ Route::group(['prefix' => 'email/test'], function () {
 Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::get('/authenticate', [AuthController::class, 'authenticate'])->name('authenticate');
   Route::get('/permissions', [AuthController::class, 'permissions'])->name('permissions');
-  Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
+  //Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
   //    GENERAL
   //    SEDE
@@ -124,6 +123,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
 
     //        VIEWS
+    Route::get('view/with-permissions', [ViewController::class, 'viewsWithPermissions'])->name('view.with-permissions');
     Route::apiResource('view', ViewController::class)->only([
       'index',
       'show',
@@ -144,29 +144,12 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     ]);
 
     // PERMISSIONS
-    Route::get('permission/grouped-by-module', [PermissionController::class, 'groupedByModule'])->name('permission.grouped-by-module');
+    Route::get('permission', [PermissionController::class, 'index'])->name('permission.index');
     Route::get('permission/available-actions', [PermissionController::class, 'getAvailableActions'])->name('permission.available-actions');
     Route::get('permission/{id}/get-by-role', [PermissionController::class, 'getByRole'])->name('permission.getByRole');
-    Route::post('permission/bulk-create', [PermissionController::class, 'bulkCreate'])->name('permission.bulk-create');
-    Route::post('permission/assign-to-role', [PermissionController::class, 'assignToRole'])->name('permission.assign-to-role');
-    Route::post('permission/assigns-to-role', [PermissionController::class, 'assignMultipleToRole'])->name('permission.assigns-to-role');
+    Route::post('permission/bulk-sync', [PermissionController::class, 'bulkSync'])->name('permission.bulk-sync');
     Route::post('permission/sync-permissions-to-role', [PermissionController::class, 'syncToRole'])->name('permission.syncPermissionsToRole');
-    Route::apiResource('permission', PermissionController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
   });
-
-  //      USER PERMISSIONS (Para Frontend)
-  Route::get('/users/permissions', [UserPermissionController::class, 'index'])->name('users.permissions.index');
-  Route::get('/users/{userId}/permissions', [UserPermissionController::class, 'show'])->name('users.permissions.show');
-  Route::get('/users/permissions/module/{moduleCode}', [UserPermissionController::class, 'modulePermissions'])->name('users.permissions.module');
-  Route::post('/users/permissions/check', [UserPermissionController::class, 'checkPermission'])->name('users.permissions.check');
-  Route::post('/users/permissions/clear-cache', [UserPermissionController::class, 'clearCache'])->name('users.permissions.clear-cache');
-  Route::get('/modules', [UserPermissionController::class, 'modules'])->name('modules.index');
 
   Route::group(['prefix' => 'configuration'], function () {
     //        USERS

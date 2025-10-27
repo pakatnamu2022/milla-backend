@@ -90,7 +90,7 @@ class AuthService
     return [
       'permissions' => [
         'access_tree' => $menuPorEmpresa,
-        'granular_permissions' => $granularPermissions,
+        'permissions_modules' => $granularPermissions,
       ]
     ];
   }

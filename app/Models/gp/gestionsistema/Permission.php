@@ -22,7 +22,6 @@ class Permission extends BaseModel
     'module',
     'vista_id',
     'policy_method',
-    'type',
     'is_active',
   ];
 
@@ -40,7 +39,6 @@ class Permission extends BaseModel
     'code' => 'like',
     'name' => 'like',
     'module' => '=',
-    'type' => '=',
     'is_active' => '=',
     'vista_id' => '=',
   ];
@@ -50,7 +48,6 @@ class Permission extends BaseModel
     'code' => 'asc',
     'name' => 'asc',
     'module' => 'asc',
-    'type' => 'asc',
   ];
 
   /**
@@ -93,14 +90,6 @@ class Permission extends BaseModel
   }
 
   /**
-   * Scope para filtrar por tipo
-   */
-  public function scopeByType($query, string $type)
-  {
-    return $query->where('type', $type);
-  }
-
-  /**
    * Verifica si el permiso está asignado a un rol específico
    */
   public function isGrantedToRole(int $roleId): bool
@@ -136,7 +125,6 @@ class Permission extends BaseModel
       'module' => $this->module,
       'vista_id' => $this->vista_id,
       'policy_method' => $this->policy_method,
-      'type' => $this->type,
       'is_active' => $this->is_active,
     ]);
   }
@@ -163,7 +151,6 @@ class Permission extends BaseModel
           'name' => $name,
           'module' => $module,
           'vista_id' => $vistaId,
-          'type' => 'basic',
           'is_active' => true,
         ]
       );
@@ -182,7 +169,6 @@ class Permission extends BaseModel
       'name' => $this->name,
       'description' => $this->description,
       'module' => $this->module,
-      'type' => $this->type,
       'is_active' => $this->is_active,
     ];
   }
@@ -211,14 +197,5 @@ class Permission extends BaseModel
   {
     $parts = explode('.', $this->code);
     return end($parts);
-  }
-
-  /**
-   * Verificar si el permiso es de tipo CRUD básico
-   */
-  public function isCrudPermission(): bool
-  {
-    return $this->type === 'basic' &&
-      in_array($this->action, ['view', 'create', 'edit', 'delete']);
   }
 }

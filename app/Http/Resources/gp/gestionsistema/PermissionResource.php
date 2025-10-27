@@ -14,6 +14,13 @@ class PermissionResource extends JsonResource
    */
   public function toArray(Request $request): array
   {
+    // Extraer la acción del código (ej: "users.view" -> "view")
+    $action = $this->action ?? $this->getActionFromCode();
+
+    // Obtener el label desde el config
+    $actionConfig = config("permissions.actions.{$action}", []);
+    $actionLabel = $actionConfig['label'] ?? null;
+
     return [
       'id' => $this->id,
       'code' => $this->code,
@@ -21,33 +28,22 @@ class PermissionResource extends JsonResource
       'description' => $this->description,
       'module' => $this->module,
       'policy_method' => $this->policy_method,
-      'type' => $this->type,
-      'type_label' => $this->getTypeLabel(),
       'is_active' => $this->is_active,
-
-      // Relaciones opcionales
-//      'roles' => $this->whenLoaded('roles', function () {
-//        return $this->roles->map(function ($role) {
-//          return [
-//            'id' => $role->id,
-//            'nombre' => $role->nombre,
-//            'granted' => $role->pivot->granted,
-//          ];
-//        });
-//      }),
+      'action' => $action,
+      'action_label' => $actionLabel,
     ];
   }
 
   /**
-   * Obtener etiqueta legible del tipo
+   * Extraer la acción del código del permiso
    */
-  private function getTypeLabel(): string
+  private function getActionFromCode(): ?string
   {
-    return match ($this->type) {
-      'basic' => 'Básico (CRUD)',
-      'special' => 'Especial',
-      'custom' => 'Personalizado',
-      default => $this->type,
-    };
+    if (!$this->code) {
+      return null;
+    }
+
+    $parts = explode('.', $this->code);
+    return end($parts);
   }
 }
