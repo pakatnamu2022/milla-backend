@@ -10,7 +10,7 @@ use App\Http\Resources\ap\compras\PurchaseOrderVehicleReceptionDetailResource;
 use App\Http\Resources\ap\compras\PurchaseOrderVehicleReceptionSerialResource;
 use App\Http\Services\DatabaseSyncService;
 use App\Models\ap\comercial\BusinessPartners;
-use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\gp\gestionsistema\Company;
@@ -61,7 +61,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
    */
   protected function processAllPendingPurchaseOrders(DatabaseSyncService $syncService): void
   {
-    $pendingOrders = VehiclePurchaseOrder::whereIn('migration_status', [
+    $pendingOrders = PurchaseOrder::whereIn('migration_status', [
       'pending',
       'in_progress',
       'failed'
@@ -85,7 +85,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
    */
   protected function processPurchaseOrder(int $purchaseOrderId, DatabaseSyncService $syncService): void
   {
-    $purchaseOrder = VehiclePurchaseOrder::with(['supplier', 'model'])->find($purchaseOrderId);
+    $purchaseOrder = PurchaseOrder::with(['supplier', 'vehicleMovement.vehicle.model'])->find($purchaseOrderId);
 
     if (!$purchaseOrder) {
       // Log::error("Purchase order not found: {$purchaseOrderId}");
@@ -116,7 +116,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
   /**
    * Verifica y sincroniza el proveedor
    */
-  protected function verifyAndSyncSupplier(VehiclePurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
+  protected function verifyAndSyncSupplier(PurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
   {
     $supplier = $purchaseOrder->supplier;
 
@@ -194,9 +194,9 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
   /**
    * Verifica y sincroniza el artículo
    */
-  protected function verifyAndSyncArticle(VehiclePurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
+  protected function verifyAndSyncArticle(PurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
   {
-    $model = $purchaseOrder->model;
+    $model = $purchaseOrder->vehicleMovement?->vehicle?->model;
 
     if (!$model) {
       // Log::error("Model not found for purchase order: {$purchaseOrder->id}");
@@ -244,7 +244,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
   /**
    * Verifica y sincroniza la orden de compra
    */
-  protected function verifyAndSyncPurchaseOrder(VehiclePurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
+  protected function verifyAndSyncPurchaseOrder(PurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
   {
     $purchaseOrderLog = $this->getOrCreateLog(
       $purchaseOrder->id,
@@ -296,11 +296,11 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         $resourceDataPurchaseOrderDetail = $resourcePurchaseOrderDetail->toArray(request());
 
         $purchaseOrderLog->markAsInProgress();
-        $syncService->sync('ap_vehicle_purchase_order', $resourceDataPurchaseOrder);
+        $syncService->sync('ap_purchase_order', $resourceDataPurchaseOrder);
         $purchaseOrderLog->updateProcesoEstado(0);
 
         $purchaseOrderDetailLog->markAsInProgress();
-        $syncService->sync('ap_vehicle_purchase_order_det', $resourceDataPurchaseOrderDetail);
+        $syncService->sync('ap_purchase_order_item', $resourceDataPurchaseOrderDetail);
         $purchaseOrderDetailLog->updateProcesoEstado(0);
       } catch (\Exception $e) {
         $purchaseOrderLog->markAsFailed("Error al sincronizar orden de compra: {$e->getMessage()}");
@@ -326,7 +326,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
   /**
    * Verifica y sincroniza la recepción
    */
-  protected function verifyAndSyncReception(VehiclePurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
+  protected function verifyAndSyncReception(PurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
   {
     // Verificar que la OC esté procesada
     $purchaseOrderLog = VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $purchaseOrder->id)
@@ -363,7 +363,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       $purchaseOrder->id,
       VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL_SERIAL,
       VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL_SERIAL],
-      $purchaseOrder->vin
+      $purchaseOrder->vehicleMovement?->vehicle?->vin
     );
 
     // Si ya está completado, no hacer nada
@@ -447,7 +447,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
   /**
    * Verifica si todos los pasos están completos y actualiza el estado general
    */
-  protected function checkAndUpdateCompletionStatus(VehiclePurchaseOrder $purchaseOrder): void
+  protected function checkAndUpdateCompletionStatus(PurchaseOrder $purchaseOrder): void
   {
     $logs = VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $purchaseOrder->id)->get();
 

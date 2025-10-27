@@ -34,7 +34,7 @@ class BaseService
     return str_pad($correlative, $length, '0', STR_PAD_LEFT);
   }
 
-  public function completeSeries($series, $length = 4)
+  public function completeSeries($series, $length = 2)
   {
     return str_pad($series, $length, '0', STR_PAD_LEFT);
   }
