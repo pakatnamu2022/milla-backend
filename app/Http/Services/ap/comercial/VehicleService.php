@@ -2,15 +2,34 @@
 
 namespace App\Http\Services\ap\comercial;
 
+use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Services\BaseService;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use Exception;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class VehicleService extends BaseService
 {
+  /**
+   * Lista vehículos con filtros, búsqueda y paginación
+   * @param Request $request
+   * @return mixed
+   */
+  public function list(Request $request)
+  {
+    return $this->getFilteredResults(
+      Vehicles::class,
+      $request,
+      Vehicles::$filters,
+      Vehicles::$sorts,
+      VehiclesResource::class,
+      ['model', 'color', 'engineType', 'status', 'sede', 'warehousePhysical', 'vehicleMovements']
+    );
+  }
+
   /**
    * Busca un vehículo por ID
    * @param $id

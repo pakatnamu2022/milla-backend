@@ -31,6 +31,9 @@ return new class extends Migration {
       $table->foreignId('supplier_order_type_id')
         ->constrained('ap_commercial_masters')->onDelete('cascade');
 
+      $table->integer('sede_id');
+      $table->foreign('sede_id')->references('id')->on('config_sede');
+
 //      GUIDE
       $table->string('number_guide');
       $table->foreignId('warehouse_id')->constrained('warehouse');
@@ -46,6 +49,9 @@ return new class extends Migration {
       $table->boolean('status')->default(true)->comment('Estado de la OC: true=activa, false=anulada (con NC)');
 
       $table->foreignId('vehicle_movement_id')->constrained('ap_vehicle_movement')->onDelete('cascade');
+      
+      $table->integer('sede_id');
+      $table->foreign('sede_id')->references('id')->on('config_sede');
 
 //      TIMESTAMPS
       $table->timestamp('migrated_at')->nullable()->comment('Fecha y hora en que se completó la migración');

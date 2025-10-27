@@ -35,6 +35,24 @@ class Vehicles extends Model
     'year' => 'integer',
   ];
 
+  public static array $filters = [
+    'search' => ['vin', 'engine_number', 'year'],
+    'ap_models_vn_id' => '=',
+    'ap_vehicle_status_id' => '=',
+    'vehicle_color_id' => '=',
+    'engine_type_id' => '=',
+    'sede_id' => '=',
+    'warehouse_physical_id' => '=',
+    'year' => '=',
+  ];
+
+  public static array $sorts = [
+    'vin',
+    'year',
+    'engine_number',
+    'created_at',
+  ];
+
   // Relaciones
   public function model(): BelongsTo
   {

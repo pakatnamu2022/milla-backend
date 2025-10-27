@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\compras;
 
+use App\Http\Resources\ap\comercial\VehicleMovementResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -55,6 +56,7 @@ class PurchaseOrderResource extends JsonResource
       'invoice_dynamics' => $this->invoice_dynamics,
       'receipt_dynamics' => $this->receipt_dynamics,
       'credit_note_dynamics' => $this->credit_note_dynamics,
+      'vehicleMovement' => VehicleMovementResource::make($this->vehicleMovement),
 
       // Fechas
       'migrated_at' => $this->migrated_at?->format('Y-m-d H:i:s'),
