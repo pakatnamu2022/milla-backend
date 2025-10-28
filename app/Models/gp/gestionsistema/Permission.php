@@ -3,6 +3,8 @@
 namespace App\Models\gp\gestionsistema;
 
 use App\Models\BaseModel;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -18,8 +20,8 @@ class Permission extends BaseModel
     'name',
     'description',
     'module',
+    'vista_id',
     'policy_method',
-    'type',
     'is_active',
   ];
 
@@ -37,8 +39,8 @@ class Permission extends BaseModel
     'code' => 'like',
     'name' => 'like',
     'module' => '=',
-    'type' => '=',
     'is_active' => '=',
+    'vista_id' => '=',
   ];
 
   const sorts = [
@@ -46,7 +48,6 @@ class Permission extends BaseModel
     'code' => 'asc',
     'name' => 'asc',
     'module' => 'asc',
-    'type' => 'asc',
   ];
 
   /**
@@ -62,6 +63,14 @@ class Permission extends BaseModel
     )
       ->withPivot('granted')
       ->withTimestamps();
+  }
+
+  /**
+   * Relación con vista/módulo (config_vista)
+   */
+  public function vista(): BelongsTo
+  {
+    return $this->belongsTo(View::class, 'vista_id');
   }
 
   /**
@@ -81,14 +90,6 @@ class Permission extends BaseModel
   }
 
   /**
-   * Scope para filtrar por tipo
-   */
-  public function scopeByType($query, string $type)
-  {
-    return $query->where('type', $type);
-  }
-
-  /**
    * Verifica si el permiso está asignado a un rol específico
    */
   public function isGrantedToRole(int $roleId): bool
@@ -97,5 +98,104 @@ class Permission extends BaseModel
       ->where('role_id', $roleId)
       ->wherePivot('granted', true)
       ->exists();
+  }
+
+  /**
+   * Obtener todos los usuarios que tienen este permiso (a través de roles)
+   */
+  public function users()
+  {
+    return User::whereHas('role', function ($query) {
+      $query->whereHas('permissions', function ($subQuery) {
+        $subQuery->where('permission_id', $this->id)
+          ->where('granted', true);
+      });
+    });
+  }
+
+  /**
+   * Clonar este permiso con un nuevo código
+   */
+  public function cloneWithCode(string $newCode, string $newName = null): self
+  {
+    return self::create([
+      'code' => $newCode,
+      'name' => $newName ?? $this->name,
+      'description' => $this->description,
+      'module' => $this->module,
+      'vista_id' => $this->vista_id,
+      'policy_method' => $this->policy_method,
+      'is_active' => $this->is_active,
+    ]);
+  }
+
+  /**
+   * Generar permisos CRUD para un módulo
+   */
+  public static function generateCrudPermissions(string $module, ?int $vistaId = null, string $moduleName = null): array
+  {
+    $moduleName = $moduleName ?? ucwords(str_replace('_', ' ', $module));
+    $permissions = [];
+
+    $actions = [
+      'view' => "Ver {$moduleName}",
+      'create' => "Crear {$moduleName}",
+      'edit' => "Editar {$moduleName}",
+      'delete' => "Eliminar {$moduleName}",
+    ];
+
+    foreach ($actions as $action => $name) {
+      $permissions[] = self::updateOrCreate(
+        ['code' => "{$module}.{$action}"],
+        [
+          'name' => $name,
+          'module' => $module,
+          'vista_id' => $vistaId,
+          'is_active' => true,
+        ]
+      );
+    }
+
+    return $permissions;
+  }
+
+  /**
+   * Obtener definición exportable del permiso
+   */
+  public function toExportArray(): array
+  {
+    return [
+      'code' => $this->code,
+      'name' => $this->name,
+      'description' => $this->description,
+      'module' => $this->module,
+      'is_active' => $this->is_active,
+    ];
+  }
+
+  /**
+   * Importar permisos desde un array
+   */
+  public static function importFromArray(array $permissions): int
+  {
+    $count = 0;
+    foreach ($permissions as $permissionData) {
+      self::updateOrCreate(
+        ['code' => $permissionData['code']],
+        $permissionData
+      );
+      $count++;
+    }
+    return $count;
+  }
+
+  /**
+   * Obtener el nombre de la acción desde el código
+   * Ejemplo: 'vehicle_purchase_order.create' -> 'create'
+   */
+  public function getActionAttribute(): string
+  {
+    $parts = explode('.', $this->code);
+    return end($parts);
   }
 }

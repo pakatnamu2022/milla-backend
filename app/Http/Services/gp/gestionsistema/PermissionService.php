@@ -4,73 +4,18 @@ namespace App\Http\Services\gp\gestionsistema;
 
 use App\Http\Resources\gp\gestionsistema\PermissionResource;
 use App\Http\Services\BaseService;
-use App\Http\Services\BaseServiceInterface;
+use App\Models\gp\gestionsistema\Access;
 use App\Models\gp\gestionsistema\Permission;
 use App\Models\gp\gestionsistema\Role;
 use App\Models\gp\gestionsistema\RolePermission;
 use Exception;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-class PermissionService extends BaseService implements BaseServiceInterface
+class PermissionService extends BaseService
 {
   protected $model = Permission::class;
-
-  /**
-   * Asignar un permiso a un rol
-   */
-  public function assignPermissionToRole(int $roleId, int $permissionId, bool $granted = true): array
-  {
-    try {
-      RolePermission::updateOrCreate(
-        [
-          'role_id' => $roleId,
-          'permission_id' => $permissionId,
-        ],
-        [
-          'granted' => $granted,
-        ]
-      );
-
-      return ['message' => 'Permiso asignado correctamente'];
-    } catch (\Exception $e) {
-      throw new \Exception("Error al asignar permiso: " . $e->getMessage());
-    }
-  }
-
-  /**
-   * Asignar múltiples permisos a un rol
-   *
-   * @param int $roleId
-   * @param array $permissions Array de IDs de permisos o array de ['permission_id' => int, 'granted' => bool]
-   */
-  public function assignMultiplePermissionsToRole(int $roleId, array $permissions): array
-  {
-    DB::beginTransaction();
-    try {
-      foreach ($permissions as $key => $value) {
-        // Si es array asociativo con permission_id y granted
-        if (is_array($value)) {
-          $permissionId = $value['permission_id'];
-          $granted = $value['granted'] ?? true;
-        } else {
-          // Si es array simple de IDs
-          $permissionId = $value;
-          $granted = true;
-        }
-
-        $this->assignPermissionToRole($roleId, $permissionId, $granted);
-      }
-
-      DB::commit();
-      return ['message' => 'Permisos asignados correctamente'];
-    } catch (\Exception $e) {
-      DB::rollBack();
-      throw new \Exception("Error al asignar múltiples permisos: " . $e->getMessage());
-    }
-  }
 
   /**
    * Remover un permiso de un rol
@@ -90,6 +35,7 @@ class PermissionService extends BaseService implements BaseServiceInterface
 
   /**
    * Sincronizar permisos de un rol (elimina los no enviados, agrega los nuevos)
+   * También actualiza la tabla config_asigxvistaxrole para permisos de tipo "view"
    *
    * @param int $roleId
    * @param array $permissionIds Array de IDs de permisos
@@ -103,11 +49,55 @@ class PermissionService extends BaseService implements BaseServiceInterface
       // Laravel sync maneja automáticamente agregar, actualizar y eliminar
       $role->permissions()->sync($permissionIds);
 
+      // Sincronizar permisos de "view" en config_asigxvistaxrole
+      $this->syncViewPermissionsToAccess($roleId, $permissionIds);
+
       DB::commit();
       return ['message' => 'Permisos sincronizados correctamente'];
     } catch (\Exception $e) {
       DB::rollBack();
       throw new \Exception("Error al sincronizar permisos: " . $e->getMessage());
+    }
+  }
+
+  /**
+   * Sincronizar permisos de tipo "view" en la tabla config_asigxvistaxrole
+   *
+   * @param int $roleId
+   * @param array $permissionIds Array de IDs de permisos sincronizados
+   */
+  protected function syncViewPermissionsToAccess(int $roleId, array $permissionIds): void
+  {
+    // Obtener todos los permisos sincronizados con vista_id
+    $syncedPermissions = Permission::whereIn('id', $permissionIds)
+      ->whereNotNull('vista_id')
+      ->get();
+
+    // Agrupar por vista_id
+    $vistaIds = $syncedPermissions->pluck('vista_id')->unique();
+
+    // Obtener permisos "view" que están siendo sincronizados
+    $viewPermissions = $syncedPermissions->filter(function ($permission) {
+      return str_ends_with($permission->code, '.view');
+    });
+
+    // Obtener vistas con permiso "view" activo
+    $vistasWithView = $viewPermissions->pluck('vista_id')->unique();
+
+    // Para cada vista_id, actualizar o crear el registro en config_asigxvistaxrole
+    foreach ($vistaIds as $vistaId) {
+      $hasViewPermission = $vistasWithView->contains($vistaId);
+
+      Access::updateOrCreate(
+        [
+          'vista_id' => $vistaId,
+          'role_id' => $roleId,
+        ],
+        [
+          'ver' => $hasViewPermission,
+          'status_deleted' => 1,
+        ]
+      );
     }
   }
 
@@ -119,80 +109,6 @@ class PermissionService extends BaseService implements BaseServiceInterface
     return Permission::whereHas('roles', function ($query) use ($roleId) {
       $query->where('role_id', $roleId);
     })->get();
-  }
-
-  /**
-   * Obtener permisos agrupados por módulo
-   */
-  public function getPermissionsGroupedByModule()
-  {
-    return Permission::active()
-      ->orderBy('module')
-      ->orderBy('name')
-      ->get()
-      ->groupBy('module')
-      ->map(function ($items) {
-        // Convertir cada grupo a un array de recursos serializados
-        return PermissionResource::collection($items)->resolve();
-      });
-  }
-
-  /**
-   * Obtener permisos de un módulo específico
-   */
-  public function getPermissionsByModule(string $module): Collection
-  {
-    return Permission::active()
-      ->where('module', $module)
-      ->orderBy('name')
-      ->get();
-  }
-
-  /**
-   * Obtener permisos por tipo
-   */
-  public function getPermissionsByType(string $type): Collection
-  {
-    return Permission::active()
-      ->where('type', $type)
-      ->orderBy('module')
-      ->orderBy('name')
-      ->get();
-  }
-
-  /**
-   * Crear permiso con validación
-   */
-  public function store(mixed $data)
-  {
-    $permission = Permission::create($data);
-    return new PermissionResource($permission);
-  }
-
-  /**
-   * Actualizar permiso
-   */
-  public function update(mixed $data)
-  {
-    $permission = $this->find($data['id']);
-    $permission->update($data);
-    return new PermissionResource($permission);
-  }
-
-  /**
-   * Activar/desactivar permiso
-   */
-  public function toggleActive(int $permissionId): bool
-  {
-    try {
-      $permission = Permission::findOrFail($permissionId);
-      $permission->is_active = !$permission->is_active;
-      $permission->save();
-
-      return true;
-    } catch (\Exception $e) {
-      throw new \Exception("Error al cambiar estado: " . $e->getMessage());
-    }
   }
 
   /**
@@ -211,7 +127,13 @@ class PermissionService extends BaseService implements BaseServiceInterface
 
   public function list(Request $request)
   {
-    return $this->getFilteredResults(Permission::class, $request, [], [], PermissionResource::class);
+    return $this->getFilteredResults(
+      Permission::class,
+      $request,
+      Permission::filters,
+      Permission::sorts,
+      PermissionResource::class,
+    );
   }
 
   public function find(int $id)
@@ -223,15 +145,128 @@ class PermissionService extends BaseService implements BaseServiceInterface
     return $view;
   }
 
-  public function destroy(int $id)
+  /**
+   * Sincronizar permisos de un módulo (crea nuevos, mantiene existentes, elimina los que no vienen)
+   *
+   * @param array $data ['module', 'module_name', 'actions', 'vista_id', 'is_active']
+   * @return array ['synced' => [...permissions], 'ids' => [...ids], 'created' => int, 'deleted' => int]
+   */
+  public function bulkSync(array $data): array
   {
-    $view = $this->find($id);
-    $view->delete();
-    return response()->json(['message' => 'Permiso eliminado correctamente']);
+    DB::beginTransaction();
+    try {
+      $module = $data['module'];
+      $moduleName = $data['module_name'];
+      $actions = $data['actions'];
+      $vistaId = $data['vista_id'] ?? null;
+      $isActive = $data['is_active'] ?? true;
+
+      $permissionsConfig = config('permissions.actions');
+      $syncedPermissions = [];
+      $createdCount = 0;
+      $deletedCount = 0;
+
+      // 1. Obtener todos los permisos existentes para este módulo (y vista_id si existe)
+      $existingPermissionsQuery = Permission::where('module', $module);
+
+      if ($vistaId !== null) {
+        $existingPermissionsQuery->where('vista_id', $vistaId);
+      } else {
+        $existingPermissionsQuery->whereNull('vista_id');
+      }
+
+      $existingPermissions = $existingPermissionsQuery->get();
+      $existingCodes = $existingPermissions->pluck('code')->toArray();
+
+      // 2. Crear/obtener/restaurar los permisos según las acciones enviadas
+      $expectedCodes = [];
+      foreach ($actions as $action) {
+        // Validar que la acción existe en el config
+        if (!isset($permissionsConfig[$action])) {
+          throw new \Exception("Acción '{$action}' no es válida");
+        }
+
+        $actionConfig = $permissionsConfig[$action];
+        $code = "{$module}.{$action}";
+        $expectedCodes[] = $code;
+
+        // Verificar si ya existe el permiso (incluyendo soft-deleted)
+        $existingPermission = Permission::withTrashed()->where('code', $code)->first();
+
+        if ($existingPermission) {
+          // Si existe pero está eliminado (soft delete), restaurarlo
+          if ($existingPermission->trashed()) {
+            $existingPermission->restore();
+            $createdCount++; // Contar como "creado" porque fue restaurado
+          }
+
+          // SIEMPRE actualizar los datos (esté eliminado o activo)
+          $existingPermission->update([
+            'name' => "{$actionConfig['label']} {$moduleName}",
+            'description' => $actionConfig['description'],
+            'module' => $module,
+            'vista_id' => $vistaId,
+            'policy_method' => $actionConfig['policy_method'] ?? $action,
+            'is_active' => $isActive,
+          ]);
+
+          // Agregar a la respuesta
+          $syncedPermissions[] = new PermissionResource($existingPermission->fresh());
+          continue;
+        }
+
+        // Crear el nuevo permiso (solo si no existe en absoluto)
+        $permission = Permission::create([
+          'code' => $code,
+          'name' => "{$actionConfig['label']} {$moduleName}",
+          'description' => $actionConfig['description'],
+          'module' => $module,
+          'vista_id' => $vistaId,
+          'policy_method' => $actionConfig['policy_method'] ?? $action,
+          'is_active' => $isActive,
+        ]);
+
+        $syncedPermissions[] = new PermissionResource($permission);
+        $createdCount++;
+      }
+
+      // 3. Eliminar permisos que ya no están en la lista de acciones enviadas
+      $codesToDelete = array_diff($existingCodes, $expectedCodes);
+
+      if (!empty($codesToDelete)) {
+        $deleted = Permission::whereIn('code', $codesToDelete)->delete();
+        $deletedCount = $deleted;
+      }
+
+      DB::commit();
+
+      return [
+        'synced' => $syncedPermissions,
+        'message' => "Sincronización completa: {$createdCount} creado(s), {$deletedCount} eliminado(s)",
+      ];
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw new \Exception("Error al sincronizar permisos: " . $e->getMessage());
+    }
   }
 
-  public function show(int $id)
+  /**
+   * Obtener las acciones disponibles desde la configuración
+   */
+  public function getAvailableActions(): array
   {
-    return new PermissionResource($this->find($id));
+    $actions = config('permissions.actions');
+    $formatted = [];
+
+    foreach ($actions as $value => $config) {
+      $formatted[] = [
+        'value' => $value,
+        'label' => $config['label'],
+        'description' => $config['description'],
+        'icon' => $config['icon'] ?? null,
+      ];
+    }
+
+    return $formatted;
   }
 }

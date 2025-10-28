@@ -16,6 +16,7 @@ use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\Opportunity;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -224,9 +225,16 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
         throw new Exception('La fecha de nacimiento es requerida para personas naturales');
       }
 
-      $isAdult = Helpers::isAdult($data['birth_date']);
-      if (!$isAdult) {
-        throw new Exception('El cliente debe ser mayor de edad');
+      $birth = Carbon::parse($data['birth_date']);
+      $today = Carbon::today();
+
+      if ($birth->isSameDay($today)) {
+        $data['birth_date'] = null;
+      } else {
+        $isAdult = Helpers::isAdult($birth->toDateString());
+        if (!$isAdult) {
+          throw new Exception('El cliente debe ser mayor de edad');
+        }
       }
     }
 
@@ -239,8 +247,8 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
   }
 
   /**
-<<<<<<< HEAD
-=======
+   * <<<<<<< HEAD
+   * =======
    * Obtener establecimientos de un socio comercial
    */
   public function getEstablishments($businessPartnerId)
@@ -259,7 +267,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
   }
 
   /**
->>>>>>> main
+   * >>>>>>> main
    * Validar si un socio comercial tiene oportunidades abiertas
    */
   public function validateOpportunity($id)
