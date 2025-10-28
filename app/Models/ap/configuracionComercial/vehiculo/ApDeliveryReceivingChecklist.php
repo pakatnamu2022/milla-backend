@@ -18,6 +18,7 @@ class ApDeliveryReceivingChecklist extends Model
     'description',
     'type',
     'category_id',
+    'has_quantity',
     'status'
   ];
 
@@ -29,6 +30,12 @@ class ApDeliveryReceivingChecklist extends Model
   const sorts = [
     'description',
     'type',
+  ];
+
+  //casteamos al tipo booleano
+  protected $casts = [
+    'status' => 'boolean',
+    'has_quantity' => 'boolean',
   ];
 
   public function category()

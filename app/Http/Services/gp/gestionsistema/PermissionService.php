@@ -18,86 +18,119 @@ class PermissionService extends BaseService
   protected $model = Permission::class;
 
   /**
-   * Remover un permiso de un rol
-   */
-  public function removePermissionFromRole(int $roleId, int $permissionId): bool
-  {
-    try {
-      RolePermission::where('role_id', $roleId)
-        ->where('permission_id', $permissionId)
-        ->delete();
-
-      return true;
-    } catch (\Exception $e) {
-      throw new \Exception("Error al remover permiso: " . $e->getMessage());
-    }
-  }
-
-  /**
-   * Sincronizar permisos de un rol (elimina los no enviados, agrega los nuevos)
-   * También actualiza la tabla config_asigxvistaxrole para permisos de tipo "view"
+   * Guardar/actualizar permisos de un rol SIN eliminar los existentes
+   * Solo crea nuevos o actualiza existentes, pero mantiene todos los permisos previos
    *
    * @param int $roleId
    * @param array $permissionIds Array de IDs de permisos
+   * @return array
    */
-  public function syncPermissionsToRole(int $roleId, array $permissionIds): array
+  public function savePermissionsToRole(int $roleId, array $permissionIds): array
   {
     DB::beginTransaction();
     try {
       $role = Role::findOrFail($roleId);
 
-      // Laravel sync maneja automáticamente agregar, actualizar y eliminar
-      $role->permissions()->sync($permissionIds);
+      // Procesar cada permiso individualmente
+      foreach ($permissionIds as $permissionId) {
+        // Verificar si ya existe la relación
+        $exists = RolePermission::where('role_id', $roleId)
+          ->where('permission_id', $permissionId)
+          ->exists();
 
-      // Sincronizar permisos de "view" en config_asigxvistaxrole
-      $this->syncViewPermissionsToAccess($roleId, $permissionIds);
+        if (!$exists) {
+          // Crear solo si no existe
+          RolePermission::create([
+            'role_id' => $roleId,
+            'permission_id' => $permissionId,
+            'granted' => true,
+          ]);
+        } else {
+          // Actualizar si ya existe
+          RolePermission::where('role_id', $roleId)
+            ->where('permission_id', $permissionId)
+            ->update([
+              'granted' => true,
+              'updated_at' => now(),
+            ]);
+        }
+      }
+
+      // Actualizar permisos de "view" en config_asigxvistaxrole
+      $this->updateViewPermissionsToAccess($roleId, $permissionIds);
 
       DB::commit();
-      return ['message' => 'Permisos sincronizados correctamente'];
+      return ['message' => 'Permisos guardados correctamente'];
     } catch (\Exception $e) {
       DB::rollBack();
-      throw new \Exception("Error al sincronizar permisos: " . $e->getMessage());
+      throw new \Exception("Error al guardar permisos: " . $e->getMessage());
     }
   }
 
   /**
-   * Sincronizar permisos de tipo "view" en la tabla config_asigxvistaxrole
+   * Actualizar permisos de tipo "view" en la tabla config_asigxvistaxrole
+   * Similar a syncViewPermissionsToAccess pero solo actualiza/crea, no elimina
    *
    * @param int $roleId
-   * @param array $permissionIds Array de IDs de permisos sincronizados
+   * @param array $permissionIds Array de IDs de permisos a guardar
    */
-  protected function syncViewPermissionsToAccess(int $roleId, array $permissionIds): void
+  protected function updateViewPermissionsToAccess(int $roleId, array $permissionIds): void
   {
-    // Obtener todos los permisos sincronizados con vista_id
-    $syncedPermissions = Permission::whereIn('id', $permissionIds)
+    // Obtener todos los permisos guardados con vista_id
+    $savedPermissions = Permission::whereIn('id', $permissionIds)
       ->whereNotNull('vista_id')
       ->get();
 
-    // Agrupar por vista_id
-    $vistaIds = $syncedPermissions->pluck('vista_id')->unique();
-
-    // Obtener permisos "view" que están siendo sincronizados
-    $viewPermissions = $syncedPermissions->filter(function ($permission) {
+    // Obtener permisos "view" que están siendo guardados
+    $viewPermissions = $savedPermissions->filter(function ($permission) {
       return str_ends_with($permission->code, '.view');
     });
 
     // Obtener vistas con permiso "view" activo
     $vistasWithView = $viewPermissions->pluck('vista_id')->unique();
 
-    // Para cada vista_id, actualizar o crear el registro en config_asigxvistaxrole
-    foreach ($vistaIds as $vistaId) {
-      $hasViewPermission = $vistasWithView->contains($vistaId);
-
+    // Para cada vista_id con permiso view, actualizar o crear el registro
+    foreach ($vistasWithView as $vistaId) {
       Access::updateOrCreate(
         [
           'vista_id' => $vistaId,
           'role_id' => $roleId,
         ],
         [
-          'ver' => $hasViewPermission,
+          'ver' => true,
           'status_deleted' => 1,
         ]
       );
+    }
+  }
+
+  /**
+   * Remover un permiso de un rol
+   */
+  public function removePermissionFromRole(int $roleId, int $permissionId): bool
+  {
+    DB::beginTransaction();
+    try {
+      // Obtener el permiso para verificar si es de tipo "view"
+      $permission = Permission::find($permissionId);
+
+      // Eliminar la relación role-permission
+      RolePermission::where('role_id', $roleId)
+        ->where('permission_id', $permissionId)
+        ->delete();
+
+      // Si el permiso es de tipo "view" y tiene vista_id, eliminar de config_asigxvistaxrole
+      if ($permission && $permission->vista_id && str_ends_with($permission->code, '.view')) {
+        Access::where('vista_id', $permission->vista_id)
+          ->where('role_id', $roleId)
+          ->delete();
+      }
+
+      DB::commit();
+      return true;
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw new \Exception("Error al remover permiso: " . $e->getMessage());
     }
   }
 

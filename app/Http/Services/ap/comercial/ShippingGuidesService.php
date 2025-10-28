@@ -84,27 +84,56 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $fileUrl = Storage::disk('do_spaces')->url($filePath);
       }
 
-      // 3. Generar el document_number automáticamente
-      $assignSeries = AssignSalesSeries::findOrFail($data['document_series_id']);
-      $series = $assignSeries->series;
-      $correlativeStart = $assignSeries->correlative_start;
+      // 3. Manejar series y correlativo según issuer_type
+      $series = null;
+      $correlative = null;
+      $documentNumber = null;
+      $documentSeriesId = null;
 
-      // Contar documentos existentes con la misma serie
-      $existingCount = ShippingGuides::where('document_series_id', $data['document_series_id'])->count();
-      $correlativeNumber = $correlativeStart + $existingCount;
+      if ($data['issuer_type'] == 'NOSOTROS') {
+        // Validar que document_series_id sea obligatorio
+        if (empty($data['document_series_id'])) {
+          throw new Exception('El campo document_series_id es obligatorio cuando el emisor es AUTOMOTORES');
+        }
 
-      // Formato: {SERIE}-{CORRELATIVO} (ej: T001-00000001)
-      $documentNumber = $series . '-' . str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
+        // Generar automáticamente la serie y correlativo
+        $assignSeries = AssignSalesSeries::findOrFail($data['document_series_id']);
+        $series = $assignSeries->series;
+        $correlativeStart = $assignSeries->correlative_start;
+
+        // Contar documentos existentes con la misma serie
+        $existingCount = ShippingGuides::where('document_series_id', $data['document_series_id'])->count();
+        $correlativeNumber = $correlativeStart + $existingCount;
+
+        $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
+        $documentNumber = $series . '-' . $correlative;
+        $documentSeriesId = $data['document_series_id'];
+      } elseif ($data['issuer_type'] == 'PROVEEDOR') {
+        // Validar que series y correlative sean obligatorios
+        if (empty($data['series'])) {
+          throw new Exception('El campo series es obligatorio cuando el emisor es PROVEEDOR');
+        }
+        if (empty($data['correlative'])) {
+          throw new Exception('El campo correlative es obligatorio cuando el emisor es PROVEEDOR');
+        }
+
+        // Usar los valores enviados por el cliente sin modificar
+        $series = $data['series'];
+        $correlative = $data['correlative'];
+        $documentNumber = $series . '-' . $correlative;
+        $documentSeriesId = null;
+      }
 
       // 4. Crear la guía de remisión
       $documentData = [
         'document_type' => $data['document_type'],
         'issuer_type' => $data['issuer_type'],
-        'document_series_id' => $data['document_series_id'],
-        'document_number' => $documentNumber, // Generado automáticamente
+        'document_series_id' => $documentSeriesId,
+        'series' => $series,
+        'correlative' => $correlative,
+        'document_number' => $documentNumber,
         'issue_date' => $data['issue_date'],
         'requires_sunat' => $data['requires_sunat'] ?? false,
-        // is_sunat_registered se procesará después con nubefac
         'total_packages' => $data['total_packages'] ?? null,
         'total_weight' => $data['total_weight'] ?? null,
         'vehicle_movement_id' => $vehicleMovement->id,

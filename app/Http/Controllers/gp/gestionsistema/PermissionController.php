@@ -33,10 +33,10 @@ class PermissionController extends Controller
   /**
    * Sincronizar permisos de un rol (reemplaza todos)
    */
-  public function syncToRole(StoreMultiplePermissionRoleRequest $request)
+  public function saveToRole(StoreMultiplePermissionRoleRequest $request)
   {
     try {
-      return $this->success($this->service->syncPermissionsToRole(
+      return $this->success($this->service->savePermissionsToRole(
         $request->role_id,
         $request->permissions
       ));

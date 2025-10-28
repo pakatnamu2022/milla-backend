@@ -16,6 +16,7 @@ class ApDeliveryReceivingChecklistResource extends JsonResource
       'status' => $this->status,
       'category_id' => $this->category_id,
       'category' => $this->category->description,
+      'has_quantity' => $this->has_quantity,
     ];
   }
 }
