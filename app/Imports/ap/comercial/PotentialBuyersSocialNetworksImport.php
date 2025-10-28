@@ -94,13 +94,10 @@ class PotentialBuyersSocialNetworksImport implements ToModel, WithHeadingRow, Wi
     $normalizedCity = strtoupper(trim($ciudad ?? ''));
     $districtName = $this->cityToDistrictNameMap[$normalizedCity] ?? null;
 
-    // Consolidar nombre completo eliminando duplicados
-    $nombre = $row[5] ?? $row['nombre'] ?? '';
-    $apellido = $row[6] ?? $row['apellido'] ?? '';
-    $fullName = $this->consolidateFullName($nombre, $apellido);
+    $fullName = $row[5] ?? $row['nombres_completos'] ?? '';
 
     // Obtener y validar campaña
-    $campana = strtoupper(trim($row[11] ?? $row['campana'] ?? ''));
+    $campana = strtoupper(trim($row[10] ?? $row['campana'] ?? ''));
 
     // Validar que la campaña sea válida
     if (!empty($campana) && !in_array($campana, $this->validCampaigns)) {
@@ -108,13 +105,13 @@ class PotentialBuyersSocialNetworksImport implements ToModel, WithHeadingRow, Wi
     }
 
     return [
-      'registration_date' => $this->parseDate($row[10] ?? $row['fecha'] ?? null),
+      'registration_date' => $this->parseDate($row[9] ?? $row['fecha'] ?? null),
       'model' => strtoupper($row[1] ?? $row['modelo'] ?? ''),
       'version' => strtoupper($row[2] ?? $row['version'] ?? null),
       'num_doc' => $row[4] ?? $row['documento_cliente'] ?? null,
       'full_name' => $fullName,
-      'phone' => $row[7] ?? $row['celular'] ?? null,
-      'email' => strtolower($row[8] ?? $row['email'] ?? null),
+      'phone' => $row[6] ?? $row['celular'] ?? null,
+      'email' => strtolower($row[7] ?? $row['email'] ?? null),
       'campaign' => $campana, // Campaña como string
       'sede_id' => $sedeData['id'],
       'sede' => $sedeData['abreviatura'],
@@ -314,53 +311,6 @@ class PotentialBuyersSocialNetworksImport implements ToModel, WithHeadingRow, Wi
     $this->distributionCounter[$cacheKey]++;
 
     return $assignedWorker;
-  }
-
-  /**
-   * Consolida el nombre completo eliminando duplicados entre nombres y apellidos
-   *
-   * Ejemplo:
-   * - Nombre: "Carloman Saucedo estela"
-   * - Apellido: "Saucedo estela"
-   * - Resultado: "CARLOMAN SAUCEDO ESTELA"
-   *
-   * @param string $nombre
-   * @param string $apellido
-   * @return string
-   */
-  private function consolidateFullName($nombre, $apellido)
-  {
-    // Limpiar y normalizar
-    $nombre = trim($nombre ?? '');
-    $apellido = trim($apellido ?? '');
-
-    // Si ambos están vacíos, retornar null
-    if (empty($nombre) && empty($apellido)) {
-      return null;
-    }
-
-    // Convertir a mayúsculas y dividir en palabras
-    $nombreArray = array_filter(explode(' ', strtoupper($nombre)));
-    $apellidoArray = array_filter(explode(' ', strtoupper($apellido)));
-
-    // Si solo hay nombre, retornarlo
-    if (empty($apellidoArray)) {
-      return implode(' ', $nombreArray);
-    }
-
-    // Si solo hay apellido, retornarlo
-    if (empty($nombreArray)) {
-      return implode(' ', $apellidoArray);
-    }
-
-    // Eliminar duplicados: quitar de nombre las palabras que están en apellido
-    $nombreUnicos = array_diff($nombreArray, $apellidoArray);
-
-    // Combinar nombres únicos + apellidos
-    $fullNameArray = array_merge(array_values($nombreUnicos), $apellidoArray);
-
-    // Retornar el nombre completo sin duplicados
-    return implode(' ', $fullNameArray);
   }
 
   private function parseDate($date)
