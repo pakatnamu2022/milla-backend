@@ -85,11 +85,8 @@ class ViewService extends BaseService
     }
 
     $views = View::where('status_deleted', 1)
+      ->where('descripcion', 'like', "%{$search}%")
       ->whereNotNull('route')
-      ->when($search, function ($query, $search) {
-        $query->where('descripcion', 'like', "%{$search}%")
-          ->orWhere('slug', 'like', "%{$search}%");
-      })
       ->with(['permissions' => function ($query) {
         $query->where('is_active', true)
           ->orderBy('code');
@@ -111,6 +108,10 @@ class ViewService extends BaseService
         'route' => $view->route,
         'icon' => $view->icon,
         'parent_id' => $view->parent_id,
+        'company' => $view->company?->name ?? null,
+        'padre' => $view->padre?->descripcion ?? null,
+        'subPadre' => $view->subPadre?->descripcion ?? null,
+        'hijo' => $view->hijo?->descripcion ?? null,
         'permissions' => $permissions,
       ];
     });
