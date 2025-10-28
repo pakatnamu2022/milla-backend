@@ -105,7 +105,7 @@ class VehicleService extends BaseService implements BaseServiceInterface
       throw new Exception("El número de motor {$data['engine_number']} ya existe en el sistema");
     }
 
-    $data['type_operation_id'] = Constants::TYPE_OPERATION_POSTVENTA_ID;
+    if (!$data['type_operation_id']) $data['type_operation_id'] = Constants::TYPE_OPERATION_POSTVENTA_ID;
 
     return $data;
   }

@@ -53,6 +53,7 @@ class PurchaseOrderResource extends JsonResource
 
 
       // Estados
+      'resent' => (bool)$this->resent,
       'status' => (bool)$this->status,
       'migration_status' => $this->migration_status,
       'invoice_dynamics' => $this->invoice_dynamics,
