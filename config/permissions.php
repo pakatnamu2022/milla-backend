@@ -96,7 +96,7 @@ return [
       'policy_method' => 'duplicate',
     ],
 
-    'view_advisors' => [
+    'viewAdvisors' => [
       'label' => 'Ver Asesores',
       'description' => 'Permite visualizar la lista de asesores',
       'icon' => 'Users',
