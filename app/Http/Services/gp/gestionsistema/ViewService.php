@@ -85,11 +85,10 @@ class ViewService extends BaseService
     }
 
     $views = View::where('status_deleted', 1)
+      ->whereNotNull('route')
       ->when($search, function ($query, $search) {
         $query->where('descripcion', 'like', "%{$search}%")
-          ->whereNotNull('route')
-          ->orWhere('slug', 'like', "%{$search}%")
-          ->orWhere('route', 'like', "%{$search}%");
+          ->orWhere('slug', 'like', "%{$search}%");
       })
       ->with(['permissions' => function ($query) {
         $query->where('is_active', true)
