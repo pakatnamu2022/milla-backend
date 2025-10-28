@@ -51,6 +51,11 @@ class PurchaseOrderResource extends JsonResource
       // Items de la orden
       'items' => PurchaseOrderItemResource::collection($this->items),
 
+      // ID
+      'supplier_id' => $this->supplier_id,
+      'supplier_order_type_id' => $this->supplier_order_type_id,
+      'currency_id' => $this->currency_id,
+      'warehouse_id' => $this->warehouse_id,
 
       // Estados
       'resent' => (bool)$this->resent,
