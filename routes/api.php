@@ -88,7 +88,7 @@ Route::group(['prefix' => 'email/test'], function () {
 Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::get('/authenticate', [AuthController::class, 'authenticate'])->name('authenticate');
   Route::get('/permissions', [AuthController::class, 'permissions'])->name('permissions');
-  Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
+  //Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
   //    GENERAL
   //    SEDE
@@ -123,6 +123,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
 
     //        VIEWS
+    Route::get('view/with-permissions', [ViewController::class, 'viewsWithPermissions'])->name('view.with-permissions');
     Route::apiResource('view', ViewController::class)->only([
       'index',
       'show',
@@ -142,20 +143,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       'destroy'
     ]);
 
-    //        PERMISSION
-    Route::get('permission/grouped-by-module', [PermissionController::class, 'groupedByModule'])->name('permission.grouped-by-module');
-    Route::get('permission/{id}/getByRole', [PermissionController::class, 'getByRole'])->name('permission.getByRole');
-    Route::post('permission/assign-to-role', [PermissionController::class, 'assignToRole'])->name('permission.assign-to-role');
-    Route::post('permission/assigns-to-role', [PermissionController::class, 'assignMultipleToRole'])->name('permission.assigns-to-role');
-    Route::post('permission/syncPermissionsToRole', [PermissionController::class, 'syncToRole'])->name('permission.syncPermissionsToRole');
-    Route::apiResource('permission', PermissionController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
+    // PERMISSIONS
+    Route::get('permission', [PermissionController::class, 'index'])->name('permission.index');
+    Route::get('permission/available-actions', [PermissionController::class, 'getAvailableActions'])->name('permission.available-actions');
+    Route::get('permission/{id}/get-by-role', [PermissionController::class, 'getByRole'])->name('permission.getByRole');
+    Route::post('permission/bulk-sync', [PermissionController::class, 'bulkSync'])->name('permission.bulk-sync');
+    Route::post('permission/sync-permissions-to-role', [PermissionController::class, 'syncToRole'])->name('permission.syncPermissionsToRole');
+  });
 
+  Route::group(['prefix' => 'configuration'], function () {
     //        USERS
     Route::get('user/{user}/complete', [UserController::class, 'showComplete'])->name('user.showComplete');
     Route::apiResource('user', UserController::class)->only([

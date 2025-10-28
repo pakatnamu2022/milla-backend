@@ -4,10 +4,8 @@ namespace App\Http\Controllers\gp\gestionsistema;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionsistema\IndexPermissionRequest;
+use App\Http\Requests\gp\gestionsistema\StoreBulkPermissionRequest;
 use App\Http\Requests\gp\gestionsistema\StoreMultiplePermissionRoleRequest;
-use App\Http\Requests\gp\gestionsistema\StorePermissionRequest;
-use App\Http\Requests\gp\gestionsistema\StorePermissionRoleRequest;
-use App\Http\Requests\gp\gestionsistema\UpdatePermissionRequest;
 use App\Http\Services\gp\gestionsistema\PermissionService;
 use Illuminate\Http\Request;
 
@@ -27,125 +25,6 @@ class PermissionController extends Controller
   {
     try {
       return $this->service->list($request);
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
-  /**
-   * Crear nuevo permiso
-   */
-  public function store(StorePermissionRequest $request)
-  {
-    try {
-      return $this->success($this->service->store($request->validated()));
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
-  /**
-   * Mostrar un permiso específico
-   */
-  public function show($id)
-  {
-    try {
-      return $this->success($this->service->show($id));
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
-  /**
-   * Actualizar permiso
-   */
-  public function update(UpdatePermissionRequest $request, $id)
-  {
-    try {
-      $data = $request->validated();
-      $data['id'] = $id;
-      return $this->success($this->service->update($data));
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
-  /**
-   * Eliminar permiso (soft delete si aplica)
-   */
-  public function destroy($id)
-  {
-    try {
-      return $this->service->destroy($id);
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
-  /**
-   * Obtener permisos agrupados por módulo
-   */
-  public function groupedByModule()
-  {
-    try {
-      return $this->success($this->service->getPermissionsGroupedByModule());
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
-  /**
-   * Obtener permisos de un módulo específico
-   */
-  public function byModule(Request $request)
-  {
-    try {
-      $module = $request->input('module');
-      return $this->success($this->service->getPermissionsByModule($module));
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
-  /**
-   * Obtener permisos por tipo
-   */
-  public function byType(Request $request)
-  {
-    try {
-      $type = $request->input('type');
-      return $this->success($this->service->getPermissionsByType($type));
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
-  /**
-   * Asignar permiso a un rol
-   */
-  public function assignToRole(StorePermissionRoleRequest $request)
-  {
-    try {
-      return $this->success($this->service->assignPermissionToRole(
-        $request->role_id,
-        $request->permission_id,
-        $request->granted ?? true
-      ));
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
-  /**
-   * Asignar múltiples permisos a un rol
-   */
-  public function assignMultipleToRole(StoreMultiplePermissionRoleRequest $request)
-  {
-    try {
-      return $this->success($this->service->assignMultiplePermissionsToRole(
-        $request->role_id,
-        $request->permissions
-      ));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -201,13 +80,29 @@ class PermissionController extends Controller
   }
 
   /**
-   * Activar/desactivar permiso
+   * Sincronizar permisos de un módulo (crea nuevos, elimina los que no vienen)
    */
-  public function toggleActive($id)
+  public function bulkSync(StoreBulkPermissionRequest $request)
   {
     try {
-      $this->service->toggleActive($id);
-      return $this->success(['message' => 'Estado cambiado correctamente']);
+      $result = $this->service->bulkSync($request->validated());
+      return $this->success($result);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Obtener acciones disponibles desde la configuración
+   */
+  public function getAvailableActions()
+  {
+    try {
+      $actions = $this->service->getAvailableActions();
+      return $this->success([
+        'actions' => $actions,
+        'default_actions' => config('permissions.default_actions'),
+      ]);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
