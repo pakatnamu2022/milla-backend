@@ -17,9 +17,10 @@ class PermissionResource extends JsonResource
     // Extraer la acción del código (ej: "users.view" -> "view")
     $action = $this->action ?? $this->getActionFromCode();
 
-    // Obtener el label desde el config
+    // Obtener el label e icon desde el config
     $actionConfig = config("permissions.actions.{$action}", []);
     $actionLabel = $actionConfig['label'] ?? null;
+    $actionIcon = $actionConfig['icon'] ?? null;
 
     return [
       'id' => $this->id,
@@ -31,6 +32,7 @@ class PermissionResource extends JsonResource
       'is_active' => $this->is_active,
       'action' => $action,
       'action_label' => $actionLabel,
+      'icon' => $actionIcon,
     ];
   }
 

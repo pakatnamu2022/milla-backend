@@ -4,6 +4,7 @@ namespace App\Http\Services\gp\gestionsistema;
 
 use App\Http\Resources\gp\gestionsistema\PermissionResource;
 use App\Http\Services\BaseService;
+use App\Models\gp\gestionsistema\Access;
 use App\Models\gp\gestionsistema\Permission;
 use App\Models\gp\gestionsistema\Role;
 use App\Models\gp\gestionsistema\RolePermission;
@@ -34,6 +35,7 @@ class PermissionService extends BaseService
 
   /**
    * Sincronizar permisos de un rol (elimina los no enviados, agrega los nuevos)
+   * También actualiza la tabla config_asigxvistaxrole para permisos de tipo "view"
    *
    * @param int $roleId
    * @param array $permissionIds Array de IDs de permisos
@@ -47,11 +49,55 @@ class PermissionService extends BaseService
       // Laravel sync maneja automáticamente agregar, actualizar y eliminar
       $role->permissions()->sync($permissionIds);
 
+      // Sincronizar permisos de "view" en config_asigxvistaxrole
+      $this->syncViewPermissionsToAccess($roleId, $permissionIds);
+
       DB::commit();
       return ['message' => 'Permisos sincronizados correctamente'];
     } catch (\Exception $e) {
       DB::rollBack();
       throw new \Exception("Error al sincronizar permisos: " . $e->getMessage());
+    }
+  }
+
+  /**
+   * Sincronizar permisos de tipo "view" en la tabla config_asigxvistaxrole
+   *
+   * @param int $roleId
+   * @param array $permissionIds Array de IDs de permisos sincronizados
+   */
+  protected function syncViewPermissionsToAccess(int $roleId, array $permissionIds): void
+  {
+    // Obtener todos los permisos sincronizados con vista_id
+    $syncedPermissions = Permission::whereIn('id', $permissionIds)
+      ->whereNotNull('vista_id')
+      ->get();
+
+    // Agrupar por vista_id
+    $vistaIds = $syncedPermissions->pluck('vista_id')->unique();
+
+    // Obtener permisos "view" que están siendo sincronizados
+    $viewPermissions = $syncedPermissions->filter(function ($permission) {
+      return str_ends_with($permission->code, '.view');
+    });
+
+    // Obtener vistas con permiso "view" activo
+    $vistasWithView = $viewPermissions->pluck('vista_id')->unique();
+
+    // Para cada vista_id, actualizar o crear el registro en config_asigxvistaxrole
+    foreach ($vistaIds as $vistaId) {
+      $hasViewPermission = $vistasWithView->contains($vistaId);
+
+      Access::updateOrCreate(
+        [
+          'vista_id' => $vistaId,
+          'role_id' => $roleId,
+        ],
+        [
+          'ver' => $hasViewPermission,
+          'status_deleted' => 1,
+        ]
+      );
     }
   }
 

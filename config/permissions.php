@@ -95,6 +95,13 @@ return [
       'icon' => 'Copy',
       'policy_method' => 'duplicate',
     ],
+
+    'view_advisors' => [
+      'label' => 'Ver Asesores',
+      'description' => 'Permite visualizar la lista de asesores',
+      'icon' => 'Users',
+      'policy_method' => 'viewAdvisors',
+    ],
   ],
 
   /*

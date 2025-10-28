@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionsistema\IndexPermissionRequest;
 use App\Http\Requests\gp\gestionsistema\StoreBulkPermissionRequest;
 use App\Http\Requests\gp\gestionsistema\StoreMultiplePermissionRoleRequest;
-use App\Http\Requests\gp\gestionsistema\StorePermissionRoleRequest;
 use App\Http\Services\gp\gestionsistema\PermissionService;
 use Illuminate\Http\Request;
 
