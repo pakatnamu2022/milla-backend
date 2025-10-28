@@ -9,14 +9,15 @@ use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\ExchangeRate;
-use Illuminate\Database\Eloquent\Model;
+use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class PurchaseOrder extends Model
+class PurchaseOrder extends BaseModel
 {
   use SoftDeletes, Reportable;
 
@@ -71,6 +72,9 @@ class PurchaseOrder extends Model
     'migration_status' => '=',
     'status' => '=',
     'currency_id' => '=',
+    'sede_id' => '=',
+    'vehicle.ap_models_vn_id' => '=',
+    'vehicle.ap_vehicle_status_id' => '=',
   ];
 
   const sorts = [
@@ -118,6 +122,11 @@ class PurchaseOrder extends Model
   public function supplierOrderType(): BelongsTo
   {
     return $this->belongsTo(ApCommercialMasters::class, 'supplier_order_type_id');
+  }
+
+  public function sede(): BelongsTo
+  {
+    return $this->belongsTo(Sede::class, 'sede_id');
   }
 
   /**

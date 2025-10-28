@@ -35,6 +35,8 @@ class PurchaseOrderResource extends JsonResource
       'isc' => (float)$this->isc,
 
       // Relaciones básicas
+      'sede_id' => $this->sede_id,
+      'sede' => $this->sede->abreviatura,
       'supplier' => $this->supplier->full_name,
       'supplier_num_doc' => $this->supplier->num_doc,
       'supplier_order_type' => $this->supplierOrderType->description,

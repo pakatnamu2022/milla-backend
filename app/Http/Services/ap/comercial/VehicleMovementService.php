@@ -144,10 +144,12 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
     try {
       $vehiclePurchaseOrder = PurchaseOrder::find($vehiclePurchaseOrderId);
       $vehicleId = $vehiclePurchaseOrder->vehicle->id;
+
       $vehicle = Vehicles::find($vehicleId);
       if (!$vehiclePurchaseOrder || !$vehicleId || !$vehicle) {
         throw new Exception('Orden de compra de vehículo no encontrada');
       }
+
       $vehicleMovement = VehicleMovement::create([
         'movement_type' => VehicleMovement::IN_TRANSIT_RETURNED,
         'ap_vehicle_id' => $vehicleId,
@@ -157,9 +159,11 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
         'previous_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
         'new_status_id' => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
       ]);
+
       $vehicle->update([
         'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
       ]);
+      
       DB::commit();
       return new VehicleMovementResource($vehicleMovement);
     } catch (Exception $e) {
