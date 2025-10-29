@@ -3,7 +3,7 @@
 namespace App\Http\Resources\ap\comercial;
 
 use App\Models\ap\comercial\BusinessPartners;
-use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\gp\gestionsistema\Company;
 use Exception;
@@ -18,9 +18,9 @@ class VehiclePurchaseOrderDynamicsResource extends JsonResource
   public function toArray(Request $request): array
   {
     $supplierNumber = BusinessPartners::find($this->supplier_id)->num_doc;
-    $supplierTaxClassType = VehiclePurchaseOrder::find($this->id)->supplier?->supplierTaxClassType?->tax_class;
+    $supplierTaxClassType = PurchaseOrder::find($this->id)->supplier?->supplierTaxClassType?->tax_class;
     $typeCurrency = TypeCurrency::find($this->currency_id)->code;
-    $exchangeRate = VehiclePurchaseOrder::find($this->id)->exchangeRate;
+    $exchangeRate = PurchaseOrder::find($this->id)->exchangeRate;
 
     if (!$supplierNumber) throw new Exception("Supplier not found for PO {$this->id}");
     if (!$supplierTaxClassType) throw new Exception("Supplier or TaxClassType not found for PO {$this->id}");

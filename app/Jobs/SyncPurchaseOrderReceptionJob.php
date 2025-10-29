@@ -4,13 +4,12 @@ namespace App\Jobs;
 
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderResource;
 use App\Http\Services\DatabaseSyncService;
-use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\gp\gestionsistema\Company;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class SyncPurchaseOrderReceptionJob implements ShouldQueue
 {
@@ -35,7 +34,7 @@ class SyncPurchaseOrderReceptionJob implements ShouldQueue
    */
   public function handle(DatabaseSyncService $syncService): void
   {
-    $purchaseOrder = VehiclePurchaseOrder::with(['vehicleStatus'])->find($this->purchaseOrderId);
+    $purchaseOrder = PurchaseOrder::with(['vehicleMovement.vehicle'])->find($this->purchaseOrderId);
 
     if (!$purchaseOrder) {
       // Log::error("Purchase order not found: {$this->purchaseOrderId}");
@@ -65,7 +64,7 @@ class SyncPurchaseOrderReceptionJob implements ShouldQueue
         $purchaseOrder->id,
         VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL_SERIAL,
         VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL_SERIAL],
-        $purchaseOrder->vin
+        $purchaseOrder->vehicleMovement?->vehicle?->vin
       );
 
       // Sincronizar la recepción (NI) Y sus detalles juntos
@@ -98,7 +97,7 @@ class SyncPurchaseOrderReceptionJob implements ShouldQueue
   /**
    * Verifica que la OC tenga ProcesoEstado = 1
    */
-  protected function waitForPurchaseOrderSync(VehiclePurchaseOrder $purchaseOrder): void
+  protected function waitForPurchaseOrderSync(PurchaseOrder $purchaseOrder): void
   {
     $dbtp = DB::connection('dbtp')
       ->table('neInTbOrdenCompra')
@@ -165,7 +164,7 @@ class SyncPurchaseOrderReceptionJob implements ShouldQueue
 
     // Marcar los logs como fallidos
     if ($this->purchaseOrderId) {
-      $purchaseOrder = VehiclePurchaseOrder::find($this->purchaseOrderId);
+      $purchaseOrder = PurchaseOrder::find($this->purchaseOrderId);
       $errorMessage = "Job de recepción falló después de {$this->tries} intentos: {$exception->getMessage()}";
 
       if ($purchaseOrder) {

@@ -13,6 +13,11 @@ return new class extends Migration {
     Schema::create('ap_purchase_order', function (Blueprint $table) {
       $table->id();
       $table->string('number');
+      $table->integer('number_correlative')->comment('Número correlativo de la OC para casos de corrección por NC');
+
+//      GUIDE
+      $table->string('number_guide');
+      $table->foreignId('warehouse_id')->constrained('warehouse');
 
 //      INVOICE
       $table->string('invoice_series')->comment('Serie de la factura');
@@ -28,10 +33,11 @@ return new class extends Migration {
       $table->foreignId('supplier_id')->constrained('business_partners');
       $table->foreignId('currency_id')->constrained('type_currency');
       $table->foreignId('exchange_rate_id')->constrained('ap_commercial_masters');
+      $table->foreignId('supplier_order_type_id')
+        ->constrained('ap_commercial_masters')->onDelete('cascade');
 
-//      GUIDE
-      $table->string('number_guide');
-      $table->foreignId('warehouse_id')->constrained('warehouse');
+      $table->integer('sede_id');
+      $table->foreign('sede_id')->references('id')->on('config_sede');
 
 //      STATUS
       $table->string('invoice_dynamics')->nullable()->comment('Número de factura en el sistema Dynamics');
@@ -43,7 +49,7 @@ return new class extends Migration {
       $table->enum('migration_status', ['pending', 'in_progress', 'completed', 'failed', 'updated_with_nc'])->default('pending')->comment('Estado de la migración a la BD intermedia');
       $table->boolean('status')->default(true)->comment('Estado de la OC: true=activa, false=anulada (con NC)');
 
-      $table->foreignId('vehicle_movement_id')->constrained('ap_vehicle_movement')->onDelete('cascade');
+      $table->foreignId('vehicle_movement_id')->nullable()->constrained('ap_vehicle_movement')->onDelete('cascade');
 
 //      TIMESTAMPS
       $table->timestamp('migrated_at')->nullable()->comment('Fecha y hora en que se completó la migración');

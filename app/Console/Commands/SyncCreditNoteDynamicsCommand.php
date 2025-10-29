@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Jobs\SyncCreditNoteDynamicsJob;
-use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\compras\PurchaseOrder;
 use Illuminate\Console\Command;
 
 class SyncCreditNoteDynamicsCommand extends Command
@@ -52,7 +52,7 @@ class SyncCreditNoteDynamicsCommand extends Command
    */
   protected function syncSinglePurchaseOrder(int $purchaseOrderId): int
   {
-    $purchaseOrder = VehiclePurchaseOrder::find($purchaseOrderId);
+    $purchaseOrder = PurchaseOrder::find($purchaseOrderId);
 
     if (!$purchaseOrder) {
       $this->error("Orden de compra #{$purchaseOrderId} no encontrada");
@@ -82,7 +82,7 @@ class SyncCreditNoteDynamicsCommand extends Command
    */
   protected function syncAllPurchaseOrders(): int
   {
-    $count = VehiclePurchaseOrder::where(function ($query) {
+    $count = PurchaseOrder::where(function ($query) {
       $query->whereNull('credit_note_dynamics')
         ->orWhere('credit_note_dynamics', '');
     })

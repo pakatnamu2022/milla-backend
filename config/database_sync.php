@@ -2,7 +2,7 @@
 
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\BusinessPartners;
-use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\maestroGeneral\TaxClassTypes;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -231,39 +231,7 @@ return [
     ],
   ],
 
-  // Configuración para la entidad "ap_purchase_order" (Orden de Compra - Cabecera)
-  'ap_vehicle_purchase_order' => [
-    'dbtp' => [
-      'enabled' => env('SYNC_DBTP_ENABLED', false),
-      'connection' => 'dbtp',
-      'table' => 'neInTbOrdenCompra',
-      'mapping' => [
-        'EmpresaId' => fn($data) => $data['EmpresaId'],
-        'OrdenCompraId' => fn($data) => $data['OrdenCompraId'],
-        'ProveedorId' => fn($data) => $data['ProveedorId'],
-        'FechaEmision' => fn($data) => $data['FechaEmision'],
-        'MonedaId' => fn($data) => $data['MonedaId'],
-        'TipoTasaId' => fn($data) => $data['TipoTasaId'],
-        'TasaCambio' => fn($data) => $data['TasaCambio'],
-        'PlanImpuestoId' => fn($data) => $data['PlanImpuestoId'],
-        'UsuarioId' => fn($data) => $data['UsuarioId'],
-        'Procesar' => fn($data) => $data['Procesar'],
-        'ProcesoEstado' => fn($data) => $data['ProcesoEstado'],
-        'ProcesoError' => fn($data) => $data['ProcesoError'],
-      ],
-      'optional_mapping' => [
-      ],
-      'sync_mode' => 'insert',
-      'unique_key' => 'OrdenCompraId',
-      'actions' => [
-        'create' => true,
-        'update' => true,
-        'delete' => false,
-      ],
-    ]
-  ],
-
-  // Configuración para la entidad "ap_purchase_order" genérica (nuevo sistema)
+  // Configuración para la entidad "ap_purchase_order" genérica
   'ap_purchase_order' => [
     'dbtp' => [
       'enabled' => env('SYNC_DBTP_ENABLED', false),
@@ -295,46 +263,7 @@ return [
     ]
   ],
 
-  // Configuración para la entidad "ap_purchase_order_det" (Detalle de OC de vehículos - legacy)
-  'ap_vehicle_purchase_order_det' => [
-    'dbtp' => [
-      'enabled' => env('SYNC_DBTP_ENABLED', false),
-      'connection' => 'dbtp',
-      'table' => 'neInTbOrdenCompraDet',
-      'mapping' => [
-        'EmpresaId' => fn($data) => $data['EmpresaId'],
-        'OrdenCompraId' => fn($data) => $data['OrdenCompraId'],
-        'Linea' => fn($data) => $data['Linea'],
-        'ArticuloId' => fn($data) => $data['ArticuloId'],
-        'SitioId' => fn($data) => $data['SitioId'],
-        'UnidadMedidaId' => fn($data) => $data['UnidadMedidaId'],
-        'Cantidad' => fn($data) => $data['Cantidad'],
-        'CostoUnitario' => fn($data) => $data['CostoUnitario'],
-        'CuentaNumeroInventario' => fn($data) => $data['CuentaNumeroInventario'] ?? '',
-        'CodigoDimension1' => fn($data) => $data['CodigoDimension1'] ?? '',
-        'CodigoDimension2' => fn($data) => $data['CodigoDimension2'] ?? '',
-        'CodigoDimension3' => fn($data) => $data['CodigoDimension3'] ?? '',
-        'CodigoDimension4' => fn($data) => $data['CodigoDimension4'] ?? '',
-        'CodigoDimension5' => fn($data) => $data['CodigoDimension5'] ?? '',
-        'CodigoDimension6' => fn($data) => $data['CodigoDimension6'] ?? '',
-        'CodigoDimension7' => fn($data) => $data['CodigoDimension7'] ?? '',
-        'CodigoDimension8' => fn($data) => $data['CodigoDimension8'] ?? '',
-        'CodigoDimension9' => fn($data) => $data['CodigoDimension9'] ?? '',
-        'CodigoDimension10' => fn($data) => $data['CodigoDimension10'] ?? ''
-      ],
-      'optional_mapping' => [
-      ],
-      'sync_mode' => 'insert',
-      'unique_key' => 'OrdenCompraId',
-      'actions' => [
-        'create' => true,
-        'update' => true,
-        'delete' => false,
-      ],
-    ]
-  ],
-
-  // Configuración para la entidad "ap_purchase_order_item" (Detalle de OC genérica - nuevo sistema)
+  // Configuración para la entidad "ap_purchase_order_item" (Detalle de OC genérica)
   'ap_purchase_order_item' => [
     'dbtp' => [
       'enabled' => env('SYNC_DBTP_ENABLED', false),
@@ -532,9 +461,9 @@ return [
         'Serie' => 1, // TODO: FXX1
         'Correlativo' => 1, // TODO: 4002
         'MonedaId' => fn($data) => TypeCurrency::find($data['currency_id'])->code,
-        'TipoTasaId' => fn($data) => VehiclePurchaseOrder::find($data['id'])->exchangeRate->type,
-        'TasaCambio' => fn($data) => VehiclePurchaseOrder::find($data['id'])->exchangeRate->rate,
-        'PlanImpuestoId' => fn($data) => VehiclePurchaseOrder::find($data['id'])->supplier?->supplierTaxClassType?->tax_class ?? throw new \Exception("Supplier or TaxClassType not found for PO {$data['id']}"),
+        'TipoTasaId' => fn($data) => PurchaseOrder::find($data['id'])->exchangeRate->type,
+        'TasaCambio' => fn($data) => PurchaseOrder::find($data['id'])->exchangeRate->rate,
+        'PlanImpuestoId' => fn($data) => PurchaseOrder::find($data['id'])->supplier?->supplierTaxClassType?->tax_class ?? throw new \Exception("Supplier or TaxClassType not found for PO {$data['id']}"),
         'TipoOperacionDetraccionId' => fn($data) => '01',  // TODO: confirmar
         'CategoriaDetraccionId' => 1, // TODO: vacio o confirmar
         'SitioPredeterminadoId' => 1, // TODO: ALM-VN-CIX

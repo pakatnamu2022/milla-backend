@@ -16,7 +16,9 @@ class VehiclePurchaseOrderDetailDynamicsResource extends JsonResource
    */
   public function toArray(Request $request): array
   {
-    $modelCode = ApModelsVn::find($this->ap_models_vn_id)?->code;
+    // Acceder al modelo a través de: PurchaseOrder -> vehicleMovement -> vehicle -> model
+    $modelId = $this->vehicleMovement?->vehicle?->ap_models_vn_id;
+    $modelCode = $modelId ? ApModelsVn::find($modelId)?->code : null;
     $warehouseCode = Warehouse::find($this->warehouse_id)?->dyn_code;
 
     if (!$modelCode) throw new Exception("Model code not found for vehicle purchase order {$this->id}");

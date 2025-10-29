@@ -20,17 +20,16 @@ return new class extends Migration {
         ->constrained('ap_models_vn')->onDelete('cascade');
       $table->foreignId('vehicle_color_id')
         ->constrained('ap_commercial_masters')->onDelete('cascade');
-      $table->foreignId('supplier_order_type_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
       $table->foreignId('engine_type_id')
         ->constrained('ap_commercial_masters')->onDelete('cascade');
       $table->foreignId('ap_vehicle_status_id')
         ->constrained('ap_vehicle_status')->onDelete('cascade');
-      $table->integer('sede_id');
-      $table->foreign('sede_id')->references('id')->on('config_sede');
+      $table->foreignId('type_operation_id')
+        ->constrained('ap_commercial_masters')->onDelete('cascade');
 
       $table->foreignId('warehouse_physical_id')->nullable()->constrained('warehouse');
-      
+
+      $table->boolean('status')->default(true)->comment('Estado del vehículo: true=activo, false=inactivo');
       $table->timestamps();
       $table->softDeletes();
     });

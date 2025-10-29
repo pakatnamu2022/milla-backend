@@ -31,7 +31,7 @@ trait Filterable
 
       if ($filter === 'search') {
         $fields = $operator;
-        $query->where(function ($q) use ($fields, $value) {
+        $query->where(function ($q) use ($fields, $value, $query) {
           foreach ($fields as $field) {
             if (str_contains($field, '.')) {
               $parts = explode('.', $field);
@@ -42,7 +42,9 @@ trait Filterable
                 $relQuery->where($relationField, 'like', '%' . $value . '%');
               });
             } else {
-              $q->orWhere($field, 'like', '%' . $value . '%');
+              // Calificar el campo con el alias de tabla
+              $qualifiedField = $this->qualifyColumn($query, $field);
+              $q->orWhere($qualifiedField, 'like', '%' . $value . '%');
             }
           }
         });
@@ -169,6 +171,9 @@ trait Filterable
 
   protected function applyFilterCondition($query, $filter, $operator, $value)
   {
+    // Obtener el alias de la tabla si existe
+    $filter = $this->qualifyColumn($query, $filter);
+
     switch ($operator) {
       case 'like':
         $query->where($filter, 'like', '%' . $value . '%');
@@ -208,15 +213,42 @@ trait Filterable
     }
   }
 
+  /**
+   * Califica el nombre de columna con el alias de tabla si es necesario
+   * @param \Illuminate\Database\Eloquent\Builder $query
+   * @param string $column
+   * @return string
+   */
+  protected function qualifyColumn($query, $column)
+  {
+    // Si ya tiene un alias (contiene punto), no hacer nada
+    if (str_contains($column, '.')) {
+      return $column;
+    }
+
+    // Obtener el modelo de la query
+    $model = $query->getModel();
+
+    // Obtener el nombre de la tabla
+    $table = $model->getTable();
+
+    // Retornar columna calificada con el nombre de tabla
+    return $table . '.' . $column;
+  }
+
   protected function applySorting($query, $request, $sorts)
   {
     $sortField = $request->query('sort');
     $sortOrder = $request->query('direction', 'desc');
 
     if ($sortField !== null && in_array($sortField, $sorts)) {
-      $query->orderBy($sortField, $sortOrder);
+      // Calificar el campo con el alias de tabla
+      $qualifiedField = $this->qualifyColumn($query, $sortField);
+      $query->orderBy($qualifiedField, $sortOrder);
     } else {
-      $query->orderBy('id', $sortOrder);
+      // Calificar 'id' con el alias de tabla
+      $qualifiedId = $this->qualifyColumn($query, 'id');
+      $query->orderBy($qualifiedId, $sortOrder);
     }
 
     return $query;

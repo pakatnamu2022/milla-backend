@@ -24,15 +24,32 @@ class Vehicles extends Model
     'engine_number',
     'ap_models_vn_id',
     'vehicle_color_id',
-    'supplier_order_type_id',
     'engine_type_id',
     'ap_vehicle_status_id',
-    'sede_id',
+    'type_operation_id',
+    'status',
     'warehouse_physical_id',
   ];
 
   protected $casts = [
     'year' => 'integer',
+  ];
+
+  public static array $filters = [
+    'search' => ['vin', 'engine_number', 'year'],
+    'ap_models_vn_id' => '=',
+    'ap_vehicle_status_id' => '=',
+    'vehicle_color_id' => '=',
+    'engine_type_id' => '=',
+    'warehouse_physical_id' => '=',
+    'year' => '=',
+  ];
+
+  public static array $sorts = [
+    'vin',
+    'year',
+    'engine_number',
+    'created_at',
   ];
 
   // Relaciones
@@ -46,17 +63,12 @@ class Vehicles extends Model
     return $this->belongsTo(ApCommercialMasters::class, 'vehicle_color_id');
   }
 
-  public function supplierOrderType(): BelongsTo
-  {
-    return $this->belongsTo(ApCommercialMasters::class, 'supplier_order_type_id');
-  }
-
   public function engineType(): BelongsTo
   {
     return $this->belongsTo(ApCommercialMasters::class, 'engine_type_id');
   }
 
-  public function status(): BelongsTo
+  public function vehicleStatus(): BelongsTo
   {
     return $this->belongsTo(ApVehicleStatus::class, 'ap_vehicle_status_id');
   }
@@ -73,6 +85,6 @@ class Vehicles extends Model
 
   public function vehicleMovements(): HasMany
   {
-    return $this->hasMany(VehicleMovement::class, 'vehicle_id');
+    return $this->hasMany(VehicleMovement::class, 'ap_vehicle_id');
   }
 }

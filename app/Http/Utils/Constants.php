@@ -21,4 +21,7 @@ class Constants
   public const int TYPE_DOCUMENT_RUC_ID = 810; // RUC
 
   public const int TYPE_DOCUMENT_DNI_ID = 809; // DNI
+
+  public const int TYPE_OPERATION_COMERCIAL_ID = 794; // Tipo de Operación COMERCIAL
+  public const int TYPE_OPERATION_POSTVENTA_ID = 804; // Tipo de Operación POSTVENTA
 }

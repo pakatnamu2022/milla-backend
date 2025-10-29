@@ -3,19 +3,21 @@
 namespace App\Models\ap\compras;
 
 use App\Http\Traits\Reportable;
+use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\ExchangeRate;
-use Illuminate\Database\Eloquent\Model;
+use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class PurchaseOrder extends Model
+class PurchaseOrder extends BaseModel
 {
   use SoftDeletes, Reportable;
 
@@ -23,6 +25,7 @@ class PurchaseOrder extends Model
 
   protected $fillable = [
     'number',
+    'number_correlative',
     'invoice_series',
     'invoice_number',
     'emission_date',
@@ -35,7 +38,9 @@ class PurchaseOrder extends Model
     'supplier_id',
     'currency_id',
     'exchange_rate_id',
+    'supplier_order_type_id',
     'number_guide',
+    'sede_id',
     'warehouse_id',
     'invoice_dynamics',
     'receipt_dynamics',
@@ -68,6 +73,9 @@ class PurchaseOrder extends Model
     'migration_status' => '=',
     'status' => '=',
     'currency_id' => '=',
+    'sede_id' => '=',
+    'vehicle.ap_models_vn_id' => '=',
+    'vehicle.ap_vehicle_status_id' => '=',
   ];
 
   const sorts = [
@@ -112,6 +120,16 @@ class PurchaseOrder extends Model
     return $this->belongsTo(PurchaseOrder::class, 'original_purchase_order_id');
   }
 
+  public function supplierOrderType(): BelongsTo
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'supplier_order_type_id');
+  }
+
+  public function sede(): BelongsTo
+  {
+    return $this->belongsTo(Sede::class, 'sede_id');
+  }
+
   /**
    * Relación con Vehicle a través de VehicleMovement
    * Si la PurchaseOrder tiene un vehicle_movement_id, podemos obtener el vehículo
@@ -128,13 +146,31 @@ class PurchaseOrder extends Model
     );
   }
 
-  // Accessor para el número con prefijo OC
+  /**
+   * Mutator para el número de orden de compra con prefijo OC
+   * @param $value
+   * @return void
+   */
   public function setNumberAttribute($value)
   {
     if (str_starts_with($value, 'OC')) {
       $this->attributes['number'] = $value;
     } else {
       $this->attributes['number'] = 'OC' . $value;
+    }
+  }
+
+  /**
+   * Mutator para el número de guía con prefijo NI
+   * @param $value
+   * @return void
+   */
+  public function setNumberGuideAttribute($value)
+  {
+    if (str_starts_with($value, 'NI')) {
+      $this->attributes['number_guide'] = $value;
+    } else {
+      $this->attributes['number_guide'] = 'NI' . $value;
     }
   }
 }

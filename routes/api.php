@@ -11,6 +11,7 @@ use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\ShippingGuidesController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
+use App\Http\Controllers\ap\comercial\VehiclesController;
 use App\Http\Controllers\ap\compras\PurchaseOrderController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
@@ -785,6 +786,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('receivingChecklist', [ApReceivingChecklistController::class, 'index']);
       Route::put('receivingChecklist/{id}', [ApReceivingChecklistController::class, 'update']);
       Route::delete('receivingChecklist/byShippingGuide/{shippingGuideId}', [ApReceivingChecklistController::class, 'destroyByShippingGuide']);
+
+      // Vehicles
+      Route::apiResource('vehicles', VehiclesController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
 
       // DASHBOARD - Indicadores Comerciales
       Route::group(['prefix' => 'dashboard-visit-leads'], function () {

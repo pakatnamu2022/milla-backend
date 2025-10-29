@@ -3,64 +3,117 @@
 namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
-use App\Models\ap\comercial\vehicles;
+use App\Http\Requests\ap\comercial\IndexVehiclesRequest;
+use App\Http\Requests\ap\comercial\StoreVehiclesRequest;
+use App\Http\Requests\ap\comercial\UpdateVehiclesRequest;
+use App\Http\Resources\ap\comercial\VehiclesResource;
+use App\Http\Services\ap\comercial\VehicleService;
+use App\Http\Traits\HasApiResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Throwable;
 
 class VehiclesController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+  use HasApiResponse;
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+  protected VehicleService $service;
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
+  public function __construct(VehicleService $service)
+  {
+    $this->service = $service;
+  }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(vehicles $vehicles)
-    {
-        //
+  /**
+   * Export vehicles data
+   * @param Request $request
+   * @return JsonResponse
+   */
+  public function export(Request $request)
+  {
+    try {
+//      return $this->service->export($request);
+      return true;
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(vehicles $vehicles)
-    {
-        //
+  /**
+   * Display a listing of vehicles with filters
+   *
+   * @param IndexVehiclesRequest $request
+   * @return JsonResponse
+   */
+  public function index(IndexVehiclesRequest $request): JsonResponse
+  {
+    try {
+      return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, vehicles $vehicles)
-    {
-        //
+  /**
+   * Store a newly created vehicle
+   *
+   * @param StoreVehiclesRequest $request
+   * @return JsonResponse
+   */
+  public function store(StoreVehiclesRequest $request): JsonResponse
+  {
+    try {
+      return $this->success($this->service->store($request->validated()));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(vehicles $vehicles)
-    {
-        //
+  /**
+   * Display the specified vehicle
+   *
+   * @param int $id
+   * @return JsonResponse
+   */
+  public function show(int $id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->show($id));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
+
+  /**
+   * Update the specified vehicle
+   *
+   * @param UpdateVehiclesRequest $request
+   * @param int $id
+   * @return JsonResponse
+   */
+  public function update(UpdateVehiclesRequest $request, int $id): JsonResponse
+  {
+    try {
+      $data = array_merge($request->validated(), ['id' => $id]);
+      return $this->success($this->service->update($data));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Remove the specified vehicle (soft delete)
+   *
+   * @param int $id
+   * @return JsonResponse
+   */
+  public function destroy(int $id): JsonResponse
+  {
+    try {
+      ;
+      return $this->success($this->service->destroy($id));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
