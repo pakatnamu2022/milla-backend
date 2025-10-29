@@ -1,0 +1,340 @@
+<?php
+
+namespace App\Http\Services\ap\compras;
+
+use App\Http\Resources\ap\compras\PurchaseOrderDynamicsResource;
+use App\Http\Resources\ap\compras\PurchaseOrderItemDynamicsResource;
+use App\Http\Resources\ap\compras\PurchaseOrderResource;
+use App\Http\Services\ap\comercial\VehicleMovementService;
+use App\Http\Services\ap\comercial\VehicleService;
+use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\ExportService;
+use App\Http\Services\DatabaseSyncService;
+use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
+use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\compras\PurchaseOrderItem;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\gp\gestionsistema\Company;
+use App\Models\gp\maestroGeneral\Sede;
+use Exception;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Throwable;
+
+class PurchaseOrderService extends BaseService implements BaseServiceInterface
+{
+  protected ExportService $exportService;
+
+  public function __construct(
+    ExportService $exportService
+  )
+  {
+    $this->exportService = $exportService;
+  }
+
+  /**
+   * Exporta las órdenes de compra según los filtros proporcionados
+   * @param Request $request
+   * @return \Illuminate\Http\Response|\Symfony\Component\HttpFoundation\BinaryFileResponse
+   */
+  public function export(Request $request)
+  {
+    return $this->exportService->exportFromRequest($request, PurchaseOrder::class);
+  }
+
+  /**
+   * Lista las órdenes de compra con filtros y paginación
+   * @param Request $request
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function list(Request $request)
+  {
+    return $this->getFilteredResults(
+      PurchaseOrder::class,
+      $request,
+      PurchaseOrder::filters,
+      PurchaseOrder::sorts,
+      PurchaseOrderResource::class
+    );
+  }
+
+  /**
+   * Busca una orden de compra por ID
+   * @param $id
+   * @return mixed
+   * @throws Exception
+   */
+  public function find($id)
+  {
+    $purchaseOrder = PurchaseOrder::with(['items', 'supplier', 'warehouse'])->where('id', $id)->first();
+    if (!$purchaseOrder) {
+      throw new Exception('Orden de compra no encontrada');
+    }
+    return $purchaseOrder;
+  }
+
+  /**
+   * Enriquece los datos de la orden de compra antes de crear o actualizar
+   * Solo genera números correlativos y establece valores por defecto
+   * Los valores de la factura (subtotal, igv, total, etc.) vienen del request
+   * @param mixed $data
+   * @param $isCreate
+   * @return mixed
+   * @throws Exception
+   */
+  public function enrichData(mixed $data, $isCreate = true)
+  {
+    if ($isCreate) {
+      // Generar número de OC correlativo
+      $data['number'] = $this->nextCorrelativeCount(PurchaseOrder::class, 8, ['status' => true]);
+      $data['number_guide'] = $this->nextCorrelativeCount(PurchaseOrder::class, 8, ['status' => true]);
+
+      // Obtener tipo de cambio actual si no viene en el request
+      if (!isset($data['exchange_rate_id'])) {
+        $exchangeRateService = new ExchangeRateService();
+        $data['exchange_rate_id'] = $exchangeRateService->getCurrentUSDRate()->id;
+      }
+
+      // Estado inicial de migración
+      $data['migration_status'] = 'pending';
+      $data['status'] = true;
+    }
+
+    // Validar que los valores requeridos de la factura estén presentes
+    $requiredFields = ['subtotal', 'igv', 'total'];
+    foreach ($requiredFields as $field) {
+      if (!isset($data[$field])) {
+        throw new Exception("El campo '{$field}' es requerido");
+      }
+    }
+
+    // Establecer valores por defecto para campos opcionales
+    $data['discount'] = $data['discount'] ?? 0;
+    $data['isc'] = $data['isc'] ?? 0;
+
+    return $data;
+  }
+
+  /**
+   * Crea una nueva orden de compra
+   * Si tiene datos de vehículo, crea: Vehicle → VehicleMovement → PurchaseOrder
+   * @throws Exception
+   * @throws Throwable
+   */
+  public function store(mixed $data): PurchaseOrderResource
+  {
+    DB::beginTransaction();
+    try {
+      // Guardar items temporalmente
+      $items = $data['items'] ?? [];
+
+      // Verificar si la orden incluye un vehículo
+      $hasVehicle = false;
+      foreach ($items as $item) {
+        if (isset($item['is_vehicle']) && $item['is_vehicle'] === true) {
+          $hasVehicle = true;
+          break;
+        }
+      }
+
+      $vehicleMovementId = null;
+
+      // Si tiene vehículo, crear el flujo completo: Vehicle → VehicleMovement
+      if ($hasVehicle) {
+        $vehicleMovementId = $this->createVehicleAndMovement($data);
+        $data['vehicle_movement_id'] = $vehicleMovementId;
+      }
+
+      // Enriquecer datos de la orden
+      $data = $this->enrichData($data);
+
+      // Crear la orden de compra
+      $purchaseOrder = PurchaseOrder::create($data);
+
+      // Guardar items si existen
+      $this->saveItemsIfExists($items, $purchaseOrder);
+
+      // Sincronizar con Dynamics si está habilitado
+      if (config('database_sync.enabled', false)) {
+        $this->syncPurchaseOrderToDynamics($purchaseOrder);
+      }
+
+      DB::commit();
+      return new PurchaseOrderResource($purchaseOrder);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Crea el vehículo y su movimiento inicial
+   * @param array $data
+   * @return int ID del VehicleMovement creado
+   * @throws Exception
+   */
+  protected function createVehicleAndMovement(array $data): int
+  {
+    // 1. Crear el vehículo
+    $vehicleService = new VehicleService();
+    $vehicleData = [
+      'vin' => $data['vin'],
+      'year' => $data['year'],
+      'engine_number' => $data['engine_number'],
+      'ap_models_vn_id' => $data['ap_models_vn_id'],
+      'vehicle_color_id' => $data['vehicle_color_id'],
+      'supplier_order_type_id' => $data['supplier_order_type_id'],
+      'engine_type_id' => $data['engine_type_id'],
+      'sede_id' => $data['sede_id'],
+      'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
+    ];
+
+    $vehicle = $vehicleService->store($vehicleData);
+
+    // 2. Crear el movimiento del vehículo
+    $vehicleMovement = VehicleMovement::create([
+      'movement_type' => VehicleMovement::ORDERED,
+      'ap_vehicle_id' => $vehicle->id,
+      'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
+      'observation' => 'Creación de orden de compra con vehículo',
+      'movement_date' => now(),
+      'previous_status_id' => null,
+      'new_status_id' => ApVehicleStatus::PEDIDO_VN,
+      'created_by' => auth()->id(),
+    ]);
+
+    return $vehicleMovement->id;
+  }
+
+  /**
+   * Sincroniza la orden de compra con Dynamics
+   * @throws Exception
+   */
+  protected function syncPurchaseOrderToDynamics(PurchaseOrder $purchaseOrder): void
+  {
+    $syncService = new DatabaseSyncService();
+
+    // Validar que existan items
+    $purchaseOrder->load('items');
+    if ($purchaseOrder->items->isEmpty()) {
+      throw new Exception("La orden de compra debe tener al menos un ítem");
+    }
+
+    // Sincronizar cabecera de la orden
+    $headerResource = new PurchaseOrderDynamicsResource($purchaseOrder);
+    $headerData = $headerResource->toArray(request());
+    $syncService->sync('ap_purchase_order', $headerData, 'create');
+
+    // Sincronizar items de la orden
+    $itemsResource = new PurchaseOrderItemDynamicsResource($purchaseOrder->items);
+    $itemsData = $itemsResource->toArray(request());
+
+    // Los items vienen como un array, cada uno debe sincronizarse
+    foreach ($itemsData as $itemData) {
+      $syncService->sync('ap_purchase_order_item', $itemData, 'create');
+    }
+  }
+
+  /**
+   * Muestra una orden de compra
+   * @param $id
+   * @return PurchaseOrderResource
+   * @throws Exception
+   */
+  public function show($id)
+  {
+    return new PurchaseOrderResource($this->find($id));
+  }
+
+  /**
+   * Actualiza una orden de compra
+   * No recalcula valores de factura, estos deben venir en el request
+   * @param mixed $data
+   * @return PurchaseOrderResource
+   * @throws Throwable
+   */
+  public function update(mixed $data)
+  {
+    DB::beginTransaction();
+    try {
+      $purchaseOrder = $this->find($data['id']);
+
+      // Guardar items temporalmente
+      $items = $data['items'] ?? null;
+
+      // Validar datos si vienen valores de factura (sin recalcular)
+      if (isset($data['subtotal']) || isset($data['igv']) || isset($data['total'])) {
+        $data = $this->enrichData($data, false);
+      }
+
+      // Actualizar la orden
+      $purchaseOrder->update($data);
+
+      // Actualizar items si se proporcionaron
+      if ($items !== null) {
+        // Eliminar items existentes
+        $purchaseOrder->items()->delete();
+
+        // Crear nuevos items
+        $this->saveItemsIfExists($items, $purchaseOrder);
+      }
+
+      // Sincronizar con Dynamics si está habilitado y la orden está pendiente de migración
+      if (config('database_sync.enabled', false) && $purchaseOrder->migration_status !== 'completed') {
+        $this->syncPurchaseOrderToDynamics($purchaseOrder);
+      }
+
+      DB::commit();
+      return new PurchaseOrderResource($purchaseOrder);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Elimina una orden de compra
+   * @param $id
+   * @return \Illuminate\Http\JsonResponse
+   * @throws Throwable
+   */
+  public function destroy($id)
+  {
+    $purchaseOrder = $this->find($id);
+    DB::transaction(function () use ($purchaseOrder) {
+      // Eliminar items primero
+      $purchaseOrder->items()->delete();
+      // Eliminar la orden
+      $purchaseOrder->delete();
+    });
+    return response()->json(['message' => 'Orden de compra eliminada correctamente']);
+  }
+
+  /**
+   * @param mixed $items
+   * @param $purchaseOrder
+   * @return void
+   */
+  public function saveItemsIfExists(mixed $items, $purchaseOrder): void
+  {
+    if (!empty($items)) {
+      foreach ($items as $itemData) {
+        $unitPrice = round($itemData['unit_price'], 2);
+        $quantity = $itemData['quantity'] ?? 1;
+        $total = round($unitPrice * $quantity, 2);
+
+        $purchaseOrder->items()->create([
+          'unit_measurement_id' => $itemData['unit_measurement_id'],
+          'description' => $itemData['description'],
+          'unit_price' => $unitPrice,
+          'quantity' => $quantity,
+          'total' => $total,
+          'is_vehicle' => $itemData['is_vehicle'] ?? false,
+        ]);
+      }
+    }
+  }
+
+}

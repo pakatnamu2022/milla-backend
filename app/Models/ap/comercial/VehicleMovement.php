@@ -15,8 +15,8 @@ class VehicleMovement extends BaseModel
 
   protected $fillable = [
     'movement_type',
+    'ap_vehicle_id',
     'ap_vehicle_status_id',
-    'ap_vehicle_purchase_order_id',
     'observation',
     'movement_date',
     'origin_address',
@@ -46,14 +46,17 @@ class VehicleMovement extends BaseModel
 
   const array sorts = ['id'];
 
+  const ORDERED = 'EN PEDIDO';
+  const IN_TRANSIT = 'TRAVESIA';
+
   public function vehicleStatus(): BelongsTo
   {
     return $this->belongsTo(ApVehicleStatus::class, 'ap_vehicle_status_id');
   }
 
-  public function vehiclePurchaseOrder(): BelongsTo
+  public function vehicle(): BelongsTo
   {
-    return $this->belongsTo(VehiclePurchaseOrder::class, 'ap_vehicle_purchase_order_id');
+    return $this->belongsTo(Vehicles::class, 'ap_vehicle_id');
   }
 
   public function getStatusAttribute(): string

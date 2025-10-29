@@ -6,6 +6,7 @@ use App\Http\Traits\Reportable;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\configuracionComercial\vehiculo\VehicleAccessory;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\maestroGeneral\ExchangeRate;
@@ -41,6 +42,8 @@ class VehiclePurchaseOrder extends Model
     'emission_date',
     'unit_price',
     'discount',
+    'isc',
+    'has_isc',
     'subtotal',
     'igv',
     'total',
@@ -68,6 +71,7 @@ class VehiclePurchaseOrder extends Model
     'migrated_at' => 'datetime',
     'status' => 'boolean',
     'resent' => 'boolean',
+    'has_isc' => 'boolean',
   ];
 
   const filters = [
@@ -175,6 +179,14 @@ class VehiclePurchaseOrder extends Model
   public function migrationLogs(): HasMany
   {
     return $this->hasMany(VehiclePurchaseOrderMigrationLog::class, 'vehicle_purchase_order_id');
+  }
+
+  /**
+   * Relación con los accesorios del vehículo
+   */
+  public function accessories(): HasMany
+  {
+    return $this->hasMany(VehicleAccessory::class, 'vehicle_purchase_order_id');
   }
 
   /**

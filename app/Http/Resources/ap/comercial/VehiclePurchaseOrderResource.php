@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\comercial;
 
+use App\Http\Resources\ap\configuracionComercial\vehiculo\VehicleAccessoryResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -26,8 +27,9 @@ class VehiclePurchaseOrderResource extends JsonResource
       'invoice_series' => $this->invoice_series,
       'invoice_number' => $this->invoice_number,
       'emission_date' => $this->emission_date,
-      'unit_price' => $this->unit_price,
+      'unit_price' => $this->unit_price, // Precio unitario solo del vehículo (para envío a Dynamics)
       'discount' => $this->discount,
+      'has_isc' => $this->has_isc,
       'subtotal' => $this->subtotal,
       'igv' => $this->igv,
       'total' => $this->total,
@@ -65,6 +67,7 @@ class VehiclePurchaseOrderResource extends JsonResource
       'warehouse_physical' => $this->warehousePhysical?->description,
       'taxClassType' => $this->supplier->supplierTaxClassType->tax_class,
       'movements' => VehicleMovementResource::collection($this->movements),
+      'accessories' => VehicleAccessoryResource::collection($this->accessories),
     ];
   }
 }

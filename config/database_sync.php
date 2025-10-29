@@ -21,6 +21,19 @@ return [
   |
   */
 
+  /*
+  |--------------------------------------------------------------------------
+  | Configuración Global
+  |--------------------------------------------------------------------------
+  */
+  'enabled' => env('SYNC_DBTP_ENABLED', false),
+
+  /*
+  |--------------------------------------------------------------------------
+  | Configuraciones de Entidades
+  |--------------------------------------------------------------------------
+  */
+
   // Configuración para la entidad "business_partners"
   'business_partners' => [
     // Primera base de datos externa (GPIN)
@@ -218,25 +231,25 @@ return [
     ],
   ],
 
-  // Configuración para la entidad "ap_purchase_order"
+  // Configuración para la entidad "ap_purchase_order" (Orden de Compra - Cabecera)
   'ap_vehicle_purchase_order' => [
     'dbtp' => [
       'enabled' => env('SYNC_DBTP_ENABLED', false),
       'connection' => 'dbtp',
       'table' => 'neInTbOrdenCompra',
       'mapping' => [
-        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
-        'OrdenCompraId' => fn($data) => $data['number'],
-        'ProveedorId' => fn($data) => BusinessPartners::find($data['supplier_id'])->num_doc,
-        'FechaEmision' => fn($data) => $data['emission_date'],
-        'MonedaId' => fn($data) => TypeCurrency::find($data['currency_id'])->code,
-        'TipoTasaId' => fn($data) => VehiclePurchaseOrder::find($data['id'])->exchangeRate->type,
-        'TasaCambio' => fn($data) => VehiclePurchaseOrder::find($data['id'])->exchangeRate->rate,
-        'PlanImpuestoId' => fn($data) => VehiclePurchaseOrder::find($data['id'])->supplier?->supplierTaxClassType?->tax_class ?? throw new \Exception("Supplier or TaxClassType not found for PO {$data['id']}"),
-        'UsuarioId' => fn($data) => 'USUGP',
-        'Procesar' => 1,
-        'ProcesoEstado' => 0,
-        'ProcesoError' => fn($data) => '',
+        'EmpresaId' => fn($data) => $data['EmpresaId'],
+        'OrdenCompraId' => fn($data) => $data['OrdenCompraId'],
+        'ProveedorId' => fn($data) => $data['ProveedorId'],
+        'FechaEmision' => fn($data) => $data['FechaEmision'],
+        'MonedaId' => fn($data) => $data['MonedaId'],
+        'TipoTasaId' => fn($data) => $data['TipoTasaId'],
+        'TasaCambio' => fn($data) => $data['TasaCambio'],
+        'PlanImpuestoId' => fn($data) => $data['PlanImpuestoId'],
+        'UsuarioId' => fn($data) => $data['UsuarioId'],
+        'Procesar' => fn($data) => $data['Procesar'],
+        'ProcesoEstado' => fn($data) => $data['ProcesoEstado'],
+        'ProcesoError' => fn($data) => $data['ProcesoError'],
       ],
       'optional_mapping' => [
       ],
@@ -250,32 +263,25 @@ return [
     ]
   ],
 
-  // Configuración para la entidad "ap_purchase_order_det"
-  'ap_vehicle_purchase_order_det' => [
+  // Configuración para la entidad "ap_purchase_order" genérica (nuevo sistema)
+  'ap_purchase_order' => [
     'dbtp' => [
       'enabled' => env('SYNC_DBTP_ENABLED', false),
       'connection' => 'dbtp',
-      'table' => 'neInTbOrdenCompraDet',
+      'table' => 'neInTbOrdenCompra',
       'mapping' => [
-        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
-        'OrdenCompraId' => fn($data) => $data['number'],
-        'Linea' => 1, // TODO: Aquí deberías implementar la lógica para obtener la línea correcta
-        'ArticuloId' => fn($data) => ApModelsVn::find($data['ap_models_vn_id'])->code,
-        'SitioId' => fn($data) => Warehouse::find($data['warehouse_id'])->dyn_code,
-        'UnidadMedidaId' => fn($data) => 'UND', // TODO: Asumiendo que siempre es 'UND', ajusta según sea necesario
-        'Cantidad' => 1, // TODO: Aquí deberías implementar la lógica para obtener la cantidad correcta
-        'CostoUnitario' => fn($data) => $data['subtotal'],
-        'CuentaNumeroInventario' => fn($data) => '',
-        'CodigoDimension1' => fn($data) => '',
-        'CodigoDimension2' => fn($data) => '',
-        'CodigoDimension3' => fn($data) => '',
-        'CodigoDimension4' => fn($data) => '',
-        'CodigoDimension5' => fn($data) => '',
-        'CodigoDimension6' => fn($data) => '',
-        'CodigoDimension7' => fn($data) => '',
-        'CodigoDimension8' => fn($data) => '',
-        'CodigoDimension9' => fn($data) => '',
-        'CodigoDimension10' => fn($data) => ''
+        'EmpresaId' => fn($data) => $data['EmpresaId'],
+        'OrdenCompraId' => fn($data) => $data['OrdenCompraId'],
+        'ProveedorId' => fn($data) => $data['ProveedorId'],
+        'FechaEmision' => fn($data) => $data['FechaEmision'],
+        'MonedaId' => fn($data) => $data['MonedaId'],
+        'TipoTasaId' => fn($data) => $data['TipoTasaId'],
+        'TasaCambio' => fn($data) => $data['TasaCambio'],
+        'PlanImpuestoId' => fn($data) => $data['PlanImpuestoId'],
+        'UsuarioId' => fn($data) => $data['UsuarioId'],
+        'Procesar' => fn($data) => $data['Procesar'],
+        'ProcesoEstado' => fn($data) => $data['ProcesoEstado'],
+        'ProcesoError' => fn($data) => $data['ProcesoError'],
       ],
       'optional_mapping' => [
       ],
@@ -284,29 +290,108 @@ return [
       'actions' => [
         'create' => true,
         'update' => true,
-        'delete' => false, // Por ejemplo, no sincronizar eliminaciones
+        'delete' => false,
       ],
     ]
   ],
 
+  // Configuración para la entidad "ap_purchase_order_det" (Detalle de OC de vehículos - legacy)
+  'ap_vehicle_purchase_order_det' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbOrdenCompraDet',
+      'mapping' => [
+        'EmpresaId' => fn($data) => $data['EmpresaId'],
+        'OrdenCompraId' => fn($data) => $data['OrdenCompraId'],
+        'Linea' => fn($data) => $data['Linea'],
+        'ArticuloId' => fn($data) => $data['ArticuloId'],
+        'SitioId' => fn($data) => $data['SitioId'],
+        'UnidadMedidaId' => fn($data) => $data['UnidadMedidaId'],
+        'Cantidad' => fn($data) => $data['Cantidad'],
+        'CostoUnitario' => fn($data) => $data['CostoUnitario'],
+        'CuentaNumeroInventario' => fn($data) => $data['CuentaNumeroInventario'] ?? '',
+        'CodigoDimension1' => fn($data) => $data['CodigoDimension1'] ?? '',
+        'CodigoDimension2' => fn($data) => $data['CodigoDimension2'] ?? '',
+        'CodigoDimension3' => fn($data) => $data['CodigoDimension3'] ?? '',
+        'CodigoDimension4' => fn($data) => $data['CodigoDimension4'] ?? '',
+        'CodigoDimension5' => fn($data) => $data['CodigoDimension5'] ?? '',
+        'CodigoDimension6' => fn($data) => $data['CodigoDimension6'] ?? '',
+        'CodigoDimension7' => fn($data) => $data['CodigoDimension7'] ?? '',
+        'CodigoDimension8' => fn($data) => $data['CodigoDimension8'] ?? '',
+        'CodigoDimension9' => fn($data) => $data['CodigoDimension9'] ?? '',
+        'CodigoDimension10' => fn($data) => $data['CodigoDimension10'] ?? ''
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'OrdenCompraId',
+      'actions' => [
+        'create' => true,
+        'update' => true,
+        'delete' => false,
+      ],
+    ]
+  ],
+
+  // Configuración para la entidad "ap_purchase_order_item" (Detalle de OC genérica - nuevo sistema)
+  'ap_purchase_order_item' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbOrdenCompraDet',
+      'mapping' => [
+        'EmpresaId' => fn($data) => $data['EmpresaId'],
+        'OrdenCompraId' => fn($data) => $data['OrdenCompraId'],
+        'Linea' => fn($data) => $data['Linea'],
+        'ArticuloId' => fn($data) => $data['ArticuloId'],
+        'SitioId' => fn($data) => $data['SitioId'],
+        'UnidadMedidaId' => fn($data) => $data['UnidadMedidaId'],
+        'Cantidad' => fn($data) => $data['Cantidad'],
+        'CostoUnitario' => fn($data) => $data['CostoUnitario'],
+        'CuentaNumeroInventario' => fn($data) => $data['CuentaNumeroInventario'] ?? '',
+        'CodigoDimension1' => fn($data) => $data['CodigoDimension1'] ?? '',
+        'CodigoDimension2' => fn($data) => $data['CodigoDimension2'] ?? '',
+        'CodigoDimension3' => fn($data) => $data['CodigoDimension3'] ?? '',
+        'CodigoDimension4' => fn($data) => $data['CodigoDimension4'] ?? '',
+        'CodigoDimension5' => fn($data) => $data['CodigoDimension5'] ?? '',
+        'CodigoDimension6' => fn($data) => $data['CodigoDimension6'] ?? '',
+        'CodigoDimension7' => fn($data) => $data['CodigoDimension7'] ?? '',
+        'CodigoDimension8' => fn($data) => $data['CodigoDimension8'] ?? '',
+        'CodigoDimension9' => fn($data) => $data['CodigoDimension9'] ?? '',
+        'CodigoDimension10' => fn($data) => $data['CodigoDimension10'] ?? ''
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'OrdenCompraId',
+      'actions' => [
+        'create' => true,
+        'update' => true,
+        'delete' => false,
+      ],
+    ]
+  ],
+
+//  Configuración para la entidad "ap_vehicle_purchase_order_reception"
   'ap_vehicle_purchase_order_reception' => [
     'dbtp' => [
       'enabled' => env('SYNC_DBTP_ENABLED', false),
       'connection' => 'dbtp',
       'table' => 'neInTbRecepcion',
       'mapping' => [
-        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
-        'RecepcionId' => fn($data) => $data['number_guide'],
-        'ProveedorId' => fn($data) => BusinessPartners::find($data['supplier_id'])->num_doc,
-        'FechaEmision' => fn($data) => $data['emission_date'],
-        'FechaContable' => fn($data) => $data['emission_date'],
-        'TipoComprobanteId' => fn($data) => 'GRM',
-        'Serie' => fn($data) => $data['invoice_series'],
-        'Correlativo' => fn($data) => $data['invoice_number'],
-        'Procesar' => 1,
-        'ProcesoEstado' => 0,
-        'ProcesoError' => fn($data) => '',
-        'FechaProceso' => fn($data) => now(),
+        'EmpresaId' => fn($data) => $data['EmpresaId'],
+        'RecepcionId' => fn($data) => $data['RecepcionId'],
+        'ProveedorId' => fn($data) => $data['ProveedorId'],
+        'FechaEmision' => fn($data) => $data['FechaEmision'],
+        'FechaContable' => fn($data) => $data['FechaContable'],
+        'TipoComprobanteId' => fn($data) => $data['TipoComprobanteId'],
+        'Serie' => fn($data) => $data['Serie'],
+        'Correlativo' => fn($data) => $data['Correlativo'],
+        'Procesar' => fn($data) => $data['Procesar'],
+        'ProcesoEstado' => fn($data) => $data['ProcesoEstado'],
+        'ProcesoError' => fn($data) => $data['ProcesoError'],
+        'FechaProceso' => fn($data) => $data['FechaProceso'],
       ],
       'optional_mapping' => [
       ],
@@ -315,26 +400,27 @@ return [
       'actions' => [
         'create' => true,
         'update' => true,
-        'delete' => false, // Por ejemplo, no sincronizar eliminaciones
+        'delete' => false,
       ],
     ]
   ],
 
+//  Configuración para la entidad "ap_vehicle_purchase_order_reception_det"
   'ap_vehicle_purchase_order_reception_det' => [
     'dbtp' => [
       'enabled' => env('SYNC_DBTP_ENABLED', false),
       'connection' => 'dbtp',
       'table' => 'neInTbRecepcionDt',
       'mapping' => [
-        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
-        'RecepcionId' => fn($data) => $data['number_guide'],
-        'Linea' => 1,
-        'OrdenCompraId' => fn($data) => $data['number'],
-        'LineaOC' => 1,
-        'ArticuloId' => fn($data) => ApModelsVn::find($data['ap_models_vn_id'])->code,
-        'SitioId' => fn($data) => Warehouse::find($data['warehouse_id'])->dyn_code,
-        'UnidadMedidaId' => fn($data) => 'UND', // TODO: Asumiendo que siempre es 'UND', ajusta según sea necesario
-        'Cantidad' => 1, // TODO: Aquí deberías implementar la lógica para obtener la cantidad correcta
+        'EmpresaId' => fn($data) => $data['EmpresaId'],
+        'RecepcionId' => fn($data) => $data['RecepcionId'],
+        'Linea' => fn($data) => $data['Linea'],
+        'OrdenCompraId' => fn($data) => $data['OrdenCompraId'],
+        'LineaOC' => fn($data) => $data['LineaOC'],
+        'ArticuloId' => fn($data) => $data['ArticuloId'],
+        'SitioId' => fn($data) => $data['SitioId'],
+        'UnidadMedidaId' => fn($data) => $data['UnidadMedidaId'],
+        'Cantidad' => fn($data) => $data['Cantidad'],
       ],
       'optional_mapping' => [
       ],
@@ -343,24 +429,25 @@ return [
       'actions' => [
         'create' => true,
         'update' => true,
-        'delete' => false, // Por ejemplo, no sincronizar eliminaciones
+        'delete' => false,
       ],
     ]
   ],
 
+//  Configuración para la entidad "ap_vehicle_purchase_order_reception_det_s"
   'ap_vehicle_purchase_order_reception_det_s' => [
     'dbtp' => [
       'enabled' => env('SYNC_DBTP_ENABLED', false),
       'connection' => 'dbtp',
       'table' => 'neInTbRecepcionDtS',
       'mapping' => [
-        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
-        'RecepcionId' => fn($data) => $data['number_guide'],
-        'Linea' => 1, // TODO: Aquí deberías implementar la lógica para obtener la línea correcta
-        'Serie' => fn($data) => $data['vin'],
-        'ArticuloId' => fn($data) => ApModelsVn::find($data['ap_models_vn_id'])->code,
-        'DatoUsuario1' => fn($data) => $data['vin'],
-        'DatoUsuario2' => fn($data) => $data['vin'],
+        'EmpresaId' => fn($data) => $data['EmpresaId'],
+        'RecepcionId' => fn($data) => $data['RecepcionId'],
+        'Linea' => fn($data) => $data['Linea'],
+        'Serie' => fn($data) => $data['Serie'],
+        'ArticuloId' => fn($data) => $data['ArticuloId'],
+        'DatoUsuario1' => fn($data) => $data['DatoUsuario1'],
+        'DatoUsuario2' => fn($data) => $data['DatoUsuario2'],
       ],
       'optional_mapping' => [
       ],
@@ -369,7 +456,7 @@ return [
       'actions' => [
         'create' => true,
         'update' => true,
-        'delete' => false, // Por ejemplo, no sincronizar eliminaciones
+        'delete' => false,
       ],
     ]
   ],

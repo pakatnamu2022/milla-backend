@@ -9,7 +9,7 @@ class IndexApCommercialMastersRequest extends IndexRequest
   public function rules(): array
   {
     return [
-      //
+      'type' => ['nullable', 'string'],
     ];
   }
 }

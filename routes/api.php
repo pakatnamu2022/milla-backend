@@ -11,6 +11,7 @@ use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\ShippingGuidesController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
+use App\Http\Controllers\ap\compras\PurchaseOrderController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFamiliesController;
@@ -34,6 +35,8 @@ use App\Http\Controllers\ap\maestroGeneral\UnitMeasurementController;
 use App\Http\Controllers\ap\maestroGeneral\UserSeriesAssignmentController;
 use App\Http\Controllers\ap\maestroGeneral\WarehouseController;
 use App\Http\Controllers\ap\postventa\ApprovedAccessoriesController;
+use App\Http\Controllers\ap\facturacion\BillingCatalogController;
+use App\Http\Controllers\ap\facturacion\ElectronicDocumentController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Dashboard\ap\comercial\DashboardComercialController;
@@ -744,8 +747,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
-      Route::get('vehiclePurchaseOrder/export', [VehiclePurchaseOrderController::class, 'export']);
-      Route::apiResource('vehiclePurchaseOrder', VehiclePurchaseOrderController::class)->only([
+      Route::get('vehiclePurchaseOrder/export', [PurchaseOrderController::class, 'export']);
+      Route::apiResource('vehiclePurchaseOrder', PurchaseOrderController::class)->only([
         'index',
         'show',
         'store',
@@ -754,7 +757,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Resend purchase order with credit note (creates new OC with point)
-      Route::post('vehiclePurchaseOrder/{id}/resend', [VehiclePurchaseOrderController::class, 'resend']);
+      Route::post('vehiclePurchaseOrder/{id}/resend', [PurchaseOrderController::class, 'resend']);
 
       // Vehicle Purchase Order Migration Monitoring
       Route::group(['prefix' => 'vehiclePurchaseOrder/migration'], function () {
@@ -802,6 +805,34 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
+    });
+
+    //      FACTURACIÓN ELECTRÓNICA
+    Route::group(['prefix' => 'facturacion'], function () {
+      // CRUD de Documentos Electrónicos
+      Route::apiResource('electronic-documents', ElectronicDocumentController::class);
+
+      // Operaciones especiales de documentos
+      Route::post('electronic-documents/{id}/send', [ElectronicDocumentController::class, 'sendToNubefact']);
+      Route::post('electronic-documents/{id}/query', [ElectronicDocumentController::class, 'queryFromNubefact']);
+      Route::post('electronic-documents/{id}/cancel', [ElectronicDocumentController::class, 'cancelInNubefact']);
+      Route::post('electronic-documents/{id}/credit-note', [ElectronicDocumentController::class, 'createCreditNote']);
+      Route::post('electronic-documents/{id}/debit-note', [ElectronicDocumentController::class, 'createDebitNote']);
+      Route::get('electronic-documents/by-entity/{module}/{entityType}/{entityId}', [ElectronicDocumentController::class, 'getByOriginEntity']);
+
+      // Catálogos de facturación (con caché)
+      Route::group(['prefix' => 'catalogs'], function () {
+        Route::get('/all', [BillingCatalogController::class, 'getAllCatalogs']);
+        Route::get('/document-types', [BillingCatalogController::class, 'getDocumentTypes']);
+        Route::get('/transaction-types', [BillingCatalogController::class, 'getTransactionTypes']);
+        Route::get('/identity-document-types', [BillingCatalogController::class, 'getIdentityDocumentTypes']);
+        Route::get('/igv-types', [BillingCatalogController::class, 'getIgvTypes']);
+        Route::get('/credit-note-types', [BillingCatalogController::class, 'getCreditNoteTypes']);
+        Route::get('/debit-note-types', [BillingCatalogController::class, 'getDebitNoteTypes']);
+        Route::get('/currencies', [BillingCatalogController::class, 'getCurrencies']);
+        Route::get('/detraction-types', [BillingCatalogController::class, 'getDetractionTypes']);
+        Route::delete('/cache', [BillingCatalogController::class, 'clearCache']);
+      });
     });
   });
 
