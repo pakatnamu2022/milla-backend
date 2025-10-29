@@ -94,15 +94,15 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       $data['number'] = $series . $number;
       $data['number_guide'] = $series . $number;
 
-      // Obtener tipo de cambio actual si no viene en el request
-      if (!isset($data['exchange_rate_id'])) {
-        $exchangeRateService = new ExchangeRateService();
-        $data['exchange_rate_id'] = $exchangeRateService->getCurrentUSDRate()->id;
-      }
-
       // Estado inicial de migración
       $data['migration_status'] = 'pending';
       $data['status'] = true;
+    }
+
+    // Obtener tipo de cambio actual si no viene en el request
+    if (!isset($data['exchange_rate_id'])) {
+      $exchangeRateService = new ExchangeRateService();
+      $data['exchange_rate_id'] = $exchangeRateService->getCurrentUSDRate()->id;
     }
 
     // Validar que los valores requeridos de la factura estén presentes
@@ -419,6 +419,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       // Agregar punto (.) al número y guía
       $newPOData['number'] = $originalPO->number . '.';
       $newPOData['number_guide'] = $originalPO->number_guide . '.';
+      $newPOData['number_correlative'] = $originalPO->number_correlative;
 
       // Establecer relación con la OC original
       $newPOData['original_purchase_order_id'] = $originalPO->id;
