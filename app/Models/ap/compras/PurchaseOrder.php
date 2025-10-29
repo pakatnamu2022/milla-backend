@@ -25,6 +25,7 @@ class PurchaseOrder extends BaseModel
 
   protected $fillable = [
     'number',
+    'number_correlative',
     'invoice_series',
     'invoice_number',
     'emission_date',

@@ -47,7 +47,6 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         $this->processAllPendingPurchaseOrders($syncService);
       }
     } catch (\Exception $e) {
-      // Log::error("Error in VerifyAndMigratePurchaseOrderJob: {$e->getMessage()}");
       throw $e;
     }
   }
@@ -63,14 +62,10 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       'failed'
     ])->get();
 
-    // Log::info("Processing {$pendingOrders->count()} pending purchase orders for migration");
-
     foreach ($pendingOrders as $order) {
       try {
         $this->processPurchaseOrder($order->id, $syncService);
       } catch (\Exception $e) {
-        // Log::error("Failed to process purchase order {$order->id}: {$e->getMessage()}");
-        // Continuar con la siguiente orden
         continue;
       }
     }
@@ -84,11 +79,8 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
     $purchaseOrder = PurchaseOrder::with(['supplier', 'vehicleMovement.vehicle.model'])->find($purchaseOrderId);
 
     if (!$purchaseOrder) {
-      // Log::error("Purchase order not found: {$purchaseOrderId}");
       return;
     }
-
-    // Log::info("Processing purchase order: {$purchaseOrder->number}");
 
     // Actualizar estado general a 'in_progress'
     $purchaseOrder->update(['migration_status' => 'in_progress']);
@@ -159,10 +151,8 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         $syncService->sync('business_partners_directions_ap_supplier', $supplier->toArray(), 'create');
         $supplierAddressLog->updateProcesoEstado(0);
 
-        // Log::info("Supplier synced: {$supplier->num_doc}");
       } catch (\Exception $e) {
         $supplierLog->markAsFailed("Error al sincronizar proveedor: {$e->getMessage()}");
-        // Log::error("Failed to sync supplier {$supplier->num_doc}: {$e->getMessage()}");
       }
     } else {
       // Existe, actualizar el estado del log
@@ -195,7 +185,6 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
     $model = $purchaseOrder->vehicleMovement?->vehicle?->model;
 
     if (!$model) {
-      // Log::error("Model not found for purchase order: {$purchaseOrder->id}");
       return;
     }
 
@@ -223,10 +212,8 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       try {
         $articleLog->markAsInProgress();
         SyncArticleJob::dispatch($model->id);
-        // Log::info("Article sync job dispatched for model: {$model->code}");
       } catch (\Exception $e) {
         $articleLog->markAsFailed("Error al despachar job de artículo: {$e->getMessage()}");
-        // Log::error("Failed to dispatch article sync job for model {$model->code}: {$e->getMessage()}");
       }
     } else {
       // Existe, actualizar el estado del log
@@ -330,16 +317,13 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       ->first();
 
     if (!$purchaseOrderLog) {
-      // Log::warning("No se encontró log de OC para PO ID {$purchaseOrder->id}. No se puede sincronizar recepción.");
       return;
     }
 
     if ($purchaseOrderLog->proceso_estado !== 1) {
-      // Log::info("Esperando a que la OC {$purchaseOrder->number} sea procesada (ProcesoEstado actual: {$purchaseOrderLog->proceso_estado}). Recepción se sincronizará en el próximo intento.");
       return;
     }
 
-    // Log::info("OC {$purchaseOrder->number} está procesada (ProcesoEstado = 1). Procediendo con la sincronización de la recepción.");
 
     $receptionLog = $this->getOrCreateLog(
       $purchaseOrder->id,
@@ -404,10 +388,8 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         $syncService->sync('ap_vehicle_purchase_order_reception_det_s', $receptionSerialData, 'create');
         $receptionSerialLog->updateProcesoEstado(0);
 
-        // Log::info("Reception synced: {$purchaseOrder->number_guide}");
       } catch (\Exception $e) {
         $receptionLog->markAsFailed("Error al sincronizar recepción: {$e->getMessage()}");
-        // Log::error("Failed to sync reception {$purchaseOrder->number_guide}: {$e->getMessage()}");
       }
     } else {
       // Existe, actualizar el estado del log
@@ -461,10 +443,8 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         'migration_status' => 'completed',
         'migrated_at' => now(),
       ]);
-      // Log::info("Purchase order migration completed: {$purchaseOrder->number}");
     } elseif ($hasFailed) {
       $purchaseOrder->update(['migration_status' => 'failed']);
-      // Log::warning("Purchase order migration has failed steps: {$purchaseOrder->number}");
     }
   }
 
@@ -488,6 +468,5 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
 
   public function failed(\Throwable $exception): void
   {
-    // Log::error("Failed VerifyAndMigratePurchaseOrderJob: {$exception->getMessage()}");
   }
 }

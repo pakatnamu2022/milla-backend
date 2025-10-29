@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ap\compras;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\compras\IndexPurchaseOrderRequest;
+use App\Http\Requests\ap\compras\ResendPurchaseOrderRequest;
 use App\Http\Requests\ap\compras\StorePurchaseOrderRequest;
 use App\Http\Requests\ap\compras\UpdatePurchaseOrderRequest;
 use App\Http\Services\ap\compras\PurchaseOrderService;
@@ -78,7 +79,7 @@ class PurchaseOrderController extends Controller
    * Reenvía una OC anulada con datos corregidos
    * Crea nueva OC con punto (.) y la sincroniza a tabla intermedia
    */
-  public function resend(StorePurchaseOrderRequest $request, $id)
+  public function resend(ResendPurchaseOrderRequest $request, $id)
   {
     try {
       return $this->success($this->service->resend($request->all(), $id));

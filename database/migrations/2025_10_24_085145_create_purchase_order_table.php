@@ -13,6 +13,11 @@ return new class extends Migration {
     Schema::create('ap_purchase_order', function (Blueprint $table) {
       $table->id();
       $table->string('number');
+      $table->integer('number_correlative')->comment('Número correlativo de la OC para casos de corrección por NC');
+
+//      GUIDE
+      $table->string('number_guide');
+      $table->foreignId('warehouse_id')->constrained('warehouse');
 
 //      INVOICE
       $table->string('invoice_series')->comment('Serie de la factura');
@@ -33,10 +38,6 @@ return new class extends Migration {
 
       $table->integer('sede_id');
       $table->foreign('sede_id')->references('id')->on('config_sede');
-
-//      GUIDE
-      $table->string('number_guide');
-      $table->foreignId('warehouse_id')->constrained('warehouse');
 
 //      STATUS
       $table->string('invoice_dynamics')->nullable()->comment('Número de factura en el sistema Dynamics');
