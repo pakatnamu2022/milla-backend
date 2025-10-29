@@ -97,17 +97,17 @@ class ShippingGuides extends Model
     'issue_date',
   ];
 
-  public function setLicenseAttribute($value)
+  public function setLicenseAttribute($value): void
   {
     $this->attributes['license'] = Str::upper(Str::ascii($value));
   }
 
-  public function setPlateAttribute($value)
+  public function setPlateAttribute($value): void
   {
     $this->attributes['plate'] = Str::upper(Str::ascii($value));
   }
 
-  public function setDriverNameAttribute($value)
+  public function setDriverNameAttribute($value): void
   {
     $this->attributes['driver_name'] = Str::upper(Str::ascii($value));
   }

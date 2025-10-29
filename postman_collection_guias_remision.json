@@ -1,0 +1,302 @@
+{
+  "info": {
+    "name": "Guías de Remisión - Nubefact",
+    "description": "Colección de endpoints para enviar y consultar guías de remisión en Nubefact",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "tu_token_jwt_aqui",
+      "type": "string"
+    },
+    {
+      "key": "guide_id",
+      "value": "123",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Crear Guía de Remisión",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"document_type\": 7,\n  \"issuer_type\": \"NOSOTROS\",\n  \"document_series_id\": 1,\n  \"issue_date\": \"2025-10-29\",\n  \"requires_sunat\": true,\n  \"total_packages\": 5,\n  \"total_weight\": 100.50,\n  \"sede_transmitter_id\": 1,\n  \"sede_receiver_id\": 2,\n  \"transmitter_id\": 1,\n  \"receiver_id\": 2,\n  \"transfer_reason_id\": 1,\n  \"transfer_modality_id\": 1,\n  \"plate\": \"ABC123\",\n  \"driver_doc\": \"12345678\",\n  \"driver_name\": \"JUAN PEREZ\",\n  \"license\": \"Q12345678\",\n  \"notes\": \"Guía de prueba en modo DEMO\",\n  \"ap_vehicle_purchase_order_id\": 1\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/comercial/shippingGuides",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "comercial", "shippingGuides"]
+        },
+        "description": "Crea una nueva guía de remisión con requires_sunat = true"
+      },
+      "response": []
+    },
+    {
+      "name": "2. Enviar Guía a Nubefact (PASO 1)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        },        "url": {
+          "raw": "{{base_url}}/api/v1/comercial/shippingGuides/{{guide_id}}/send-to-nubefact",
+          "host": ["{{base_url}}"],
+          "path": [
+            "api",
+            "v1",
+            "comercial",
+            "shippingGuides",
+            "{{guide_id}}",
+            "send-to-nubefact"
+          ]
+        },
+        "description": "Envía la guía a Nubefact/SUNAT. Este es el PASO 1 del proceso.\n\nLa respuesta inicial tendrá:\n- aceptada_por_sunat: false\n- Enlaces vacíos (PDF, XML, CDR)\n\nDebe esperar 15-30 segundos antes de consultar."
+      },
+      "response": [
+        {
+          "name": "Respuesta Exitosa",
+          "originalRequest": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/comercial/shippingGuides/{{guide_id}}/send-to-nubefact",
+              "host": ["{{base_url}}"],
+              "path": [
+                "api",
+                "v1",
+                "comercial",
+                "shippingGuides",
+                "{{guide_id}}",
+                "send-to-nubefact"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"Guía enviada a Nubefact. Use la operación de consulta para verificar si SUNAT la aceptó.\",\n  \"data\": {\n    \"id\": 123,\n    \"document_number\": \"T001-00000001\",\n    \"series\": \"T001\",\n    \"correlative\": \"00000001\",\n    \"is_sunat_registered\": true,\n    \"aceptada_por_sunat\": false,\n    \"sent_at\": \"2025-10-29T12:35:47.000000Z\"\n  },\n  \"nubefact_response\": {\n    \"tipo_de_comprobante\": 7,\n    \"serie\": \"T001\",\n    \"numero\": 1,\n    \"aceptada_por_sunat\": false\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "3. Consultar Estado (PASO 2)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/comercial/shippingGuides/{{guide_id}}/query-from-nubefact",
+          "host": ["{{base_url}}"],
+          "path": [
+            "api",
+            "v1",
+            "comercial",
+            "shippingGuides",
+            "{{guide_id}}",
+            "query-from-nubefact"
+          ]
+        },
+        "description": "Consulta el estado de la guía. Este es el PASO 2 del proceso.\n\n⚠️ IMPORTANTE: Espera 15-30 segundos después de enviar antes de consultar.\n\nSi SUNAT aceptó la guía, recibirás:\n- aceptada_por_sunat: true\n- Enlaces: PDF, XML, CDR\n- Código QR\n\nSi aún no está aceptada, espera más y vuelve a consultar."
+      },
+      "response": [
+        {
+          "name": "Guía Aceptada por SUNAT",
+          "originalRequest": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/comercial/shippingGuides/{{guide_id}}/query-from-nubefact",
+              "host": ["{{base_url}}"],
+              "path": [
+                "api",
+                "v1",
+                "comercial",
+                "shippingGuides",
+                "{{guide_id}}",
+                "query-from-nubefact"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"La guía ha sido aceptada por SUNAT\",\n  \"data\": {\n    \"id\": 123,\n    \"document_number\": \"T001-00000001\",\n    \"is_sunat_registered\": true,\n    \"aceptada_por_sunat\": true,\n    \"accepted_at\": \"2025-10-29T12:36:30.000000Z\",\n    \"enlace\": \"http://www.nubefact.com/guia/564db835-fd3f-4ac0-937b-cdabb9d8a04f\",\n    \"enlace_del_pdf\": \"http://www.nubefact.com/guia/564db835-fd3f-4ac0-937b-cdabb9d8a04f.pdf\",\n    \"enlace_del_xml\": \"http://www.nubefact.com/guia/564db835-fd3f-4ac0-937b-cdabb9d8a04f.xml\",\n    \"enlace_del_cdr\": \"http://www.nubefact.com/guia/564db835-fd3f-4ac0-937b-cdabb9d8a04f.cdr\",\n    \"cadena_para_codigo_qr\": \"https://e-factura.sunat.gob.pe/v1/contribuyente/gre/comprobantes/descargaqr?hashqr=PB9GHszJi9h3WYsVW00fVfgqrn\"\n  },\n  \"nubefact_response\": {\n    \"tipo_de_comprobante\": 7,\n    \"serie\": \"T001\",\n    \"numero\": 1,\n    \"aceptada_por_sunat\": true,\n    \"enlace_del_pdf\": \"http://www.nubefact.com/guia/564db835-fd3f-4ac0-937b-cdabb9d8a04f.pdf\"\n  }\n}"
+        },
+        {
+          "name": "Guía Aún NO Aceptada",
+          "originalRequest": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/comercial/shippingGuides/{{guide_id}}/query-from-nubefact",
+              "host": ["{{base_url}}"],
+              "path": [
+                "api",
+                "v1",
+                "comercial",
+                "shippingGuides",
+                "{{guide_id}}",
+                "query-from-nubefact"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"Estado consultado. La guía aún no ha sido aceptada por SUNAT.\",\n  \"data\": {\n    \"id\": 123,\n    \"aceptada_por_sunat\": false,\n    \"enlace\": \"\",\n    \"enlace_del_pdf\": \"\",\n    \"enlace_del_xml\": \"\",\n    \"enlace_del_cdr\": \"\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "4. Ver Guía Completa",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/comercial/shippingGuides/{{guide_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "comercial", "shippingGuides", "{{guide_id}}"]
+        },
+        "description": "Obtiene todos los datos de la guía incluyendo los enlaces de Nubefact"
+      },
+      "response": []
+    },
+    {
+      "name": "5. Listar Guías",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/comercial/shippingGuides?page=1&limit=10",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "comercial", "shippingGuides"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            },
+            {
+              "key": "aceptada_por_sunat",
+              "value": "true",
+              "disabled": true,
+              "description": "Filtrar solo aceptadas"
+            },
+            {
+              "key": "requires_sunat",
+              "value": "true",
+              "disabled": true,
+              "description": "Filtrar solo las que requieren SUNAT"
+            }
+          ]
+        },
+        "description": "Lista todas las guías de remisión con paginación"
+      },
+      "response": []
+    }
+  ]
+}
