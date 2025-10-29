@@ -18,6 +18,7 @@ class ApReceivingChecklistResource extends JsonResource
       'id' => $this->id,
       'receiving_id' => $this->receiving_id,
       'receiving_description' => $this->receiving->description,
+      'quantity' => $this->quantity,
     ];
   }
 }

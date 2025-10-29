@@ -21,10 +21,13 @@ class ShippingGuides extends Model
     'document_type',
     'issuer_type',
     'document_series_id',
+    'series',
+    'correlative',
     'document_number',
     'issue_date',
     'requires_sunat',
     'is_sunat_registered',
+    'status_nubefac',
     'total_packages',
     'total_weight',
     'vehicle_movement_id',
@@ -64,10 +67,9 @@ class ShippingGuides extends Model
   ];
 
   const filters = [
+    'search' => ['document_number', 'plate', 'driver_name', 'documentSeries.series'],
     'document_type',
     'issuer_type',
-    'document_series',
-    'document_number',
     'issue_date',
     'requires_sunat',
     'is_sunat_registered',
@@ -86,12 +88,9 @@ class ShippingGuides extends Model
     'transfer_modality_id',
   ];
 
-  const search = [
-    'document_series',
-    'document_number',
-    'license',
-    'plate',
-    'driver_name',
+  const sorts = [
+    'id',
+    'issue_date',
   ];
 
   public function setLicenseAttribute($value)

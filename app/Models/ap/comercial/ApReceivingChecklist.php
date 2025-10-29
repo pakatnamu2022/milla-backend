@@ -17,6 +17,7 @@ class ApReceivingChecklist extends Model
   protected $fillable = [
     'receiving_id',
     'shipping_guide_id',
+    'quantity',
   ];
 
   const filters = [

@@ -25,7 +25,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       ShippingGuides::class,
       $request,
       ShippingGuides::filters,
-      ShippingGuides::search,
+      ShippingGuides::sorts,
       ShippingGuidesResource::class
     );
   }
@@ -193,13 +193,14 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $data['file_url'] = $fileUrl;
       }
 
+      if ($data['issuer_type'] == 'PROVEEDOR') {
+        $data['document_number'] = $data['series'] . '-' . $data['correlative'];
+      }
+
       // 2. Remover campos que no se pueden actualizar
       unset(
-        $data['id'],
-        $data['file'],
-        $data['document_series'], // Generado por la API
-        $data['document_number'], // Generado por la API
-        $data['is_sunat_registered'], // Se procesa con nubefac
+        $data['is_sunat_registered'], // Se procesa con sunat
+        $data['status_nubefac'], // Se procesa con nubefac
         $data['created_by'], // No se puede modificar el creador
         $data['cancellation_reason'], // Solo se actualiza con el método cancel()
         $data['cancelled_by'], // Solo se actualiza con el método cancel()
