@@ -12,7 +12,7 @@ class SunatConcepts extends Model
   protected $table = 'sunat_concepts';
 
   protected $fillable = [
-    'code',
+    'code_nubefact',
     'description',
     'type',
     'status',
@@ -20,14 +20,14 @@ class SunatConcepts extends Model
 
   const filters = [
     'id' => '=',
-    'search' => ['code', 'description', 'type'],
-    'type' => '=',
+    'search' => ['code_nubefact', 'description', 'type'],
+    'type' => 'in',
     'status' => '=',
   ];
 
   const sorts = [
     'id',
-    'code',
+    'code_nubefact',
     'description',
     'type',
     'status',

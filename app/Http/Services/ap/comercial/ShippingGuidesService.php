@@ -8,7 +8,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehicleMovement;
-use App\Models\ap\comercial\VehiclePurchaseOrder;
+use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use Exception;
@@ -56,10 +56,10 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       // 1. Crear el vehicle_movement automáticamente
       $originAddress = BusinessPartnersEstablishment::find($data['transmitter_id'])->address ?? '-';
       $destinationAddress = BusinessPartnersEstablishment::find($data['receiver_id'])->address ?? '-';
-      $statusCurrentVehicle = VehiclePurchaseOrder::find($data['ap_vehicle_purchase_order_id'])->ap_vehicle_status_id ?? null;
+      $statusCurrentVehicle = Vehicles::find($data['ap_vehicle_id'])->ap_vehicle_status_id ?? null;
 
       $vehicleMovementData = [
-        'ap_vehicle_purchase_order_id' => $data['ap_vehicle_purchase_order_id'],
+        'ap_vehicle_id' => $data['ap_vehicle_id'],
         'movement_type' => 'TRAVESIA',
         'movement_date' => $data['issue_date'],
         'observation' => $data['notes'] ?? null,
@@ -71,7 +71,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'created_by' => Auth::id(),
       ];
 
-      VehiclePurchaseOrder::find($data['ap_vehicle_purchase_order_id'])->update([
+      Vehicles::find($data['ap_vehicle_id'])->update([
         'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
       ]);
 
