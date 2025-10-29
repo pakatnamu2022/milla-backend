@@ -19,7 +19,7 @@ class StoreShippingGuidesRequest extends StoreRequest
       'sede_receiver_id' => 'required|integer|exists:config_sede,id',
       'transmitter_id' => 'required|integer|exists:business_partners_establishment,id',
       'receiver_id' => 'required|integer|exists:business_partners_establishment,id',
-      'ap_vehicle_purchase_order_id' => 'required|integer|exists:ap_vehicle_purchase_order,id',
+      'ap_vehicle_id' => 'required|integer|exists:ap_vehicles,id',
       'requires_sunat' => 'nullable|boolean',
       'total_packages' => 'nullable|numeric|min:0',
       'total_weight' => 'nullable|numeric|min:0',

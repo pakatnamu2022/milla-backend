@@ -97,6 +97,16 @@ class ShippingGuides extends Model
     'issue_date',
   ];
 
+  public function setSeriesAttribute($value): void
+  {
+    $this->attributes['series'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setCorrelativeAttribute($value): void
+  {
+    $this->attributes['correlative'] = Str::upper(Str::ascii($value));
+  }
+
   public function setLicenseAttribute($value): void
   {
     $this->attributes['license'] = Str::upper(Str::ascii($value));

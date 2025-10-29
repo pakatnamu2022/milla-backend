@@ -241,7 +241,7 @@ class NubefactShippingGuideApiService
 
         // Motivo de traslado
         if ($guide->transfer_reason_id) {
-            $payload['motivo_de_traslado'] = str_pad($guide->transferReason->code ?? '01', 2, '0', STR_PAD_LEFT);
+            $payload['motivo_de_traslado'] = str_pad($guide->transferReason->code_nubefact ?? '01', 2, '0', STR_PAD_LEFT);
         }
 
         // Número de bultos
@@ -251,7 +251,7 @@ class NubefactShippingGuideApiService
 
         // Tipo de transporte
         if ($guide->transfer_modality_id) {
-            $modalityCode = $guide->transferModality->code ?? '01';
+            $modalityCode = $guide->transferModality->code_nubefact ?? '01';
             $payload['tipo_de_transporte'] = str_pad($modalityCode, 2, '0', STR_PAD_LEFT);
         }
 
