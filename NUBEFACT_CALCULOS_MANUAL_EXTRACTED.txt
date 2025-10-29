@@ -1,0 +1,692 @@
+====================================================================================
+DOCUMENTO 2: NUBEFACT MANUAL - CÁLCULO DE TODAS LAS OPERACIONES DE JSON O TXT.xlsx
+====================================================================================
+
+Este documento contiene CATÁLOGOS OFICIALES DE LA SUNAT que son fundamentales para la integración.
+
+========================================
+CATÁLOGO 01: TIPOS DE DOCUMENTOS
+========================================
+
+Código | Descripción
+-------|----------------------------------
+01     | Factura
+03     | Boleta de venta
+04     | Liquidación de compra
+07     | Nota de crédito
+08     | Nota de débito
+09     | Guía de remisión remitente
+12     | Ticket de máquina registradora
+20     | Comprobante de retención
+31     | Guía de remisión transportista
+40     | Comprobante de Percepción
+
+========================================
+CATÁLOGO 02: TIPOS DE MONEDAS
+========================================
+
+Usar códigos ISO 4217 Alpha Version 2001
+http://www.iso.org/iso/home/standards/currency_codes.htm
+
+Ejemplos:
+- PEN = Soles
+- USD = Dólares
+- EUR = Euros
+- GBP = Libra Esterlina
+
+========================================
+CATÁLOGO 03: UNIDADES DE MEDIDA
+========================================
+
+UN/ECE Recommendation 20 Revision 13
+https://www.unece.org/fileadmin/DAM/uncefact/recommendations/rec20/rec20_Rev13e_2017.xls
+
+Ejemplos comunes:
+- NIU = Unidad
+- ZZ = Servicio
+- KGM = Kilogramo
+- MTR = Metro
+- LTR = Litro
+- TNE = Tonelada
+- DAY = Día
+- MON = Mes
+- HUR = Hora
+
+========================================
+CATÁLOGO 04: CÓDIGO DE PAÍS
+========================================
+
+ISO 3166-1
+http://www.chemie.fu-berlin.de/diverse/doc/ISO_3166.html
+
+Ejemplos:
+- PE = Perú
+- US = Estados Unidos
+- ES = España
+- CL = Chile
+
+========================================
+CATÁLOGO 05: TIPOS DE TRIBUTOS
+========================================
+
+Código | Descripción                              | Código Internacional | Nombre
+-------|------------------------------------------|---------------------|--------
+1000   | IGV Impuesto General a las Ventas        | VAT                 | IGV
+1016   | Impuesto a la Venta Arroz Pilado         | VAT                 | IVAP
+2000   | ISC Impuesto Selectivo al Consumo        | EXC                 | ISC
+3000   | Impuesto a la Renta                      | TOX                 | IR
+7152   | Impuesto a la bolsa plástica             | OTH                 | ICBPER
+9995   | Exportación                              | FRE                 | EXP
+9996   | Gratuito                                 | FRE                 | GRA
+9997   | Exonerado                                | VAT                 | EXO
+9998   | Inafecto                                 | FRE                 | INA
+9999   | Otros tributos                           | OTH                 | OTROS
+
+========================================
+CATÁLOGO 06: TIPOS DE DOCUMENTO IDENTIDAD
+========================================
+
+Código | Descripción
+-------|----------------------------------
+0      | DOC.TRIB.NO.DOM.SIN.RUC
+1      | Documento Nacional de Identidad (DNI)
+4      | Carnet de extranjería
+6      | Registro Único de Contribuyentes (RUC)
+7      | Pasaporte
+A      | Cédula Diplomática de identidad
+B      | DOC.IDENT.PAIS.RESIDENCIA-NO.D
+C      | Tax Identification Number - TIN
+D      | Identification Number - IN
+E      | TAM - Tarjeta Andina de Migración
+F      | Permiso Temporal de Permanencia - PTP
+G      | Salvoconducto
+
+========================================
+CATÁLOGO 07: TIPO DE AFECTACIÓN DEL IGV
+========================================
+
+Código | Descripción                                           | Código Tributo
+-------|-------------------------------------------------------|---------------
+10     | Gravado - Operación Onerosa                           | 1000
+11     | Gravado – Retiro por premio                           | 9996
+12     | Gravado – Retiro por donación                         | 9996
+13     | Gravado – Retiro                                      | 9996
+14     | Gravado – Retiro por publicidad                       | 9996
+15     | Gravado – Bonificaciones                              | 9996
+16     | Gravado – Retiro por entrega a trabajadores           | 9996
+17     | Gravado - IVAP                                        | 1016 o 9996
+20     | Exonerado - Operación Onerosa                         | 9997
+21     | Exonerado - Transferencia gratuita                    | 9996
+30     | Inafecto - Operación Onerosa                          | 9998
+31     | Inafecto – Retiro por Bonificación                    | 9996
+32     | Inafecto – Retiro                                     | 9996
+33     | Inafecto – Retiro por Muestras Médicas                | 9996
+34     | Inafecto - Retiro por Convenio Colectivo              | 9996
+35     | Inafecto – Retiro por premio                          | 9996
+36     | Inafecto - Retiro por publicidad                      | 9996
+37     | Inafecto - Transferencia gratuita                     | 9996
+40     | Exportación de Bienes o Servicios                     | 9995 o 9996
+
+IMPORTANTE: Este catálogo se mapea al campo "tipo_de_igv" en los items del JSON de Nubefact
+
+========================================
+CATÁLOGO 08: SISTEMA DE CÁLCULO DEL ISC
+========================================
+
+Código | Descripción
+-------|----------------------------------
+01     | Sistema al valor (Apéndice IV, lit. A)
+02     | Aplicación del Monto Fijo (Sistema específico)
+03     | Sistema de Precios de Venta al Público
+
+========================================
+CATÁLOGO 09: TIPOS DE NOTA DE CRÉDITO
+========================================
+
+Código | Descripción
+-------|----------------------------------
+01     | Anulación de la operación
+02     | Anulación por error en el RUC
+03     | Corrección por error en la descripción
+04     | Descuento global
+05     | Descuento por ítem
+06     | Devolución total
+07     | Devolución por ítem
+08     | Bonificación
+09     | Disminución en el valor
+10     | Otros Conceptos
+11     | Ajustes de operaciones de exportación
+12     | Ajustes afectos al IVAP
+13     | Ajustes – montos y/o fechas de pago
+
+IMPORTANTE: Este catálogo se mapea al campo "tipo_de_nota_de_credito" en el JSON de Nubefact
+
+========================================
+CATÁLOGO 10: TIPOS DE NOTA DE DÉBITO
+========================================
+
+Código | Descripción
+-------|----------------------------------
+01     | Intereses por mora
+02     | Aumento en el valor
+03     | Penalidades/otros conceptos
+11     | Ajustes de operaciones de exportación
+12     | Ajustes afectos al IVAP
+
+IMPORTANTE: Este catálogo se mapea al campo "tipo_de_nota_de_debito" en el JSON de Nubefact
+
+========================================
+CATÁLOGO 14: OTROS CONCEPTOS TRIBUTARIOS
+========================================
+
+Código | Descripción
+-------|----------------------------------
+1000   | Total valor de venta - operaciones exportadas
+1001   | Total valor de venta - operaciones gravadas
+1002   | Total valor de venta - operaciones inafectas
+1003   | Total valor de venta - operaciones exoneradas
+1004   | Total valor de venta – Operaciones gratuitas
+1005   | Sub total de venta
+2001   | Percepciones
+2002   | Retenciones
+2003   | Detracciones
+2004   | Bonificaciones
+2005   | Total descuentos
+3001   | FISE (Fondo Inclusión Social Energético)
+
+========================================
+CATÁLOGO 15: ELEMENTOS ADICIONALES
+========================================
+
+Código | Descripción
+-------|----------------------------------
+1000   | Monto en Letras
+1002   | Leyenda "TRANSFERENCIA GRATUITA DE UN BIEN Y/O SERVICIO PRESTADO GRATUITAMENTE"
+2000   | Leyenda "COMPROBANTE DE PERCEPCIÓN"
+2001   | Leyenda "BIENES TRANSFERIDOS EN LA AMAZONÍA REGIÓN SELVA PARA SER CONSUMIDOS EN LA MISMA"
+2002   | Leyenda "SERVICIOS PRESTADOS EN LA AMAZONÍA REGIÓN SELVA PARA SER CONSUMIDOS EN LA MISMA"
+2003   | Leyenda "CONTRATOS DE CONSTRUCCIÓN EJECUTADOS EN LA AMAZONÍA REGIÓN SELVA"
+2004   | Leyenda "Agencia de Viaje - Paquete turístico"
+2005   | Leyenda "Venta realizada por emisor itinerante"
+2007   | Leyenda: "Operación sujeta a detracción"
+2010   | Leyenda: "Operación sujeta a IVAP"
+3000   | Restitución Simplificado de Derechos Arancelarios
+3001   | Detracciones: CODIGO DE BB Y SS SUJETOS A DETRACCION
+3002   | Detracciones: NUMERO DE CTA EN EL BN
+3003   | Detracciones: Recursos Hidrobiológicos-Tipo y cantidad de especie vendida
+3007   | Detracciones: Transporte Bienes vía terrestre – configuración vehicular
+
+========================================
+CATÁLOGO 16: CÓDIGO DE PRECIOS
+========================================
+
+Código | Descripción
+-------|----------------------------------
+01     | Precio unitario (incluye el IGV)
+02     | Valor referencial unitario en operaciones no onerosas (Gratuitas)
+03     | Tarifas reguladas
+
+========================================
+CATÁLOGO 17: TIPOS DE OPERACIÓN
+========================================
+
+Código | Descripción                                                   | Comprobante Asociado
+-------|---------------------------------------------------------------|---------------------
+0101   | Venta interna                                                 | Factura, Boleta
+0112   | Venta Interna - Sustenta Gastos Deducibles Persona Natural    | Factura
+0113   | Venta Interna - NRUS                                          | Boleta
+0200   | Exportación de Bienes                                         | Factura
+0201   | Exportación de Servicios – Prestación servicios íntegramente  | Factura
+0202   | Exportación de Servicios – Prestación de servicios de hospedaje No Domiciliado | Factura
+0203   | Exportación de Servicios – Transporte de navieras             | Factura
+0204   | Exportación de Servicios – Servicios a naves y aeronaves      | Factura
+0205   | Exportación de Servicios - Servicios que conformen Paquete Turístico | Factura
+0206   | Exportación de Servicios – Servicios complementarios transporte carga | Factura
+0207   | Exportación de Servicios – Suministro energía eléctrica ZED   | Factura
+0208   | Exportación de Servicios – Prestación servicios parcialmente  | Factura
+0301   | Operaciones con Carta de porte aéreo (nacional)               | Carta de porte aéreo
+0302   | Operaciones de Transporte ferroviario de pasajeros            | Boleta
+0401   | Ventas no domiciliados que no califican como exportación      | Factura
+0501   | Compra interna                                                | Liquidación compra
+0502   | Anticipos                                                     | Liquidación compra
+0503   | Compra de oro                                                 | Liquidación compra
+1001   | Operación Sujeta a Detracción                                 | Factura/Boleta
+1002   | Operación Sujeta a Detracción - Recursos Hidrobiológicos      | Factura/Boleta
+1003   | Operación Sujeta a Detracción - Servicios Transporte Pasajeros| Factura/Boleta
+1004   | Operación Sujeta a Detracción - Servicios Transporte Carga    | Factura/Boleta
+2001   | Operación Sujeta a Percepción                                 | Factura/Boleta
+2100   | Operación sujeta a Retención de Renta de segunda categoría    | Factura
+
+IMPORTANTE: Este catálogo se mapea al campo "sunat_transaction" en el JSON de Nubefact
+
+========================================
+CATÁLOGO 21: CÓDIGO DE RÉGIMEN DE PERCEPCIONES
+========================================
+
+Código | Descripción                                                    | Porcentaje %
+-------|----------------------------------------------------------------|-------------
+01     | Percepción Venta Interna                                       | 2.0
+02     | Percepción a la adquisición de combustible                     | 1.0
+03     | Percepción realizada al agente con tasa especial               | 0.5
+
+IMPORTANTE: Este catálogo se mapea al campo "percepcion_tipo" en el JSON de Nubefact
+
+========================================
+CATÁLOGO 23: CÓDIGO DE RÉGIMEN DE RETENCIONES
+========================================
+
+Código | Descripción
+-------|----------------------------------
+01     | Tasa 3%
+02     | Tasa 6%
+
+IMPORTANTE: Este catálogo se mapea al campo "retencion_tipo" en el JSON de Nubefact
+
+========================================
+CATÁLOGO 25: CÓDIGO DE PRODUCTO SUNAT
+========================================
+
+Sistema de Codificación Común de las Naciones Unidas - UNSPSC v14_0801 (nivel 3)
+https://www.unspsc.org/
+
+Ejemplos:
+- 10000000 = Productos
+- 20000000 = Servicios
+- 50000000 = Productos alimenticios y bebidas
+- 60000000 = Servicios de transporte
+
+IMPORTANTE: Este catálogo se mapea al campo "codigo_producto_sunat" en los items del JSON
+
+========================================
+CATÁLOGO 51: CÓDIGO DE TIPO DE OPERACIÓN EXTENDIDO
+========================================
+
+Este es un catálogo más detallado que complementa el catálogo 17.
+
+Incluye operaciones específicas como:
+- Ventas internas con diferentes características fiscales
+- Exportaciones de diversos tipos de servicios
+- Operaciones con detracciones, percepciones y retenciones
+- Operaciones especiales en zona de selva/amazonía
+- Tax Free para turistas
+
+========================================
+CATÁLOGO 53: CARGOS, DESCUENTOS Y DEDUCCIONES
+========================================
+
+Nivel | Código | Descripción
+------|--------|--------------------------------------------------
+Item  | 00     | Descuentos que afectan la base imponible del IGV/IVAP
+Item  | 01     | Descuentos que no afectan la base imponible del IGV/IVAP
+Global| 02     | Descuentos globales que afectan la base imponible del IGV/IVAP
+Global| 03     | Descuentos globales que no afectan la base imponible del IGV/IVAP
+Global| 04     | Descuentos globales por anticipos gravados
+Global| 50     | Descuentos globales por anticipos exonerados
+Global| 51     | Descuentos globales por anticipos inafectos
+Global| 52     | Descuentos globales por anticipos
+Item  | 45     | FISE
+Item  | 46     | Recargo al consumo y/o propinas
+Item  | 47     | Cargos que afectan la base imponible del IGV/IVAP
+Item  | 48     | Cargos que no afectan la base imponible del IGV/IVAP
+Global| 49     | Cargos globales que afectan la base imponible del IGV/IVAP
+Global| 50     | Cargos globales que no afectan la base imponible del IGV/IVAP
+      | 51     | Percepción venta interna
+      | 52     | Retención de renta por anticipos
+      | 53     | Retención del IGV
+      | 54     | Retención de renta de segunda categoría
+
+========================================
+CATÁLOGO 54: BIENES Y SERVICIOS SUJETOS A DETRACCIÓN
+========================================
+
+Código | Descripción
+-------|----------------------------------
+001    | Azúcar y melaza de caña
+002    | Arroz
+003    | Alcohol etílico
+004    | Recursos hidrobiológicos
+005    | Maíz amarillo duro
+007    | Caña de azúcar
+008    | Madera
+009    | Arena y piedra
+010    | Residuos, subproductos, desechos, recortes y desperdicios
+011    | Bienes gravados con el IGV, o renuncia a la exoneración
+012    | Intermediación laboral y tercerización
+013    | Animales vivos
+014    | Carnes y despojos comestibles
+015    | Abonos, cueros y pieles de origen animal
+016    | Aceite de pescado
+017    | Harina, polvo y "pellets" de pescado
+019    | Arrendamiento de bienes muebles
+020    | Mantenimiento y reparación de bienes muebles
+021    | Movimiento de carga
+022    | Otros servicios empresariales
+023    | Leche
+024    | Comisión mercantil
+025    | Fabricación de bienes por encargo
+026    | Servicio de transporte de personas
+027    | Servicio de transporte de carga
+028    | Transporte de pasajeros
+030    | Contratos de construcción
+031    | Oro gravado con el IGV
+032    | Paprika y otros frutos de los géneros capsicum o pimienta
+034    | Minerales metálicos no auríferos
+035    | Bienes exonerados del IGV
+036    | Oro y demás minerales metálicos exonerados del IGV
+037    | Demás servicios gravados con el IGV
+039    | Minerales no metálicos
+040    | Bien inmueble gravado con IGV
+041    | Plomo
+099    | Ley 30737
+
+IMPORTANTE: Este catálogo se mapea al campo "detraccion_tipo" en el JSON de Nubefact
+
+========================================
+FÓRMULAS DE CÁLCULO IMPORTANTES
+========================================
+
+OPERACIÓN GRAVADA (CON IGV):
+----------------------------
+1. subtotal = cantidad * valor_unitario
+2. igv = subtotal * (porcentaje_de_igv / 100)
+3. total_item = subtotal + igv
+4. precio_unitario = valor_unitario * (1 + porcentaje_de_igv/100)
+
+Totales del comprobante:
+- total_gravada = suma de todos los subtotales gravados
+- total_igv = suma de todos los igv
+- total = total_gravada + total_igv
+
+OPERACIÓN EXONERADA:
+--------------------
+1. subtotal = cantidad * valor_unitario
+2. igv = 0
+3. total_item = subtotal
+4. precio_unitario = valor_unitario
+
+Totales del comprobante:
+- total_exonerada = suma de todos los subtotales exonerados
+- total_igv = 0
+- total = total_exonerada
+
+OPERACIÓN INAFECTA:
+-------------------
+1. subtotal = cantidad * valor_unitario
+2. igv = 0
+3. total_item = subtotal
+4. precio_unitario = valor_unitario
+
+Totales del comprobante:
+- total_inafecta = suma de todos los subtotales inafectos
+- total_igv = 0
+- total = total_inafecta
+
+OPERACIÓN GRATUITA:
+-------------------
+1. subtotal = cantidad * valor_unitario
+2. igv = subtotal * (porcentaje_de_igv / 100) [solo referencial]
+3. total_item = 0 [NO suma al total del comprobante]
+4. precio_unitario = valor_unitario * (1 + porcentaje_de_igv/100)
+
+Totales del comprobante:
+- total_gratuita = suma de todos los subtotales gratuitos [referencial]
+- total_igv = 0 [para gratuitas no suma]
+- total = 0 [las gratuitas NO suman al total a pagar]
+
+OPERACIÓN CON DESCUENTO POR ÍTEM:
+----------------------------------
+1. subtotal_sin_descuento = cantidad * valor_unitario
+2. descuento_item = monto del descuento
+3. subtotal = subtotal_sin_descuento - descuento_item
+4. igv = subtotal * (porcentaje_de_igv / 100)
+5. total_item = subtotal + igv
+
+OPERACIÓN CON DESCUENTO GLOBAL:
+--------------------------------
+1. Calcular totales normalmente para cada ítem
+2. total_antes_descuento = suma de todos los totales
+3. descuento_global = monto del descuento
+4. total_descuento = descuento_global
+5. total = total_antes_descuento - descuento_global
+
+Si el descuento afecta la base imponible:
+- Recalcular: total_gravada = total_gravada - (descuento_global / (1 + porcentaje_igv/100))
+- Recalcular: total_igv = total_gravada * (porcentaje_igv / 100)
+- total = total_gravada + total_igv
+
+OPERACIÓN CON PERCEPCIÓN:
+--------------------------
+1. Calcular el total normal del comprobante
+2. percepcion_base_imponible = total
+3. total_percepcion = percepcion_base_imponible * (porcentaje_percepcion / 100)
+4. total_incluido_percepcion = total + total_percepcion
+
+Porcentajes de percepción:
+- Tipo 1 (Venta Interna): 2%
+- Tipo 2 (Combustible): 1%
+- Tipo 3 (Agente tasa especial): 0.5%
+
+OPERACIÓN CON RETENCIÓN:
+------------------------
+1. Calcular el total normal del comprobante
+2. retencion_base_imponible = total
+3. total_retencion = retencion_base_imponible * (porcentaje_retencion / 100)
+4. total_final = total [la retención no modifica el total, es informativa]
+
+Porcentajes de retención:
+- Tipo 1: 3%
+- Tipo 2: 6%
+
+OPERACIÓN CON DETRACCIÓN:
+--------------------------
+1. Calcular el total normal del comprobante
+2. detraccion_total = total * (detraccion_porcentaje / 100)
+3. total_final = total [la detracción no modifica el total, es informativa]
+
+Nota: Los porcentajes de detracción varían según el tipo de bien o servicio (ver catálogo 54)
+
+OPERACIÓN CON ANTICIPOS:
+------------------------
+Para factura con anticipo:
+1. Calcular el total normal
+2. total_anticipo = suma de anticipos previamente recibidos
+3. total = total_calculado - total_anticipo
+
+Para regularización de anticipo:
+1. En los items marcar: anticipo_regularizacion = true
+2. Referenciar el documento de anticipo previo
+
+OPERACIÓN COMBINADA (GRAVADA + EXONERADA + INAFECTA):
+------------------------------------------------------
+1. Calcular cada tipo por separado
+2. total_gravada = suma de subtotales gravados
+3. total_exonerada = suma de subtotales exonerados
+4. total_inafecta = suma de subtotales inafectos
+5. total_igv = suma de igv de items gravados
+6. total = total_gravada + total_exonerada + total_inafecta + total_igv
+
+OPERACIÓN EN DÓLARES:
+---------------------
+1. Indicar: moneda = 2
+2. Indicar: tipo_de_cambio = [tasa del día]
+3. Todos los cálculos se hacen en dólares
+4. El tipo de cambio es solo referencial
+
+IMPUESTO A LAS BOLSAS PLÁSTICAS (ICBPER):
+-----------------------------------------
+1. Por cada unidad de bolsa plástica gravada
+2. Impuesto por bolsa = S/. 0.50 (o el monto vigente)
+3. total_impuestos_bolsas = cantidad_bolsas * impuesto_por_bolsa
+4. total = total_antes + total_impuestos_bolsas
+
+========================================
+VALIDACIONES IMPORTANTES
+========================================
+
+1. CORRELATIVIDAD:
+   - Los comprobantes deben ser correlativos por tipo y serie
+   - Iniciar siempre desde el número 1
+
+2. SERIES:
+   - Facturas: Serie debe empezar con "F"
+   - Boletas: Serie debe empezar con "B"
+   - Contingencia: Serie NO debe empezar con "F" ni "B"
+
+3. SUMA DE TOTALES:
+   - La suma de los totales de items debe coincidir con el total del comprobante
+   - Fórmula: total = total_gravada + total_exonerada + total_inafecta + total_igv + total_otros_cargos - total_descuento
+
+4. IGV:
+   - Si hay operaciones gravadas, debe haber total_igv > 0
+   - Si todo es exonerado o inafecto, total_igv = 0
+   - Las operaciones gratuitas NO suman al total_igv del comprobante
+
+5. TIPO DE DOCUMENTO CLIENTE:
+   - Facturas: Requieren RUC (tipo 6)
+   - Boletas: Pueden usar DNI (tipo 1), RUC (tipo 6) o "-" (varios)
+   - Exportación: Usar tipo 0 (no domiciliado sin RUC)
+
+6. NOTAS DE CRÉDITO/DÉBITO:
+   - Deben referenciar un comprobante existente
+   - Usar documento_que_se_modifica_tipo, _serie, _numero
+   - Indicar el tipo de nota (catálogo 09 o 10)
+
+7. GUÍAS DE REMISIÓN:
+   - Pueden adjuntarse a facturas/boletas
+   - Usar el array "guias" con tipo y serie-número
+
+8. VENTA AL CRÉDITO:
+   - Usar el array "venta_al_credito"
+   - Cada cuota debe tener: cuota, fecha_de_pago, importe
+   - La suma de cuotas debe coincidir con el total
+
+========================================
+EJEMPLOS DE CÁLCULO
+========================================
+
+EJEMPLO 1: FACTURA GRAVADA SIMPLE
+----------------------------------
+Producto: Laptop
+Cantidad: 2
+Valor Unitario: S/. 1,000.00
+IGV: 18%
+
+Cálculo:
+- subtotal = 2 * 1000 = 2,000.00
+- igv = 2000 * 0.18 = 360.00
+- total_item = 2000 + 360 = 2,360.00
+- precio_unitario = 1000 * 1.18 = 1,180.00
+
+JSON:
+{
+  "cantidad": 2,
+  "valor_unitario": 1000.00,
+  "precio_unitario": 1180.00,
+  "subtotal": 2000.00,
+  "tipo_de_igv": 1,
+  "igv": 360.00,
+  "total": 2360.00
+}
+
+Totales del comprobante:
+{
+  "total_gravada": 2000.00,
+  "total_igv": 360.00,
+  "total": 2360.00
+}
+
+EJEMPLO 2: FACTURA CON DESCUENTO GLOBAL
+----------------------------------------
+Item 1: Valor 1,000.00 + IGV 180.00 = Total 1,180.00
+Item 2: Valor 500.00 + IGV 90.00 = Total 590.00
+Subtotal: 1,500.00
+IGV: 270.00
+Total antes descuento: 1,770.00
+Descuento Global: 100.00
+Total Final: 1,670.00
+
+Si el descuento afecta la base imponible:
+- Descuento sin IGV = 100 / 1.18 = 84.75
+- Nueva base gravada = 1500 - 84.75 = 1,415.25
+- Nuevo IGV = 1415.25 * 0.18 = 254.75
+- Total = 1,415.25 + 254.75 = 1,670.00
+
+JSON:
+{
+  "descuento_global": 100.00,
+  "total_gravada": 1415.25,
+  "total_igv": 254.75,
+  "total": 1670.00
+}
+
+EJEMPLO 3: OPERACIÓN CON PERCEPCIÓN
+------------------------------------
+Total Factura: 1,000.00
+Percepción Tipo 1 (2%):
+- percepcion_base_imponible: 1,000.00
+- total_percepcion = 1000 * 0.02 = 20.00
+- total_incluido_percepcion = 1000 + 20 = 1,020.00
+
+JSON:
+{
+  "total": 1000.00,
+  "percepcion_tipo": 1,
+  "percepcion_base_imponible": 1000.00,
+  "total_percepcion": 20.00,
+  "total_incluido_percepcion": 1020.00
+}
+
+EJEMPLO 4: OPERACIÓN GRATUITA
+------------------------------
+Producto: Muestra gratis
+Cantidad: 10
+Valor Unitario Referencial: 50.00
+
+Cálculo:
+- subtotal = 10 * 50 = 500.00
+- igv_referencial = 500 * 0.18 = 90.00
+- total_item = 0 [NO suma al total]
+- precio_unitario = 50 * 1.18 = 59.00
+
+JSON item:
+{
+  "cantidad": 10,
+  "valor_unitario": 50.00,
+  "precio_unitario": 59.00,
+  "subtotal": 500.00,
+  "tipo_de_igv": 21, // Código 21 para gratuito
+  "igv": 90.00,
+  "total": 590.00
+}
+
+Totales del comprobante:
+{
+  "total_gravada": 0,
+  "total_gratuita": 500.00,
+  "total_igv": 0,
+  "total": 0
+}
+
+========================================
+NOTAS FINALES
+========================================
+
+1. TODOS los cálculos deben usar máximo 2 decimales para montos en Soles
+2. TODOS los cálculos deben usar máximo 2 decimales para montos en otras monedas
+3. Los valores unitarios y precios pueden tener hasta 10 decimales
+4. Siempre redondear al céntimo más cercano
+5. Usar codificación UTF-8 para todos los textos
+6. No usar caracteres especiales sin escapar en JSON
+7. Validar que la suma de items coincida con totales
+8. Validar que los tipos de documento y códigos sean válidos según catálogos SUNAT
+
+========================================
+ENLACES DE REFERENCIA
+========================================
+
+- Catálogos SUNAT: https://drive.google.com/file/d/160RszuLGOAxe0Lh1dLCQzuzJPpVeLZN4/view
+- Unidades de medida: https://www.unece.org/fileadmin/DAM/uncefact/recommendations/rec20/rec20_Rev13e_2017.xls
+- Códigos de país: http://www.chemie.fu-berlin.de/diverse/doc/ISO_3166.html
+- Códigos de moneda: http://www.iso.org/iso/home/standards/currency_codes.htm
+- Códigos de producto SUNAT: https://www.unspsc.org/
+- Ubigeos INEI: http://webinei.inei.gob.pe:8080/sisconcode/proyecto/index.htm?proyectoTitulo=UBIGEO&proyectoId=3
