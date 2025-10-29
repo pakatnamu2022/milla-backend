@@ -50,6 +50,7 @@ class StoreShippingGuidesRequest extends StoreRequest
       'receiver_id.required' => 'El destinatario es obligatorio.',
       'file.mimes' => 'El archivo debe ser un PDF, JPG, JPEG, PNG o XML.',
       'file.max' => 'El tamaño máximo del archivo es 10MB.',
+      'requires_sunat' => 'El campo requiere sunat debe ser verdadero o falso.',
     ];
   }
 }
