@@ -9,8 +9,8 @@ class UpdateApReceivingChecklistRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'receiving_ids' => 'required|array|min:1',
-      'receiving_ids.*' => 'required|integer|exists:ap_delivery_receiving_checklist,id',
+      'items_receiving' => 'nullable|array',
+      'items_receiving.*' => 'nullable|integer',
       'shipping_guide_id' => 'required|integer|exists:shipping_guides,id',
       'note' => 'nullable|string|max:250',
     ];
@@ -19,12 +19,8 @@ class UpdateApReceivingChecklistRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'receiving_ids.required' => 'Los IDs de recepción son obligatorios.',
-      'receiving_ids.array' => 'Los IDs de recepción deben ser un arreglo.',
-      'receiving_ids.min' => 'Debe proporcionar al menos un ID de recepción.',
-      'receiving_ids.*.required' => 'Cada ID de recepción es obligatorio.',
-      'receiving_ids.*.integer' => 'Cada ID de recepción debe ser un entero válido.',
-      'receiving_ids.*.exists' => 'Uno o más IDs de recepción no existen.',
+      'items_receiving.array' => 'Los items de recepción deben ser un objeto.',
+      'items_receiving.*.integer' => 'Cada cantidad debe ser un número entero.',
       'shipping_guide_id.required' => 'El ID de la guía de envío es obligatorio.',
       'shipping_guide_id.integer' => 'El ID de la guía de envío debe ser un entero válido.',
       'shipping_guide_id.exists' => 'El ID de la guía de envío no existe.',

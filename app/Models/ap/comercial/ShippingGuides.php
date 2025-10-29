@@ -21,10 +21,13 @@ class ShippingGuides extends Model
     'document_type',
     'issuer_type',
     'document_series_id',
+    'series',
+    'correlative',
     'document_number',
     'issue_date',
     'requires_sunat',
     'is_sunat_registered',
+    'status_nubefac',
     'total_packages',
     'total_weight',
     'vehicle_movement_id',
@@ -58,16 +61,19 @@ class ShippingGuides extends Model
   protected $casts = [
     'issue_date' => 'datetime',
     'cancelled_at' => 'datetime',
+    'sent_at' => 'datetime',
+    'accepted_at' => 'datetime',
+    'received_date' => 'datetime',
     'requires_sunat' => 'boolean',
     'is_sunat_registered' => 'boolean',
+    'aceptada_por_sunat' => 'boolean',
     'status' => 'boolean',
   ];
 
   const filters = [
+    'search' => ['document_number', 'plate', 'driver_name', 'documentSeries.series'],
     'document_type',
     'issuer_type',
-    'document_series',
-    'document_number',
     'issue_date',
     'requires_sunat',
     'is_sunat_registered',
@@ -86,25 +92,22 @@ class ShippingGuides extends Model
     'transfer_modality_id',
   ];
 
-  const search = [
-    'document_series',
-    'document_number',
-    'license',
-    'plate',
-    'driver_name',
+  const sorts = [
+    'id',
+    'issue_date',
   ];
 
-  public function setLicenseAttribute($value)
+  public function setLicenseAttribute($value): void
   {
     $this->attributes['license'] = Str::upper(Str::ascii($value));
   }
 
-  public function setPlateAttribute($value)
+  public function setPlateAttribute($value): void
   {
     $this->attributes['plate'] = Str::upper(Str::ascii($value));
   }
 
-  public function setDriverNameAttribute($value)
+  public function setDriverNameAttribute($value): void
   {
     $this->attributes['driver_name'] = Str::upper(Str::ascii($value));
   }
@@ -172,5 +175,91 @@ class ShippingGuides extends Model
   public function documentSeries(): BelongsTo
   {
     return $this->belongsTo(AssignSalesSeries::class, 'document_series_id');
+  }
+
+  public function receivedBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'received_by');
+  }
+
+  public function logs()
+  {
+    return $this->hasMany(NubefactShippingGuideLog::class, 'shipping_guide_id');
+  }
+
+  /**
+   * Marca la guía como enviada a Nubefact/SUNAT
+   */
+  public function markAsSent(): void
+  {
+    $this->update([
+      'is_sunat_registered' => true,
+      'sent_at' => now(),
+    ]);
+  }
+
+  /**
+   * Marca la guía como aceptada por SUNAT
+   */
+  public function markAsAccepted(array $sunatResponse): void
+  {
+    $this->update([
+      'is_sunat_registered' => true,
+      'aceptada_por_sunat' => true,
+      'accepted_at' => now(),
+      'sunat_responsecode' => $sunatResponse['sunat_responsecode'] ?? null,
+      'sunat_description' => $sunatResponse['sunat_description'] ?? null,
+      'sunat_note' => $sunatResponse['sunat_note'] ?? null,
+      'enlace' => $sunatResponse['enlace'] ?? null,
+      'enlace_del_pdf' => $sunatResponse['enlace_del_pdf'] ?? null,
+      'enlace_del_xml' => $sunatResponse['enlace_del_xml'] ?? null,
+      'enlace_del_cdr' => $sunatResponse['enlace_del_cdr'] ?? null,
+      'cadena_para_codigo_qr' => $sunatResponse['cadena_para_codigo_qr'] ?? null,
+      'codigo_hash' => $sunatResponse['codigo_hash'] ?? null,
+    ]);
+  }
+
+  /**
+   * Marca la guía como rechazada por SUNAT
+   */
+  public function markAsRejected(string $errorMessage, array $sunatResponse = []): void
+  {
+    $this->update([
+      'aceptada_por_sunat' => false,
+      'error_message' => $errorMessage,
+      'sunat_responsecode' => $sunatResponse['sunat_responsecode'] ?? null,
+      'sunat_description' => $sunatResponse['sunat_description'] ?? null,
+      'sunat_note' => $sunatResponse['sunat_note'] ?? null,
+      'sunat_soap_error' => $sunatResponse['sunat_soap_error'] ?? null,
+    ]);
+  }
+
+  /**
+   * Marca la guía como anulada
+   */
+  public function markAsCancelled(string $reason = null): void
+  {
+    $this->update([
+      'status' => false,
+      'cancelled_at' => now(),
+      'cancellation_reason' => $reason,
+      'cancelled_by' => auth()->id(),
+    ]);
+  }
+
+  /**
+   * Verifica si la guía puede ser enviada a SUNAT
+   */
+  public function canBeSentToSunat(): bool
+  {
+    return $this->requires_sunat && !$this->is_sunat_registered && !$this->cancelled_at;
+  }
+
+  /**
+   * Verifica si la guía está aceptada por SUNAT
+   */
+  public function isAcceptedBySunat(): bool
+  {
+    return $this->aceptada_por_sunat === true;
   }
 }

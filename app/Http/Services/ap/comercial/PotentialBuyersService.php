@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PotentialBuyersService extends BaseService
 {
@@ -164,6 +165,26 @@ class PotentialBuyersService extends BaseService
       // Validar archivo
       $importService->validateFile($file);
 
+      // Validar el número de columnas del archivo
+      // Formato esperado: creado | modelo | version | nro_documento | nombres | apellidos | celular | correo | campana | codigo_de_tienda | marca | tipo_documento | tipo | sector_ingresos_id | area_id (al menos 11 columnas)
+      $import = new PotentialBuyersDercoImport();
+      $collection = Excel::toCollection($import, $file);
+
+      if ($collection->isNotEmpty() && $collection->first()->isNotEmpty()) {
+        $firstRow = $collection->first()->first();
+        $columnCount = count($firstRow);
+
+        // Se esperan al menos 11 columnas
+        if ($columnCount <= 11) {
+          DB::rollBack();
+          return [
+            'success' => false,
+            'message' => 'Formato de archivo incorrecto',
+            'error' => "El archivo debe tener al menos 11 columnas. Se encontraron {$columnCount} columnas. Formato esperado: creado | modelo | version | nro_documento | nombres | apellidos | celular | correo | campana | codigo_de_tienda | marca | tipo_documento | tipo | sector_ingresos_id | area_id"
+          ];
+        }
+      }
+
       // Importar datos del Excel
       $importResult = $importService->importFromExcel($file, PotentialBuyersDercoImport::class);
 
@@ -294,6 +315,26 @@ class PotentialBuyersService extends BaseService
 
       // Validar archivo
       $importService->validateFile($file);
+
+      // Validar el número de columnas del archivo
+      // Formato esperado: marca | modelo | version | tipo_doc | documento_cliente | nombre | apellido | celular | email | sede | fecha | campana (11 columnas)
+      $import = new PotentialBuyersSocialNetworksImport();
+      $collection = Excel::toCollection($import, $file);
+
+      if ($collection->isNotEmpty() && $collection->first()->isNotEmpty()) {
+        $firstRow = $collection->first()->first();
+        $columnCount = count($firstRow);
+
+        // Se esperan 11 columnas (marca hasta campana)
+        if ($columnCount !== 11) {
+          DB::rollBack();
+          return [
+            'success' => false,
+            'message' => 'Formato de archivo incorrecto',
+            'error' => "El archivo debe tener exactamente 11 columnas. Se encontraron {$columnCount} columnas. Formato esperado: marca | modelo | version | tipo_doc | documento_cliente | nombre | apellido | celular | email | sede | fecha | campana"
+          ];
+        }
+      }
 
       // Importar datos del Excel usando PotentialBuyersSocialNetworksImport
       $importResult = $importService->importFromExcel($file, PotentialBuyersSocialNetworksImport::class);

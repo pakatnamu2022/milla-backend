@@ -11,7 +11,9 @@ class StoreShippingGuidesRequest extends StoreRequest
     return [
       'document_type' => 'required|string|max:100',
       'issuer_type' => 'required|string|max:100',
-      'document_series_id' => 'required|integer|exists:assign_sales_series,id',
+      'document_series_id' => 'nullable|integer|exists:assign_sales_series,id',
+      'series' => 'nullable|string|max:20',
+      'correlative' => 'nullable|string',
       'issue_date' => 'required|date',
       'sede_transmitter_id' => 'required|integer|exists:config_sede,id',
       'sede_receiver_id' => 'required|integer|exists:config_sede,id',
@@ -39,6 +41,8 @@ class StoreShippingGuidesRequest extends StoreRequest
     return [
       'document_type.required' => 'El tipo de documento es obligatorio.',
       'issuer_type.required' => 'El tipo de emisor es obligatorio.',
+      'document_series_id.integer' => 'El ID de la serie de documentos es inválido.',
+      'document_series_id.exists' => 'La serie de documentos no existe.',
       'issue_date.required' => 'La fecha de emisión es obligatoria.',
       'sede_transmitter_id.required' => 'El sede origen es obligatorio.',
       'sede_transmitter_id.integer' => 'El sede origen es invalido.',
@@ -50,6 +54,7 @@ class StoreShippingGuidesRequest extends StoreRequest
       'receiver_id.required' => 'El destinatario es obligatorio.',
       'file.mimes' => 'El archivo debe ser un PDF, JPG, JPEG, PNG o XML.',
       'file.max' => 'El tamaño máximo del archivo es 10MB.',
+      'requires_sunat' => 'El campo requiere sunat debe ser verdadero o falso.',
     ];
   }
 }

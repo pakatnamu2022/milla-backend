@@ -28,6 +28,10 @@ class StoreApDeliveryReceivingChecklistRequest extends StoreRequest
         'integer',
         'exists:ap_commercial_masters,id',
       ],
+      'has_quantity' => [
+        'sometimes',
+        'boolean',
+      ],
     ];
   }
 

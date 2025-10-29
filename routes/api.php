@@ -152,7 +152,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('permission/available-actions', [PermissionController::class, 'getAvailableActions'])->name('permission.available-actions');
     Route::get('permission/{id}/get-by-role', [PermissionController::class, 'getByRole'])->name('permission.getByRole');
     Route::post('permission/bulk-sync', [PermissionController::class, 'bulkSync'])->name('permission.bulk-sync');
-    Route::post('permission/sync-permissions-to-role', [PermissionController::class, 'syncToRole'])->name('permission.syncPermissionsToRole');
+    Route::post('permission/save-permissions-to-role', [PermissionController::class, 'saveToRole'])->name('permission.savePermissionsToRole');
+    Route::delete('permission/remove-permission-from-role', [PermissionController::class, 'removeFromRole'])->name('permission.removePermissionFromRole');
   });
 
   Route::group(['prefix' => 'configuration'], function () {
@@ -770,6 +771,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Vehicle Documents (Guías de Remisión/Traslado)
       Route::post('shippingGuides/{id}/cancel', [ShippingGuidesController::class, 'cancel']);
+      Route::post('shippingGuides/{id}/send-to-nubefact', [ShippingGuidesController::class, 'sendToNubefact']);
+      Route::post('shippingGuides/{id}/query-from-nubefact', [ShippingGuidesController::class, 'queryFromNubefact']);
       Route::apiResource('shippingGuides', ShippingGuidesController::class)->only([
         'index',
         'show',
@@ -780,14 +783,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Receiving Checklist
       Route::get('receivingChecklist/byShippingGuide/{shippingGuideId}', [ApReceivingChecklistController::class, 'getByShippingGuide']);
+      Route::get('receivingChecklist', [ApReceivingChecklistController::class, 'index']);
+      Route::put('receivingChecklist/{id}', [ApReceivingChecklistController::class, 'update']);
       Route::delete('receivingChecklist/byShippingGuide/{shippingGuideId}', [ApReceivingChecklistController::class, 'destroyByShippingGuide']);
-      Route::apiResource('receivingChecklist', ApReceivingChecklistController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
 
       // Vehicles
       Route::apiResource('vehicles', VehiclesController::class)->only([
