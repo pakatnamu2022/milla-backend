@@ -21,7 +21,7 @@ use Throwable;
 
 class PurchaseOrderService extends BaseService implements BaseServiceInterface
 {
-  protected int $startNumber = 1;
+  protected int $startNumber = 2;
   protected ExportService $exportService;
 
   public function __construct(
