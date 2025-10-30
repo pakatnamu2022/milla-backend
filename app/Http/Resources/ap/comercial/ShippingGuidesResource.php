@@ -67,6 +67,7 @@ class ShippingGuidesResource extends JsonResource
       'receiver_description' => $this->receiver->description . ' - ' . $this->receiver->address,
       'transfer_modality_description' => $this->transferModality->description,
       'transfer_reason_description' => $this->transferReason->description,
+      'sent_at' => $this->sent_at,
     ];
   }
 }

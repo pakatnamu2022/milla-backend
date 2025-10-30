@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\ApReceivingChecklistResource;
 use App\Http\Services\BaseService;
+use App\Jobs\SyncShippingGuideJob;
 use App\Models\ap\comercial\ApReceivingChecklist;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklist;
@@ -114,6 +115,9 @@ class ApReceivingChecklistService extends BaseService
           ->where('receiving_id', $receivingId)
           ->update(['quantity' => $data['items_receiving'][$receivingId]]);
       }
+
+      // Despachar el Job
+      SyncShippingGuideJob::dispatch($shippingGuide->id);
 
       // Update shipping guide with note, is_received, received_by and received_date
       $shippingGuide->update([

@@ -19,6 +19,7 @@ class ShippingGuides extends Model
 
   protected $fillable = [
     'document_type',
+    'type_voucher_id',
     'issuer_type',
     'document_series_id',
     'series',
@@ -27,6 +28,9 @@ class ShippingGuides extends Model
     'issue_date',
     'requires_sunat',
     'is_sunat_registered',
+    'sent_at',
+    'accepted_at',
+    'aceptada_por_sunat',
     'status_nubefac',
     'total_packages',
     'total_weight',
@@ -56,6 +60,18 @@ class ShippingGuides extends Model
     'cancellation_reason',
     'cancelled_by',
     'cancelled_at',
+    'sunat_responsecode',
+    'sunat_description',
+    'sunat_note',
+    'sunat_soap_error',
+    'enlace',
+    'enlace_del_pdf',
+    'enlace_del_xml',
+    'enlace_del_cdr',
+    'cadena_para_codigo_qr',
+    'codigo_hash',
+    'error_message',
+    'status_dynamic',
   ];
 
   protected $casts = [
@@ -80,8 +96,8 @@ class ShippingGuides extends Model
     'vehicle_movement_id',
     'sede_transmitter_id',
     'sede_receiver_id',
-    'transmitter_id',
-    'receiver_id',
+    'transmitter_id', // Ubicacion Origen (Proveedor)
+    'receiver_id', // Ubicacion Destino (Cliente)
     'transport_company_id',
     'driver_doc',
     'license',
@@ -130,6 +146,11 @@ class ShippingGuides extends Model
   public function setNoteReceivedAttribute($value): void
   {
     $this->attributes['note_received'] = Str::upper(Str::ascii($value));
+  }
+
+  public function typeVoucher(): BelongsTo
+  {
+    return $this->belongsTo(SunatConcepts::class, 'type_voucher_id');
   }
 
   public function vehicleMovement(): BelongsTo

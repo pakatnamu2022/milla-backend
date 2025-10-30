@@ -12,6 +12,7 @@ class VehiclePurchaseOrderMigrationLog extends Model
 
   protected $fillable = [
     'vehicle_purchase_order_id',
+    'shipping_guide_id',
     'step',
     'status',
     'table_name',
@@ -30,7 +31,7 @@ class VehiclePurchaseOrderMigrationLog extends Model
     'proceso_estado' => 'integer',
   ];
 
-  // Constantes para los pasos de migración
+  // Constantes para los pasos de migración (Purchase Orders)
   const STEP_SUPPLIER = 'supplier';
   const STEP_SUPPLIER_ADDRESS = 'supplier_address';
   const STEP_ARTICLE = 'article';
@@ -39,6 +40,11 @@ class VehiclePurchaseOrderMigrationLog extends Model
   const STEP_RECEPTION = 'reception';
   const STEP_RECEPTION_DETAIL = 'reception_detail';
   const STEP_RECEPTION_DETAIL_SERIAL = 'reception_detail_serial';
+
+  // Constantes para los pasos de migración (Shipping Guides)
+  const STEP_INVENTORY_TRANSFER = 'inventory_transfer';
+  const STEP_INVENTORY_TRANSFER_DETAIL = 'inventory_transfer_detail';
+  const STEP_INVENTORY_TRANSFER_SERIAL = 'inventory_transfer_serial';
 
   // Constantes para los estados
   const STATUS_PENDING = 'pending';
@@ -56,6 +62,9 @@ class VehiclePurchaseOrderMigrationLog extends Model
     self::STEP_RECEPTION => 'neInTbRecepcion',
     self::STEP_RECEPTION_DETAIL => 'neInTbRecepcionDt',
     self::STEP_RECEPTION_DETAIL_SERIAL => 'neInTbRecepcionDtS',
+    self::STEP_INVENTORY_TRANSFER => 'neInTbTransferenciaInventario',
+    self::STEP_INVENTORY_TRANSFER_DETAIL => 'neInTbTransferenciaInventarioDet',
+    self::STEP_INVENTORY_TRANSFER_SERIAL => 'neInTbTransferenciaInventarioDtS',
   ];
 
   /**
@@ -64,6 +73,14 @@ class VehiclePurchaseOrderMigrationLog extends Model
   public function purchaseOrder(): BelongsTo
   {
     return $this->belongsTo(PurchaseOrder::class, 'vehicle_purchase_order_id');
+  }
+
+  /**
+   * Relación con la guía de remisión
+   */
+  public function shippingGuide(): BelongsTo
+  {
+    return $this->belongsTo(ShippingGuides::class, 'shipping_guide_id');
   }
 
   /**

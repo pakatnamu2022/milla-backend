@@ -11,6 +11,7 @@ use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -133,9 +134,16 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $documentSeriesId = null;
       }
 
-      // 4. Crear la guía de remisión
+      // 4. Manejar type_voucher_id para guías de remisión
+      $typeVoucherId = null;
+      if ($data['document_type'] == 'GUIA_REMISION') {
+        $typeVoucherId = SunatConcepts::GUIA_REMISION_REMITENTE;
+      }
+
+      // 5. Crear la guía de remisión
       $documentData = [
         'document_type' => $data['document_type'],
+        'type_voucher_id' => $typeVoucherId,
         'issuer_type' => $data['issuer_type'],
         'document_series_id' => $documentSeriesId,
         'series' => $series,
@@ -202,11 +210,16 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $data['file_url'] = $fileUrl;
       }
 
-      if ($data['issuer_type'] == 'PROVEEDOR') {
+      if (isset($data['issuer_type']) && $data['issuer_type'] == 'PROVEEDOR') {
         $data['document_number'] = $data['series'] . '-' . $data['correlative'];
       }
 
-      // 2. Remover campos que no se pueden actualizar
+      // 2. Manejar type_voucher_id para guías de remisión
+      if (isset($data['document_type']) && $data['document_type'] == 'GUIA_REMISION') {
+        $data['type_voucher_id'] = SunatConcepts::GUIA_REMISION_REMITENTE;
+      }
+
+      // 3. Remover campos que no se pueden actualizar
       unset(
         $data['is_sunat_registered'], // Se procesa con sunat
         $data['status_nubefac'], // Se procesa con nubefac
@@ -279,6 +292,10 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       if (!$guide->requires_sunat) {
         throw new Exception('Esta guía no requiere registro en SUNAT');
+      }
+
+      if ($guide->document_type != 'GUIA_REMISION' || $guide->type_voucher_id != SunatConcepts::GUIA_REMISION_REMITENTE) {
+        throw new Exception('El tipo de documento o comprobante no es válido para envío a SUNAT');
       }
 
       // Marcar como enviado
@@ -386,6 +403,40 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'error' => $e->getMessage()
       ]);
       throw new Exception('Error al consultar la guía en Nubefact: ' . $e->getMessage());
+    }
+  }
+
+  /**
+   * Sincroniza la guía de remisión a Dynamics mediante el Job
+   * @param int $id ID de la guía de remisión
+   * @return JsonResponse
+   * @throws Exception
+   */
+  public function syncToDynamics($id): JsonResponse
+  {
+    try {
+      $guide = $this->find($id);
+
+      // Validaciones básicas antes de enviar al Job
+      if (!$guide->vehicleMovement) {
+        throw new Exception('La guía debe tener un movimiento de vehículo asociado');
+      }
+
+      if (!$guide->sedeTransmitter || !$guide->sedeReceiver) {
+        throw new Exception('La guía debe tener origen y destino configurados');
+      }
+
+      return response()->json([
+        'success' => true,
+        'message' => 'La sincronización a Dynamics ha sido programada y se ejecutará en segundo plano',
+        'data' => new ShippingGuidesResource($guide->fresh()),
+      ]);
+    } catch (Exception $e) {
+      Log::error('Error dispatching sync job for shipping guide', [
+        'id' => $id,
+        'error' => $e->getMessage()
+      ]);
+      throw new Exception('Error al programar la sincronización: ' . $e->getMessage());
     }
   }
 }

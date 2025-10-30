@@ -32,4 +32,8 @@ class SunatConcepts extends Model
     'type',
     'status',
   ];
+
+  const GUIA_REMISION_REMITENTE = 68;
+
+  const RUC_CODE_NUBEFACT = 6;
 }

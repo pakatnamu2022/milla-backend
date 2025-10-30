@@ -489,4 +489,87 @@ return [
     ]
   ],
 
+
+  //  Configuración para la entidad "inventory_transfer"
+  'inventory_transfer' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbTransferenciaInventario',
+      'mapping' => [
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
+        'TransferenciaId' => fn($data) => 'REP-' . $data['correlative'],
+        'FechaEmision' => fn($data) => $data['issue_date'],
+        'FechaContable' => fn($data) => $data['issue_date'],
+        'Procesar' => 1,
+        'FechaProceso' => fn($data) => $data['issue_date'],
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'TransferenciaId',
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false,
+      ],
+    ]
+  ],
+
+
+  //  Configuración para la entidad "inventory_transfer_dts"
+  'inventory_transfer_dts' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbTransferenciaInventarioDtS',
+      'mapping' => [
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
+        'TransferenciaId' => fn($data) => $data['TransferenciaId'],
+        'Linea' => fn($data) => $data['Linea'],
+        'Serie' => fn($data) => $data['Serie'],
+        'ArticuloId' => fn($data) => $data['ArticuloId'],
+        'DatoUsuario1' => fn($data) => $data['DatoUsuario1'],
+        'DatoUsuario2' => fn($data) => $data['DatoUsuario2'],
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'TransferenciaId',
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false,
+      ],
+    ]
+  ],
+
+  //  Configuración para la entidad "inventory_transfer_dt"
+  'inventory_transfer_dt' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbTransferenciaInventarioDet',
+      'mapping' => [
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
+        'TransferenciaId' => fn($data) => $data['TransferenciaId'],
+        'Linea' => fn($data) => $data['Linea'],
+        'ArticuloId' => fn($data) => $data['ArticuloId'],
+        'Motivo' => fn($data) => $data['Motivo'],
+        'UnidadMedidaId' => fn($data) => $data['UnidadMedidaId'],
+        'Cantidad' => fn($data) => $data['Cantidad'],
+        'AlmacenId_Ini' => fn($data) => $data['AlmacenId_Ini'],
+        'AlmacenId_Fin' => fn($data) => $data['AlmacenId_Fin'],
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'TransferenciaId',
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false,
+      ],
+    ]
+  ],
 ];
