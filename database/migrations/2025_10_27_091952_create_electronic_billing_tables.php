@@ -10,106 +10,22 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    // Tabla de catálogos SUNAT - Tipos de comprobante
-    Schema::create('ap_billing_document_types', function (Blueprint $table) {
-      $table->id();
-      $table->string('code', 2)->unique()->comment('1=Factura, 2=Boleta, 3=NC, 4=ND');
-      $table->string('description', 100);
-      $table->string('prefix', 1)->comment('F=Factura, B=Boleta');
-      $table->boolean('is_active')->default(true);
-      $table->timestamps();
-      $table->softDeletes();
-    });
-
-    // Tabla de catálogos SUNAT - Tipos de operación
-    Schema::create('ap_billing_transaction_types', function (Blueprint $table) {
-      $table->id();
-      $table->string('code', 2)->unique()->comment('Código SUNAT');
-      $table->string('description', 255);
-      $table->boolean('is_active')->default(true);
-      $table->timestamps();
-      $table->softDeletes();
-    });
-
-    // Tabla de catálogos SUNAT - Tipos de documento de identidad
-    Schema::create('ap_billing_identity_document_types', function (Blueprint $table) {
-      $table->id();
-      $table->string('code', 1)->unique()->comment('6=RUC, 1=DNI, -=Varios, etc.');
-      $table->string('description', 100);
-      $table->integer('length')->nullable()->comment('Longitud del documento');
-      $table->boolean('is_active')->default(true);
-      $table->timestamps();
-      $table->softDeletes();
-    });
-
-    // Tabla de catálogos SUNAT - Tipos de afectación IGV
-    Schema::create('ap_billing_igv_types', function (Blueprint $table) {
-      $table->id();
-      $table->string('code', 2)->unique()->comment('Código SUNAT');
-      $table->string('description', 255);
-      $table->string('tribute_code', 4)->nullable()->comment('Código de tributo');
-      $table->boolean('affects_total')->default(true)->comment('Si afecta al total del comprobante');
-      $table->boolean('is_active')->default(true);
-      $table->timestamps();
-      $table->softDeletes();
-    });
-
-    // Tabla de catálogos SUNAT - Tipos de nota de crédito
-    Schema::create('ap_billing_credit_note_types', function (Blueprint $table) {
-      $table->id();
-      $table->string('code', 2)->unique()->comment('Código SUNAT');
-      $table->string('description', 255);
-      $table->boolean('is_active')->default(true);
-      $table->timestamps();
-      $table->softDeletes();
-    });
-
-    // Tabla de catálogos SUNAT - Tipos de nota de débito
-    Schema::create('ap_billing_debit_note_types', function (Blueprint $table) {
-      $table->id();
-      $table->string('code', 1)->unique()->comment('Código SUNAT');
-      $table->string('description', 255);
-      $table->boolean('is_active')->default(true);
-      $table->timestamps();
-      $table->softDeletes();
-    });
-
-    // Tabla de catálogos SUNAT - Monedas
-    Schema::create('ap_billing_currencies', function (Blueprint $table) {
-      $table->id();
-      $table->string('code', 1)->unique()->comment('1=Soles, 2=Dólares, 3=Euros, 4=Libras');
-      $table->string('iso_code', 3)->comment('PEN, USD, EUR, GBP');
-      $table->string('description', 100);
-      $table->string('symbol', 5);
-      $table->boolean('is_active')->default(true);
-      $table->timestamps();
-      $table->softDeletes();
-    });
-
-    // Tabla de catálogos SUNAT - Tipos de detracción
-    Schema::create('ap_billing_detraction_types', function (Blueprint $table) {
-      $table->id();
-      $table->string('code', 3)->unique()->comment('001-099');
-      $table->string('description', 255);
-      $table->decimal('percentage', 5, 3)->comment('Porcentaje de detracción');
-      $table->boolean('is_active')->default(true);
-      $table->timestamps();
-      $table->softDeletes();
-    });
+    // NOTA: Los catálogos SUNAT ahora están consolidados en la tabla sunat_concepts
+    // Ya no se crean tablas separadas para tipos de documento, monedas, IGV, etc.
 
     // Tabla principal de comprobantes electrónicos
     Schema::create('ap_billing_electronic_documents', function (Blueprint $table) {
       $table->id();
 
-      // Tipo de comprobante
-      $table->foreignId('ap_billing_document_type_id')
-        ->constrained('ap_billing_document_types', 'id', 'fk_billing_doc_type');
+      // Tipo de comprobante (referencia a sunat_concepts con tipo BILLING_DOCUMENT_TYPE)
+      $table->foreignId('sunat_concept_document_type_id')
+        ->constrained('sunat_concepts', 'id', 'fk_billing_doc_type');
       $table->string('serie', 4)->comment('Serie del comprobante (FFF1, BBB1, etc.)');
       $table->integer('numero')->comment('Número correlativo');
 
-      // Tipo de operación
-      $table->foreignId('ap_billing_transaction_type_id')
-        ->constrained('ap_billing_transaction_types', 'id', 'fk_billing_trans_type');
+      // Tipo de operación (referencia a sunat_concepts con tipo BILLING_TRANSACTION_TYPE)
+      $table->foreignId('sunat_concept_transaction_type_id')
+        ->constrained('sunat_concepts', 'id', 'fk_billing_trans_type');
 
       // Origen del documento (Comercial o Posventa)
       $table->enum('origin_module', ['comercial', 'posventa'])->comment('Módulo de origen');
@@ -117,12 +33,11 @@ return new class extends Migration {
       $table->unsignedBigInteger('origin_entity_id')->nullable()->comment('ID de la entidad de origen');
 
       // Relación con movimiento de vehículo (para comercial)
-      // Relación con movimiento de vehículo (para comercial)
       $table->foreignId('ap_vehicle_movement_id')->nullable()->constrained('ap_vehicle_movement')->nullOnDelete();
 
-      // Datos del cliente
-      $table->foreignId('ap_billing_identity_document_type_id')
-        ->constrained('ap_billing_identity_document_types', 'id', 'fk_billing_identity_document_type');
+      // Datos del cliente (referencia a sunat_concepts con tipo TYPE_DOCUMENT)
+      $table->foreignId('sunat_concept_identity_document_type_id')
+        ->constrained('sunat_concepts', 'id', 'fk_billing_identity_document_type');
 
       $table->string('cliente_numero_de_documento', 15);
       $table->string('cliente_denominacion', 100);
@@ -135,8 +50,8 @@ return new class extends Migration {
       $table->date('fecha_de_emision');
       $table->date('fecha_de_vencimiento')->nullable();
 
-      // Moneda y tipo de cambio
-      $table->foreignId('ap_billing_currency_id')->constrained('ap_billing_currencies');
+      // Moneda y tipo de cambio (referencia a sunat_concepts con tipo BILLING_CURRENCY)
+      $table->foreignId('sunat_concept_currency_id')->constrained('sunat_concepts');
       $table->decimal('tipo_de_cambio', 10, 3)->nullable();
       $table->decimal('porcentaje_de_igv', 5, 2)->default(18.00);
 
@@ -164,20 +79,20 @@ return new class extends Migration {
       $table->decimal('retencion_base_imponible', 12, 2)->nullable();
       $table->decimal('total_retencion', 12, 2)->nullable();
 
-      // Detracción
+      // Detracción (referencia a sunat_concepts con tipo BILLING_DETRACTION_TYPE)
       $table->boolean('detraccion')->default(false);
-      $table->foreignId('ap_billing_detraction_type_id')->nullable()
-        ->constrained('ap_billing_detraction_types', 'id', 'fk_billing_detraction_type')->nullOnDelete();
+      $table->foreignId('sunat_concept_detraction_type_id')->nullable()
+        ->constrained('sunat_concepts', 'id', 'fk_billing_detraction_type')->nullOnDelete();
       $table->decimal('detraccion_total', 12, 10)->nullable();
       $table->decimal('detraccion_porcentaje', 8, 5)->nullable();
       $table->integer('medio_de_pago_detraccion')->nullable();
 
-      // Campos para Notas de Crédito/Débito
+      // Campos para Notas de Crédito/Débito (referencias a sunat_concepts)
       $table->integer('documento_que_se_modifica_tipo')->nullable();
       $table->string('documento_que_se_modifica_serie', 4)->nullable();
       $table->integer('documento_que_se_modifica_numero')->nullable();
-      $table->foreignId('ap_billing_credit_note_type_id')->nullable()->constrained('ap_billing_credit_note_types', 'id', 'fk_billing_credit_note_type')->nullOnDelete();
-      $table->foreignId('ap_billing_debit_note_type_id')->nullable()->constrained('ap_billing_debit_note_types', 'id', 'fk_billing_debit_note_type')->nullOnDelete();
+      $table->foreignId('sunat_concept_credit_note_type_id')->nullable()->constrained('sunat_concepts', 'id', 'fk_billing_credit_note_type')->nullOnDelete();
+      $table->foreignId('sunat_concept_debit_note_type_id')->nullable()->constrained('sunat_concepts', 'id', 'fk_billing_debit_note_type')->nullOnDelete();
 
       // Observaciones y otros campos
       $table->text('observaciones')->nullable();
@@ -230,7 +145,7 @@ return new class extends Migration {
       $table->softDeletes();
 
       // Índices
-      $table->unique(['serie', 'numero', 'ap_billing_document_type_id'], 'unique_document');
+      $table->unique(['serie', 'numero', 'sunat_concept_document_type_id'], 'unique_document');
       $table->index(['origin_module', 'origin_entity_type', 'origin_entity_id'], 'idx_origin_ref');
       $table->index('fecha_de_emision');
       $table->index('status');
@@ -256,8 +171,8 @@ return new class extends Migration {
       $table->decimal('descuento', 12, 2)->nullable();
       $table->decimal('subtotal', 12, 10)->comment('cantidad * valor_unitario');
 
-      // IGV
-      $table->foreignId('ap_billing_igv_type_id')->constrained('ap_billing_igv_types', 'id', 'fk_billing_igv_type');
+      // IGV (referencia a sunat_concepts con tipo BILLING_IGV_TYPE)
+      $table->foreignId('sunat_concept_igv_type_id')->constrained('sunat_concepts', 'id', 'fk_billing_igv_type');
       $table->decimal('igv', 12, 10);
       $table->decimal('total', 12, 10);
 
@@ -321,13 +236,6 @@ return new class extends Migration {
     Schema::dropIfExists('ap_billing_electronic_document_guides');
     Schema::dropIfExists('ap_billing_electronic_document_items');
     Schema::dropIfExists('ap_billing_electronic_documents');
-    Schema::dropIfExists('ap_billing_currencies');
-    Schema::dropIfExists('ap_billing_debit_note_types');
-    Schema::dropIfExists('ap_billing_credit_note_types');
-    Schema::dropIfExists('ap_billing_detraction_types');
-    Schema::dropIfExists('ap_billing_igv_types');
-    Schema::dropIfExists('ap_billing_identity_document_types');
-    Schema::dropIfExists('ap_billing_transaction_types');
-    Schema::dropIfExists('ap_billing_document_types');
+    // NOTA: Las tablas de catálogos ya no se crean aquí, están en sunat_concepts
   }
 };

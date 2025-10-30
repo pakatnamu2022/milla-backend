@@ -76,13 +76,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Validar y calcular el siguiente número correlativo si no se proporciona
       if (!isset($data['numero'])) {
         $data['numero'] = ElectronicDocument::getNextNumber(
-          $data['ap_billing_document_type_id'],
+          $data['sunat_concept_document_type_id'],
           $data['serie']
         );
       }
 
       // Validar que la serie sea correcta
-      if (!ElectronicDocument::validateSerie($data['ap_billing_document_type_id'], $data['serie'])) {
+      if (!ElectronicDocument::validateSerie($data['sunat_concept_document_type_id'], $data['serie'])) {
         throw new Exception('La serie no es válida para el tipo de documento seleccionado');
       }
 
@@ -369,8 +369,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Preparar datos de la nota de crédito
       $creditNoteData = array_merge($data, [
-        'ap_billing_document_type_id' => ElectronicDocument::TYPE_NOTA_CREDITO,
-        'documento_que_se_modifica_tipo' => $originalDocument->ap_billing_document_type_id,
+        'sunat_concept_document_type_id' => ElectronicDocument::TYPE_NOTA_CREDITO,
+        'documento_que_se_modifica_tipo' => $originalDocument->sunat_concept_document_type_id,
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
         'origin_module' => $originalDocument->origin_module,
@@ -411,8 +411,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Preparar datos de la nota de débito
       $debitNoteData = array_merge($data, [
-        'ap_billing_document_type_id' => ElectronicDocument::TYPE_NOTA_DEBITO,
-        'documento_que_se_modifica_tipo' => $originalDocument->ap_billing_document_type_id,
+        'sunat_concept_document_type_id' => ElectronicDocument::TYPE_NOTA_DEBITO,
+        'documento_que_se_modifica_tipo' => $originalDocument->sunat_concept_document_type_id,
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
         'origin_module' => $originalDocument->origin_module,

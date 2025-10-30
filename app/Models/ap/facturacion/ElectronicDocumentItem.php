@@ -3,6 +3,7 @@
 namespace App\Models\ap\facturacion;
 
 use App\Models\BaseModel;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -22,7 +23,7 @@ class ElectronicDocumentItem extends BaseModel
         'precio_unitario',
         'descuento',
         'subtotal',
-        'ap_billing_igv_type_id',
+        'sunat_concept_igv_type_id',
         'igv',
         'isc',
         'isc_tipo',
@@ -56,7 +57,7 @@ class ElectronicDocumentItem extends BaseModel
 
     public function igvType(): BelongsTo
     {
-        return $this->belongsTo(IgvType::class, 'ap_billing_igv_type_id');
+        return $this->belongsTo(SunatConcepts::class, 'sunat_concept_igv_type_id');
     }
 
     /**
@@ -75,28 +76,28 @@ class ElectronicDocumentItem extends BaseModel
     public function scopeGravadas($query)
     {
         return $query->whereHas('igvType', function ($q) {
-            $q->where('codigo', '10');
+            $q->where('code_nubefact', '10');
         });
     }
 
     public function scopeExoneradas($query)
     {
         return $query->whereHas('igvType', function ($q) {
-            $q->where('codigo', '20');
+            $q->where('code_nubefact', '20');
         });
     }
 
     public function scopeInafectas($query)
     {
         return $query->whereHas('igvType', function ($q) {
-            $q->where('codigo', '30');
+            $q->where('code_nubefact', '30');
         });
     }
 
     public function scopeGratuitas($query)
     {
         return $query->whereHas('igvType', function ($q) {
-            $q->whereIn('codigo', ['11', '12', '13', '14', '15', '16', '17', '21', '31', '32', '33', '34', '35', '36', '37']);
+            $q->whereIn('code_nubefact', ['11', '12', '13', '14', '15', '16', '17', '21', '31', '32', '33', '34', '35', '36', '37']);
         });
     }
 
@@ -110,7 +111,7 @@ class ElectronicDocumentItem extends BaseModel
 
     public function getIgvCalculadoAttribute(): float
     {
-        if (!$this->igvType || $this->igvType->codigo !== '10') {
+        if (!$this->igvType || $this->igvType->code_nubefact !== '10') {
             return 0;
         }
 
@@ -129,7 +130,7 @@ class ElectronicDocumentItem extends BaseModel
             return false;
         }
 
-        return in_array($this->igvType->codigo, ['11', '12', '13', '14', '15', '16', '17', '21', '31', '32', '33', '34', '35', '36', '37']);
+        return in_array($this->igvType->code_nubefact, ['11', '12', '13', '14', '15', '16', '17', '21', '31', '32', '33', '34', '35', '36', '37']);
     }
 
     /**
