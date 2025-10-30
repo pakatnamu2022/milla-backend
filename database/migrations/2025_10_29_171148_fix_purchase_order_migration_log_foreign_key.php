@@ -20,6 +20,8 @@ return new class extends Migration {
 
     // 1. Agregar el foreign key correcto apuntando a ap_purchase_order
     Schema::table('ap_vehicle_purchase_order_migration_log', function (Blueprint $table) {
+      $table->dropForeign(['vehicle_purchase_order_id']);
+      $table->dropColumn('vehicle_purchase_order_id');
       $table->foreignId('vehicle_purchase_order_id')
         ->after('id')
         ->constrained('ap_purchase_order', 'id', 'fk_vehicle_purchase_log_vh_po_id')
