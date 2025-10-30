@@ -32,6 +32,12 @@ class NubefactApiService
         $payload = $this->buildDocumentPayload($document);
         $endpoint = $this->getEndpointForDocumentType($document->documentType->code_nubefact);
 
+        // Log temporal para debugging
+        Log::info('Payload enviado a Nubefact', [
+            'document_id' => $document->id,
+            'payload' => $payload,
+        ]);
+
         $logData = [
             'ap_billing_electronic_document_id' => $document->id,
             'operation' => 'generar_comprobante',
@@ -436,7 +442,19 @@ class NubefactApiService
 
         // Items del comprobante
         $payload['items'] = [];
+        $isAnticipo = $document->transactionType->code_nubefact == '04'; // Venta Interna - Anticipos
+
         foreach ($document->items as $index => $item) {
+            // Para anticipos (código 04), usar código de tributo 9996 y el IGV debe ser 0
+            $tipoIgv = $item->igvType->code_nubefact;
+            $igvItem = $item->igv;
+
+            if ($isAnticipo) {
+                // Para anticipos: código tributo 9996 y IGV = 0
+                $tipoIgv = '40'; // Código para tributo 9996 - Anticipo de Operaciones Gravadas
+                $igvItem = 0;
+            }
+
             $itemData = [
                 'unidad_de_medida' => $item->unidad_de_medida,
                 'codigo' => $item->codigo,
@@ -446,8 +464,8 @@ class NubefactApiService
                 'precio_unitario' => $item->precio_unitario,
                 'descuento' => $item->descuento ?? 0,
                 'subtotal' => $item->subtotal,
-                'tipo_de_igv' => $item->igvType->code_nubefact,
-                'igv' => $item->igv,
+                'tipo_de_igv' => $tipoIgv,
+                'igv' => $igvItem,
                 'total' => $item->total,
                 'anticipo_regularizacion' => $item->anticipo_regularizacion,
             ];
