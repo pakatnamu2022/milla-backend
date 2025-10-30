@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -11,8 +12,11 @@ return new class extends Migration {
    */
   public function up(): void
   {
+    DB::statement('SET FOREIGN_KEY_CHECKS=0;');
     // 0. Limpiar registros huérfanos (IDs que no existen en ap_purchase_order)
     DB::table('ap_vehicle_purchase_order_migration_log')->delete();
+
+    VehiclePurchaseOrderMigrationLog::query()->truncate();
 
     // 1. Agregar el foreign key correcto apuntando a ap_purchase_order
     Schema::table('ap_vehicle_purchase_order_migration_log', function (Blueprint $table) {
@@ -21,6 +25,7 @@ return new class extends Migration {
         ->constrained('ap_purchase_order', 'id', 'fk_vehicle_purchase_log_vh_po_id')
         ->onDelete('cascade');
     });
+    DB::statement('SET FOREIGN_KEY_CHECKS=1;');
   }
 
   /**
@@ -28,10 +33,12 @@ return new class extends Migration {
    */
   public function down(): void
   {
+    DB::statement('SET FOREIGN_KEY_CHECKS=0;');
     Schema::table('ap_vehicle_purchase_order_migration_log', function (Blueprint $table) {
       // Eliminar el foreign key
       $table->dropForeign('fk_vehicle_purchase_log_vh_po_id');
       $table->dropColumn('vehicle_purchase_order_id');
     });
+    DB::statement('SET FOREIGN_KEY_CHECKS=1;');
   }
 };
