@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -11,33 +12,33 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    // 0. Limpiar registros huérfanos
+    DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+    // 0. Limpiar registros huérfanos (IDs que no existen en ap_purchase_order)
     DB::table('ap_vehicle_purchase_order_migration_log')->delete();
 
+    VehiclePurchaseOrderMigrationLog::query()->truncate();
+
+    // 1. Agregar el foreign key correcto apuntando a ap_purchase_order
     Schema::table('ap_vehicle_purchase_order_migration_log', function (Blueprint $table) {
-
-      if (!Schema::hasColumn('ap_vehicle_purchase_order_migration_log', 'vehicle_purchase_order_id')) {
-        $table->unsignedBigInteger('vehicle_purchase_order_id')->after('id');
-      }
-
-      if (!Schema::hasColumn('ap_vehicle_purchase_order_migration_log', 'fk_vehicle_purchase_log_vh_po_id')) {
-        $table->foreign('vehicle_purchase_order_id', 'fk_vehicle_purchase_log_vh_po_id')
-          ->references('id')
-          ->on('ap_purchase_order')
-          ->onDelete('cascade');
-      }
+      $table->foreignId('vehicle_purchase_order_id')
+        ->after('id')
+        ->constrained('ap_purchase_order', 'id', 'fk_vehicle_purchase_log_vh_po_id')
+        ->onDelete('cascade');
     });
+    DB::statement('SET FOREIGN_KEY_CHECKS=1;');
   }
 
+  /**
+   * Reverse the migrations.
+   */
   public function down(): void
   {
+    DB::statement('SET FOREIGN_KEY_CHECKS=0;');
     Schema::table('ap_vehicle_purchase_order_migration_log', function (Blueprint $table) {
-
-      // 1. Primero eliminar FK con el NOMBRE REAL exacto
-      $table->dropForeign('vehicle_purchase_order_id');
-
-      // 2. Recién luego eliminar la columna
+      // Eliminar el foreign key
+      $table->dropForeign('fk_vehicle_purchase_log_vh_po_id');
       $table->dropColumn('vehicle_purchase_order_id');
     });
+    DB::statement('SET FOREIGN_KEY_CHECKS=1;');
   }
 };
