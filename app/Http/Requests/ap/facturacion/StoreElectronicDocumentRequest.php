@@ -3,6 +3,8 @@
 namespace App\Http\Requests\ap\facturacion;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use Illuminate\Validation\Rule;
 
 class StoreElectronicDocumentRequest extends StoreRequest
@@ -213,6 +215,28 @@ class StoreElectronicDocumentRequest extends StoreRequest
             'sunat_concept_detraction_type_id',
             'Debe especificar el tipo de detracción'
           );
+        }
+      }
+
+      // Validar estado del vehículo si se proporciona ap_vehicle_movement_id
+      if ($this->has('ap_vehicle_movement_id') && $this->input('ap_vehicle_movement_id')) {
+        $vehicleMovement = VehicleMovement::with('vehicle.vehicleStatus')
+          ->find($this->input('ap_vehicle_movement_id'));
+
+        if ($vehicleMovement && $vehicleMovement->vehicle) {
+          $vehicleStatusId = $vehicleMovement->vehicle->ap_vehicle_status_id;
+          $allowedStatuses = [
+            ApVehicleStatus::VEHICULO_EN_TRAVESIA,  // Estado 2
+            ApVehicleStatus::INVENTARIO_VN,         // Estado 5
+          ];
+
+          if (!in_array($vehicleStatusId, $allowedStatuses)) {
+            $currentStatusName = $vehicleMovement->vehicle->vehicleStatus->description ?? 'Desconocido';
+            $validator->errors()->add(
+              'ap_vehicle_movement_id',
+              "El vehículo debe estar en estado 'En Travesía' o 'Inventario VN' para poder facturarlo. Estado actual: {$currentStatusName}"
+            );
+          }
         }
       }
     });
