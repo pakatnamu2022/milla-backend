@@ -156,11 +156,11 @@ class ElectronicDocument extends BaseModel
     const STATUS_REJECTED = 'rejected';
     const STATUS_CANCELLED = 'cancelled';
 
-    // Tipos de documento
-    const TYPE_FACTURA = 1;
-    const TYPE_BOLETA = 2;
-    const TYPE_NOTA_CREDITO = 3;
-    const TYPE_NOTA_DEBITO = 4;
+    // Tipos de documento (IDs de sunat_concepts)
+    const TYPE_FACTURA = SunatConcepts::ID_FACTURA_ELECTRONICA;              // 29
+    const TYPE_BOLETA = SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA;          // 30
+    const TYPE_NOTA_CREDITO = SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA;    // 31
+    const TYPE_NOTA_DEBITO = SunatConcepts::ID_NOTA_DEBITO_ELECTRONICA;      // 32
 
     // Módulos de origen
     const MODULE_COMERCIAL = 'comercial';

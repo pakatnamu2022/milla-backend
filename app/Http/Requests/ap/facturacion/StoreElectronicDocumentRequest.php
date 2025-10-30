@@ -5,6 +5,7 @@ namespace App\Http\Requests\ap\facturacion;
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Validation\Rule;
 
 class StoreElectronicDocumentRequest extends StoreRequest
@@ -164,10 +165,10 @@ class StoreElectronicDocumentRequest extends StoreRequest
         $prefix = substr($serie, 0, 1);
 
         $validations = [
-          1 => 'F', // Factura
-          2 => 'B', // Boleta
-          3 => ['F', 'B'], // Nota de Crédito
-          4 => ['F', 'B'], // Nota de Débito
+          SunatConcepts::ID_FACTURA_ELECTRONICA => 'F', // Factura Electrónica
+          SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA => 'B', // Boleta de Venta Electrónica
+          SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA => ['F', 'B'], // Nota de Crédito Electrónica
+          SunatConcepts::ID_NOTA_DEBITO_ELECTRONICA => ['F', 'B'], // Nota de Débito Electrónica
         ];
 
         if (isset($validations[$documentTypeId])) {
@@ -182,7 +183,10 @@ class StoreElectronicDocumentRequest extends StoreRequest
       }
 
       // Validar que si es nota de crédito/débito, tenga el documento que modifica
-      if (in_array($this->input('sunat_concept_document_type_id'), [3, 4])) {
+      if (in_array($this->input('sunat_concept_document_type_id'), [
+        SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA,
+        SunatConcepts::ID_NOTA_DEBITO_ELECTRONICA
+      ])) {
         if (!$this->has('documento_que_se_modifica_tipo') ||
           !$this->has('documento_que_se_modifica_serie') ||
           !$this->has('documento_que_se_modifica_numero')) {
@@ -193,14 +197,14 @@ class StoreElectronicDocumentRequest extends StoreRequest
         }
 
         // Validar tipo de nota
-        if ($this->input('sunat_concept_document_type_id') == 3 && !$this->has('sunat_concept_credit_note_type_id')) {
+        if ($this->input('sunat_concept_document_type_id') == SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA && !$this->has('sunat_concept_credit_note_type_id')) {
           $validator->errors()->add(
             'sunat_concept_credit_note_type_id',
             'Debe especificar el tipo de nota de crédito'
           );
         }
 
-        if ($this->input('sunat_concept_document_type_id') == 4 && !$this->has('sunat_concept_debit_note_type_id')) {
+        if ($this->input('sunat_concept_document_type_id') == SunatConcepts::ID_NOTA_DEBITO_ELECTRONICA && !$this->has('sunat_concept_debit_note_type_id')) {
           $validator->errors()->add(
             'sunat_concept_debit_note_type_id',
             'Debe especificar el tipo de nota de débito'
@@ -220,22 +224,54 @@ class StoreElectronicDocumentRequest extends StoreRequest
 
       // Validar estado del vehículo si se proporciona ap_vehicle_movement_id
       if ($this->has('ap_vehicle_movement_id') && $this->input('ap_vehicle_movement_id')) {
-        $vehicleMovement = VehicleMovement::with('vehicle.vehicleStatus')
+        $vehicleMovement = VehicleMovement::with(['vehicle.vehicleStatus', 'vehicle.model'])
           ->find($this->input('ap_vehicle_movement_id'));
 
         if ($vehicleMovement && $vehicleMovement->vehicle) {
-          $vehicleStatusId = $vehicleMovement->vehicle->ap_vehicle_status_id;
+          $vehicle = $vehicleMovement->vehicle;
+          $vehicleStatusId = $vehicle->ap_vehicle_status_id;
           $allowedStatuses = [
             ApVehicleStatus::VEHICULO_EN_TRAVESIA,  // Estado 2
             ApVehicleStatus::INVENTARIO_VN,         // Estado 5
           ];
 
+          // Validar estado del vehículo
           if (!in_array($vehicleStatusId, $allowedStatuses)) {
-            $currentStatusName = $vehicleMovement->vehicle->vehicleStatus->description ?? 'Desconocido';
+            $currentStatusName = $vehicle->vehicleStatus->description ?? 'Desconocido';
             $validator->errors()->add(
               'ap_vehicle_movement_id',
               "El vehículo debe estar en estado 'En Travesía' o 'Inventario VN' para poder facturarlo. Estado actual: {$currentStatusName}"
             );
+          }
+
+          // Validar monto contra precio del modelo del vehículo
+          if ($vehicle->model && $this->has('total')) {
+            $totalFactura = (float) $this->input('total');
+            $precioVenta = (float) $vehicle->model->sale_price;
+
+            // Obtener suma de anticipos previos para este vehículo
+            $sumaAnticipos = \DB::table('ap_billing_electronic_documents')
+              ->where('origin_module', 'comercial')
+              ->where('origin_entity_id', $vehicle->id)
+              ->where('sunat_concept_transaction_type_id', 36) // Tipo operación: Anticipos (ID del seeder)
+              ->whereNull('deleted_at')
+              ->where('anulado', false)
+              ->sum('total');
+
+            $totalConAnticipos = $totalFactura + $sumaAnticipos;
+
+            // Validar que no exceda el precio de venta del vehículo
+            if ($totalConAnticipos > $precioVenta) {
+              $validator->errors()->add(
+                'total',
+                sprintf(
+                  'El total de la factura ($%.2f) más los anticipos previos ($%.2f) excede el precio de venta del vehículo ($%.2f)',
+                  $totalFactura,
+                  $sumaAnticipos,
+                  $precioVenta
+                )
+              );
+            }
           }
         }
       }

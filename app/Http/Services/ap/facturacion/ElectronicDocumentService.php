@@ -75,10 +75,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     try {
       // Validar y calcular el siguiente número correlativo si no se proporciona
       if (!isset($data['numero'])) {
-        $data['numero'] = ElectronicDocument::getNextNumber(
-          $data['sunat_concept_document_type_id'],
-          $data['serie']
-        );
+        $query = ElectronicDocument::where('sunat_concept_document_type_id', $data['sunat_concept_document_type_id'])
+          ->where('serie', $data['serie']);
+        $data['numero'] = $this->nextCorrelativeQueryInteger($query, 'numero');
       }
 
       // Validar que la serie sea correcta
@@ -245,25 +244,45 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Enviar a Nubefact
       $response = $this->nubefactService->generateDocument($document);
 
+      // Validar estructura de respuesta
+      if (!is_array($response)) {
+        Log::error('Respuesta de Nubefact no es un array', ['response' => $response]);
+        throw new Exception('Respuesta inválida de Nubefact: formato inesperado');
+      }
+
+      // El servicio devuelve ['success' => bool, 'data' => array] o ['success' => bool, 'error' => string, 'data' => array]
+      if (!$response['success']) {
+        $errorMessage = is_array($response['error']) ? implode(', ', $response['error']) : ($response['error'] ?? 'Error desconocido');
+        throw new Exception('Error de Nubefact: ' . $errorMessage);
+      }
+
+      // Obtener los datos reales de Nubefact
+      $nubefactData = $response['data'] ?? [];
+
+      if (!isset($nubefactData['aceptada_por_sunat'])) {
+        Log::error('Respuesta de Nubefact sin clave aceptada_por_sunat', ['response' => $nubefactData]);
+        throw new Exception('Respuesta inválida de Nubefact: falta campo aceptada_por_sunat');
+      }
+
       // Procesar respuesta
-      if ($response['aceptada_por_sunat']) {
-        $document->markAsAccepted($response);
+      if ($nubefactData['aceptada_por_sunat'] === true) {
+        $document->markAsAccepted($nubefactData);
         $message = 'Documento enviado y aceptado por SUNAT correctamente';
       } else {
         $document->markAsRejected(
-          $response['sunat_description'] ?? 'Error desconocido',
-          $response
+          $nubefactData['sunat_description'] ?? 'Error desconocido',
+          $nubefactData
         );
-        $message = 'Documento enviado pero rechazado por SUNAT: ' . ($response['sunat_description'] ?? 'Error desconocido');
+        $message = 'Documento enviado pero rechazado por SUNAT: ' . ($nubefactData['sunat_description'] ?? 'Error desconocido');
       }
 
       DB::commit();
 
       return response()->json([
-        'success' => $response['aceptada_por_sunat'],
+        'success' => $nubefactData['aceptada_por_sunat'],
         'message' => $message,
         'data' => new ElectronicDocumentResource($document->fresh()),
-        'sunat_response' => $response
+        'sunat_response' => $nubefactData
       ]);
     } catch (Exception $e) {
       DB::rollBack();

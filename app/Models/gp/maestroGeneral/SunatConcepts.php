@@ -40,6 +40,12 @@ class SunatConcepts extends Model
   const BILLING_CURRENCY = 'BILLING_CURRENCY'; // Monedas
   const BILLING_DETRACTION_TYPE = 'BILLING_DETRACTION_TYPE'; // Tipos de detracción
 
+  // IDs específicos de tipos de documentos de facturación (basados en seeder)
+  const ID_FACTURA_ELECTRONICA = 29;          // Factura Electrónica (code: 1)
+  const ID_BOLETA_VENTA_ELECTRONICA = 30;     // Boleta de Venta Electrónica (code: 2)
+  const ID_NOTA_CREDITO_ELECTRONICA = 31;     // Nota de Crédito Electrónica (code: 3)
+  const ID_NOTA_DEBITO_ELECTRONICA = 32;      // Nota de Débito Electrónica (code: 4)
+
   const filters = [
     'id' => '=',
     'search' => ['code_nubefact', 'description', 'type'],

@@ -50,6 +50,13 @@ class NubefactApiService
             $logData['response_payload'] = json_encode($responseData, JSON_UNESCAPED_UNICODE);
             $logData['http_status_code'] = $httpStatusCode;
 
+            // Log raw response for debugging
+            Log::info('Nubefact API Response', [
+                'status' => $httpStatusCode,
+                'response' => $responseData,
+                'endpoint' => $endpoint,
+            ]);
+
             if ($response->successful() && isset($responseData['aceptada_por_sunat'])) {
                 $logData['success'] = true;
                 $this->logRequest($logData);
@@ -498,12 +505,14 @@ class NubefactApiService
      */
     protected function getEndpointForDocumentType(string $documentTypeCode): string
     {
+        // Según documentación de Nubefact, todos los comprobantes usan el mismo endpoint
+        // El tipo de documento se especifica en el payload con 'operacion' y 'tipo_de_comprobante'
         return match ($documentTypeCode) {
-            '1' => 'factura', // Factura
-            '2' => 'boleta', // Boleta
-            '3' => 'nota_credito', // Nota de Crédito
-            '4' => 'nota_debito', // Nota de Débito
-            default => 'comprobante',
+            '1' => '', // Factura - endpoint vacío usa la URL base
+            '2' => '', // Boleta - endpoint vacío usa la URL base
+            '3' => '', // Nota de Crédito - endpoint vacío usa la URL base
+            '4' => '', // Nota de Débito - endpoint vacío usa la URL base
+            default => '',
         };
     }
 

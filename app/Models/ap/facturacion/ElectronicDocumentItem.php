@@ -15,8 +15,10 @@ class ElectronicDocumentItem extends BaseModel
 
     protected $fillable = [
         'ap_billing_electronic_document_id',
+        'line_number',
         'unidad_de_medida',
         'codigo',
+        'codigo_producto_sunat',
         'descripcion',
         'cantidad',
         'valor_unitario',
@@ -25,26 +27,22 @@ class ElectronicDocumentItem extends BaseModel
         'subtotal',
         'sunat_concept_igv_type_id',
         'igv',
-        'isc',
-        'isc_tipo',
         'total',
         'anticipo_regularizacion',
         'anticipo_documento_serie',
         'anticipo_documento_numero',
-        'orden',
     ];
 
     protected $casts = [
         'cantidad' => 'decimal:4',
-        'valor_unitario' => 'decimal:10',
-        'precio_unitario' => 'decimal:10',
+        'valor_unitario' => 'decimal:2',
+        'precio_unitario' => 'decimal:2',
         'descuento' => 'decimal:2',
         'subtotal' => 'decimal:2',
         'igv' => 'decimal:2',
-        'isc' => 'decimal:2',
         'total' => 'decimal:2',
         'anticipo_regularizacion' => 'boolean',
-        'orden' => 'integer',
+        'line_number' => 'integer',
     ];
 
     /**
@@ -65,7 +63,7 @@ class ElectronicDocumentItem extends BaseModel
      */
     public function scopeOrdered($query)
     {
-        return $query->orderBy('orden');
+        return $query->orderBy('line_number');
     }
 
     public function scopeByDocument($query, int $documentId)
