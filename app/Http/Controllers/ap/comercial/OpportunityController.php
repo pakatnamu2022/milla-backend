@@ -10,7 +10,6 @@ use App\Http\Requests\ap\comercial\StoreOpportunityRequest;
 use App\Http\Requests\ap\comercial\UpdateOpportunityRequest;
 use App\Http\Services\ap\comercial\OpportunityService;
 use App\Models\ap\comercial\Opportunity;
-use Illuminate\Http\Request;
 
 class OpportunityController extends Controller
 {
@@ -110,8 +109,8 @@ class OpportunityController extends Controller
       $user = auth()->user();
       $requestWorkerId = $request->worker_id;
 
-      // Verificar si el usuario puede ver oportunidades de todos (usando Policy)
-      $canViewAllUsers = $user->can('viewAllUsers', Opportunity::class);
+      // Verificar si el usuario puede ver asesores en la agenda (usando Policy)
+      $canViewAllUsers = $user->can('viewAdvisors', Opportunity::class);
 
       $workerId = $user->partner_id;
       if (!$workerId) return $this->error('El trabajador es inválido');
@@ -133,8 +132,8 @@ class OpportunityController extends Controller
       $user = auth()->user();
       $requestWorkerId = $request->worker_id;
 
-      // Verificar si el usuario puede ver oportunidades de todos (usando Policy)
-      $canViewAllUsers = $user->can('viewAllUsers', Opportunity::class);
+      // Verificar si el usuario puede ver asesores en la agenda (usando Policy)
+      $canViewAllUsers = $user->can('viewAdvisors', Opportunity::class);
 
       $workerId = $user->partner_id;
       if (!$workerId) return $this->error('El trabajor es invalido');
