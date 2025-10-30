@@ -283,6 +283,28 @@ class ElectronicDocument extends BaseModel
         return $query->whereIn('status', [self::STATUS_DRAFT, self::STATUS_SENT]);
     }
 
+    public function scopeAnticipos($query)
+    {
+        return $query->where('sunat_concept_transaction_type_id', SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS);
+    }
+
+    public function scopeByOriginEntity($query, string $module, string $entityType, int $entityId)
+    {
+        return $query->where('origin_module', $module)
+                     ->where('origin_entity_type', $entityType)
+                     ->where('origin_entity_id', $entityId);
+    }
+
+    public function scopeAcceptedBySunat($query)
+    {
+        return $query->where('aceptada_por_sunat', true);
+    }
+
+    public function scopeNotCancelled($query)
+    {
+        return $query->where('anulado', false);
+    }
+
     /**
      * Accessors
      */
@@ -409,5 +431,23 @@ class ElectronicDocument extends BaseModel
             self::TYPE_NOTA_CREDITO, self::TYPE_NOTA_DEBITO => in_array($prefix, ['F', 'B']),
             default => false,
         };
+    }
+
+    /**
+     * Métodos helper para anticipos
+     */
+    public function isAnticipo(): bool
+    {
+        return $this->sunat_concept_transaction_type_id === SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
+    }
+
+    public function isRegularized(): bool
+    {
+        // Un anticipo está regularizado si existe un documento que lo referencia en sus items
+        return ElectronicDocument::whereHas('items', function ($query) {
+            $query->where('anticipo_regularizacion', true)
+                  ->where('anticipo_documento_serie', $this->serie)
+                  ->where('anticipo_documento_numero', $this->numero);
+        })->exists();
     }
 }

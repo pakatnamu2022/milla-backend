@@ -794,6 +794,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
+      Route::get('vehicles/{id}/pending-anticipos', [VehiclesController::class, 'getPendingAnticipos']);
+      Route::post('vehicles/{id}/regularize-anticipos', [VehiclesController::class, 'regularizeAnticipos']);
 
       // DASHBOARD - Indicadores Comerciales
       Route::group(['prefix' => 'dashboard-visit-leads'], function () {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\facturacion;
 
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -442,17 +443,20 @@ class NubefactApiService
 
         // Items del comprobante
         $payload['items'] = [];
-        $isAnticipo = $document->transactionType->code_nubefact == '04'; // Venta Interna - Anticipos
+        $isAnticipo = $document->sunat_concept_transaction_type_id == SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
 
         foreach ($document->items as $index => $item) {
-            // Para anticipos (código 04), usar código de tributo 9996 y el IGV debe ser 0
             $tipoIgv = $item->igvType->code_nubefact;
             $igvItem = $item->igv;
 
             if ($isAnticipo) {
-                // Para anticipos: código tributo 9996 y IGV = 0
-                $tipoIgv = '40'; // Código para tributo 9996 - Anticipo de Operaciones Gravadas
-                $igvItem = 0;
+                // Para anticipos (sunat_transaction = 04):
+                // - tipo_de_igv debe ser "1" (código simplificado de Nubefact para gravado)
+                // - igv SÍ se calcula normalmente (18% del subtotal)
+                // - El tributo 9996 se genera automáticamente por el sunat_transaction = 04
+                $anticipoIgvType = SunatConcepts::find(SunatConcepts::ID_IGV_ANTICIPO_GRAVADO);
+                $tipoIgv = $anticipoIgvType->code_nubefact; // "1"
+                // $igvItem mantiene su valor calculado normalmente
             }
 
             $itemData = [

@@ -524,4 +524,93 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $electronicDocument = ElectronicDocument::find($id);
     return new ElectronicDocumentResource($electronicDocument);
   }
+
+  /**
+   * Obtiene los anticipos pendientes de regularización para una entidad origen
+   */
+  public function getPendingAnticipos(string $module, string $entityType, int $entityId)
+  {
+    return ElectronicDocument::byOriginEntity($module, $entityType, $entityId)
+      ->anticipos()
+      ->acceptedBySunat()
+      ->notCancelled()
+      ->get()
+      ->filter(function ($anticipo) {
+        return !$anticipo->isRegularized();
+      })
+      ->values();
+  }
+
+  /**
+   * Calcula los totales para una factura de regularización
+   */
+  public function calculateRegularizationTotals(float $vehiclePrice, $anticipos): array
+  {
+    $totalAnticipos = $anticipos->sum('total');
+    $totalGravada = ($vehiclePrice / 1.18) - ($totalAnticipos / 1.18);
+    $totalIgv = $vehiclePrice - ($vehiclePrice / 1.18) - ($totalAnticipos - ($totalAnticipos / 1.18));
+    $totalFinal = $vehiclePrice - $totalAnticipos;
+
+    return [
+      'total_anticipo' => round($totalAnticipos, 2),
+      'total_gravada' => round($totalGravada, 2),
+      'total_igv' => round($totalIgv, 2),
+      'total' => round($totalFinal, 2),
+    ];
+  }
+
+  /**
+   * Construye los items para una factura de regularización
+   */
+  public function buildRegularizationItems($vehicle, $anticipos, array $additionalData = []): array
+  {
+    $items = [];
+    $vehiclePrice = (float) $vehicle->model->sale_price;
+    $porcentajeIgv = 18;
+
+    // Item 1: Producto principal (vehículo completo) - POSITIVO
+    $valorUnitario = round($vehiclePrice / (1 + ($porcentajeIgv / 100)), 2);
+    $igv = round($vehiclePrice - $valorUnitario, 2);
+
+    $items[] = [
+      'unidad_de_medida' => 'NIU',
+      'codigo' => $additionalData['codigo'] ?? 'VEH-001',
+      'descripcion' => $additionalData['descripcion'] ?? "Vehículo {$vehicle->model->commercial_brand->name} {$vehicle->model->model} {$vehicle->model->year} - VIN: {$vehicle->vin}",
+      'cantidad' => 1,
+      'valor_unitario' => $valorUnitario,
+      'precio_unitario' => $vehiclePrice,
+      'descuento' => 0,
+      'subtotal' => $valorUnitario,
+      'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_ANTICIPO_GRAVADO, // Tipo 1
+      'igv' => $igv,
+      'total' => $vehiclePrice,
+      'anticipo_regularizacion' => false,
+    ];
+
+    // Items 2-N: Anticipos (negativos)
+    foreach ($anticipos as $anticipo) {
+      $anticipoTotal = (float) $anticipo->total;
+      $anticipoValorUnitario = round(-($anticipoTotal / (1 + ($porcentajeIgv / 100))), 2);
+      $anticipoIgv = round(-($anticipoTotal - abs($anticipoValorUnitario)), 2);
+
+      $items[] = [
+        'unidad_de_medida' => 'ZZ',
+        'codigo' => "ANT-{$anticipo->serie}-{$anticipo->numero}",
+        'descripcion' => "Anticipo {$anticipo->serie}-{$anticipo->numero}",
+        'cantidad' => 1,
+        'valor_unitario' => $anticipoValorUnitario,
+        'precio_unitario' => -$anticipoTotal,
+        'descuento' => 0,
+        'subtotal' => $anticipoValorUnitario,
+        'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_ANTICIPO_GRAVADO, // Tipo 1
+        'igv' => $anticipoIgv,
+        'total' => -$anticipoTotal,
+        'anticipo_regularizacion' => true,
+        'anticipo_documento_serie' => $anticipo->serie,
+        'anticipo_documento_numero' => $anticipo->numero,
+      ];
+    }
+
+    return $items;
+  }
 }

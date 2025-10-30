@@ -46,6 +46,16 @@ class SunatConcepts extends Model
   const ID_NOTA_CREDITO_ELECTRONICA = 31;     // Nota de Crédito Electrónica (code: 3)
   const ID_NOTA_DEBITO_ELECTRONICA = 32;      // Nota de Débito Electrónica (code: 4)
 
+  // IDs específicos de tipos de transacción (basados en query)
+  const ID_VENTA_INTERNA = 33;                // Venta Interna (code: 01)
+  const ID_VENTA_INTERNA_ANTICIPOS = 36;      // Venta Interna - Anticipos (code: 04)
+
+  // IDs específicos de tipos de IGV (basados en query)
+  const ID_IGV_GRAVADO_ONEROSA = 49;          // Gravado - Operación Onerosa (code: 10, tribute: 1000) - SUNAT
+  const ID_IGV_EXPORTACION = 67;              // Exportación de Bienes o Servicios (code: 40, tribute: 9995)
+  const ID_IGV_ANTICIPO_GRAVADO = 130;        // Gravado - Operación Onerosa (code: 1, tribute: 1000) - Código Nubefact para anticipos
+                                              // Nota: El tributo 9996 se genera automáticamente cuando sunat_transaction = 04
+
   const filters = [
     'id' => '=',
     'search' => ['code_nubefact', 'description', 'type'],
