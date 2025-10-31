@@ -278,6 +278,7 @@ class EvaluationPersonResultResource extends JsonResource
         $processedSubCompetences[] = [
           'sub_competence_id' => $subCompetenceId,
           'sub_competence_name' => $firstEvaluation->sub_competence,
+          'sub_competence_description' => $firstEvaluation->subCompetence?->definicion ?? '',
           'evaluators' => $evaluators,
           'average_result' => round($averageScore, 2),
           'completion_percentage' => ($validEvaluations / count($requiredEvaluatorTypes)) * 100,

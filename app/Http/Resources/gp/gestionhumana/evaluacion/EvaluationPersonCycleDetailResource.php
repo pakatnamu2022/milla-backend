@@ -23,6 +23,7 @@ class EvaluationPersonCycleDetailResource extends JsonResource
       'area' => $this->area,
       'category' => $this->category,
       'objective' => $this->objective,
+      'objective_description' => $this->objectiveModel?->description,
       'isAscending' => $this->isAscending,
       'goal' => round($this->goal),
       'weight' => round($this->weight),
