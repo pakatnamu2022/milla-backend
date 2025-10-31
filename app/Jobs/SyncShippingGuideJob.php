@@ -5,6 +5,8 @@ namespace App\Jobs;
 use App\Http\Services\DatabaseSyncService;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
+use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\gestionsistema\Company;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -80,8 +82,8 @@ class SyncShippingGuideJob implements ShouldQueue
     // 3. Sincronizar serial de transferencia (VIN)
     $this->syncInventoryTransferSerial($shippingGuide, $syncService);
 
-    // 4. Verificar si todo está completo
-    $this->checkAndUpdateCompletionStatus($shippingGuide);
+    // Nota: La verificación de completitud se hace en VerifyAndMigrateShippingGuideJob
+    // que se ejecuta periódicamente cada 30 segundos
   }
 
   /**
@@ -89,11 +91,13 @@ class SyncShippingGuideJob implements ShouldQueue
    */
   protected function syncInventoryTransfer(ShippingGuides $shippingGuide, DatabaseSyncService $syncService): void
   {
+    $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
     $transferLog = $this->getOrCreateLog(
       $shippingGuide->id,
       VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
       VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER],
-      $shippingGuide->document_number
+      $shippingGuide->document_number,
+      $vehicle_vn_id
     );
 
     // Si ya está completado, no hacer nada
@@ -118,11 +122,22 @@ class SyncShippingGuideJob implements ShouldQueue
     // }
 
     try {
+      // Preparar datos para sincronización del detalle
+      $data = [
+        'EmpresaId' => Company::AP_DYNAMICS,
+        'TransferenciaId' => 'VEH-' . $shippingGuide->correlative,
+        'FechaEmision' => $shippingGuide->issue_date->format('Y-m-d'),
+        'FechaContable' => $shippingGuide->issue_date->format('Y-m-d'),
+        'Procesar' => 1,
+        'ProcesoEstado' => 0,
+        'ProcesoError' => '',
+        'FechaProceso' => now()->format('Y-m-d H:i:s'),
+      ];
+      
       // Sincronizar cabecera de transferencia
       $transferLog->markAsInProgress();
-      $syncService->sync('inventory_transfer', $shippingGuide, 'create');
+      $syncService->sync('inventory_transfer', $data, 'create');
       $transferLog->updateProcesoEstado(0); // 0 = En proceso en la BD intermedia
-
     } catch (\Exception $e) {
       $transferLog->markAsFailed("Error al sincronizar transferencia: {$e->getMessage()}");
       throw $e;
@@ -134,11 +149,13 @@ class SyncShippingGuideJob implements ShouldQueue
    */
   protected function syncInventoryTransferSerial(ShippingGuides $shippingGuide, DatabaseSyncService $syncService): void
   {
+    $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
     $transferDetailLog = $this->getOrCreateLog(
       $shippingGuide->id,
       VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL,
       VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL],
-      $shippingGuide->document_number
+      $shippingGuide->document_number,
+      $vehicle_vn_id
     );
 
     // Si ya está completado, no hacer nada
@@ -150,7 +167,7 @@ class SyncShippingGuideJob implements ShouldQueue
       // Preparar datos para sincronización del detalle
       $detailData = [
         'EmpresaId' => Company::AP_DYNAMICS,
-        'TransferenciaId' => 'REP-' . $shippingGuide->correlative,
+        'TransferenciaId' => 'VEH-' . $shippingGuide->correlative,
         'Linea' => 1,
         'Serie' => $shippingGuide->vehicleMovement->vehicle->vin ?? "N/A",
         'ArticuloId' => $shippingGuide->vehicleMovement->vehicle->model->code ?? "N/A",
@@ -174,11 +191,18 @@ class SyncShippingGuideJob implements ShouldQueue
    */
   protected function syncInventoryTransferDetail(ShippingGuides $shippingGuide, DatabaseSyncService $syncService): void
   {
+    $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
+
+    if (!$vehicle_vn_id) {
+      throw new \Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.");
+    }
+
     $transferSerialLog = $this->getOrCreateLog(
       $shippingGuide->id,
       VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL,
       VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL],
-      $shippingGuide->vehicleMovement?->vehicle?->vin
+      $shippingGuide->document_number,
+      $vehicle_vn_id
     );
 
     // Si ya está completado, no hacer nada
@@ -187,18 +211,32 @@ class SyncShippingGuideJob implements ShouldQueue
     }
 
     try {
-      // Preparar datos para sincronización del serial
+      $vehicleVn = Vehicles::findOrFail(
+        $shippingGuide->vehicleMovement?->vehicle?->id
+        ?? throw new \Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.")
+      );
+
+      $type_operation_id = $vehicleVn->type_operation_id ?? null;
+      $class_id = $vehicleVn->model->class_id ?? null;
+      $sede_id = $shippingGuide->sedeReceiver->id ?? null;
+
+      $baseQuery = Warehouse::where('sede_id', $sede_id)
+        ->where('type_operation_id', $type_operation_id)
+        ->where('article_class_id', $class_id);
+
+      $warehouseStartCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
+      $warehouseEndCode = (clone $baseQuery)->where('is_received', false)->value('dyn_code');
+
       $serialData = [
         'EmpresaId' => Company::AP_DYNAMICS,
-        'TransferenciaId' => $shippingGuide->document_number,
+        'TransferenciaId' => 'VEH-' . $shippingGuide->correlative,
         'Linea' => 1,
         'ArticuloId' => $shippingGuide->vehicleMovement?->vehicle?->model->code ?? 'N/A',
-        'Serie' => $shippingGuide->vehicleMovement?->vehicle?->vin,
         'Motivo' => '',
         'UnidadMedidaId' => 'UND',
         'Cantidad' => 1,
-        'AlmacenId_Ini' => $shippingGuide->sedeTransmitter->warehouse_code,
-        'AlmacenId_Fin' => $shippingGuide->sedeReceiver->warehouse_code,
+        'AlmacenId_Ini' => $warehouseStartCode ?? '',
+        'AlmacenId_Fin' => $warehouseEndCode ?? '',
       ];
 
       // Sincronizar serial de transferencia
@@ -213,39 +251,9 @@ class SyncShippingGuideJob implements ShouldQueue
   }
 
   /**
-   * Verifica si todos los pasos están completos
-   */
-  protected function checkAndUpdateCompletionStatus(ShippingGuides $shippingGuide): void
-  {
-    $logs = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)->get();
-
-    $allCompleted = $logs->every(function ($log) {
-      return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED &&
-        $log->proceso_estado === 1;
-    });
-
-    $hasFailed = $logs->contains(function ($log) {
-      return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED;
-    });
-
-    if ($allCompleted && $logs->count() === 3) { // 3 pasos en total para shipping guides
-      // Marcar la guía como sincronizada
-      $shippingGuide->update([
-        'status_dynamic' => 'synced',
-      ]);
-      Log::info('Guía de remisión sincronizada completamente', ['id' => $shippingGuide->id]);
-    } elseif ($hasFailed) {
-      $shippingGuide->update([
-        'status_dynamic' => 'sync_failed',
-      ]);
-      Log::warning('Falló la sincronización de guía de remisión', ['id' => $shippingGuide->id]);
-    }
-  }
-
-  /**
    * Obtiene o crea un registro de log
    */
-  protected function getOrCreateLog(int $shippingGuideId, string $step, string $tableName, ?string $externalId = null): VehiclePurchaseOrderMigrationLog
+  protected function getOrCreateLog(int $shippingGuideId, string $step, string $tableName, ?string $externalId = null, ?int $vehicleId = null): VehiclePurchaseOrderMigrationLog
   {
     return VehiclePurchaseOrderMigrationLog::firstOrCreate(
       [
@@ -256,6 +264,7 @@ class SyncShippingGuideJob implements ShouldQueue
         'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
         'table_name' => $tableName,
         'external_id' => $externalId,
+        'ap_vehicles_id' => $vehicleId,
       ]
     );
   }

@@ -87,4 +87,9 @@ class Vehicles extends Model
   {
     return $this->hasMany(VehicleMovement::class, 'ap_vehicle_id');
   }
+
+  public function purchaseOrder(): BelongsTo
+  {
+    return $this->belongsTo(VehiclePurchaseOrder::class, 'vin', 'vin');
+  }
 }

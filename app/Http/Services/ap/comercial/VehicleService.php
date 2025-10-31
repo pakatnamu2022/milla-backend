@@ -188,4 +188,88 @@ class VehicleService extends BaseService implements BaseServiceInterface
       throw $e;
     }
   }
+
+  /**
+   * Lista todos los vehículos con sus costos (sin movements)
+   * @param Request $request
+   * @return mixed
+   */
+  public function listWithCosts(Request $request)
+  {
+    $query = Vehicles::with([
+      'model',
+      'color',
+      'engineType',
+      'vehicleStatus',
+      'warehousePhysical',
+      'purchaseOrder.accessories'
+    ]);
+
+    // Aplicar filtros si existen
+    if ($request->has('search') && $request->search) {
+      $search = $request->search;
+      $query->where(function ($q) use ($search) {
+        $q->where('vin', 'like', "%{$search}%")
+          ->orWhere('engine_number', 'like', "%{$search}%")
+          ->orWhere('year', 'like', "%{$search}%");
+      });
+    }
+
+    if ($request->has('ap_models_vn_id') && $request->ap_models_vn_id) {
+      $query->where('ap_models_vn_id', $request->ap_models_vn_id);
+    }
+
+    if ($request->has('ap_vehicle_status_id') && $request->ap_vehicle_status_id) {
+      $query->where('ap_vehicle_status_id', $request->ap_vehicle_status_id);
+    }
+
+    if ($request->has('vehicle_color_id') && $request->vehicle_color_id) {
+      $query->where('vehicle_color_id', $request->vehicle_color_id);
+    }
+
+    if ($request->has('warehouse_physical_id') && $request->warehouse_physical_id) {
+      $query->where('warehouse_physical_id', $request->warehouse_physical_id);
+    }
+
+    // Paginación
+    $perPage = $request->get('per_page', 15);
+    $vehicles = $query->paginate($perPage);
+
+    // Transformar los datos para incluir costos
+    $vehicles->getCollection()->transform(function ($vehicle) {
+      // Obtener el costo facturado (subtotal de la orden de compra)
+      $costoFacturado = $vehicle->purchaseOrder?->subtotal ?? 0;
+
+      // Obtener el costo de accesorios (suma de totales de accesorios)
+      $costoAccesorios = $vehicle->purchaseOrder?->accessories->sum('total') ?? 0;
+
+      // Obtener transport_cost del modelo (temporal)
+      $costoFlete = $vehicle->model?->transport_cost ?? 0;
+
+      return [
+        'id' => $vehicle->id,
+        'vin' => $vehicle->vin,
+        'year' => $vehicle->year,
+        'engine_number' => $vehicle->engine_number,
+        'ap_models_vn_id' => $vehicle->ap_models_vn_id,
+        'vehicle_color_id' => $vehicle->vehicle_color_id,
+        'engine_type_id' => $vehicle->engine_type_id,
+        'ap_vehicle_status_id' => $vehicle->ap_vehicle_status_id,
+        'model' => $vehicle->model?->version,
+        'model_code' => $vehicle->model?->code,
+        'vehicle_color' => $vehicle->color?->description,
+        'engine_type' => $vehicle->engineType?->description,
+        'status' => $vehicle->status,
+        'vehicle_status' => $vehicle->vehicleStatus?->description,
+        'status_color' => $vehicle->vehicleStatus?->color,
+        'warehouse_physical_id' => $vehicle->warehouse_physical_id,
+        'warehouse_physical' => $vehicle->warehousePhysical?->description,
+        'costo_facturado' => $costoFacturado,
+        'costo_accesorios' => $costoAccesorios,
+        'costo_flete_temporal' => $costoFlete,
+      ];
+    });
+
+    return response()->json($vehicles);
+  }
 }

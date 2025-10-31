@@ -13,6 +13,7 @@ class VehiclePurchaseOrderMigrationLog extends Model
   protected $fillable = [
     'vehicle_purchase_order_id',
     'shipping_guide_id',
+    'ap_vehicles_id',
     'step',
     'status',
     'table_name',
@@ -81,6 +82,14 @@ class VehiclePurchaseOrderMigrationLog extends Model
   public function shippingGuide(): BelongsTo
   {
     return $this->belongsTo(ShippingGuides::class, 'shipping_guide_id');
+  }
+
+  /**
+   * Relación con el vehículo
+   */
+  public function vehicle(): BelongsTo
+  {
+    return $this->belongsTo(Vehicles::class, 'ap_vehicles_id');
   }
 
   /**

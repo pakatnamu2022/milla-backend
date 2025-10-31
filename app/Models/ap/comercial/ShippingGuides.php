@@ -72,6 +72,8 @@ class ShippingGuides extends Model
     'codigo_hash',
     'error_message',
     'status_dynamic',
+    'migration_status',
+    'migrated_at',
   ];
 
   protected $casts = [
@@ -80,6 +82,7 @@ class ShippingGuides extends Model
     'sent_at' => 'datetime',
     'accepted_at' => 'datetime',
     'received_date' => 'datetime',
+    'migrated_at' => 'datetime',
     'requires_sunat' => 'boolean',
     'is_sunat_registered' => 'boolean',
     'aceptada_por_sunat' => 'boolean',
@@ -216,6 +219,11 @@ class ShippingGuides extends Model
   public function logs()
   {
     return $this->hasMany(NubefactShippingGuideLog::class, 'shipping_guide_id');
+  }
+
+  public function migrationLogs()
+  {
+    return $this->hasMany(VehiclePurchaseOrderMigrationLog::class, 'shipping_guide_id');
   }
 
   /**

@@ -772,6 +772,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('shippingGuides/{id}/cancel', [ShippingGuidesController::class, 'cancel']);
       Route::post('shippingGuides/{id}/send-to-nubefact', [ShippingGuidesController::class, 'sendToNubefact']);
       Route::post('shippingGuides/{id}/query-from-nubefact', [ShippingGuidesController::class, 'queryFromNubefact']);
+      Route::get('shippingGuides/{id}/logs', [ShippingGuidesController::class, 'logs']);
+      Route::get('shippingGuides/{id}/history', [ShippingGuidesController::class, 'history']);
       Route::apiResource('shippingGuides', ShippingGuidesController::class)->only([
         'index',
         'show',
@@ -787,6 +789,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::delete('receivingChecklist/byShippingGuide/{shippingGuideId}', [ApReceivingChecklistController::class, 'destroyByShippingGuide']);
 
       // Vehicles
+      Route::get('vehicles/costs', [VehiclesController::class, 'getCostsData']);
       Route::apiResource('vehicles', VehiclesController::class)->only([
         'index',
         'show',

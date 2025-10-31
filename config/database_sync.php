@@ -8,6 +8,7 @@ use App\Models\ap\maestroGeneral\TaxClassTypes;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\gestionsistema\Company;
+use Carbon\Carbon;
 
 return [
   /*
@@ -498,11 +499,13 @@ return [
       'table' => 'neInTbTransferenciaInventario',
       'mapping' => [
         'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
-        'TransferenciaId' => fn($data) => 'REP-' . $data['correlative'],
-        'FechaEmision' => fn($data) => $data['issue_date'],
-        'FechaContable' => fn($data) => $data['issue_date'],
-        'Procesar' => 1,
-        'FechaProceso' => fn($data) => $data['issue_date'],
+        'TransferenciaId' => fn($data) => $data['TransferenciaId'],
+        'FechaEmision' => fn($data) => $data['FechaEmision'],
+        'FechaContable' => fn($data) => $data['FechaContable'],
+        'Procesar' => fn($data) => $data['Procesar'],
+        'ProcesoEstado' => fn($data) => $data['ProcesoEstado'],
+        'ProcesoError' => fn($data) => $data['ProcesoError'],
+        'FechaProceso' => fn($data) => $data['FechaProceso'],
       ],
       'optional_mapping' => [
       ],

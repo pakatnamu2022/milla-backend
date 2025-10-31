@@ -116,8 +116,8 @@ class ApReceivingChecklistService extends BaseService
           ->update(['quantity' => $data['items_receiving'][$receivingId]]);
       }
 
-      // Despachar el Job
-      SyncShippingGuideJob::dispatch($shippingGuide->id);
+      // Despachar el Job síncronamente para debugging
+      SyncShippingGuideJob::dispatchSync($shippingGuide->id);
 
       // Update shipping guide with note, is_received, received_by and received_date
       $shippingGuide->update([
