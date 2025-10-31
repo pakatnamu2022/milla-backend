@@ -19,14 +19,14 @@ class StoreElectronicDocumentRequest extends StoreRequest
     return [
       // Tipo de documento y serie
       'sunat_concept_document_type_id' => [
-        'required',
+        'string',
         'integer',
         Rule::exists('sunat_concepts', 'id')
           ->where('type', SunatConcepts::BILLING_DOCUMENT_TYPE)
-          ->whereNull('deleted_at')->where('active')
+          ->whereNull('deleted_at')->where('status', 1)
       ],
       'series' => [
-        'required',
+        'string',
         'integer',
         Rule::exists('assign_sales_series', 'id')
           ->where('status', 1)->whereNull('deleted_at'),
@@ -35,7 +35,15 @@ class StoreElectronicDocumentRequest extends StoreRequest
       ],
 
       // Tipo de operación
-      'sunat_concept_transaction_type_id' => 'required|integer|exists:sunat_concepts,id',
+//      'sunat_concept_transaction_type_id' => 'required|integer|exists:sunat_concepts,id',
+      'sunat_concept_transaction_type_id' => [
+        'required',
+        'integer',
+        Rule::exists('sunat_concepts', 'id')
+          ->where('type', SunatConcepts::BILLING_TRANSACTION_TYPE)
+          ->whereNull('deleted_at')->where('status', 1)
+      ],
+
 
       // Origen del documento
       'origin_module' => ['required', Rule::in(['comercial', 'posventa'])],

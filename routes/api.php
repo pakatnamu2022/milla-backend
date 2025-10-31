@@ -822,10 +822,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     //      FACTURACIÓN ELECTRÓNICA
     Route::group(['prefix' => 'facturacion'], function () {
-      // CRUD de Documentos Electrónicos
-      Route::apiResource('electronic-documents', ElectronicDocumentController::class);
 
       // Operaciones especiales de documentos
+      Route::get('electronic-documents/nextDocumentNumber', [ElectronicDocumentController::class, 'nextDocumentNumber']);
       Route::post('electronic-documents/{id}/send', [ElectronicDocumentController::class, 'sendToNubefact']);
       Route::post('electronic-documents/{id}/query', [ElectronicDocumentController::class, 'queryFromNubefact']);
       Route::post('electronic-documents/{id}/cancel', [ElectronicDocumentController::class, 'cancelInNubefact']);
@@ -833,6 +832,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('electronic-documents/{id}/debit-note', [ElectronicDocumentController::class, 'createDebitNote']);
       Route::get('electronic-documents/by-entity/{module}/{entityType}/{entityId}', [ElectronicDocumentController::class, 'getByOriginEntity']);
       Route::get('electronic-documents/{id}/pdf', [ElectronicDocumentController::class, 'generatePDF']);
+
+      // CRUD de Documentos Electrónicos
+      Route::apiResource('electronic-documents', ElectronicDocumentController::class);
 
       // Catálogos de facturación (con caché)
       Route::group(['prefix' => 'catalogs'], function () {

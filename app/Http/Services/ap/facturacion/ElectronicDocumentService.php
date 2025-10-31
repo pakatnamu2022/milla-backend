@@ -67,14 +67,20 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     return $document;
   }
 
-  public function getNextDocumentNumber(string $documentType, string $series): int
+  /**
+   * Get the next document number for a given type and series
+   * @param string $documentType
+   * @param string $series
+   * @return int
+   */
+  public function nextDocumentNumber(string $documentType, string $series): array
   {
     $query = ElectronicDocument::where('sunat_concept_document_type_id', $documentType)
       ->where('serie', $series)
       ->where('anulado', 0)
       ->whereNull('deleted_at');
 
-    return $this->nextCorrelativeQueryInteger($query, 'numero');
+    return ["number" => $this->nextCorrelativeQuery($query, 'numero')];
   }
 
   /**
@@ -86,7 +92,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     DB::beginTransaction();
     try {
       // Validar y calcular el siguiente número correlativo si no se proporciona
-      $data['numero'] = $this->getNextDocumentNumber(
+      $data['numero'] = $this->nextDocumentNumber(
         $data['sunat_concept_document_type_id'],
         $data['serie']
       );

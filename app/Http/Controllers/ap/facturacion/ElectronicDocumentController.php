@@ -37,11 +37,16 @@ class ElectronicDocumentController extends Controller
     }
   }
 
-  public function getNextDocumentNumber(NextCorrelativeElectronicDocumentRequest $request): JsonResponse
+  /**
+   * Get next correlative document number
+   * @param NextCorrelativeElectronicDocumentRequest $request
+   * @return JsonResponse
+   */
+  public function nextDocumentNumber(NextCorrelativeElectronicDocumentRequest $request): JsonResponse
   {
     try {
       $series = AssignSalesSeries::find($request->input('series'));
-      return $this->success($this->service->getNextDocumentNumber(
+      return $this->success($this->service->nextDocumentNumber(
         $request->input('document_type'),
         $series->series
       ));

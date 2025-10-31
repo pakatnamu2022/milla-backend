@@ -20,7 +20,7 @@ class NextCorrelativeElectronicDocumentRequest extends StoreRequest
         'integer',
         Rule::exists('sunat_concepts', 'id')
           ->where('type', SunatConcepts::BILLING_DOCUMENT_TYPE)
-          ->whereNull('deleted_at')->where('active')
+          ->whereNull('deleted_at')->where('status', 1)
       ],
       'series' => [
         'required',
