@@ -31,19 +31,46 @@
 | POST | `/{id}/credit-note` | Crear nota de crédito desde documento |
 | POST | `/{id}/debit-note` | Crear nota de débito desde documento |
 | GET | `/{id}/pdf` | Generar y descargar PDF del documento |
+| GET | `/nextDocumentNumber` | Obtener siguiente número correlativo para una serie |
 
 ---
 
 ## Request para Crear/Actualizar Documento
+
+### ⚠️ Nota Importante sobre Tipos de Datos
+
+El backend **acepta tanto strings como números** para todos los campos numéricos y los convierte automáticamente al tipo correcto antes de la validación. Esto significa que el frontend puede enviar:
+
+```javascript
+// ✅ Esto funciona (strings)
+{
+  "sunat_concept_document_type_id": "29",
+  "series": "7",
+  "total": "11800.50"
+}
+
+// ✅ Esto también funciona (números)
+{
+  "sunat_concept_document_type_id": 29,
+  "series": 7,
+  "total": 11800.50
+}
+```
+
+**Conversiones automáticas aplicadas**:
+- ✅ Campos ID → `integer`
+- ✅ Campos de totales/montos → `float`
+- ✅ Campos booleanos → `boolean`
+- ✅ Arrays de items, guías y cuotas → conversión recursiva
 
 ### Estructura del Request (StoreElectronicDocumentRequest)
 
 ```typescript
 interface ElectronicDocumentRequest {
   // ===== TIPO DE DOCUMENTO Y SERIE =====
-  sunat_concept_document_type_id: number;  // REQUIRED - Combo de tipos de documento
-  serie: string;                            // REQUIRED - Input de texto (4 caracteres)
-  numero?: number;                          // OPCIONAL - Se genera automáticamente si no se envía
+  sunat_concept_document_type_id: number;  // REQUIRED - Combo de tipos de documento (ID de sunat_concepts)
+  series: number;                           // REQUIRED - Combo de series asignadas al usuario (ID de assign_sales_series)
+  numero?: number;                          // OPCIONAL - Se genera automáticamente (correlativo)
 
   // ===== TIPO DE OPERACIÓN =====
   sunat_concept_transaction_type_id: number;  // REQUIRED - Combo de tipos de transacción
@@ -365,7 +392,41 @@ interface ElectronicDocumentInstallment {
 
 ---
 
-### 9. Movimiento de Vehículo (opcional)
+### 9. Series Asignadas (NUEVO - Requerido)
+**Campo**: `series`
+
+**Endpoint**: `GET /api/ap/maestro-general/assign-sales-series` (con filtros)
+
+**Parámetros de consulta**:
+```typescript
+{
+  // Filtrar por usuario autenticado (automático en backend)
+  // Filtrar por tipo de documento si es necesario
+  type_receipt_id?: number,
+  status: 1
+}
+```
+
+**Nota Importante**:
+- El frontend envía el **ID de la serie asignada** (de la tabla `assign_sales_series`)
+- El backend automáticamente lo convierte a la serie real (string) antes de guardar
+- Ejemplo: Frontend envía `series: 5` → Backend lo convierte a `serie: "F001"`
+
+**Validaciones especiales**:
+- La serie debe estar asignada al usuario autenticado
+- La serie debe estar activa (`status = 1`)
+- El prefijo de la serie debe coincidir con el tipo de documento seleccionado
+
+**Flujo**:
+1. Usuario selecciona tipo de documento (Factura/Boleta/NC/ND)
+2. Se cargan solo las series asignadas a ese usuario para ese tipo de documento
+3. Usuario selecciona la serie
+4. Frontend envía el ID de `assign_sales_series`
+5. Backend lo convierte automáticamente a la serie string
+
+---
+
+### 10. Movimiento de Vehículo (opcional)
 **Campo**: `ap_vehicle_movement_id`
 
 **Endpoint**: Necesitarás implementar o usar el endpoint de movimientos de vehículos
@@ -733,6 +794,29 @@ El documento puede tener los siguientes estados (`status`):
    - Marca de agua según estado (BORRADOR, ANULADO, etc.)
 3. El PDF se descarga automáticamente con el nombre: `documento-electronico-{serie}-{numero}.pdf`
 
+### Obtener Siguiente Número Correlativo
+1. Se llama al endpoint `GET /nextDocumentNumber?document_type={id}&series={id}`
+2. El sistema calcula el siguiente número correlativo disponible para esa serie
+3. Retorna: `{ "number": 123 }`
+4. Este endpoint es útil para mostrar al usuario el número que se le asignará antes de crear el documento
+
+**Parámetros de Query**:
+- `document_type` (required): ID del tipo de documento (sunat_concept_document_type_id)
+- `series` (required): ID de la serie asignada (assign_sales_series_id)
+
+**Ejemplo de uso**:
+```
+GET /api/ap/facturacion/electronic-documents/nextDocumentNumber?document_type=29&series=5
+
+Response:
+{
+  "success": true,
+  "data": {
+    "number": 123
+  }
+}
+```
+
 ---
 
 ## Consideraciones Adicionales
@@ -764,7 +848,7 @@ El campo `origin_module` puede ser:
 ```json
 {
   "sunat_concept_document_type_id": 29,
-  "serie": "F001",
+  "series": 5,
   "sunat_concept_transaction_type_id": 33,
   "origin_module": "comercial",
   "sunat_concept_identity_document_type_id": 6,
@@ -800,6 +884,8 @@ El campo `origin_module` puede ser:
   ]
 }
 ```
+
+**Nota**: El campo `series` envía el ID de la serie asignada (ej: 5), no el string "F001". El backend lo convierte automáticamente.
 
 ---
 

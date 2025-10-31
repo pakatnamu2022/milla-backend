@@ -5,11 +5,166 @@ namespace App\Http\Requests\ap\facturacion;
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Validation\Rule;
 
 class StoreElectronicDocumentRequest extends StoreRequest
 {
+  /**
+   * Prepare the data for validation.
+   */
+  protected function prepareForValidation()
+  {
+    // PASO 1: Compatibilidad de nombres - Convertir 'serie' a 'series' si existe
+    if ($this->has('serie') && !$this->has('series')) {
+      $this->merge(['series' => $this->input('serie')]);
+    }
+
+    // PASO 2: Convertir strings numéricos a integers para campos ID
+    $numericFields = [
+      'sunat_concept_document_type_id',
+      'series',
+      'numero',
+      'sunat_concept_transaction_type_id',
+      'ap_vehicle_movement_id',
+      'sunat_concept_identity_document_type_id',
+      'sunat_concept_currency_id',
+      'sunat_concept_detraction_type_id',
+      'documento_que_se_modifica_tipo',
+      'documento_que_se_modifica_numero',
+      'sunat_concept_credit_note_type_id',
+      'sunat_concept_debit_note_type_id',
+      'percepcion_tipo',
+      'retencion_tipo',
+      'medio_de_pago_detraccion',
+    ];
+
+    $dataToMerge = [];
+    foreach ($numericFields as $field) {
+      if ($this->has($field) && $this->input($field) !== null && $this->input($field) !== '') {
+        $dataToMerge[$field] = (int) $this->input($field);
+      }
+    }
+
+    // Convertir strings numéricos a decimales para totales
+    $decimalFields = [
+      'tipo_de_cambio',
+      'porcentaje_de_igv',
+      'descuento_global',
+      'total_descuento',
+      'total_anticipo',
+      'total_gravada',
+      'total_inafecta',
+      'total_exonerada',
+      'total_igv',
+      'total_gratuita',
+      'total_otros_cargos',
+      'total_isc',
+      'total',
+      'percepcion_base_imponible',
+      'total_percepcion',
+      'total_incluido_percepcion',
+      'retencion_base_imponible',
+      'total_retencion',
+      'detraccion_total',
+      'detraccion_porcentaje',
+    ];
+
+    foreach ($decimalFields as $field) {
+      if ($this->has($field) && $this->input($field) !== null && $this->input($field) !== '') {
+        $dataToMerge[$field] = (float) $this->input($field);
+      }
+    }
+
+    // Convertir strings booleanos
+    $booleanFields = [
+      'detraccion',
+      'enviar_automaticamente_a_la_sunat',
+      'enviar_automaticamente_al_cliente',
+      'generado_por_contingencia',
+    ];
+
+    foreach ($booleanFields as $field) {
+      if ($this->has($field) && $this->input($field) !== null) {
+        $value = $this->input($field);
+        $dataToMerge[$field] = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $value;
+      }
+    }
+
+    // Convertir items
+    if ($this->has('items') && is_array($this->input('items'))) {
+      $items = $this->input('items');
+      foreach ($items as $index => $item) {
+        if (isset($item['sunat_concept_igv_type_id'])) {
+          $items[$index]['sunat_concept_igv_type_id'] = (int) $item['sunat_concept_igv_type_id'];
+        }
+        $numericItemFields = ['cantidad', 'valor_unitario', 'precio_unitario', 'descuento', 'subtotal', 'igv', 'total'];
+        foreach ($numericItemFields as $field) {
+          if (isset($item[$field])) {
+            $items[$index][$field] = (float) $item[$field];
+          }
+        }
+        if (isset($item['anticipo_regularizacion'])) {
+          $items[$index]['anticipo_regularizacion'] = filter_var($item['anticipo_regularizacion'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (isset($item['anticipo_documento_numero'])) {
+          $items[$index]['anticipo_documento_numero'] = (int) $item['anticipo_documento_numero'];
+        }
+      }
+      $dataToMerge['items'] = $items;
+    }
+
+    // Convertir guías
+    if ($this->has('guias') && is_array($this->input('guias'))) {
+      $guias = $this->input('guias');
+      foreach ($guias as $index => $guia) {
+        if (isset($guia['guia_tipo'])) {
+          $guias[$index]['guia_tipo'] = (int) $guia['guia_tipo'];
+        }
+      }
+      $dataToMerge['guias'] = $guias;
+    }
+
+    // Convertir cuotas
+    if ($this->has('venta_al_credito') && is_array($this->input('venta_al_credito'))) {
+      $cuotas = $this->input('venta_al_credito');
+      foreach ($cuotas as $index => $cuota) {
+        if (isset($cuota['cuota'])) {
+          $cuotas[$index]['cuota'] = (int) $cuota['cuota'];
+        }
+        if (isset($cuota['importe'])) {
+          $cuotas[$index]['importe'] = (float) $cuota['importe'];
+        }
+      }
+      $dataToMerge['venta_al_credito'] = $cuotas;
+    }
+
+    // PASO 3: Aplicar todas las conversiones
+    if (!empty($dataToMerge)) {
+      $this->merge($dataToMerge);
+    }
+
+    // PASO 4: Convertir el ID de series a la serie real (string)
+    if ($this->has('series')) {
+      $seriesId = (int) $this->input('series');
+      $assignSeries = AssignSalesSeries::find($seriesId);
+
+      if ($assignSeries) {
+        $this->merge([
+          'assign_sales_series_id' => $seriesId,
+          'serie' => $assignSeries->series, // String "F001"
+        ]);
+      } else {
+        // Si no se encuentra la serie asignada, establecer un valor por defecto
+        // para que la validación posterior detecte el error
+        $this->merge([
+          'serie' => null,
+        ]);
+      }
+    }
+  }
+
   /**
    * Get the validation rules that apply to the request.
    */
@@ -19,23 +174,23 @@ class StoreElectronicDocumentRequest extends StoreRequest
     return [
       // Tipo de documento y serie
       'sunat_concept_document_type_id' => [
-        'string',
+        'required',
         'integer',
         Rule::exists('sunat_concepts', 'id')
           ->where('type', SunatConcepts::BILLING_DOCUMENT_TYPE)
           ->whereNull('deleted_at')->where('status', 1)
       ],
       'series' => [
-        'string',
+        'required',
         'integer',
         Rule::exists('assign_sales_series', 'id')
           ->where('status', 1)->whereNull('deleted_at'),
         Rule::exists('user_series_assignment', 'voucher_id')
           ->where('worker_id', $userId)
       ],
+      'serie' => 'nullable|string|size:4', // Campo generado automáticamente desde series
 
       // Tipo de operación
-//      'sunat_concept_transaction_type_id' => 'required|integer|exists:sunat_concepts,id',
       'sunat_concept_transaction_type_id' => [
         'required',
         'integer',

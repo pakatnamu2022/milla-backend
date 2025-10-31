@@ -92,10 +92,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     DB::beginTransaction();
     try {
       // Validar y calcular el siguiente número correlativo si no se proporciona
-      $data['numero'] = $this->nextDocumentNumber(
+      $nextNumberData = $this->nextDocumentNumber(
         $data['sunat_concept_document_type_id'],
         $data['serie']
       );
+      $data['numero'] = $nextNumberData['number'];
 
       // Validar que la serie sea correcta
       if (!ElectronicDocument::validateSerie($data['sunat_concept_document_type_id'], $data['serie'])) {
