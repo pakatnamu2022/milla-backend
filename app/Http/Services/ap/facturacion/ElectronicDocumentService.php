@@ -9,6 +9,8 @@ use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\facturacion\ElectronicDocumentGuide;
 use App\Models\ap\facturacion\ElectronicDocumentInstallment;
+use App\Models\gp\maestroGeneral\SunatConcepts;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -65,6 +67,16 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     return $document;
   }
 
+  public function getNextDocumentNumber(string $documentType, string $series): int
+  {
+    $query = ElectronicDocument::where('sunat_concept_document_type_id', $documentType)
+      ->where('serie', $series)
+      ->where('anulado', 0)
+      ->whereNull('deleted_at');
+
+    return $this->nextCorrelativeQueryInteger($query, 'numero');
+  }
+
   /**
    * Create a new electronic document
    * @throws Exception
@@ -74,11 +86,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     DB::beginTransaction();
     try {
       // Validar y calcular el siguiente número correlativo si no se proporciona
-      if (!isset($data['numero'])) {
-        $query = ElectronicDocument::where('sunat_concept_document_type_id', $data['sunat_concept_document_type_id'])
-          ->where('serie', $data['serie']);
-        $data['numero'] = $this->nextCorrelativeQueryInteger($query, 'numero');
-      }
+      $data['numero'] = $this->getNextDocumentNumber(
+        $data['sunat_concept_document_type_id'],
+        $data['serie']
+      );
 
       // Validar que la serie sea correcta
       if (!ElectronicDocument::validateSerie($data['sunat_concept_document_type_id'], $data['serie'])) {
@@ -565,7 +576,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   public function buildRegularizationItems($vehicle, $anticipos, array $additionalData = []): array
   {
     $items = [];
-    $vehiclePrice = (float) $vehicle->model->sale_price;
+    $vehiclePrice = (float)$vehicle->model->sale_price;
     $porcentajeIgv = 18;
 
     // Item 1: Producto principal (vehículo completo) - POSITIVO
@@ -589,7 +600,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     // Items 2-N: Anticipos (negativos)
     foreach ($anticipos as $anticipo) {
-      $anticipoTotal = (float) $anticipo->total;
+      $anticipoTotal = (float)$anticipo->total;
       $anticipoValorUnitario = round(-($anticipoTotal / (1 + ($porcentajeIgv / 100))), 2);
       $anticipoIgv = round(-($anticipoTotal - abs($anticipoValorUnitario)), 2);
 
@@ -612,5 +623,79 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     return $items;
+  }
+
+  /**
+   * Generate PDF for electronic document
+   * @throws Exception
+   */
+  public function generatePDF($id)
+  {
+    try {
+      $document = $this->find($id);
+      $resource = new ElectronicDocumentResource($document);
+      $dataArray = $resource->resolve();
+
+      // Agregar datos adicionales para el PDF
+      $dataArray['currency_symbol'] = $document->currency->symbol ?? 'S/';
+      $dataArray['document_type_name'] = $document->documentType->description ?? '';
+      $dataArray['identity_document_type_name'] = $document->identityDocumentType->description ?? '';
+      $dataArray['transaction_type_name'] = $document->transactionType->description ?? '';
+
+      // Cargar items con sus relaciones
+      $dataArray['items_collection'] = $document->items->map(function ($item) {
+        return [
+          'codigo' => $item->codigo,
+          'descripcion' => $item->descripcion,
+          'unidad_de_medida' => $item->unidad_de_medida,
+          'cantidad' => $item->cantidad,
+          'valor_unitario' => $item->valor_unitario,
+          'precio_unitario' => $item->precio_unitario,
+          'descuento' => $item->descuento,
+          'subtotal' => $item->subtotal,
+          'igv' => $item->igv,
+          'total' => $item->total,
+          'igv_type_description' => $item->igvType->description ?? '',
+        ];
+      })->toArray();
+
+      // Convertir totales en letras
+      $dataArray['total_en_letras'] = $this->convertNumberToWords($document->total);
+
+      $pdf = PDF::loadView('reports.ap.facturacion.electronic-document', ['document' => $dataArray]);
+
+      // Configurar PDF
+      $pdf->setOptions([
+        'defaultFont' => 'Arial',
+        'isHtml5ParserEnabled' => true,
+        'isRemoteEnabled' => false,
+        'dpi' => 96,
+      ]);
+
+      // Tamaño A4
+      $pdf->setPaper('A4', 'portrait');
+
+      return $pdf;
+    } catch (Exception $e) {
+      Log::error('Error generating PDF for electronic document', [
+        'id' => $id,
+        'error' => $e->getMessage()
+      ]);
+      throw new Exception('Error al generar el PDF: ' . $e->getMessage());
+    }
+  }
+
+  /**
+   * Convert number to words (Spanish)
+   */
+  private function convertNumberToWords($number): string
+  {
+    $formatter = new \NumberFormatter('es', \NumberFormatter::SPELLOUT);
+    $integerPart = floor($number);
+    $decimalPart = round(($number - $integerPart) * 100);
+
+    $words = strtoupper($formatter->format($integerPart));
+
+    return "{$words} CON {$decimalPart}/100";
   }
 }

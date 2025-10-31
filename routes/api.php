@@ -832,6 +832,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('electronic-documents/{id}/credit-note', [ElectronicDocumentController::class, 'createCreditNote']);
       Route::post('electronic-documents/{id}/debit-note', [ElectronicDocumentController::class, 'createDebitNote']);
       Route::get('electronic-documents/by-entity/{module}/{entityType}/{entityId}', [ElectronicDocumentController::class, 'getByOriginEntity']);
+      Route::get('electronic-documents/{id}/pdf', [ElectronicDocumentController::class, 'generatePDF']);
 
       // Catálogos de facturación (con caché)
       Route::group(['prefix' => 'catalogs'], function () {

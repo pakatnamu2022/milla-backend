@@ -15,11 +15,24 @@ class StoreElectronicDocumentRequest extends StoreRequest
    */
   public function rules(): array
   {
+    $userId = $this->user()->id;
     return [
       // Tipo de documento y serie
-      'sunat_concept_document_type_id' => 'required|integer|exists:sunat_concepts,id',
-      'serie' => 'required|string|size:4',
-      'numero' => 'nullable|integer|min:1',
+      'sunat_concept_document_type_id' => [
+        'required',
+        'integer',
+        Rule::exists('sunat_concepts', 'id')
+          ->where('type', SunatConcepts::BILLING_DOCUMENT_TYPE)
+          ->whereNull('deleted_at')->where('active')
+      ],
+      'series' => [
+        'required',
+        'integer',
+        Rule::exists('assign_sales_series', 'id')
+          ->where('status', 1)->whereNull('deleted_at'),
+        Rule::exists('user_series_assignment', 'voucher_id')
+          ->where('worker_id', $userId)
+      ],
 
       // Tipo de operación
       'sunat_concept_transaction_type_id' => 'required|integer|exists:sunat_concepts,id',
@@ -246,8 +259,8 @@ class StoreElectronicDocumentRequest extends StoreRequest
 
           // Validar monto contra precio del modelo del vehículo
           if ($vehicle->model && $this->has('total')) {
-            $totalFactura = (float) $this->input('total');
-            $precioVenta = (float) $vehicle->model->sale_price;
+            $totalFactura = (float)$this->input('total');
+            $precioVenta = (float)$vehicle->model->sale_price;
 
             // Obtener suma de anticipos previos para este vehículo
             $sumaAnticipos = \DB::table('ap_billing_electronic_documents')

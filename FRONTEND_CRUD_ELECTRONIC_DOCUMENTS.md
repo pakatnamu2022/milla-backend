@@ -30,6 +30,7 @@
 | POST | `/{id}/cancel` | Anular documento en SUNAT |
 | POST | `/{id}/credit-note` | Crear nota de crédito desde documento |
 | POST | `/{id}/debit-note` | Crear nota de débito desde documento |
+| GET | `/{id}/pdf` | Generar y descargar PDF del documento |
 
 ---
 
@@ -381,15 +382,270 @@ interface ElectronicDocumentInstallment {
 
 **Resource**: `ElectronicDocumentResource`
 
-La respuesta incluye todos los campos del modelo, incluyendo:
-- Datos del documento
-- Relaciones con SunatConcepts (documentType, transactionType, identityDocumentType, currency, etc.)
-- Items asociados (items[])
-- Guías asociadas (guides[])
-- Cuotas asociadas (installments[])
-- Enlaces de archivos (enlace_del_pdf, enlace_del_xml, enlace_del_cdr)
-- Estado SUNAT (aceptada_por_sunat, sunat_responsecode, sunat_description, etc.)
-- Timestamps (created_at, updated_at, sent_at, accepted_at, cancelled_at)
+La respuesta del backend está estructurada y devuelve los siguientes campos:
+
+### Estructura de Respuesta TypeScript
+
+```typescript
+interface ElectronicDocumentResponse {
+  id: number;
+
+  // Tipo de documento y serie
+  sunat_concept_document_type_id: number;
+  document_type: SunatConceptsResource;  // Relación cargada
+  serie: string;
+  numero: number;
+  numero_completo: string;  // Formato: "F001-123"
+
+  // Tipo de operación
+  sunat_concept_transaction_type_id: number;
+  transaction_type: SunatConceptsResource;
+
+  // Origen del documento
+  origin_module: string;  // 'comercial' | 'posventa'
+  origin_entity_type: string | null;
+  origin_entity_id: number | null;
+  ap_vehicle_movement_id: number | null;
+  vehicle_movement: any | null;  // Relación cargada si aplica
+
+  // Datos del cliente
+  sunat_concept_identity_document_type_id: number;
+  identity_document_type: SunatConceptsResource;
+  cliente_numero_de_documento: string;
+  cliente_denominacion: string;
+  cliente_direccion: string | null;
+  cliente_email: string | null;
+  cliente_email_1: string | null;
+  cliente_email_2: string | null;
+
+  // Fechas
+  fecha_de_emision: string;  // Formato: "YYYY-MM-DD"
+  fecha_de_vencimiento: string | null;
+
+  // Moneda
+  sunat_concept_currency_id: number;
+  currency: SunatConceptsResource;
+  tipo_de_cambio: number | null;
+  porcentaje_de_igv: number;
+
+  // Totales
+  descuento_global: number | null;
+  total_descuento: number | null;
+  total_anticipo: number | null;
+  total_gravada: number | null;
+  total_inafecta: number | null;
+  total_exonerada: number | null;
+  total_igv: number | null;
+  total_gratuita: number | null;
+  total_otros_cargos: number | null;
+  total_isc: number | null;
+  total: number;
+
+  // Percepción
+  percepcion_tipo: number | null;
+  percepcion_base_imponible: number | null;
+  total_percepcion: number | null;
+  total_incluido_percepcion: number | null;
+
+  // Retención
+  retencion_tipo: number | null;
+  retencion_base_imponible: number | null;
+  total_retencion: number | null;
+
+  // Detracción
+  detraccion: boolean | null;
+  sunat_concept_detraction_type_id: number | null;
+  detraction_type: SunatConceptsResource | null;
+  detraccion_total: number | null;
+  detraccion_porcentaje: number | null;
+  medio_de_pago_detraccion: number | null;
+
+  // Notas de crédito/débito
+  documento_que_se_modifica_tipo: number | null;
+  documento_que_se_modifica_serie: string | null;
+  documento_que_se_modifica_numero: number | null;
+  sunat_concept_credit_note_type_id: number | null;
+  credit_note_type: SunatConceptsResource | null;
+  sunat_concept_debit_note_type_id: number | null;
+  debit_note_type: SunatConceptsResource | null;
+
+  // Campos opcionales
+  observaciones: string | null;
+  condiciones_de_pago: string | null;
+  medio_de_pago: string | null;
+  placa_vehiculo: string | null;
+  orden_compra_servicio: string | null;
+  codigo_unico: string | null;
+
+  // Configuración
+  enviar_automaticamente_a_la_sunat: boolean | null;
+  enviar_automaticamente_al_cliente: boolean | null;
+  generado_por_contingencia: boolean | null;
+
+  // Enlaces de archivos
+  enlace: string | null;
+  enlace_del_pdf: string | null;
+  enlace_del_xml: string | null;
+  enlace_del_cdr: string | null;
+
+  // Estado SUNAT
+  aceptada_por_sunat: boolean | null;
+  sunat_description: string | null;
+  sunat_note: string | null;
+  sunat_responsecode: string | null;
+  sunat_soap_error: string | null;
+  anulado: boolean | null;
+  cadena_para_codigo_qr: string | null;
+  codigo_hash: string | null;
+
+  // Estado y mensajes
+  status: string;  // 'draft' | 'sent' | 'accepted' | 'rejected' | 'cancelled'
+  error_message: string | null;
+
+  // Timestamps
+  sent_at: string | null;  // Formato: "YYYY-MM-DD HH:mm:ss"
+  accepted_at: string | null;
+  cancelled_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+
+  // Relaciones
+  items: ElectronicDocumentItemResource[];
+  guides: ElectronicDocumentGuideResource[];
+  installments: ElectronicDocumentInstallmentResource[];
+
+  // Atributos computados (booleanos de ayuda)
+  is_factura: boolean;
+  is_boleta: boolean;
+  is_nota_credito: boolean;
+  is_nota_debito: boolean;
+  is_accepted: boolean;
+  is_pending: boolean;
+  is_rejected: boolean;
+  is_cancelled: boolean;
+  is_anticipo: boolean;
+
+  // Auditoría
+  created_by: number | null;
+  updated_by: number | null;
+  creator: any | null;  // Usuario que creó
+  updater: any | null;  // Usuario que actualizó
+}
+
+interface ElectronicDocumentItemResource {
+  id: number;
+  ap_billing_electronic_document_id: number;
+  unidad_de_medida: string;
+  codigo: string | null;
+  codigo_producto_sunat: string | null;
+  descripcion: string;
+  cantidad: number;
+  valor_unitario: number;
+  precio_unitario: number;
+  descuento: number | null;
+  subtotal: number;
+  sunat_concept_igv_type_id: number;
+  igv_type: SunatConceptsResource;
+  igv: number;
+  total: number;
+  anticipo_regularizacion: boolean | null;
+  anticipo_documento_serie: string | null;
+  anticipo_documento_numero: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ElectronicDocumentGuideResource {
+  id: number;
+  ap_billing_electronic_document_id: number;
+  guia_tipo: number;  // 1 = GR Remitente, 2 = GR Transportista
+  guia_tipo_descripcion: string;
+  guia_serie_numero: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ElectronicDocumentInstallmentResource {
+  id: number;
+  ap_billing_electronic_document_id: number;
+  cuota: number;
+  fecha_de_pago: string;  // Formato: "YYYY-MM-DD"
+  importe: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface SunatConceptsResource {
+  id: number;
+  code_nubefact: string;
+  description: string;
+  type: string;
+  status: number;
+  // ... otros campos según el tipo
+}
+```
+
+### Ejemplo de Respuesta JSON
+
+```json
+{
+  "id": 1,
+  "sunat_concept_document_type_id": 29,
+  "document_type": {
+    "id": 29,
+    "code_nubefact": "1",
+    "description": "Factura Electrónica",
+    "type": "BILLING_DOCUMENT_TYPE"
+  },
+  "serie": "F001",
+  "numero": 123,
+  "numero_completo": "F001-123",
+  "sunat_concept_transaction_type_id": 33,
+  "transaction_type": {
+    "id": 33,
+    "code_nubefact": "01",
+    "description": "Venta Interna",
+    "type": "BILLING_TRANSACTION_TYPE"
+  },
+  "origin_module": "comercial",
+  "cliente_numero_de_documento": "20123456789",
+  "cliente_denominacion": "EMPRESA EJEMPLO SAC",
+  "fecha_de_emision": "2025-10-31",
+  "currency": {
+    "id": 1,
+    "code_nubefact": "PEN",
+    "description": "Soles",
+    "symbol": "S/"
+  },
+  "porcentaje_de_igv": 18,
+  "total_gravada": 10000.00,
+  "total_igv": 1800.00,
+  "total": 11800.00,
+  "status": "accepted",
+  "aceptada_por_sunat": true,
+  "is_factura": true,
+  "is_accepted": true,
+  "items": [
+    {
+      "id": 1,
+      "descripcion": "VEHÍCULO TOYOTA COROLLA 2024",
+      "cantidad": 1,
+      "valor_unitario": 10000.00,
+      "subtotal": 10000.00,
+      "igv": 1800.00,
+      "total": 11800.00,
+      "igv_type": {
+        "id": 49,
+        "description": "Gravado - Operación Onerosa"
+      }
+    }
+  ],
+  "guides": [],
+  "installments": [],
+  "created_at": "2025-10-31 10:30:00",
+  "updated_at": "2025-10-31 10:35:00"
+}
+```
 
 ---
 
@@ -464,6 +720,18 @@ El documento puede tener los siguientes estados (`status`):
 ### Crear Nota de Crédito/Débito
 1. Se llama al endpoint `POST /{id}/credit-note` o `POST /{id}/debit-note`
 2. El sistema crea un nuevo documento (NC o ND) basado en el documento original
+
+### Generar PDF
+1. Se llama al endpoint `GET /{id}/pdf`
+2. El sistema genera un PDF profesional con:
+   - Logo de la empresa
+   - Datos del documento (tipo, serie, número)
+   - Información del cliente
+   - Detalle de items
+   - Totales calculados
+   - Código QR (si está aceptado por SUNAT)
+   - Marca de agua según estado (BORRADOR, ANULADO, etc.)
+3. El PDF se descarga automáticamente con el nombre: `documento-electronico-{serie}-{numero}.pdf`
 
 ---
 

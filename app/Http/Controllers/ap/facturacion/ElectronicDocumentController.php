@@ -4,10 +4,12 @@ namespace App\Http\Controllers\ap\facturacion;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\facturacion\IndexElectronicDocumentRequest;
+use App\Http\Requests\ap\facturacion\NextCorrelativeElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\StoreElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\UpdateElectronicDocumentRequest;
 use App\Http\Services\ap\facturacion\ElectronicDocumentService;
 use App\Http\Traits\HasApiResponse;
+use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Exception;
@@ -35,19 +37,26 @@ class ElectronicDocumentController extends Controller
     }
   }
 
+  public function getNextDocumentNumber(NextCorrelativeElectronicDocumentRequest $request): JsonResponse
+  {
+    try {
+      $series = AssignSalesSeries::find($request->input('series'));
+      return $this->success($this->service->getNextDocumentNumber(
+        $request->input('document_type'),
+        $series->series
+      ));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
   /**
    * Store a newly created electronic document
    */
   public function store(StoreElectronicDocumentRequest $request): JsonResponse
   {
     try {
-      $document = $this->service->store($request->validated());
-
-      return $this->success([
-        'success' => true,
-        'message' => 'Documento electrónico creado correctamente',
-        'data' => $document
-      ]);
+      return $this->success($this->service->store($request->validated()));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
@@ -185,6 +194,24 @@ class ElectronicDocumentController extends Controller
   {
     try {
       return $this->service->getByOriginEntity($module, $entityType, $entityId);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Generate PDF for electronic document
+   */
+  public function generatePDF($id)
+  {
+    try {
+      $pdf = $this->service->generatePDF($id);
+
+      // Get document info for filename
+      $document = $this->service->find($id);
+      $filename = "documento-electronico-{$document->serie}-{$document->numero}.pdf";
+
+      return $pdf->download($filename);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
