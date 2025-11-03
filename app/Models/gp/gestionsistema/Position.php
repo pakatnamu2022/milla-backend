@@ -15,27 +15,27 @@ class Position extends BaseModel
   protected $fillable = [
     'name',
     'descripcion',
-    'status_deleted',
     'area_id',
-    'ntrabajadores',
+    'ntrabajadores', // número de trabajadores, default 0
     'banda_salarial_min',
     'banda_salarial_media',
     'banda_salarial_max',
+    'cargo_id', // cargo de liderazgo
     'tipo_onboarding_id',
-    'write_id',
     'plazo_proceso_seleccion',
-    'created_at',
-    'updated_at',
-    'mof_adjunto',
     'presupuesto',
+    'mof_adjunto',
     'fileadic1',
     'fileadic2',
     'fileadic3',
     'fileadic4',
     'fileadic5',
     'fileadic6',
-    'cargo_id',
     'perfil_id',
+    'write_id',
+    'created_at',
+    'updated_at',
+    'status_deleted', // 1 activo, 0 eliminado
   ];
 
   const filters = [

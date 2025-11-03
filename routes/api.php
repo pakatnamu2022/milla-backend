@@ -62,6 +62,7 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailC
 use App\Http\Controllers\gp\gestionhumana\personal\PersonController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
+use App\Http\Controllers\gp\gestionsistema\AreaController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
 use App\Http\Controllers\gp\gestionsistema\DepartmentController;
 use App\Http\Controllers\gp\gestionsistema\DigitalFileController;
@@ -263,6 +264,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::post('worker-assign-objectives', [WorkerController::class, 'assignObjectivesToWorkers']);
 
         Route::apiResource('worker', WorkerController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        //      AREAS
+        Route::apiResource('area', AreaController::class)->only([
           'index',
           'show',
           'store',
@@ -799,6 +809,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
+      Route::get('vehicles/{id}/pending-anticipos', [VehiclesController::class, 'getPendingAnticipos']);
+      Route::post('vehicles/{id}/regularize-anticipos', [VehiclesController::class, 'regularizeAnticipos']);
 
       // DASHBOARD - Indicadores Comerciales
       Route::group(['prefix' => 'dashboard-visit-leads'], function () {
@@ -825,16 +837,19 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     //      FACTURACIÓN ELECTRÓNICA
     Route::group(['prefix' => 'facturacion'], function () {
-      // CRUD de Documentos Electrónicos
-      Route::apiResource('electronic-documents', ElectronicDocumentController::class);
 
       // Operaciones especiales de documentos
+      Route::get('electronic-documents/nextDocumentNumber', [ElectronicDocumentController::class, 'nextDocumentNumber']);
       Route::post('electronic-documents/{id}/send', [ElectronicDocumentController::class, 'sendToNubefact']);
       Route::post('electronic-documents/{id}/query', [ElectronicDocumentController::class, 'queryFromNubefact']);
       Route::post('electronic-documents/{id}/cancel', [ElectronicDocumentController::class, 'cancelInNubefact']);
       Route::post('electronic-documents/{id}/credit-note', [ElectronicDocumentController::class, 'createCreditNote']);
       Route::post('electronic-documents/{id}/debit-note', [ElectronicDocumentController::class, 'createDebitNote']);
       Route::get('electronic-documents/by-entity/{module}/{entityType}/{entityId}', [ElectronicDocumentController::class, 'getByOriginEntity']);
+      Route::get('electronic-documents/{id}/pdf', [ElectronicDocumentController::class, 'generatePDF']);
+
+      // CRUD de Documentos Electrónicos
+      Route::apiResource('electronic-documents', ElectronicDocumentController::class);
 
       // Catálogos de facturación (con caché)
       Route::group(['prefix' => 'catalogs'], function () {

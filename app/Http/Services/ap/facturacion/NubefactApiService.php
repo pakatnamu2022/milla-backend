@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\facturacion;
 
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -30,7 +31,13 @@ class NubefactApiService
     public function generateDocument($document): array
     {
         $payload = $this->buildDocumentPayload($document);
-        $endpoint = $this->getEndpointForDocumentType($document->documentType->code);
+        $endpoint = $this->getEndpointForDocumentType($document->documentType->code_nubefact);
+
+        // Log temporal para debugging
+        Log::info('Payload enviado a Nubefact', [
+            'document_id' => $document->id,
+            'payload' => $payload,
+        ]);
 
         $logData = [
             'ap_billing_electronic_document_id' => $document->id,
@@ -49,6 +56,13 @@ class NubefactApiService
 
             $logData['response_payload'] = json_encode($responseData, JSON_UNESCAPED_UNICODE);
             $logData['http_status_code'] = $httpStatusCode;
+
+            // Log raw response for debugging
+            Log::info('Nubefact API Response', [
+                'status' => $httpStatusCode,
+                'response' => $responseData,
+                'endpoint' => $endpoint,
+            ]);
 
             if ($response->successful() && isset($responseData['aceptada_por_sunat'])) {
                 $logData['success'] = true;
@@ -94,10 +108,10 @@ class NubefactApiService
      */
     public function queryDocument($document): array
     {
-        $endpoint = $this->getQueryEndpointForDocumentType($document->documentType->code);
+        $endpoint = $this->getQueryEndpointForDocumentType($document->documentType->code_nubefact);
 
         $queryParams = [
-            'tipo' => $document->documentType->code,
+            'tipo' => $document->documentType->code_nubefact,
             'serie' => $document->serie,
             'numero' => $document->numero,
         ];
@@ -167,7 +181,7 @@ class NubefactApiService
     {
         $payload = [
             'operacion' => 'generar_anulacion',
-            'tipo_de_comprobante' => $document->documentType->code,
+            'tipo_de_comprobante' => $document->documentType->code_nubefact,
             'serie' => $document->serie,
             'numero' => $document->numero,
             'motivo' => $reason,
@@ -237,7 +251,7 @@ class NubefactApiService
     public function queryCancellation($document): array
     {
         $queryParams = [
-            'tipo' => $document->documentType->code,
+            'tipo' => $document->documentType->code_nubefact,
             'serie' => $document->serie,
             'numero' => $document->numero,
         ];
@@ -305,17 +319,17 @@ class NubefactApiService
     {
         $payload = [
             'operacion' => 'generar_comprobante',
-            'tipo_de_comprobante' => $document->documentType->code,
+            'tipo_de_comprobante' => $document->documentType->code_nubefact,
             'serie' => $document->serie,
             'numero' => $document->numero,
-            'sunat_transaction' => $document->transactionType->code,
-            'cliente_tipo_de_documento' => $document->identityDocumentType->code,
+            'sunat_transaction' => $document->transactionType->code_nubefact,
+            'cliente_tipo_de_documento' => $document->identityDocumentType->code_nubefact,
             'cliente_numero_de_documento' => $document->cliente_numero_de_documento,
             'cliente_denominacion' => $document->cliente_denominacion,
             'cliente_direccion' => $document->cliente_direccion,
             'cliente_email' => $document->cliente_email,
             'fecha_de_emision' => $document->fecha_de_emision->format('d-m-Y'),
-            'moneda' => $document->currency->code,
+            'moneda' => $document->currency->code_nubefact,
             'porcentaje_de_igv' => $document->porcentaje_de_igv,
             'total_descuento' => $document->total_descuento ?? 0,
             'total_anticipo' => $document->total_anticipo ?? 0,
@@ -397,7 +411,7 @@ class NubefactApiService
         // Detracción
         if ($document->detraccion) {
             $payload['detraccion'] = true;
-            $payload['codigo_tipo_operacion'] = $document->detractionType->code ?? null;
+            $payload['codigo_tipo_operacion'] = $document->detractionType->code_nubefact ?? null;
             $payload['detraccion_total'] = $document->detraccion_total;
             $payload['detraccion_porcentaje'] = $document->detraccion_porcentaje;
 
@@ -412,24 +426,39 @@ class NubefactApiService
         }
 
         // Campos para Notas de Crédito
-        if (in_array($document->documentType->code, ['3'])) {
+        if (in_array($document->documentType->code_nubefact, ['3'])) {
             $payload['documento_que_se_modifica_tipo'] = $document->documento_que_se_modifica_tipo;
             $payload['documento_que_se_modifica_serie'] = $document->documento_que_se_modifica_serie;
             $payload['documento_que_se_modifica_numero'] = $document->documento_que_se_modifica_numero;
-            $payload['tipo_de_nota_de_credito'] = $document->creditNoteType->code ?? null;
+            $payload['tipo_de_nota_de_credito'] = $document->creditNoteType->code_nubefact ?? null;
         }
 
         // Campos para Notas de Débito
-        if (in_array($document->documentType->code, ['4'])) {
+        if (in_array($document->documentType->code_nubefact, ['4'])) {
             $payload['documento_que_se_modifica_tipo'] = $document->documento_que_se_modifica_tipo;
             $payload['documento_que_se_modifica_serie'] = $document->documento_que_se_modifica_serie;
             $payload['documento_que_se_modifica_numero'] = $document->documento_que_se_modifica_numero;
-            $payload['tipo_de_nota_de_debito'] = $document->debitNoteType->code ?? null;
+            $payload['tipo_de_nota_de_debito'] = $document->debitNoteType->code_nubefact ?? null;
         }
 
         // Items del comprobante
         $payload['items'] = [];
+        $isAnticipo = $document->sunat_concept_transaction_type_id == SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
+
         foreach ($document->items as $index => $item) {
+            $tipoIgv = $item->igvType->code_nubefact;
+            $igvItem = $item->igv;
+
+            if ($isAnticipo) {
+                // Para anticipos (sunat_transaction = 04):
+                // - tipo_de_igv debe ser "1" (código simplificado de Nubefact para gravado)
+                // - igv SÍ se calcula normalmente (18% del subtotal)
+                // - El tributo 9996 se genera automáticamente por el sunat_transaction = 04
+                $anticipoIgvType = SunatConcepts::find(SunatConcepts::ID_IGV_ANTICIPO_GRAVADO);
+                $tipoIgv = $anticipoIgvType->code_nubefact; // "1"
+                // $igvItem mantiene su valor calculado normalmente
+            }
+
             $itemData = [
                 'unidad_de_medida' => $item->unidad_de_medida,
                 'codigo' => $item->codigo,
@@ -439,8 +468,8 @@ class NubefactApiService
                 'precio_unitario' => $item->precio_unitario,
                 'descuento' => $item->descuento ?? 0,
                 'subtotal' => $item->subtotal,
-                'tipo_de_igv' => $item->igvType->code,
-                'igv' => $item->igv,
+                'tipo_de_igv' => $tipoIgv,
+                'igv' => $igvItem,
                 'total' => $item->total,
                 'anticipo_regularizacion' => $item->anticipo_regularizacion,
             ];
@@ -498,12 +527,14 @@ class NubefactApiService
      */
     protected function getEndpointForDocumentType(string $documentTypeCode): string
     {
+        // Según documentación de Nubefact, todos los comprobantes usan el mismo endpoint
+        // El tipo de documento se especifica en el payload con 'operacion' y 'tipo_de_comprobante'
         return match ($documentTypeCode) {
-            '1' => 'factura', // Factura
-            '2' => 'boleta', // Boleta
-            '3' => 'nota_credito', // Nota de Crédito
-            '4' => 'nota_debito', // Nota de Débito
-            default => 'comprobante',
+            '1' => '', // Factura - endpoint vacío usa la URL base
+            '2' => '', // Boleta - endpoint vacío usa la URL base
+            '3' => '', // Nota de Crédito - endpoint vacío usa la URL base
+            '4' => '', // Nota de Débito - endpoint vacío usa la URL base
+            default => '',
         };
     }
 
