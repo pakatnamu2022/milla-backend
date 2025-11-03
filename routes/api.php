@@ -62,6 +62,7 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailC
 use App\Http\Controllers\gp\gestionhumana\personal\PersonController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
+use App\Http\Controllers\gp\gestionsistema\AreaController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
 use App\Http\Controllers\gp\gestionsistema\DepartmentController;
 use App\Http\Controllers\gp\gestionsistema\DigitalFileController;
@@ -263,6 +264,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::post('worker-assign-objectives', [WorkerController::class, 'assignObjectivesToWorkers']);
 
         Route::apiResource('worker', WorkerController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        //      AREAS
+        Route::apiResource('area', AreaController::class)->only([
           'index',
           'show',
           'store',

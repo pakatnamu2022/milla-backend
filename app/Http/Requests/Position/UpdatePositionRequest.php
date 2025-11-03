@@ -2,27 +2,31 @@
 
 namespace App\Http\Requests\Position;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\StoreRequest;
 
-class UpdatePositionRequest extends FormRequest
+class UpdatePositionRequest extends StoreRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return false;
-    }
-
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
-    public function rules(): array
-    {
-        return [
-            //
-        ];
-    }
+  public function rules(): array
+  {
+    return [
+      'name' => 'required|string|max:255',
+      'descripcion' => 'nullable|string',
+      'area_id' => 'nullable|integer|exists:areas,id',
+      'ntrabajadores' => 'nullable|integer|min:0',
+      'banda_salarial_min' => 'nullable|numeric|min:0',
+      'banda_salarial_media' => 'nullable|numeric|min:0',
+      'banda_salarial_max' => 'nullable|numeric|min:0',
+      'cargo_id' => 'nullable|integer|exists:cargos,id',
+      'tipo_onboarding_id' => 'nullable|integer|exists:tipo_onboarding,id',
+      'plazo_proceso_seleccion' => 'nullable|integer|min:0',
+      'presupuesto' => 'nullable|numeric|min:0',
+      'mof_adjunto' => 'sometimes|file|mimes:pdf,doc,docx|max:2048',
+      'fileadic1' => 'sometimes|file|mimes:pdf,doc,docx|max:2048',
+      'fileadic2' => 'sometimes|file|mimes:pdf,doc,docx|max:2048',
+      'fileadic3' => 'sometimes|file|mimes:pdf,doc,docx|max:2048',
+      'fileadic4' => 'sometimes|file|mimes:pdf,doc,docx|max:2048',
+      'fileadic5' => 'sometimes|file|mimes:pdf,doc,docx|max:2048',
+      'fileadic6' => 'sometimes|file|mimes:pdf,doc,docx|max:2048',
+    ];
+  }
 }
