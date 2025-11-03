@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\ApReceivingChecklistResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\common\EmailService;
 use App\Jobs\SyncShippingGuideJob;
 use App\Models\ap\comercial\ApReceivingChecklist;
 use App\Models\ap\comercial\ShippingGuides;
@@ -12,6 +13,7 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ApReceivingChecklistService extends BaseService
 {
@@ -117,7 +119,7 @@ class ApReceivingChecklistService extends BaseService
       }
 
       // Despachar el Job síncronamente para debugging
-      SyncShippingGuideJob::dispatchSync($shippingGuide->id);
+      //SyncShippingGuideJob::dispatchSync($shippingGuide->id);
 
       // Update shipping guide with note, is_received, received_by and received_date
       $shippingGuide->update([
@@ -129,10 +131,23 @@ class ApReceivingChecklistService extends BaseService
 
       // Get updated records
       $updatedRecords = ApReceivingChecklist::where('shipping_guide_id', $data['shipping_guide_id'])
+        ->with('receiving')
         ->get()
         ->map(fn($record) => new ApReceivingChecklistResource($record));
 
       DB::commit();
+
+      // Enviar correo de notificación en segundo plano (después del commit)
+      try {
+        $this->sendReceptionEmail($shippingGuide->fresh(['vehicleMovement.vehicle', 'transmitter', 'receiver', 'receivedBy']), $updatedRecords);
+      } catch (Exception $e) {
+        // No fallar la respuesta si el correo falla, solo logear
+        Log::error('Error enviando correo de recepción: ' . $e->getMessage(), [
+          'shipping_guide_id' => $shippingGuide->id,
+          'trace' => $e->getTraceAsString()
+        ]);
+      }
+
       return response()->json([
         'data' => $updatedRecords,
         'note_received' => $shippingGuide->note_received,
@@ -156,6 +171,62 @@ class ApReceivingChecklistService extends BaseService
     } catch (Exception $e) {
       DB::rollBack();
       throw new Exception($e->getMessage());
+    }
+  }
+
+  /**
+   * Envía correo de notificación de recepción de vehículo en segundo plano
+   *
+   * @param ShippingGuides $shippingGuide
+   * @param mixed $receivedItems
+   * @return void
+   */
+  private function sendReceptionEmail(ShippingGuides $shippingGuide, mixed $receivedItems): void
+  {
+    try {
+      $emailService = app(EmailService::class);
+      $vehicle = $shippingGuide->vehicleMovement->vehicle;
+
+      // Preparar items para el template
+      $items = collect($receivedItems)->map(function ($item) {
+        return [
+          'name' => $item->resource->receiving->name ?? 'N/A',
+          'quantity' => $item->resource->quantity ?? 0,
+        ];
+      })->toArray();
+
+      $emailService->queue([
+        'to' => 'wsuclupef2001@gmail.com', // TODO: Obtener correo del asesor del cliente
+        'subject' => 'Notificación de Recepción de Vehículo - ' . ($vehicle->vin ?? 'VIN no disponible'),
+        'template' => 'emails.vehicle-reception',
+        'data' => [
+          'advisor_name' => 'Wilmer Yoel Suclupe Farroñan', // TODO: Obtener del asesor real
+          'vehicle_vin' => $vehicle->vin ?? 'N/A',
+          'vehicle_model' => $vehicle->model->version ?? 'N/A',
+          'vehicle_brand' => $vehicle->model->family->brand->name ?? 'N/A',
+          'vehicle_year' => $vehicle->year ?? 'N/A',
+          'vehicle_color' => $vehicle->color->description ?? 'N/A',
+          'origin' => $shippingGuide->transmitter->address ?? 'N/A',
+          'destination' => $shippingGuide->receiver->address ?? 'N/A',
+          'received_items' => $items,
+          'note' => $shippingGuide->note_received ?? 'N/A',
+          'received_by' => $shippingGuide->receivedBy->name ?? 'Sistema',
+          'received_date' => $shippingGuide->received_date ? $shippingGuide->received_date->format('d/m/Y H:i') : now()->format('d/m/Y H:i'),
+          'shipping_guide_id' => $shippingGuide->id,
+        ]
+      ]);
+
+      Log::info('Correo de recepción encolado correctamente', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'vehicle_vin' => $vehicle->vin ?? 'N/A',
+      ]);
+
+    } catch (Exception $e) {
+      Log::error('Error al encolar correo de recepción: ' . $e->getMessage(), [
+        'shipping_guide_id' => $shippingGuide->id,
+        'trace' => $e->getTraceAsString()
+      ]);
+      throw $e;
     }
   }
 }

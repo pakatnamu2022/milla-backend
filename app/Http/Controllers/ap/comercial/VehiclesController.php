@@ -7,7 +7,7 @@ use App\Http\Requests\ap\comercial\IndexVehiclesRequest;
 use App\Http\Requests\ap\comercial\StoreVehiclesRequest;
 use App\Http\Requests\ap\comercial\UpdateVehiclesRequest;
 use App\Http\Resources\ap\comercial\VehiclesResource;
-use App\Http\Services\ap\comercial\VehicleService;
+use App\Http\Services\ap\comercial\VehiclesService;
 use App\Http\Traits\HasApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,9 +17,9 @@ class VehiclesController extends Controller
 {
   use HasApiResponse;
 
-  protected VehicleService $service;
+  protected VehiclesService $service;
 
-  public function __construct(VehicleService $service)
+  public function __construct(VehiclesService $service)
   {
     $this->service = $service;
   }
