@@ -158,7 +158,7 @@ class EvaluationPersonResultService extends BaseService
         // Fallback: usar cálculo en tiempo real si no hay dashboard
         if ($result->is_completed) {
           $completed++;
-        } elseif ($result->total_progress > 0) {
+        } elseif ($result->completion_percentage > 0) {
           $inProgress++;
         } else {
           $notStarted++;
@@ -191,7 +191,7 @@ class EvaluationPersonResultService extends BaseService
       } else {
         // Fallback
         $isCompleted = $result->is_completed;
-        $completionRate = $result->total_progress;
+        $completionRate = $result->completion_percentage * 100; // Ya es un número (0-1)
         $status = $isCompleted ? 'completed' : ($completionRate > 0 ? 'in_progress' : 'not_started');
         $statusLabel = $isCompleted ? 'Completado' : ($completionRate > 0 ? 'En Progreso' : 'Sin Iniciar');
       }
