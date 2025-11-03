@@ -2,6 +2,7 @@
 
 namespace App\Models\gp\maestroGeneral;
 
+use App\Models\ap\ApCommercialMasters;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -71,4 +72,9 @@ class SunatConcepts extends Model
     'type',
     'status',
   ];
+
+  public function documentType()
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'tribute_code');
+  }
 }
