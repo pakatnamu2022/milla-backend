@@ -10,14 +10,16 @@ class OpportunityPolicy extends BasePolicy
   /**
    * Módulo/vista para verificar permisos
    */
-  protected string $module = 'opportunity';
+  protected string $module = 'agenda';
 
   /**
-   * Determina si el usuario puede ver oportunidades de todos los usuarios
-   * Usa el permiso granular: opportunity.view_all_users
+   * Determina si el usuario puede ver asesores en la agenda
+   * Usa el permiso granular: agenda.viewAdvisors
    */
-  public function viewAllUsers(User $user): bool
+  public function viewAdvisors(User $user): bool
   {
-    return $this->hasPermission($user, 'view_all_users');
+    // Verificar permiso específico de agenda sin cambiar el módulo base
+    $permissionCode = $this->module . '.viewAdvisors';
+    return $user->hasPermission($permissionCode);
   }
 }

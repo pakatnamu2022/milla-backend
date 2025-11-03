@@ -25,7 +25,14 @@ class PermissionSeeder extends Seeder
         'description' => 'Permite ver y filtrar oportunidades de cualquier usuario (no solo las propias). Habilita el filtro por usuario en la vista de oportunidades.',
         'module' => 'opportunity',
         'policy_method' => 'viewAllUsers',
-        'type' => 'custom',
+        'is_active' => true,
+      ],
+      [
+        'code' => 'agenda.viewAdvisors',
+        'name' => 'Ver Asesores en Agenda',
+        'description' => 'Permite ver la agenda y oportunidades de todos los asesores. Habilita el filtro por asesor en la vista de agenda.',
+        'module' => 'agenda',
+        'policy_method' => 'viewAdvisors',
         'is_active' => true,
       ],
     ];
@@ -42,10 +49,11 @@ class PermissionSeeder extends Seeder
 
     }
 
-    $servicePermission = new PermissionService();
+    // $servicePermission = new PermissionService();
     // Asignar el permiso al rol de administrador 98
-    $servicePermission->syncPermissionsToRole(98, $permissionsCreated);
+    // $servicePermission->syncPermissionsToRole(98, $permissionsCreated);
 
     $this->command->info('✅ Permisos creados exitosamente: ' . count($permissions));
+    $this->command->info('⚠️  Recuerda asignar manualmente los permisos al rol correspondiente en role_permission');
   }
 }
