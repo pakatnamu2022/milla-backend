@@ -3,6 +3,7 @@
 namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonResultResource;
+use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
@@ -20,7 +21,7 @@ use Illuminate\Support\Facades\DB;
 class EvaluationPersonResultService extends BaseService
 {
   protected $exportService;
-  
+
   public function __construct(
     ExportService $exportService
   )
@@ -63,6 +64,457 @@ class EvaluationPersonResultService extends BaseService
       EvaluationPersonResultResource::class,
       ['showExtra' => [true]] // 👈 Configuración del Resource
     );
+  }
+
+  /**
+   * Dashboard del Líder - Vista consolidada del equipo
+   * Devuelve estadísticas agregadas del equipo del líder autenticado
+   * OPTIMIZADO: Usa datos precalculados de EvaluationPersonDashboard
+   */
+  public function getLeaderDashboard(Request $request, int $evaluation_id)
+  {
+    // Obtener el usuario autenticado
+    $authenticatedUser = auth()->user();
+    if (!$authenticatedUser) {
+      throw new Exception('Usuario no autenticado');
+    }
+
+    $chief_id = $authenticatedUser->partner_id;
+
+    // Validar que existe la evaluación
+    $evaluation = Evaluation::with([
+      'finalParameter.details',
+      'objectiveParameter.details',
+      'competenceParameter.details'
+    ])->findOrFail($evaluation_id);
+
+    // PASO 1: Obtener person_ids de colaboradores desde EvaluationPerson
+    $collaboratorPersonIds = EvaluationPerson::where('evaluation_id', $evaluation_id)
+      ->where('chief_id', $chief_id)
+      ->pluck('person_id')
+      ->unique()
+      ->values();
+
+    // Si no hay colaboradores, verificar qué chief_ids existen
+    if ($collaboratorPersonIds->isEmpty()) {
+      $uniqueChiefIds = EvaluationPerson::where('evaluation_id', $evaluation_id)
+        ->pluck('chief_id')
+        ->unique()
+        ->values();
+    }
+
+    // PASO 2: Obtener los resultados consolidados de EvaluationPersonResult
+    $teamResults = EvaluationPersonResult::with([
+      'person.position.hierarchicalCategory',
+      'person.position.area',
+      'person.sede',
+      'details.personCycleDetail.objective.metric',
+      'competenceDetails.competence',
+      'competenceDetails.subCompetence'
+    ])
+      ->where('evaluation_id', $evaluation_id)
+      ->whereIn('person_id', $collaboratorPersonIds)
+      ->get();
+
+    if ($teamResults->isEmpty()) {
+      return [
+        'evaluation' => new EvaluationResource($evaluation),
+        'team_summary' => [
+          'total_collaborators' => 0,
+          'completed' => 0,
+          'in_progress' => 0,
+          'not_started' => 0,
+          'completion_percentage' => 0,
+        ],
+        'message' => 'No se encontraron colaboradores en tu equipo para esta evaluación'
+      ];
+    }
+
+    // Obtener dashboards precalculados para el equipo
+    $personIds = $teamResults->pluck('person_id');
+    $dashboards = EvaluationPersonDashboard::where('evaluation_id', $evaluation_id)
+      ->whereIn('person_id', $personIds)
+      ->get()
+      ->keyBy('person_id');
+
+    // 1. RESUMEN EJECUTIVO DEL EQUIPO (usando datos precalculados)
+    $totalCollaborators = $teamResults->count();
+    $completed = 0;
+    $inProgress = 0;
+    $notStarted = 0;
+
+    foreach ($teamResults as $result) {
+      $dashboard = $dashboards->get($result->person_id);
+      if ($dashboard && $dashboard->last_calculated_at) {
+        // Usar datos precalculados del dashboard
+        if ($dashboard->is_completed) {
+          $completed++;
+        } elseif ($dashboard->completion_rate > 0) {
+          $inProgress++;
+        } else {
+          $notStarted++;
+        }
+      } else {
+        // Fallback: usar cálculo en tiempo real si no hay dashboard
+        if ($result->is_completed) {
+          $completed++;
+        } elseif ($result->total_progress > 0) {
+          $inProgress++;
+        } else {
+          $notStarted++;
+        }
+      }
+    }
+
+    $teamSummary = [
+      'total_collaborators' => $totalCollaborators,
+      'completed' => $completed,
+      'in_progress' => $inProgress,
+      'not_started' => $notStarted,
+      'completion_percentage' => round(($completed / $totalCollaborators) * 100, 2),
+      'progress_percentage' => round((($completed + $inProgress) / $totalCollaborators) * 100, 2),
+      'average_result' => round($teamResults->where('result', '>', 0)->avg('result'), 2),
+      'average_objectives' => round($teamResults->where('objectivesResult', '>', 0)->avg('objectivesResult'), 2),
+      'average_competences' => round($teamResults->where('competencesResult', '>', 0)->avg('competencesResult'), 2),
+    ];
+
+    // 2. LISTA DE COLABORADORES CON ESTADO (usando dashboards precalculados)
+    $collaboratorsList = $teamResults->map(function ($result) use ($dashboards) {
+      $dashboard = $dashboards->get($result->person_id);
+
+      // Determinar estado usando dashboard precalculado si está disponible
+      if ($dashboard && $dashboard->last_calculated_at) {
+        $isCompleted = $dashboard->is_completed;
+        $completionRate = $dashboard->completion_rate * 100;
+        $status = $dashboard->progress_status;
+        $statusLabel = $this->getStatusLabel($status);
+      } else {
+        // Fallback
+        $isCompleted = $result->is_completed;
+        $completionRate = $result->total_progress;
+        $status = $isCompleted ? 'completed' : ($completionRate > 0 ? 'in_progress' : 'not_started');
+        $statusLabel = $isCompleted ? 'Completado' : ($completionRate > 0 ? 'En Progreso' : 'Sin Iniciar');
+      }
+
+      return [
+        'id' => $result->id,
+        'person_id' => $result->person_id,
+        'name' => $result->name,
+        'dni' => $result->dni,
+        'position' => $result->position,
+        'area' => $result->area,
+        'sede' => $result->sede,
+        'hierarchical_category' => $result->hierarchical_category,
+        'result' => round($result->result, 2),
+        'objectives_result' => round($result->objectivesResult, 2),
+        'competences_result' => round($result->competencesResult, 2),
+        'completion_rate' => round($completionRate, 2),
+        'is_completed' => $isCompleted,
+        'status' => $status,
+        'status_label' => $statusLabel,
+        'last_calculated_at' => $dashboard?->last_calculated_at,
+      ];
+    });
+
+    // 3. DISTRIBUCIÓN DE CALIFICACIONES
+    $finalParameter = $evaluation->finalParameter;
+    $distribution = [];
+
+    foreach ($finalParameter->details as $range) {
+      $count = $teamResults->filter(function ($result) use ($range) {
+        return $result->result >= $range->from && $result->result < $range->to;
+      })->count();
+
+      $distribution[] = [
+        'label' => $range->label,
+        'from' => $range->from,
+        'to' => $range->to,
+        'count' => $count,
+        'percentage' => $totalCollaborators > 0 ? round(($count / $totalCollaborators) * 100, 2) : 0,
+      ];
+    }
+
+    // 4. BRECHAS DE COMPETENCIAS DEL EQUIPO (usando dashboards precalculados)
+    $competenceGaps = $this->calculateTeamCompetenceGapsFromDashboards($teamResults, $dashboards, $evaluation);
+
+    // 5. OBJETIVOS DEL EQUIPO (Agregado por objetivo)
+    $objectivesProgress = $this->calculateTeamObjectivesProgress($teamResults);
+
+    // 6. ALERTAS Y ACCIONES PENDIENTES
+    $alerts = [
+      'not_started_count' => $notStarted,
+      'overdue_count' => $teamResults->filter(function ($result) use ($evaluation, $dashboards) {
+        $dashboard = $dashboards->get($result->person_id);
+        $isCompleted = $dashboard && $dashboard->last_calculated_at
+          ? $dashboard->is_completed
+          : $result->is_completed;
+        return !$isCompleted && now() > $evaluation->end_date;
+      })->count(),
+      'low_performance_count' => $teamResults->where('result', '>', 0)
+        ->where('result', '<', 70)->count(),
+      'evaluation_end_date' => $evaluation->end_date,
+      'days_remaining' => now() < $evaluation->end_date ? now()->diffInDays($evaluation->end_date) : 0,
+      'is_active' => $evaluation->status == 1,
+    ];
+
+    // 7. MÉTRICAS POR ÁREA (Si hay múltiples áreas en el equipo)
+    $areaMetrics = $teamResults->groupBy('area')->map(function ($areaGroup, $areaName) use ($dashboards) {
+      $completedCount = $areaGroup->filter(function ($result) use ($dashboards) {
+        $dashboard = $dashboards->get($result->person_id);
+        return $dashboard && $dashboard->last_calculated_at
+          ? $dashboard->is_completed
+          : $result->is_completed;
+      })->count();
+
+      return [
+        'area' => $areaName ?? 'Sin área',
+        'total' => $areaGroup->count(),
+        'average_result' => round($areaGroup->where('result', '>', 0)->avg('result'), 2),
+        'completed' => $completedCount,
+      ];
+    })->values();
+
+    // 8. MÉTRICAS POR CATEGORÍA JERÁRQUICA
+    $categoryMetrics = $teamResults->groupBy('hierarchical_category')->map(function ($categoryGroup, $categoryName) use ($dashboards) {
+      $completedCount = $categoryGroup->filter(function ($result) use ($dashboards) {
+        $dashboard = $dashboards->get($result->person_id);
+        return $dashboard && $dashboard->last_calculated_at
+          ? $dashboard->is_completed
+          : $result->is_completed;
+      })->count();
+
+      return [
+        'category' => $categoryName ?? 'Sin categoría',
+        'total' => $categoryGroup->count(),
+        'average_result' => round($categoryGroup->where('result', '>', 0)->avg('result'), 2),
+        'completed' => $completedCount,
+      ];
+    })->values();
+
+    return [
+      'evaluation' => new EvaluationResource($evaluation),
+      'team_summary' => $teamSummary,
+      'collaborators' => $collaboratorsList,
+      'distribution' => $distribution,
+      'competence_gaps' => $competenceGaps,
+      'objectives_progress' => $objectivesProgress,
+      'alerts' => $alerts,
+      'area_metrics' => $areaMetrics,
+      'category_metrics' => $categoryMetrics,
+    ];
+  }
+
+  /**
+   * Obtener etiqueta de estado en español
+   */
+  private function getStatusLabel($status)
+  {
+    $labels = [
+      'completado' => 'Completado',
+      'en_progreso' => 'En Progreso',
+      'sin_iniciar' => 'Sin Iniciar',
+      'completed' => 'Completado',
+      'in_progress' => 'En Progreso',
+      'not_started' => 'Sin Iniciar',
+    ];
+
+    return $labels[$status] ?? 'Sin Iniciar';
+  }
+
+  /**
+   * Calcula las brechas de competencias del equipo usando dashboards precalculados
+   */
+  private function calculateTeamCompetenceGapsFromDashboards($teamResults, $dashboards, $evaluation)
+  {
+    $competenceScores = [];
+
+    foreach ($teamResults as $result) {
+      $dashboard = $dashboards->get($result->person_id);
+
+      // Si hay dashboard precalculado con grouped_competences, usarlo
+      if ($dashboard && $dashboard->last_calculated_at && $dashboard->grouped_competences) {
+        foreach ($dashboard->grouped_competences as $competence) {
+          $competenceId = $competence['competence_id'];
+          $competenceName = $competence['competence_name'];
+          $averageResult = $competence['average_result'] ?? 0;
+
+          if (!isset($competenceScores[$competenceId])) {
+            $competenceScores[$competenceId] = [
+              'competence_id' => $competenceId,
+              'competence_name' => $competenceName,
+              'total_score' => 0,
+              'count' => 0,
+            ];
+          }
+
+          if ($averageResult > 0) {
+            $competenceScores[$competenceId]['total_score'] += $averageResult;
+            $competenceScores[$competenceId]['count']++;
+          }
+        }
+      } else {
+        // Fallback: usar competenceDetails directamente
+        foreach ($result->competenceDetails as $detail) {
+          $competenceId = $detail->competence_id;
+          $competenceName = $detail->competence;
+
+          if (!isset($competenceScores[$competenceId])) {
+            $competenceScores[$competenceId] = [
+              'competence_id' => $competenceId,
+              'competence_name' => $competenceName,
+              'total_score' => 0,
+              'count' => 0,
+            ];
+          }
+
+          if ($detail->result > 0) {
+            $competenceScores[$competenceId]['total_score'] += $detail->result;
+            $competenceScores[$competenceId]['count']++;
+          }
+        }
+      }
+    }
+
+    // Calcular promedios y ordenar
+    $competenceGaps = collect($competenceScores)->map(function ($comp) use ($evaluation) {
+      $average = $comp['count'] > 0 ? round($comp['total_score'] / $comp['count'], 2) : 0;
+      $maxScore = $evaluation->competenceParameter->details->last()->to ?? 100;
+
+      return [
+        'competence_id' => $comp['competence_id'],
+        'competence_name' => $comp['competence_name'],
+        'average_score' => $average,
+        'max_score' => $maxScore,
+        'gap_percentage' => $maxScore > 0 ? round((($maxScore - $average) / $maxScore) * 100, 2) : 0,
+        'evaluations_count' => $comp['count'],
+        'status' => $average >= 80 ? 'strong' : ($average >= 70 ? 'adequate' : 'needs_improvement'),
+      ];
+    })->sortBy('average_score')->values()->toArray();
+
+    return $competenceGaps;
+  }
+
+  /**
+   * Calcula las brechas de competencias del equipo (competencias con menor puntuación)
+   */
+  private function calculateTeamCompetenceGaps($teamResults, $evaluation)
+  {
+    $competenceScores = [];
+
+    foreach ($teamResults as $result) {
+      foreach ($result->competenceDetails as $detail) {
+        $competenceId = $detail->competence_id;
+        $competenceName = $detail->competence;
+
+        if (!isset($competenceScores[$competenceId])) {
+          $competenceScores[$competenceId] = [
+            'competence_id' => $competenceId,
+            'competence_name' => $competenceName,
+            'total_score' => 0,
+            'count' => 0,
+          ];
+        }
+
+        if ($detail->result > 0) {
+          $competenceScores[$competenceId]['total_score'] += $detail->result;
+          $competenceScores[$competenceId]['count']++;
+        }
+      }
+    }
+
+    // Calcular promedios y ordenar
+    $competenceGaps = collect($competenceScores)->map(function ($comp) use ($evaluation) {
+      $average = $comp['count'] > 0 ? round($comp['total_score'] / $comp['count'], 2) : 0;
+      $maxScore = $evaluation->competenceParameter->details->last()->to ?? 100;
+
+      return [
+        'competence_id' => $comp['competence_id'],
+        'competence_name' => $comp['competence_name'],
+        'average_score' => $average,
+        'max_score' => $maxScore,
+        'gap_percentage' => $maxScore > 0 ? round((($maxScore - $average) / $maxScore) * 100, 2) : 0,
+        'evaluations_count' => $comp['count'],
+        'status' => $average >= 80 ? 'strong' : ($average >= 70 ? 'adequate' : 'needs_improvement'),
+      ];
+    })->sortBy('average_score')->values()->toArray();
+
+    return $competenceGaps;
+  }
+
+  /**
+   * Calcula el progreso de objetivos del equipo (agregado por objetivo)
+   */
+  private function calculateTeamObjectivesProgress($teamResults)
+  {
+    $objectivesData = [];
+
+    foreach ($teamResults as $result) {
+      foreach ($result->details as $detail) {
+        if (!$detail->personCycleDetail || !$detail->personCycleDetail->objective) {
+          continue;
+        }
+
+        $objective = $detail->personCycleDetail->objective;
+        $objectiveId = $objective->id;
+        $objectiveName = $objective->name;
+
+        if (!isset($objectivesData[$objectiveId])) {
+          $objectivesData[$objectiveId] = [
+            'objective_id' => $objectiveId,
+            'objective_name' => $objectiveName,
+            'metric' => $objective->metric->name ?? 'N/A',
+            'total_evaluations' => 0,
+            'completed_evaluations' => 0,
+            'total_compliance' => 0,
+            'total_result' => 0,
+          ];
+        }
+
+        $objectivesData[$objectiveId]['total_evaluations']++;
+
+        if ($detail->wasEvaluated) {
+          $objectivesData[$objectiveId]['completed_evaluations']++;
+          $objectivesData[$objectiveId]['total_compliance'] += $detail->compliance ?? 0;
+          $objectivesData[$objectiveId]['total_result'] += $detail->result ?? 0;
+        }
+      }
+    }
+
+    // Calcular promedios
+    $objectivesProgress = collect($objectivesData)->map(function ($obj) {
+      $completedCount = $obj['completed_evaluations'];
+
+      return [
+        'objective_id' => $obj['objective_id'],
+        'objective_name' => $obj['objective_name'],
+        'metric' => $obj['metric'],
+        'total_evaluations' => $obj['total_evaluations'],
+        'completed_evaluations' => $completedCount,
+        'completion_rate' => $obj['total_evaluations'] > 0 ?
+          round(($completedCount / $obj['total_evaluations']) * 100, 2) : 0,
+        'average_compliance' => $completedCount > 0 ?
+          round($obj['total_compliance'] / $completedCount, 2) : 0,
+        'average_result' => $completedCount > 0 ?
+          round($obj['total_result'] / $completedCount, 2) : 0,
+        'status' => $this->getObjectiveStatus($completedCount, $obj['total_evaluations']),
+      ];
+    })->sortByDesc('average_result')->values()->toArray();
+
+    return $objectivesProgress;
+  }
+
+  /**
+   * Determina el estado de un objetivo basado en su tasa de cumplimiento
+   */
+  private function getObjectiveStatus($completed, $total)
+  {
+    if ($total == 0) return 'not_applicable';
+
+    $rate = ($completed / $total) * 100;
+
+    if ($rate >= 80) return 'on_track';
+    if ($rate >= 50) return 'at_risk';
+    return 'behind';
   }
 
   public function getByPersonAndEvaluation($data)

@@ -73,6 +73,10 @@ class SunatConcepts extends Model
     'status',
   ];
 
+  const GUIA_REMISION_REMITENTE = 68;
+
+  const RUC_CODE_NUBEFACT = 6;
+
   public function documentType()
   {
     return $this->belongsTo(ApCommercialMasters::class, 'tribute_code');

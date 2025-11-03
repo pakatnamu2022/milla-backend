@@ -37,6 +37,19 @@ class EvaluationPersonResultController extends Controller
     }
   }
 
+  /**
+   * Dashboard del Líder - Vista consolidada del equipo
+   * GET /api/gp/gh/performanceEvaluation/leader-dashboard/{evaluation_id}
+   */
+  public function getLeaderDashboard(Request $request, int $evaluation_id)
+  {
+    try {
+      return $this->success($this->service->getLeaderDashboard($request, $evaluation_id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function getByPersonAndEvaluation(PersonEvaluationRequest $request)
   {
     try {

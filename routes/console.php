@@ -54,6 +54,13 @@ Schedule::command('po:verify-migration --all')
   ->withoutOverlapping()
   ->runInBackground();
 
+// Verificar y migrar guías de remisión pendientes
+Schedule::command('shipping-guide:verify-migration --all')
+  ->everyThirtySeconds()
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
 // Sincronizar invoice_dynamics desde Dynamics
 Schedule::command('po:sync-invoice-dynamics --all')
   ->everyThirtySeconds()

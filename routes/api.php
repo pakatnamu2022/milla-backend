@@ -37,6 +37,7 @@ use App\Http\Controllers\ap\maestroGeneral\WarehouseController;
 use App\Http\Controllers\ap\postventa\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\facturacion\BillingCatalogController;
 use App\Http\Controllers\ap\facturacion\ElectronicDocumentController;
+use App\Http\Controllers\Api\EvaluationNotificationController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Dashboard\ap\comercial\DashboardComercialController;
@@ -413,10 +414,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
         //        EVALUATION NOTIFICATIONS
         Route::group(['prefix' => 'evaluation/notifications'], function () {
-          Route::post('/send-reminders', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'sendReminders']);
-          Route::post('/send-hr-summary', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'sendHrSummary']);
-          Route::get('/pending-status', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'getPendingStatus']);
-          Route::post('/test-reminder', [App\Http\Controllers\Api\EvaluationNotificationController::class, 'testReminder']);
+          Route::post('/send-reminders', [EvaluationNotificationController::class, 'sendReminders']);
+          Route::post('/send-hr-summary', [EvaluationNotificationController::class, 'sendHrSummary']);
+          Route::get('/pending-status', [EvaluationNotificationController::class, 'getPendingStatus']);
+          Route::post('/test-reminder', [EvaluationNotificationController::class, 'testReminder']);
         });
 
         Route::apiResource('evaluation', EvaluationController::class)->only([
@@ -430,7 +431,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::post('/evaluation/{evaluation}/competences', [EvaluationController::class, 'createCompetences'])
           ->name('evaluation.competences.create');
 
-        //        EVALUATION PERSON
+        // EVALUATION PERSON
         Route::apiResource('evaluationPerson', EvaluationPersonController::class)->only([
           'index',
           'show',
@@ -439,10 +440,11 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
           'destroy'
         ]);
 
-        //        PERSON RESULT
+        // PERSON RESULT
         Route::get('personResult/export', [EvaluationPersonResultController::class, 'export']);
         Route::get('personResult/getByPersonAndEvaluation', [EvaluationPersonResultController::class, 'getByPersonAndEvaluation']);
         Route::get('personResult/getTeamByChief/{chief}', [EvaluationPersonResultController::class, 'getTeamByChief']);
+        Route::get('leader-dashboard/{evaluation_id}', [EvaluationPersonResultController::class, 'getLeaderDashboard']);
         Route::post('personResult/regenerate/{personId}/{evaluationId}', [EvaluationPersonResultController::class, 'regenerate']);
         Route::apiResource('personResult', EvaluationPersonResultController::class)->only([
           'index',
@@ -772,6 +774,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('shippingGuides/{id}/cancel', [ShippingGuidesController::class, 'cancel']);
       Route::post('shippingGuides/{id}/send-to-nubefact', [ShippingGuidesController::class, 'sendToNubefact']);
       Route::post('shippingGuides/{id}/query-from-nubefact', [ShippingGuidesController::class, 'queryFromNubefact']);
+      Route::get('shippingGuides/{id}/logs', [ShippingGuidesController::class, 'logs']);
+      Route::get('shippingGuides/{id}/history', [ShippingGuidesController::class, 'history']);
       Route::apiResource('shippingGuides', ShippingGuidesController::class)->only([
         'index',
         'show',
@@ -787,6 +791,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::delete('receivingChecklist/byShippingGuide/{shippingGuideId}', [ApReceivingChecklistController::class, 'destroyByShippingGuide']);
 
       // Vehicles
+      Route::get('vehicles/costs', [VehiclesController::class, 'getCostsData']);
       Route::apiResource('vehicles', VehiclesController::class)->only([
         'index',
         'show',

@@ -92,6 +92,21 @@ class VehiclesController extends Controller
   }
 
   /**
+   * Display all vehicles with costs data (without movements)
+   *
+   * @param Request $request
+   * @return JsonResponse
+   */
+  public function getCostsData(Request $request): JsonResponse
+  {
+    try {
+      return $this->service->listWithCosts($request);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
    * Update the specified vehicle
    *
    * @param UpdateVehiclesRequest $request

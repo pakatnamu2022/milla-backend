@@ -121,4 +121,127 @@ class ShippingGuidesController extends Controller
       ], 400);
     }
   }
+
+  /**
+   * Get migration logs for a specific shipping guide
+   */
+  public function logs(int $id)
+  {
+    try {
+      $shippingGuide = ShippingGuides::find($id);
+
+      if (!$shippingGuide) {
+        return response()->json([
+          'success' => false,
+          'message' => 'Guía de remisión no encontrada',
+        ], 404);
+      }
+
+      $logs = \App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $id)
+        ->orderBy('id')
+        ->get();
+
+      return response()->json([
+        'success' => true,
+        'data' => [
+          'shipping_guide' => [
+            'id' => $shippingGuide->id,
+            'document_number' => $shippingGuide->document_number,
+            'correlative' => $shippingGuide->correlative,
+            'migration_status' => $shippingGuide->migration_status,
+            'migrated_at' => $shippingGuide->migrated_at?->format('Y-m-d H:i:s'),
+            'created_at' => $shippingGuide->created_at->format('Y-m-d H:i:s'),
+          ],
+          'logs' => \App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource::collection($logs),
+        ],
+      ]);
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
+    }
+  }
+
+  /**
+   * Get detailed migration history for a shipping guide
+   */
+  public function history(int $id)
+  {
+    try {
+      $shippingGuide = ShippingGuides::find($id);
+
+      if (!$shippingGuide) {
+        return response()->json([
+          'success' => false,
+          'message' => 'Guía de remisión no encontrada',
+        ], 404);
+      }
+
+      $logs = \App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $id)
+        ->orderBy('created_at')
+        ->orderBy('id')
+        ->get();
+
+      // Crear timeline de eventos
+      $timeline = $logs->map(function ($log) {
+        $events = [];
+
+        // Evento de creación
+        $events[] = [
+          'timestamp' => $log->created_at->format('Y-m-d H:i:s'),
+          'event' => 'created',
+          'description' => "Paso '{$log->step}' creado",
+          'status' => 'pending',
+        ];
+
+        // Eventos de intentos
+        if ($log->last_attempt_at) {
+          $events[] = [
+            'timestamp' => $log->last_attempt_at->format('Y-m-d H:i:s'),
+            'event' => 'attempt',
+            'description' => "Intento #{$log->attempts} de sincronización",
+            'status' => $log->status,
+            'error' => $log->error_message,
+          ];
+        }
+
+        // Evento de completado
+        if ($log->completed_at) {
+          $events[] = [
+            'timestamp' => $log->completed_at->format('Y-m-d H:i:s'),
+            'event' => 'completed',
+            'description' => "Paso completado exitosamente",
+            'status' => 'completed',
+            'proceso_estado' => $log->proceso_estado,
+          ];
+        }
+
+        return [
+          'step' => $log->step,
+          'step_name' => (new \App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource($log))->step_name,
+          'events' => $events,
+        ];
+      });
+
+      return response()->json([
+        'success' => true,
+        'data' => [
+          'shipping_guide' => [
+            'id' => $shippingGuide->id,
+            'document_number' => $shippingGuide->document_number,
+            'correlative' => $shippingGuide->correlative,
+            'migration_status' => $shippingGuide->migration_status,
+            'migrated_at' => $shippingGuide->migrated_at?->format('Y-m-d H:i:s'),
+          ],
+          'timeline' => $timeline,
+        ],
+      ]);
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
+    }
+  }
 }

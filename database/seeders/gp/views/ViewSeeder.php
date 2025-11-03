@@ -43,6 +43,14 @@ class ViewSeeder extends Seeder
         'ruta' => '-', 'icon' => 'ReceiptText', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
       ['descripcion' => 'Vehículos', 'submodule' => false, 'route' => 'vehiculos',
         'ruta' => '-', 'icon' => 'Car', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
+      ['descripcion' => 'Solicitudes y Cotizaciones', 'submodule' => false, 'route' => 'solicitudes-cotizaciones',
+        'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
+      ['descripcion' => 'Dashboard de Leads', 'submodule' => false, 'route' => 'dashboard-visitas-leads',
+        'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
+      ['descripcion' => 'Envios y Recepciones', 'submodule' => false, 'route' => 'envios-recepciones',
+        'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
+      ['descripcion' => 'Motivos Descarte Leads', 'submodule' => false, 'route' => 'motivos-descarte',
+        'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
     ];
 
 //    $DELETE = [
