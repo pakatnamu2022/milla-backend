@@ -20,13 +20,9 @@ class UpdatePositionRequest extends StoreRequest
       'tipo_onboarding_id' => 'nullable|integer|exists:tipo_onboarding,id',
       'plazo_proceso_seleccion' => 'nullable|integer|min:0',
       'presupuesto' => 'nullable|numeric|min:0',
-      'mof_adjunto' => 'sometimes|file|mimes:pdf,doc,docx|max:2048',
-      'fileadic1' => 'sometimes|file|mimes:pdf,doc,docx|max:2048',
-      'fileadic2' => 'sometimes|file|mimes:pdf,doc,docx|max:2048',
-      'fileadic3' => 'sometimes|file|mimes:pdf,doc,docx|max:2048',
-      'fileadic4' => 'sometimes|file|mimes:pdf,doc,docx|max:2048',
-      'fileadic5' => 'sometimes|file|mimes:pdf,doc,docx|max:2048',
-      'fileadic6' => 'sometimes|file|mimes:pdf,doc,docx|max:2048',
+      'mof_adjunto' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
+      'files' => 'nullable|array|max:6',
+      'files.*' => 'file|mimes:pdf,doc,docx|max:5120',
     ];
   }
 }
