@@ -3,6 +3,7 @@
 namespace App\Models\gp\maestroGeneral;
 
 use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -80,5 +81,10 @@ class SunatConcepts extends Model
   public function documentType()
   {
     return $this->belongsTo(ApCommercialMasters::class, 'tribute_code');
+  }
+
+  public function currencyType()
+  {
+    return $this->belongsTo(TypeCurrency::class, 'tribute_code');
   }
 }
