@@ -28,19 +28,19 @@ class PositionService extends BaseService
 
   public function find($id)
   {
-    $Position = Position::where('id', $id)
+    $position = Position::where('id', $id)
       ->where('status_deleted', 1)->first();
-    if (!$Position) {
-      throw new Exception('Vista no encontrada');
+    if (!$position) {
+      throw new Exception('Posición no encontrada');
     }
-    return $Position;
+    return $position;
   }
 
   public function store($data)
   {
     $data = $this->enrichPositionData($data);
-    $Position = Position::create($data);
-    return new PositionResource($Position);
+    $position = Position::create($data);
+    return new PositionResource($position);
   }
 
   public function show($id)
@@ -50,17 +50,17 @@ class PositionService extends BaseService
 
   public function update($data)
   {
-    $Position = $this->find($data['id']);
+    $position = $this->find($data['id']);
     $data = $this->enrichPositionData($data);
-    $Position->update($data);
-    return new PositionResource($Position);
+    $position->update($data);
+    return new PositionResource($position);
   }
 
   public function destroy($id)
   {
-    $Position = $this->find($id);
-    $Position->status_deleted = 0;
-    $Position->save();
-    return response()->json(['message' => 'Vista eliminada correctamente']);
+    $position = $this->find($id);
+    $position->status_deleted = 0;
+    $position->save();
+    return response()->json(['message' => 'Posición eliminada correctamente']);
   }
 }
