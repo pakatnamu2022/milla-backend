@@ -3,10 +3,8 @@
 namespace App\Http\Services\gp\gestionsistema;
 
 use App\Http\Resources\gp\gestionsistema\PositionResource;
-use App\Http\Resources\gp\gestionsistema\ViewResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionsistema\Position;
-use App\Models\gp\gestionsistema\View;
 use Exception;
 use Illuminate\Http\Request;
 
@@ -23,46 +21,46 @@ class PositionService extends BaseService
     );
   }
 
-  private function enrichViewData(array $data): array
+  private function enrichPositionData(array $data): array
   {
     return $data;
   }
 
   public function find($id)
   {
-    $view = Position::where('id', $id)
+    $Position = Position::where('id', $id)
       ->where('status_deleted', 1)->first();
-    if (!$view) {
+    if (!$Position) {
       throw new Exception('Vista no encontrada');
     }
-    return $view;
+    return $Position;
   }
 
   public function store($data)
   {
-    $data = $this->enrichViewData($data);
-    $view = View::create($data);
-    return new ViewResource($view);
+    $data = $this->enrichPositionData($data);
+    $Position = Position::create($data);
+    return new PositionResource($Position);
   }
 
   public function show($id)
   {
-    return new ViewResource($this->find($id));
+    return new PositionResource($this->find($id));
   }
 
   public function update($data)
   {
-    $view = $this->find($data['id']);
-    $data = $this->enrichViewData($data);
-    $view->update($data);
-    return new ViewResource($view);
+    $Position = $this->find($data['id']);
+    $data = $this->enrichPositionData($data);
+    $Position->update($data);
+    return new PositionResource($Position);
   }
 
   public function destroy($id)
   {
-    $view = $this->find($id);
-    $view->status_deleted = 0;
-    $view->save();
+    $Position = $this->find($id);
+    $Position->status_deleted = 0;
+    $Position->save();
     return response()->json(['message' => 'Vista eliminada correctamente']);
   }
 }
