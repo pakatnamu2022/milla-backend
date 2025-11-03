@@ -6,6 +6,33 @@ use App\Http\Requests\StoreRequest;
 
 class UpdatePositionRequest extends StoreRequest
 {
+  protected function prepareForValidation()
+  {
+    $input = $this->all();
+
+    // Remover mof_adjunto si no es un archivo válido
+    if (isset($input['mof_adjunto']) && !$this->file('mof_adjunto')) {
+      unset($input['mof_adjunto']);
+    }
+
+    // Limpiar el array de files, removiendo elementos que no sean archivos válidos
+    if (isset($input['files']) && is_array($input['files'])) {
+      $input['files'] = array_filter($input['files'], function($file) {
+        return $file instanceof \Illuminate\Http\UploadedFile;
+      });
+
+      // Si el array quedó vacío, removerlo completamente
+      if (empty($input['files'])) {
+        unset($input['files']);
+      }
+    } elseif (isset($input['files'])) {
+      // Si files no es un array, removerlo
+      unset($input['files']);
+    }
+
+    $this->replace($input);
+  }
+
   public function rules(): array
   {
     return [
