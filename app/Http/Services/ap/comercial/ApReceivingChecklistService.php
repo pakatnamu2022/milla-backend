@@ -215,12 +215,6 @@ class ApReceivingChecklistService extends BaseService
           'shipping_guide_id' => $shippingGuide->id,
         ]
       ]);
-
-      Log::info('Correo de recepción encolado correctamente', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'vehicle_vin' => $vehicle->vin ?? 'N/A',
-      ]);
-
     } catch (Exception $e) {
       Log::error('Error al encolar correo de recepción: ' . $e->getMessage(), [
         'shipping_guide_id' => $shippingGuide->id,
