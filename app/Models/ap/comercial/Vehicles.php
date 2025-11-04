@@ -38,9 +38,9 @@ class Vehicles extends Model
   ];
 
   public static array $filters = [
-    'search' => ['vin', 'engine_number', 'year'],
+    'search' => ['vin', 'engine_number', 'year', 'ap_vehicle_status_id'],
     'ap_models_vn_id' => '=',
-    'ap_vehicle_status_id' => '=',
+    'ap_vehicle_status_id' => 'in',
     'vehicle_color_id' => '=',
     'engine_type_id' => '=',
     'warehouse_physical_id' => '=',
@@ -119,6 +119,22 @@ class Vehicles extends Model
       'vehicle_movement_id',      // Foreign key en shipping_guides que apunta a vehicle_movement
       'id',                       // Local key en vehicles
       'id'                        // Local key en vehicle_movement
+    );
+  }
+
+  /**
+   * Obtiene todos los documentos electrónicos (facturas, boletas, etc.) a través de los movimientos del vehículo
+   * Un vehículo puede tener múltiples movimientos y cada movimiento puede tener documentos electrónicos
+   */
+  public function electronicDocuments(): HasManyThrough
+  {
+    return $this->hasManyThrough(
+      \App\Models\ap\facturacion\ElectronicDocument::class, // Modelo final
+      VehicleMovement::class,                                // Modelo intermedio
+      'ap_vehicle_id',                                       // Foreign key en vehicle_movement que apunta a vehicles
+      'ap_vehicle_movement_id',                              // Foreign key en electronic_documents que apunta a vehicle_movement
+      'id',                                                  // Local key en vehicles
+      'id'                                                   // Local key en vehicle_movement
     );
   }
 }

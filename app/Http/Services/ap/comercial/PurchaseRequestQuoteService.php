@@ -15,6 +15,7 @@ use App\Models\gp\maestroGeneral\ExchangeRate;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
 
 class PurchaseRequestQuoteService extends BaseService implements BaseServiceInterface
@@ -129,6 +130,22 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       return new PurchaseRequestQuoteResource($purchaseRequestQuote->fresh());
     });
   }
+
+
+  public function assignVehicle(mixed $data): JsonResource
+  {
+    DB::beginTransaction();
+    try {
+      $purchaseRequestQuote = $this->find($data['id']);
+      $purchaseRequestQuote->update($data);
+      DB::commit();
+      return PurchaseRequestQuoteResource::make($purchaseRequestQuote);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
 
   public function destroy($id)
   {

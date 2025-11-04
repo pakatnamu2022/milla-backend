@@ -3,11 +3,16 @@
 namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ap\comercial\AssignVehicleToQuoteRequest;
 use App\Http\Requests\ap\comercial\IndexPurchaseRequestQuoteRequest;
 use App\Http\Requests\ap\comercial\StorePurchaseRequestQuoteRequest;
 use App\Http\Requests\ap\comercial\UpdatePurchaseRequestQuoteRequest;
+use App\Http\Requests\ap\comercial\UpdateVehiclesRequest;
 use App\Http\Services\ap\comercial\PurchaseRequestQuoteService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Throwable;
+use function array_merge;
 
 class PurchaseRequestQuoteController extends Controller
 {
@@ -52,6 +57,16 @@ class PurchaseRequestQuoteController extends Controller
       $data['id'] = $id;
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function assignVehicle(AssignVehicleToQuoteRequest $request, int $id): JsonResponse
+  {
+    try {
+      $data = array_merge($request->validated(), ['id' => $id]);
+      return $this->success($this->service->assignVehicle($data));
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
