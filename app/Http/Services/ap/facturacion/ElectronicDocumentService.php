@@ -6,6 +6,7 @@ use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
+use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -18,7 +19,7 @@ use Illuminate\Support\Facades\Log;
 class ElectronicDocumentService extends BaseService implements BaseServiceInterface
 {
   protected NubefactApiService $nubefactService;
-  
+
   /**
    * @var int
    */
@@ -121,9 +122,18 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
        */
       $exchangeRate = (new ExchangeRateService())->getCurrentUSDRate();
 
-      /**
-       * Si viene con el campo
-       */
+      $client = BusinessPartners::find($data['client_id']);
+      $documentType = SunatConcepts::where('tribute_code', $client->document_type_id)
+        ->where('type', SunatConcepts::TYPE_DOCUMENT)
+        ->first();
+
+      throw new Exception($documentType);
+      $data['sunat_concept_identity_document_type_id'] = $documentType->id;
+      $data['cliente_numero_de_documento'] = $client->num_doc;
+      $data['cliente_denominacion'] = $client->full_name;
+      $data['cliente_direccion'] = $client->direction;
+      $data['cliente_email'] = $client->email;
+
 
       /**
        * Crear el documento principal

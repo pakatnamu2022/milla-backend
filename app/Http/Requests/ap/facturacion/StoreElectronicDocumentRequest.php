@@ -210,12 +210,12 @@ class StoreElectronicDocumentRequest extends StoreRequest
 
       // Datos del cliente
       'client_id' => Rule::exists('business_partners', 'id')
-        ->whereNull('deleted_at')->where('status', 1),
-      'sunat_concept_identity_document_type_id' => 'required|integer|exists:sunat_concepts,id',
-      'cliente_numero_de_documento' => 'required|string|max:15',
-      'cliente_denominacion' => 'required|string|max:100',
-      'cliente_direccion' => 'nullable|string|max:250',
-      'cliente_email' => 'nullable|email|max:250',
+        ->whereNull('deleted_at')->where('status_ap', 1),
+//      'sunat_concept_identity_document_type_id' => 'required|integer|exists:sunat_concepts,id',
+//      'cliente_numero_de_documento' => 'required|string|max:15',
+//      'cliente_denominacion' => 'required|string|max:100',
+//      'cliente_direccion' => 'nullable|string|max:250',
+//      'cliente_email' => 'nullable|email|max:250',
       'cliente_email_1' => 'nullable|email|max:250',
       'cliente_email_2' => 'nullable|email|max:250',
 

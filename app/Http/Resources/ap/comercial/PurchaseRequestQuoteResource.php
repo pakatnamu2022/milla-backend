@@ -35,6 +35,8 @@ class PurchaseRequestQuoteResource extends JsonResource
       'holder_email' => $this->holder->email,
       'holder_phone' => $this->holder->phone,
       'client_name' => $this->oportunity->client->full_name ?? null,
+      'ap_vehicle_id' => $this->ap_vehicle_id,
+      'ap_vehicle' => $this->when($this->ap_vehicle_id, VehiclesResource::make($this->vehicle)),
       'vehicle_color_id' => $this->vehicle_color_id,
       'vehicle_color' => $this->vehicleColor->description ?? null,
       'ap_models_vn_id' => $this->ap_models_vn_id,
