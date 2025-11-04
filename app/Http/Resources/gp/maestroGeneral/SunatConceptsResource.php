@@ -46,6 +46,7 @@ class SunatConceptsResource extends JsonResource
       'symbol' => $this->symbol,
       'percentage' => $this->percentage,
       'document_type' => $this->when($this->type === 'TYPE_DOCUMENT', $this->documentType?->id),
+      'currency_type' => $this->when($this->type === 'BILLING_CURRENCY', $this->currencyType?->id),
     ];
   }
 }
