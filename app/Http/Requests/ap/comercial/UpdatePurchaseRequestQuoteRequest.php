@@ -26,7 +26,7 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'vehicle_color_id' => ['sometimes', 'exists:ap_commercial_masters,id'],
       'ap_models_vn_id' => ['nullable', 'exists:ap_models_vn,id'],
       'doc_type_currency_id' => ['sometimes', 'exists:type_currency,id'],
-      'ap_vehicle_purchase_order_id' => ['nullable', 'exists:vehicle_purchase_order,id'],
+      'ap_vehicle_id' => ['nullable', 'exists:ap_vehicles,id'],
 
       // Validaciones para bonus_discounts
       'bonus_discounts' => ['nullable', 'array'],
@@ -78,7 +78,7 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
 
       'doc_type_currency_id.exists' => 'El tipo de moneda seleccionado no es válido.',
 
-      'ap_vehicle_purchase_order_id.exists' => 'La orden de compra de vehículo seleccionada no es válida.',
+      'ap_vehicle_id.exists' => 'El vehículo seleccionado no es válida.',
 
       // Mensajes para bonus_discounts
       'bonus_discounts.array' => 'Los descuentos/bonos deben ser una lista.',

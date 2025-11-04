@@ -9,10 +9,10 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'advisor_id' => [
+      'sede_id' => [
         'required',
         'integer',
-        'exists:rrhh_persona,id'
+        'exists:config_sede,id'
       ],
       'vehicle_id' => [
         'required',
@@ -38,9 +38,9 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'advisor_id.required' => 'El asesor es obligatorio.',
-      'advisor_id.integer' => 'El asesor debe ser un número entero.',
-      'advisor_id.exists' => 'El asesor no existe.',
+      'sede_id.required' => 'La sede es obligatoria.',
+      'sede_id.integer' => 'La sede debe ser un número entero.',
+      'sede_id.exists' => 'La sede no existe.',
       'vehicle_id.required' => 'El vehículo es obligatorio.',
       'vehicle_id.integer' => 'El vehículo debe ser un número entero.',
       'vehicle_id.exists' => 'El vehículo no existe.',

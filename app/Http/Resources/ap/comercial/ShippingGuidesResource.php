@@ -11,7 +11,7 @@ class ShippingGuidesResource extends JsonResource
   {
     return [
       'id' => $this->id,
-      'ap_vehicle_purchase_order_id' => $this->vehicleMovement->ap_vehicle_purchase_order_id,
+      'ap_vehicle_id' => $this->vehicleMovement->ap_vehicle_id,
       'document_series_id' => $this->document_series_id ?? "",
       'series' => $this->series ?? "",
       'correlative' => $this->correlative ?? "",
@@ -38,9 +38,6 @@ class ShippingGuidesResource extends JsonResource
       ] : null,
       'transmitter_origin_id' => $this->transmitter->business_partner_id,
       'receiver_destination_id' => $this->receiver->business_partner_id,
-      'file_path' => $this->file_path,
-      'file_name' => $this->file_name,
-      'file_type' => $this->file_type,
       'file_url' => $this->file_url,
       'driver_doc' => $this->driver_doc,
       'company_name' => $this->company_name,

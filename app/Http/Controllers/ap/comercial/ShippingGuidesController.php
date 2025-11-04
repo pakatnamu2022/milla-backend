@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\IndexShippingGuidesRequest;
 use App\Http\Requests\ap\comercial\StoreShippingGuidesRequest;
 use App\Http\Requests\ap\comercial\UpdateShippingGuidesRequest;
+use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
 use App\Http\Services\ap\comercial\ShippingGuidesService;
 use App\Models\ap\comercial\ShippingGuides;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use Illuminate\Http\Request;
 
 class ShippingGuidesController extends Controller
@@ -137,7 +139,7 @@ class ShippingGuidesController extends Controller
         ], 404);
       }
 
-      $logs = \App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $id)
+      $logs = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $id)
         ->orderBy('id')
         ->get();
 
@@ -152,7 +154,7 @@ class ShippingGuidesController extends Controller
             'migrated_at' => $shippingGuide->migrated_at?->format('Y-m-d H:i:s'),
             'created_at' => $shippingGuide->created_at->format('Y-m-d H:i:s'),
           ],
-          'logs' => \App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource::collection($logs),
+          'logs' => VehiclePurchaseOrderMigrationLogResource::collection($logs),
         ],
       ]);
     } catch (\Throwable $th) {
@@ -178,7 +180,7 @@ class ShippingGuidesController extends Controller
         ], 404);
       }
 
-      $logs = \App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $id)
+      $logs = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $id)
         ->orderBy('created_at')
         ->orderBy('id')
         ->get();

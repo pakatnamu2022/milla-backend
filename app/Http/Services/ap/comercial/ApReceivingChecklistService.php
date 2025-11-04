@@ -40,8 +40,24 @@ class ApReceivingChecklistService extends BaseService
   public function getByShippingGuide($shippingGuideId): JsonResponse
   {
     try {
-      // Validate shipping guide exists
-      $shippingGuide = ShippingGuides::find($shippingGuideId);
+      // Validate shipping guide exists and load relationships
+      $shippingGuide = ShippingGuides::with([
+        'vehicleMovement' => function ($query) {
+          $query->with([
+            'vehicle' => function ($vehicleQuery) {
+              $vehicleQuery->with([
+                'purchaseOrders' => function ($poQuery) {
+                  $poQuery->with(['items' => function ($itemQuery) {
+                    $itemQuery->with('unitMeasurement')
+                      ->where('is_vehicle', false);
+                  }]);
+                }
+              ]);
+            }
+          ]);
+        }
+      ])->find($shippingGuideId);
+
       if (!$shippingGuide) {
         throw new Exception('Guía de envío no encontrada');
       }
@@ -51,11 +67,86 @@ class ApReceivingChecklistService extends BaseService
         ->with(['receiving', 'shipping_guide'])
         ->get();
 
+      // Get accessories from purchase orders related to this vehicle
+      $accessories = [];
+
+      if ($shippingGuide->vehicleMovement) {
+        Log::info('VehicleMovement encontrado', [
+          'vehicle_movement_id' => $shippingGuide->vehicleMovement->id,
+          'ap_vehicle_id' => $shippingGuide->vehicleMovement->ap_vehicle_id,
+        ]);
+
+        $vehicle = $shippingGuide->vehicleMovement->vehicle;
+
+        if ($vehicle) {
+          Log::info('Vehicle encontrado', [
+            'vehicle_id' => $vehicle->id,
+            'vin' => $vehicle->vin,
+          ]);
+
+          $purchaseOrders = $vehicle->purchaseOrders;
+
+          Log::info('Purchase Orders asociadas al vehículo', [
+            'count' => $purchaseOrders->count(),
+            'ids' => $purchaseOrders->pluck('id')->toArray(),
+          ]);
+
+          foreach ($purchaseOrders as $purchaseOrder) {
+            $accessoryItems = $purchaseOrder->items; // Ya filtrados por is_vehicle = false en el eager loading
+
+            Log::info('Procesando Purchase Order', [
+              'purchase_order_id' => $purchaseOrder->id,
+              'items_count' => $accessoryItems->count(),
+              'items' => $accessoryItems->map(function ($item) {
+                return [
+                  'id' => $item->id,
+                  'description' => $item->description,
+                  'is_vehicle' => $item->is_vehicle,
+                  'quantity' => $item->quantity,
+                ];
+              })->toArray(),
+            ]);
+
+            foreach ($accessoryItems as $item) {
+              $accessories[] = [
+                'id' => $item->id,
+                'description' => $item->description,
+                'quantity' => $item->quantity,
+                'unit_price' => $item->unit_price,
+                'total' => $item->total,
+                'unit_measurement' => $item->unitMeasurement?->abbreviation ?? 'UND',
+              ];
+            }
+          }
+        } else {
+          Log::warning('No se encontró Vehicle', [
+            'vehicle_movement_id' => $shippingGuide->vehicleMovement->id,
+            'ap_vehicle_id' => $shippingGuide->vehicleMovement->ap_vehicle_id,
+          ]);
+        }
+      } else {
+        Log::warning('No se encontró VehicleMovement', [
+          'shipping_guide_id' => $shippingGuideId,
+          'vehicle_movement_id' => $shippingGuide->vehicle_movement_id,
+        ]);
+      }
+
+      Log::info('Accesorios finales', [
+        'count' => count($accessories),
+        'accessories' => $accessories,
+      ]);
+
       return response()->json([
         'data' => ApReceivingChecklistResource::collection($checklists),
         'note_received' => $shippingGuide->note_received,
+        'accessories' => $accessories,
       ]);
     } catch (Exception $e) {
+      Log::error('Error en getByShippingGuide', [
+        'shipping_guide_id' => $shippingGuideId,
+        'error' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+      ]);
       throw new Exception($e->getMessage());
     }
   }
@@ -189,9 +280,20 @@ class ApReceivingChecklistService extends BaseService
 
       // Preparar items para el template
       $items = collect($receivedItems)->map(function ($item) {
+        $description = $item->resource->receiving->description ?? 'N/A';
+        $quantity = $item->resource->quantity ?? 0;
+
+        // Si la cantidad es mayor a 0, mostrar descripción con cantidad
+        // Si es 0 o null, solo mostrar la descripción
+        if ($quantity > 0) {
+          $formattedName = "{$description} ({$quantity})";
+        } else {
+          $formattedName = $description;
+        }
+
         return [
-          'name' => $item->resource->receiving->name ?? 'N/A',
-          'quantity' => $item->resource->quantity ?? 0,
+          'name' => $formattedName,
+          'quantity' => $quantity,
         ];
       })->toArray();
 

@@ -2,9 +2,11 @@
 
 namespace App\Models\ap\comercial;
 
+use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class VehicleMovement extends BaseModel
@@ -70,5 +72,19 @@ class VehicleMovement extends BaseModel
     return $this->vehicleStatus->color;
   }
 
+  /**
+   * Un movimiento puede tener múltiples órdenes de compra asociadas
+   */
+  public function purchaseOrders(): HasMany
+  {
+    return $this->hasMany(PurchaseOrder::class, 'vehicle_movement_id');
+  }
 
+  /**
+   * Un movimiento puede tener múltiples guías de remisión asociadas
+   */
+  public function shippingGuides(): HasMany
+  {
+    return $this->hasMany(ShippingGuides::class, 'vehicle_movement_id');
+  }
 }

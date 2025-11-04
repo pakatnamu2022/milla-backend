@@ -36,7 +36,7 @@ class PurchaseRequestQuote extends Model
     'holder_id',
     'vehicle_color_id',
     'ap_models_vn_id',
-    'ap_vehicle_purchase_order_id',
+    'ap_vehicle_id',
     'type_currency_id',
     'doc_type_currency_id',
     'sede_id'
@@ -53,7 +53,7 @@ class PurchaseRequestQuote extends Model
     'holder_id' => '=',
     'vehicle_color_id' => '=',
     'ap_models_vn_id' => '=',
-    'ap_vehicle_purchase_order_id' => '=',
+    'ap_vehicle_id' => '=',
     'doc_type_currency_id' => '=',
     'is_invoiced' => '=',
     'is_approved' => '=',
@@ -125,9 +125,9 @@ class PurchaseRequestQuote extends Model
     return $this->belongsTo(ExchangeRate::class, 'exchange_rate_id');
   }
 
-  public function vehiclePurchaseOrders(): belongsTo
+  public function vehicle(): belongsTo
   {
-    return $this->belongsTo(VehiclePurchaseOrder::class, 'ap_vehicle_purchase_order_id');
+    return $this->belongsTo(Vehicles::class, 'ap_vehicle_id');
   }
 
   public function sede(): BelongsTo

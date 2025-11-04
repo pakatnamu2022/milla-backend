@@ -3,6 +3,7 @@
 namespace App\Models\ap\comercial;
 
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -17,8 +18,12 @@ class ApVehicleDelivery extends Model
     'vehicle_id',
     'scheduled_delivery_date',
     'wash_date',
-    'actual_delivery_date',
+    'real_delivery_date',
+    'real_wash_date',
     'observations',
+    'sede_id',
+    'status_wash',
+    'status_delivery',
     'status_nubefact',
     'status_sunat',
     'status_dynamic',
@@ -27,14 +32,15 @@ class ApVehicleDelivery extends Model
 
   protected $casts = [
     'scheduled_delivery_date' => 'date',
-    'actual_delivery_date' => 'date',
+    'real_delivery_date' => 'date',
+    'wash_date' => 'date',
+    'real_wash_date' => 'date',
   ];
 
   const filters = [
     'search' => [],
     'vehicle_id',
     'scheduled_delivery_date',
-    'actual_delivery_date',
     'status_nubefact',
     'status_sunat',
     'status_dynamic',
@@ -46,7 +52,7 @@ class ApVehicleDelivery extends Model
     'advisor_id',
     'vehicle_id',
     'scheduled_delivery_date',
-    'actual_delivery_date',
+    'real_delivery_date',
     'status_nubefact',
     'status_sunat',
     'status_dynamic',
@@ -61,5 +67,10 @@ class ApVehicleDelivery extends Model
   public function vehicle()
   {
     return $this->belongsTo(Vehicles::class, 'vehicle_id');
+  }
+
+  public function sede()
+  {
+    return $this->belongsTo(Sede::class, 'sede_id');
   }
 }

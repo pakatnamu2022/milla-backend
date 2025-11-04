@@ -7,9 +7,11 @@ use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\maestroGeneral\Sede;
+use App\Models\ap\compras\PurchaseOrder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Vehicles extends Model
@@ -88,8 +90,35 @@ class Vehicles extends Model
     return $this->hasMany(VehicleMovement::class, 'ap_vehicle_id');
   }
 
-  public function purchaseOrder(): BelongsTo
+  /**
+   * Obtiene todas las órdenes de compra a través de los movimientos del vehículo
+   * Un vehículo puede tener múltiples movimientos y cada movimiento puede tener una orden
+   */
+  public function purchaseOrders(): HasManyThrough
   {
-    return $this->belongsTo(VehiclePurchaseOrder::class, 'vin', 'vin');
+    return $this->hasManyThrough(
+      PurchaseOrder::class,       // Modelo final que queremos obtener
+      VehicleMovement::class,     // Modelo intermedio
+      'ap_vehicle_id',            // Foreign key en vehicle_movement que apunta a vehicles
+      'vehicle_movement_id',      // Foreign key en purchase_order que apunta a vehicle_movement
+      'id',                       // Local key en vehicles
+      'id'                        // Local key en vehicle_movement
+    );
+  }
+
+  /**
+   * Obtiene todas las guías de remisión a través de los movimientos del vehículo
+   * Un vehículo puede tener múltiples movimientos y cada movimiento puede tener una guía
+   */
+  public function shippingGuides(): HasManyThrough
+  {
+    return $this->hasManyThrough(
+      ShippingGuides::class,      // Modelo final que queremos obtener
+      VehicleMovement::class,     // Modelo intermedio
+      'ap_vehicle_id',            // Foreign key en vehicle_movement que apunta a vehicles
+      'vehicle_movement_id',      // Foreign key en shipping_guides que apunta a vehicle_movement
+      'id',                       // Local key en vehicles
+      'id'                        // Local key en vehicle_movement
+    );
   }
 }

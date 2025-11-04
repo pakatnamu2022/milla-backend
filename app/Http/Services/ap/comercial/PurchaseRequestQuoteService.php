@@ -58,7 +58,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'holder_id' => $data['holder_id'],
         'vehicle_color_id' => $data['vehicle_color_id'],
         'ap_models_vn_id' => $data['ap_models_vn_id'],
-        'ap_vehicle_purchase_order_id' => $data['ap_vehicle_purchase_order_id'] ?? null,
+        'ap_vehicle_id' => $data['ap_vehicle_id'] ?? null,
         'type_currency_id' => $data['type_currency_id'],
         'doc_type_currency_id' => $data['doc_type_currency_id'],
         'exchange_rate_id' => $exchangeRateId,

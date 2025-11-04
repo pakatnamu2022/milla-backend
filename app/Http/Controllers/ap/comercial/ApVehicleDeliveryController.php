@@ -63,4 +63,34 @@ class ApVehicleDeliveryController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Envía la guía de remisión a SUNAT mediante Nubefact
+   */
+  public function sendToNubefact($id)
+  {
+    try {
+      return $this->service->sendToNubefact($id);
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
+    }
+  }
+
+  /**
+   * Consulta el estado de la guía en Nubefact/SUNAT
+   */
+  public function queryFromNubefact($id)
+  {
+    try {
+      return $this->service->queryFromNubefact($id);
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
+    }
+  }
 }

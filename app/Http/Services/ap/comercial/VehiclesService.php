@@ -202,7 +202,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'engineType',
       'vehicleStatus',
       'warehousePhysical',
-      'purchaseOrder.accessories'
+      'purchaseOrders.items' // Cambiado: ahora usa la relación correcta hasManyThrough
     ]);
 
     // Aplicar filtros si existen
@@ -231,20 +231,27 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       $query->where('warehouse_physical_id', $request->warehouse_physical_id);
     }
 
-    // Paginación
-    $perPage = $request->get('per_page', 15);
-    $vehicles = $query->paginate($perPage);
+    // Verificar si se solicita todos los registros sin paginación
+    $all = filter_var($request->get('all', false), FILTER_VALIDATE_BOOLEAN);
 
-    // Transformar los datos para incluir costos
-    $vehicles->getCollection()->transform(function ($vehicle) {
+    // Obtener vehículos (paginados o todos)
+    if ($all) {
+      $vehicles = $query->get();
+    } else {
+      $perPage = $request->get('per_page', 15);
+      $vehicles = $query->paginate($perPage);
+    }
+
+    // Función de transformación para incluir costos
+    $transformVehicle = function ($vehicle) {
+      // Obtener la primera orden de compra del vehículo (puedes cambiar a last() si necesitas la última)
+      $firstPurchaseOrder = $vehicle->purchaseOrders->first();
+
       // Obtener el costo facturado (subtotal de la orden de compra)
-      $costoFacturado = $vehicle->purchaseOrder?->subtotal ?? 0;
-
-      // Obtener el costo de accesorios (suma de totales de accesorios)
-      $costoAccesorios = $vehicle->purchaseOrder?->accessories->sum('total') ?? 0;
+      $billedCost = $firstPurchaseOrder?->subtotal ?? 0;
 
       // Obtener transport_cost del modelo (temporal)
-      $costoFlete = $vehicle->model?->transport_cost ?? 0;
+      $freightCost = $vehicle->model?->transport_cost ?? 0;
 
       return [
         'id' => $vehicle->id,
@@ -264,12 +271,20 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'status_color' => $vehicle->vehicleStatus?->color,
         'warehouse_physical_id' => $vehicle->warehouse_physical_id,
         'warehouse_physical' => $vehicle->warehousePhysical?->description,
-        'costo_facturado' => $costoFacturado,
-        'costo_accesorios' => $costoAccesorios,
-        'costo_flete_temporal' => $costoFlete,
+        'billed_cost' => $billedCost,
+        'freight_cost' => $freightCost,
       ];
-    });
+    };
 
-    return response()->json($vehicles);
+    // Transformar los datos según el tipo de resultado
+    if ($all) {
+      // Si es 'all', devolver array simple sin paginación
+      $transformedData = $vehicles->map($transformVehicle);
+      return response()->json($transformedData);
+    } else {
+      // Si está paginado, transformar la colección y mantener metadatos de paginación
+      $vehicles->getCollection()->transform($transformVehicle);
+      return response()->json($vehicles);
+    }
   }
 }
