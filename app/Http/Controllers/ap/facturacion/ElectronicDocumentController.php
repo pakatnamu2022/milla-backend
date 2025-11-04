@@ -73,12 +73,7 @@ class ElectronicDocumentController extends Controller
   public function show($id): JsonResponse
   {
     try {
-      $document = $this->service->find($id);
-
-      return $this->success([
-        'success' => true,
-        'data' => $document
-      ]);
+      return $this->success($this->service->show($id));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

@@ -5,10 +5,8 @@ namespace App\Http\Services\ap\facturacion;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Models\ap\facturacion\ElectronicDocument;
-use App\Models\ap\facturacion\ElectronicDocumentItem;
-use App\Models\ap\facturacion\ElectronicDocumentGuide;
-use App\Models\ap\facturacion\ElectronicDocumentInstallment;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
@@ -20,6 +18,11 @@ use Illuminate\Support\Facades\Log;
 class ElectronicDocumentService extends BaseService implements BaseServiceInterface
 {
   protected NubefactApiService $nubefactService;
+  
+  /**
+   * @var int
+   */
+  protected int $startCorrelative = 2;
 
   public function __construct(NubefactApiService $nubefactService)
   {
@@ -67,6 +70,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     return $document;
   }
 
+  public function show(int $id)
+  {
+    $electronicDocument = ElectronicDocument::find($id);
+    return new ElectronicDocumentResource($electronicDocument);
+  }
+
   /**
    * Get the next document number for a given type and series
    * @param string $documentType
@@ -91,20 +100,36 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   {
     DB::beginTransaction();
     try {
-      // Validar y calcular el siguiente número correlativo si no se proporciona
+      /**
+       * Validar y calcular el siguiente número correlativo si no se proporciona
+       */
       $nextNumberData = $this->nextDocumentNumber(
         $data['sunat_concept_document_type_id'],
         $data['serie']
       );
-      $data['numero'] = $nextNumberData['number'];
+      $data['numero'] = $nextNumberData['number'] + $this->startCorrelative;
 
-      // Validar que la serie sea correcta
+      /**
+       * Validar que la serie sea correcta
+       */
       if (!ElectronicDocument::validateSerie($data['sunat_concept_document_type_id'], $data['serie'])) {
         throw new Exception('La serie no es válida para el tipo de documento seleccionado');
       }
 
-      // Crear el documento principal
+      /**
+       * Obtener la tasa de cambio actual si la moneda es USD
+       */
+      $exchangeRate = (new ExchangeRateService())->getCurrentUSDRate();
+
+      /**
+       * Si viene con el campo
+       */
+
+      /**
+       * Crear el documento principal
+       */
       $document = ElectronicDocument::create(array_merge($data, [
+        'exchange_rate_id' => $exchangeRate->id,
         'created_by' => auth()->id(),
         'status' => ElectronicDocument::STATUS_DRAFT,
       ]));
@@ -535,12 +560,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $totals['total'] = $totals['total_gravada'] + $totals['total_exonerada'] + $totals['total_inafecta'] + $totals['total_igv'];
 
     return $totals;
-  }
-
-  public function show(int $id)
-  {
-    $electronicDocument = ElectronicDocument::find($id);
-    return new ElectronicDocumentResource($electronicDocument);
   }
 
   /**

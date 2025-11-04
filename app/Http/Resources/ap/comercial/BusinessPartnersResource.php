@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\comercial;
 
+use App\Models\ap\comercial\BusinessPartners;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -67,8 +68,10 @@ class BusinessPartnersResource extends JsonResource
 
       // Relaciones cargadas
       'origin' => $this->origin?->description,
-      'tax_class_type' => $this->taxClassType?->description,
-      'supplier_tax_class_type' => $this->supplierTaxClassType?->description,
+      'tax_class_type' => $this->when($this->type === BusinessPartners::CLIENT || $this->type === BusinessPartners::BOTH, $this->taxClassType->description),
+      'tax_class_type_igv' => $this->when($this->type === BusinessPartners::CLIENT || $this->type === BusinessPartners::BOTH, (float)$this->taxClassType->igv),
+      'supplier_tax_class_type' => $this->when($this->type === BusinessPartners::SUPPLIER || $this->type === BusinessPartners::BOTH, $this->supplierTaxClassType?->description),
+      'supplier_tax_class_type_igv' => $this->when($this->type === BusinessPartners::SUPPLIER || $this->type === BusinessPartners::BOTH, (float)$this->supplierTaxClassType?->igv),
       'type_road' => $this->typeRoad?->description,
       'type_person' => $this->typePerson?->description,
       'district' => $this->district->name . ' - ' . $this->district->province->name . ' - ' . $this->district->province->department->name,

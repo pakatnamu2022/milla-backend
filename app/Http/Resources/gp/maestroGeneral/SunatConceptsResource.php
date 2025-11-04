@@ -14,25 +14,6 @@ class SunatConceptsResource extends JsonResource
    */
   public function toArray(Request $request): array
   {
-    /**
-     * {
-     * "id": 11,
-     * "code_nubefact": "-",
-     * "description": "Sin Documento",
-     * "type": "TYPE_DOCUMENT",
-     * "prefix": null,
-     * "length": null,
-     * "tribute_code": null,
-     * "affects_total": null,
-     * "iso_code": null,
-     * "symbol": null,
-     * "percentage": null,
-     * "status": 1,
-     * "created_at": "2025-10-30T19:57:47.000000Z",
-     * "updated_at": "2025-10-30T19:57:47.000000Z",
-     * "deleted_at": null
-     * }
-     */
     return [
       'id' => $this->id,
       'code_nubefact' => $this->code_nubefact,
