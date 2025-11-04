@@ -3,7 +3,7 @@
 namespace App\Http\Services\ap\compras;
 
 use App\Http\Resources\ap\compras\PurchaseOrderResource;
-use App\Http\Services\ap\comercial\VehicleService;
+use App\Http\Services\ap\comercial\VehiclesService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
@@ -183,7 +183,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
   protected function createVehicleAndMovement(array $data): int
   {
     // 1. Crear el vehículo
-    $vehicleService = new VehicleService();
+    $vehicleService = new VehiclesService();
     $vehicleData = [
       'vin' => $data['vin'],
       'year' => $data['year'],

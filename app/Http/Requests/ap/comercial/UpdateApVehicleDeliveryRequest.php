@@ -2,27 +2,31 @@
 
 namespace App\Http\Requests\ap\comercial;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\StoreRequest;
 
-class UpdateApVehicleDeliveryRequest extends FormRequest
+class UpdateApVehicleDeliveryRequest extends StoreRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return false;
-    }
+  public function rules(): array
+  {
+    return [
+      'status_delivery' => [
+        'nullable',
+        'string',
+        'in:pending,completed',
+      ],
+      'status_wash' => [
+        'nullable',
+        'string',
+        'in:pending,completed',
+      ],
+    ];
+  }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
-    public function rules(): array
-    {
-        return [
-            //
-        ];
-    }
+  public function messages(): array
+  {
+    return [
+      'status_delivery.in' => 'The status_delivery field must be either pending or completed.',
+      'status_wash.in' => 'The status_wash field must be either pending or completed.',
+    ];
+  }
 }

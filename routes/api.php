@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ap\ApCommercialMastersController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
+use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersEstablishmentController;
 use App\Http\Controllers\ap\comercial\OpportunityActionController;
@@ -811,6 +812,17 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
       Route::get('vehicles/{id}/pending-anticipos', [VehiclesController::class, 'getPendingAnticipos']);
       Route::post('vehicles/{id}/regularize-anticipos', [VehiclesController::class, 'regularizeAnticipos']);
+
+      // Vehicles Delivery
+      Route::post('vehiclesDelivery/{id}/send-to-nubefact', [ApVehicleDeliveryController::class, 'sendToNubefact']);
+      Route::get('vehiclesDelivery/{id}/query-from-nubefact', [ApVehicleDeliveryController::class, 'queryFromNubefact']);
+      Route::apiResource('vehiclesDelivery', ApVehicleDeliveryController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
 
       // DASHBOARD - Indicadores Comerciales
       Route::group(['prefix' => 'dashboard-visit-leads'], function () {

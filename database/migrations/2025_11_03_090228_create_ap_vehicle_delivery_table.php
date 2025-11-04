@@ -17,8 +17,13 @@ return new class extends Migration {
       $table->foreignId('vehicle_id')->constrained('ap_vehicles')->onDelete('cascade');
       $table->date('scheduled_delivery_date')->nullable();
       $table->date('wash_date')->nullable();
-      $table->date('actual_delivery_date')->nullable();
+      $table->date('real_delivery_date')->nullable();
+      $table->date('real_wash_date')->nullable();
       $table->text('observations')->nullable();
+      $table->integer('sede_id')->comment('ID de la sede de salida del vehículo');
+      $table->foreign('sede_id')->references('id')->on('config_sede');
+      $table->enum('status_wash', ['pending', 'completed'])->default('pending')->comment('Estado del lavado: pending=pendiente, completed=completado');
+      $table->enum('status_delivery', ['pending', 'delivered'])->default('pending')->comment('Estado de la entrega: pending=pendiente, delivered=entregado');
       $table->boolean('status_nubefact')->default(false)->comment('Indica si la entrega ha sido sincronizada con Nubefact');
       $table->boolean('status_sunat')->default(false)->comment('Indica si la entrega ha sido sincronizada con Sunat');
       $table->boolean('status_dynamic')->default(false)->comment('Indica si la entrega ha sido sincronizada con Dynamic');

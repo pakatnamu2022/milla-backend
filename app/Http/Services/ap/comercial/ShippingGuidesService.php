@@ -5,28 +5,38 @@ namespace App\Http\Services\ap\comercial;
 use App\Http\Resources\ap\comercial\ShippingGuidesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\gp\gestionsistema\DigitalFile;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class ShippingGuidesService extends BaseService implements BaseServiceInterface
 {
   protected NubefactShippingGuideApiService $nubefactService;
+  protected DigitalFileService $digitalFileService;
 
-  public function __construct(NubefactShippingGuideApiService $nubefactService)
+  // Configuración de rutas para archivos
+  private const FILE_PATH = '/ap/comercial/guias-remision/';
+
+  public function __construct(
+    NubefactShippingGuideApiService $nubefactService,
+    DigitalFileService              $digitalFileService
+  )
   {
     $this->nubefactService = $nubefactService;
+    $this->digitalFileService = $digitalFileService;
   }
 
   public function list(Request $request)
@@ -79,19 +89,10 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       $vehicleMovement = VehicleMovement::create($vehicleMovementData);
 
       // 2. Manejar la carga del archivo si existe
-      $filePath = null;
-      $fileName = null;
-      $fileType = null;
-      $fileUrl = null;
-
-      if (isset($data['file']) && $data['file']) {
+      $file = null;
+      if (isset($data['file']) && $data['file'] instanceof UploadedFile) {
         $file = $data['file'];
-        $fileName = time() . '_' . $file->getClientOriginalName();
-        $fileType = $file->getClientOriginalExtension();
-
-        // Guardar en DigitalOcean Spaces o storage local
-        $filePath = $file->storeAs('vehicle-documents', $fileName, 'do_spaces');
-        $fileUrl = Storage::disk('do_spaces')->url($filePath);
+        unset($data['file']); // Remover del array para no guardarlo en la BD
       }
 
       // 3. Manejar series y correlativo según issuer_type
@@ -158,10 +159,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'sede_receiver_id' => $data['sede_receiver_id'],
         'transmitter_id' => $data['transmitter_id'],
         'receiver_id' => $data['receiver_id'],
-        'file_path' => $filePath,
-        'file_name' => $fileName,
-        'file_type' => $fileType,
-        'file_url' => $fileUrl,
         'transport_company_id' => $data['transport_company_id'] ?? null,
         'driver_doc' => $data['driver_doc'] ?? null,
         'license' => $data['license'] ?? null,
@@ -171,10 +168,25 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'status' => $data['status'] ?? true,
         'transfer_reason_id' => $data['transfer_reason_id'] ?? null,
         'transfer_modality_id' => $data['transfer_modality_id'] ?? null,
-        'created_by' => Auth::id(), // Se establece automáticamente
+        'created_by' => Auth::id(),
       ];
 
       $document = ShippingGuides::create($documentData);
+
+      // 6. Si hay archivo, subirlo usando DigitalFileService
+      if ($file) {
+        $digitalFile = $this->digitalFileService->store(
+          $file,
+          self::FILE_PATH,
+          'public',
+          $document->getTable()
+        );
+
+        // Actualizar el documento con la información del archivo
+        $document->update([
+          'file_url' => $digitalFile->url,
+        ]);
+      }
 
       return new ShippingGuidesResource($document);
     });
@@ -191,23 +203,10 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       $document = $this->find($data['id']);
 
       // 1. Manejar la carga del archivo si existe
-      if (isset($data['file']) && $data['file']) {
-        // Eliminar archivo anterior si existe
-        if ($document->file_path) {
-          Storage::disk('do_spaces')->delete($document->file_path);
-        }
-
+      $file = null;
+      if (isset($data['file']) && $data['file'] instanceof UploadedFile) {
         $file = $data['file'];
-        $fileName = time() . '_' . $file->getClientOriginalName();
-        $fileType = $file->getClientOriginalExtension();
-
-        $filePath = $file->storeAs('vehicle-documents', $fileName, 'do_spaces');
-        $fileUrl = Storage::disk('do_spaces')->url($filePath);
-
-        $data['file_path'] = $filePath;
-        $data['file_name'] = $fileName;
-        $data['file_type'] = $fileType;
-        $data['file_url'] = $fileUrl;
+        unset($data['file']); // Remover del array para no guardarlo en la BD
       }
 
       if (isset($data['issuer_type']) && $data['issuer_type'] == 'PROVEEDOR') {
@@ -221,15 +220,39 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       // 3. Remover campos que no se pueden actualizar
       unset(
-        $data['is_sunat_registered'], // Se procesa con sunat
-        $data['status_nubefac'], // Se procesa con nubefac
-        $data['created_by'], // No se puede modificar el creador
-        $data['cancellation_reason'], // Solo se actualiza con el método cancel()
-        $data['cancelled_by'], // Solo se actualiza con el método cancel()
-        $data['cancelled_at'] // Solo se actualiza con el método cancel()
+        $data['is_sunat_registered'],
+        $data['status_nubefac'],
+        $data['created_by'],
+        $data['cancellation_reason'],
+        $data['cancelled_by'],
+        $data['cancelled_at']
       );
 
       $document->update($data);
+
+      // 4. Si hay nuevo archivo, eliminar el anterior y subir el nuevo
+      if ($file) {
+        // Eliminar archivo anterior si existe
+        if ($document->file_url) {
+          $oldDigitalFile = DigitalFile::where('url', $document->file_url)->first();
+          if ($oldDigitalFile) {
+            $this->digitalFileService->destroy($oldDigitalFile->id);
+          }
+        }
+
+        // Subir nuevo archivo
+        $digitalFile = $this->digitalFileService->store(
+          $file,
+          self::FILE_PATH,
+          'public',
+          $document->getTable()
+        );
+
+        // Actualizar el documento con la información del nuevo archivo
+        $document->update([
+          'file_url' => $digitalFile->url,
+        ]);
+      }
 
       return new ShippingGuidesResource($document);
     });
@@ -240,9 +263,12 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     return DB::transaction(function () use ($id) {
       $document = $this->find($id);
 
-      // Eliminar archivo si existe
-      if ($document->file_path) {
-        Storage::disk('do_spaces')->delete($document->file_path);
+      // Eliminar archivo digital si existe
+      if ($document->file_url) {
+        $digitalFile = DigitalFile::where('url', $document->file_url)->first();
+        if ($digitalFile) {
+          $this->digitalFileService->destroy($digitalFile->id);
+        }
       }
 
       // Eliminar el documento (soft delete)
