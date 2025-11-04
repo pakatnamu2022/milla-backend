@@ -13,6 +13,9 @@ class SunatConceptsSeeder extends Seeder
    */
   public function run(): void
   {
+    DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+    SunatConcepts::query()->truncate();
+    DB::statement('SET FOREIGN_KEY_CHECKS=1;');
     $now = Carbon::now();
 
     // ========================================
@@ -21,17 +24,17 @@ class SunatConceptsSeeder extends Seeder
 
     // Tipos de Documentos de Identidad (Catálogo 06 SUNAT) - Ampliado con nuevos registros
     $typeDocument = [
-      ['code_nubefact' => '0', 'description' => 'DOC.TRIB.NO.DOM.SIN.RUC', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => null],
-      ['code_nubefact' => '1', 'description' => 'DNI - DOC. NACIONAL DE IDENTIDAD', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 8],
-      ['code_nubefact' => '4', 'description' => 'CARNET DE EXTRANJERÍA', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 12],
-      ['code_nubefact' => '6', 'description' => 'RUC - REGISTRO ÚNICO DE CONTRIBUYENTE', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 11],
-      ['code_nubefact' => '7', 'description' => 'PASAPORTE', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 12],
-      ['code_nubefact' => 'A', 'description' => 'CÉDULA DIPLOMÁTICA DE IDENTIDAD', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 15],
-      ['code_nubefact' => 'B', 'description' => 'DOC.IDENT.PAIS.RESIDENCIA-NO.D', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 15],
-      ['code_nubefact' => 'C', 'description' => 'Tax Identification Number - TIN', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 15],
-      ['code_nubefact' => 'D', 'description' => 'Identification Number', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 15],
-      ['code_nubefact' => 'E', 'description' => 'TAM - Tarjeta Andina de Migración', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 15],
-      ['code_nubefact' => '-', 'description' => 'Sin Documento', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => null],
+      ['status' => 0, 'code_nubefact' => '0', 'description' => 'DOC.TRIB.NO.DOM.SIN.RUC', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => null],
+      ['status' => 1, 'code_nubefact' => '1', 'description' => 'DNI - DOC. NACIONAL DE IDENTIDAD', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 8],
+      ['status' => 1, 'code_nubefact' => '4', 'description' => 'CARNET DE EXTRANJERÍA', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 12],
+      ['status' => 1, 'code_nubefact' => '6', 'description' => 'RUC - REGISTRO ÚNICO DE CONTRIBUYENTE', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 11],
+      ['status' => 0, 'code_nubefact' => '7', 'description' => 'PASAPORTE', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 12],
+      ['status' => 0, 'code_nubefact' => 'A', 'description' => 'CÉDULA DIPLOMÁTICA DE IDENTIDAD', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 15],
+      ['status' => 0, 'code_nubefact' => 'B', 'description' => 'DOC.IDENT.PAIS.RESIDENCIA-NO.D', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 15],
+      ['status' => 0, 'code_nubefact' => 'C', 'description' => 'Tax Identification Number - TIN', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 15],
+      ['status' => 0, 'code_nubefact' => 'D', 'description' => 'Identification Number', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 15],
+      ['status' => 0, 'code_nubefact' => 'E', 'description' => 'TAM - Tarjeta Andina de Migración', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => 15],
+      ['status' => 0, 'code_nubefact' => '-', 'description' => 'Sin Documento', 'type' => SunatConcepts::TYPE_DOCUMENT, 'length' => null],
     ];
 
     // Tipos de Guías de Remisión (Catálogo 18 SUNAT)
@@ -77,22 +80,22 @@ class SunatConceptsSeeder extends Seeder
 
     // 2. Tipos de Operación/Transacción (Catálogo 51 SUNAT)
     $billingTransactionTypes = [
-      ['code_nubefact' => '01', 'description' => 'Venta Interna', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
-      ['code_nubefact' => '02', 'description' => 'Exportación', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
-      ['code_nubefact' => '03', 'description' => 'No Domiciliados', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
-      ['code_nubefact' => '04', 'description' => 'Venta Interna - Anticipos', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
-      ['code_nubefact' => '05', 'description' => 'Venta Itinerante', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
-      ['code_nubefact' => '06', 'description' => 'Factura Guía', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
-      ['code_nubefact' => '07', 'description' => 'Venta Arroz Pilado', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
-      ['code_nubefact' => '08', 'description' => 'Factura - Comprobante de Percepción', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
-      ['code_nubefact' => '10', 'description' => 'Factura - Guía remitente', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
-      ['code_nubefact' => '11', 'description' => 'Factura - Guía transportista', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
-      ['code_nubefact' => '12', 'description' => 'Boleta de Venta - Guía remitente', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
-      ['code_nubefact' => '13', 'description' => 'Boleta de Venta - Guía transportista', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
-      ['code_nubefact' => '14', 'description' => 'Venta de Bienes - Ley 30737', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
-      ['code_nubefact' => '21', 'description' => 'Factura de Operación Sujeta a Detracción', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
-      ['code_nubefact' => '31', 'description' => 'Guía de Remisión Remitente', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
-      ['code_nubefact' => '32', 'description' => 'Guía de Remisión Transportista', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
+      ['status' => 1, 'code_nubefact' => '01', 'description' => 'Venta Interna', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
+      ['status' => 0, 'code_nubefact' => '02', 'description' => 'Exportación', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
+      ['status' => 0, 'code_nubefact' => '03', 'description' => 'No Domiciliados', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
+      ['status' => 1, 'code_nubefact' => '04', 'description' => 'Venta Interna - Anticipos', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
+      ['status' => 0, 'code_nubefact' => '05', 'description' => 'Venta Itinerante', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
+      ['status' => 0, 'code_nubefact' => '06', 'description' => 'Factura Guía', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
+      ['status' => 0, 'code_nubefact' => '07', 'description' => 'Venta Arroz Pilado', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
+      ['status' => 0, 'code_nubefact' => '08', 'description' => 'Factura - Comprobante de Percepción', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
+      ['status' => 0, 'code_nubefact' => '10', 'description' => 'Factura - Guía remitente', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
+      ['status' => 0, 'code_nubefact' => '11', 'description' => 'Factura - Guía transportista', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
+      ['status' => 0, 'code_nubefact' => '12', 'description' => 'Boleta de Venta - Guía remitente', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
+      ['status' => 0, 'code_nubefact' => '13', 'description' => 'Boleta de Venta - Guía transportista', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
+      ['status' => 0, 'code_nubefact' => '14', 'description' => 'Venta de Bienes - Ley 30737', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
+      ['status' => 0, 'code_nubefact' => '21', 'description' => 'Factura de Operación Sujeta a Detracción', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
+      ['status' => 0, 'code_nubefact' => '31', 'description' => 'Guía de Remisión Remitente', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
+      ['status' => 0, 'code_nubefact' => '32', 'description' => 'Guía de Remisión Transportista', 'type' => SunatConcepts::BILLING_TRANSACTION_TYPE],
     ];
 
     // 3. Tipos de Afectación IGV (Catálogo 07 SUNAT)
@@ -216,7 +219,7 @@ class SunatConceptsSeeder extends Seeder
 
     // Agregar timestamps y status por defecto a cada concepto
     foreach ($concepts as &$concept) {
-      $concept['status'] = true;
+      $concept['status'] = $concept['status'] ?? 1; // Valor por defecto 1 (activo) si no está definido
       $concept['created_at'] = $now;
       $concept['updated_at'] = $now;
 

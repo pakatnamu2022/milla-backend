@@ -4,6 +4,7 @@ namespace App\Models\ap\facturacion;
 
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\BaseModel;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -16,15 +17,15 @@ class ElectronicDocument extends BaseModel
     protected $table = 'ap_billing_electronic_documents';
 
     protected $fillable = [
-        'ap_billing_document_type_id',
+        'sunat_concept_document_type_id',
         'serie',
         'numero',
-        'ap_billing_transaction_type_id',
+        'sunat_concept_transaction_type_id',
         'origin_module',
         'origin_entity_type',
         'origin_entity_id',
         'ap_vehicle_movement_id',
-        'ap_billing_identity_document_type_id',
+        'sunat_concept_identity_document_type_id',
         'cliente_numero_de_documento',
         'cliente_denominacion',
         'cliente_direccion',
@@ -33,7 +34,7 @@ class ElectronicDocument extends BaseModel
         'cliente_email_2',
         'fecha_de_emision',
         'fecha_de_vencimiento',
-        'ap_billing_currency_id',
+        'sunat_concept_currency_id',
         'tipo_de_cambio',
         'porcentaje_de_igv',
         'descuento_global',
@@ -55,15 +56,15 @@ class ElectronicDocument extends BaseModel
         'retencion_base_imponible',
         'total_retencion',
         'detraccion',
-        'ap_billing_detraction_type_id',
+        'sunat_concept_detraction_type_id',
         'detraccion_total',
         'detraccion_porcentaje',
         'medio_de_pago_detraccion',
         'documento_que_se_modifica_tipo',
         'documento_que_se_modifica_serie',
         'documento_que_se_modifica_numero',
-        'ap_billing_credit_note_type_id',
-        'ap_billing_debit_note_type_id',
+        'sunat_concept_credit_note_type_id',
+        'sunat_concept_debit_note_type_id',
         'observaciones',
         'condiciones_de_pago',
         'medio_de_pago',
@@ -130,7 +131,7 @@ class ElectronicDocument extends BaseModel
 
     const array filters = [
         'id',
-        'ap_billing_document_type_id',
+        'sunat_concept_document_type_id',
         'serie',
         'numero',
         'origin_module',
@@ -138,7 +139,7 @@ class ElectronicDocument extends BaseModel
         'origin_entity_id',
         'ap_vehicle_movement_id',
         'cliente_numero_de_documento',
-        'ap_billing_currency_id',
+        'sunat_concept_currency_id',
         'status',
         'aceptada_por_sunat',
         'anulado',
@@ -155,11 +156,11 @@ class ElectronicDocument extends BaseModel
     const STATUS_REJECTED = 'rejected';
     const STATUS_CANCELLED = 'cancelled';
 
-    // Tipos de documento
-    const TYPE_FACTURA = 1;
-    const TYPE_BOLETA = 2;
-    const TYPE_NOTA_CREDITO = 3;
-    const TYPE_NOTA_DEBITO = 4;
+    // Tipos de documento (IDs de sunat_concepts)
+    const TYPE_FACTURA = SunatConcepts::ID_FACTURA_ELECTRONICA;              // 29
+    const TYPE_BOLETA = SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA;          // 30
+    const TYPE_NOTA_CREDITO = SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA;    // 31
+    const TYPE_NOTA_DEBITO = SunatConcepts::ID_NOTA_DEBITO_ELECTRONICA;      // 32
 
     // Módulos de origen
     const MODULE_COMERCIAL = 'comercial';
@@ -170,37 +171,37 @@ class ElectronicDocument extends BaseModel
      */
     public function documentType(): BelongsTo
     {
-        return $this->belongsTo(DocumentType::class, 'ap_billing_document_type_id');
+        return $this->belongsTo(SunatConcepts::class, 'sunat_concept_document_type_id');
     }
 
     public function transactionType(): BelongsTo
     {
-        return $this->belongsTo(TransactionType::class, 'ap_billing_transaction_type_id');
+        return $this->belongsTo(SunatConcepts::class, 'sunat_concept_transaction_type_id');
     }
 
     public function identityDocumentType(): BelongsTo
     {
-        return $this->belongsTo(IdentityDocumentType::class, 'ap_billing_identity_document_type_id');
+        return $this->belongsTo(SunatConcepts::class, 'sunat_concept_identity_document_type_id');
     }
 
     public function currency(): BelongsTo
     {
-        return $this->belongsTo(Currency::class, 'ap_billing_currency_id');
+        return $this->belongsTo(SunatConcepts::class, 'sunat_concept_currency_id');
     }
 
     public function detractionType(): BelongsTo
     {
-        return $this->belongsTo(DetractionType::class, 'ap_billing_detraction_type_id');
+        return $this->belongsTo(SunatConcepts::class, 'sunat_concept_detraction_type_id');
     }
 
     public function creditNoteType(): BelongsTo
     {
-        return $this->belongsTo(CreditNoteType::class, 'ap_billing_credit_note_type_id');
+        return $this->belongsTo(SunatConcepts::class, 'sunat_concept_credit_note_type_id');
     }
 
     public function debitNoteType(): BelongsTo
     {
-        return $this->belongsTo(DebitNoteType::class, 'ap_billing_debit_note_type_id');
+        return $this->belongsTo(SunatConcepts::class, 'sunat_concept_debit_note_type_id');
     }
 
     public function vehicleMovement(): BelongsTo
@@ -243,22 +244,22 @@ class ElectronicDocument extends BaseModel
      */
     public function scopeFacturas($query)
     {
-        return $query->where('ap_billing_document_type_id', self::TYPE_FACTURA);
+        return $query->where('sunat_concept_document_type_id', self::TYPE_FACTURA);
     }
 
     public function scopeBoletas($query)
     {
-        return $query->where('ap_billing_document_type_id', self::TYPE_BOLETA);
+        return $query->where('sunat_concept_document_type_id', self::TYPE_BOLETA);
     }
 
     public function scopeNotasCredito($query)
     {
-        return $query->where('ap_billing_document_type_id', self::TYPE_NOTA_CREDITO);
+        return $query->where('sunat_concept_document_type_id', self::TYPE_NOTA_CREDITO);
     }
 
     public function scopeNotasDebito($query)
     {
-        return $query->where('ap_billing_document_type_id', self::TYPE_NOTA_DEBITO);
+        return $query->where('sunat_concept_document_type_id', self::TYPE_NOTA_DEBITO);
     }
 
     public function scopeComercial($query)
@@ -282,6 +283,28 @@ class ElectronicDocument extends BaseModel
         return $query->whereIn('status', [self::STATUS_DRAFT, self::STATUS_SENT]);
     }
 
+    public function scopeAnticipos($query)
+    {
+        return $query->where('sunat_concept_transaction_type_id', SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS);
+    }
+
+    public function scopeByOriginEntity($query, string $module, string $entityType, int $entityId)
+    {
+        return $query->where('origin_module', $module)
+                     ->where('origin_entity_type', $entityType)
+                     ->where('origin_entity_id', $entityId);
+    }
+
+    public function scopeAcceptedBySunat($query)
+    {
+        return $query->where('aceptada_por_sunat', true);
+    }
+
+    public function scopeNotCancelled($query)
+    {
+        return $query->where('anulado', false);
+    }
+
     /**
      * Accessors
      */
@@ -292,22 +315,22 @@ class ElectronicDocument extends BaseModel
 
     public function getIsFacturaAttribute(): bool
     {
-        return $this->ap_billing_document_type_id === self::TYPE_FACTURA;
+        return $this->sunat_concept_document_type_id === self::TYPE_FACTURA;
     }
 
     public function getIsBoletaAttribute(): bool
     {
-        return $this->ap_billing_document_type_id === self::TYPE_BOLETA;
+        return $this->sunat_concept_document_type_id === self::TYPE_BOLETA;
     }
 
     public function getIsNotaCreditoAttribute(): bool
     {
-        return $this->ap_billing_document_type_id === self::TYPE_NOTA_CREDITO;
+        return $this->sunat_concept_document_type_id === self::TYPE_NOTA_CREDITO;
     }
 
     public function getIsNotaDebitoAttribute(): bool
     {
-        return $this->ap_billing_document_type_id === self::TYPE_NOTA_DEBITO;
+        return $this->sunat_concept_document_type_id === self::TYPE_NOTA_DEBITO;
     }
 
     public function getIsAcceptedAttribute(): bool
@@ -387,7 +410,7 @@ class ElectronicDocument extends BaseModel
      */
     public static function getNextNumber(int $documentTypeId, string $serie): int
     {
-        $lastDocument = self::where('ap_billing_document_type_id', $documentTypeId)
+        $lastDocument = self::where('sunat_concept_document_type_id', $documentTypeId)
             ->where('serie', $serie)
             ->orderBy('numero', 'desc')
             ->first();
@@ -408,5 +431,23 @@ class ElectronicDocument extends BaseModel
             self::TYPE_NOTA_CREDITO, self::TYPE_NOTA_DEBITO => in_array($prefix, ['F', 'B']),
             default => false,
         };
+    }
+
+    /**
+     * Métodos helper para anticipos
+     */
+    public function isAnticipo(): bool
+    {
+        return $this->sunat_concept_transaction_type_id === SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
+    }
+
+    public function isRegularized(): bool
+    {
+        // Un anticipo está regularizado si existe un documento que lo referencia en sus items
+        return ElectronicDocument::whereHas('items', function ($query) {
+            $query->where('anticipo_regularizacion', true)
+                  ->where('anticipo_documento_serie', $this->serie)
+                  ->where('anticipo_documento_numero', $this->numero);
+        })->exists();
     }
 }

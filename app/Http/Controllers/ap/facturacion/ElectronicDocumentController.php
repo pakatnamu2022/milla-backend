@@ -4,15 +4,20 @@ namespace App\Http\Controllers\ap\facturacion;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\facturacion\IndexElectronicDocumentRequest;
+use App\Http\Requests\ap\facturacion\NextCorrelativeElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\StoreElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\UpdateElectronicDocumentRequest;
 use App\Http\Services\ap\facturacion\ElectronicDocumentService;
+use App\Http\Traits\HasApiResponse;
+use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Exception;
 
 class ElectronicDocumentController extends Controller
 {
+  use HasApiResponse;
+
   protected ElectronicDocumentService $service;
 
   public function __construct(ElectronicDocumentService $service)
@@ -28,10 +33,25 @@ class ElectronicDocumentController extends Controller
     try {
       return $this->service->list($request);
     } catch (Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Get next correlative document number
+   * @param NextCorrelativeElectronicDocumentRequest $request
+   * @return JsonResponse
+   */
+  public function nextDocumentNumber(NextCorrelativeElectronicDocumentRequest $request): JsonResponse
+  {
+    try {
+      $series = AssignSalesSeries::find($request->input('series'));
+      return $this->success($this->service->nextDocumentNumber(
+        $request->input('document_type'),
+        $series->series
+      ));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
     }
   }
 
@@ -41,18 +61,9 @@ class ElectronicDocumentController extends Controller
   public function store(StoreElectronicDocumentRequest $request): JsonResponse
   {
     try {
-      $document = $this->service->store($request->validated());
-
-      return response()->json([
-        'success' => true,
-        'message' => 'Documento electrónico creado correctamente',
-        'data' => $document
-      ], 201);
+      return $this->success($this->service->store($request->validated()));
     } catch (Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -64,15 +75,12 @@ class ElectronicDocumentController extends Controller
     try {
       $document = $this->service->find($id);
 
-      return response()->json([
+      return $this->success([
         'success' => true,
         'data' => $document
       ]);
     } catch (Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 404);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -86,16 +94,13 @@ class ElectronicDocumentController extends Controller
       $data['id'] = $id;
       $document = $this->service->update($data);
 
-      return response()->json([
+      return $this->success([
         'success' => true,
         'message' => 'Documento electrónico actualizado correctamente',
         'data' => $document
       ]);
     } catch (Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -107,10 +112,7 @@ class ElectronicDocumentController extends Controller
     try {
       return $this->service->destroy($id);
     } catch (Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -122,10 +124,7 @@ class ElectronicDocumentController extends Controller
     try {
       return $this->service->sendToNubefact($id);
     } catch (Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -137,10 +136,7 @@ class ElectronicDocumentController extends Controller
     try {
       return $this->service->queryFromNubefact($id);
     } catch (Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -156,10 +152,7 @@ class ElectronicDocumentController extends Controller
     try {
       return $this->service->cancelInNubefact($id, $request->input('reason'));
     } catch (Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -171,16 +164,13 @@ class ElectronicDocumentController extends Controller
     try {
       $creditNote = $this->service->createCreditNote($id, $request->all());
 
-      return response()->json([
+      return $this->success([
         'success' => true,
         'message' => 'Nota de crédito creada correctamente',
         'data' => $creditNote
-      ], 201);
+      ]);
     } catch (Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -192,16 +182,13 @@ class ElectronicDocumentController extends Controller
     try {
       $debitNote = $this->service->createDebitNote($id, $request->all());
 
-      return response()->json([
+      return $this->success([
         'success' => true,
         'message' => 'Nota de débito creada correctamente',
         'data' => $debitNote
-      ], 201);
+      ]);
     } catch (Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -213,10 +200,25 @@ class ElectronicDocumentController extends Controller
     try {
       return $this->service->getByOriginEntity($module, $entityType, $entityId);
     } catch (Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Generate PDF for electronic document
+   */
+  public function generatePDF($id)
+  {
+    try {
+      $pdf = $this->service->generatePDF($id);
+
+      // Get document info for filename
+      $document = $this->service->find($id);
+      $filename = "documento-electronico-{$document->serie}-{$document->numero}.pdf";
+
+      return $pdf->download($filename);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
     }
   }
 }

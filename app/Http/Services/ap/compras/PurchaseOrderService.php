@@ -219,7 +219,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     $vehicleMovement = VehicleMovement::create([
       'movement_type' => VehicleMovement::ORDERED,
       'ap_vehicle_id' => $vehicleMovement->ap_vehicle_id,
-      'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+      'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
       'observation' => "Reenvío de orden de compra {$numberOC}",
       'movement_date' => now(),
       'previous_status_id' => $vehicleMovement->new_status_id,

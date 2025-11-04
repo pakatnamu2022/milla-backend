@@ -9,6 +9,8 @@ use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\facturacion\ElectronicDocumentGuide;
 use App\Models\ap\facturacion\ElectronicDocumentInstallment;
+use App\Models\gp\maestroGeneral\SunatConcepts;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -66,6 +68,22 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
+   * Get the next document number for a given type and series
+   * @param string $documentType
+   * @param string $series
+   * @return int
+   */
+  public function nextDocumentNumber(string $documentType, string $series): array
+  {
+    $query = ElectronicDocument::where('sunat_concept_document_type_id', $documentType)
+      ->where('serie', $series)
+      ->where('anulado', 0)
+      ->whereNull('deleted_at');
+
+    return ["number" => $this->nextCorrelativeQuery($query, 'numero')];
+  }
+
+  /**
    * Create a new electronic document
    * @throws Exception
    */
@@ -74,15 +92,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     DB::beginTransaction();
     try {
       // Validar y calcular el siguiente número correlativo si no se proporciona
-      if (!isset($data['numero'])) {
-        $data['numero'] = ElectronicDocument::getNextNumber(
-          $data['ap_billing_document_type_id'],
-          $data['serie']
-        );
-      }
+      $nextNumberData = $this->nextDocumentNumber(
+        $data['sunat_concept_document_type_id'],
+        $data['serie']
+      );
+      $data['numero'] = $nextNumberData['number'];
 
       // Validar que la serie sea correcta
-      if (!ElectronicDocument::validateSerie($data['ap_billing_document_type_id'], $data['serie'])) {
+      if (!ElectronicDocument::validateSerie($data['sunat_concept_document_type_id'], $data['serie'])) {
         throw new Exception('La serie no es válida para el tipo de documento seleccionado');
       }
 
@@ -245,25 +262,45 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Enviar a Nubefact
       $response = $this->nubefactService->generateDocument($document);
 
+      // Validar estructura de respuesta
+      if (!is_array($response)) {
+        Log::error('Respuesta de Nubefact no es un array', ['response' => $response]);
+        throw new Exception('Respuesta inválida de Nubefact: formato inesperado');
+      }
+
+      // El servicio devuelve ['success' => bool, 'data' => array] o ['success' => bool, 'error' => string, 'data' => array]
+      if (!$response['success']) {
+        $errorMessage = is_array($response['error']) ? implode(', ', $response['error']) : ($response['error'] ?? 'Error desconocido');
+        throw new Exception('Error de Nubefact: ' . $errorMessage);
+      }
+
+      // Obtener los datos reales de Nubefact
+      $nubefactData = $response['data'] ?? [];
+
+      if (!isset($nubefactData['aceptada_por_sunat'])) {
+        Log::error('Respuesta de Nubefact sin clave aceptada_por_sunat', ['response' => $nubefactData]);
+        throw new Exception('Respuesta inválida de Nubefact: falta campo aceptada_por_sunat');
+      }
+
       // Procesar respuesta
-      if ($response['aceptada_por_sunat']) {
-        $document->markAsAccepted($response);
+      if ($nubefactData['aceptada_por_sunat'] === true) {
+        $document->markAsAccepted($nubefactData);
         $message = 'Documento enviado y aceptado por SUNAT correctamente';
       } else {
         $document->markAsRejected(
-          $response['sunat_description'] ?? 'Error desconocido',
-          $response
+          $nubefactData['sunat_description'] ?? 'Error desconocido',
+          $nubefactData
         );
-        $message = 'Documento enviado pero rechazado por SUNAT: ' . ($response['sunat_description'] ?? 'Error desconocido');
+        $message = 'Documento enviado pero rechazado por SUNAT: ' . ($nubefactData['sunat_description'] ?? 'Error desconocido');
       }
 
       DB::commit();
 
       return response()->json([
-        'success' => $response['aceptada_por_sunat'],
+        'success' => $nubefactData['aceptada_por_sunat'],
         'message' => $message,
         'data' => new ElectronicDocumentResource($document->fresh()),
-        'sunat_response' => $response
+        'sunat_response' => $nubefactData
       ]);
     } catch (Exception $e) {
       DB::rollBack();
@@ -369,8 +406,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Preparar datos de la nota de crédito
       $creditNoteData = array_merge($data, [
-        'ap_billing_document_type_id' => ElectronicDocument::TYPE_NOTA_CREDITO,
-        'documento_que_se_modifica_tipo' => $originalDocument->ap_billing_document_type_id,
+        'sunat_concept_document_type_id' => ElectronicDocument::TYPE_NOTA_CREDITO,
+        'documento_que_se_modifica_tipo' => $originalDocument->sunat_concept_document_type_id,
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
         'origin_module' => $originalDocument->origin_module,
@@ -411,8 +448,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Preparar datos de la nota de débito
       $debitNoteData = array_merge($data, [
-        'ap_billing_document_type_id' => ElectronicDocument::TYPE_NOTA_DEBITO,
-        'documento_que_se_modifica_tipo' => $originalDocument->ap_billing_document_type_id,
+        'sunat_concept_document_type_id' => ElectronicDocument::TYPE_NOTA_DEBITO,
+        'documento_que_se_modifica_tipo' => $originalDocument->sunat_concept_document_type_id,
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
         'origin_module' => $originalDocument->origin_module,
@@ -504,5 +541,168 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   {
     $electronicDocument = ElectronicDocument::find($id);
     return new ElectronicDocumentResource($electronicDocument);
+  }
+
+  /**
+   * Obtiene los anticipos pendientes de regularización para una entidad origen
+   */
+  public function getPendingAnticipos(string $module, string $entityType, int $entityId)
+  {
+    return ElectronicDocument::byOriginEntity($module, $entityType, $entityId)
+      ->anticipos()
+      ->acceptedBySunat()
+      ->notCancelled()
+      ->get()
+      ->filter(function ($anticipo) {
+        return !$anticipo->isRegularized();
+      })
+      ->values();
+  }
+
+  /**
+   * Calcula los totales para una factura de regularización
+   */
+  public function calculateRegularizationTotals(float $vehiclePrice, $anticipos): array
+  {
+    $totalAnticipos = $anticipos->sum('total');
+    $totalGravada = ($vehiclePrice / 1.18) - ($totalAnticipos / 1.18);
+    $totalIgv = $vehiclePrice - ($vehiclePrice / 1.18) - ($totalAnticipos - ($totalAnticipos / 1.18));
+    $totalFinal = $vehiclePrice - $totalAnticipos;
+
+    return [
+      'total_anticipo' => round($totalAnticipos, 2),
+      'total_gravada' => round($totalGravada, 2),
+      'total_igv' => round($totalIgv, 2),
+      'total' => round($totalFinal, 2),
+    ];
+  }
+
+  /**
+   * Construye los items para una factura de regularización
+   */
+  public function buildRegularizationItems($vehicle, $anticipos, array $additionalData = []): array
+  {
+    $items = [];
+    $vehiclePrice = (float)$vehicle->model->sale_price;
+    $porcentajeIgv = 18;
+
+    // Item 1: Producto principal (vehículo completo) - POSITIVO
+    $valorUnitario = round($vehiclePrice / (1 + ($porcentajeIgv / 100)), 2);
+    $igv = round($vehiclePrice - $valorUnitario, 2);
+
+    $items[] = [
+      'unidad_de_medida' => 'NIU',
+      'codigo' => $additionalData['codigo'] ?? 'VEH-001',
+      'descripcion' => $additionalData['descripcion'] ?? "Vehículo {$vehicle->model->commercial_brand->name} {$vehicle->model->model} {$vehicle->model->year} - VIN: {$vehicle->vin}",
+      'cantidad' => 1,
+      'valor_unitario' => $valorUnitario,
+      'precio_unitario' => $vehiclePrice,
+      'descuento' => 0,
+      'subtotal' => $valorUnitario,
+      'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_ANTICIPO_GRAVADO, // Tipo 1
+      'igv' => $igv,
+      'total' => $vehiclePrice,
+      'anticipo_regularizacion' => false,
+    ];
+
+    // Items 2-N: Anticipos (negativos)
+    foreach ($anticipos as $anticipo) {
+      $anticipoTotal = (float)$anticipo->total;
+      $anticipoValorUnitario = round(-($anticipoTotal / (1 + ($porcentajeIgv / 100))), 2);
+      $anticipoIgv = round(-($anticipoTotal - abs($anticipoValorUnitario)), 2);
+
+      $items[] = [
+        'unidad_de_medida' => 'ZZ',
+        'codigo' => "ANT-{$anticipo->serie}-{$anticipo->numero}",
+        'descripcion' => "Anticipo {$anticipo->serie}-{$anticipo->numero}",
+        'cantidad' => 1,
+        'valor_unitario' => $anticipoValorUnitario,
+        'precio_unitario' => -$anticipoTotal,
+        'descuento' => 0,
+        'subtotal' => $anticipoValorUnitario,
+        'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_ANTICIPO_GRAVADO, // Tipo 1
+        'igv' => $anticipoIgv,
+        'total' => -$anticipoTotal,
+        'anticipo_regularizacion' => true,
+        'anticipo_documento_serie' => $anticipo->serie,
+        'anticipo_documento_numero' => $anticipo->numero,
+      ];
+    }
+
+    return $items;
+  }
+
+  /**
+   * Generate PDF for electronic document
+   * @throws Exception
+   */
+  public function generatePDF($id)
+  {
+    try {
+      $document = $this->find($id);
+      $resource = new ElectronicDocumentResource($document);
+      $dataArray = $resource->resolve();
+
+      // Agregar datos adicionales para el PDF
+      $dataArray['currency_symbol'] = $document->currency->symbol ?? 'S/';
+      $dataArray['document_type_name'] = $document->documentType->description ?? '';
+      $dataArray['identity_document_type_name'] = $document->identityDocumentType->description ?? '';
+      $dataArray['transaction_type_name'] = $document->transactionType->description ?? '';
+
+      // Cargar items con sus relaciones
+      $dataArray['items_collection'] = $document->items->map(function ($item) {
+        return [
+          'codigo' => $item->codigo,
+          'descripcion' => $item->descripcion,
+          'unidad_de_medida' => $item->unidad_de_medida,
+          'cantidad' => $item->cantidad,
+          'valor_unitario' => $item->valor_unitario,
+          'precio_unitario' => $item->precio_unitario,
+          'descuento' => $item->descuento,
+          'subtotal' => $item->subtotal,
+          'igv' => $item->igv,
+          'total' => $item->total,
+          'igv_type_description' => $item->igvType->description ?? '',
+        ];
+      })->toArray();
+
+      // Convertir totales en letras
+      $dataArray['total_en_letras'] = $this->convertNumberToWords($document->total);
+
+      $pdf = PDF::loadView('reports.ap.facturacion.electronic-document', ['document' => $dataArray]);
+
+      // Configurar PDF
+      $pdf->setOptions([
+        'defaultFont' => 'Arial',
+        'isHtml5ParserEnabled' => true,
+        'isRemoteEnabled' => false,
+        'dpi' => 96,
+      ]);
+
+      // Tamaño A4
+      $pdf->setPaper('A4', 'portrait');
+
+      return $pdf;
+    } catch (Exception $e) {
+      Log::error('Error generating PDF for electronic document', [
+        'id' => $id,
+        'error' => $e->getMessage()
+      ]);
+      throw new Exception('Error al generar el PDF: ' . $e->getMessage());
+    }
+  }
+
+  /**
+   * Convert number to words (Spanish)
+   */
+  private function convertNumberToWords($number): string
+  {
+    $formatter = new \NumberFormatter('es', \NumberFormatter::SPELLOUT);
+    $integerPart = floor($number);
+    $decimalPart = round(($number - $integerPart) * 100);
+
+    $words = strtoupper($formatter->format($integerPart));
+
+    return "{$words} CON {$decimalPart}/100";
   }
 }
