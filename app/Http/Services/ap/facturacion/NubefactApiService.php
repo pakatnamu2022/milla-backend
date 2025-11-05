@@ -206,7 +206,7 @@ class NubefactApiService
       $response = Http::withHeaders([
         'Authorization' => 'Token token="' . $this->token . '"',
         'Content-Type' => 'application/json',
-      ])->post($this->apiUrl . 'anulacion', $payload);
+      ])->post($this->apiUrl, $payload);
 
       $responseData = $response->json();
       $httpStatusCode = $response->status();
