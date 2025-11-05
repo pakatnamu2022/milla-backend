@@ -26,7 +26,7 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'vehicle_color_id' => ['required', 'exists:ap_commercial_masters,id'],
       'ap_models_vn_id' => ['nullable', 'exists:ap_models_vn,id'],
       'doc_type_currency_id' => ['required', 'exists:type_currency,id'],
-      'ap_vehicle_id' => ['nullable', 'exists:ap_vehicles,id'],
+      'ap_vehicle_id' => ['nullable', 'exists:ap_vehicles,id', Rule::unique('purchase_request_quote', 'ap_vehicle_id')->whereNull('deleted_at')],
       'with_vin' => ['nullable', 'boolean'],
 
       // Validaciones para bonus_discounts
