@@ -753,6 +753,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       Route::get('purchaseRequestQuote/pdf/{purchaseRequestQuote}', [PurchaseRequestQuoteController::class, 'reportPDF']); // Descargar
       Route::post('purchaseRequestQuote/assignVehicle/{id}', [PurchaseRequestQuoteController::class, 'assignVehicle']); // Descargar
+      Route::post('purchaseRequestQuote/unassignVehicle/{id}', [PurchaseRequestQuoteController::class, 'unassignVehicle']); // Descargar
       Route::apiResource('purchaseRequestQuote', PurchaseRequestQuoteController::class)->only([
         'index',
         'show',

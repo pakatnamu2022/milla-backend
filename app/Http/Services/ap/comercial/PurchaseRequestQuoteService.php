@@ -136,8 +136,24 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   {
     DB::beginTransaction();
     try {
+      //ap_vehicle_id
       $purchaseRequestQuote = $this->find($data['id']);
       $purchaseRequestQuote->update($data);
+      DB::commit();
+      return PurchaseRequestQuoteResource::make($purchaseRequestQuote);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  public function unassignVehicle(int $id): JsonResource
+  {
+    DB::beginTransaction();
+    try {
+      $purchaseRequestQuote = $this->find($id);
+      $purchaseRequestQuote->ap_vehicle_id = null;
+      $purchaseRequestQuote->save();
       DB::commit();
       return PurchaseRequestQuoteResource::make($purchaseRequestQuote);
     } catch (Exception $e) {

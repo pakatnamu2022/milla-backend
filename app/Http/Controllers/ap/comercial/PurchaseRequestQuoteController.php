@@ -71,6 +71,15 @@ class PurchaseRequestQuoteController extends Controller
     }
   }
 
+  public function unassignVehicle(int $id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->unassignVehicle($id));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function destroy($id)
   {
     try {

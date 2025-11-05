@@ -18,7 +18,8 @@ class AssignVehicleToQuoteRequest extends StoreRequest
       'ap_vehicle_id' => [
         'required',
         'integer',
-        Rule::exists('ap_vehicles', 'id')->whereNull('deleted_at')
+        Rule::exists('ap_vehicles', 'id')->whereNull('deleted_at'),
+        Rule::unique('purchase_request_quote', 'ap_vehicle_id')->whereNull('deleted_at'),
       ],
     ];
   }

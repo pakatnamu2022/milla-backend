@@ -45,6 +45,7 @@ class Vehicles extends Model
     'engine_type_id' => '=',
     'warehouse_physical_id' => '=',
     'year' => '=',
+    'has_purchase_request_quote' => 'accessor',
   ];
 
   public static array $sorts = [
@@ -53,6 +54,11 @@ class Vehicles extends Model
     'engine_number',
     'created_at',
   ];
+
+  public function getHasPurchaseRequestQuoteAttribute(): bool
+  {
+    return $this->purchaseOrders()->exists();
+  }
 
   // Relaciones
   public function model(): BelongsTo
