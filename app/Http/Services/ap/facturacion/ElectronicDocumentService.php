@@ -24,7 +24,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   /**
    * @var int
    */
-  protected int $startCorrelative = 2;
+  protected int $startCorrelative = 3;
 
   public function __construct(NubefactApiService $nubefactService)
   {
@@ -88,10 +88,21 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   {
     $query = ElectronicDocument::where('sunat_concept_document_type_id', $documentType)
       ->where('serie', $series)
-      ->where('anulado', 0)
       ->whereNull('deleted_at');
+    $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $this->startCorrelative;
+    $number = $this->completeNumber($correlative);
+    return ["number" => $number];
+  }
 
-    return ["number" => $this->nextCorrelativeQuery($query, 'numero')];
+  /**
+   * @param string $documentType
+   * @param string $series
+   * @return array[]|int[]
+   */
+  private function nextDocumentNumberCorrelative(string $documentType, string $series): array
+  {
+    $number = (int)$this->nextDocumentNumber($documentType, $series);
+    return ["number" => $number];
   }
 
   /**
@@ -105,11 +116,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       /**
        * Validar y calcular el siguiente número correlativo si no se proporciona
        */
-      $nextNumberData = $this->nextDocumentNumber(
+      $nextNumberData = $this->nextDocumentNumberCorrelative(
         $data['sunat_concept_document_type_id'],
         $data['serie']
       );
-      $data['numero'] = $nextNumberData['number'] + $this->startCorrelative;
+      $data['numero'] = $nextNumberData['number'];
 
       /**
        * Validar que la serie sea correcta
