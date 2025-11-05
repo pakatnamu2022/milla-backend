@@ -125,7 +125,6 @@ class ElectronicDocument extends BaseModel
     'enviar_automaticamente_al_cliente' => 'boolean',
     'generado_por_contingencia' => 'boolean',
     'aceptada_por_sunat' => 'boolean',
-    'anulado' => 'boolean',
     'sent_at' => 'datetime',
     'accepted_at' => 'datetime',
     'cancelled_at' => 'datetime',

@@ -361,20 +361,31 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       $response = $this->nubefactService->queryDocument($document);
 
-      // Actualizar estado si cambió
-      if (isset($response['aceptada_por_sunat']) && $response['aceptada_por_sunat'] && !$document->aceptada_por_sunat) {
-        DB::beginTransaction();
-        $document->markAsAccepted($response);
-        DB::commit();
+      // Extraer los datos de la respuesta
+      $nubefactData = $response['data'] ?? $response;
+
+      DB::beginTransaction();
+
+      // Actualizar estado del documento y campos anulado
+      $document->update([
+        'anulado' => $nubefactData['anulado'] ?? $document->anulado,
+      ]);
+
+      // Si el documento fue aceptado por SUNAT, actualizar usando el método del modelo
+      if (isset($nubefactData['aceptada_por_sunat']) && $nubefactData['aceptada_por_sunat']) {
+        $document->markAsAccepted($nubefactData);
       }
+
+      DB::commit();
 
       return response()->json([
         'success' => true,
         'message' => 'Estado consultado correctamente',
         'data' => new ElectronicDocumentResource($document->fresh()),
-        'sunat_response' => $response
+        'sunat_response' => $nubefactData
       ]);
     } catch (Exception $e) {
+      DB::rollBack();
       Log::error('Error querying document from Nubefact', [
         'id' => $id,
         'error' => $e->getMessage()
