@@ -300,18 +300,18 @@ class NubefactShippingGuideApiService
   {
     // Punto de partida
     if ($guide->sede_transmitter_id) {
-      $sedeTransmitter = $guide->sedeTransmitter;
-      $payload['punto_de_partida_ubigeo'] = $sedeTransmitter->district->ubigeo ?? '150101';
-      $payload['punto_de_partida_direccion'] = $sedeTransmitter->direccion ?? '';
-      $payload['punto_de_partida_codigo_establecimiento_sunat'] = $sedeTransmitter->code_sunat ?? '0000';
+      $originLocation = $guide->transmitter;
+      $payload['punto_de_partida_ubigeo'] = $originLocation->ubigeo ?? '150101';
+      $payload['punto_de_partida_direccion'] = $originLocation->address ?? '';
+      $payload['punto_de_partida_codigo_establecimiento_sunat'] = '0000';
     }
 
     // Punto de llegada
     if ($guide->sede_receiver_id) {
-      $sedeReceiver = $guide->sedeReceiver;
-      $payload['punto_de_llegada_ubigeo'] = $sedeReceiver->district->ubigeo ?? '150101';
-      $payload['punto_de_llegada_direccion'] = $sedeReceiver->direccion ?? '';
-      $payload['punto_de_llegada_codigo_establecimiento_sunat'] = $sedeReceiver->code_sunat ?? '0000';
+      $destinationLocation = $guide->receiver;
+      $payload['punto_de_llegada_ubigeo'] = $destinationLocation->ubigeo ?? '150101';
+      $payload['punto_de_llegada_direccion'] = $destinationLocation->address ?? '';
+      $payload['punto_de_llegada_codigo_establecimiento_sunat'] = '0000';
     }
   }
 
@@ -322,17 +322,17 @@ class NubefactShippingGuideApiService
   {
     $items = [];
 
-    // Si la guía tiene relación con movimiento de vehículo, obtener los items de ahí
-    if ($guide->vehicleMovement && $guide->vehicleMovement->items) {
-      foreach ($guide->vehicleMovement->items as $item) {
-        $items[] = [
-          'unidad_de_medida' => $item->unit ?? 'NIU',
-          'codigo' => $item->product_code ?? '001',
-          'descripcion' => $item->description ?? 'PRODUCTO',
-          'cantidad' => number_format($item->quantity, 2, '.', ''),
-        ];
-      }
-    }
+    /*
+     * los items solo va aparecer 1 registro que es el vehiculo de conforma de
+     * marca + version + año + SERIE: vin + MOTOR: motor
+     * */
+    $vehicle = $guide->vehicleMovement->vehicle;
+    $items[] = [
+      'unidad_de_medida' => 'NIU',
+      'codigo' => '001',
+      'descripcion' => strtoupper($vehicle->model->family->brand->name . ' ' . $vehicle->model->version . ' ' . $vehicle->model->model_year . ' SERIE: ' . $vehicle->vin . ' MOTOR: ' . $vehicle->engine_number),
+      'cantidad' => '1',
+    ];
 
     // Si no hay items, agregar uno genérico
     if (empty($items)) {

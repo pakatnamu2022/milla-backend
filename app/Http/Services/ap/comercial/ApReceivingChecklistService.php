@@ -161,6 +161,14 @@ class ApReceivingChecklistService extends BaseService
         throw new Exception('Guía de envío no encontrada');
       }
 
+      if (!$shippingGuide->accepted_by_sunat) {
+        throw new Exception('Debe esperar a que la guía de remisión sea aceptada por SUNAT antes de registrar la recepción');
+      }
+
+      if ($shippingGuide->is_received) {
+        throw new Exception('La guía de remisión ya ha sido recepcionada');
+      }
+
       // Validate items_receiving is provided and is an array/object
       if (!isset($data['items_receiving']) || !is_array($data['items_receiving'])) {
         throw new Exception('items_receiving debe ser un objeto');

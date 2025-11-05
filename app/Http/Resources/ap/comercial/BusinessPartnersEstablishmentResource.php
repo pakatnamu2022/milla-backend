@@ -15,6 +15,8 @@ class BusinessPartnersEstablishmentResource extends JsonResource
    */
   public function toArray(Request $request): array
   {
+    $districtData = $this->getDistrictData();
+
     return [
       'id' => $this->id,
       'code' => $this->code,
@@ -24,28 +26,40 @@ class BusinessPartnersEstablishmentResource extends JsonResource
       'address' => $this->address,
       'full_address' => $this->full_address,
       'ubigeo' => $this->ubigeo,
-      'location' => $this->getLocation(),
+      'location' => $districtData['location'] ?? null,
+      'district_id' => $districtData['district_id'] ?? null,
+      'province_id' => $districtData['province_id'] ?? null,
+      'department_id' => $districtData['department_id'] ?? null,
       'business_partner_id' => $this->business_partner_id,
       'status' => $this->status,
     ];
   }
 
-  private function getLocation(): ?string
+  private function getDistrictData(): array
   {
     if (!$this->ubigeo) {
-      return null;
+      return [];
     }
 
-    $district = District::where('ubigeo', $this->ubigeo)->first();
+    $district = District::where('ubigeo', $this->ubigeo)
+      ->with(['province.department'])
+      ->first();
 
     if (!$district) {
-      return null;
+      return [];
     }
 
-    return implode(' - ', array_filter([
+    $location = implode(' - ', array_filter([
       $district->name,
       $district->province->name ?? null,
       $district->province->department->name ?? null,
     ]));
+
+    return [
+      'location' => $location,
+      'district_id' => $district->id,
+      'province_id' => $district->province->id ?? null,
+      'department_id' => $district->province->department->id ?? null,
+    ];
   }
 }
