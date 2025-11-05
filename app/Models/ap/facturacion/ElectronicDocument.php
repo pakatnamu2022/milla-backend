@@ -25,6 +25,7 @@ class ElectronicDocument extends BaseModel
     'origin_entity_type',
     'origin_entity_id',
     'ap_vehicle_movement_id',
+    'client_id',
     'sunat_concept_identity_document_type_id',
     'cliente_numero_de_documento',
     'cliente_denominacion',

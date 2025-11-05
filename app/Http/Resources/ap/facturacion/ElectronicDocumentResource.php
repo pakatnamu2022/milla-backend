@@ -19,7 +19,7 @@ class ElectronicDocumentResource extends JsonResource
     return [
       'id' => $this->id,
       'sunat_concept_document_type_id' => $this->sunat_concept_document_type_id,
-      'serie' => $this->series,
+      'serie' => $this->serie,
       'numero' => $this->numero,
       'sunat_concept_transaction_type_id' => $this->sunat_concept_transaction_type_id,
       'origin_module' => $this->origin_module, // COMERCIAL O POSVENTA
@@ -109,7 +109,7 @@ class ElectronicDocumentResource extends JsonResource
       'document_type' => SunatConceptsResource::make($this->documentType),
       'transaction_type' => SunatConceptsResource::make($this->transactionType),
       'identity_document_type' => SunatConceptsResource::make($this->identityDocumentType),
-      'currency' => SunatConceptsResource::make($this->currencyType),
+      'currency' => SunatConceptsResource::make($this->currency),
       'items' => ElectronicDocumentItemResource::collection($this->items),
       'guides' => ElectronicDocumentGuideResource::collection($this->guides),
       'installments' => ElectronicDocumentInstallmentResource::collection($this->installments),

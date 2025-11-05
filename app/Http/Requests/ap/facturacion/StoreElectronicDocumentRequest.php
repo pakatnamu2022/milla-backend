@@ -52,7 +52,6 @@ class StoreElectronicDocumentRequest extends StoreRequest
     // Convertir strings numéricos a decimales para totales
     $decimalFields = [
       'tipo_de_cambio',
-      'porcentaje_de_igv',
       'descuento_global',
       'total_descuento',
       'total_anticipo',
@@ -226,7 +225,6 @@ class StoreElectronicDocumentRequest extends StoreRequest
       // Moneda
       'sunat_concept_currency_id' => 'required|integer|exists:sunat_concepts,id',
       'tipo_de_cambio' => 'nullable|numeric|min:0|max:999.999',
-      'porcentaje_de_igv' => 'required|numeric|min:0|max:99.99',
 
       // Totales
       'descuento_global' => 'nullable|numeric|min:0',

@@ -8,6 +8,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
@@ -127,12 +128,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         ->where('type', SunatConcepts::TYPE_DOCUMENT)
         ->first();
 
-      throw new Exception($documentType);
       $data['sunat_concept_identity_document_type_id'] = $documentType->id;
       $data['cliente_numero_de_documento'] = $client->num_doc;
       $data['cliente_denominacion'] = $client->full_name;
       $data['cliente_direccion'] = $client->direction;
       $data['cliente_email'] = $client->email;
+      $data['porcentaje_de_igv'] = $client->taxClassType->igv;
+      $data['client_id'] = $client->id;
+      $data['tipo_de_cambio'] = $exchangeRate->rate;
 
 
       /**

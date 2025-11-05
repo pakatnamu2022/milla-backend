@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ap\comercial;
 
 use App\Http\Requests\IndexRequest;
+use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use Illuminate\Validation\Rule;
 
@@ -23,11 +24,17 @@ class IndexVehiclesRequest extends IndexRequest
         Rule::exists('ap_vehicle_status', 'id'),
         Rule::in([ApVehicleStatus::VEHICULO_EN_TRAVESIA, ApVehicleStatus::INVENTARIO_VN])
       ],
-      'search' => [
+//      'search' => [
+//        'integer',
+//        Rule::exists('ap_vehicle_status', 'id'),
+//        Rule::in([ApVehicleStatus::VEHICULO_EN_TRAVESIA, ApVehicleStatus::PEDIDO_VN])
+//      ],
+      'has_purchase_request_quote' => 'nullable|boolean|in:0,1',
+      'ap_models_vn_id' => [
         'integer',
-        Rule::exists('ap_vehicle_status', 'id'),
-        Rule::in([ApVehicleStatus::VEHICULO_EN_TRAVESIA, ApVehicleStatus::PEDIDO_VN])
-      ],
+        Rule::in(ApModelsVn::all()->pluck('id')->toArray()),
+        Rule::exists('ap_models_vn', 'id')->whereNull('deleted_at')->where('status', 1)
+      ]
     ];
   }
 }

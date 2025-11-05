@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Vehicles extends Model
@@ -57,10 +58,15 @@ class Vehicles extends Model
 
   public function getHasPurchaseRequestQuoteAttribute(): bool
   {
-    return $this->purchaseOrders()->exists();
+    return $this->purchaseRequestQuote()->exists();
   }
 
   // Relaciones
+  public function purchaseRequestQuote(): HasOne
+  {
+    return $this->hasOne(PurchaseRequestQuote::class, 'ap_vehicle_id');
+  }
+
   public function model(): BelongsTo
   {
     return $this->belongsTo(ApModelsVn::class, 'ap_models_vn_id');
