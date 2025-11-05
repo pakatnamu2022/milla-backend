@@ -206,6 +206,11 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'origin_entity_type' => 'nullable|string|max:100',
       'origin_entity_id' => 'nullable|integer',
       'ap_vehicle_movement_id' => 'nullable|integer|exists:ap_vehicle_movement,id',
+      'ap_vehicle_id' => [
+        'nullable',
+        'integer',
+        Rule::exists('ap_vehicles', 'id')->whereNull('deleted_at')->where('status', 1),
+      ],
 
       // Datos del cliente
       'client_id' => Rule::exists('business_partners', 'id')

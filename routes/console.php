@@ -81,3 +81,10 @@ Schedule::command('po:sync-credit-note-dynamics --all')
 //   ->timezone('America/Lima')
 //   ->withoutOverlapping()
 //   ->runInBackground();
+
+// Consultar estado de documentos electrónicos enviados a SUNAT
+Schedule::command('app:check-pending-electronic-documents')
+  ->everyThirtySeconds()
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();

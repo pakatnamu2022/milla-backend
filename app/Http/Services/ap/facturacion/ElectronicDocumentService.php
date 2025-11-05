@@ -24,7 +24,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   /**
    * @var int
    */
-  protected int $startCorrelative = 3;
+  protected int $startCorrelative = 0;
 
   public function __construct(NubefactApiService $nubefactService)
   {
@@ -101,8 +101,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    */
   private function nextDocumentNumberCorrelative(string $documentType, string $series): array
   {
-    $number = (int)$this->nextDocumentNumber($documentType, $series);
-    return ["number" => $number];
+    $number = $this->nextDocumentNumber($documentType, $series);
+    return ["number" => (int)$number["number"]];
   }
 
   /**
@@ -180,8 +180,18 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
       }
 
+      // Crear movimiento de vehículo si viene ap_vehicle_id
+      if (isset($data['ap_vehicle_id']) && $data['ap_vehicle_id']) {
+        $vehicleMovement = $this->createVehicleMovement($data['ap_vehicle_id'], $document);
+
+        // Actualizar el documento con el ID del movimiento
+        $document->update([
+          'ap_vehicle_movement_id' => $vehicleMovement->id
+        ]);
+      }
+
       DB::commit();
-      return new ElectronicDocumentResource($document->load(['items', 'guides', 'installments']));
+      return new ElectronicDocumentResource($document->load(['items', 'guides', 'installments', 'vehicleMovement']));
     } catch (Exception $e) {
       DB::rollBack();
       Log::error('Error creating electronic document', [
@@ -746,6 +756,62 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'error' => $e->getMessage()
       ]);
       throw new Exception('Error al generar el PDF: ' . $e->getMessage());
+    }
+  }
+
+  /**
+   * Create vehicle movement when electronic document is created
+   * @param int $vehicleId
+   * @param ElectronicDocument $document
+   * @return \App\Models\ap\comercial\VehicleMovement
+   * @throws Exception
+   */
+  private function createVehicleMovement(int $vehicleId, ElectronicDocument $document)
+  {
+    try {
+      $vehicle = \App\Models\ap\comercial\Vehicles::find($vehicleId);
+
+      if (!$vehicle) {
+        throw new Exception("Vehículo con ID {$vehicleId} no encontrado");
+      }
+
+      // Obtener el estado anterior del vehículo
+      $previousStatusId = $vehicle->ap_vehicle_status_id;
+
+      // Crear el movimiento de vehículo
+      $vehicleMovement = \App\Models\ap\comercial\VehicleMovement::create([
+        'movement_type' => 'VENTA',
+        'ap_vehicle_id' => $vehicleId,
+        'ap_vehicle_status_id' => \App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+        'movement_date' => now(),
+        'observation' => "Venta de vehículo - Documento: {$document->serie}-{$document->numero}",
+        'previous_status_id' => $previousStatusId,
+        'new_status_id' => \App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+        'created_by' => auth()->id(),
+      ]);
+
+      // Actualizar el estado del vehículo
+      $vehicle->update([
+        'ap_vehicle_status_id' => \App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+      ]);
+
+      Log::info('Vehicle movement created for electronic document', [
+        'vehicle_id' => $vehicleId,
+        'movement_id' => $vehicleMovement->id,
+        'document_id' => $document->id,
+        'document_number' => "{$document->serie}-{$document->numero}",
+        'previous_status' => $previousStatusId,
+        'new_status' => \App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+      ]);
+
+      return $vehicleMovement;
+    } catch (Exception $e) {
+      Log::error('Error creating vehicle movement for electronic document', [
+        'vehicle_id' => $vehicleId,
+        'document_id' => $document->id,
+        'error' => $e->getMessage()
+      ]);
+      throw $e;
     }
   }
 
