@@ -274,7 +274,7 @@ class NubefactApiService
       $response = Http::withHeaders([
         'Authorization' => 'Token token="' . $this->token . '"',
         'Content-Type' => 'application/json',
-      ])->get($this->apiUrl . 'anulacion/consultar', $queryParams);
+      ])->get($this->apiUrl, $queryParams);
 
       $responseData = $response->json();
       $httpStatusCode = $response->status();

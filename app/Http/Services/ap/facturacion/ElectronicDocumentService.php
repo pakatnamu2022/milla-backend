@@ -366,14 +366,17 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       DB::beginTransaction();
 
-      // Actualizar estado del documento y campos anulado
-      $document->update([
-        'anulado' => $nubefactData['anulado'] ?? $document->anulado,
-      ]);
-
       // Si el documento fue aceptado por SUNAT, actualizar usando el método del modelo
       if (isset($nubefactData['aceptada_por_sunat']) && $nubefactData['aceptada_por_sunat']) {
         $document->markAsAccepted($nubefactData);
+      }
+
+      // Verificar si el documento fue anulado en Nubefact
+      if (isset($nubefactData['anulado']) && $nubefactData['anulado'] === true) {
+        // Si el documento no está marcado como cancelado en nuestra BD, actualizarlo
+        if ($document->status !== ElectronicDocument::STATUS_CANCELLED || !$document->anulado) {
+          $document->markAsCancelled('Documento anulado en SUNAT (detectado via consulta)');
+        }
       }
 
       DB::commit();
