@@ -161,7 +161,7 @@ class ApReceivingChecklistService extends BaseService
         throw new Exception('Guía de envío no encontrada');
       }
 
-      if (!$shippingGuide->accepted_by_sunat) {
+      if (!$shippingGuide->aceptada_por_sunat) {
         throw new Exception('Debe esperar a que la guía de remisión sea aceptada por SUNAT antes de registrar la recepción');
       }
 
@@ -218,7 +218,7 @@ class ApReceivingChecklistService extends BaseService
       }
 
       // Despachar el Job síncronamente para debugging
-      //SyncShippingGuideJob::dispatchSync($shippingGuide->id);
+      SyncShippingGuideJob::dispatchSync($shippingGuide->id);
 
       // Update shipping guide with note, is_received, received_by and received_date
       $shippingGuide->update([

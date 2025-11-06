@@ -20,6 +20,9 @@ class WarehouseResource extends JsonResource
       'type_operation_id' => $this->type_operation_id,
       'type_operation' => $this->typeOperation->description,
       'status' => $this->status,
+      'is_received' => $this->is_received,
+      'inventory_account' => $this->inventory_account,
+      'counterparty_account' => $this->counterparty_account,
     ];
   }
 }

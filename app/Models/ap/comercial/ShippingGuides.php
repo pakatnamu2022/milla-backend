@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
+use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\gp\maestroGeneral\SunatConcepts;
@@ -74,6 +75,7 @@ class ShippingGuides extends Model
     'status_dynamic',
     'migration_status',
     'migrated_at',
+    'ap_class_article_id',
   ];
 
   protected $casts = [
@@ -224,6 +226,11 @@ class ShippingGuides extends Model
   public function migrationLogs()
   {
     return $this->hasMany(VehiclePurchaseOrderMigrationLog::class, 'shipping_guide_id');
+  }
+
+  public function ArticleClass()
+  {
+    return $this->belongsTo(ApClassArticle::class, 'ap_class_article_id');
   }
 
   /**

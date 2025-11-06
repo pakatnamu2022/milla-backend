@@ -50,6 +50,16 @@ class UpdateWarehouseRequest extends StoreRequest
         'nullable',
         'boolean',
       ],
+      'inventory_account' => [
+        'nullable',
+        'string',
+        'max:50',
+      ],
+      'counterparty_account' => [
+        'nullable',
+        'string',
+        'max:50',
+      ],
     ];
   }
 

@@ -6,6 +6,7 @@ use App\Http\Resources\ap\comercial\ShippingGuidesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
+use App\Jobs\SyncShippingGuideJob;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehicleMovement;
@@ -20,7 +21,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class ShippingGuidesService extends BaseService implements BaseServiceInterface
 {
@@ -100,7 +100,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       $file = null;
       if (isset($data['file']) && $data['file'] instanceof UploadedFile) {
         $file = $data['file'];
-        unset($data['file']); // Remover del array para no guardarlo en la BD
+        unset($data['file']);
       }
 
       // 3. Manejar series y correlativo según issuer_type
@@ -110,7 +110,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       $documentSeriesId = null;
 
       if ($data['issuer_type'] == 'NOSOTROS') {
-        // Validar que document_series_id sea obligatorio
         if (empty($data['document_series_id'])) {
           throw new Exception('El campo document_series_id es obligatorio cuando el emisor es AUTOMOTORES');
         }
@@ -122,7 +121,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
         // Contar documentos existentes con la misma serie
         $existingCount = ShippingGuides::where('document_series_id', $data['document_series_id'])->count();
-        $correlativeNumber = $correlativeStart + $existingCount;
+        $correlativeNumber = $correlativeStart + $existingCount + 1;
 
         $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
         $documentNumber = $series . '-' . $correlative;
@@ -177,6 +176,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'transfer_reason_id' => $data['transfer_reason_id'] ?? null,
         'transfer_modality_id' => $data['transfer_modality_id'] ?? null,
         'created_by' => Auth::id(),
+        'ap_class_article_id' => $data['ap_class_article_id'] ?? null,
       ];
 
       $document = ShippingGuides::create($documentData);
@@ -217,11 +217,36 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         unset($data['file']); // Remover del array para no guardarlo en la BD
       }
 
-      if (isset($data['issuer_type']) && $data['issuer_type'] == 'PROVEEDOR') {
-        $data['document_number'] = $data['series'] . '-' . $data['correlative'];
+      // 2. Recalcular serie y correlativo si cambió el document_series_id y el emisor es NOSOTROS
+      if (isset($data['issuer_type']) && $data['issuer_type'] == 'NOSOTROS') {
+        if (isset($data['document_series_id']) && $data['document_series_id'] != $document->document_series_id) {
+          // Cambió la serie, recalcular correlativo
+          $assignSeries = AssignSalesSeries::findOrFail($data['document_series_id']);
+          $series = $assignSeries->series;
+          $correlativeStart = $assignSeries->correlative_start;
+
+          // Contar documentos existentes con la nueva serie (excluyendo el actual)
+          $existingCount = ShippingGuides::where('document_series_id', $data['document_series_id'])
+            ->where('id', '!=', $document->id)
+            ->count();
+          $correlativeNumber = $correlativeStart + $existingCount + 1;
+
+          $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
+          $documentNumber = $series . '-' . $correlative;
+
+          // Actualizar los valores calculados
+          $data['series'] = $series;
+          $data['correlative'] = $correlative;
+          $data['document_number'] = $documentNumber;
+        }
+      } elseif (isset($data['issuer_type']) && $data['issuer_type'] == 'PROVEEDOR') {
+        // Para proveedor, reconstruir document_number si cambiaron series o correlative
+        if (isset($data['series']) && isset($data['correlative'])) {
+          $data['document_number'] = $data['series'] . '-' . $data['correlative'];
+        }
       }
 
-      // 2. Manejar type_voucher_id para guías de remisión
+      // 3. Manejar type_voucher_id para guías de remisión
       if (isset($data['document_type']) && $data['document_type'] == 'GUIA_REMISION') {
         $data['type_voucher_id'] = SunatConcepts::GUIA_REMISION_REMITENTE;
       }
@@ -320,7 +345,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     try {
       $guide = $this->find($id);
 
-      // Validar que la guía esté en estado correcto
       if ($guide->aceptada_por_sunat) {
         throw new Exception('La guía ya ha sido aceptada por SUNAT');
       }
@@ -341,17 +365,13 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('El tipo de documento o comprobante no es válido para envío a SUNAT');
       }
 
-      // Marcar como enviado
-      $guide->markAsSent();
-
-      // Enviar a Nubefact
       $response = $this->nubefactService->generateGuide($guide);
 
-      // Procesar respuesta
       if ($response['success']) {
+        $guide->markAsSent();
+
         $responseData = $response['data'];
 
-        // Actualizar con la respuesta de Nubefact
         $guide->update([
           'enlace' => $responseData['enlace'] ?? null,
           'enlace_del_pdf' => $responseData['enlace_del_pdf'] ?? null,
@@ -364,7 +384,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           'sunat_soap_error' => $responseData['sunat_soap_error'] ?? null,
         ]);
 
-        // Verificar si fue aceptada por SUNAT (puede ser false inicialmente)
         if (isset($responseData['aceptada_por_sunat']) && $responseData['aceptada_por_sunat']) {
           $guide->markAsAccepted($responseData);
           $message = 'Guía enviada y aceptada por SUNAT correctamente';
@@ -387,10 +406,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       ]);
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error sending shipping guide to Nubefact', [
-        'id' => $id,
-        'error' => $e->getMessage()
-      ]);
       throw new Exception('Error al enviar la guía a Nubefact: ' . $e->getMessage());
     }
   }
@@ -450,12 +465,39 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'nubefact_response' => $response['data'] ?? null
       ]);
     } catch (Exception $e) {
-      Log::error('Error querying shipping guide from Nubefact', [
-        'id' => $id,
-        'error' => $e->getMessage()
-      ]);
       throw new Exception('Error al consultar la guía en Nubefact: ' . $e->getMessage());
     }
+  }
+
+  public function markAsReceived($id, $noteReceived): JsonResponse
+  {
+    return DB::transaction(function () use ($id, $noteReceived) {
+      $guide = $this->find($id);
+
+      if ($guide->is_received) {
+        throw new Exception('La guía ya ha sido marcada como recepcionada');
+      }
+
+      if ($guide->cancelled_at) {
+        throw new Exception('No se puede marcar como recepcionada una guía anulada');
+      }
+
+      // Despachar el Job síncronamente para debugging
+      SyncShippingGuideJob::dispatchSync($guide->id);
+
+      $guide->update([
+        'is_received' => true,
+        'note_received' => $noteReceived,
+        'received_by' => Auth::id(),
+        'received_date' => now(),
+      ]);
+
+      return response()->json([
+        'success' => true,
+        'message' => 'Guía marcada como recepcionada correctamente',
+        'data' => new ShippingGuidesResource($guide->fresh()),
+      ]);
+    });
   }
 
   public function syncToDynamics($id): JsonResponse
@@ -478,10 +520,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'data' => new ShippingGuidesResource($guide->fresh()),
       ]);
     } catch (Exception $e) {
-      Log::error('Error dispatching sync job for shipping guide', [
-        'id' => $id,
-        'error' => $e->getMessage()
-      ]);
       throw new Exception('Error al programar la sincronización: ' . $e->getMessage());
     }
   }

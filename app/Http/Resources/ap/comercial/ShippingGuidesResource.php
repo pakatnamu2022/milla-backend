@@ -71,6 +71,8 @@ class ShippingGuidesResource extends JsonResource
       'cadena_para_codigo_qr' => $this->cadena_para_codigo_qr,
       'aceptada_por_sunat' => $this->aceptada_por_sunat,
       'status_dynamic' => $this->status_dynamic,
+      'ap_class_article_id' => $this->ap_class_article_id,
+      'note_received' => $this->note_received,
     ];
   }
 }

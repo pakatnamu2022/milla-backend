@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\ap\maestroGeneral;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ap\maestroGeneral\IndexWarehousesByCompanyRequest;
 use App\Http\Requests\ap\maestroGeneral\IndexMyWarehouseRequest;
 use App\Http\Requests\ap\maestroGeneral\IndexWarehouseRequest;
 use App\Http\Requests\ap\maestroGeneral\StoreWarehouseRequest;
 use App\Http\Requests\ap\maestroGeneral\UpdateWarehouseRequest;
 use App\Http\Services\ap\maestroGeneral\WarehouseService;
-use Illuminate\Http\Request;
 
 class WarehouseController extends Controller
 {
@@ -28,10 +28,19 @@ class WarehouseController extends Controller
     }
   }
 
-  public function myWarehouses(IndexMyWarehouseRequest $request)
+  public function getWarehousesByModelAndSede(IndexMyWarehouseRequest $request)
   {
     try {
-      return $this->success($this->service->getMyWarehouses($request));
+      return $this->success($this->service->getWarehousesByModelAndSede($request));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function getWarehousesByCompany(IndexWarehousesByCompanyRequest $request)
+  {
+    try {
+      return $this->success($this->service->getWarehousesByCompany($request));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

@@ -25,10 +25,12 @@ class Warehouse extends Model
     'is_received',
     'sede_id',
     'type_operation_id',
+    'inventory_account',
+    'counterparty_account',
   ];
 
   const filters = [
-    'search' => ['dyn_code', 'description'],
+    'search' => ['dyn_code', 'description', 'inventory_account', 'counterparty_account'],
     'article_class_id' => '=',
     'type' => '=',
     'status' => '=',

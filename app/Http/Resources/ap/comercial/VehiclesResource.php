@@ -32,6 +32,8 @@ class VehiclesResource extends JsonResource
       'status_color' => $this->vehicleStatus->color,
       'warehouse_physical_id' => $this->warehouse_physical_id ?? null,
       'warehouse_physical' => $this->warehousePhysical?->description ?? null,
+      'sede_id' => $this->warehousePhysical?->sede_id ?? null,
+      'sede' => $this->warehousePhysical?->sede->abreviatura ?? null,
       'movements' => VehicleMovementResource::collection($this->vehicleMovements),
     ];
   }

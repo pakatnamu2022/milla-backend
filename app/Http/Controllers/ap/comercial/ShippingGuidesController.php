@@ -94,9 +94,6 @@ class ShippingGuidesController extends Controller
     }
   }
 
-  /**
-   * Envía la guía de remisión a SUNAT mediante Nubefact
-   */
   public function sendToNubefact($id)
   {
     try {
@@ -109,9 +106,6 @@ class ShippingGuidesController extends Controller
     }
   }
 
-  /**
-   * Consulta el estado de la guía en Nubefact/SUNAT
-   */
   public function queryFromNubefact($id)
   {
     try {
@@ -124,9 +118,22 @@ class ShippingGuidesController extends Controller
     }
   }
 
-  /**
-   * Get migration logs for a specific shipping guide
-   */
+  public function markAsReceived(Request $request, $id)
+  {
+    try {
+      $request->validate([
+        'note_received' => 'required|string',
+      ]);
+
+      return $this->service->markAsReceived($id, $request->note_received);
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
+    }
+  }
+
   public function logs(int $id)
   {
     try {
@@ -165,9 +172,6 @@ class ShippingGuidesController extends Controller
     }
   }
 
-  /**
-   * Get detailed migration history for a shipping guide
-   */
   public function history(int $id)
   {
     try {

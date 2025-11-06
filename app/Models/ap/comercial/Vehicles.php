@@ -45,6 +45,9 @@ class Vehicles extends Model
     'engine_type_id' => '=',
     'warehouse_physical_id' => '=',
     'year' => '=',
+    'warehousePhysical.is_received' => '=',
+    'warehousePhysical.sede_id' => '=',
+    'warehousePhysical.article_class_id' => '='
   ];
 
   public static array $sorts = [
@@ -73,11 +76,6 @@ class Vehicles extends Model
   public function vehicleStatus(): BelongsTo
   {
     return $this->belongsTo(ApVehicleStatus::class, 'ap_vehicle_status_id');
-  }
-
-  public function sede(): BelongsTo
-  {
-    return $this->belongsTo(Sede::class, 'sede_id');
   }
 
   public function warehousePhysical(): BelongsTo

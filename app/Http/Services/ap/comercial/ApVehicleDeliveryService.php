@@ -8,11 +8,9 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\ShippingGuides;
-use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Exception;
 
 class ApVehicleDeliveryService extends BaseService implements BaseServiceInterface
@@ -110,17 +108,12 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     return response()->json(['message' => 'Entrega de Vehículo eliminada correctamente']);
   }
 
-  /**
-   * Envía la guía de remisión a SUNAT mediante Nubefact
-   * @throws Exception
-   */
   public function sendToNubefact($id): JsonResponse
   {
     DB::beginTransaction();
     try {
       $vehicleDelivery = $this->find($id);
 
-      // Validar que la entrega esté en estado correcto
       if ($vehicleDelivery->status_nubefact) {
         throw new Exception('La guía de remisión ya ha sido enviada a Nubefact');
       }
@@ -129,7 +122,6 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         throw new Exception('Solo se pueden enviar guías de entregas completadas');
       }
 
-      // Buscar la guía de remisión asociada al vehículo
       $shippingGuide = ShippingGuides::where('vehicle_movement_id', $vehicleDelivery->vehicle_id)
         ->whereNull('cancelled_at')
         ->latest()
@@ -139,7 +131,6 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se encontró una guía de remisión asociada a esta entrega');
       }
 
-      // Validar que la guía requiera registro en SUNAT
       if (!$shippingGuide->requires_sunat) {
         throw new Exception('Esta guía no requiere registro en SUNAT');
       }
@@ -148,17 +139,14 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         throw new Exception('La guía ya ha sido aceptada por SUNAT');
       }
 
-      // Marcar como enviado
-      $shippingGuide->markAsSent();
-
-      // Enviar a Nubefact
       $response = $this->nubefactService->generateGuide($shippingGuide);
 
-      // Procesar respuesta
       if ($response['success']) {
+        // Marcar como enviado
+        $shippingGuide->markAsSent();
+
         $responseData = $response['data'];
 
-        // Actualizar con la respuesta de Nubefact
         $shippingGuide->update([
           'enlace' => $responseData['enlace'] ?? null,
           'enlace_del_pdf' => $responseData['enlace_del_pdf'] ?? null,
@@ -200,18 +188,10 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       ]);
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error sending vehicle delivery guide to Nubefact', [
-        'id' => $id,
-        'error' => $e->getMessage()
-      ]);
       throw new Exception('Error al enviar la guía a Nubefact: ' . $e->getMessage());
     }
   }
 
-  /**
-   * Consulta el estado de la guía en Nubefact/SUNAT
-   * @throws Exception
-   */
   public function queryFromNubefact($id): JsonResponse
   {
     try {
@@ -269,10 +249,6 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         'nubefact_response' => $response['data'] ?? null
       ]);
     } catch (Exception $e) {
-      Log::error('Error querying vehicle delivery guide from Nubefact', [
-        'id' => $id,
-        'error' => $e->getMessage()
-      ]);
       throw new Exception('Error al consultar la guía en Nubefact: ' . $e->getMessage());
     }
   }
