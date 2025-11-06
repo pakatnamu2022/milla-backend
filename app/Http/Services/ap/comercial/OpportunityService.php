@@ -179,6 +179,24 @@ class OpportunityService extends BaseService implements BaseServiceInterface
       $query->whereDate('created_at', '<=', $request->date_to);
     }
 
+    if ($request->has('has_purchase_request_quote')) {
+      // si es un accessor no se puede filtrar en la consulta SQL: guardar el filtro y aplicarlo después
+      $filterHasPRQ = null;
+      if ($request->has('has_purchase_request_quote')) {
+        $filterHasPRQ = (bool)$request->has_purchase_request_quote;
+      }
+
+      $opportunities = $query->orderBy('created_at', 'desc')->get();
+
+      if (!is_null($filterHasPRQ)) {
+        $opportunities = $opportunities->filter(function ($op) use ($filterHasPRQ) {
+          return (bool)$op->has_purchase_request_quote === $filterHasPRQ;
+        })->values();
+      }
+
+      return OpportunityResource::collection($opportunities);
+    }
+
     $opportunities = $query->orderBy('created_at', 'desc')->get();
     return OpportunityResource::collection($opportunities);
   }

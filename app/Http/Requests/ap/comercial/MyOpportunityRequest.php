@@ -10,6 +10,7 @@ class MyOpportunityRequest extends IndexRequest
   {
     return [
       'worker_id' => 'nullable|integer|exists:rrhh_persona,id',
+      'has_purchase_request_quote' => 'nullable|boolean|in:0,1',
     ];
   }
 
@@ -17,6 +18,7 @@ class MyOpportunityRequest extends IndexRequest
   {
     return [
       'worker_id' => 'trabajador',
+      'has_purchase_request_quote' => 'tiene cotización',
     ];
   }
 }

@@ -58,6 +58,7 @@ class PurchaseRequestQuote extends Model
     'is_invoiced' => '=',
     'is_approved' => '=',
     'sede_id' => '=',
+    'has_vehicle' => 'accessor',
   ];
 
   const sorts = [
@@ -65,6 +66,11 @@ class PurchaseRequestQuote extends Model
     'created_at',
     'updated_at',
   ];
+
+  public function getHasVehicleAttribute(): bool
+  {
+    return !is_null($this->ap_vehicle_id);
+  }
 
   public function setCommentAttribute($value): void
   {

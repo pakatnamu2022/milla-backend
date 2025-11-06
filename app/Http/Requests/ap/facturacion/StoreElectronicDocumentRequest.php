@@ -16,6 +16,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
    */
   protected function prepareForValidation()
   {
+    // TODO: Optimizar este método para evitar múltiples llamadas a merge()
     // PASO 1: Compatibilidad de nombres - Convertir 'serie' a 'series' si existe
     if ($this->has('serie') && !$this->has('series')) {
       $this->merge(['series' => $this->input('serie')]);
@@ -29,6 +30,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'sunat_concept_transaction_type_id',
       'ap_vehicle_movement_id',
       'sunat_concept_identity_document_type_id',
+      'client_id',
       'sunat_concept_currency_id',
       'sunat_concept_detraction_type_id',
       'documento_que_se_modifica_tipo',
@@ -43,14 +45,13 @@ class StoreElectronicDocumentRequest extends StoreRequest
     $dataToMerge = [];
     foreach ($numericFields as $field) {
       if ($this->has($field) && $this->input($field) !== null && $this->input($field) !== '') {
-        $dataToMerge[$field] = (int) $this->input($field);
+        $dataToMerge[$field] = (int)$this->input($field);
       }
     }
 
     // Convertir strings numéricos a decimales para totales
     $decimalFields = [
       'tipo_de_cambio',
-      'porcentaje_de_igv',
       'descuento_global',
       'total_descuento',
       'total_anticipo',
@@ -73,7 +74,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
 
     foreach ($decimalFields as $field) {
       if ($this->has($field) && $this->input($field) !== null && $this->input($field) !== '') {
-        $dataToMerge[$field] = (float) $this->input($field);
+        $dataToMerge[$field] = (float)$this->input($field);
       }
     }
 
@@ -97,19 +98,19 @@ class StoreElectronicDocumentRequest extends StoreRequest
       $items = $this->input('items');
       foreach ($items as $index => $item) {
         if (isset($item['sunat_concept_igv_type_id'])) {
-          $items[$index]['sunat_concept_igv_type_id'] = (int) $item['sunat_concept_igv_type_id'];
+          $items[$index]['sunat_concept_igv_type_id'] = (int)$item['sunat_concept_igv_type_id'];
         }
         $numericItemFields = ['cantidad', 'valor_unitario', 'precio_unitario', 'descuento', 'subtotal', 'igv', 'total'];
         foreach ($numericItemFields as $field) {
           if (isset($item[$field])) {
-            $items[$index][$field] = (float) $item[$field];
+            $items[$index][$field] = (float)$item[$field];
           }
         }
         if (isset($item['anticipo_regularizacion'])) {
           $items[$index]['anticipo_regularizacion'] = filter_var($item['anticipo_regularizacion'], FILTER_VALIDATE_BOOLEAN);
         }
         if (isset($item['anticipo_documento_numero'])) {
-          $items[$index]['anticipo_documento_numero'] = (int) $item['anticipo_documento_numero'];
+          $items[$index]['anticipo_documento_numero'] = (int)$item['anticipo_documento_numero'];
         }
       }
       $dataToMerge['items'] = $items;
@@ -120,7 +121,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
       $guias = $this->input('guias');
       foreach ($guias as $index => $guia) {
         if (isset($guia['guia_tipo'])) {
-          $guias[$index]['guia_tipo'] = (int) $guia['guia_tipo'];
+          $guias[$index]['guia_tipo'] = (int)$guia['guia_tipo'];
         }
       }
       $dataToMerge['guias'] = $guias;
@@ -131,10 +132,10 @@ class StoreElectronicDocumentRequest extends StoreRequest
       $cuotas = $this->input('venta_al_credito');
       foreach ($cuotas as $index => $cuota) {
         if (isset($cuota['cuota'])) {
-          $cuotas[$index]['cuota'] = (int) $cuota['cuota'];
+          $cuotas[$index]['cuota'] = (int)$cuota['cuota'];
         }
         if (isset($cuota['importe'])) {
-          $cuotas[$index]['importe'] = (float) $cuota['importe'];
+          $cuotas[$index]['importe'] = (float)$cuota['importe'];
         }
       }
       $dataToMerge['venta_al_credito'] = $cuotas;
@@ -147,7 +148,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
 
     // PASO 4: Convertir el ID de series a la serie real (string)
     if ($this->has('series')) {
-      $seriesId = (int) $this->input('series');
+      $seriesId = (int)$this->input('series');
       $assignSeries = AssignSalesSeries::find($seriesId);
 
       if ($assignSeries) {
@@ -205,13 +206,20 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'origin_entity_type' => 'nullable|string|max:100',
       'origin_entity_id' => 'nullable|integer',
       'ap_vehicle_movement_id' => 'nullable|integer|exists:ap_vehicle_movement,id',
+      'ap_vehicle_id' => [
+        'nullable',
+        'integer',
+        Rule::exists('ap_vehicles', 'id')->whereNull('deleted_at')->where('status', 1),
+      ],
 
       // Datos del cliente
-      'sunat_concept_identity_document_type_id' => 'required|integer|exists:sunat_concepts,id',
-      'cliente_numero_de_documento' => 'required|string|max:15',
-      'cliente_denominacion' => 'required|string|max:100',
-      'cliente_direccion' => 'nullable|string|max:250',
-      'cliente_email' => 'nullable|email|max:250',
+      'client_id' => Rule::exists('business_partners', 'id')
+        ->whereNull('deleted_at')->where('status_ap', 1),
+//      'sunat_concept_identity_document_type_id' => 'required|integer|exists:sunat_concepts,id',
+//      'cliente_numero_de_documento' => 'required|string|max:15',
+//      'cliente_denominacion' => 'required|string|max:100',
+//      'cliente_direccion' => 'nullable|string|max:250',
+//      'cliente_email' => 'nullable|email|max:250',
       'cliente_email_1' => 'nullable|email|max:250',
       'cliente_email_2' => 'nullable|email|max:250',
 
@@ -222,7 +230,6 @@ class StoreElectronicDocumentRequest extends StoreRequest
       // Moneda
       'sunat_concept_currency_id' => 'required|integer|exists:sunat_concepts,id',
       'tipo_de_cambio' => 'nullable|numeric|min:0|max:999.999',
-      'porcentaje_de_igv' => 'required|numeric|min:0|max:99.99',
 
       // Totales
       'descuento_global' => 'nullable|numeric|min:0',
@@ -266,6 +273,9 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'observaciones' => 'nullable|string|max:1000',
       'condiciones_de_pago' => 'nullable|string|max:250',
       'medio_de_pago' => 'nullable|string|max:250',
+      'bank_id' => 'nullable|integer|exists:ap_bank,id',
+      'operation_number' => 'nullable|string|max:100',
+      'financing_type' => ['nullable', Rule::in(['CONVENIO', 'VEHICULAR'])],
       'placa_vehiculo' => 'nullable|string|max:8',
       'orden_compra_servicio' => 'nullable|string|max:20',
       'codigo_unico' => 'nullable|string|max:20',

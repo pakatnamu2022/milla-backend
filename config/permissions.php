@@ -75,6 +75,13 @@ return [
       'policy_method' => 'reject',
     ],
 
+    'annul' => [
+      'label' => 'Anular',
+      'description' => 'Permite anular registros o documentos',
+      'icon' => 'XCircle',
+      'policy_method' => 'annul',
+    ],
+
     'print' => [
       'label' => 'Imprimir',
       'description' => 'Permite imprimir documentos',

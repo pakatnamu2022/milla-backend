@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ap\comercial;
 
 use App\Http\Requests\StoreRequest;
+use Illuminate\Validation\Rule;
 
 class StorePurchaseRequestQuoteRequest extends StoreRequest
 {
@@ -20,12 +21,12 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'doc_sale_price' => ['required', 'numeric', 'min:0'],
       'comment' => ['nullable', 'string', 'max:255'],
       'warranty' => ['nullable', 'string', 'max:100'],
-      'opportunity_id' => ['nullable', 'exists:ap_opportunity,id'],
+      'opportunity_id' => ['nullable', 'exists:ap_opportunity,id', Rule::unique('purchase_request_quote', 'opportunity_id')->whereNull('deleted_at')],
       'holder_id' => ['required', 'exists:business_partners,id'],
       'vehicle_color_id' => ['required', 'exists:ap_commercial_masters,id'],
       'ap_models_vn_id' => ['nullable', 'exists:ap_models_vn,id'],
       'doc_type_currency_id' => ['required', 'exists:type_currency,id'],
-      'ap_vehicle_id' => ['nullable', 'exists:ap_vehicles,id'],
+      'ap_vehicle_id' => ['nullable', 'exists:ap_vehicles,id', Rule::unique('purchase_request_quote', 'ap_vehicle_id')->whereNull('deleted_at')],
       'with_vin' => ['nullable', 'boolean'],
 
       // Validaciones para bonus_discounts

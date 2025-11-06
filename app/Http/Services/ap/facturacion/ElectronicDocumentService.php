@@ -5,10 +5,10 @@ namespace App\Http\Services\ap\facturacion;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
+use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\facturacion\ElectronicDocument;
-use App\Models\ap\facturacion\ElectronicDocumentItem;
-use App\Models\ap\facturacion\ElectronicDocumentGuide;
-use App\Models\ap\facturacion\ElectronicDocumentInstallment;
+use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
@@ -20,6 +20,11 @@ use Illuminate\Support\Facades\Log;
 class ElectronicDocumentService extends BaseService implements BaseServiceInterface
 {
   protected NubefactApiService $nubefactService;
+
+  /**
+   * @var int
+   */
+  protected int $startCorrelative = 0;
 
   public function __construct(NubefactApiService $nubefactService)
   {
@@ -67,6 +72,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     return $document;
   }
 
+  public function show(int $id)
+  {
+    $electronicDocument = ElectronicDocument::find($id);
+    return new ElectronicDocumentResource($electronicDocument);
+  }
+
   /**
    * Get the next document number for a given type and series
    * @param string $documentType
@@ -77,10 +88,21 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   {
     $query = ElectronicDocument::where('sunat_concept_document_type_id', $documentType)
       ->where('serie', $series)
-      ->where('anulado', 0)
       ->whereNull('deleted_at');
+    $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $this->startCorrelative;
+    $number = $this->completeNumber($correlative);
+    return ["number" => $number];
+  }
 
-    return ["number" => $this->nextCorrelativeQuery($query, 'numero')];
+  /**
+   * @param string $documentType
+   * @param string $series
+   * @return array[]|int[]
+   */
+  private function nextDocumentNumberCorrelative(string $documentType, string $series): array
+  {
+    $number = $this->nextDocumentNumber($documentType, $series);
+    return ["number" => (int)$number["number"]];
   }
 
   /**
@@ -91,20 +113,47 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   {
     DB::beginTransaction();
     try {
-      // Validar y calcular el siguiente número correlativo si no se proporciona
-      $nextNumberData = $this->nextDocumentNumber(
+      /**
+       * Validar y calcular el siguiente número correlativo si no se proporciona
+       */
+      $nextNumberData = $this->nextDocumentNumberCorrelative(
         $data['sunat_concept_document_type_id'],
         $data['serie']
       );
       $data['numero'] = $nextNumberData['number'];
 
-      // Validar que la serie sea correcta
+      /**
+       * Validar que la serie sea correcta
+       */
       if (!ElectronicDocument::validateSerie($data['sunat_concept_document_type_id'], $data['serie'])) {
         throw new Exception('La serie no es válida para el tipo de documento seleccionado');
       }
 
-      // Crear el documento principal
+      /**
+       * Obtener la tasa de cambio actual si la moneda es USD
+       */
+      $exchangeRate = (new ExchangeRateService())->getCurrentUSDRate();
+
+      $client = BusinessPartners::find($data['client_id']);
+      $documentType = SunatConcepts::where('tribute_code', $client->document_type_id)
+        ->where('type', SunatConcepts::TYPE_DOCUMENT)
+        ->first();
+
+      $data['sunat_concept_identity_document_type_id'] = $documentType->id;
+      $data['cliente_numero_de_documento'] = $client->num_doc;
+      $data['cliente_denominacion'] = $client->full_name;
+      $data['cliente_direccion'] = $client->direction;
+      $data['cliente_email'] = $client->email;
+      $data['porcentaje_de_igv'] = $client->taxClassType->igv;
+      $data['client_id'] = $client->id;
+      $data['tipo_de_cambio'] = $exchangeRate->rate;
+
+
+      /**
+       * Crear el documento principal
+       */
       $document = ElectronicDocument::create(array_merge($data, [
+        'exchange_rate_id' => $exchangeRate->id,
         'created_by' => auth()->id(),
         'status' => ElectronicDocument::STATUS_DRAFT,
       ]));
@@ -131,8 +180,18 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
       }
 
+      // Crear movimiento de vehículo si viene ap_vehicle_id
+      if (isset($data['ap_vehicle_id']) && $data['ap_vehicle_id']) {
+        $vehicleMovement = $this->createVehicleMovement($data['ap_vehicle_id'], $document);
+
+        // Actualizar el documento con el ID del movimiento
+        $document->update([
+          'ap_vehicle_movement_id' => $vehicleMovement->id
+        ]);
+      }
+
       DB::commit();
-      return new ElectronicDocumentResource($document->load(['items', 'guides', 'installments']));
+      return new ElectronicDocumentResource($document->load(['items', 'guides', 'installments', 'vehicleMovement']));
     } catch (Exception $e) {
       DB::rollBack();
       Log::error('Error creating electronic document', [
@@ -283,21 +342,18 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       // Procesar respuesta
-      if ($nubefactData['aceptada_por_sunat'] === true) {
-        $document->markAsAccepted($nubefactData);
-        $message = 'Documento enviado y aceptado por SUNAT correctamente';
-      } else {
-        $document->markAsRejected(
-          $nubefactData['sunat_description'] ?? 'Error desconocido',
-          $nubefactData
-        );
-        $message = 'Documento enviado pero rechazado por SUNAT: ' . ($nubefactData['sunat_description'] ?? 'Error desconocido');
+      if (isset($nubefactData['enlace_del_pdf']) && isset($nubefactData['enlace_del_xml']) && !isset($nubefactData['enlace_del_cdr'])) {
+        $document->update([
+          'enlace_del_pdf' => $nubefactData['enlace_del_pdf'],
+          'enlace_del_xml' => $nubefactData['enlace_del_xml'],
+        ]);
+        $message = 'Documento enviado correctamente a SUNAT';
       }
 
       DB::commit();
 
       return response()->json([
-        'success' => $nubefactData['aceptada_por_sunat'],
+        'success' => true,
         'message' => $message,
         'data' => new ElectronicDocumentResource($document->fresh()),
         'sunat_response' => $nubefactData
@@ -323,20 +379,34 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       $response = $this->nubefactService->queryDocument($document);
 
-      // Actualizar estado si cambió
-      if (isset($response['aceptada_por_sunat']) && $response['aceptada_por_sunat'] && !$document->aceptada_por_sunat) {
-        DB::beginTransaction();
-        $document->markAsAccepted($response);
-        DB::commit();
+      // Extraer los datos de la respuesta
+      $nubefactData = $response['data'] ?? $response;
+
+      DB::beginTransaction();
+
+      // Si el documento fue aceptado por SUNAT, actualizar usando el método del modelo
+      if (isset($nubefactData['aceptada_por_sunat']) && $nubefactData['aceptada_por_sunat']) {
+        $document->markAsAccepted($nubefactData);
       }
+
+      // Verificar si el documento fue anulado en Nubefact
+      if (isset($nubefactData['anulado']) && $nubefactData['anulado'] === true) {
+        // Si el documento no está marcado como cancelado en nuestra BD, actualizarlo
+        if ($document->status !== ElectronicDocument::STATUS_CANCELLED || !$document->anulado) {
+          $document->markAsCancelled();
+        }
+      }
+
+      DB::commit();
 
       return response()->json([
         'success' => true,
         'message' => 'Estado consultado correctamente',
         'data' => new ElectronicDocumentResource($document->fresh()),
-        'sunat_response' => $response
+        'sunat_response' => $nubefactData
       ]);
     } catch (Exception $e) {
+      DB::rollBack();
       Log::error('Error querying document from Nubefact', [
         'id' => $id,
         'error' => $e->getMessage()
@@ -368,7 +438,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $response = $this->nubefactService->cancelDocument($document, $reason);
 
       // Marcar como cancelado
-      $document->markAsCancelled($reason);
+      $document->markAsLocalCancelled($reason);
 
       DB::commit();
 
@@ -537,12 +607,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     return $totals;
   }
 
-  public function show(int $id)
-  {
-    $electronicDocument = ElectronicDocument::find($id);
-    return new ElectronicDocumentResource($electronicDocument);
-  }
-
   /**
    * Obtiene los anticipos pendientes de regularización para una entidad origen
    */
@@ -689,6 +753,62 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'error' => $e->getMessage()
       ]);
       throw new Exception('Error al generar el PDF: ' . $e->getMessage());
+    }
+  }
+
+  /**
+   * Create vehicle movement when electronic document is created
+   * @param int $vehicleId
+   * @param ElectronicDocument $document
+   * @return \App\Models\ap\comercial\VehicleMovement
+   * @throws Exception
+   */
+  private function createVehicleMovement(int $vehicleId, ElectronicDocument $document)
+  {
+    try {
+      $vehicle = \App\Models\ap\comercial\Vehicles::find($vehicleId);
+
+      if (!$vehicle) {
+        throw new Exception("Vehículo con ID {$vehicleId} no encontrado");
+      }
+
+      // Obtener el estado anterior del vehículo
+      $previousStatusId = $vehicle->ap_vehicle_status_id;
+
+      // Crear el movimiento de vehículo
+      $vehicleMovement = \App\Models\ap\comercial\VehicleMovement::create([
+        'movement_type' => 'VENTA',
+        'ap_vehicle_id' => $vehicleId,
+        'ap_vehicle_status_id' => \App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+        'movement_date' => now(),
+        'observation' => "Venta de vehículo - Documento: {$document->serie}-{$document->numero}",
+        'previous_status_id' => $previousStatusId,
+        'new_status_id' => \App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+        'created_by' => auth()->id(),
+      ]);
+
+      // Actualizar el estado del vehículo
+      $vehicle->update([
+        'ap_vehicle_status_id' => \App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+      ]);
+
+      Log::info('Vehicle movement created for electronic document', [
+        'vehicle_id' => $vehicleId,
+        'movement_id' => $vehicleMovement->id,
+        'document_id' => $document->id,
+        'document_number' => "{$document->serie}-{$document->numero}",
+        'previous_status' => $previousStatusId,
+        'new_status' => \App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+      ]);
+
+      return $vehicleMovement;
+    } catch (Exception $e) {
+      Log::error('Error creating vehicle movement for electronic document', [
+        'vehicle_id' => $vehicleId,
+        'document_id' => $document->id,
+        'error' => $e->getMessage()
+      ]);
+      throw $e;
     }
   }
 

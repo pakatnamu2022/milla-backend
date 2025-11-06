@@ -756,6 +756,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       Route::get('purchaseRequestQuote/pdf/{purchaseRequestQuote}', [PurchaseRequestQuoteController::class, 'reportPDF']); // Descargar
+      Route::post('purchaseRequestQuote/assignVehicle/{id}', [PurchaseRequestQuoteController::class, 'assignVehicle']); // Descargar
+      Route::post('purchaseRequestQuote/unassignVehicle/{id}', [PurchaseRequestQuoteController::class, 'unassignVehicle']); // Descargar
       Route::apiResource('purchaseRequestQuote', PurchaseRequestQuoteController::class)->only([
         'index',
         'show',
@@ -808,6 +810,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Vehicles
       Route::get('vehicles/costs', [VehiclesController::class, 'getCostsData']);
+      Route::get('vehicles/{id}/invoices', [VehiclesController::class, 'getInvoices']);
       Route::apiResource('vehicles', VehiclesController::class)->only([
         'index',
         'show',
@@ -815,8 +818,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
-      Route::get('vehicles/{id}/pending-anticipos', [VehiclesController::class, 'getPendingAnticipos']);
-      Route::post('vehicles/{id}/regularize-anticipos', [VehiclesController::class, 'regularizeAnticipos']);
+//      Route::get('vehicles/{id}/pending-anticipos', [VehiclesController::class, 'getPendingAnticipos']);
+//      Route::post('vehicles/{id}/regularize-anticipos', [VehiclesController::class, 'regularizeAnticipos']);
 
       // Vehicles Delivery
       Route::post('vehiclesDelivery/{id}/send-to-nubefact', [ApVehicleDeliveryController::class, 'sendToNubefact']);

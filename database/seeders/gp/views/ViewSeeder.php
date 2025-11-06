@@ -5,6 +5,7 @@ namespace Database\Seeders\gp\views;
 use App\Http\Services\gp\gestionsistema\AccessService;
 use App\Http\Services\gp\gestionsistema\ViewService;
 use App\Models\gp\gestionsistema\Access;
+use App\Models\gp\gestionsistema\Permission;
 use App\Models\gp\gestionsistema\View;
 use Illuminate\Database\Seeder;
 
@@ -23,6 +24,7 @@ class ViewSeeder extends Seeder
     $AP = 3;
     $VERSION_2 = 381;
     $COMMERCIAL_ID = 418;
+    $POST_VENTA_ID = 431;
 
     $viewService = new ViewService();
     $accessService = new AccessService();
@@ -53,6 +55,10 @@ class ViewSeeder extends Seeder
         'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
       ['descripcion' => 'Entrega de Vehiculos', 'submodule' => false, 'route' => 'entrega-vehiculo',
         'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
+      ['descripcion' => 'Post Venta', 'submodule' => false, 'route' => null, 'slug' => 'post-venta',
+        'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => null, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
+      ['descripcion' => 'Accesorios Homologados', 'submodule' => false, 'route' => 'accesorios-homologados',
+        'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => $POST_VENTA_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
     ];
 
 //    $DELETE = [
@@ -84,19 +90,26 @@ class ViewSeeder extends Seeder
         $item
       );
 
-      Access::firstOrCreate(
-        [
-          'role_id' => $TICS,
-          'vista_id' => $view->id
-        ],
-        [
-          'ver' => true,
-          'crear' => true,
-          'editar' => true,
-          'anular' => true,
-          'status_deleted' => 1,
-        ]
-      );
+      $permissions = [
+        ['code' => "{$view->route}.view", 'name' => "Ver {$view->descripcion}", 'description' => "Permite visualizar información -  {$view->descripcion}", 'policy_method' => 'view'],
+        ['code' => "{$view->route}.create", 'name' => "Crear {$view->descripcion}", 'description' => "Permite crear nuevos registros - {$view->descripcion}", 'policy_method' => 'create'],
+        ['code' => "{$view->route}.edit", 'name' => "Editar {$view->descripcion}", 'description' => "Permite modificar registros existentes - {$view->descripcion}", 'policy_method' => 'update'],
+        ['code' => "{$view->route}.delete", 'name' => "Eliminar {$view->descripcion}", 'description' => "Permite eliminar o anular registros - {$view->descripcion}", 'policy_method' => 'delete'],
+      ];
+
+      foreach ($permissions as $perm) {
+        Permission::updateOrCreate(
+          ['code' => $perm['code']],
+          [
+            'name' => $perm['name'],
+            'description' => $perm['description'],
+            'module' => $view->route,
+            'vista_id' => $view->id,
+            'is_active' => true,
+            'policy_method' => $perm['policy_method']
+          ]
+        );
+      }
     }
   }
 }

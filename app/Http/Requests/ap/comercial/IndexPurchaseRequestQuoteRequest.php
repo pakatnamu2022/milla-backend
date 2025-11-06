@@ -9,7 +9,7 @@ class IndexPurchaseRequestQuoteRequest extends IndexRequest
   public function rules(): array
   {
     return [
-      //
+      'has_vehicle' => 'nullable|boolean|in:0,1',
     ];
   }
 }

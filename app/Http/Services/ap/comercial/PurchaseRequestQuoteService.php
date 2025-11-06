@@ -9,13 +9,16 @@ use App\Http\Utils\Constants;
 use App\Models\ap\comercial\DetailsApprovedAccessoriesQuote;
 use App\Models\ap\comercial\DiscountCoupons;
 use App\Models\ap\comercial\PurchaseRequestQuote;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\ApprovedAccessories;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class PurchaseRequestQuoteService extends BaseService implements BaseServiceInterface
 {
@@ -129,6 +132,65 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       return new PurchaseRequestQuoteResource($purchaseRequestQuote->fresh());
     });
   }
+
+
+  public function assignVehicle(mixed $data): JsonResource
+  {
+    DB::beginTransaction();
+    try {
+      //ap_vehicle_id
+      $purchaseRequestQuote = $this->find($data['id']);
+      $purchaseRequestQuote->update($data);
+      DB::commit();
+      return PurchaseRequestQuoteResource::make($purchaseRequestQuote);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  public function unassignVehicle(int $id): JsonResource
+  {
+    DB::beginTransaction();
+    try {
+      $purchaseRequestQuote = $this->find($id);
+      $vehicle = $purchaseRequestQuote->vehicle;
+      if (!$vehicle) {
+        throw new Exception('No hay un vehículo asignado a esta cotización.');
+      }
+
+      $purchaseRequestQuote->ap_vehicle_id = null;
+      $purchaseRequestQuote->save();
+
+      $movementService = new VehicleMovementService();
+      $isInInventory = $vehicle->vehicleMovements()
+        ->where('ap_vehicle_status_id', ApVehicleStatus::INVENTARIO_VN)
+        ->whereNull('deleted_at')
+        ->exists();
+
+      $isInTransit = $vehicle->vehicleMovements()
+        ->where('ap_vehicle_status_id', ApVehicleStatus::VEHICULO_EN_TRAVESIA)
+        ->whereNull('deleted_at')
+        ->exists();
+
+      if ($isInInventory) {
+        // Registrar movimiento de regreso a inventario
+        $movementService->storeInventoryVehicleMovement($vehicle->id);
+      } elseif ($isInTransit) {
+        $movementService->storeInTransitVehicleMovement($vehicle->id);
+      }
+
+      DB::commit();
+      return PurchaseRequestQuoteResource::make($purchaseRequestQuote);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    } catch (Throwable $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
 
   public function destroy($id)
   {

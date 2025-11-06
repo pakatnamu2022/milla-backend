@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\VehiclesResource;
+use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Utils\Constants;
@@ -109,7 +110,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
     return $data;
   }
-
 
   /**
    * Muestra un vehículo por ID
@@ -286,5 +286,44 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       $vehicles->getCollection()->transform($transformVehicle);
       return response()->json($vehicles);
     }
+  }
+
+  /**
+   * Obtiene las facturas (documentos electrónicos) asociadas a un vehículo
+   * @param int $vehicleId
+   * @return \Illuminate\Http\JsonResponse
+   * @throws Exception
+   */
+  public function getInvoices(int $vehicleId)
+  {
+    $vehicle = $this->find($vehicleId);
+
+    // Obtener los documentos electrónicos con sus relaciones
+    $documents = $vehicle->electronicDocuments()
+      ->with([
+        'documentType',
+        'transactionType',
+        'identityDocumentType',
+        'currency',
+        'vehicleMovement',
+        'items',
+        'creator'
+      ])
+      ->where('anulado', false)
+      ->orderBy('fecha_de_emision', 'desc')
+      ->get();
+
+    return response()->json([
+      'vehicle' => [
+        'id' => $vehicle->id,
+        'vin' => $vehicle->vin,
+        'year' => $vehicle->year,
+        'engine_number' => $vehicle->engine_number,
+        'model' => $vehicle->model?->version,
+      ],
+      'documents' => ElectronicDocumentResource::collection($documents),
+      'total_documents' => $documents->count(),
+      'total_amount' => $documents->sum('total'),
+    ]);
   }
 }

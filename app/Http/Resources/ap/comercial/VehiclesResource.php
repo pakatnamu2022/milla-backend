@@ -2,6 +2,9 @@
 
 namespace App\Http\Resources\ap\comercial;
 
+use App\Http\Resources\ap\configuracionComercial\vehiculo\ApFamiliesResource;
+use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnResource;
+use App\Http\Resources\ap\configuracionComercial\vehiculo\ApVehicleBrandResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -23,8 +26,6 @@ class VehiclesResource extends JsonResource
       'vehicle_color_id' => $this->vehicle_color_id,
       'engine_type_id' => $this->engine_type_id,
       'ap_vehicle_status_id' => $this->ap_vehicle_status_id,
-      'model' => $this->model->version,
-      'model_code' => $this->model->code,
       'vehicle_color' => $this->color->description,
       'engine_type' => $this->engineType->description,
       'status' => $this->status,
@@ -32,8 +33,7 @@ class VehiclesResource extends JsonResource
       'status_color' => $this->vehicleStatus->color,
       'warehouse_physical_id' => $this->warehouse_physical_id ?? null,
       'warehouse_physical' => $this->warehousePhysical?->description ?? null,
-      'sede_id' => $this->warehousePhysical?->sede_id ?? null,
-      'sede' => $this->warehousePhysical?->sede->abreviatura ?? null,
+      'model' => ApModelsVnResource::make($this->model),
       'movements' => VehicleMovementResource::collection($this->vehicleMovements),
     ];
   }

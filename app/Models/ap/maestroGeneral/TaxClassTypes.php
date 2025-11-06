@@ -13,6 +13,7 @@ class TaxClassTypes extends Model
     'dyn_code',
     'description',
     'tax_class',
+    'igv',
     'type',
     'status',
   ];
