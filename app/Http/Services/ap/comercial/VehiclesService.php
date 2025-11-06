@@ -309,6 +309,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'items',
         'creator'
       ])
+      ->where('anulado', false)
       ->orderBy('fecha_de_emision', 'desc')
       ->get();
 

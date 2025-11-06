@@ -50,7 +50,6 @@ class VehicleMovement extends BaseModel
 
   const ORDERED = 'PEDIDO';
   const IN_TRANSIT = 'EN TRAVESIA';
-
   const INVENTORY = 'INVENTARIO';
   const IN_TRANSIT_RETURNED = 'EN TRAVESIA DEVUELTO';
 

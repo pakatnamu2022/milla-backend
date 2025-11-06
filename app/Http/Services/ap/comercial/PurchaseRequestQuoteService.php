@@ -163,24 +163,22 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $purchaseRequestQuote->save();
 
       $movementService = new VehicleMovementService();
-
-      $isInInventory = $vehicle->vehicleMovements
+      $isInInventory = $vehicle->vehicleMovements()
         ->where('ap_vehicle_status_id', ApVehicleStatus::INVENTARIO_VN)
         ->whereNull('deleted_at')
         ->exists();
 
-      $isInTransit = $vehicle->vehicleMovements
+      $isInTransit = $vehicle->vehicleMovements()
         ->where('ap_vehicle_status_id', ApVehicleStatus::VEHICULO_EN_TRAVESIA)
         ->whereNull('deleted_at')
         ->exists();
 
       if ($isInInventory) {
         // Registrar movimiento de regreso a inventario
-        $movementService->storeInventoryVehicleMovement($vehicle);
+        $movementService->storeInventoryVehicleMovement($vehicle->id);
       } elseif ($isInTransit) {
-        $movementService->storeInTransitVehicleMovement($vehicle);
+        $movementService->storeInTransitVehicleMovement($vehicle->id);
       }
-
 
       DB::commit();
       return PurchaseRequestQuoteResource::make($purchaseRequestQuote);
