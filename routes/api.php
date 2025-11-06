@@ -709,7 +709,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       Route::apiResource('businessPartnersEstablishments', BusinessPartnersEstablishmentController::class)->only([
         'index',
+        'show',
+        'store',
         'update',
+        'destroy'
       ]);
 
       // Crear oportunidad desde un cliente

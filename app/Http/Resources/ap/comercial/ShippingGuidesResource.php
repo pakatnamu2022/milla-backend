@@ -65,6 +65,12 @@ class ShippingGuidesResource extends JsonResource
       'transfer_modality_description' => $this->transferModality->description,
       'transfer_reason_description' => $this->transferReason->description,
       'sent_at' => $this->sent_at,
+      'enlace_del_pdf' => $this->enlace_del_pdf,
+      'enlace_del_xml' => $this->enlace_del_xml,
+      'enlace_del_cdr' => $this->enlace_del_cdr,
+      'cadena_para_codigo_qr' => $this->cadena_para_codigo_qr,
+      'aceptada_por_sunat' => $this->aceptada_por_sunat,
+      'status_dynamic' => $this->status_dynamic,
     ];
   }
 }

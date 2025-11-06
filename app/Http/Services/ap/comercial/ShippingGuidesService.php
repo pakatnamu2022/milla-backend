@@ -27,7 +27,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
   protected NubefactShippingGuideApiService $nubefactService;
   protected DigitalFileService $digitalFileService;
 
-  // Configuración de rutas para archivos
   private const FILE_PATH = '/ap/comercial/guias-remision/';
 
   public function __construct(
@@ -68,6 +67,15 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       $originAddress = BusinessPartnersEstablishment::find($data['transmitter_id'])->address ?? '-';
       $destinationAddress = BusinessPartnersEstablishment::find($data['receiver_id'])->address ?? '-';
       $statusCurrentVehicle = Vehicles::find($data['ap_vehicle_id'])->ap_vehicle_status_id ?? null;
+
+      if ($data['transfer_reason_id'] == SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
+        if ($data['sede_transmitter_id'] == $data['sede_receiver_id']) {
+          throw new Exception('La sede de origen y destino no pueden ser la misma para el motivo de traslado seleccionado');
+        }
+        if ($data['transmitter_id'] == $data['receiver_id']) {
+          throw new Exception('El establecimiento de origen y destino no pueden ser el mismo para el motivo de traslado seleccionado');
+        }
+      }
 
       $vehicleMovementData = [
         'ap_vehicle_id' => $data['ap_vehicle_id'],
@@ -263,6 +271,18 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     return DB::transaction(function () use ($id) {
       $document = $this->find($id);
 
+      if ($document->aceptada_por_sunat) {
+        throw new Exception('No se puede eliminar un documento que ya ha sido aceptado por SUNAT');
+      }
+
+      if ($document->status_dynamic) {
+        throw new Exception('No se puede eliminar un documento que ya ha sido migrado a Dynamics');
+      }
+
+      if ($document->is_received) {
+        throw new Exception('No se puede eliminar un documento que ya ha sido recibido');
+      }
+
       // Eliminar archivo digital si existe
       if ($document->file_url) {
         $digitalFile = DigitalFile::where('url', $document->file_url)->first();
@@ -278,9 +298,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     });
   }
 
-  /**
-   * Cancelar un documento
-   */
   public function cancel($id, $cancellationReason)
   {
     return DB::transaction(function () use ($id, $cancellationReason) {
@@ -297,10 +314,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     });
   }
 
-  /**
-   * Envía la guía de remisión a SUNAT mediante Nubefact
-   * @throws Exception
-   */
   public function sendToNubefact($id): JsonResponse
   {
     DB::beginTransaction();
@@ -318,6 +331,10 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       if (!$guide->requires_sunat) {
         throw new Exception('Esta guía no requiere registro en SUNAT');
+      }
+
+      if ($guide->sent_at && $guide->sent_at->diffInMinutes(now()) < 30) {
+        throw new Exception('Debe esperar al menos 30 minutos antes de reenviar la guía a SUNAT');
       }
 
       if ($guide->document_type != 'GUIA_REMISION' || $guide->type_voucher_id != SunatConcepts::GUIA_REMISION_REMITENTE) {
@@ -378,10 +395,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     }
   }
 
-  /**
-   * Consulta el estado de la guía en Nubefact/SUNAT
-   * @throws Exception
-   */
   public function queryFromNubefact($id): JsonResponse
   {
     try {
@@ -393,17 +406,29 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       $response = $this->nubefactService->queryGuide($guide);
 
-      // Actualizar estado si cambió
       if ($response['success']) {
         $responseData = $response['data'];
 
         if (isset($responseData['aceptada_por_sunat']) && $responseData['aceptada_por_sunat'] && !$guide->aceptada_por_sunat) {
+          // CASO 1: Recién se aceptó
           DB::beginTransaction();
           $guide->markAsAccepted($responseData);
           DB::commit();
           $message = 'La guía ha sido aceptada por SUNAT';
+
+        } elseif (isset($responseData['aceptada_por_sunat']) && $responseData['aceptada_por_sunat'] && $guide->aceptada_por_sunat) {
+          // CASO 2: Ya estaba aceptada (consulta posterior)
+          $guide->update([
+            'enlace' => $responseData['enlace'] ?? $guide->enlace,
+            'enlace_del_pdf' => $responseData['enlace_del_pdf'] ?? $guide->enlace_del_pdf,
+            'enlace_del_xml' => $responseData['enlace_del_xml'] ?? $guide->enlace_del_xml,
+            'enlace_del_cdr' => $responseData['enlace_del_cdr'] ?? $guide->enlace_del_cdr,
+            'cadena_para_codigo_qr' => $responseData['cadena_para_codigo_qr'] ?? $guide->cadena_para_codigo_qr,
+          ]);
+          $message = 'La guía ya está aceptada por SUNAT'; // ← MENSAJE CORRECTO
+
         } else {
-          // Actualizar los enlaces aunque no esté aceptada aún
+          // CASO 3: Realmente NO aceptada
           $guide->update([
             'enlace' => $responseData['enlace'] ?? $guide->enlace,
             'enlace_del_pdf' => $responseData['enlace_del_pdf'] ?? $guide->enlace_del_pdf,
@@ -413,6 +438,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           ]);
           $message = 'Estado consultado. La guía aún no ha sido aceptada por SUNAT.';
         }
+
       } else {
         $message = 'Error al consultar: ' . ($response['error'] ?? 'Error desconocido');
       }
@@ -432,12 +458,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     }
   }
 
-  /**
-   * Sincroniza la guía de remisión a Dynamics mediante el Job
-   * @param int $id ID de la guía de remisión
-   * @return JsonResponse
-   * @throws Exception
-   */
   public function syncToDynamics($id): JsonResponse
   {
     try {

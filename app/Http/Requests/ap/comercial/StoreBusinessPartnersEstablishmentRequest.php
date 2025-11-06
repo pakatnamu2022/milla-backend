@@ -4,18 +4,18 @@ namespace App\Http\Requests\ap\comercial;
 
 use App\Http\Requests\StoreRequest;
 
-class UpdateBusinessPartnersEstablishmentRequest extends StoreRequest
+class StoreBusinessPartnersEstablishmentRequest extends StoreRequest
 {
   public function rules(): array
   {
     return [
       'code' => [
-        'nullable',
+        'required',
         'string',
         'max:20',
       ],
       'description' => [
-        'nullable',
+        'required',
         'string',
         'max:255',
       ],
@@ -30,23 +30,19 @@ class UpdateBusinessPartnersEstablishmentRequest extends StoreRequest
         'max:100',
       ],
       'address' => [
-        'nullable',
+        'required',
         'string',
         'max:255',
       ],
       'district_id' => [
-        'nullable',
+        'required',
         'integer',
         'exists:district,id',
       ],
       'business_partner_id' => [
-        'nullable',
+        'required',
         'integer',
         'exists:business_partners,id',
-      ],
-      'status' => [
-        'nullable',
-        'boolean',
       ],
     ];
   }
@@ -54,20 +50,25 @@ class UpdateBusinessPartnersEstablishmentRequest extends StoreRequest
   public function messages(): array
   {
     return [
+      'code.required' => 'El código es obligatorio',
       'code.string' => 'El código debe ser texto',
       'code.max' => 'El código no puede exceder 20 caracteres',
+      'description.required' => 'La descripción es obligatoria',
       'description.string' => 'La descripción debe ser texto',
       'description.max' => 'La descripción no puede exceder 255 caracteres',
       'type.string' => 'El tipo debe ser texto',
       'type.max' => 'El tipo no puede exceder 100 caracteres',
       'activity_economic.string' => 'La actividad económica debe ser texto',
       'activity_economic.max' => 'La actividad económica no puede exceder 100 caracteres',
+      'address.required' => 'La dirección es obligatoria',
       'address.string' => 'La dirección debe ser texto',
       'address.max' => 'La dirección no puede exceder 255 caracteres',
-      'district_id.integer' => 'El ID del distrito debe ser un número entero',
-      'district_id.exists' => 'El ID del distrito no existe',
-      'business_partner_id.integer' => 'El ID del socio de negocios debe ser un número entero',
-      'business_partner_id.exists' => 'El ID del socio de negocios no existe',
+      'district_id.required' => 'El distrito es obligatorio',
+      'district_id.integer' => 'El distrito debe ser un entero',
+      'district_id.exists' => 'El distrito no existe',
+      'business_partner_id.required' => 'El socio de negocio es obligatorio',
+      'business_partner_id.integer' => 'El socio de negocio debe ser un entero',
+      'business_partner_id.exists' => 'El socio de negocio no existe',
     ];
   }
 }

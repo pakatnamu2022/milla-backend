@@ -44,9 +44,34 @@ class BusinessPartnersEstablishment extends Model
     'business_partner_id',
   ];
 
+  public function setCodeAttribute($value)
+  {
+    $this->attributes['code'] = Str::upper(Str::ascii($value));
+  }
+
   public function setDescriptionAttribute($value)
   {
     $this->attributes['description'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setTypeAttribute($value)
+  {
+    $this->attributes['type'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setActivityEconomicAttribute($value)
+  {
+    $this->attributes['activity_economic'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setAddressAttribute($value)
+  {
+    $this->attributes['address'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setFullAddressAttribute($value)
+  {
+    $this->attributes['full_address'] = Str::upper(Str::ascii($value));
   }
 
   public function businessPartner(): BelongsTo
