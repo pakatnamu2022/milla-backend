@@ -342,21 +342,18 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       // Procesar respuesta
-      if ($nubefactData['aceptada_por_sunat'] === true) {
-        $document->markAsAccepted($nubefactData);
-        $message = 'Documento enviado y aceptado por SUNAT correctamente';
-      } else {
-        $document->markAsRejected(
-          $nubefactData['sunat_description'] ?? 'Error desconocido',
-          $nubefactData
-        );
-        $message = 'Documento enviado pero rechazado por SUNAT: ' . ($nubefactData['sunat_description'] ?? 'Error desconocido');
+      if (isset($nubefactData['enlace_del_pdf']) && isset($nubefactData['enlace_del_xml']) && !isset($nubefactData['enlace_del_cdr'])) {
+        $document->update([
+          'enlace_del_pdf' => $nubefactData['enlace_del_pdf'],
+          'enlace_del_xml' => $nubefactData['enlace_del_xml'],
+        ]);
+        $message = 'Documento enviado correctamente a SUNAT';
       }
 
       DB::commit();
 
       return response()->json([
-        'success' => $nubefactData['aceptada_por_sunat'],
+        'success' => true,
         'message' => $message,
         'data' => new ElectronicDocumentResource($document->fresh()),
         'sunat_response' => $nubefactData

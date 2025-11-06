@@ -31,6 +31,7 @@ class CheckPendingElectronicDocuments extends Command
     try {
       // Buscar documentos en estado 'sent' que aún no han sido aceptados
       // y que fueron enviados hace al menos 30 segundos pero no más de 5 minutos
+      Log::info('CheckPendingElectronicDocuments: Starting to check pending electronic documents');
       $pendingDocuments = ElectronicDocument::where('status', ElectronicDocument::STATUS_SENT)
         ->where('aceptada_por_sunat', false)
         ->get();
