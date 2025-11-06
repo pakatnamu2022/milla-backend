@@ -118,12 +118,43 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
         'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
         'movement_date' => now(),
         'observation' => 'Vehículo en tránsito - Factura Dynamics: ' . $vehiclePurchaseOrder->invoice_dynamics,
-        'previous_status_id' => ApVehicleStatus::PEDIDO_VN,
+        'previous_status_id' => $vehicle->ap_vehicle_status_id ?? ApVehicleStatus::PEDIDO_VN,
         'new_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
       ]);
 
       $vehicle->update([
         'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+      ]);
+
+      DB::commit();
+      return new VehicleMovementResource($vehicleMovement);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw new Exception($e->getMessage());
+    }
+  }
+
+  public function storeInventoryVehicleMovement($vehicleId): VehicleMovementResource
+  {
+    DB::beginTransaction();
+    try {
+      $vehicle = Vehicles::find($vehicleId);
+      if (!$vehicle) {
+        throw new Exception('Vehículo no encontrado');
+      }
+
+      $vehicleMovement = VehicleMovement::create([
+        'movement_type' => VehicleMovement::INVENTORY,
+        'ap_vehicle_id' => $vehicleId,
+        'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
+        'movement_date' => now(),
+        'observation' => 'Vehículo ingresado a inventario',
+        'previous_status_id' => $vehicle->ap_vehicle_status_id ?? ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+        'new_status_id' => ApVehicleStatus::INVENTARIO_VN,
+      ]);
+
+      $vehicle->update([
+        'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
       ]);
 
       DB::commit();
@@ -156,14 +187,14 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
         'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
         'movement_date' => now(),
         'observation' => 'Vehículo devuelto por NC: ' . ($creditNote ?? ''),
-        'previous_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+        'previous_status_id' => $vehicle->ap_vehicle_status_id ?? ApVehicleStatus::VEHICULO_EN_TRAVESIA,
         'new_status_id' => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
       ]);
 
       $vehicle->update([
         'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
       ]);
-      
+
       DB::commit();
       return new VehicleMovementResource($vehicleMovement);
     } catch (Exception $e) {

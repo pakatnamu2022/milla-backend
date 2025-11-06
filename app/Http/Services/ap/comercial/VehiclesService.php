@@ -111,7 +111,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     return $data;
   }
 
-
   /**
    * Muestra un vehículo por ID
    * @param int $id
