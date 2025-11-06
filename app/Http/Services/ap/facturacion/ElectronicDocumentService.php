@@ -393,7 +393,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if (isset($nubefactData['anulado']) && $nubefactData['anulado'] === true) {
         // Si el documento no está marcado como cancelado en nuestra BD, actualizarlo
         if ($document->status !== ElectronicDocument::STATUS_CANCELLED || !$document->anulado) {
-          $document->markAsCancelled('Documento anulado en SUNAT (detectado via consulta)');
+          $document->markAsCancelled();
         }
       }
 
@@ -438,7 +438,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $response = $this->nubefactService->cancelDocument($document, $reason);
 
       // Marcar como cancelado
-      $document->markAsCancelled($reason);
+      $document->markAsLocalCancelled($reason);
 
       DB::commit();
 

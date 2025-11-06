@@ -396,12 +396,18 @@ class ElectronicDocument extends BaseModel
     ]);
   }
 
-  public function markAsCancelled(string $reason = null): void
+  public function markAsCancelled(): void
+  {
+    $this->update([
+      'anulado' => true,
+      'cancelled_at' => now(),
+    ]);
+  }
+
+  public function markAsLocalCancelled(string $reason = null): void
   {
     $this->update([
       'status' => self::STATUS_CANCELLED,
-      'anulado' => true,
-      'cancelled_at' => now(),
       'observaciones' => $reason ? $this->observaciones . "\n\nAnulado: " . $reason : $this->observaciones,
     ]);
   }
