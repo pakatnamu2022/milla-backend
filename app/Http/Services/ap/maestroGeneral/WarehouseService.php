@@ -12,7 +12,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Exception;
-use function dd;
 
 class WarehouseService extends BaseService implements BaseServiceInterface
 {

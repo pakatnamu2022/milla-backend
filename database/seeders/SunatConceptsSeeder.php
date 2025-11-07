@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Carbon\Carbon;
 use App\Models\gp\maestroGeneral\SunatConcepts;
+use Illuminate\Support\Facades\DB;
 
 class SunatConceptsSeeder extends Seeder
 {
