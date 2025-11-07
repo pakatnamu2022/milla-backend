@@ -39,7 +39,8 @@ class PurchaseRequestQuote extends Model
     'ap_vehicle_id',
     'type_currency_id',
     'doc_type_currency_id',
-    'sede_id'
+    'sede_id',
+    'status'
   ];
 
   const filters = [
@@ -59,6 +60,7 @@ class PurchaseRequestQuote extends Model
     'is_approved' => '=',
     'sede_id' => '=',
     'has_vehicle' => 'accessor',
+    'status' => '=',
   ];
 
   const sorts = [
@@ -139,5 +141,17 @@ class PurchaseRequestQuote extends Model
   public function sede(): BelongsTo
   {
     return $this->belongsTo(Sede::class, 'sede_id');
+  }
+
+  public function activate(): void
+  {
+    $this->status = 1;
+    $this->save();
+  }
+
+  public function desactivate(): void
+  {
+    $this->status = 0;
+    $this->save();
   }
 }

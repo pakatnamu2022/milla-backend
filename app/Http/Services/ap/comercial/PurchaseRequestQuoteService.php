@@ -194,6 +194,8 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         $movementService->storeInTransitVehicleMovement($vehicle->id);
       }
 
+      $purchaseRequestQuote->desactivate();
+
       DB::commit();
       return PurchaseRequestQuoteResource::make($purchaseRequestQuote);
     } catch (Exception $e) {
