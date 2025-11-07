@@ -29,11 +29,18 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       'ap_vehicle_movement_id' => 'nullable|integer|exists:ap_vehicle_movement,id',
 
       // Datos del cliente
-      'ap_billing_identity_document_type_id' => 'nullable|integer|exists:ap_billing_identity_document_types,id',
-      'cliente_numero_de_documento' => 'nullable|string|max:15',
-      'cliente_denominacion' => 'nullable|string|max:100',
-      'cliente_direccion' => 'nullable|string|max:250',
-      'cliente_email' => 'nullable|email|max:250',
+      'client_id' => [
+        'nullable',
+        'integer',
+        Rule::exists('business_partners', 'id')
+          ->whereNull('deleted_at')->where('status_ap', 1)
+      ],
+      'purchase_request_quote_id' => [
+        'nullable',
+        'integer',
+        Rule::exists('purchase_request_quote', 'id')
+          ->whereNull('deleted_at')->where('status', 1)
+      ],
       'cliente_email_1' => 'nullable|email|max:250',
       'cliente_email_2' => 'nullable|email|max:250',
 

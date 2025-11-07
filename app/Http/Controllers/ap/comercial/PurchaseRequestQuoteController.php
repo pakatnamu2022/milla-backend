@@ -105,4 +105,19 @@ class PurchaseRequestQuoteController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Get all invoices (electronic documents) for a specific purchase request quote
+   *
+   * @param int $id
+   * @return JsonResponse
+   */
+  public function getInvoices(int $id): JsonResponse
+  {
+    try {
+      return $this->service->getInvoices($id);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

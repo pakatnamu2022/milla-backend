@@ -3,6 +3,8 @@
 namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\PurchaseRequestQuoteResource;
+use App\Http\Resources\ap\comercial\VehiclesResource;
+use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Utils\Constants;
@@ -350,5 +352,40 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'purchase_request_quote_id' => $purchaseRequestQuoteId,
       ]);
     }
+  }
+
+  /**
+   * Obtiene las facturas (documentos electrónicos) asociadas a una cotización de solicitud de compra
+   * @param int $purchaseRequestQuoteId
+   * @return \Illuminate\Http\JsonResponse
+   * @throws Exception
+   */
+  public function getInvoices(int $purchaseRequestQuoteId)
+  {
+    $purchaseRequestQuote = $this->find($purchaseRequestQuoteId);
+
+    // Obtener los documentos electrónicos con sus relaciones
+    $documents = $purchaseRequestQuote->electronicDocuments()
+      ->with([
+        'documentType',
+        'transactionType',
+        'identityDocumentType',
+        'currency',
+        'vehicleMovement',
+        'items',
+        'creator'
+      ])
+      ->where('anulado', false)
+      ->orderBy('fecha_de_emision', 'desc')
+      ->get();
+
+    $vehicle = $purchaseRequestQuote->vehicle ?? null;
+
+    return response()->json([
+      'vehicle' => VehiclesResource::make($vehicle),
+      'documents' => ElectronicDocumentResource::collection($documents),
+      'total_documents' => $documents->count(),
+      'total_amount' => $documents->sum('total'),
+    ]);
   }
 }

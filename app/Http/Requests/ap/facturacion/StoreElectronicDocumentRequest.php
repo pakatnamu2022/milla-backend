@@ -29,8 +29,8 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'numero',
       'sunat_concept_transaction_type_id',
       'ap_vehicle_movement_id',
-      'sunat_concept_identity_document_type_id',
       'client_id',
+      'purchase_request_quote_id',
       'sunat_concept_currency_id',
       'sunat_concept_detraction_type_id',
       'documento_que_se_modifica_tipo',
@@ -213,13 +213,18 @@ class StoreElectronicDocumentRequest extends StoreRequest
       ],
 
       // Datos del cliente
-      'client_id' => Rule::exists('business_partners', 'id')
-        ->whereNull('deleted_at')->where('status_ap', 1),
-//      'sunat_concept_identity_document_type_id' => 'required|integer|exists:sunat_concepts,id',
-//      'cliente_numero_de_documento' => 'required|string|max:15',
-//      'cliente_denominacion' => 'required|string|max:100',
-//      'cliente_direccion' => 'nullable|string|max:250',
-//      'cliente_email' => 'nullable|email|max:250',
+      'client_id' => [
+        'required',
+        'integer',
+        Rule::exists('business_partners', 'id')
+          ->whereNull('deleted_at')->where('status_ap', 1)
+      ],
+      'purchase_request_quote_id' => [
+        'nullable',
+        'integer',
+        Rule::exists('purchase_request_quote', 'id')
+          ->whereNull('deleted_at')->where('status', 1)
+      ],
       'cliente_email_1' => 'nullable|email|max:250',
       'cliente_email_2' => 'nullable|email|max:250',
 

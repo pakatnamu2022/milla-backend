@@ -4,12 +4,14 @@ namespace App\Models\ap\comercial;
 
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -153,5 +155,14 @@ class PurchaseRequestQuote extends Model
   {
     $this->status = 0;
     $this->save();
+  }
+
+  /**
+   * Obtiene todos los documentos electrónicos (facturas, boletas, etc.) a través de la purchase_request_quote_id
+   * Un purchase request quote puede tener múltiples documentos electrónicos asociados
+   */
+  public function electronicDocuments(): HasMany
+  {
+    return $this->hasMany(ElectronicDocument::class, 'purchase_request_quote_id');
   }
 }

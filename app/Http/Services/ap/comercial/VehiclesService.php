@@ -314,13 +314,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       ->get();
 
     return response()->json([
-      'vehicle' => [
-        'id' => $vehicle->id,
-        'vin' => $vehicle->vin,
-        'year' => $vehicle->year,
-        'engine_number' => $vehicle->engine_number,
-        'model' => $vehicle->model?->version,
-      ],
+      'vehicle' => VehiclesResource::make($vehicle),
       'documents' => ElectronicDocumentResource::collection($documents),
       'total_documents' => $documents->count(),
       'total_amount' => $documents->sum('total'),
