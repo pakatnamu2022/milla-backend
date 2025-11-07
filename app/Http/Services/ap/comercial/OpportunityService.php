@@ -180,6 +180,7 @@ class OpportunityService extends BaseService implements BaseServiceInterface
     }
 
     if ($request->has('has_purchase_request_quote')) {
+      $excludedOpportunityId = $request->opportunity_id;
       // si es un accessor no se puede filtrar en la consulta SQL: guardar el filtro y aplicarlo después
       $filterHasPRQ = null;
       if ($request->has('has_purchase_request_quote')) {
@@ -189,8 +190,8 @@ class OpportunityService extends BaseService implements BaseServiceInterface
       $opportunities = $query->orderBy('created_at', 'desc')->get();
 
       if (!is_null($filterHasPRQ)) {
-        $opportunities = $opportunities->filter(function ($op) use ($filterHasPRQ) {
-          return (bool)$op->has_purchase_request_quote === $filterHasPRQ;
+        $opportunities = $opportunities->filter(function ($op) use ($filterHasPRQ, $excludedOpportunityId) {
+          return $excludedOpportunityId && $op->id == $excludedOpportunityId || $op->has_purchase_request_quote === $filterHasPRQ;
         })->values();
       }
 

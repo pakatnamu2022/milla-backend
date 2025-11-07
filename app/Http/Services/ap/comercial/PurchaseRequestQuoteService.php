@@ -10,6 +10,7 @@ use App\Models\ap\comercial\DetailsApprovedAccessoriesQuote;
 use App\Models\ap\comercial\DiscountCoupons;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\ApprovedAccessories;
 use App\Models\gp\maestroGeneral\ExchangeRate;
@@ -159,6 +160,19 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         throw new Exception('No hay un vehículo asignado a esta cotización.');
       }
 
+      $electronicDocuments = $vehicle->electronicDocuments()
+        ->where('status', ElectronicDocument::STATUS_ACCEPTED)
+        ->where('aceptada_por_sunat', 1)
+        ->where('anulado', 0)
+        ->whereNull('ap_billing_electronic_documents.deleted_at');
+
+      if ($electronicDocuments->exists()) {
+        throw new Exception('No se puede desasignar el vehículo porque tiene documentos electrónicos aceptados asociados.'
+          . $electronicDocuments->get()->pluck('serie', 'numero')->map(function ($serie, $numero) {
+            return " {$serie}-{$numero} ";
+          })->implode(', '));
+      }
+
       $purchaseRequestQuote->ap_vehicle_id = null;
       $purchaseRequestQuote->save();
 
@@ -179,6 +193,8 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       } elseif ($isInTransit) {
         $movementService->storeInTransitVehicleMovement($vehicle->id);
       }
+
+      $purchaseRequestQuote->desactivate();
 
       DB::commit();
       return PurchaseRequestQuoteResource::make($purchaseRequestQuote);

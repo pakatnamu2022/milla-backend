@@ -17,6 +17,11 @@ class StoreApAccountingAccountPlanRequest extends StoreRequest
         Rule::unique('ap_accounting_account_plan', 'account')
           ->whereNull('deleted_at'),
       ],
+      'code_dynamics' => [
+        'required',
+        'string',
+        'max:50',
+      ],
       'description' => [
         'required',
         'string',

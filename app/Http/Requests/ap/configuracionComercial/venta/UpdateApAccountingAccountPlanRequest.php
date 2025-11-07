@@ -18,6 +18,11 @@ class UpdateApAccountingAccountPlanRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('accountingAccountPlan'))
       ],
+      'code_dynamics' => [
+        'nullable',
+        'string',
+        'max:50',
+      ],
       'description' => [
         'nullable',
         'string',
