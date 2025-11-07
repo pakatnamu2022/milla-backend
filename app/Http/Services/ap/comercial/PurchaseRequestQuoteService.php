@@ -197,6 +197,9 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       }
 
       $purchaseRequestQuote->desactivate();
+      $opportunity = $purchaseRequestQuote->oportunity;
+      $opportunityService = new OpportunityService();
+      $opportunityService->close($opportunity->id, 'Cierre automático al desasignar vehículo de cotización de solicitud de compra.');
 
       DB::commit();
       return PurchaseRequestQuoteResource::make($purchaseRequestQuote);
