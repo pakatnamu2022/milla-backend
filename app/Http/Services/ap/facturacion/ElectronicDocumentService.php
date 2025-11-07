@@ -141,7 +141,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       $data['sunat_concept_identity_document_type_id'] = $documentType->id;
       $data['cliente_numero_de_documento'] = $client->num_doc;
-      $data['cliente_denominacion'] = $client->full_name;
+      $data['cliente_denominacion'] = $client->full_name . $client->spouse_full_name ? ' - ' . $client->spouse_full_name : '';
       $data['cliente_direccion'] = $client->direction;
       $data['cliente_email'] = $client->email;
       $data['porcentaje_de_igv'] = $client->taxClassType->igv;
@@ -385,7 +385,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       DB::beginTransaction();
 
       // Si el documento fue aceptado por SUNAT, actualizar usando el método del modelo
-      if (isset($nubefactData['aceptada_por_sunat']) && $nubefactData['aceptada_por_sunat']) {
+      if (isset($nubefactData['aceptada_por_sunat']) && $nubefactData['aceptada_por_sunat'] && !$document->aceptada_por_sunat) {
         $document->markAsAccepted($nubefactData);
       }
 

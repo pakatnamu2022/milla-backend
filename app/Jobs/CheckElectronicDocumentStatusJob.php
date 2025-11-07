@@ -48,16 +48,23 @@ class CheckElectronicDocumentStatusJob implements ShouldQueue
         return;
       }
 
-      // Solo procesar documentos en estado 'sent' que no hayan sido aceptados
-      if ($document->status !== ElectronicDocument::STATUS_SENT || $document->aceptada_por_sunat) {
+      // Solo procesar documentos en estado 'sent' que no hayan sido aceptados y anulados
+      if (
+        !(
+          ($document->status == ElectronicDocument::STATUS_SENT && !$document->aceptada_por_sunat)
+          ||
+          ($document->status == ElectronicDocument::STATUS_CANCELLED && $document->aceptada_por_sunat && !$document->anulado)
+        )
+      ) {
         Log::info("CheckElectronicDocumentStatusJob: Document not in valid state for checking", [
           'document_id' => $this->documentId,
           'status' => $document->status,
-          'aceptada_por_sunat' => $document->aceptada_por_sunat
+          'aceptada_por_sunat' => $document->aceptada_por_sunat,
+          'anulado' => $document->anulado
         ]);
         return;
       }
-
+      
       // Consultar estado en Nubefact (esto ya actualiza el documento automáticamente)
       $service->queryFromNubefact($this->documentId);
 
