@@ -379,6 +379,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'creator'
       ])
       ->where('anulado', false)
+      ->where('aceptada_por_sunat', true)
       ->orderBy('fecha_de_emision', 'desc')
       ->get();
 
