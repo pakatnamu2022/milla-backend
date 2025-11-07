@@ -218,6 +218,44 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         throw new Exception('Solo se pueden actualizar documentos en estado borrador');
       }
 
+      // Prevenir cambio de número correlativo
+      if (isset($data['numero']) && $data['numero'] !== $document->numero) {
+        throw new Exception('No se puede cambiar el número correlativo del documento');
+      }
+
+      // Validar serie si está siendo actualizada
+      if (isset($data['serie']) && isset($data['sunat_concept_document_type_id'])) {
+        if (!ElectronicDocument::validateSerie($data['sunat_concept_document_type_id'], $data['serie'])) {
+          throw new Exception('La serie no es válida para el tipo de documento seleccionado');
+        }
+      }
+
+      // Actualizar datos del cliente si el client_id está cambiando
+      if (isset($data['client_id']) && $data['client_id'] !== $document->client_id) {
+        $client = BusinessPartners::find($data['client_id']);
+        if (!$client) {
+          throw new Exception('Cliente no encontrado');
+        }
+
+        $documentType = SunatConcepts::where('tribute_code', $client->document_type_id)
+          ->where('type', SunatConcepts::TYPE_DOCUMENT)
+          ->first();
+
+        $data['sunat_concept_identity_document_type_id'] = $documentType->id;
+        $data['cliente_numero_de_documento'] = $client->num_doc;
+        $data['cliente_denominacion'] = $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : '');
+        $data['cliente_direccion'] = $client->direction;
+        $data['cliente_email'] = $client->email;
+        $data['porcentaje_de_igv'] = $client->taxClassType->igv;
+      }
+
+      // Actualizar tipo de cambio si la moneda está cambiando
+      if (isset($data['sunat_concept_currency_id']) && $data['sunat_concept_currency_id'] !== $document->sunat_concept_currency_id) {
+        $exchangeRate = (new ExchangeRateService())->getCurrentUSDRate();
+        $data['tipo_de_cambio'] = $exchangeRate->rate;
+        $data['exchange_rate_id'] = $exchangeRate->id;
+      }
+
       // Actualizar el documento
       $document->update(array_merge($data, [
         'updated_by' => auth()->id(),
