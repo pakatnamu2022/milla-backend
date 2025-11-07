@@ -71,41 +71,15 @@ class ApReceivingChecklistService extends BaseService
       $accessories = [];
 
       if ($shippingGuide->vehicleMovement) {
-        Log::info('VehicleMovement encontrado', [
-          'vehicle_movement_id' => $shippingGuide->vehicleMovement->id,
-          'ap_vehicle_id' => $shippingGuide->vehicleMovement->ap_vehicle_id,
-        ]);
 
         $vehicle = $shippingGuide->vehicleMovement->vehicle;
 
         if ($vehicle) {
-          Log::info('Vehicle encontrado', [
-            'vehicle_id' => $vehicle->id,
-            'vin' => $vehicle->vin,
-          ]);
 
           $purchaseOrders = $vehicle->purchaseOrders;
 
-          Log::info('Purchase Orders asociadas al vehículo', [
-            'count' => $purchaseOrders->count(),
-            'ids' => $purchaseOrders->pluck('id')->toArray(),
-          ]);
-
           foreach ($purchaseOrders as $purchaseOrder) {
             $accessoryItems = $purchaseOrder->items; // Ya filtrados por is_vehicle = false en el eager loading
-
-            Log::info('Procesando Purchase Order', [
-              'purchase_order_id' => $purchaseOrder->id,
-              'items_count' => $accessoryItems->count(),
-              'items' => $accessoryItems->map(function ($item) {
-                return [
-                  'id' => $item->id,
-                  'description' => $item->description,
-                  'is_vehicle' => $item->is_vehicle,
-                  'quantity' => $item->quantity,
-                ];
-              })->toArray(),
-            ]);
 
             foreach ($accessoryItems as $item) {
               $accessories[] = [
@@ -118,23 +92,8 @@ class ApReceivingChecklistService extends BaseService
               ];
             }
           }
-        } else {
-          Log::warning('No se encontró Vehicle', [
-            'vehicle_movement_id' => $shippingGuide->vehicleMovement->id,
-            'ap_vehicle_id' => $shippingGuide->vehicleMovement->ap_vehicle_id,
-          ]);
         }
-      } else {
-        Log::warning('No se encontró VehicleMovement', [
-          'shipping_guide_id' => $shippingGuideId,
-          'vehicle_movement_id' => $shippingGuide->vehicle_movement_id,
-        ]);
       }
-
-      Log::info('Accesorios finales', [
-        'count' => count($accessories),
-        'accessories' => $accessories,
-      ]);
 
       return response()->json([
         'data' => ApReceivingChecklistResource::collection($checklists),
@@ -142,11 +101,6 @@ class ApReceivingChecklistService extends BaseService
         'accessories' => $accessories,
       ]);
     } catch (Exception $e) {
-      Log::error('Error en getByShippingGuide', [
-        'shipping_guide_id' => $shippingGuideId,
-        'error' => $e->getMessage(),
-        'trace' => $e->getTraceAsString(),
-      ]);
       throw new Exception($e->getMessage());
     }
   }
@@ -240,10 +194,9 @@ class ApReceivingChecklistService extends BaseService
       try {
         $this->sendReceptionEmail($shippingGuide->fresh(['vehicleMovement.vehicle', 'transmitter', 'receiver', 'receivedBy']), $updatedRecords);
       } catch (Exception $e) {
-        // No fallar la respuesta si el correo falla, solo logear
-        Log::error('Error enviando correo de recepción: ' . $e->getMessage(), [
+        Log::error('Error al enviar correo de recepción de vehículo', [
           'shipping_guide_id' => $shippingGuide->id,
-          'trace' => $e->getTraceAsString()
+          'error' => $e->getMessage(),
         ]);
       }
 
@@ -326,10 +279,6 @@ class ApReceivingChecklistService extends BaseService
         ]
       ]);
     } catch (Exception $e) {
-      Log::error('Error al encolar correo de recepción: ' . $e->getMessage(), [
-        'shipping_guide_id' => $shippingGuide->id,
-        'trace' => $e->getTraceAsString()
-      ]);
       throw $e;
     }
   }

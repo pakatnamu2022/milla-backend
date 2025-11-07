@@ -824,6 +824,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Vehicles Delivery
       Route::post('vehiclesDelivery/{id}/send-to-nubefact', [ApVehicleDeliveryController::class, 'sendToNubefact']);
       Route::get('vehiclesDelivery/{id}/query-from-nubefact', [ApVehicleDeliveryController::class, 'queryFromNubefact']);
+      Route::get('vehiclesDelivery/shipping-guide-info/{vehicleId}', [ApVehicleDeliveryController::class, 'getShippingGuideInfo']);
       Route::apiResource('vehiclesDelivery', ApVehicleDeliveryController::class)->only([
         'index',
         'show',

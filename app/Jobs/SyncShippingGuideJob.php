@@ -8,6 +8,7 @@ use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\gestionsistema\Company;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -63,6 +64,9 @@ class SyncShippingGuideJob implements ShouldQueue
       return;
     }
 
+    // Determinar si la guía está cancelada
+    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+
     // VERIFICACIONES (Comentadas para implementar después)
     // Aquí se pueden agregar verificaciones antes de sincronizar:
     // - Verificar que exista el vehículo en Dynamics
@@ -74,13 +78,13 @@ class SyncShippingGuideJob implements ShouldQueue
     // }
 
     // 1. Sincronizar transferencia de inventario (cabecera)
-    $this->syncInventoryTransfer($shippingGuide, $syncService);
+    $this->syncInventoryTransfer($shippingGuide, $syncService, $isCancelled);
 
     // 2. Sincronizar detalle de transferencia
-    $this->syncInventoryTransferDetail($shippingGuide, $syncService);
+    $this->syncInventoryTransferDetail($shippingGuide, $syncService, $isCancelled);
 
     // 3. Sincronizar serial de transferencia (VIN)
-    $this->syncInventoryTransferSerial($shippingGuide, $syncService);
+    $this->syncInventoryTransferSerial($shippingGuide, $syncService, $isCancelled);
 
     // Nota: La verificación de completitud se hace en VerifyAndMigrateShippingGuideJob
     // que se ejecuta periódicamente cada 30 segundos
@@ -89,9 +93,11 @@ class SyncShippingGuideJob implements ShouldQueue
   /**
    * Sincroniza la cabecera de transferencia de inventario
    */
-  protected function syncInventoryTransfer(ShippingGuides $shippingGuide, DatabaseSyncService $syncService): void
+  protected function syncInventoryTransfer(ShippingGuides $shippingGuide, DatabaseSyncService $syncService, bool $isCancelled): void
   {
     $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
+    $prefix = $this->getTransferPrefix($shippingGuide);
+
     $transferLog = $this->getOrCreateLog(
       $shippingGuide->id,
       VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
@@ -125,7 +131,7 @@ class SyncShippingGuideJob implements ShouldQueue
       // Preparar datos para sincronización del detalle
       $data = [
         'EmpresaId' => Company::AP_DYNAMICS,
-        'TransferenciaId' => 'VEH-' . $shippingGuide->correlative,
+        'TransferenciaId' => $prefix . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT),
         'FechaEmision' => $shippingGuide->issue_date->format('Y-m-d'),
         'FechaContable' => $shippingGuide->issue_date->format('Y-m-d'),
         'Procesar' => 1,
@@ -133,7 +139,7 @@ class SyncShippingGuideJob implements ShouldQueue
         'ProcesoError' => '',
         'FechaProceso' => now()->format('Y-m-d H:i:s'),
       ];
-      
+
       // Sincronizar cabecera de transferencia
       $transferLog->markAsInProgress();
       $syncService->sync('inventory_transfer', $data, 'create');
@@ -147,9 +153,11 @@ class SyncShippingGuideJob implements ShouldQueue
   /**
    * Sincroniza el detalle de transferencia de inventario
    */
-  protected function syncInventoryTransferSerial(ShippingGuides $shippingGuide, DatabaseSyncService $syncService): void
+  protected function syncInventoryTransferSerial(ShippingGuides $shippingGuide, DatabaseSyncService $syncService, bool $isCancelled): void
   {
     $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
+    $prefix = $this->getTransferPrefix($shippingGuide);
+
     $transferDetailLog = $this->getOrCreateLog(
       $shippingGuide->id,
       VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL,
@@ -167,7 +175,7 @@ class SyncShippingGuideJob implements ShouldQueue
       // Preparar datos para sincronización del detalle
       $detailData = [
         'EmpresaId' => Company::AP_DYNAMICS,
-        'TransferenciaId' => 'VEH-' . $shippingGuide->correlative,
+        'TransferenciaId' => $prefix . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT),
         'Linea' => 1,
         'Serie' => $shippingGuide->vehicleMovement->vehicle->vin ?? "N/A",
         'ArticuloId' => $shippingGuide->vehicleMovement->vehicle->model->code ?? "N/A",
@@ -189,13 +197,23 @@ class SyncShippingGuideJob implements ShouldQueue
   /**
    * Sincroniza el serial (VIN) de transferencia de inventario
    */
-  protected function syncInventoryTransferDetail(ShippingGuides $shippingGuide, DatabaseSyncService $syncService): void
+  protected function syncInventoryTransferDetail(ShippingGuides $shippingGuide, DatabaseSyncService $syncService, bool $isCancelled): void
   {
     $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
+    $reason = "";
 
     if (!$vehicle_vn_id) {
       throw new \Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.");
     }
+
+    $prefix = $this->getTransferPrefix($shippingGuide);
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
+      $reason = 'RECEPCIÓN DEL VEHÍCULO POR COMPRA';
+    } elseif ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
+      $reason = 'RECEPCIÓN DEL VEHÍCULO POR TRASLADO ENTRE SEDES';
+    } else {
+      $reason = 'OTRO MOTIVO DE RECEPCIÓN';
+    };
 
     $transferSerialLog = $this->getOrCreateLog(
       $shippingGuide->id,
@@ -218,21 +236,53 @@ class SyncShippingGuideJob implements ShouldQueue
 
       $type_operation_id = $vehicleVn->type_operation_id ?? null;
       $class_id = $vehicleVn->model->class_id ?? null;
-      $sede_id = $shippingGuide->sedeReceiver->id ?? null;
 
-      $baseQuery = Warehouse::where('sede_id', $sede_id)
-        ->where('type_operation_id', $type_operation_id)
-        ->where('article_class_id', $class_id);
+      // Lógica diferenciada según el tipo de operación
+      if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
+        $sede_id = $shippingGuide->sedeReceiver->id ?? null;
 
-      $warehouseStartCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
-      $warehouseEndCode = (clone $baseQuery)->where('is_received', false)->value('dyn_code');
+        $baseQuery = Warehouse::where('sede_id', $sede_id)
+          ->where('type_operation_id', $type_operation_id)
+          ->where('article_class_id', $class_id);
+
+        $warehouseStartCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
+        $warehouseEndCode = (clone $baseQuery)->where('is_received', false)->value('dyn_code');
+
+      } elseif ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
+        $sedeTransmitterId = $shippingGuide->sedeTransmitter->id ?? null;
+        $sedeReceiverId = $shippingGuide->sedeReceiver->id ?? null;
+
+        $transmitterQuery = Warehouse::where('sede_id', $sedeTransmitterId)
+          ->where('type_operation_id', $type_operation_id)
+          ->where('article_class_id', $class_id)
+          ->where('is_received', true);
+
+        $receiverQuery = Warehouse::where('sede_id', $sedeReceiverId)
+          ->where('type_operation_id', $type_operation_id)
+          ->where('article_class_id', $class_id)
+          ->where('is_received', true);
+
+        $warehouseStartCode = $transmitterQuery->value('dyn_code');
+        $warehouseEndCode = $receiverQuery->value('dyn_code');
+
+      } else {
+        // Otro motivo: usar lógica por defecto (similar a COMPRA)
+        $sede_id = $shippingGuide->sedeReceiver->id ?? null;
+
+        $baseQuery = Warehouse::where('sede_id', $sede_id)
+          ->where('type_operation_id', $type_operation_id)
+          ->where('article_class_id', $class_id);
+
+        $warehouseStartCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
+        $warehouseEndCode = (clone $baseQuery)->where('is_received', false)->value('dyn_code');
+      }
 
       $serialData = [
         'EmpresaId' => Company::AP_DYNAMICS,
-        'TransferenciaId' => 'VEH-' . $shippingGuide->correlative,
+        'TransferenciaId' => $prefix . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT),
         'Linea' => 1,
         'ArticuloId' => $shippingGuide->vehicleMovement?->vehicle?->model->code ?? 'N/A',
-        'Motivo' => '',
+        'Motivo' => $reason,
         'UnidadMedidaId' => 'UND',
         'Cantidad' => 1,
         'AlmacenId_Ini' => $warehouseStartCode ?? '',
@@ -268,6 +318,23 @@ class SyncShippingGuideJob implements ShouldQueue
       ]
     );
   }
+
+  /**
+   * Obtiene el prefijo del TransferenciaId según el motivo de traslado
+   */
+  private function getTransferPrefix(ShippingGuides $shippingGuide): string
+  {
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
+      return 'CREC-';
+    }
+
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
+      return 'CTRA-';
+    }
+
+    return '-';
+  }
+
 
   /**
    * MÉTODOS DE VERIFICACIÓN (Para implementar después)

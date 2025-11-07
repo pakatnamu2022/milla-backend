@@ -75,8 +75,10 @@ class SunatConcepts extends Model
   ];
 
   const GUIA_REMISION_REMITENTE = 16;
-  
+
   const TRANSFER_REASON_TRASLADO_SEDE = 21;
+
+  const TRANSFER_REASON_COMPRA = 19;
 
   const RUC_CODE_NUBEFACT = 6;
 
