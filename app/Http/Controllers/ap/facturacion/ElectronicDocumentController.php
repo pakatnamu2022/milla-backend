@@ -85,6 +85,7 @@ class ElectronicDocumentController extends Controller
   public function update(UpdateElectronicDocumentRequest $request, $id): JsonResponse
   {
     try {
+      dd($request->all());
       $data = $request->validated();
       $data['id'] = $id;
       $document = $this->service->update($data);
