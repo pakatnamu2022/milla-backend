@@ -469,7 +469,7 @@ class NubefactApiService
 
       $itemData = [
         'unidad_de_medida' => $item->unidad_de_medida,
-        'codigo' => $item->codigo,
+        'codigo' => $item->accountPlan->code_dynamics,
         'descripcion' => $item->descripcion,
         'cantidad' => $item->cantidad,
         'valor_unitario' => $item->valor_unitario,
@@ -479,18 +479,14 @@ class NubefactApiService
         'tipo_de_igv' => $tipoIgv,
         'igv' => $igvItem,
         'total' => $item->total,
-        'anticipo_regularizacion' => $item->anticipo_regularizacion,
+        'anticipo_regularizacion' => $item->anticipo_regularizacion ? "true" : "false",
+        'anticipo_documento_serie' => $item->anticipo_regularizacion ? $item->anticipo_documento_serie : "",
+        'anticipo_documento_numero' => $item->anticipo_regularizacion ? $item->anticipo_documento_numero : "",
       ];
 
       // Código de producto SUNAT
       if ($item->codigo_producto_sunat) {
         $itemData['codigo_producto_sunat'] = $item->codigo_producto_sunat;
-      }
-
-      // Anticipo
-      if ($item->anticipo_regularizacion) {
-        $itemData['anticipo_documento_serie'] = $item->anticipo_documento_serie;
-        $itemData['anticipo_documento_numero'] = $item->anticipo_documento_numero;
       }
 
       $payload['items'][] = $itemData;

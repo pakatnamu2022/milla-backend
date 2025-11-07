@@ -10,6 +10,7 @@ class IndexPurchaseRequestQuoteRequest extends IndexRequest
   {
     return [
       'has_vehicle' => 'nullable|boolean|in:0,1',
+      'is_paid' => 'nullable|boolean|in:0,1',
     ];
   }
 }

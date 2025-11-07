@@ -5,6 +5,7 @@ namespace App\Http\Requests\ap\facturacion;
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Validation\Rule;
 
 class UpdateElectronicDocumentRequest extends StoreRequest
@@ -42,7 +43,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
     $numericFields = [
       'ap_billing_document_type_id',
       'numero',
-      'ap_billing_transaction_type_id',
+      'sunat_concept_transaction_type_id',
       'ap_vehicle_movement_id',
       'client_id',
       'purchase_request_quote_id',
@@ -187,7 +188,13 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       'numero' => 'nullable|integer|min:1',
 
       // Tipo de operación
-      'ap_billing_transaction_type_id' => 'nullable|integer|exists:ap_billing_transaction_types,id',
+      'sunat_concept_transaction_type_id' => [
+        'required',
+        'integer',
+        Rule::exists('sunat_concepts', 'id')
+          ->where('type', SunatConcepts::BILLING_TRANSACTION_TYPE)
+          ->whereNull('deleted_at')->where('status', 1)
+      ],
 
       // Origen del documento
       'origin_module' => ['nullable', Rule::in(['comercial', 'posventa'])],

@@ -63,6 +63,7 @@ class PurchaseRequestQuote extends Model
     'sede_id' => '=',
     'has_vehicle' => 'accessor',
     'status' => '=',
+    'is_paid' => 'accessor'
   ];
 
   const sorts = [
@@ -70,6 +71,16 @@ class PurchaseRequestQuote extends Model
     'created_at',
     'updated_at',
   ];
+
+  public function getIsPaidAttribute(): bool
+  {
+    $total = $this->electronicDocuments()
+      ->where('aceptada_por_sunat', 1)
+      ->where('anulado', 0)
+      ->whereNull('deleted_at')
+      ->sum('total');
+    return $this->sale_price == $total;
+  }
 
   public function getHasVehicleAttribute(): bool
   {
