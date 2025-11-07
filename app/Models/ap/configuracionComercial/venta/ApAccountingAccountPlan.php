@@ -15,19 +15,22 @@ class ApAccountingAccountPlan extends Model
 
   protected $fillable = [
     'account',
+    'code_dynamics',
     'description',
     'accounting_type_id',
     'status',
   ];
 
   const filters = [
-    'search' => ['account', 'description'],
+    'search' => ['account', 'description', 'code_dynamics'],
+    'code_dynamics' => '=',
     'accounting_type_id' => '=',
     'status' => '=',
   ];
 
   const sorts = [
     'account',
+    'code_dynamics',
     'description',
     'accounting_type_id',
     'status',

@@ -12,6 +12,7 @@ class ApAccountingAccountPlanResource extends JsonResource
     return [
       'id' => $this->id,
       'account' => $this->account,
+      'code_dynamics' => $this->code_dynamics,
       'description' => $this->description,
       'accounting_type_id' => $this->accounting_type_id,
       'accounting_type' => $this->typeAccount->description,
