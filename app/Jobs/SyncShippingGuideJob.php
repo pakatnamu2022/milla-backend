@@ -98,15 +98,20 @@ class SyncShippingGuideJob implements ShouldQueue
     $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
     $prefix = $this->getTransferPrefix($shippingGuide);
 
+    // Si está cancelada, usar el step de reversión para crear un nuevo log
+    $step = $isCancelled
+      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL
+      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER;
+
     $transferLog = $this->getOrCreateLog(
       $shippingGuide->id,
-      VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
+      $step,
       VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER],
       $shippingGuide->document_number,
       $vehicle_vn_id
     );
-
-    // Si ya está completado, no hacer nada
+    
+    // Si ya está completado, no hacer nada (para este step específico)
     if ($transferLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
       return;
     }
@@ -128,10 +133,16 @@ class SyncShippingGuideJob implements ShouldQueue
     // }
 
     try {
+      // Preparar TransferenciaId con asterisco si está cancelada
+      $transferId = $prefix . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT);
+      if ($isCancelled) {
+        $transferId .= '*';
+      }
+
       // Preparar datos para sincronización del detalle
       $data = [
         'EmpresaId' => Company::AP_DYNAMICS,
-        'TransferenciaId' => $prefix . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT),
+        'TransferenciaId' => $transferId,
         'FechaEmision' => $shippingGuide->issue_date->format('Y-m-d'),
         'FechaContable' => $shippingGuide->issue_date->format('Y-m-d'),
         'Procesar' => 1,
@@ -158,24 +169,35 @@ class SyncShippingGuideJob implements ShouldQueue
     $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
     $prefix = $this->getTransferPrefix($shippingGuide);
 
+    // Si está cancelada, usar el step de reversión para crear un nuevo log
+    $step = $isCancelled
+      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL
+      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL;
+
     $transferDetailLog = $this->getOrCreateLog(
       $shippingGuide->id,
-      VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL,
+      $step,
       VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL],
       $shippingGuide->document_number,
       $vehicle_vn_id
     );
 
-    // Si ya está completado, no hacer nada
+    // Si ya está completado, no hacer nada (para este step específico)
     if ($transferDetailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
       return;
     }
 
     try {
+      // Preparar TransferenciaId con asterisco si está cancelada
+      $transferId = $prefix . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT);
+      if ($isCancelled) {
+        $transferId .= '*';
+      }
+
       // Preparar datos para sincronización del detalle
       $detailData = [
         'EmpresaId' => Company::AP_DYNAMICS,
-        'TransferenciaId' => $prefix . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT),
+        'TransferenciaId' => $transferId,
         'Linea' => 1,
         'Serie' => $shippingGuide->vehicleMovement->vehicle->vin ?? "N/A",
         'ArticuloId' => $shippingGuide->vehicleMovement->vehicle->model->code ?? "N/A",
@@ -207,12 +229,18 @@ class SyncShippingGuideJob implements ShouldQueue
     }
 
     $prefix = $this->getTransferPrefix($shippingGuide);
-    $transferIdFormatted = $prefix . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT);
+    $transferIdOriginal = $prefix . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT);
+    $transferIdFormatted = $transferIdOriginal;
+
+    // Si está cancelada, agregar asterisco al final del TransferenciaId
+    if ($isCancelled) {
+      $transferIdFormatted .= '*';
+    }
 
     // Determinar el motivo según si está cancelada o no
     if ($isCancelled) {
-      // Si está cancelada, el motivo es "REVERSION DE LA TRANSACCION {TransferenciaId}"
-      $reason = "REVERSION DE LA TRANSACCION {$transferIdFormatted}";
+      // Si está cancelada, el motivo referencia la transacción original (sin asterisco)
+      $reason = "REVERSION DE LA TRANSACCION {$transferIdOriginal}";
     } else {
       // Motivo normal según el tipo de traslado
       if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
@@ -224,15 +252,20 @@ class SyncShippingGuideJob implements ShouldQueue
       }
     }
 
+    // Si está cancelada, usar el step de reversión para crear un nuevo log
+    $step = $isCancelled
+      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL_REVERSAL
+      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL;
+
     $transferSerialLog = $this->getOrCreateLog(
       $shippingGuide->id,
-      VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL,
+      $step,
       VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL],
       $shippingGuide->document_number,
       $vehicle_vn_id
     );
 
-    // Si ya está completado, no hacer nada
+    // Si ya está completado, no hacer nada (para este step específico)
     if ($transferSerialLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
       return;
     }
@@ -254,8 +287,8 @@ class SyncShippingGuideJob implements ShouldQueue
           ->where('type_operation_id', $type_operation_id)
           ->where('article_class_id', $class_id);
 
-        $warehouseStartCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
-        $warehouseEndCode = (clone $baseQuery)->where('is_received', false)->value('dyn_code');
+        $warehouseStartCode = (clone $baseQuery)->where('is_received', false)->value('dyn_code');
+        $warehouseEndCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
 
         // Si está cancelada, invertir los almacenes
         if ($isCancelled) {

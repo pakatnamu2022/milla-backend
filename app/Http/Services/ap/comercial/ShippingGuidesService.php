@@ -202,7 +202,8 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
   public function show($id)
   {
-    return new ShippingGuidesResource($this->find($id));
+    $document = ShippingGuides::with(['receivingChecklists.receiving'])->findOrFail($id);
+    return new ShippingGuidesResource($document);
   }
 
   public function update(mixed $data)

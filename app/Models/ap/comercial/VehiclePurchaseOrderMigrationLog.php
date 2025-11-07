@@ -47,6 +47,11 @@ class VehiclePurchaseOrderMigrationLog extends Model
   const STEP_INVENTORY_TRANSFER_DETAIL = 'inventory_transfer_detail';
   const STEP_INVENTORY_TRANSFER_SERIAL = 'inventory_transfer_serial';
 
+  // Constantes para los pasos de reversión (Cancelación de Shipping Guides)
+  const STEP_INVENTORY_TRANSFER_REVERSAL = 'inventory_transfer_REVERSAL';
+  const STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL = 'inventory_transfer_detail_REVERSAL';
+  const STEP_INVENTORY_TRANSFER_SERIAL_REVERSAL = 'inventory_transfer_serial_REVERSAL';
+
   // Constantes para los estados
   const STATUS_PENDING = 'pending';
   const STATUS_IN_PROGRESS = 'in_progress';
