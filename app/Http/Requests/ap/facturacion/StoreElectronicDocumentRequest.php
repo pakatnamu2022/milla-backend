@@ -287,6 +287,12 @@ class StoreElectronicDocumentRequest extends StoreRequest
 
       // Items (obligatorios)
       'items' => 'required|array|min:1',
+      'items.*.account_plan_id' => [
+        'required',
+        'integer',
+        Rule::exists('ap_accounting_account_plan', 'id')
+          ->whereNull('deleted_at')->where('status', 1)
+      ],
       'items.*.unidad_de_medida' => 'required|string|max:3',
       'items.*.codigo' => 'nullable|string|max:30',
       'items.*.codigo_producto_sunat' => 'nullable|string|max:8',

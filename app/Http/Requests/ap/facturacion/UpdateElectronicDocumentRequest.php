@@ -99,6 +99,12 @@ class UpdateElectronicDocumentRequest extends StoreRequest
 
       // Items (si se envían, deben tener al menos 1 item con validaciones completas)
       'items' => 'nullable|array|min:1',
+      'items.*.account_plan_id' => [
+        'required_with:items',
+        'integer',
+        Rule::exists('ap_accounting_account_plan', 'id')
+          ->whereNull('deleted_at')->where('status', 1),
+      ],
       'items.*.unidad_de_medida' => 'required_with:items|string|max:3',
       'items.*.codigo' => 'nullable|string|max:30',
       'items.*.codigo_producto_sunat' => 'nullable|string|max:8',
