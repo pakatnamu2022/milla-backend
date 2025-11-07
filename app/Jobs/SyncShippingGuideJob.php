@@ -207,13 +207,22 @@ class SyncShippingGuideJob implements ShouldQueue
     }
 
     $prefix = $this->getTransferPrefix($shippingGuide);
-    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
-      $reason = 'RECEPCIÓN DEL VEHÍCULO POR COMPRA';
-    } elseif ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
-      $reason = 'RECEPCIÓN DEL VEHÍCULO POR TRASLADO ENTRE SEDES';
+    $transferIdFormatted = $prefix . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT);
+
+    // Determinar el motivo según si está cancelada o no
+    if ($isCancelled) {
+      // Si está cancelada, el motivo es "REVERSION DE LA TRANSACCION {TransferenciaId}"
+      $reason = "REVERSION DE LA TRANSACCION {$transferIdFormatted}";
     } else {
-      $reason = 'OTRO MOTIVO DE RECEPCIÓN';
-    };
+      // Motivo normal según el tipo de traslado
+      if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
+        $reason = 'RECEPCIÓN DEL VEHÍCULO POR COMPRA';
+      } elseif ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
+        $reason = 'RECEPCIÓN DEL VEHÍCULO POR TRASLADO ENTRE SEDES';
+      } else {
+        $reason = 'OTRO MOTIVO DE RECEPCIÓN';
+      }
+    }
 
     $transferSerialLog = $this->getOrCreateLog(
       $shippingGuide->id,
@@ -248,6 +257,13 @@ class SyncShippingGuideJob implements ShouldQueue
         $warehouseStartCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
         $warehouseEndCode = (clone $baseQuery)->where('is_received', false)->value('dyn_code');
 
+        // Si está cancelada, invertir los almacenes
+        if ($isCancelled) {
+          $temp = $warehouseStartCode;
+          $warehouseStartCode = $warehouseEndCode;
+          $warehouseEndCode = $temp;
+        }
+
       } elseif ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
         $sedeTransmitterId = $shippingGuide->sedeTransmitter->id ?? null;
         $sedeReceiverId = $shippingGuide->sedeReceiver->id ?? null;
@@ -265,6 +281,13 @@ class SyncShippingGuideJob implements ShouldQueue
         $warehouseStartCode = $transmitterQuery->value('dyn_code');
         $warehouseEndCode = $receiverQuery->value('dyn_code');
 
+        // Si está cancelada, invertir los almacenes (retorna al almacén anterior)
+        if ($isCancelled) {
+          $temp = $warehouseStartCode;
+          $warehouseStartCode = $warehouseEndCode;
+          $warehouseEndCode = $temp;
+        }
+
       } else {
         // Otro motivo: usar lógica por defecto (similar a COMPRA)
         $sede_id = $shippingGuide->sedeReceiver->id ?? null;
@@ -275,11 +298,18 @@ class SyncShippingGuideJob implements ShouldQueue
 
         $warehouseStartCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
         $warehouseEndCode = (clone $baseQuery)->where('is_received', false)->value('dyn_code');
+
+        // Si está cancelada, invertir los almacenes
+        if ($isCancelled) {
+          $temp = $warehouseStartCode;
+          $warehouseStartCode = $warehouseEndCode;
+          $warehouseEndCode = $temp;
+        }
       }
 
       $serialData = [
         'EmpresaId' => Company::AP_DYNAMICS,
-        'TransferenciaId' => $prefix . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT),
+        'TransferenciaId' => $transferIdFormatted,
         'Linea' => 1,
         'ArticuloId' => $shippingGuide->vehicleMovement?->vehicle?->model->code ?? 'N/A',
         'Motivo' => $reason,
