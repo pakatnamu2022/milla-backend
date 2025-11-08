@@ -12,7 +12,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Exception;
-use function dd;
 
 class WarehouseService extends BaseService implements BaseServiceInterface
 {
@@ -58,6 +57,7 @@ class WarehouseService extends BaseService implements BaseServiceInterface
     $isReceived = $request->get('is_received');
     $articleClassId = $request->get('ap_class_article_id');
     $empresaId = $request->get('empresa_id');
+    $typeOperationId = $request->get('type_operation_id');
 
     // Obtener las sedes según el parámetro 'my'
     $sedesQuery = DB::table('config_sede')
@@ -87,6 +87,7 @@ class WarehouseService extends BaseService implements BaseServiceInterface
     $warehouses = Warehouse::whereIn('sede_id', $sedeIds)
       ->where('is_received', $isReceived)
       ->where('article_class_id', $articleClassId)
+      ->where('type_operation_id', $typeOperationId)
       ->where('status', 1)
       ->orderBy('dyn_code', 'asc')
       ->get();

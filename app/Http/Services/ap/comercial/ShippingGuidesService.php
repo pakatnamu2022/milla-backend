@@ -202,13 +202,26 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
   public function show($id)
   {
-    return new ShippingGuidesResource($this->find($id));
+    $document = ShippingGuides::with(['receivingChecklists.receiving'])->findOrFail($id);
+    return new ShippingGuidesResource($document);
   }
 
   public function update(mixed $data)
   {
     return DB::transaction(function () use ($data) {
       $document = $this->find($data['id']);
+
+      if ($document->aceptada_por_sunat) {
+        throw new Exception('No se puede editar un documento que ya ha sido aceptado por SUNAT');
+      }
+
+      if ($document->status_dynamic) {
+        throw new Exception('No se puede editar un documento que ya ha sido migrado a Dynamics');
+      }
+
+      if ($document->is_received) {
+        throw new Exception('No se puede editar un documento que ya ha sido recibido');
+      }
 
       // 1. Manejar la carga del archivo si existe
       $file = null;
@@ -334,6 +347,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'cancelled_at' => now(),
         'status' => false,
       ]);
+
+      // Sincronizar cancelación con Dynamics
+      SyncShippingGuideJob::dispatchSync($document->id);
 
       return new ShippingGuidesResource($document);
     });
@@ -482,8 +498,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede marcar como recepcionada una guía anulada');
       }
 
-      // Despachar el Job síncronamente para debugging
-      SyncShippingGuideJob::dispatchSync($guide->id);
+      if ($guide->document_type === 'GUIA_REMISION') {
+        SyncShippingGuideJob::dispatchSync($guide->id);
+      }
 
       $guide->update([
         'is_received' => true,

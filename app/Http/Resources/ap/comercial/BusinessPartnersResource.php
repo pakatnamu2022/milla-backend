@@ -68,8 +68,8 @@ class BusinessPartnersResource extends JsonResource
 
       // Relaciones cargadas
       'origin' => $this->origin?->description,
-      'tax_class_type' => $this->when($this->type === BusinessPartners::CLIENT || $this->type === BusinessPartners::BOTH, $this->taxClassType->description),
-      'tax_class_type_igv' => $this->when($this->type === BusinessPartners::CLIENT || $this->type === BusinessPartners::BOTH, (float)$this->taxClassType->igv),
+      'tax_class_type' => $this->when($this->type === BusinessPartners::CLIENT || $this->type === BusinessPartners::BOTH, $this->taxClassType?->description),
+      'tax_class_type_igv' => $this->when($this->type === BusinessPartners::CLIENT || $this->type === BusinessPartners::BOTH, (float)$this->taxClassType?->igv),
       'supplier_tax_class_type' => $this->when($this->type === BusinessPartners::SUPPLIER || $this->type === BusinessPartners::BOTH, $this->supplierTaxClassType?->description),
       'supplier_tax_class_type_igv' => $this->when($this->type === BusinessPartners::SUPPLIER || $this->type === BusinessPartners::BOTH, (float)$this->supplierTaxClassType?->igv),
       'type_road' => $this->typeRoad?->description,

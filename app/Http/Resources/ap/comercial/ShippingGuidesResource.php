@@ -23,6 +23,7 @@ class ShippingGuidesResource extends JsonResource
       'requires_sunat' => $this->requires_sunat,
       'is_sunat_registered' => $this->is_sunat_registered,
       'transmitter_id' => $this->transmitter_id,
+      'transmitter_name' => $this->transmitter->businessPartner->full_name ?? null,
       'transmitter_establishment' => $this->transmitter ? [
         'id' => $this->transmitter->id,
         'code' => $this->transmitter->code,
@@ -30,6 +31,7 @@ class ShippingGuidesResource extends JsonResource
         'full_address' => $this->transmitter->full_address,
       ] : null,
       'receiver_id' => $this->receiver_id,
+      'receiver_name' => $this->receiver->businessPartner->full_name ?? null,
       'receiver_establishment' => $this->receiver ? [
         'id' => $this->receiver->id,
         'code' => $this->receiver->code,
@@ -73,6 +75,19 @@ class ShippingGuidesResource extends JsonResource
       'status_dynamic' => $this->status_dynamic,
       'ap_class_article_id' => $this->ap_class_article_id,
       'note_received' => $this->note_received,
+      'receiving_checklists' => $this->when($this->relationLoaded('receivingChecklists'), function () {
+        return $this->receivingChecklists->map(function ($checklist) {
+          return [
+            'id' => $checklist->id,
+            'receiving_id' => $checklist->receiving_id,
+            'quantity' => $checklist->quantity,
+            'receiving' => $checklist->receiving ? [
+              'id' => $checklist->receiving->id,
+              'description' => $checklist->receiving->description ?? null,
+            ] : null,
+          ];
+        });
+      }),
     ];
   }
 }

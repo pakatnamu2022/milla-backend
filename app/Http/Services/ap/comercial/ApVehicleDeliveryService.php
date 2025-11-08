@@ -8,6 +8,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\ShippingGuides;
+use App\Models\ap\comercial\Vehicles;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -250,6 +251,90 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       ]);
     } catch (Exception $e) {
       throw new Exception('Error al consultar la guía en Nubefact: ' . $e->getMessage());
+    }
+  }
+
+  /**
+   * Obtiene la información necesaria para crear la guía de remisión de entrega al cliente
+   */
+  public function getShippingGuideInfo($vehicleId): JsonResponse
+  {
+    try {
+      $vehicle = Vehicles::with([
+        'warehousePhysical.sede',
+        'model.family.brand',
+        'color',
+        'electronicDocuments' => function ($query) {
+          $query->whereNull('ap_billing_electronic_documents.cancelled_at')
+            ->whereNotNull('ap_billing_electronic_documents.client_id')
+            ->where('ap_billing_electronic_documents.aceptada_por_sunat', true)
+            ->latest();
+        },
+        'electronicDocuments.client'
+      ])->find($vehicleId);
+
+      if (!$vehicle) {
+        throw new Exception('Vehículo no encontrado');
+      }
+
+      // Información del punto de partida (sede donde está el vehículo)
+      $originAddress = $vehicle->warehousePhysical?->sede?->direccion ?? 'No disponible';
+      $originSede = $vehicle->warehousePhysical?->sede;
+
+      // Información del vehículo
+      $vehicleInfo = [
+        'vin' => $vehicle->vin,
+        'model' => $vehicle->model?->version ?? 'N/A',
+        'brand' => $vehicle->model?->family?->brand?->name ?? 'N/A',
+        'family' => $vehicle->model?->family?->name ?? 'N/A',
+        'year' => $vehicle->year,
+        'color' => $vehicle->color?->description ?? 'N/A',
+        'engine_number' => $vehicle->engine_number,
+      ];
+
+      // Buscar el último documento electrónico con cliente (factura de venta)
+      $electronicDocument = $vehicle->electronicDocuments->first();
+
+      $clientInfo = null;
+      $driverInfo = null;
+
+      if ($electronicDocument && $electronicDocument->client) {
+        $client = $electronicDocument->client;
+
+        $clientInfo = [
+          'id' => $client->id,
+          'num_doc' => $client->num_doc,
+          'full_name' => $client->full_name,
+          'direction' => $client->direction,
+          'email' => $client->email,
+          'phone' => $client->phone,
+        ];
+
+        $driverInfo = [
+          'driver_num_doc' => $client->driver_num_doc ?? $client->num_doc,
+          'driver_full_name' => $client->driver_full_name ?? $client->full_name,
+          'driving_license' => $client->driving_license ?? 'N/A',
+          'plate' => 'SIN PLACA', // Valor por defecto hasta que informen
+        ];
+      }
+
+      return response()->json([
+        'success' => true,
+        'data' => [
+          'vehicle' => $vehicleInfo,
+          'origin' => [
+            'address' => $originAddress,
+            'sede_id' => $originSede?->id,
+            'sede_name' => $originSede?->nombre ?? 'N/A',
+            'sede_abbreviation' => $originSede?->abreviatura ?? 'N/A',
+          ],
+          'client' => $clientInfo,
+          'driver' => $driverInfo,
+          'has_client' => $clientInfo !== null,
+        ]
+      ]);
+    } catch (Exception $e) {
+      throw new Exception('Error al obtener información para guía de remisión: ' . $e->getMessage());
     }
   }
 }

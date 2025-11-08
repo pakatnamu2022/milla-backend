@@ -233,6 +233,11 @@ class ShippingGuides extends Model
     return $this->belongsTo(ApClassArticle::class, 'ap_class_article_id');
   }
 
+  public function receivingChecklists()
+  {
+    return $this->hasMany(ApReceivingChecklist::class, 'shipping_guide_id');
+  }
+
   /**
    * Marca la guía como enviada a Nubefact/SUNAT
    */

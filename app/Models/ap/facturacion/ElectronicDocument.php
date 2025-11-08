@@ -3,6 +3,7 @@
 namespace App\Models\ap\facturacion;
 
 use App\Models\ap\comercial\PurchaseRequestQuote;
+use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\SunatConcepts;
@@ -212,6 +213,11 @@ class ElectronicDocument extends BaseModel
   public function vehicleMovement(): BelongsTo
   {
     return $this->belongsTo(VehicleMovement::class, 'ap_vehicle_movement_id');
+  }
+
+  public function client(): BelongsTo
+  {
+    return $this->belongsTo(BusinessPartners::class, 'client_id');
   }
 
   public function items(): HasMany

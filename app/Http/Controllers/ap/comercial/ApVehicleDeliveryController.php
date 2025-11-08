@@ -93,4 +93,19 @@ class ApVehicleDeliveryController extends Controller
       ], 400);
     }
   }
+
+  /**
+   * Obtiene la información necesaria para crear la guía de remisión de entrega al cliente
+   */
+  public function getShippingGuideInfo($vehicleId)
+  {
+    try {
+      return $this->service->getShippingGuideInfo($vehicleId);
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
+    }
+  }
 }

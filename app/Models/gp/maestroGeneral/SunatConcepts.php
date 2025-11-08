@@ -74,9 +74,11 @@ class SunatConcepts extends Model
     'status',
   ];
 
-  const GUIA_REMISION_REMITENTE = 16;
-  
-  const TRANSFER_REASON_TRASLADO_SEDE = 21;
+  const GUIA_REMISION_REMITENTE = 12;
+
+  const TRANSFER_REASON_TRASLADO_SEDE = 17;
+
+  const TRANSFER_REASON_COMPRA = 15;
 
   const RUC_CODE_NUBEFACT = 6;
 

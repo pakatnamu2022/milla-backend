@@ -60,10 +60,10 @@ class StoreWarehouseRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'dyn_code.required' => 'El código dinámico es obligatorio.',
-      'dyn_code.string' => 'El código dinámico debe ser un texto.',
-      'dyn_code.max' => 'El código dinámico no puede tener más de 10 caracteres.',
-      'dyn_code.unique' => 'El código dinámico ya existe en el sistema.',
+      'dyn_code.required' => 'El código dynamic es obligatorio.',
+      'dyn_code.string' => 'El código dynamic debe ser un texto.',
+      'dyn_code.max' => 'El código dynamic no puede tener más de 10 caracteres.',
+      'dyn_code.unique' => 'El código dynamic ya existe en el sistema.',
 
       'description.required' => 'La descripción es obligatoria.',
       'description.string' => 'La descripción debe ser un texto.',

@@ -5,6 +5,7 @@ namespace App\Models\ap\comercial;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\ap\compras\PurchaseOrder;
@@ -47,6 +48,9 @@ class Vehicles extends Model
     'warehouse_physical_id' => '=',
     'year' => '=',
     'has_purchase_request_quote' => 'accessor',
+    'warehousePhysical.sede_id' => '=',
+    'warehousePhysical.is_received' => '=',
+    'warehousePhysical.article_class_id' => '=',
   ];
 
   public static array $sorts = [
@@ -136,7 +140,7 @@ class Vehicles extends Model
   public function electronicDocuments(): HasManyThrough
   {
     return $this->hasManyThrough(
-      \App\Models\ap\facturacion\ElectronicDocument::class, // Modelo final
+      ElectronicDocument::class, // Modelo final
       VehicleMovement::class,                                // Modelo intermedio
       'ap_vehicle_id',                                       // Foreign key en vehicle_movement que apunta a vehicles
       'ap_vehicle_movement_id',                              // Foreign key en electronic_documents que apunta a vehicle_movement
