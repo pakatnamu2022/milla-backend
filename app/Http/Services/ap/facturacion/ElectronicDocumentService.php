@@ -24,7 +24,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   /**
    * @var int
    */
-  protected int $startCorrelative = 0;
+  protected int $startCorrelative = 1;
 
   public function __construct(NubefactApiService $nubefactService)
   {

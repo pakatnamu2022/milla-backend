@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
  * basándose en las vistas registradas en la base de datos
  *
  * Comando para ejecutar:
- * php artisan db:seed --class=Database\\Seeders\\CrudPermissionsSeeder
+ * php artisan db:seed --class=CrudPermissionsSeeder
  */
 class CrudPermissionsSeeder extends Seeder
 {

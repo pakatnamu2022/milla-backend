@@ -90,26 +90,26 @@ class ViewSeeder extends Seeder
         $item
       );
 
-      $permissions = [
-        ['code' => "{$view->route}.view", 'name' => "Ver {$view->descripcion}", 'description' => "Permite visualizar información -  {$view->descripcion}", 'policy_method' => 'view'],
-        ['code' => "{$view->route}.create", 'name' => "Crear {$view->descripcion}", 'description' => "Permite crear nuevos registros - {$view->descripcion}", 'policy_method' => 'create'],
-        ['code' => "{$view->route}.edit", 'name' => "Editar {$view->descripcion}", 'description' => "Permite modificar registros existentes - {$view->descripcion}", 'policy_method' => 'update'],
-        ['code' => "{$view->route}.delete", 'name' => "Eliminar {$view->descripcion}", 'description' => "Permite eliminar o anular registros - {$view->descripcion}", 'policy_method' => 'delete'],
-      ];
-
-      foreach ($permissions as $perm) {
-        Permission::updateOrCreate(
-          ['code' => $perm['code']],
-          [
-            'name' => $perm['name'],
-            'description' => $perm['description'],
-            'module' => $view->route,
-            'vista_id' => $view->id,
-            'is_active' => true,
-            'policy_method' => $perm['policy_method']
-          ]
-        );
-      }
+//      $permissions = [
+//        ['code' => "{$view->route}.view", 'name' => "Ver {$view->descripcion}", 'description' => "Permite visualizar información -  {$view->descripcion}", 'policy_method' => 'view'],
+//        ['code' => "{$view->route}.create", 'name' => "Crear {$view->descripcion}", 'description' => "Permite crear nuevos registros - {$view->descripcion}", 'policy_method' => 'create'],
+//        ['code' => "{$view->route}.edit", 'name' => "Editar {$view->descripcion}", 'description' => "Permite modificar registros existentes - {$view->descripcion}", 'policy_method' => 'update'],
+//        ['code' => "{$view->route}.delete", 'name' => "Eliminar {$view->descripcion}", 'description' => "Permite eliminar o anular registros - {$view->descripcion}", 'policy_method' => 'delete'],
+//      ];
+//
+//      foreach ($permissions as $perm) {
+//        Permission::updateOrCreate(
+//          ['code' => $perm['code']],
+//          [
+//            'name' => $perm['name'],
+//            'description' => $perm['description'],
+//            'module' => $view->route,
+//            'vista_id' => $view->id,
+//            'is_active' => true,
+//            'policy_method' => $perm['policy_method']
+//          ]
+//        );
+//      }
     }
   }
 }
