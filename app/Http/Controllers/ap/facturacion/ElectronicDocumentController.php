@@ -216,4 +216,13 @@ class ElectronicDocumentController extends Controller
       return $this->error($e->getMessage());
     }
   }
+
+  public function nextCreditNoteNumber($id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->nextCreditNoteNumber($id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }

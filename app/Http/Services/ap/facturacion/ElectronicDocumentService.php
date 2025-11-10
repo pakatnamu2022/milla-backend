@@ -8,6 +8,8 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\facturacion\ElectronicDocumentItem;
+use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -16,6 +18,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use NumberFormatter;
 
 class ElectronicDocumentService extends BaseService implements BaseServiceInterface
 {
@@ -856,12 +859,52 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    */
   private function convertNumberToWords($number): string
   {
-    $formatter = new \NumberFormatter('es', \NumberFormatter::SPELLOUT);
+    $formatter = new NumberFormatter('es', NumberFormatter::SPELLOUT);
     $integerPart = floor($number);
     $decimalPart = round(($number - $integerPart) * 100);
 
     $words = strtoupper($formatter->format($integerPart));
 
     return "{$words} CON {$decimalPart}/100";
+  }
+
+  /**
+   * @throws Exception
+   */
+  public function nextCreditNoteNumber($id): array
+  {
+    $electronicDocument = $this->find($id);
+    $electronicDocumentItem = ElectronicDocumentItem::where('anticipo_documento_serie', $electronicDocument->serie)
+      ->where('anticipo_documento_numero', $electronicDocument->numero)
+      ->whereNull('deleted_at');
+
+    if ($electronicDocumentItem->count() > 0) {
+      throw new Exception('El documento electrónico no es un anticipo válido');
+    } else {
+      $electronicDocumentItem = $electronicDocumentItem->first();
+    }
+
+    $electronicDocumentParent = ElectronicDocument::where('id', $electronicDocumentItem->electronic_document_id)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', false)
+      ->where((function ($query) use ($electronicDocument) {
+        $query->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_FACTURA)
+          ->orWhere('sunat_concept_document_type_id', ElectronicDocument::TYPE_BOLETA);
+      }))
+      ->whereNull('deleted_at')
+      ->first();
+
+    if (!$electronicDocumentParent) {
+      throw new Exception('No se encontró el documento original para la creación de la nota de crédito');
+    }
+
+    return [
+      'series' => $electronicDocumentParent->serie,
+      'number' => $this->nextDocumentNumber(
+        ElectronicDocument::TYPE_NOTA_CREDITO,
+        $electronicDocumentParent->serie
+      )['number']
+    ];
+
   }
 }
