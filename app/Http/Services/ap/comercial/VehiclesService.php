@@ -264,6 +264,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'ap_vehicle_status_id' => $vehicle->ap_vehicle_status_id,
         'model' => $vehicle->model?->version,
         'model_code' => $vehicle->model?->code,
+        'family' => $vehicle->model?->family?->description,
         'vehicle_color' => $vehicle->color?->description,
         'engine_type' => $vehicle->engineType?->description,
         'status' => $vehicle->status,
