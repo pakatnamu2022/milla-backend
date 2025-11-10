@@ -11,6 +11,7 @@ class PurchaseRequestQuoteResource extends JsonResource
   {
     return [
       'id' => $this->id,
+      'is_paid' => $this->is_paid,
       'correlative' => $this->correlative,
       'type_document' => $this->type_document,
       'type_vehicle' => $this->type_vehicle,

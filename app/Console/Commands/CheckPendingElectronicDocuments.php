@@ -33,7 +33,10 @@ class CheckPendingElectronicDocuments extends Command
       // y que fueron enviados hace al menos 30 segundos pero no más de 5 minutos
 //      Log::info('CheckPendingElectronicDocuments: Starting to check pending electronic documents');
       $pendingDocuments = ElectronicDocument::where(function ($query) {
-        $query->where('aceptada_por_sunat', 0)
+        $query->where(function ($q) {
+          $q->where('aceptada_por_sunat', 0)
+            ->where('status', ElectronicDocument::STATUS_SENT);
+        })
           ->orWhere(function ($q) {
             $q->where('aceptada_por_sunat', 1)
               ->where('anulado', 0)

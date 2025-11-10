@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\facturacion;
 
+use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,141 +10,183 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ElectronicDocumentItem extends BaseModel
 {
-    use SoftDeletes;
+  use SoftDeletes;
 
-    protected $table = 'ap_billing_electronic_document_items';
+  protected $table = 'ap_billing_electronic_document_items';
 
-    protected $fillable = [
-        'ap_billing_electronic_document_id',
-        'line_number',
-        'unidad_de_medida',
-        'codigo',
-        'codigo_producto_sunat',
-        'descripcion',
-        'cantidad',
-        'valor_unitario',
-        'precio_unitario',
-        'descuento',
-        'subtotal',
-        'sunat_concept_igv_type_id',
-        'igv',
-        'total',
-        'anticipo_regularizacion',
-        'anticipo_documento_serie',
-        'anticipo_documento_numero',
-    ];
+  protected $fillable = [
+    'ap_billing_electronic_document_id',
+    'account_plan_id',
+    'line_number',
+    'unidad_de_medida',
+    'codigo',
+    'codigo_producto_sunat',
+    'descripcion',
+    'cantidad',
+    'valor_unitario',
+    'precio_unitario',
+    'descuento',
+    'subtotal',
+    'sunat_concept_igv_type_id',
+    'igv',
+    'total',
+    'anticipo_regularizacion',
+    'anticipo_documento_serie',
+    'anticipo_documento_numero',
+  ];
 
-    protected $casts = [
-        'cantidad' => 'decimal:4',
-        'valor_unitario' => 'decimal:2',
-        'precio_unitario' => 'decimal:2',
-        'descuento' => 'decimal:2',
-        'subtotal' => 'decimal:2',
-        'igv' => 'decimal:2',
-        'total' => 'decimal:2',
-        'anticipo_regularizacion' => 'boolean',
-        'line_number' => 'integer',
-    ];
+  protected $casts = [
+    'cantidad' => 'decimal:4',
+    'valor_unitario' => 'decimal:2',
+    'precio_unitario' => 'decimal:2',
+    'descuento' => 'decimal:2',
+    'subtotal' => 'decimal:2',
+    'igv' => 'decimal:2',
+    'total' => 'decimal:2',
+    'anticipo_regularizacion' => 'boolean',
+    'line_number' => 'integer',
+  ];
 
-    /**
-     * Relaciones
-     */
-    public function electronicDocument(): BelongsTo
-    {
-        return $this->belongsTo(ElectronicDocument::class, 'ap_billing_electronic_document_id');
+  /**
+   * Mutators - Round decimal values to 2 decimal places before saving
+   */
+  public function setValorUnitarioAttribute($value)
+  {
+    $this->attributes['valor_unitario'] = round((float)$value, 2);
+  }
+
+  public function setPrecioUnitarioAttribute($value)
+  {
+    $this->attributes['precio_unitario'] = round((float)$value, 2);
+  }
+
+  public function setDescuentoAttribute($value)
+  {
+    $this->attributes['descuento'] = $value ? round((float)$value, 2) : null;
+  }
+
+  public function setSubtotalAttribute($value)
+  {
+    $this->attributes['subtotal'] = round((float)$value, 2);
+  }
+
+  public function setIgvAttribute($value)
+  {
+    $this->attributes['igv'] = round((float)$value, 2);
+  }
+
+  public function setTotalAttribute($value)
+  {
+    $this->attributes['total'] = round((float)$value, 2);
+  }
+
+  /**
+   * Relaciones
+   */
+  public function electronicDocument(): BelongsTo
+  {
+    return $this->belongsTo(ElectronicDocument::class, 'ap_billing_electronic_document_id');
+  }
+
+  public function accountPlan(): BelongsTo
+  {
+    return $this->belongsTo(ApAccountingAccountPlan::class, 'account_plan_id');
+  }
+
+  public function igvType(): BelongsTo
+  {
+    return $this->belongsTo(SunatConcepts::class, 'sunat_concept_igv_type_id');
+  }
+
+  /**
+   * Scopes
+   */
+  public function scopeOrdered($query)
+  {
+    return $query->orderBy('line_number');
+  }
+
+  public function scopeByDocument($query, int $documentId)
+  {
+    return $query->where('ap_billing_electronic_document_id', $documentId);
+  }
+
+  public function scopeGravadas($query)
+  {
+    return $query->whereHas('igvType', function ($q) {
+      $q->where('code_nubefact', '10');
+    });
+  }
+
+  public function scopeExoneradas($query)
+  {
+    return $query->whereHas('igvType', function ($q) {
+      $q->where('code_nubefact', '20');
+    });
+  }
+
+  public function scopeInafectas($query)
+  {
+    return $query->whereHas('igvType', function ($q) {
+      $q->where('code_nubefact', '30');
+    });
+  }
+
+  public function scopeGratuitas($query)
+  {
+    return $query->whereHas('igvType', function ($q) {
+      $q->whereIn('code_nubefact', ['11', '12', '13', '14', '15', '16', '17', '21', '31', '32', '33', '34', '35', '36', '37']);
+    });
+  }
+
+  /**
+   * Accessors
+   */
+  public function getSubtotalCalculadoAttribute(): float
+  {
+    return round($this->cantidad * $this->valor_unitario - $this->descuento, 2);
+  }
+
+  public function getIgvCalculadoAttribute(): float
+  {
+    if (!$this->igvType || $this->igvType->code_nubefact !== '10') {
+      return 0;
     }
 
-    public function igvType(): BelongsTo
-    {
-        return $this->belongsTo(SunatConcepts::class, 'sunat_concept_igv_type_id');
+    $porcentajeIgv = $this->electronicDocument->porcentaje_de_igv ?? 18;
+    return round($this->subtotal * ($porcentajeIgv / 100), 2);
+  }
+
+  public function getTotalCalculadoAttribute(): float
+  {
+    return round($this->subtotal + $this->igv + $this->isc, 2);
+  }
+
+  public function getIsGratuitoAttribute(): bool
+  {
+    if (!$this->igvType) {
+      return false;
     }
 
-    /**
-     * Scopes
-     */
-    public function scopeOrdered($query)
-    {
-        return $query->orderBy('line_number');
-    }
+    return in_array($this->igvType->code_nubefact, [
+      '11', '12', '13', '14', '15',
+      '16', '17', '21', '31', '32',
+      '33', '34', '35', '36', '37']);
+  }
 
-    public function scopeByDocument($query, int $documentId)
-    {
-        return $query->where('ap_billing_electronic_document_id', $documentId);
-    }
+  /**
+   * Métodos de negocio
+   */
+  public function recalculate(): void
+  {
+    $subtotal = $this->subtotal_calculado;
+    $igv = $this->igv_calculado;
+    $total = round($subtotal + $igv + $this->isc, 2);
 
-    public function scopeGravadas($query)
-    {
-        return $query->whereHas('igvType', function ($q) {
-            $q->where('code_nubefact', '10');
-        });
-    }
-
-    public function scopeExoneradas($query)
-    {
-        return $query->whereHas('igvType', function ($q) {
-            $q->where('code_nubefact', '20');
-        });
-    }
-
-    public function scopeInafectas($query)
-    {
-        return $query->whereHas('igvType', function ($q) {
-            $q->where('code_nubefact', '30');
-        });
-    }
-
-    public function scopeGratuitas($query)
-    {
-        return $query->whereHas('igvType', function ($q) {
-            $q->whereIn('code_nubefact', ['11', '12', '13', '14', '15', '16', '17', '21', '31', '32', '33', '34', '35', '36', '37']);
-        });
-    }
-
-    /**
-     * Accessors
-     */
-    public function getSubtotalCalculadoAttribute(): float
-    {
-        return round($this->cantidad * $this->valor_unitario - $this->descuento, 2);
-    }
-
-    public function getIgvCalculadoAttribute(): float
-    {
-        if (!$this->igvType || $this->igvType->code_nubefact !== '10') {
-            return 0;
-        }
-
-        $porcentajeIgv = $this->electronicDocument->porcentaje_de_igv ?? 18;
-        return round($this->subtotal * ($porcentajeIgv / 100), 2);
-    }
-
-    public function getTotalCalculadoAttribute(): float
-    {
-        return round($this->subtotal + $this->igv + $this->isc, 2);
-    }
-
-    public function getIsGratuitoAttribute(): bool
-    {
-        if (!$this->igvType) {
-            return false;
-        }
-
-        return in_array($this->igvType->code_nubefact, ['11', '12', '13', '14', '15', '16', '17', '21', '31', '32', '33', '34', '35', '36', '37']);
-    }
-
-    /**
-     * Métodos de negocio
-     */
-    public function recalculate(): void
-    {
-        $subtotal = $this->subtotal_calculado;
-        $igv = $this->igv_calculado;
-        $total = round($subtotal + $igv + $this->isc, 2);
-
-        $this->update([
-            'subtotal' => $subtotal,
-            'igv' => $igv,
-            'total' => $total,
-        ]);
-    }
+    $this->update([
+      'subtotal' => $subtotal,
+      'igv' => $igv,
+      'total' => $total,
+    ]);
+  }
 }

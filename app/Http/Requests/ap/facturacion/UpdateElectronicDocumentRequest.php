@@ -4,23 +4,197 @@ namespace App\Http\Requests\ap\facturacion;
 
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Validation\Rule;
 
 class UpdateElectronicDocumentRequest extends StoreRequest
 {
   /**
+   * Prepare the data for validation.
+   */
+  protected function prepareForValidation()
+  {
+    // Compatibilidad de nombres - Convertir 'serie' a 'series' si existe y es numérico
+    if ($this->has('serie') && !$this->has('series') && is_numeric($this->input('serie'))) {
+      $this->merge(['series' => (int)$this->input('serie')]);
+    }
+
+    // Convertir el ID de series a la serie real (string)
+    if ($this->has('series')) {
+      $seriesId = (int)$this->input('series');
+      $assignSeries = AssignSalesSeries::find($seriesId);
+
+      if ($assignSeries) {
+        $this->merge([
+          'assign_sales_series_id' => $seriesId,
+          'serie' => $assignSeries->series, // String "F001"
+        ]);
+      } else {
+        // Si no se encuentra la serie asignada, establecer un valor por defecto
+        // para que la validación posterior detecte el error
+        $this->merge([
+          'serie' => null,
+        ]);
+      }
+    }
+
+    // Convertir strings numéricos a integers/decimals/booleans
+    $numericFields = [
+      'ap_billing_document_type_id',
+      'numero',
+      'sunat_concept_transaction_type_id',
+      'ap_vehicle_movement_id',
+      'client_id',
+      'purchase_request_quote_id',
+      'ap_billing_currency_id',
+      'ap_billing_detraction_type_id',
+      'documento_que_se_modifica_tipo',
+      'documento_que_se_modifica_numero',
+      'ap_billing_credit_note_type_id',
+      'ap_billing_debit_note_type_id',
+      'percepcion_tipo',
+      'retencion_tipo',
+      'medio_de_pago_detraccion',
+    ];
+
+    $dataToMerge = [];
+    foreach ($numericFields as $field) {
+      if ($this->has($field) && $this->input($field) !== null && $this->input($field) !== '') {
+        $dataToMerge[$field] = (int)$this->input($field);
+      }
+    }
+
+    // Convertir strings numéricos a decimales para totales
+    $decimalFields = [
+      'tipo_de_cambio',
+      'porcentaje_de_igv',
+      'descuento_global',
+      'total_descuento',
+      'total_anticipo',
+      'total_gravada',
+      'total_inafecta',
+      'total_exonerada',
+      'total_igv',
+      'total_gratuita',
+      'total_otros_cargos',
+      'total_isc',
+      'total',
+      'percepcion_base_imponible',
+      'total_percepcion',
+      'total_incluido_percepcion',
+      'retencion_base_imponible',
+      'total_retencion',
+      'detraccion_total',
+      'detraccion_porcentaje',
+    ];
+
+    foreach ($decimalFields as $field) {
+      if ($this->has($field) && $this->input($field) !== null && $this->input($field) !== '') {
+        $dataToMerge[$field] = (float)$this->input($field);
+      }
+    }
+
+    // Convertir strings booleanos
+    $booleanFields = [
+      'detraccion',
+      'enviar_automaticamente_a_la_sunat',
+      'enviar_automaticamente_al_cliente',
+      'generado_por_contingencia',
+    ];
+
+    foreach ($booleanFields as $field) {
+      if ($this->has($field) && $this->input($field) !== null) {
+        $value = $this->input($field);
+        $dataToMerge[$field] = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $value;
+      }
+    }
+
+    // Convertir items
+    if ($this->has('items') && is_array($this->input('items'))) {
+      $items = $this->input('items');
+      foreach ($items as $index => $item) {
+        if (isset($item['sunat_concept_igv_type_id'])) {
+          $items[$index]['sunat_concept_igv_type_id'] = (int)$item['sunat_concept_igv_type_id'];
+        }
+        if (isset($item['account_plan_id'])) {
+          $items[$index]['account_plan_id'] = (int)$item['account_plan_id'];
+        }
+        $numericItemFields = ['cantidad', 'valor_unitario', 'precio_unitario', 'descuento', 'subtotal', 'igv', 'total'];
+        foreach ($numericItemFields as $field) {
+          if (isset($item[$field])) {
+            $items[$index][$field] = (float)$item[$field];
+          }
+        }
+        if (isset($item['anticipo_regularizacion'])) {
+          $items[$index]['anticipo_regularizacion'] = filter_var($item['anticipo_regularizacion'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (isset($item['anticipo_documento_numero'])) {
+          $items[$index]['anticipo_documento_numero'] = (int)$item['anticipo_documento_numero'];
+        }
+      }
+      $dataToMerge['items'] = $items;
+    }
+
+    // Convertir guías
+    if ($this->has('guias') && is_array($this->input('guias'))) {
+      $guias = $this->input('guias');
+      foreach ($guias as $index => $guia) {
+        if (isset($guia['guia_tipo'])) {
+          $guias[$index]['guia_tipo'] = (int)$guia['guia_tipo'];
+        }
+      }
+      $dataToMerge['guias'] = $guias;
+    }
+
+    // Convertir cuotas
+    if ($this->has('venta_al_credito') && is_array($this->input('venta_al_credito'))) {
+      $cuotas = $this->input('venta_al_credito');
+      foreach ($cuotas as $index => $cuota) {
+        if (isset($cuota['cuota'])) {
+          $cuotas[$index]['cuota'] = (int)$cuota['cuota'];
+        }
+        if (isset($cuota['importe'])) {
+          $cuotas[$index]['importe'] = (float)$cuota['importe'];
+        }
+      }
+      $dataToMerge['venta_al_credito'] = $cuotas;
+    }
+
+    // Aplicar todas las conversiones
+    if (!empty($dataToMerge)) {
+      $this->merge($dataToMerge);
+    }
+  }
+
+  /**
    * Get the validation rules that apply to the request.
    */
   public function rules(): array
   {
+    $userId = $this->user()->id;
     return [
       // Tipo de documento y serie (todos opcionales excepto validaciones de existencia)
       'ap_billing_document_type_id' => 'nullable|integer|exists:ap_billing_document_types,id',
-      'serie' => 'nullable|string|size:4',
+      'series' => [
+        'nullable',
+        'integer',
+        Rule::exists('assign_sales_series', 'id')
+          ->where('status', 1)->whereNull('deleted_at'),
+        Rule::exists('user_series_assignment', 'voucher_id')
+          ->where('worker_id', $userId)
+      ],
+      'serie' => 'nullable|string|size:4', // Campo generado automáticamente desde series
       'numero' => 'nullable|integer|min:1',
 
       // Tipo de operación
-      'ap_billing_transaction_type_id' => 'nullable|integer|exists:ap_billing_transaction_types,id',
+      'sunat_concept_transaction_type_id' => [
+        'required',
+        'integer',
+        Rule::exists('sunat_concepts', 'id')
+          ->where('type', SunatConcepts::BILLING_TRANSACTION_TYPE)
+          ->whereNull('deleted_at')->where('status', 1)
+      ],
 
       // Origen del documento
       'origin_module' => ['nullable', Rule::in(['comercial', 'posventa'])],
@@ -29,11 +203,18 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       'ap_vehicle_movement_id' => 'nullable|integer|exists:ap_vehicle_movement,id',
 
       // Datos del cliente
-      'ap_billing_identity_document_type_id' => 'nullable|integer|exists:ap_billing_identity_document_types,id',
-      'cliente_numero_de_documento' => 'nullable|string|max:15',
-      'cliente_denominacion' => 'nullable|string|max:100',
-      'cliente_direccion' => 'nullable|string|max:250',
-      'cliente_email' => 'nullable|email|max:250',
+      'client_id' => [
+        'nullable',
+        'integer',
+        Rule::exists('business_partners', 'id')
+          ->whereNull('deleted_at')->where('status_ap', 1)
+      ],
+      'purchase_request_quote_id' => [
+        'nullable',
+        'integer',
+        Rule::exists('purchase_request_quote', 'id')
+          ->whereNull('deleted_at')->where('status', 1)
+      ],
       'cliente_email_1' => 'nullable|email|max:250',
       'cliente_email_2' => 'nullable|email|max:250',
 
@@ -99,6 +280,12 @@ class UpdateElectronicDocumentRequest extends StoreRequest
 
       // Items (si se envían, deben tener al menos 1 item con validaciones completas)
       'items' => 'nullable|array|min:1',
+      'items.*.account_plan_id' => [
+        'required_with:items',
+        'integer',
+        Rule::exists('ap_accounting_account_plan', 'id')
+          ->whereNull('deleted_at')->where('status', 1),
+      ],
       'items.*.unidad_de_medida' => 'required_with:items|string|max:3',
       'items.*.codigo' => 'nullable|string|max:30',
       'items.*.codigo_producto_sunat' => 'nullable|string|max:8',
@@ -108,7 +295,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       'items.*.precio_unitario' => 'required_with:items|numeric|min:0',
       'items.*.descuento' => 'nullable|numeric|min:0',
       'items.*.subtotal' => 'required_with:items|numeric|min:0',
-      'items.*.ap_billing_igv_type_id' => 'required_with:items|integer|exists:ap_billing_igv_types,id',
+      'items.*.sunat_concept_igv_type_id' => 'required_with:items|integer|exists:sunat_concepts,id',
       'items.*.igv' => 'required_with:items|numeric|min:0',
       'items.*.total' => 'required_with:items|numeric|min:0',
       'items.*.anticipo_regularizacion' => 'nullable|boolean',

@@ -39,6 +39,16 @@ class AssignSalesSeries extends Model
     'sede_id',
   ];
 
+  const int FACTURA = 799;
+  const int BOLETA = 800;
+  const int NOTA_CREDITO = 801;
+  const int NOTA_DEBITO = 802;
+  const int FACTURA_NUBEFACT = 29;
+  const int BOLETA_NUBEFACT = 30;
+  const int NOTA_CREDITO_NUBEFACT = 31;
+  const int NOTA_DEBITO_NUBEFACT = 32;
+
+
   public function typeReceipt()
   {
     return $this->belongsTo(ApCommercialMasters::class, 'type_receipt_id');

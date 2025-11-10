@@ -56,7 +56,7 @@ class SunatConcepts extends Model
   // IDs específicos de tipos de IGV (basados en query)
   const ID_IGV_GRAVADO_ONEROSA = 49;          // Gravado - Operación Onerosa (code: 10, tribute: 1000) - SUNAT
   const ID_IGV_EXPORTACION = 67;              // Exportación de Bienes o Servicios (code: 40, tribute: 9995)
-  const ID_IGV_ANTICIPO_GRAVADO = 130;        // Gravado - Operación Onerosa (code: 1, tribute: 1000) - Código Nubefact para anticipos
+  const ID_IGV_ANTICIPO_GRAVADO = 49;        // Gravado - Operación Onerosa (code: 1, tribute: 1000) - Código Nubefact para anticipos
   // Nota: El tributo 9996 se genera automáticamente cuando sunat_transaction = 04
 
   const filters = [

@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\facturacion;
 
+use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\BaseModel;
@@ -9,6 +10,7 @@ use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ElectronicDocument extends BaseModel
@@ -27,6 +29,7 @@ class ElectronicDocument extends BaseModel
     'origin_entity_id',
     'ap_vehicle_movement_id',
     'client_id',
+    'purchase_request_quote_id',
     'sunat_concept_identity_document_type_id',
     'cliente_numero_de_documento',
     'cliente_denominacion',
@@ -140,6 +143,7 @@ class ElectronicDocument extends BaseModel
     'origin_entity_type',
     'origin_entity_id',
     'ap_vehicle_movement_id',
+    'purchase_request_quote_id',
     'cliente_numero_de_documento',
     'sunat_concept_currency_id',
     'status',
@@ -462,5 +466,10 @@ class ElectronicDocument extends BaseModel
         ->where('anticipo_documento_serie', $this->serie)
         ->where('anticipo_documento_numero', $this->numero);
     })->exists();
+  }
+
+  public function purchaseRequestQuote(): HasOne
+  {
+    return $this->hasOne(PurchaseRequestQuote::class, 'id', 'purchase_request_quote_id');
   }
 }

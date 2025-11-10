@@ -29,8 +29,8 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'numero',
       'sunat_concept_transaction_type_id',
       'ap_vehicle_movement_id',
-      'sunat_concept_identity_document_type_id',
       'client_id',
+      'purchase_request_quote_id',
       'sunat_concept_currency_id',
       'sunat_concept_detraction_type_id',
       'documento_que_se_modifica_tipo',
@@ -213,13 +213,18 @@ class StoreElectronicDocumentRequest extends StoreRequest
       ],
 
       // Datos del cliente
-      'client_id' => Rule::exists('business_partners', 'id')
-        ->whereNull('deleted_at')->where('status_ap', 1),
-//      'sunat_concept_identity_document_type_id' => 'required|integer|exists:sunat_concepts,id',
-//      'cliente_numero_de_documento' => 'required|string|max:15',
-//      'cliente_denominacion' => 'required|string|max:100',
-//      'cliente_direccion' => 'nullable|string|max:250',
-//      'cliente_email' => 'nullable|email|max:250',
+      'client_id' => [
+        'required',
+        'integer',
+        Rule::exists('business_partners', 'id')
+          ->whereNull('deleted_at')->where('status_ap', 1)
+      ],
+      'purchase_request_quote_id' => [
+        'nullable',
+        'integer',
+        Rule::exists('purchase_request_quote', 'id')
+          ->whereNull('deleted_at')->where('status', 1)
+      ],
       'cliente_email_1' => 'nullable|email|max:250',
       'cliente_email_2' => 'nullable|email|max:250',
 
@@ -275,7 +280,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'medio_de_pago' => 'nullable|string|max:250',
       'bank_id' => 'nullable|integer|exists:ap_bank,id',
       'operation_number' => 'nullable|string|max:100',
-      'financing_type' => ['nullable', Rule::in(['CONVENIO', 'VEHICULAR'])],
+      'financing_type' => ['nullable', Rule::in(['CONVENIO', 'VEHICULAR', 'CONTADO'])],
       'placa_vehiculo' => 'nullable|string|max:8',
       'orden_compra_servicio' => 'nullable|string|max:20',
       'codigo_unico' => 'nullable|string|max:20',
@@ -287,6 +292,12 @@ class StoreElectronicDocumentRequest extends StoreRequest
 
       // Items (obligatorios)
       'items' => 'required|array|min:1',
+      'items.*.account_plan_id' => [
+        'required',
+        'integer',
+        Rule::exists('ap_accounting_account_plan', 'id')
+          ->whereNull('deleted_at')->where('status', 1)
+      ],
       'items.*.unidad_de_medida' => 'required|string|max:3',
       'items.*.codigo' => 'nullable|string|max:30',
       'items.*.codigo_producto_sunat' => 'nullable|string|max:8',

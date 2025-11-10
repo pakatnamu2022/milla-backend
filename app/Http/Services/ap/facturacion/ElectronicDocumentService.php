@@ -21,11 +21,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 {
   protected NubefactApiService $nubefactService;
 
-  /**
-   * @var int
-   */
-  protected int $startCorrelative = 0;
-
   public function __construct(NubefactApiService $nubefactService)
   {
     $this->nubefactService = $nubefactService;
@@ -86,10 +81,16 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    */
   public function nextDocumentNumber(string $documentType, string $series): array
   {
+    $startCorrelative = 0;
     $query = ElectronicDocument::where('sunat_concept_document_type_id', $documentType)
       ->where('serie', $series)
       ->whereNull('deleted_at');
-    $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $this->startCorrelative;
+
+    if ($query->count() == 0) {
+      $startCorrelative = 1;
+    }
+
+    $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelative;
     $number = $this->completeNumber($correlative);
     return ["number" => $number];
   }
@@ -141,7 +142,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       $data['sunat_concept_identity_document_type_id'] = $documentType->id;
       $data['cliente_numero_de_documento'] = $client->num_doc;
-      $data['cliente_denominacion'] = $client->full_name . $client->spouse_full_name ? ' - ' . $client->spouse_full_name : '';
+      $data['cliente_denominacion'] = $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : '');
       $data['cliente_direccion'] = $client->direction;
       $data['cliente_email'] = $client->email;
       $data['porcentaje_de_igv'] = $client->taxClassType->igv;
@@ -216,6 +217,44 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Solo se pueden actualizar documentos en estado draft
       if ($document->status !== ElectronicDocument::STATUS_DRAFT) {
         throw new Exception('Solo se pueden actualizar documentos en estado borrador');
+      }
+
+      // Prevenir cambio de número correlativo
+      if (isset($data['numero']) && $data['numero'] !== $document->numero) {
+        throw new Exception('No se puede cambiar el número correlativo del documento');
+      }
+
+      // Validar serie si está siendo actualizada
+      if (isset($data['serie']) && isset($data['sunat_concept_document_type_id'])) {
+        if (!ElectronicDocument::validateSerie($data['sunat_concept_document_type_id'], $data['serie'])) {
+          throw new Exception('La serie no es válida para el tipo de documento seleccionado');
+        }
+      }
+
+      // Actualizar datos del cliente si el client_id está cambiando
+      if (isset($data['client_id']) && $data['client_id'] !== $document->client_id) {
+        $client = BusinessPartners::find($data['client_id']);
+        if (!$client) {
+          throw new Exception('Cliente no encontrado');
+        }
+
+        $documentType = SunatConcepts::where('tribute_code', $client->document_type_id)
+          ->where('type', SunatConcepts::TYPE_DOCUMENT)
+          ->first();
+
+        $data['sunat_concept_identity_document_type_id'] = $documentType->id;
+        $data['cliente_numero_de_documento'] = $client->num_doc;
+        $data['cliente_denominacion'] = $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : '');
+        $data['cliente_direccion'] = $client->direction;
+        $data['cliente_email'] = $client->email;
+        $data['porcentaje_de_igv'] = $client->taxClassType->igv;
+      }
+
+      // Actualizar tipo de cambio si la moneda está cambiando
+      if (isset($data['sunat_concept_currency_id']) && $data['sunat_concept_currency_id'] !== $document->sunat_concept_currency_id) {
+        $exchangeRate = (new ExchangeRateService())->getCurrentUSDRate();
+        $data['tipo_de_cambio'] = $exchangeRate->rate;
+        $data['exchange_rate_id'] = $exchangeRate->id;
       }
 
       // Actualizar el documento
@@ -592,11 +631,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if ($igvTypeCode == 1) { // Gravado
         $totals['total_gravada'] += $item['subtotal'];
         $totals['total_igv'] += $item['igv'];
-      } elseif ($igvTypeCode == 9) { // Exonerado
+      } elseif ($igvTypeCode == 8) { // Exonerado
         $totals['total_exonerada'] += $item['subtotal'];
-      } elseif ($igvTypeCode == 10) { // Inafecto
+      } elseif ($igvTypeCode == 9) { // Inafecto
         $totals['total_inafecta'] += $item['subtotal'];
-      } elseif ($igvTypeCode == 21) { // Gratuito
+      } elseif ($igvTypeCode == 17 || $igvTypeCode == 20) { // Gratuito
         $totals['total_gratuita'] += $item['subtotal'];
       }
     }
