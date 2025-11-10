@@ -701,7 +701,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       'precio_unitario' => $vehiclePrice,
       'descuento' => 0,
       'subtotal' => $valorUnitario,
-      'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_ANTICIPO_GRAVADO, // Tipo 1
+      'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_ANTICIPO_GRAVADO, // Tipo 10
       'igv' => $igv,
       'total' => $vehiclePrice,
       'anticipo_regularizacion' => false,
@@ -722,7 +722,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'precio_unitario' => -$anticipoTotal,
         'descuento' => 0,
         'subtotal' => $anticipoValorUnitario,
-        'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_ANTICIPO_GRAVADO, // Tipo 1
+        'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_ANTICIPO_GRAVADO, // Tipo 10
         'igv' => $anticipoIgv,
         'total' => -$anticipoTotal,
         'anticipo_regularizacion' => true,
