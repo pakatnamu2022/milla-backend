@@ -223,6 +223,15 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede editar un documento que ya ha sido recibido');
       }
 
+      if ($data['transfer_reason_id'] == SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
+        if ($data['sede_transmitter_id'] == $data['sede_receiver_id']) {
+          throw new Exception('La sede de origen y destino no pueden ser la misma para el motivo de traslado seleccionado');
+        }
+        if ($data['transmitter_id'] == $data['receiver_id']) {
+          throw new Exception('El establecimiento de origen y destino no pueden ser el mismo para el motivo de traslado seleccionado');
+        }
+      }
+
       // 1. Manejar la carga del archivo si existe
       $file = null;
       if (isset($data['file']) && $data['file'] instanceof UploadedFile) {

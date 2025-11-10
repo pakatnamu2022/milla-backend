@@ -146,4 +146,19 @@ class VehiclesController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Get vehicle client debt information based on electronic documents
+   *
+   * @param int $id
+   * @return JsonResponse
+   */
+  public function getVehicleClientDebtInfo(int $id): JsonResponse
+  {
+    try {
+      return $this->service->getVehicleClientDebtInfo($id);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

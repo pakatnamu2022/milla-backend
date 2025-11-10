@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
+use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -23,12 +24,14 @@ class BusinessPartnersEstablishment extends Model
     'ubigeo',
     'status',
     'business_partner_id',
+    'sede_id',
   ];
 
   const filters = [
     'search' => ['code', 'description', 'address', 'full_address'],
     'status' => '=',
     'business_partner_id' => '=',
+    'sede_id' => '=',
   ];
 
   const sorts = [
@@ -77,5 +80,10 @@ class BusinessPartnersEstablishment extends Model
   public function businessPartner(): BelongsTo
   {
     return $this->belongsTo(BusinessPartners::class, 'business_partner_id');
+  }
+
+  public function sede(): BelongsTo
+  {
+    return $this->belongsTo(Sede::class, 'sede_id');
   }
 }

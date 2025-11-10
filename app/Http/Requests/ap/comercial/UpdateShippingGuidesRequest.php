@@ -20,7 +20,6 @@ class UpdateShippingGuidesRequest extends StoreRequest
       'requires_sunat' => 'nullable|boolean',
       'total_packages' => 'nullable|numeric|min:0',
       'total_weight' => 'nullable|numeric|min:0',
-      'vehicle_movement_id' => 'nullable|integer|exists:ap_vehicle_movement,id',
       'transmitter_id' => 'sometimes|required|integer|exists:business_partners_establishment,id',
       'receiver_id' => 'sometimes|required|integer|exists:business_partners_establishment,id',
       'file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,xml|max:10240',
@@ -33,6 +32,7 @@ class UpdateShippingGuidesRequest extends StoreRequest
       'status' => 'nullable|boolean',
       'transfer_reason_id' => 'nullable|integer|exists:sunat_concepts,id',
       'transfer_modality_id' => 'nullable|integer|exists:sunat_concepts,id',
+      'ap_class_article_id' => 'nullable|integer|exists:ap_class_article,id',
     ];
   }
 
@@ -47,6 +47,15 @@ class UpdateShippingGuidesRequest extends StoreRequest
       'receiver_id.required' => 'El destinatario es obligatorio cuando se proporciona.',
       'file.mimes' => 'El archivo debe ser un PDF, JPG, JPEG, PNG o XML.',
       'file.max' => 'El tamaño máximo del archivo es 10MB.',
+      'requires_sunat' => 'El campo requiere sunat debe ser verdadero o falso.',
+      'total_packages.numeric' => 'El total de bultos debe ser un número.',
+      'total_packages.min' => 'El total de bultos no puede ser negativo.',
+      'total_weight.numeric' => 'El peso total debe ser un número.',
+      'total_weight.min' => 'El peso total no puede ser negativo.',
+      'transport_company_id.exists' => 'La empresa de transporte no existe.',
+      'transfer_reason_id.exists' => 'La razón de transferencia no existe.',
+      'transfer_modality_id.exists' => 'La modalidad de transferencia no existe.',
+      'ap_class_article_id.exists' => 'La clase de artículo no existe.',
     ];
   }
 }

@@ -9,6 +9,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Utils\Constants;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\facturacion\ElectronicDocument;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -324,6 +325,113 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'documents' => ElectronicDocumentResource::collection($documents),
       'total_documents' => $documents->count(),
       'total_amount' => $documents->sum('total'),
+    ]);
+  }
+
+  /**
+   * Obtiene información del cliente asociado a un vehículo y su estado de deuda
+   * @param int $vehicleId
+   * @return \Illuminate\Http\JsonResponse
+   * @throws Exception
+   */
+  public function getVehicleClientDebtInfo(int $vehicleId)
+  {
+    // Buscar el vehículo
+    $vehicle = $this->find($vehicleId);
+
+    // Obtener el movimiento más reciente del vehículo para conseguir el cliente
+    $vehicleMovement = $vehicle->vehicleMovements()
+      ->orderBy('created_at', 'desc')
+      ->first();
+
+    if (!$vehicleMovement || !$vehicleMovement->client_id) {
+      throw new Exception('No se encontró cliente asociado al vehículo');
+    }
+
+    $clientId = $vehicleMovement->client_id;
+    $client = $vehicleMovement->client;
+
+    // Obtener todos los documentos electrónicos del cliente aceptados y no anulados
+    $documents = ElectronicDocument::where('client_id', $clientId)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', false)
+      ->with(['documentType', 'currency', 'installments'])
+      ->get();
+
+    // Calcular deuda total
+    $totalDebt = 0;
+    $facturas = [];
+    $notasCredito = [];
+    $notasDebito = [];
+
+    foreach ($documents as $doc) {
+      $docInfo = [
+        'id' => $doc->id,
+        'serie' => $doc->serie,
+        'numero' => $doc->numero,
+        'document_number' => $doc->document_number,
+        'fecha_emision' => $doc->fecha_de_emision?->format('Y-m-d'),
+        'fecha_vencimiento' => $doc->fecha_de_vencimiento?->format('Y-m-d'),
+        'moneda' => $doc->currency?->description,
+        'total' => $doc->total,
+        'tipo_documento' => $doc->documentType?->description,
+      ];
+
+      // Facturas y boletas suman a la deuda
+      if (in_array($doc->sunat_concept_document_type_id, [
+        ElectronicDocument::TYPE_FACTURA,
+        ElectronicDocument::TYPE_BOLETA
+      ])) {
+        $totalDebt += $doc->total;
+        $facturas[] = $docInfo;
+      } // Notas de crédito restan de la deuda
+      elseif ($doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO) {
+        $totalDebt -= $doc->total;
+        $notasCredito[] = $docInfo;
+      } // Notas de débito suman a la deuda
+      elseif ($doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_DEBITO) {
+        $totalDebt += $doc->total;
+        $notasDebito[] = $docInfo;
+      }
+    }
+
+    // Determinar estado de la deuda
+    $debtStatus = 'sin_deuda';
+    $debtMessage = 'El cliente no tiene deuda pendiente';
+
+    if ($totalDebt > 0) {
+      $debtStatus = 'deuda_pendiente';
+      $debtMessage = 'El cliente tiene deuda pendiente';
+    } elseif ($totalDebt < 0) {
+      $debtStatus = 'saldo_a_favor';
+      $debtMessage = 'El cliente tiene saldo a favor';
+    }
+
+    return response()->json([
+      'client' => [
+        'id' => $client->id,
+        'ruc' => $client->ruc,
+        'business_name' => $client->business_name,
+        'trade_name' => $client->trade_name,
+        'address' => $client->address,
+        'email' => $client->email,
+      ],
+      'debt_summary' => [
+        'total_debt' => round($totalDebt, 2),
+        'status' => $debtStatus,
+        'message' => $debtMessage,
+        'has_pending_debt' => $totalDebt > 0,
+        'debt_is_paid' => $totalDebt <= 0,
+      ],
+      'documents_summary' => [
+        'total_documents' => $documents->count(),
+        'total_facturas' => count($facturas),
+        'total_notas_credito' => count($notasCredito),
+        'total_notas_debito' => count($notasDebito),
+      ],
+      'facturas' => $facturas,
+      'notas_credito' => $notasCredito,
+      'notas_debito' => $notasDebito,
     ]);
   }
 }

@@ -811,6 +811,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Vehicles
       Route::get('vehicles/costs', [VehiclesController::class, 'getCostsData']);
       Route::get('vehicles/{id}/invoices', [VehiclesController::class, 'getInvoices']);
+      Route::get('vehicles/{id}/client-debt-info', [VehiclesController::class, 'getVehicleClientDebtInfo']);
       Route::apiResource('vehicles', VehiclesController::class)->only([
         'index',
         'show',
