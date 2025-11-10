@@ -631,11 +631,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if ($igvTypeCode == 1) { // Gravado
         $totals['total_gravada'] += $item['subtotal'];
         $totals['total_igv'] += $item['igv'];
-      } elseif ($igvTypeCode == 9) { // Exonerado
+      } elseif ($igvTypeCode == 8) { // Exonerado
         $totals['total_exonerada'] += $item['subtotal'];
-      } elseif ($igvTypeCode == 10) { // Inafecto
+      } elseif ($igvTypeCode == 9) { // Inafecto
         $totals['total_inafecta'] += $item['subtotal'];
-      } elseif ($igvTypeCode == 21) { // Gratuito
+      } elseif ($igvTypeCode == 17 || $igvTypeCode == 20) { // Gratuito
         $totals['total_gratuita'] += $item['subtotal'];
       }
     }
@@ -702,7 +702,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       'precio_unitario' => $vehiclePrice,
       'descuento' => 0,
       'subtotal' => $valorUnitario,
-      'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_ANTICIPO_GRAVADO, // Tipo 10
+      'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_ANTICIPO_GRAVADO, // Tipo 1
       'igv' => $igv,
       'total' => $vehiclePrice,
       'anticipo_regularizacion' => false,
@@ -723,7 +723,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'precio_unitario' => -$anticipoTotal,
         'descuento' => 0,
         'subtotal' => $anticipoValorUnitario,
-        'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_ANTICIPO_GRAVADO, // Tipo 10
+        'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_ANTICIPO_GRAVADO, // Tipo 1
         'igv' => $anticipoIgv,
         'total' => -$anticipoTotal,
         'anticipo_regularizacion' => true,
