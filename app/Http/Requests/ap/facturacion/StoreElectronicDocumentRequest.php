@@ -280,7 +280,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'medio_de_pago' => 'nullable|string|max:250',
       'bank_id' => 'nullable|integer|exists:ap_bank,id',
       'operation_number' => 'nullable|string|max:100',
-      'financing_type' => ['nullable', Rule::in(['CONVENIO', 'VEHICULAR'])],
+      'financing_type' => ['nullable', Rule::in(['CONVENIO', 'VEHICULAR', 'CONTADO'])],
       'placa_vehiculo' => 'nullable|string|max:8',
       'orden_compra_servicio' => 'nullable|string|max:20',
       'codigo_unico' => 'nullable|string|max:20',
