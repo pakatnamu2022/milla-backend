@@ -172,6 +172,8 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         }
 
         $client = $electronicDocument->client;
+        $originAddress = BusinessPartnersEstablishment::where('sede_id', $record->sede_id)->first()?->address;
+        $destinationAddress = $client->direction;
 
         // Continuar con la lógica de generación de guía...
         // (El resto de la lógica la maneja el usuario)
