@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\comercial;
 use App\Http\Resources\ap\comercial\VehicleMovementResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\compras\PurchaseOrder;
@@ -193,6 +194,47 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
 
       $vehicle->update([
         'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
+      ]);
+
+      DB::commit();
+      return new VehicleMovementResource($vehicleMovement);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw new Exception($e->getMessage());
+    }
+  }
+
+  /**
+   * Create a vehicle movement when a schedule delivery
+   * @throws Exception|Throwable
+   */
+  public function storeSheduleDeliveryVehicleMovement($vehicleDeliveryId): VehicleMovementResource
+  {
+    DB::beginTransaction();
+    try {
+      $vehicleDelivery = ApVehicleDelivery::find($vehicleDeliveryId);
+      $vehicle = $vehicleDelivery->vehicle;
+
+      if (!$vehicle) {
+        throw new Exception('Vehículo no encontrado');
+      }
+
+      $vehicleMovement = VehicleMovement::create([
+        'movement_type' => VehicleMovement::SOLD_NOT_DELIVERED,
+        'ap_vehicle_id' => $vehicle->id,
+        'ap_vehicle_status_id' => ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+        'movement_date' => now(),
+        'observation' => 'Vehículo programado para entrega - Fecha: ' . $vehicleDelivery->scheduled_delivery_date,
+        'previous_status_id' => $vehicle->ap_vehicle_status_id ?? ApVehicleStatus::INVENTARIO_VN,
+        'new_status_id' => ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+      ]);
+
+      $vehicle->update([
+        'ap_vehicle_status_id' => ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+      ]);
+
+      $vehicleDelivery->update([
+        'vehicle_movement_id' => $vehicleMovement->id,
       ]);
 
       DB::commit();

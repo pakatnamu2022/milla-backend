@@ -24,10 +24,8 @@ class ApVehicleDelivery extends Model
     'sede_id',
     'status_wash',
     'status_delivery',
-    'status_nubefact',
-    'status_sunat',
-    'status_dynamic',
-    'status',
+    'shipping_guide_id',
+    'vehicle_movement_id',
   ];
 
   protected $casts = [
@@ -41,10 +39,11 @@ class ApVehicleDelivery extends Model
     'search' => [],
     'vehicle_id',
     'scheduled_delivery_date',
-    'status_nubefact',
-    'status_sunat',
-    'status_dynamic',
-    'status',
+    'real_delivery_date',
+    'advisor_id',
+    'sede_id',
+    'status_delivery',
+    'status_wash',
   ];
 
   const sorts = [
@@ -53,10 +52,6 @@ class ApVehicleDelivery extends Model
     'vehicle_id',
     'scheduled_delivery_date',
     'real_delivery_date',
-    'status_nubefact',
-    'status_sunat',
-    'status_dynamic',
-    'status',
   ];
 
   public function advisor()
@@ -72,5 +67,15 @@ class ApVehicleDelivery extends Model
   public function sede()
   {
     return $this->belongsTo(Sede::class, 'sede_id');
+  }
+
+  public function ShippingGuide()
+  {
+    return $this->belongsTo(ShippingGuides::class, 'shipping_guide_id');
+  }
+
+  public function vehicleMovement()
+  {
+    return $this->belongsTo(VehicleMovement::class, 'vehicle_movement_id');
   }
 }

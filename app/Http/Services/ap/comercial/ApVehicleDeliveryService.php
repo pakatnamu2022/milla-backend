@@ -7,8 +7,11 @@ use App\Http\Resources\ap\comercial\ShippingGuidesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\comercial\ApVehicleDelivery;
+use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\facturacion\ElectronicDocument;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,10 +20,18 @@ use Exception;
 class ApVehicleDeliveryService extends BaseService implements BaseServiceInterface
 {
   protected NubefactShippingGuideApiService $nubefactService;
+  protected VehicleMovementService $vehicleMovementService;
+  protected VehiclesService $vehiclesService;
 
-  public function __construct(NubefactShippingGuideApiService $nubefactService)
+  public function __construct(
+    NubefactShippingGuideApiService $nubefactService,
+    VehicleMovementService          $vehicleMovementService,
+    VehiclesService                 $vehiclesService
+  )
   {
     $this->nubefactService = $nubefactService;
+    $this->vehicleMovementService = $vehicleMovementService;
+    $this->vehiclesService = $vehiclesService;
   }
 
   public function list(Request $request)
@@ -45,26 +56,36 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
   public function store(mixed $data)
   {
-    $user = auth()->user();
-    $data['advisor_id'] = $user->partner_id;
+    try {
+      DB::transaction(function () use ($data) {
+        $user = auth()->user();
+        $data['advisor_id'] = $user->partner_id;
 
-    if (!$data['advisor_id']) {
-      throw new Exception('El asesor no está asociado a un socio válido');
+        if (!$data['advisor_id']) {
+          throw new Exception('El asesor no está asociado a un socio válido');
+        }
+
+        $existingDelivery = ApVehicleDelivery::where('vehicle_id', $data['vehicle_id'])
+          ->where('scheduled_delivery_date', $data['scheduled_delivery_date'])
+          ->first();
+        if ($existingDelivery) {
+          throw new Exception('Ya existe una entrega programada para este vehículo en la misma fecha');
+        }
+
+        if (isset($data['wash_date']) && $data['wash_date'] > $data['scheduled_delivery_date']) {
+          throw new Exception('La fecha de lavado no puede ser mayor a la fecha de entrega programada');
+        }
+
+        $vehicleDelivery = ApVehicleDelivery::create($data);
+
+        // Crear el movimiento de vehículo asociado
+        $this->vehicleMovementService->storeSheduleDeliveryVehicleMovement($vehicleDelivery->id);
+
+        return new ApVehicleDeliveryResource($vehicleDelivery);
+      });
+    } catch (Exception $e) {
+      throw new Exception('Error al crear la entrega de vehículo: ' . $e->getMessage());
     }
-
-    $existingDelivery = ApVehicleDelivery::where('vehicle_id', $data['vehicle_id'])
-      ->where('scheduled_delivery_date', $data['scheduled_delivery_date'])
-      ->first();
-    if ($existingDelivery) {
-      throw new Exception('Ya existe una entrega programada para este vehículo en la misma fecha');
-    }
-
-    if (isset($data['wash_date']) && $data['wash_date'] > $data['scheduled_delivery_date']) {
-      throw new Exception('La fecha de lavado no puede ser mayor a la fecha de entrega programada');
-    }
-
-    $vehicleDelivery = ApVehicleDelivery::create($data);
-    return new ApVehicleDeliveryResource($vehicleDelivery);
   }
 
   public function show($id)
@@ -107,6 +128,58 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       $vehicleDelivery->delete();
     });
     return response()->json(['message' => 'Entrega de Vehículo eliminada correctamente']);
+  }
+
+  public function generateShippingGuide($id)
+  {
+    try {
+      DB::transaction(function () use ($id) {
+        $record = $this->find($id);
+
+        if (!$record) {
+          throw new Exception('Entrega de Vehículo no encontrada');
+        }
+
+        // Obtener el vehículo para validar el pago
+        $vehicle = Vehicles::find($record->vehicle_id);
+        $vehicleId = $record->vehicle_id;
+
+        // Validar si el vehículo está completamente pagado usando el método centralizado
+        $isPaid = $this->vehiclesService->isVehiclePaid($vehicle->vin);
+
+        if (!$isPaid) {
+          throw new Exception('El vehículo no está completamente pagado. No se puede generar la guía de remisión.');
+        }
+
+        // Obtener el documento electrónico (factura) asociado al vehículo
+        $electronicDocument = ElectronicDocument::whereHas('vehicleMovement', function ($query) use ($vehicleId) {
+          $query->where('ap_vehicle_id', $vehicleId);
+        })
+          ->where('aceptada_por_sunat', true)
+          ->where('anulado', false)
+          ->whereNotNull('client_id')
+          ->whereNotNull('purchase_request_quote_id')
+          ->with(['client', 'purchaseRequestQuote'])
+          ->orderBy('fecha_de_emision', 'desc')
+          ->first();
+
+        if (!$electronicDocument || !$electronicDocument->client_id) {
+          throw new Exception('No se encontró factura ni cliente asociado al vehículo');
+        }
+
+        if (!$electronicDocument->purchase_request_quote_id) {
+          throw new Exception('No se encontró cotización asociada al vehículo');
+        }
+
+        $client = $electronicDocument->client;
+
+        // Continuar con la lógica de generación de guía...
+        // (El resto de la lógica la maneja el usuario)
+
+      });
+    } catch (Exception $e) {
+      throw new Exception('Error al generar la guía de remisión: ' . $e->getMessage());
+    }
   }
 
   public function sendToNubefact($id): JsonResponse

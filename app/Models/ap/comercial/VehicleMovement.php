@@ -52,6 +52,7 @@ class VehicleMovement extends BaseModel
   const IN_TRANSIT = 'EN TRAVESIA';
   const INVENTORY = 'INVENTARIO';
   const IN_TRANSIT_RETURNED = 'EN TRAVESIA DEVUELTO';
+  const SOLD_NOT_DELIVERED = 'VENDIDO NO ENTREGADO';
 
   public function vehicleStatus(): BelongsTo
   {

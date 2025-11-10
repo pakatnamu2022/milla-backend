@@ -8,7 +8,6 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\facturacion\ElectronicDocument;
-use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
@@ -87,7 +86,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ->whereNull('deleted_at');
 
     if ($query->count() == 0) {
-      $startCorrelative = 1;
+      $startCorrelative = 13;
     }
 
     $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelative;
