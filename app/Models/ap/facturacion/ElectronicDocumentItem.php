@@ -48,6 +48,39 @@ class ElectronicDocumentItem extends BaseModel
   ];
 
   /**
+   * Mutators - Round decimal values to 2 decimal places before saving
+   */
+  public function setValorUnitarioAttribute($value)
+  {
+    $this->attributes['valor_unitario'] = round((float)$value, 2);
+  }
+
+  public function setPrecioUnitarioAttribute($value)
+  {
+    $this->attributes['precio_unitario'] = round((float)$value, 2);
+  }
+
+  public function setDescuentoAttribute($value)
+  {
+    $this->attributes['descuento'] = $value ? round((float)$value, 2) : null;
+  }
+
+  public function setSubtotalAttribute($value)
+  {
+    $this->attributes['subtotal'] = round((float)$value, 2);
+  }
+
+  public function setIgvAttribute($value)
+  {
+    $this->attributes['igv'] = round((float)$value, 2);
+  }
+
+  public function setTotalAttribute($value)
+  {
+    $this->attributes['total'] = round((float)$value, 2);
+  }
+
+  /**
    * Relaciones
    */
   public function electronicDocument(): BelongsTo
