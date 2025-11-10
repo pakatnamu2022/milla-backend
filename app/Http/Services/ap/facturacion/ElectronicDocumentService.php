@@ -21,11 +21,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 {
   protected NubefactApiService $nubefactService;
 
-  /**
-   * @var int
-   */
-  protected int $startCorrelative = 1;
-
   public function __construct(NubefactApiService $nubefactService)
   {
     $this->nubefactService = $nubefactService;
@@ -86,10 +81,16 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    */
   public function nextDocumentNumber(string $documentType, string $series): array
   {
+    $startCorrelative = 0;
     $query = ElectronicDocument::where('sunat_concept_document_type_id', $documentType)
       ->where('serie', $series)
       ->whereNull('deleted_at');
-    $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $this->startCorrelative;
+
+    if ($query->count() == 0) {
+      $startCorrelative = 1;
+    }
+
+    $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelative;
     $number = $this->completeNumber($correlative);
     return ["number" => $number];
   }
