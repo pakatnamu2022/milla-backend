@@ -642,32 +642,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'origin_entity_id' => $originalDocument->origin_entity_id,
       ]);
 
-      // Validar que el total calculado no exceda el documento original
-      $originalTotal = (float)$originalDocument->total;
-      $creditNoteTotal = (float)$creditNoteData['total'];
-
-      // Calcular el total ya acreditado previamente
-      $totalPreviousCreditNotes = ElectronicDocument::where('documento_que_se_modifica_tipo', $originalDocument->sunat_concept_document_type_id)
-        ->where('documento_que_se_modifica_serie', $originalDocument->serie)
-        ->where('documento_que_se_modifica_numero', $originalDocument->numero)
-        ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
-        ->where('aceptada_por_sunat', true)
-        ->where('anulado', false)
-        ->whereNull('deleted_at')
-        ->sum('total');
-
-      $availableAmount = $originalTotal - $totalPreviousCreditNotes;
-
-      if ($creditNoteTotal > $availableAmount + 0.01) { // Tolerancia de 1 centavo
-        throw new Exception(sprintf(
-          'El total de la nota de crédito (%.2f) excede el monto disponible para acreditar (%.2f). Total original: %.2f, Ya acreditado: %.2f',
-          $creditNoteTotal,
-          $availableAmount,
-          $originalTotal,
-          $totalPreviousCreditNotes
-        ));
-      }
-
       // Crear la nota de crédito
       $creditNote = $this->store($creditNoteData);
 

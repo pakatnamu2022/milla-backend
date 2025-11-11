@@ -58,6 +58,14 @@ class StoreCreditNoteRequest extends StoreRequest
             $items[$index][$field] = (float)$item[$field];
           }
         }
+        // Convertir anticipo_regularizacion a boolean
+        if (isset($item['anticipo_regularizacion'])) {
+          $items[$index]['anticipo_regularizacion'] = filter_var($item['anticipo_regularizacion'], FILTER_VALIDATE_BOOLEAN);
+        }
+        // Convertir anticipo_documento_numero a integer
+        if (isset($item['anticipo_documento_numero'])) {
+          $items[$index]['anticipo_documento_numero'] = (int)$item['anticipo_documento_numero'];
+        }
       }
       $dataToMerge['items'] = $items;
     }
@@ -152,6 +160,9 @@ class StoreCreditNoteRequest extends StoreRequest
       'items.*.sunat_concept_igv_type_id' => 'required|integer|exists:sunat_concepts,id',
       'items.*.igv' => 'required|numeric|min:0',
       'items.*.total' => 'required|numeric|min:0',
+      'items.*.anticipo_regularizacion' => 'nullable|boolean',
+      'items.*.anticipo_documento_serie' => 'nullable|string|size:4',
+      'items.*.anticipo_documento_numero' => 'nullable|integer|min:1',
     ];
   }
 
