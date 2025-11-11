@@ -517,6 +517,76 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
+   * Calculate totals from items array
+   * @param array $items
+   * @return array
+   */
+  private function calculateTotalsFromItemsNotes(array $items): array
+  {
+    $totals = [
+      'total_gravada' => 0,
+      'total_inafecta' => 0,
+      'total_exonerada' => 0,
+      'total_igv' => 0,
+      'total_gratuita' => 0,
+      'total_descuento' => 0,
+      'total_otros_cargos' => 0,
+      'total_isc' => 0,
+      'total' => 0,
+    ];
+
+    foreach ($items as $item) {
+      // Acumular IGV
+      $totals['total_igv'] += (float)($item['igv'] ?? 0);
+
+      // Acumular descuentos
+      $totals['total_descuento'] += (float)($item['descuento'] ?? 0);
+
+      // Acumular total
+      $totals['total'] += (float)($item['total'] ?? 0);
+
+      // Determinar el tipo de IGV y acumular en el total correspondiente
+      $igvTypeId = $item['sunat_concept_igv_type_id'] ?? null;
+      $subtotal = (float)($item['subtotal'] ?? 0);
+
+      // Tipos de IGV según catálogo SUNAT
+      // 10: Gravado - Operación Onerosa
+      // 20: Exonerado - Operación Onerosa
+      // 30: Inafecto - Operación Onerosa
+      // 11-17: Gravado - Operaciones gratuitas
+      // 21: Exonerado - Transferencia gratuita
+      // 31-37: Inafecto - Operaciones gratuitas
+
+      // Buscar el código del tipo de IGV
+      $igvType = SunatConcepts::find($igvTypeId);
+      $igvCode = $igvType->code_nubefact ?? null;
+
+      if ($igvCode) {
+        if ($igvCode == '10') {
+          // Gravado - Operación Onerosa
+          $totals['total_gravada'] += $subtotal;
+        } elseif ($igvCode == '20') {
+          // Exonerado - Operación Onerosa
+          $totals['total_exonerada'] += $subtotal;
+        } elseif ($igvCode == '30') {
+          // Inafecto - Operación Onerosa
+          $totals['total_inafecta'] += $subtotal;
+        } elseif (in_array($igvCode, ['11', '12', '13', '14', '15', '16', '17', '21', '31', '32', '33', '34', '35', '36', '37'])) {
+          // Operaciones gratuitas
+          $totals['total_gratuita'] += $subtotal;
+        }
+      }
+    }
+
+    // Redondear a 2 decimales
+    foreach ($totals as $key => $value) {
+      $totals[$key] = round($value, 2);
+    }
+
+    return $totals;
+  }
+
+  /**
    * Create a credit note from an existing document
    * @throws Exception
    */
@@ -531,6 +601,36 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         throw new Exception('Solo se pueden crear notas de crédito para documentos aceptados por SUNAT');
       }
 
+      // Calcular totales desde items si no se proporcionan
+      if (isset($data['items']) && is_array($data['items'])) {
+        $calculatedTotals = $this->calculateTotalsFromItemsNotes($data['items']);
+
+        // Merge calculated totals only if not provided by user
+        foreach ($calculatedTotals as $key => $value) {
+          if (!isset($data[$key])) {
+            $data[$key] = $value;
+          }
+        }
+      }
+
+      // Copiar moneda y tipo de cambio del documento original
+      if (!isset($data['sunat_concept_currency_id'])) {
+        $data['sunat_concept_currency_id'] = $originalDocument->sunat_concept_currency_id;
+      }
+      if (!isset($data['tipo_de_cambio'])) {
+        $data['tipo_de_cambio'] = $originalDocument->tipo_de_cambio;
+      }
+
+      // Copiar cliente del documento original
+      if (!isset($data['client_id'])) {
+        $data['client_id'] = $originalDocument->client_id;
+      }
+
+      // Copiar tipo de transacción del documento original
+      if (!isset($data['sunat_concept_transaction_type_id'])) {
+        $data['sunat_concept_transaction_type_id'] = $originalDocument->sunat_concept_transaction_type_id;
+      }
+
       // Preparar datos de la nota de crédito
       $creditNoteData = array_merge($data, [
         'sunat_concept_document_type_id' => ElectronicDocument::TYPE_NOTA_CREDITO,
@@ -541,6 +641,32 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'origin_entity_type' => $originalDocument->origin_entity_type,
         'origin_entity_id' => $originalDocument->origin_entity_id,
       ]);
+
+      // Validar que el total calculado no exceda el documento original
+      $originalTotal = (float)$originalDocument->total;
+      $creditNoteTotal = (float)$creditNoteData['total'];
+
+      // Calcular el total ya acreditado previamente
+      $totalPreviousCreditNotes = ElectronicDocument::where('documento_que_se_modifica_tipo', $originalDocument->sunat_concept_document_type_id)
+        ->where('documento_que_se_modifica_serie', $originalDocument->serie)
+        ->where('documento_que_se_modifica_numero', $originalDocument->numero)
+        ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', false)
+        ->whereNull('deleted_at')
+        ->sum('total');
+
+      $availableAmount = $originalTotal - $totalPreviousCreditNotes;
+
+      if ($creditNoteTotal > $availableAmount + 0.01) { // Tolerancia de 1 centavo
+        throw new Exception(sprintf(
+          'El total de la nota de crédito (%.2f) excede el monto disponible para acreditar (%.2f). Total original: %.2f, Ya acreditado: %.2f',
+          $creditNoteTotal,
+          $availableAmount,
+          $originalTotal,
+          $totalPreviousCreditNotes
+        ));
+      }
 
       // Crear la nota de crédito
       $creditNote = $this->store($creditNoteData);
@@ -573,6 +699,36 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         throw new Exception('Solo se pueden crear notas de débito para documentos aceptados por SUNAT');
       }
 
+      // Calcular totales desde items si no se proporcionan
+      if (isset($data['items']) && is_array($data['items'])) {
+        $calculatedTotals = $this->calculateTotalsFromItemsNotes($data['items']);
+
+        // Merge calculated totals only if not provided by user
+        foreach ($calculatedTotals as $key => $value) {
+          if (!isset($data[$key])) {
+            $data[$key] = $value;
+          }
+        }
+      }
+
+      // Copiar moneda y tipo de cambio del documento original
+      if (!isset($data['sunat_concept_currency_id'])) {
+        $data['sunat_concept_currency_id'] = $originalDocument->sunat_concept_currency_id;
+      }
+      if (!isset($data['tipo_de_cambio'])) {
+        $data['tipo_de_cambio'] = $originalDocument->tipo_de_cambio;
+      }
+
+      // Copiar cliente del documento original
+      if (!isset($data['client_id'])) {
+        $data['client_id'] = $originalDocument->client_id;
+      }
+
+      // Copiar tipo de transacción del documento original
+      if (!isset($data['sunat_concept_transaction_type_id'])) {
+        $data['sunat_concept_transaction_type_id'] = $originalDocument->sunat_concept_transaction_type_id;
+      }
+
       // Preparar datos de la nota de débito
       $debitNoteData = array_merge($data, [
         'sunat_concept_document_type_id' => ElectronicDocument::TYPE_NOTA_DEBITO,
@@ -583,6 +739,20 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'origin_entity_type' => $originalDocument->origin_entity_type,
         'origin_entity_id' => $originalDocument->origin_entity_id,
       ]);
+
+      // Validar límite razonable para notas de débito (200% del original)
+      $originalTotal = (float)$originalDocument->total;
+      $debitNoteTotal = (float)$debitNoteData['total'];
+      $maxAllowedTotal = $originalTotal * 2;
+
+      if ($debitNoteTotal > $maxAllowedTotal) {
+        throw new Exception(sprintf(
+          'El total de la nota de débito (%.2f) excede el límite permitido (%.2f). El total no puede ser mayor al 200%% del documento original (%.2f)',
+          $debitNoteTotal,
+          $maxAllowedTotal,
+          $originalTotal
+        ));
+      }
 
       // Crear la nota de débito
       $debitNote = $this->store($debitNoteData);

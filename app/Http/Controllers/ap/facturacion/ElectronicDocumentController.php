@@ -5,6 +5,8 @@ namespace App\Http\Controllers\ap\facturacion;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\facturacion\IndexElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\NextCorrelativeElectronicDocumentRequest;
+use App\Http\Requests\ap\facturacion\StoreCreditNoteRequest;
+use App\Http\Requests\ap\facturacion\StoreDebitNoteRequest;
 use App\Http\Requests\ap\facturacion\StoreElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\UpdateElectronicDocumentRequest;
 use App\Http\Services\ap\facturacion\ElectronicDocumentService;
@@ -154,10 +156,13 @@ class ElectronicDocumentController extends Controller
   /**
    * Create credit note from existing document
    */
-  public function createCreditNote(Request $request, $id): JsonResponse
+  public function createCreditNote(StoreCreditNoteRequest $request, $id): JsonResponse
   {
     try {
-      $creditNote = $this->service->createCreditNote($id, $request->all());
+      $data = $request->validated();
+      $data['original_document_id'] = $id;
+
+      $creditNote = $this->service->createCreditNote($id, $data);
 
       return $this->success([
         'success' => true,
@@ -172,10 +177,13 @@ class ElectronicDocumentController extends Controller
   /**
    * Create debit note from existing document
    */
-  public function createDebitNote(Request $request, $id): JsonResponse
+  public function createDebitNote(StoreDebitNoteRequest $request, $id): JsonResponse
   {
     try {
-      $debitNote = $this->service->createDebitNote($id, $request->all());
+      $data = $request->validated();
+      $data['original_document_id'] = $id;
+
+      $debitNote = $this->service->createDebitNote($id, $data);
 
       return $this->success([
         'success' => true,
