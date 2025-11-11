@@ -10,7 +10,6 @@ use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
-use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
@@ -130,6 +129,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    */
   public function store(mixed $data): ElectronicDocumentResource
   {
+    throw new Exception('El objeto no puede ser creado');
     DB::beginTransaction();
     try {
       /**

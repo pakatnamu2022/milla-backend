@@ -389,7 +389,12 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       'vehicle' => VehiclesResource::make($vehicle),
       'documents' => ElectronicDocumentResource::collection($documents),
       'total_documents' => $documents->count(),
-      'total_amount' => $documents->sum('total'),
+      'total_amount' => $documents->sum(function ($document) {
+        if ($document->sunat_concept_credit_note_type_id) {
+          return -$document->total;
+        }
+        return $document->total;
+      }),
     ]);
   }
 }

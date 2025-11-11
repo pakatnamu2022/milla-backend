@@ -18,6 +18,7 @@ class ElectronicDocumentItemResource extends JsonResource
     return [
       'id' => $this->id,
       'ap_billing_electronic_document_id' => $this->ap_billing_electronic_document_id,
+      'reference_document_id' => $this->reference_document_id,
       'account_plan_id' => $this->account_plan_id,
       'unidad_de_medida' => $this->unidad_de_medida,
       'codigo' => $this->codigo,
