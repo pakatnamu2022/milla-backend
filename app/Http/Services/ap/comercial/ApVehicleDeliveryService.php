@@ -255,7 +255,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           'notes' => $data['notes'] ?? 'ENTREGA DE VEHÍCULO VENDIDO',
           'status' => true,
           'transfer_reason_id' => SunatConcepts::TRANSFER_REASON_VENTA,
-          'transfer_modality_id' => SunatConcepts::TYPE_TRANSPORTATION_PRIVADO,
+          'transfer_modality_id' => $data['transfer_modality_id'],
           'created_by' => auth()->id(),
           'ap_class_article_id' => $record->ap_class_article_id,
           'origin_ubigeo' => $originUbigeo,

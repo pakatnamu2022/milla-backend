@@ -77,6 +77,7 @@ class ApVehicleDeliveryController extends Controller
         'plate' => 'nullable|string|max:20',
         'driver_name' => 'required|string|max:100',
         'enviar_sunat' => 'required|boolean',
+        'transfer_modality_id' => 'required|integer|exists:ap_commercial_masters,id',
       ]);
 
       return $this->success($this->service->generateShippingGuide($id, $data));
