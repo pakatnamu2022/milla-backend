@@ -81,19 +81,34 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    * @param string $documentType
    * @param string $series
    * @return int
+   * @throws Exception
    */
   public function nextDocumentNumber(string $documentType, string $series): array
   {
-    $startCorrelative = 0;
     $query = ElectronicDocument::where('sunat_concept_document_type_id', $documentType)
       ->where('serie', $series)
       ->whereNull('deleted_at');
 
+    /**
+     * TODO: Delete this block and always use nextCorrelativeQuery
+     */
     if ($query->count() == 0) {
-      $startCorrelative = 1;
+      if (($documentType == ElectronicDocument::TYPE_FACTURA || $documentType == ElectronicDocument::TYPE_BOLETA)) {
+        $startCorrelative = 1;
+        $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelative;
+      } else if ($documentType == ElectronicDocument::TYPE_NOTA_CREDITO) {
+        $startCorrelativeNC = 0;
+        $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelativeNC;
+      } else if ($documentType == ElectronicDocument::TYPE_NOTA_DEBITO) {
+        $startCorrelativeND = 0;
+        $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelativeND;
+      } else {
+        throw new Exception('El tipo de documento no es valido');
+      }
+    } else {
+      $correlative = (int)$this->nextCorrelativeQuery($query, 'numero');
     }
 
-    $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelative;
     $number = $this->completeNumber($correlative);
     return ["number" => $number];
   }
@@ -871,38 +886,26 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   /**
    * @throws Exception
    */
-  public function nextCreditNoteNumber($id): array
+  public function nextCreditNoteNumber(array $data, $id): array
   {
+    /**
+     * TODO: Change series to series_id in the future
+     */
+    $series = AssignSalesSeries::find($data['series']);
     $electronicDocument = $this->find($id);
     $electronicDocumentItem = ElectronicDocumentItem::where('anticipo_documento_serie', $electronicDocument->serie)
       ->where('anticipo_documento_numero', $electronicDocument->numero)
       ->whereNull('deleted_at');
 
     if ($electronicDocumentItem->count() > 0) {
-      throw new Exception('El documento electrónico no es un anticipo válido');
-    } else {
-      $electronicDocumentItem = $electronicDocumentItem->first();
-    }
-
-    $electronicDocumentParent = ElectronicDocument::where('id', $electronicDocumentItem->electronic_document_id)
-      ->where('aceptada_por_sunat', true)
-      ->where('anulado', false)
-      ->where((function ($query) use ($electronicDocument) {
-        $query->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_FACTURA)
-          ->orWhere('sunat_concept_document_type_id', ElectronicDocument::TYPE_BOLETA);
-      }))
-      ->whereNull('deleted_at')
-      ->first();
-
-    if (!$electronicDocumentParent) {
-      throw new Exception('No se encontró el documento original para la creación de la nota de crédito');
+      throw new Exception('El anticipo ya ha sido regularizado, no se puede crear una nota de crédito. En su lugar cree una nota de crédito para el documento de regularización.');
     }
 
     return [
-      'series' => $electronicDocumentParent->serie,
+      'series' => $series->series,
       'number' => $this->nextDocumentNumber(
         ElectronicDocument::TYPE_NOTA_CREDITO,
-        $electronicDocumentParent->serie
+        $electronicDocument->serie
       )['number']
     ];
 

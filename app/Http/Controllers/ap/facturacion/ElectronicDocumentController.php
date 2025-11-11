@@ -217,10 +217,10 @@ class ElectronicDocumentController extends Controller
     }
   }
 
-  public function nextCreditNoteNumber($id): JsonResponse
+  public function nextCreditNoteNumber(NextCorrelativeElectronicDocumentRequest $request, $id): JsonResponse
   {
     try {
-      return $this->success($this->service->nextCreditNoteNumber($id));
+      return $this->success($this->service->nextCreditNoteNumber($request->validated(), $id));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
