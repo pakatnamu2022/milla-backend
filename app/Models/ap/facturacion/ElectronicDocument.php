@@ -30,6 +30,8 @@ class ElectronicDocument extends BaseModel
     'ap_vehicle_movement_id',
     'client_id',
     'purchase_request_quote_id',
+    'credit_note_id',
+    'debit_note_id',
     'sunat_concept_identity_document_type_id',
     'cliente_numero_de_documento',
     'cliente_denominacion',
@@ -175,6 +177,16 @@ class ElectronicDocument extends BaseModel
   /**
    * Relaciones
    */
+  public function creditNote(): BelongsTo
+  {
+    return $this->belongsTo(ElectronicDocument::class, 'credit_note_id');
+  }
+
+  public function debitNote(): BelongsTo
+  {
+    return $this->belongsTo(ElectronicDocument::class, 'debit_note_id');
+  }
+
   public function documentType(): BelongsTo
   {
     return $this->belongsTo(SunatConcepts::class, 'sunat_concept_document_type_id');

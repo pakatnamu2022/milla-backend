@@ -441,7 +441,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       DB::beginTransaction();
 
-      // Si el documento fue aceptado por SUNAT, actualizar usando el método del modelo
+      // Si el documento fue aceptado por SUNAT, actualizar usando el metodo del modelo
       if (isset($nubefactData['aceptada_por_sunat']) && $nubefactData['aceptada_por_sunat'] && !$document->aceptada_por_sunat) {
         $document->markAsAccepted($nubefactData);
       }
@@ -452,6 +452,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         if ($document->status !== ElectronicDocument::STATUS_CANCELLED || !$document->anulado) {
           $document->markAsCancelled();
         }
+      }
+
+      if ($nubefactData['aceptada_por_sunat'] !== $document->aceptada_por_sunat) {
+        $document->aceptada_por_sunat = $nubefactData['aceptada_por_sunat'];
+        $document->save();
       }
 
       DB::commit();
@@ -645,12 +650,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Preparar datos de la nota de crédito
       $creditNoteData = array_merge($data, [
         'sunat_concept_document_type_id' => ElectronicDocument::TYPE_NOTA_CREDITO,
-        'documento_que_se_modifica_tipo' => $originalDocument->sunat_concept_document_type_id,
+        'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
         'origin_module' => $originalDocument->origin_module,
         'origin_entity_type' => $originalDocument->origin_entity_type,
         'origin_entity_id' => $originalDocument->origin_entity_id,
+        'credit_note_id' => $originalDocument->id,
+        'purchase_request_quote_id' => $originalDocument->purchase_request_quote_id ?? null,
       ]);
 
       // Crear la nota de crédito
