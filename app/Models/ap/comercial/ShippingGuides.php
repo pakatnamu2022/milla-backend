@@ -76,6 +76,10 @@ class ShippingGuides extends Model
     'migration_status',
     'migrated_at',
     'ap_class_article_id',
+    'origin_ubigeo',
+    'origin_address',
+    'destination_ubigeo',
+    'destination_address',
   ];
 
   protected $casts = [
@@ -237,7 +241,7 @@ class ShippingGuides extends Model
   {
     return $this->hasMany(ApReceivingChecklist::class, 'shipping_guide_id');
   }
-
+  
   /**
    * Marca la guía como enviada a Nubefact/SUNAT
    */

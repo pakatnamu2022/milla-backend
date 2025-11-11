@@ -7,6 +7,7 @@ use App\Http\Requests\ap\comercial\IndexApVehicleDeliveryRequest;
 use App\Http\Requests\ap\comercial\StoreApVehicleDeliveryRequest;
 use App\Http\Requests\ap\comercial\UpdateApVehicleDeliveryRequest;
 use App\Http\Services\ap\comercial\ApVehicleDeliveryService;
+use Illuminate\Http\Request;
 
 class ApVehicleDeliveryController extends Controller
 {
@@ -65,6 +66,29 @@ class ApVehicleDeliveryController extends Controller
   }
 
   /**
+   * Genera la guía de remisión para una entrega de vehículo
+   */
+  public function generateShippingGuide($id, Request $request)
+  {
+    try {
+      $data = $request->validate([
+        'driver_doc' => 'required|integer|max_digits:11|min_digits:8',
+        'license' => 'nullable|string|max:20',
+        'plate' => 'nullable|string|max:20',
+        'driver_name' => 'required|string|max:100',
+        'enviar_sunat' => 'required|boolean',
+      ]);
+
+      return $this->success($this->service->generateShippingGuide($id, $data));
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
+    }
+  }
+
+  /**
    * Envía la guía de remisión a SUNAT mediante Nubefact
    */
   public function sendToNubefact($id)
@@ -86,21 +110,6 @@ class ApVehicleDeliveryController extends Controller
   {
     try {
       return $this->service->queryFromNubefact($id);
-    } catch (\Throwable $th) {
-      return response()->json([
-        'success' => false,
-        'message' => $th->getMessage()
-      ], 400);
-    }
-  }
-
-  /**
-   * Obtiene la información necesaria para crear la guía de remisión de entrega al cliente
-   */
-  public function getShippingGuideInfo($vehicleId)
-  {
-    try {
-      return $this->service->getShippingGuideInfo($vehicleId);
     } catch (\Throwable $th) {
       return response()->json([
         'success' => false,

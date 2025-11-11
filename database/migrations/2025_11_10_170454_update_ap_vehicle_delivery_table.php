@@ -17,7 +17,13 @@ return new class extends Migration {
       $table->dropColumn('status_dynamic');
       $table->dropColumn('status');
       $table->foreignId('shipping_guide_id')->nullable()->after('vehicle_id')->constrained('shipping_guides')->onDelete('cascade');
-      $table->foreignId('vehicle_movement_id')->after('shipping_guide_id')->constrained('ap_vehicle_movement')->onDelete('cascade');
+      $table->foreignId('vehicle_movement_id')->nullable()->after('shipping_guide_id')->constrained('ap_vehicle_movement')->onDelete('cascade');
+      $table->foreignId('ap_class_article_id')->nullable()->after('vehicle_movement_id')
+        ->constrained('ap_class_article')
+        ->onDelete('cascade');
+      $table->foreignId('client_id')->nullable()->after('ap_class_article_id')
+        ->constrained('business_partners')
+        ->onDelete('cascade');
     });
   }
 
@@ -35,6 +41,8 @@ return new class extends Migration {
       $table->dropColumn('shipping_guide_id');
       $table->dropForeign(['vehicle_movement_id']);
       $table->dropColumn('vehicle_movement_id');
+      $table->dropForeign(['ap_class_article_id']);
+      $table->dropColumn('ap_class_article_id');
     });
   }
 };

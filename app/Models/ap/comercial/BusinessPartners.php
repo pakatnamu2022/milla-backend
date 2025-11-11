@@ -78,7 +78,7 @@ class BusinessPartners extends Model
     'company_id' => '=',
     'type_person_id' => '=',
     'document_type_id' => '=',
-    'district_id' => '=',
+    'district_iddistrict_id' => '=',
     'nationality' => '=',
     'marital_status_id' => '=',
     'gender_id' => '=',

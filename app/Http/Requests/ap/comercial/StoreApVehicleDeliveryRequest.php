@@ -27,6 +27,11 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
         'nullable',
         'date',
       ],
+      'ap_class_article_id' => [
+        'required',
+        'integer',
+        'exists:ap_class_article,id'
+      ],
       'observations' => [
         'nullable',
         'string',
@@ -48,6 +53,9 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
       'scheduled_delivery_date.date' => 'La fecha de entrega programada no es una fecha válida.',
       'wash_date.date' => 'La fecha de lavado no es una fecha válida.',
       'actual_delivery_date.date' => 'La fecha de entrega real no es una fecha válida.',
+      'ap_class_article_id.required' => 'La clase de artículo es obligatoria.',
+      'ap_class_article_id.integer' => 'La clase de artículo debe ser un número entero.',
+      'ap_class_article_id.exists' => 'La clase de artículo no existe.',
       'observations.string' => 'Las observaciones deben ser una cadena de texto.',
       'observations.max' => 'Las observaciones no deben exceder los 500 caracteres.',
     ];

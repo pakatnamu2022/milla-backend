@@ -300,17 +300,15 @@ class NubefactShippingGuideApiService
   {
     // Punto de partida
     if ($guide->sede_transmitter_id) {
-      $originLocation = $guide->transmitter;
-      $payload['punto_de_partida_ubigeo'] = $originLocation->ubigeo ?? '150101';
-      $payload['punto_de_partida_direccion'] = $originLocation->address ?? '';
+      $payload['punto_de_partida_ubigeo'] = $guide->origin_ubigeo ?? '150101';
+      $payload['punto_de_partida_direccion'] = $guide->origin_address ?? '';
       $payload['punto_de_partida_codigo_establecimiento_sunat'] = '0000';
     }
 
     // Punto de llegada
     if ($guide->sede_receiver_id) {
-      $destinationLocation = $guide->receiver;
-      $payload['punto_de_llegada_ubigeo'] = $destinationLocation->ubigeo ?? '150101';
-      $payload['punto_de_llegada_direccion'] = $destinationLocation->address ?? '';
+      $payload['punto_de_llegada_ubigeo'] = $guide->destination_ubigeo ?? '150101';
+      $payload['punto_de_llegada_direccion'] = $guide->destination_address ?? '';
       $payload['punto_de_llegada_codigo_establecimiento_sunat'] = '0000';
     }
   }

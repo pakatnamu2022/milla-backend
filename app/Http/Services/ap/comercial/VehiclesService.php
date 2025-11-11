@@ -323,78 +323,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'total_amount' => $documents->sum('total'),
     ]);
   }
-
-  /**
-   * Valida si un vehículo está completamente pagado basándose en su VIN
-   * @param string $vin
-   * @return bool
-   * @throws Exception
-   */
-  public function isVehiclePaid(string $vin): bool
-  {
-    try {
-      // Buscar el vehículo por VIN
-      $vehicle = Vehicles::where('vin', $vin)->first();
-
-      if (!$vehicle) {
-        throw new Exception('Vehículo no encontrado');
-      }
-
-      // Obtener el documento electrónico (factura) asociado al vehículo
-      $electronicDocument = ElectronicDocument::whereHas('vehicleMovement', function ($query) use ($vehicle) {
-        $query->where('ap_vehicle_id', $vehicle->id);
-      })
-        ->where('aceptada_por_sunat', true)
-        ->where('anulado', false)
-        ->whereNotNull('client_id')
-        ->whereNotNull('purchase_request_quote_id')
-        ->with('purchaseRequestQuote')
-        ->orderBy('fecha_de_emision', 'desc')
-        ->first();
-
-      // Si no hay factura o cotización, consideramos que no está pagado
-      if (!$electronicDocument || !$electronicDocument->purchase_request_quote_id) {
-        return false;
-      }
-
-      $purchaseRequestQuote = $electronicDocument->purchaseRequestQuote;
-      $totalSalePrice = $purchaseRequestQuote->sale_price;
-
-      // Obtener todos los documentos electrónicos asociados a esta cotización
-      $documents = ElectronicDocument::where('purchase_request_quote_id', $purchaseRequestQuote->id)
-        ->where('aceptada_por_sunat', true)
-        ->where('anulado', false)
-        ->get();
-
-      // Calcular total pagado
-      $totalPaid = 0;
-      foreach ($documents as $doc) {
-        // Facturas y boletas suman al total pagado
-        if (in_array($doc->sunat_concept_document_type_id, [
-          ElectronicDocument::TYPE_FACTURA,
-          ElectronicDocument::TYPE_BOLETA
-        ])) {
-          $totalPaid += $doc->total;
-        } // Notas de crédito restan del total pagado
-        elseif ($doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO) {
-          $totalPaid -= $doc->total;
-        } // Notas de débito suman al total pagado
-        elseif ($doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_DEBITO) {
-          $totalPaid += $doc->total;
-        }
-      }
-
-      // Calcular deuda pendiente
-      $pendingDebt = $totalSalePrice - $totalPaid;
-
-      // Consideramos pagado si la diferencia es menor a 0.01
-      return abs($pendingDebt) < 0.01;
-    } catch (Exception $e) {
-      Log::error('Error al validar pago de vehículo: ' . $e->getMessage());
-      return false;
-    }
-  }
-
+  
   /**
    * Obtiene información del cliente asociado a un vehículo y su estado de deuda
    * @param int $vehicleId
@@ -403,30 +332,12 @@ class VehiclesService extends BaseService implements BaseServiceInterface
    */
   public function getVehicleClientDebtInfo(int $vehicleId)
   {
-    // Buscar el vehículo
-    $vehicle = $this->find($vehicleId);
+    // Usar el método centralizado para obtener vehículo, documento y cliente
+    $data = Vehicles::getElectronicDocumentWithClient($vehicleId);
 
-    // Obtener el documento electrónico (factura) asociado al vehículo
-    $electronicDocument = ElectronicDocument::whereHas('vehicleMovement', function ($query) use ($vehicleId) {
-      $query->where('ap_vehicle_id', $vehicleId);
-    })
-      ->where('aceptada_por_sunat', true)
-      ->where('anulado', false)
-      ->whereNotNull('client_id')
-      ->whereNotNull('purchase_request_quote_id')
-      ->with(['client', 'purchaseRequestQuote'])
-      ->orderBy('fecha_de_emision', 'desc')
-      ->first();
-
-    if (!$electronicDocument || !$electronicDocument->client_id) {
-      throw new Exception('No se encontró factura ni cliente asociado al vehículo');
-    }
-
-    if (!$electronicDocument->purchase_request_quote_id) {
-      throw new Exception('No se encontró cotización asociada al vehículo');
-    }
-    
-    $client = $electronicDocument->client;
+    $vehicle = $data->vehicle;
+    $electronicDocument = $data->electronicDocument;
+    $client = $data->client;
     $purchaseRequestQuote = $electronicDocument->purchaseRequestQuote;
 
     // Obtener el monto total de la venta (sale_price de la cotización)
@@ -479,7 +390,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     $pendingDebt = $totalSalePrice - $totalPaid;
 
     // Usar el método centralizado para determinar si está pagado
-    $isPaid = $this->isVehiclePaid($vehicle->vin);
+    $isPaid = Vehicles::isVehiclePaid($vehicle->id);
 
     // Determinar estado de la deuda
     $debtStatus = 'sin_deuda';

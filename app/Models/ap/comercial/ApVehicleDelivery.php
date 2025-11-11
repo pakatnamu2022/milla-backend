@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
+use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +27,8 @@ class ApVehicleDelivery extends Model
     'status_delivery',
     'shipping_guide_id',
     'vehicle_movement_id',
+    'ap_class_article_id',
+    'client_id',
   ];
 
   protected $casts = [
@@ -54,6 +57,11 @@ class ApVehicleDelivery extends Model
     'real_delivery_date',
   ];
 
+  public function setObservationsAttribute($value)
+  {
+    $this->attributes['observations'] = strtoupper($value);
+  }
+
   public function advisor()
   {
     return $this->belongsTo(Worker::class, 'advisor_id');
@@ -77,5 +85,15 @@ class ApVehicleDelivery extends Model
   public function vehicleMovement()
   {
     return $this->belongsTo(VehicleMovement::class, 'vehicle_movement_id');
+  }
+
+  public function apClassArticle()
+  {
+    return $this->belongsTo(ApClassArticle::class, 'ap_class_article_id');
+  }
+
+  public function client()
+  {
+    return $this->belongsTo(BusinessPartners::class, 'client_id');
   }
 }
