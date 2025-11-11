@@ -21,8 +21,6 @@ class StoreCreditNoteRequest extends StoreRequest
       'original_document_id',
       'series',
       'sunat_concept_credit_note_type_id',
-      'sunat_concept_detraction_type_id',
-      'medio_de_pago_detraccion',
     ];
 
     $dataToMerge = [];
@@ -32,21 +30,10 @@ class StoreCreditNoteRequest extends StoreRequest
       }
     }
 
-    // Convertir strings numéricos a decimales (solo detracción, los totales se auto-calculan)
-    $decimalFields = [
-      'detraccion_total',
-      'detraccion_porcentaje',
-    ];
+    // Los totales se auto-calculan, no necesitamos convertir decimales aquí
 
-    foreach ($decimalFields as $field) {
-      if ($this->has($field) && $this->input($field) !== null && $this->input($field) !== '') {
-        $dataToMerge[$field] = (float)$this->input($field);
-      }
-    }
-
-    // Convertir strings booleanos
+    // Convertir strings booleanos (solo flags de envío)
     $booleanFields = [
-      'detraccion',
       'enviar_automaticamente_a_la_sunat',
       'enviar_automaticamente_al_cliente',
     ];
@@ -133,17 +120,9 @@ class StoreCreditNoteRequest extends StoreRequest
         Rule::exists('user_series_assignment', 'voucher_id')
           ->where('worker_id', $userId)
       ],
-      'serie' => 'nullable|string|size:4', // Campo generado automáticamente desde series
 
       // Fechas
       'fecha_de_emision' => 'required|date',
-
-      // Detracción (si aplica)
-      'detraccion' => 'nullable|boolean',
-      'sunat_concept_detraction_type_id' => 'nullable|integer|exists:sunat_concepts,id',
-      'detraccion_total' => 'nullable|numeric|min:0',
-      'detraccion_porcentaje' => 'nullable|numeric|min:0|max:100',
-      'medio_de_pago_detraccion' => 'nullable|integer|between:1,12',
 
       // Campos opcionales
       'observaciones' => 'nullable|string|max:1000',
@@ -328,17 +307,7 @@ class StoreCreditNoteRequest extends StoreRequest
         }
       }
 
-      // VALIDACIÓN 3: Verificar que si hay detracción, tenga todos los campos necesarios
-      if ($this->input('detraccion') === true) {
-        if (!$this->has('sunat_concept_detraction_type_id')) {
-          $validator->errors()->add(
-            'sunat_concept_detraction_type_id',
-            'Debe especificar el tipo de detracción'
-          );
-        }
-      }
-
-      // VALIDACIÓN 4: Verificar que el documento original no haya sido regularizado por anticipo
+      // VALIDACIÓN 3: Verificar que el documento original no haya sido regularizado por anticipo
       if ($originalDocument->sunat_concept_transaction_type_id == 36) { // Tipo operación: Anticipos
         // Buscar si existe una factura que regulariza este anticipo
         $hasRegularization = ElectronicDocument::whereHas('items', function ($query) use ($originalDocument) {
