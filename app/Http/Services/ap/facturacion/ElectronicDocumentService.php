@@ -530,50 +530,54 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       'total_igv' => 0,
       'total_gratuita' => 0,
       'total_descuento' => 0,
+      'total_anticipo' => 0,
       'total_otros_cargos' => 0,
       'total_isc' => 0,
       'total' => 0,
     ];
 
     foreach ($items as $item) {
-      // Acumular IGV
-      $totals['total_igv'] += (float)($item['igv'] ?? 0);
+      // Verificar si es un item de anticipo regularización
+      $isAnticipo = isset($item['anticipo_regularizacion']) && $item['anticipo_regularizacion'] === true;
+
+      // Determinar el multiplicador (1 para items normales, -1 para anticipos)
+      $multiplier = $isAnticipo ? -1 : 1;
+
+      // Acumular IGV (restar si es anticipo)
+      $totals['total_igv'] += $multiplier * (float)($item['igv'] ?? 0);
 
       // Acumular descuentos
       $totals['total_descuento'] += (float)($item['descuento'] ?? 0);
 
-      // Acumular total
-      $totals['total'] += (float)($item['total'] ?? 0);
+      // Acumular total anticipo (siempre positivo)
+      if ($isAnticipo) {
+        $totals['total_anticipo'] += (float)($item['total'] ?? 0);
+      }
+
+      // Acumular total (restar si es anticipo)
+      $totals['total'] += $multiplier * (float)($item['total'] ?? 0);
 
       // Determinar el tipo de IGV y acumular en el total correspondiente
       $igvTypeId = $item['sunat_concept_igv_type_id'] ?? null;
       $subtotal = (float)($item['subtotal'] ?? 0);
-
-      // Tipos de IGV según catálogo SUNAT
-      // 10: Gravado - Operación Onerosa
-      // 20: Exonerado - Operación Onerosa
-      // 30: Inafecto - Operación Onerosa
-      // 11-17: Gravado - Operaciones gratuitas
-      // 21: Exonerado - Transferencia gratuita
-      // 31-37: Inafecto - Operaciones gratuitas
 
       // Buscar el código del tipo de IGV
       $igvType = SunatConcepts::find($igvTypeId);
       $igvCode = $igvType->code_nubefact ?? null;
 
       if ($igvCode) {
-        if ($igvCode == '10') {
-          // Gravado - Operación Onerosa
-          $totals['total_gravada'] += $subtotal;
+        if ($igvCode == '1') {
+          // Gravado - Operación Onerosa (restar si es anticipo)
+          $totals['total_gravada'] += $multiplier * $subtotal;
         } elseif ($igvCode == '20') {
-          // Exonerado - Operación Onerosa
-          $totals['total_exonerada'] += $subtotal;
+          // Exonerado - Operación Onerosa (restar si es anticipo)
+          $totals['total_exonerada'] += $multiplier * $subtotal;
         } elseif ($igvCode == '30') {
-          // Inafecto - Operación Onerosa
-          $totals['total_inafecta'] += $subtotal;
+          // Inafecto - Operación Onerosa (restar si es anticipo)
+          $totals['total_inafecta'] += $multiplier * $subtotal;
         } elseif (in_array($igvCode, ['11', '12', '13', '14', '15', '16', '17', '21', '31', '32', '33', '34', '35', '36', '37'])) {
-          // Operaciones gratuitas
-          $totals['total_gratuita'] += $subtotal;
+          // Operaciones gratuitas (restar si es anticipo)
+          $totals['total_gratuita'] += $multiplier * $subtotal;
         }
       }
     }
@@ -604,6 +608,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Calcular totales desde items si no se proporcionan
       if (isset($data['items']) && is_array($data['items'])) {
         $calculatedTotals = $this->calculateTotalsFromItemsNotes($data['items']);
+
+        // Log para debug
+        Log::info('Totales calculados para NC', [
+          'calculated' => $calculatedTotals,
+          'items_count' => count($data['items']),
+          'items' => $data['items']
+        ]);
 
         // Merge calculated totals only if not provided by user
         foreach ($calculatedTotals as $key => $value) {

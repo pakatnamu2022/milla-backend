@@ -7,6 +7,7 @@ use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\maestroGeneral\SunatConcepts;
+use Exception;
 use Illuminate\Validation\Rule;
 
 class StoreCreditNoteRequest extends StoreRequest
@@ -23,7 +24,9 @@ class StoreCreditNoteRequest extends StoreRequest
       'sunat_concept_credit_note_type_id',
     ];
 
-    $dataToMerge = [];
+    $dataToMerge = [
+      'serie',
+    ];
     foreach ($numericFields as $field) {
       if ($this->has($field) && $this->input($field) !== null && $this->input($field) !== '') {
         $dataToMerge[$field] = (int)$this->input($field);
@@ -128,6 +131,7 @@ class StoreCreditNoteRequest extends StoreRequest
         Rule::exists('user_series_assignment', 'voucher_id')
           ->where('worker_id', $userId)
       ],
+      'serie' => 'required|string|max:4',
 
       // Fechas
       'fecha_de_emision' => 'required|date',
@@ -177,7 +181,6 @@ class StoreCreditNoteRequest extends StoreRequest
       'sunat_concept_credit_note_type_id.required' => 'El tipo de nota de crédito es obligatorio',
       'sunat_concept_credit_note_type_id.exists' => 'El tipo de nota de crédito seleccionado no es válido',
       'series.required' => 'La serie es obligatoria',
-      'serie.size' => 'La serie debe tener exactamente 4 caracteres',
       'fecha_de_emision.required' => 'La fecha de emisión es obligatoria',
       'items.required' => 'Debe agregar al menos un item a la nota de crédito',
       'items.min' => 'Debe agregar al menos un item a la nota de crédito',
@@ -202,27 +205,6 @@ class StoreCreditNoteRequest extends StoreRequest
       $originalDocument = ElectronicDocument::with(['items'])->find($originalDocumentId);
       if (!$originalDocument) {
         return;
-      }
-
-      // VALIDACIÓN 1: Verificar que la serie corresponda al tipo de documento original
-      if ($this->has('serie')) {
-        $serie = $this->input('serie');
-        $prefix = substr($serie, 0, 1);
-
-        // Determinar el prefijo esperado según el documento original
-        $expectedPrefix = null;
-        if ($originalDocument->sunat_concept_document_type_id == ElectronicDocument::TYPE_FACTURA) {
-          $expectedPrefix = 'F';
-        } elseif ($originalDocument->sunat_concept_document_type_id == ElectronicDocument::TYPE_BOLETA) {
-          $expectedPrefix = 'B';
-        }
-
-        if ($expectedPrefix && $prefix !== $expectedPrefix) {
-          $validator->errors()->add(
-            'serie',
-            "La serie de la nota de crédito debe comenzar con '{$expectedPrefix}' para corresponder con el documento original"
-          );
-        }
       }
 
       // VALIDACIÓN 2: Verificar que los items de la nota de crédito sean válidos respecto al documento original
