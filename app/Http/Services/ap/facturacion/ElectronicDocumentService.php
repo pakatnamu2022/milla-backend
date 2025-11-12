@@ -733,7 +733,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Preparar datos de la nota de débito
       $debitNoteData = array_merge($data, [
         'sunat_concept_document_type_id' => ElectronicDocument::TYPE_NOTA_DEBITO,
-        'documento_que_se_modifica_tipo' => $originalDocument->sunat_concept_document_type_id,
+        'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
         'origin_module' => $originalDocument->origin_module,
@@ -757,6 +757,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Crear la nota de débito
       $debitNote = $this->store($debitNoteData);
+
+      $originalDocument->update([
+        'debit_note_id' => $debitNote->id,
+      ]);
 
       DB::commit();
       return $debitNote;
@@ -1108,5 +1112,131 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       )['number']
     ];
 
+  }
+
+  /**
+   * Sync electronic document to Dynamics 365
+   *
+   * @param int $id
+   * @return array
+   * @throws Exception
+   */
+  public function syncToDynamics(int $id): array
+  {
+    $document = $this->find($id);
+
+    if (!$document) {
+      throw new Exception('Documento electrónico no encontrado');
+    }
+
+    if ($document->anulado) {
+      throw new Exception('No se puede sincronizar un documento anulado');
+    }
+
+    // Dispatch the sync job
+    \App\Jobs\SyncSalesDocumentJob::dispatch($id);
+
+    return [
+      'success' => true,
+      'message' => 'Sincronización con Dynamics iniciada correctamente',
+      'document_id' => $id,
+      'document_number' => $document->document_number,
+    ];
+  }
+
+  /**
+   * Get sync status for electronic document
+   *
+   * @param int $id
+   * @return array
+   * @throws Exception
+   */
+  public function getSyncStatus(int $id): array
+  {
+    $document = $this->find($id);
+
+    if (!$document) {
+      throw new Exception('Documento electrónico no encontrado');
+    }
+
+    // Get all migration logs for this document
+    $logs = \App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $id)
+      ->orderBy('step')
+      ->get()
+      ->map(function ($log) {
+        return [
+          'step' => $log->step,
+          'table_name' => $log->table_name,
+          'status' => $log->status,
+          'proceso_estado' => $log->proceso_estado,
+          'error_message' => $log->error_message,
+          'attempts' => $log->attempts,
+          'last_attempt_at' => $log->last_attempt_at,
+          'completed_at' => $log->completed_at,
+        ];
+      });
+
+    // Determine overall sync status
+    $allCompleted = $logs->every(fn($log) => $log['status'] === 'completed');
+    $anyFailed = $logs->contains(fn($log) => $log['status'] === 'failed');
+    $anyInProgress = $logs->contains(fn($log) => $log['status'] === 'in_progress');
+
+    $overallStatus = 'not_started';
+    if ($logs->isNotEmpty()) {
+      if ($allCompleted) {
+        $overallStatus = 'completed';
+      } elseif ($anyFailed) {
+        $overallStatus = 'failed';
+      } elseif ($anyInProgress) {
+        $overallStatus = 'in_progress';
+      } else {
+        $overallStatus = 'pending';
+      }
+    }
+
+    // Check intermediate database status if completed
+    $dynamicsStatus = null;
+    if ($allCompleted) {
+      $tipoId = match ($document->sunat_concept_document_type_id) {
+        ElectronicDocument::TYPE_FACTURA => '01',
+        ElectronicDocument::TYPE_BOLETA => '03',
+        ElectronicDocument::TYPE_NOTA_CREDITO => '07',
+        ElectronicDocument::TYPE_NOTA_DEBITO => '08',
+        default => '01',
+      };
+
+      $documentoId = "{$tipoId}-{$document->serie}-{$document->numero}";
+
+      try {
+        $dynamicsRecord = \DB::connection('dbtp')
+          ->table('neInTbVenta')
+          ->where('EmpresaId', \App\Models\gp\gestionsistema\Company::AP_DYNAMICS)
+          ->where('DocumentoId', $documentoId)
+          ->first();
+
+        if ($dynamicsRecord) {
+          $dynamicsStatus = [
+            'found' => true,
+            'proceso_estado' => $dynamicsRecord->ProcesoEstado,
+            'proceso_error' => $dynamicsRecord->ProcesoError,
+            'fecha_proceso' => $dynamicsRecord->FechaProceso,
+            'processed_by_dynamics' => $dynamicsRecord->ProcesoEstado === 1,
+          ];
+        }
+      } catch (\Exception $e) {
+        $dynamicsStatus = [
+          'found' => false,
+          'error' => $e->getMessage(),
+        ];
+      }
+    }
+
+    return [
+      'document_id' => $id,
+      'document_number' => $document->document_number,
+      'overall_status' => $overallStatus,
+      'sync_steps' => $logs,
+      'dynamics_status' => $dynamicsStatus,
+    ];
   }
 }

@@ -242,4 +242,28 @@ class ElectronicDocumentController extends Controller
       return $this->error($e->getMessage());
     }
   }
+
+  /**
+   * Sync electronic document to Dynamics 365
+   */
+  public function syncToDynamics($id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->syncToDynamics($id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Get sync status for electronic document
+   */
+  public function getSyncStatus($id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->getSyncStatus($id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }
