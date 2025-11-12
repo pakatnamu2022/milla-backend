@@ -233,4 +233,13 @@ class ElectronicDocumentController extends Controller
       return $this->error($e->getMessage());
     }
   }
+
+  public function nextDebitNoteNumber(NextCorrelativeElectronicDocumentRequest $request, $id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->nextDebitNoteNumber($request->validated(), $id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }

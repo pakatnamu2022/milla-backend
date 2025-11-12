@@ -1081,4 +1081,32 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     ];
 
   }
+
+  /**
+   * @throws Exception
+   */
+  public function nextDebitNoteNumber(array $data, $id): array
+  {
+    /**
+     * TODO: Change series to series_id in the future
+     */
+    $series = AssignSalesSeries::find($data['series']);
+    $electronicDocument = $this->find($id);
+    $electronicDocumentItem = ElectronicDocumentItem::where('anticipo_documento_serie', $electronicDocument->serie)
+      ->where('anticipo_documento_numero', $electronicDocument->numero)
+      ->whereNull('deleted_at');
+
+    if ($electronicDocumentItem->count() > 0) {
+      throw new Exception('El anticipo ya ha sido regularizado, no se puede crear una nota de débito. En su lugar cree una nota de débito para el documento de regularización.');
+    }
+
+    return [
+      'series' => $series->series,
+      'number' => $this->nextDocumentNumber(
+        ElectronicDocument::TYPE_NOTA_DEBITO,
+        $series->series
+      )['number']
+    ];
+
+  }
 }
