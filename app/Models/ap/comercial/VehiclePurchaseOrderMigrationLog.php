@@ -59,7 +59,6 @@ class VehiclePurchaseOrderMigrationLog extends Model
   const STEP_SALES_DOCUMENT = 'sales_document';
   const STEP_SALES_DOCUMENT_DETAIL = 'sales_document_detail';
   const STEP_SALES_DOCUMENT_SERIAL = 'sales_document_serial';
-  const STEP_SALES_DOCUMENT_ADVANCE = 'sales_document_advance';
 
   // Constantes para los estados
   const STATUS_PENDING = 'pending';
@@ -85,7 +84,6 @@ class VehiclePurchaseOrderMigrationLog extends Model
     self::STEP_SALES_DOCUMENT => 'neInTbVenta',
     self::STEP_SALES_DOCUMENT_DETAIL => 'neInTbVentaDt',
     self::STEP_SALES_DOCUMENT_SERIAL => 'neInTbVentaDtS',
-    self::STEP_SALES_DOCUMENT_ADVANCE => 'neInTbVentaAn',
   ];
 
   /**

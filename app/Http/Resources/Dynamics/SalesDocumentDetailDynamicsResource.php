@@ -60,6 +60,11 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     // Precio unitario (puede ser precio_unitario o valor_unitario dependiendo del caso)
     $precioUnitario = $this->precio_unitario ?? 0;
 
+    // Si es un anticipo regularizado, enviar valores en negativo para Dynamics
+    if ($this->anticipo_regularizacion === true) {
+      $precioUnitario = -abs($precioUnitario);
+    }
+
     // Precio total
     $precioTotal = $this->cantidad * $precioUnitario;
 

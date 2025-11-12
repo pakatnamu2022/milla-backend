@@ -58,6 +58,7 @@ class SalesDocumentDynamicsResource extends JsonResource
     $esAnticipo = $this->isAnticipo() ? 1 : 0;
 
     // Determinar si aplica anticipo (tiene items con regularización)
+    // Los anticipos se manejan en el detalle con valores negativos
     $apAnticipo = $this->items->contains('anticipo_regularizacion', true) ? 1 : 0;
 
     // Sitio predeterminado (almacén)

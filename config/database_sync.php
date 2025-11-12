@@ -678,28 +678,4 @@ return [
       ],
     ]
   ],
-
-  //  Configuración para la entidad "sales_document_advance" (Anticipos de Venta)
-  'sales_document_advance' => [
-    'dbtp' => [
-      'enabled' => env('SYNC_DBTP_ENABLED', false),
-      'connection' => 'dbtp',
-      'table' => 'neInTbVentaAn',
-      'mapping' => [
-        'EmpresaId' => fn($data) => $data['EmpresaId'],
-        'DocumentoId' => fn($data) => $data['DocumentoId'],
-        'Anticipo_DocumentoId' => fn($data) => $data['Anticipo_DocumentoId'],
-        'MontoAplicado' => fn($data) => $data['MontoAplicado'],
-      ],
-      'optional_mapping' => [
-      ],
-      'sync_mode' => 'insert',
-      'unique_key' => 'DocumentoId',
-      'actions' => [
-        'create' => true,
-        'update' => false,
-        'delete' => false,
-      ],
-    ]
-  ],
 ];

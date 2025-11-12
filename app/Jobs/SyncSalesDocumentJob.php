@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Http\Resources\Dynamics\SalesDocumentAdvanceDynamicsResource;
 use App\Http\Resources\Dynamics\SalesDocumentDetailDynamicsResource;
 use App\Http\Resources\Dynamics\SalesDocumentDynamicsResource;
 use App\Http\Resources\Dynamics\SalesDocumentSerialDynamicsResource;
@@ -83,14 +82,11 @@ class SyncSalesDocumentJob implements ShouldQueue
     // 3. Sincronizar documento de venta (cabecera)
     $this->syncSalesDocument($document, $syncService);
 
-    // 4. Sincronizar detalle de venta
+    // 4. Sincronizar detalle de venta (incluyendo anticipos con valores negativos)
     $this->syncSalesDocumentDetail($document, $syncService);
 
     // 5. Sincronizar series (VIN) si existen
     $this->syncSalesDocumentSerial($document, $syncService);
-
-    // 6. Sincronizar anticipos si existen
-    $this->syncSalesDocumentAdvance($document, $syncService);
   }
 
   /**
@@ -362,66 +358,6 @@ class SyncSalesDocumentJob implements ShouldQueue
     } catch (\Exception $e) {
       $log->markAsFailed($e->getMessage());
       Log::error('Error al sincronizar serie de venta', [
-        'document_id' => $document->id,
-        'error' => $e->getMessage(),
-      ]);
-    }
-  }
-
-  /**
-   * Sincroniza los anticipos aplicados al documento de venta
-   */
-  protected function syncSalesDocumentAdvance(ElectronicDocument $document, DatabaseSyncService $syncService): void
-  {
-    // Obtener items con anticipo regularizado
-    $advanceItems = $document->items->filter(function ($item) {
-      return $item->anticipo_regularizacion === true;
-    });
-
-    if ($advanceItems->isEmpty()) {
-      return;
-    }
-
-    $tipoId = match ($document->sunat_concept_document_type_id) {
-      ElectronicDocument::TYPE_FACTURA => '01',
-      ElectronicDocument::TYPE_BOLETA => '03',
-      ElectronicDocument::TYPE_NOTA_CREDITO => '07',
-      ElectronicDocument::TYPE_NOTA_DEBITO => '08',
-      default => '01',
-    };
-
-    $documentoId = "{$tipoId}-{$document->serie}-{$document->numero}";
-
-    $log = $this->getOrCreateLog(
-      $document->id,
-      VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT_ADVANCE,
-      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT_ADVANCE],
-      $documentoId
-    );
-
-    if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-      return;
-    }
-
-    try {
-      $log->markAsInProgress();
-
-      foreach ($advanceItems as $item) {
-        // Transformar anticipo usando el Resource
-        $resource = new SalesDocumentAdvanceDynamicsResource($item, $document);
-        $data = $resource->toArray(request());
-
-        $result = $syncService->sync('sales_document_advance', $data, 'create');
-
-        if (!$result['success']) {
-          throw new \Exception($result['message'] ?? 'Error al sincronizar anticipo de venta');
-        }
-      }
-
-      $log->markAsCompleted(0);
-    } catch (\Exception $e) {
-      $log->markAsFailed($e->getMessage());
-      Log::error('Error al sincronizar anticipo de venta', [
         'document_id' => $document->id,
         'error' => $e->getMessage(),
       ]);

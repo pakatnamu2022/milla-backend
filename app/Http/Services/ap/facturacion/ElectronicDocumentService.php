@@ -739,6 +739,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'origin_module' => $originalDocument->origin_module,
         'origin_entity_type' => $originalDocument->origin_entity_type,
         'origin_entity_id' => $originalDocument->origin_entity_id,
+        'purchase_request_quote_id' => $originalDocument->purchase_request_quote_id ?? null,
       ]);
 
       // Validar límite razonable para notas de débito (200% del original)
