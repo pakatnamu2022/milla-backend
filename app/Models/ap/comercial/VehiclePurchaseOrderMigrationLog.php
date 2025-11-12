@@ -52,6 +52,16 @@ class VehiclePurchaseOrderMigrationLog extends Model
   const STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL = 'inventory_transfer_detail_REVERSAL';
   const STEP_INVENTORY_TRANSFER_SERIAL_REVERSAL = 'inventory_transfer_serial_REVERSAL';
 
+  // Constantes para los pasos de migración (Shipping Guides - Ventas)
+  const STEP_SALE_SHIPPING_GUIDE = 'sale_shipping_guide';
+  const STEP_SALE_SHIPPING_GUIDE_DETAIL = 'sale_shipping_guide_detail';
+  const STEP_SALE_SHIPPING_GUIDE_SERIAL = 'sale_shipping_guide_serial';
+
+  // Constantes para los pasos de reversión (Cancelación de Shipping Guides - Ventas)
+  const STEP_SALE_SHIPPING_GUIDE_REVERSAL = 'sale_shipping_guide_REVERSAL';
+  const STEP_SALE_SHIPPING_GUIDE_DETAIL_REVERSAL = 'sale_shipping_guide_detail_REVERSAL';
+  const STEP_SALE_SHIPPING_GUIDE_SERIAL_REVERSAL = 'sale_shipping_guide_serial_REVERSAL';
+
   // Constantes para los estados
   const STATUS_PENDING = 'pending';
   const STATUS_IN_PROGRESS = 'in_progress';
@@ -71,6 +81,9 @@ class VehiclePurchaseOrderMigrationLog extends Model
     self::STEP_INVENTORY_TRANSFER => 'neInTbTransferenciaInventario',
     self::STEP_INVENTORY_TRANSFER_DETAIL => 'neInTbTransferenciaInventarioDet',
     self::STEP_INVENTORY_TRANSFER_SERIAL => 'neInTbTransferenciaInventarioDtS',
+    self::STEP_SALE_SHIPPING_GUIDE => 'neInTbTransaccionInventario',
+    self::STEP_SALE_SHIPPING_GUIDE_DETAIL => 'neInTbTransaccionInventarioDet',
+    self::STEP_SALE_SHIPPING_GUIDE_SERIAL => 'neInTbTransaccionInventarioDtS',
   ];
 
   /**

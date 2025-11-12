@@ -24,6 +24,9 @@ class ApVehicleDeliveryResource extends JsonResource
       'status_wash' => $this->translateStatus($this->status_wash),
       'status_delivery' => $this->translateStatus($this->status_delivery),
       'client_name' => $this->client->full_name,
+      'shipping_guide_id' => $this->shipping_guide_id ?? null,
+      'aceptada_por_sunat' => $this->ShippingGuide->aceptada_por_sunat ?? false,
+      'sent_at' => $this->ShippingGuide->sent_at ?? null,
       'shipping_guide' => $this->whenLoaded('ShippingGuide', function () {
         return new ShippingGuidesResource($this->ShippingGuide);
       }),

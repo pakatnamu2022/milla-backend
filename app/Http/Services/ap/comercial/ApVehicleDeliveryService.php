@@ -6,6 +6,7 @@ use App\Http\Resources\ap\comercial\ApVehicleDeliveryResource;
 use App\Http\Resources\ap\comercial\ShippingGuidesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Jobs\SyncShippingGuideSaleJob;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\BusinessPartners;
@@ -143,6 +144,11 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
   public function destroy($id)
   {
     $vehicleDelivery = $this->find($id);
+
+    if ($vehicleDelivery->shipping_guide_id) {
+      throw new Exception('No se puede eliminar una entrega que tiene una guía de remisión asociada');
+    }
+
     DB::transaction(function () use ($vehicleDelivery) {
       $vehicleDelivery->delete();
     });
@@ -159,6 +165,69 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           throw new Exception('Entrega de Vehículo no encontrada');
         }
 
+        // Verificar si ya existe una guía de remisión
+        $existingShippingGuide = null;
+        if ($record->shipping_guide_id) {
+          $existingShippingGuide = ShippingGuides::find($record->shipping_guide_id);
+        }
+
+        // Si existe una guía, solo actualizar los campos permitidos
+        if ($existingShippingGuide) {
+          // Validar que la guía no haya sido enviada a SUNAT
+          if ($existingShippingGuide->is_sunat_registered) {
+            throw new Exception('No se puede modificar una guía que ya fue enviada a SUNAT');
+          }
+
+          // Validar que la guía no esté anulada
+          if ($existingShippingGuide->cancelled_at) {
+            throw new Exception('No se puede modificar una guía anulada');
+          }
+
+          // Actualizar solo los campos permitidos
+          $updateData = [];
+
+          if (isset($data['driver_doc'])) {
+            $updateData['driver_doc'] = $data['driver_doc'];
+            // Si cambia el documento del conductor, buscar la transportista
+            $transportCompanyId = BusinessPartners::where('num_doc', $data['driver_doc'])
+              ->first()->id ?? null;
+            $updateData['transport_company_id'] = $transportCompanyId;
+          }
+
+          if (isset($data['license'])) {
+            $updateData['license'] = $data['license'];
+          }
+
+          if (isset($data['plate'])) {
+            $updateData['plate'] = $data['plate'];
+          }
+
+          if (isset($data['driver_name'])) {
+            $updateData['driver_name'] = $data['driver_name'];
+          }
+
+          if (isset($data['enviar_sunat'])) {
+            $updateData['requires_sunat'] = $data['enviar_sunat'];
+          }
+
+          if (isset($data['transfer_modality_id'])) {
+            $updateData['transfer_modality_id'] = $data['transfer_modality_id'];
+          }
+
+          if (isset($data['carrier_ruc'])) {
+            $updateData['ruc_transport'] = $data['carrier_ruc'];
+          }
+
+          if (isset($data['company_name_transport'])) {
+            $updateData['company_name_transport'] = $data['company_name_transport'];
+          }
+
+          $existingShippingGuide->update($updateData);
+
+          return new ShippingGuidesResource($existingShippingGuide->fresh());
+        }
+
+        // Si no existe, crear una nueva guía (código original)
         $userId = auth()->id();
         $sedeId = $record->sede_id;
 
@@ -241,7 +310,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           'correlative' => $correlative,
           'document_number' => $documentNumber,
           'issue_date' => now(),
-          'requires_sunat' => $data['enviar_sunat'] ?? true,
+          'requires_sunat' => true,
           'vehicle_movement_id' => $vehicleMovement->id,
           'sede_transmitter_id' => $record->sede_id,
           'sede_receiver_id' => $record->sede_id,
@@ -262,6 +331,10 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           'origin_address' => $originAddress,
           'destination_ubigeo' => $destinationUbigeo,
           'destination_address' => $destinationAddress,
+          'ruc_transport' => $data['carrier_ruc'] ?? null,
+          'company_name_transport' => $data['company_name_transport'] ?? null,
+          'net_weight' => 1,
+          'total_weight' => preg_replace('/[^0-9.]/', '', $vehicle->model->gross_weight),
         ];
 
         $shippingGuide = ShippingGuides::create($shippingGuideData);
@@ -280,8 +353,12 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     try {
       $vehicleDelivery = $this->find($id);
 
-      if ($vehicleDelivery->status_delivery !== 'completed') {
-        throw new Exception('Solo se pueden enviar guías de entregas completadas');
+      if ($vehicleDelivery->status_delivery === 'completed') {
+        throw new Exception('La entrega ya ha sido completada, no se puede enviar la guía');
+      }
+
+      if ($vehicleDelivery->status_wash === 'pending') {
+        throw new Exception('El vehículo no ha sido lavado aún, no se puede enviar la guía');
       }
 
       $shippingGuide = ShippingGuides::find($vehicleDelivery->shipping_guide_id);
@@ -356,15 +433,8 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     try {
       $vehicleDelivery = $this->find($id);
 
-      if (!$vehicleDelivery->status_nubefact) {
-        throw new Exception('La guía no ha sido enviada a Nubefact aún');
-      }
-
       // Buscar la guía de remisión asociada
-      $shippingGuide = ShippingGuides::where('vehicle_movement_id', $vehicleDelivery->vehicle_id)
-        ->whereNull('cancelled_at')
-        ->latest()
-        ->first();
+      $shippingGuide = ShippingGuides::find($vehicleDelivery->shipping_guide_id);
 
       if (!$shippingGuide) {
         throw new Exception('No se encontró una guía de remisión asociada a esta entrega');
@@ -409,6 +479,39 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       ]);
     } catch (Exception $e) {
       throw new Exception('Error al consultar la guía en Nubefact: ' . $e->getMessage());
+    }
+  }
+
+  public function sendToDynamic($id): JsonResponse
+  {
+    try {
+      $vehicleDelivery = $this->find($id);
+
+      // Validar que exista una guía de remisión asociada
+      if (!$vehicleDelivery->shipping_guide_id) {
+        throw new Exception('No se encontró una guía de remisión asociada a esta entrega');
+      }
+
+      $shippingGuide = ShippingGuides::find($vehicleDelivery->shipping_guide_id);
+
+      if (!$shippingGuide) {
+        throw new Exception('No se encontró una guía de remisión asociada a esta entrega');
+      }
+
+      // Validar que la guía esté aceptada por SUNAT (opcional, dependiendo de tus reglas de negocio)
+      if (!$shippingGuide->aceptada_por_sunat) {
+        throw new Exception('La guía debe estar aceptada por SUNAT antes de enviarla a Dynamics');
+      }
+
+      // Despachar el Job síncronamente para debugging
+      SyncShippingGuideSaleJob::dispatchSync($shippingGuide->id);
+
+      return response()->json([
+        'success' => true,
+        'message' => 'Guía de remisión de venta enviada a Dynamics GP correctamente',
+      ]);
+    } catch (Exception $e) {
+      throw new Exception('Error al enviar la guía a Dynamics GP: ' . $e->getMessage());
     }
   }
 }

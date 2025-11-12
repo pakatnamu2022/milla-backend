@@ -74,8 +74,6 @@ class SunatConcepts extends Model
     'status',
   ];
 
-  const RUC_CODE_NUBEFACT = 6;
-  
   // IDs especificos de TYPE_VOUCHER
   const TYPE_VOUCHER_REMISION_REMITENTE = 12;
   const TYPE_VOUCHER_REMISION_TRANSPORTISTA = 13;
@@ -88,6 +86,9 @@ class SunatConcepts extends Model
   // IDs especificos de TYPE_TRANSPORTATION
   const TYPE_TRANSPORTATION_PUBLICO = 27;
   const TYPE_TRANSPORTATION_PRIVADO = 28;
+
+  //IDs tipos de documento
+  const TYPE_DOCUMENT_RUC = 4;
 
   public function documentType()
   {

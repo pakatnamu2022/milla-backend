@@ -72,12 +72,14 @@ class ApVehicleDeliveryController extends Controller
   {
     try {
       $data = $request->validate([
-        'driver_doc' => 'required|integer|max_digits:11|min_digits:8',
+        'driver_doc' => 'nullable|integer|max_digits:11|min_digits:8',
         'license' => 'nullable|string|max:20',
         'plate' => 'nullable|string|max:20',
-        'driver_name' => 'required|string|max:100',
-        'enviar_sunat' => 'required|boolean',
+        'driver_name' => 'nullable|string|max:100',
+        'send_sunat' => 'required|boolean',
         'transfer_modality_id' => 'required|integer|exists:ap_commercial_masters,id',
+        'carrier_ruc' => 'nullable|string|max:11|min:11',
+        'company_name_transport' => 'nullable|string|max:100',
       ]);
 
       return $this->success($this->service->generateShippingGuide($id, $data));
@@ -118,4 +120,20 @@ class ApVehicleDeliveryController extends Controller
       ], 400);
     }
   }
+
+  /**
+   * Envía la guía de remisión de venta a Dynamics GP
+   */
+  public function sendToDynamic($id)
+  {
+    try {
+      return $this->service->sendToDynamic($id);
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
+    }
+  }
+
 }

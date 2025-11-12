@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\comercial;
 
+use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Support\Facades\Http;
@@ -246,18 +247,14 @@ class NubefactShippingGuideApiService
    */
   protected function addRemitenteFields($guide, array &$payload): void
   {
-    // Remitente (cliente)
-    if ($guide->receiver_id) {
-      $client_id = $guide->receiver->business_partner_id;
-      $client = BusinessPartners::find($client_id);
-      if (!$client) {
-        throw new Exception('El cliente remitente no existe en la base de datos');
-      }
-      $payload['cliente_tipo_de_documento'] = SunatConcepts::RUC_CODE_NUBEFACT;
-      $payload['cliente_numero_de_documento'] = $client->num_doc ?? '';
-      $payload['cliente_denominacion'] = $client->full_name ?? '';
-      $payload['cliente_direccion'] = $client->direction ?? '';
-      $payload['cliente_email'] = $client->email ?? '';
+    if ($guide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA) {
+      $client = $this->getClientForSale($guide);
+    } else {
+      $client = $this->getClientForTransfer($guide);
+    }
+
+    if ($client) {
+      $this->addClientToPayload($client, $payload);
     }
 
     // Motivo de traslado
@@ -277,12 +274,76 @@ class NubefactShippingGuideApiService
     }
 
     // Datos del transportista (si es transporte público)
-    if ($guide->transport_company_id && $payload['tipo_de_transporte'] == '01') {
+    if ($guide->transfer_modality_id === SunatConcepts::TYPE_TRANSPORTATION_PUBLICO) {
       $transportCompany = $guide->transportCompany;
-      $payload['transportista_documento_tipo'] = SunatConcepts::RUC_CODE_NUBEFACT; // RUC
-      $payload['transportista_documento_numero'] = $transportCompany->num_doc ?? '';
-      $payload['transportista_denominacion'] = $transportCompany->full_name ?? '';
+
+      if (!$transportCompany) {
+        $carrierDocumentNumber = $guide->ruc_transport ?? '';
+        $carrierName = $guide->company_name_transport ?? '';
+      } else {
+        $carrierDocumentNumber = $transportCompany->num_doc ?? '';
+        $carrierName = $transportCompany->full_name ?? '';
+      }
+
+      $payload['transportista_documento_tipo'] = SunatConcepts::find(SunatConcepts::TYPE_DOCUMENT_RUC)->code_nubefact ?? '6';
+      $payload['transportista_documento_numero'] = $carrierDocumentNumber;
+      $payload['transportista_denominacion'] = $carrierName;
     }
+  }
+
+  /**
+   * Obtiene el cliente para operación de venta
+   */
+  private function getClientForSale($guide): ?BusinessPartners
+  {
+    $vehicleDelivery = ApVehicleDelivery::where('shipping_guide_id', $guide->id)->first();
+    if (!$vehicleDelivery) {
+      throw new Exception('No se encontró la entrega de vehículo asociada a la guía de remisión');
+    }
+
+    if (!$vehicleDelivery->client_id) {
+      return null;
+    }
+
+    $client = $vehicleDelivery->client;
+    if (!$client) {
+      throw new Exception('El cliente comprador no existe en la base de datos');
+    }
+
+    return $client;
+  }
+
+  /**
+   * Obtiene el cliente para operación de traslado
+   */
+  private function getClientForTransfer($guide): ?BusinessPartners
+  {
+    if (!$guide->receiver_id) {
+      return null;
+    }
+
+    $client = BusinessPartners::find($guide->receiver->business_partner_id);
+    if (!$client) {
+      throw new Exception('El cliente remitente no existe en la base de datos');
+    }
+
+    return $client;
+  }
+
+  /**
+   * Agrega datos del cliente al payload
+   */
+  private function addClientToPayload($client, array &$payload): void
+  {
+    $documentTypeId = $client->documentType->id ?? null;
+    $codeNubefact = SunatConcepts::where('tribute_code', $documentTypeId)
+      ->where('type', 'TYPE_DOCUMENT')
+      ->value('code_nubefact');
+    $payload['cliente_tipo_de_documento'] = $codeNubefact;
+    $payload['cliente_numero_de_documento'] = $client->num_doc ?? '';
+    $payload['cliente_denominacion'] = $client->full_name ?? '';
+    $payload['cliente_direccion'] = $client->direction ?? '';
+    $payload['cliente_email'] = $client->email ?? '';
   }
 
   /**

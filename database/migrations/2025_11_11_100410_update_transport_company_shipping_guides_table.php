@@ -16,6 +16,8 @@ return new class extends Migration {
       $table->string('origin_address')->nullable()->after('origin_ubigeo');
       $table->string('destination_ubigeo')->nullable()->after('origin_address');
       $table->string('destination_address')->nullable()->after('destination_ubigeo');
+      $table->string('ruc_transport')->nullable()->after('transport_company_id');
+      $table->string('company_name_transport')->nullable()->after('ruc_transport');
     });
   }
 
@@ -30,6 +32,8 @@ return new class extends Migration {
       $table->dropColumn('origin_address');
       $table->dropColumn('destination_ubigeo');
       $table->dropColumn('destination_address');
+      $table->dropColumn('ruc_transport');
+      $table->dropColumn('company_name_transport');
     });
   }
 };
