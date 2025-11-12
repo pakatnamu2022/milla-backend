@@ -292,7 +292,15 @@ class StoreElectronicDocumentRequest extends StoreRequest
 
       // Items (obligatorios)
       'items' => 'required|array|min:1',
-      'items.*.reference_document_id' => 'required_if:items.*.anticipo_regularizacion,true|integer|exists:ap_billing_electronic_documents,id',
+      'items.*.reference_document_id' => [
+        'nullable',
+        'required_if:items.*.anticipo_regularizacion,true',
+        'integer',
+        Rule::exists('ap_billing_electronic_documents', 'id')
+          ->whereNull('deleted_at')
+          ->where('aceptada_por_sunat', true)
+          ->where('anulado', false)
+      ],
       'items.*.account_plan_id' => [
         'required',
         'integer',

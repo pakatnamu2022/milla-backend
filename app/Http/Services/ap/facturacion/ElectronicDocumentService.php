@@ -129,7 +129,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    */
   public function store(mixed $data): ElectronicDocumentResource
   {
-    throw new Exception('El objeto no puede ser creado');
     DB::beginTransaction();
     try {
       /**
@@ -404,14 +403,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           'enlace_del_pdf' => $nubefactData['enlace_del_pdf'],
           'enlace_del_xml' => $nubefactData['enlace_del_xml'],
         ]);
-        $message = 'Documento enviado correctamente a SUNAT';
       }
 
       DB::commit();
 
       return response()->json([
         'success' => true,
-        'message' => $message,
+        'message' => 'Documento procesado correctamente',
         'data' => new ElectronicDocumentResource($document->fresh()),
         'sunat_response' => $nubefactData
       ]);
@@ -494,6 +492,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       if ($document->anulado) {
         throw new Exception('El documento ya está anulado');
+      }
+
+      $electronicDocumentItem = ElectronicDocumentItem::where('anticipo_documento_serie', $document->serie)
+        ->where('anticipo_documento_numero', $document->numero)
+        ->whereNull('deleted_at');
+
+      if ($electronicDocumentItem->count() > 0) {
+        throw new Exception('El documento no se puede anular porque tiene anticipos asociados');
       }
 
       // Enviar anulación a Nubefact
@@ -1070,7 +1076,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       'series' => $series->series,
       'number' => $this->nextDocumentNumber(
         ElectronicDocument::TYPE_NOTA_CREDITO,
-        $electronicDocument->serie
+        $series->series
       )['number']
     ];
 

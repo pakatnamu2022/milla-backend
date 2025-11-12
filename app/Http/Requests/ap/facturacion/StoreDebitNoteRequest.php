@@ -23,7 +23,10 @@ class StoreDebitNoteRequest extends StoreRequest
       'sunat_concept_debit_note_type_id',
     ];
 
-    $dataToMerge = [];
+    $dataToMerge = [
+      'serie',
+    ];
+
     foreach ($numericFields as $field) {
       if ($this->has($field) && $this->input($field) !== null && $this->input($field) !== '') {
         $dataToMerge[$field] = (int)$this->input($field);
@@ -128,6 +131,7 @@ class StoreDebitNoteRequest extends StoreRequest
         Rule::exists('user_series_assignment', 'voucher_id')
           ->where('worker_id', $userId)
       ],
+      'serie' => 'required|string|max:4',
 
       // Fechas
       'fecha_de_emision' => 'required|date',
@@ -141,6 +145,15 @@ class StoreDebitNoteRequest extends StoreRequest
 
       // Items de la nota de débito (OBLIGATORIOS)
       'items' => 'required|array|min:1',
+      'items.*.reference_document_id' => [
+        'nullable',
+        'required_if:items.*.anticipo_regularizacion,true',
+        'integer',
+        Rule::exists('ap_billing_electronic_documents', 'id')
+          ->whereNull('deleted_at')
+          ->where('aceptada_por_sunat', true)
+          ->where('anulado', false)
+      ],
       'items.*.account_plan_id' => [
         'required',
         'integer',

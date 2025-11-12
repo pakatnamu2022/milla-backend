@@ -137,22 +137,22 @@ class ElectronicDocument extends BaseModel
   ];
 
   const array filters = [
-    'id',
-    'sunat_concept_document_type_id',
-    'serie',
-    'numero',
-    'origin_module',
-    'origin_entity_type',
-    'origin_entity_id',
-    'ap_vehicle_movement_id',
-    'purchase_request_quote_id',
-    'cliente_numero_de_documento',
-    'sunat_concept_currency_id',
-    'status',
-    'aceptada_por_sunat',
-    'anulado',
-    'fecha_de_emision',
-    'created_by',
+    'search' => ['serie', 'numero', 'cliente_denominacion'],
+    'sunat_concept_document_type_id' => '=',
+    'serie' => '=',
+    'numero' => '=',
+    'origin_module' => '=',
+    'origin_entity_type' => '=',
+    'origin_entity_id' => '=',
+    'ap_vehicle_movement_id' => '=',
+    'purchase_request_quote_id' => '=',
+    'cliente_numero_de_documento' => '=',
+    'sunat_concept_currency_id' => '=',
+    'status' => '=',
+    'aceptada_por_sunat' => '=',
+    'anulado' => '=',
+    'fecha_de_emision' => '=',
+    'created_by' => '=',
   ];
 
   const array sorts = ['id', 'fecha_de_emision', 'numero', 'total'];

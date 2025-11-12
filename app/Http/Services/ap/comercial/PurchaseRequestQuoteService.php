@@ -378,6 +378,12 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'items',
         'creator'
       ])
+      ->whereNull('credit_note_id')
+      ->where(function ($query) use ($purchaseRequestQuoteId) {
+        $query->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_FACTURA)
+          ->orWhere('sunat_concept_document_type_id', ElectronicDocument::TYPE_BOLETA)
+          ->orWhere('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO);
+      })
       ->where('anulado', false)
       ->where('aceptada_por_sunat', true)
       ->orderBy('fecha_de_emision', 'desc')
@@ -389,12 +395,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       'vehicle' => VehiclesResource::make($vehicle),
       'documents' => ElectronicDocumentResource::collection($documents),
       'total_documents' => $documents->count(),
-      'total_amount' => $documents->sum(function ($document) {
-        if ($document->sunat_concept_credit_note_type_id) {
-          return -$document->total;
-        }
-        return $document->total;
-      }),
+      'total_amount' => $documents->sum('total'),
     ]);
   }
 }
