@@ -116,7 +116,10 @@ class SyncSalesDocumentJob implements ShouldQueue
         ->first();
 
       if ($existingClient) {
-        $log->markAsCompleted($existingClient->ProcesoEstado ?? 1);
+        $log->updateProcesoEstado(
+          $existingClient->ProcesoEstado ?? 0,
+          $existingClient->ProcesoError ?? null
+        );
         return;
       }
 
@@ -137,18 +140,12 @@ class SyncSalesDocumentJob implements ShouldQueue
           'middle_name' => $document->client->middle_name,
         ];
 
-        $result = $syncService->sync('business_partners', $clientData);
+        $syncService->sync('business_partners', $clientData);
+        $log->updateProcesoEstado(0);
 
-        throw new Exception(json_encode($result));
-
-        if (isset($result['success']) && $result['success']) {
-          $log->markAsCompleted(0);
-        } else {
-          $log->markAsFailed($result['message'] ?? 'Error al sincronizar cliente');
-        }
       } else {
         // Cliente sin relación BusinessPartner, marcar como completado
-        $log->markAsCompleted(1);
+        $log->updateProcesoEstado(1);
       }
     } catch (\Exception $e) {
       $log->markAsFailed($e->getMessage());
@@ -188,15 +185,14 @@ class SyncSalesDocumentJob implements ShouldQueue
           ->first();
 
         if ($existingArticle) {
-          $log->markAsCompleted($existingArticle->ProcesoEstado ?? 1);
+          $log->updateProcesoEstado(
+            $existingArticle->ProcesoEstado ?? 0,
+            $existingArticle->ProcesoError ?? null
+          );
           continue;
         } else {
           $log->markAsFailed('Artículo no encontrado en Dynamics: ' . $item->codigo);
         }
-
-        // Si no existe, marcar como completado (asumiendo que ya existe en Dynamics)
-        // TODO: Implementar sincronización de artículos si es necesario
-        $log->markAsCompleted(1);
       } catch (\Exception $e) {
         $log->markAsFailed($e->getMessage());
         Log::error('Error al verificar artículo', [
@@ -226,29 +222,52 @@ class SyncSalesDocumentJob implements ShouldQueue
       return;
     }
 
-    try {
-      $log->markAsInProgress();
+    // Verificar que el cliente esté procesado primero
+    $clientLog = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $document->id)
+      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_SALES_CLIENT)
+      ->first();
 
-      // Transformar documento usando el Resource
-      $resource = new SalesDocumentDynamicsResource($document);
-      $data = $resource->toArray(request());
-
-      $result = $syncService->sync('sales_document', $data);
-
-      throw new Exception(json_encode($result));
-
-      if (isset($result['success']) && $result['success']) {
-        $log->markAsCompleted(0);
-      } else {
-        $log->markAsFailed($result['message'] ?? 'Error al sincronizar documento de venta');
-      }
-    } catch (\Exception $e) {
-      $log->markAsFailed($e->getMessage());
-      Log::error('Error al sincronizar documento de venta', [
+    if (!$clientLog || $clientLog->proceso_estado !== 1) {
+      Log::info('Esperando que el cliente sea procesado antes de sincronizar documento', [
         'document_id' => $document->id,
-        'error' => $e->getMessage(),
+        'client_log_status' => $clientLog?->proceso_estado
       ]);
-      throw $e;
+      return;
+    }
+
+    // Verificar en la BD intermedia si ya existe
+    $existingDocument = DB::connection('dbtp')
+      ->table('neInTbVenta')
+      ->where('EmpresaId', Company::AP_DYNAMICS)
+      ->where('VentaId', $documentoId)
+      ->first();
+
+    if (!$existingDocument) {
+      // No existe, intentar sincronizar
+      try {
+        $log->markAsInProgress();
+
+        // Transformar documento usando el Resource
+        $resource = new SalesDocumentDynamicsResource($document);
+        $data = $resource->toArray(request());
+
+        $syncService->sync('sales_document', $data);
+        $log->updateProcesoEstado(0);
+
+      } catch (\Exception $e) {
+        $log->markAsFailed($e->getMessage());
+        Log::error('Error al sincronizar documento de venta', [
+          'document_id' => $document->id,
+          'error' => $e->getMessage(),
+        ]);
+        throw $e;
+      }
+    } else {
+      // Existe, actualizar el estado del log
+      $log->updateProcesoEstado(
+        $existingDocument->ProcesoEstado ?? 0,
+        $existingDocument->ProcesoError ?? null
+      );
     }
   }
 
@@ -270,32 +289,54 @@ class SyncSalesDocumentJob implements ShouldQueue
       return;
     }
 
-    try {
-      $log->markAsInProgress();
+    // Verificar que el documento de venta esté procesado primero
+    $documentLog = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $document->id)
+      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT)
+      ->first();
 
-      foreach ($document->items as $item) {
-        // Transformar item usando el Resource
-        $resource = new SalesDocumentDetailDynamicsResource($item, $document);
-        $data = $resource->toArray(request());
-
-        $result = $syncService->sync('sales_document_detail', $data);
-
-
-        throw new Exception(json_encode($result));
-
-        if (!isset($result['success']) && $result['success']) {
-          throw new \Exception($result['message'] ?? 'Error al sincronizar detalle de venta');
-        }
-      }
-
-      $log->markAsCompleted(0);
-    } catch (\Exception $e) {
-      $log->markAsFailed($e->getMessage());
-      Log::error('Error al sincronizar detalle de venta', [
+    if (!$documentLog || $documentLog->proceso_estado !== 1) {
+      Log::info('Esperando que el documento sea procesado antes de sincronizar detalle', [
         'document_id' => $document->id,
-        'error' => $e->getMessage(),
+        'document_log_status' => $documentLog?->proceso_estado
       ]);
-      throw $e;
+      return;
+    }
+
+    // Verificar en la BD intermedia si ya existe el detalle
+    $existingDetail = DB::connection('dbtp')
+      ->table('neInTbVentaDt')
+      ->where('EmpresaId', Company::AP_DYNAMICS)
+      ->where('VentaId', $documentoId)
+      ->first();
+
+    if (!$existingDetail) {
+      // No existe, intentar sincronizar
+      try {
+        $log->markAsInProgress();
+
+        foreach ($document->items as $item) {
+          // Transformar item usando el Resource
+          $resource = new SalesDocumentDetailDynamicsResource($item, $document);
+          $data = $resource->toArray(request());
+
+          $syncService->sync('sales_document_detail', $data);
+        }
+
+        $log->updateProcesoEstado(0);
+      } catch (\Exception $e) {
+        $log->markAsFailed($e->getMessage());
+        Log::error('Error al sincronizar detalle de venta', [
+          'document_id' => $document->id,
+          'error' => $e->getMessage(),
+        ]);
+        throw $e;
+      }
+    } else {
+      // Existe, actualizar el estado del log
+      $log->updateProcesoEstado(
+        $existingDetail->ProcesoEstado ?? 0,
+        $existingDetail->ProcesoError ?? null
+      );
     }
   }
 
@@ -310,45 +351,70 @@ class SyncSalesDocumentJob implements ShouldQueue
     }
 
     $documentoId = $document->full_number;
+    $vehicleId = $document->vehicleMovement->vehicle->id ?? null;
 
     $log = $this->getOrCreateLog(
       $document->id,
       VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT_SERIAL,
       VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT_SERIAL],
-      $documentoId
+      $documentoId,
+      $vehicleId
     );
 
     if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
       return;
     }
 
-    try {
-      $log->markAsInProgress();
+    // Verificar que el detalle del documento esté procesado primero
+    $detailLog = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $document->id)
+      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT_DETAIL)
+      ->first();
 
-      $vehicle = $document->vehicleMovement->vehicle;
-
-      foreach ($document->items as $index => $item) {
-        // Crear resource para la serie (VIN)
-//        $lineNumber = $item->line_number ?? ($index + 1);
-        $resource = new SalesDocumentSerialDynamicsResource($document);
-        $data = $resource->toArray(request());
-
-        $result = $syncService->sync('sales_document_serial', $data);
-
-        throw new Exception(json_encode($result));
-
-        if (!isset($result['success']) && $result['success']) {
-          throw new \Exception($result['message'] ?? 'Error al sincronizar serie de venta');
-        }
-      }
-
-      $log->markAsCompleted(0);
-    } catch (\Exception $e) {
-      $log->markAsFailed($e->getMessage());
-      Log::error('Error al sincronizar serie de venta', [
+    if (!$detailLog || $detailLog->proceso_estado !== 1) {
+      Log::info('Esperando que el detalle sea procesado antes de sincronizar series', [
         'document_id' => $document->id,
-        'error' => $e->getMessage(),
+        'detail_log_status' => $detailLog?->proceso_estado
       ]);
+      return;
+    }
+
+    // Verificar en la BD intermedia si ya existe la serie
+    $existingSerial = DB::connection('dbtp')
+      ->table('neInTbVentaDtS')
+      ->where('EmpresaId', Company::AP_DYNAMICS)
+      ->where('VentaId', $documentoId)
+      ->first();
+
+    if (!$existingSerial) {
+      // No existe, intentar sincronizar
+      try {
+        $log->markAsInProgress();
+
+        $vehicle = $document->vehicleMovement->vehicle;
+
+        foreach ($document->items as $index => $item) {
+          // Crear resource para la serie (VIN)
+          $resource = new SalesDocumentSerialDynamicsResource($document);
+          $data = $resource->toArray(request());
+
+          $syncService->sync('sales_document_serial', $data);
+        }
+
+        $log->updateProcesoEstado(0);
+      } catch (\Exception $e) {
+        $log->markAsFailed($e->getMessage());
+        Log::error('Error al sincronizar serie de venta', [
+          'document_id' => $document->id,
+          'error' => $e->getMessage(),
+        ]);
+        throw $e;
+      }
+    } else {
+      // Existe, actualizar el estado del log
+      $log->updateProcesoEstado(
+        $existingSerial->ProcesoEstado ?? 0,
+        $existingSerial->ProcesoError ?? null
+      );
     }
   }
 
@@ -388,5 +454,17 @@ class SyncSalesDocumentJob implements ShouldQueue
     }
 
     return $log;
+  }
+
+  /**
+   * Maneja el fallo del job
+   */
+  public function failed(\Throwable $exception): void
+  {
+    Log::error('SyncSalesDocumentJob failed', [
+      'electronic_document_id' => $this->electronicDocumentId,
+      'error' => $exception->getMessage(),
+      'trace' => $exception->getTraceAsString(),
+    ]);
   }
 }
