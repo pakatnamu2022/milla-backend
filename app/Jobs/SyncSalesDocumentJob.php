@@ -88,7 +88,7 @@ class SyncSalesDocumentJob implements ShouldQueue
     $this->syncSalesDocumentDetail($document, $syncService);
 
     // 5. Sincronizar series (VIN) si existen
-    $this->syncSalesDocumentSerial($document, $syncService);
+//    $this->syncSalesDocumentSerial($document, $syncService);
   }
 
   /**
