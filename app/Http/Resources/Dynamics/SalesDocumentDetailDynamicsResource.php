@@ -40,7 +40,7 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     };
 
     // Generar el DocumentoId con formato: TipoId-Serie-Correlativo
-    $documentoId = "{$tipoId}-{$this->document->serie}-{$this->document->numero}";
+    $documentoId = "{$this->document->serie}-{$this->document->numero}";
 
     // Obtener el código del artículo
     $articuloId = $this->codigo;
@@ -52,7 +52,7 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     $descripcionLarga = substr($this->descripcion, 0, 4000);
 
     // Sitio (almacén) - puede venir del contexto
-    $sitioId = 'ALM-VN-CIX'; // TODO: Obtener del contexto si es necesario
+    $sitioId = $this->vehicle? $this->vehicle->warehouse->
 
     // Unidad de medida
     $unidadMedidaId = 'UND'; // TODO: Mapear desde el item si tiene información de unidad
@@ -60,13 +60,15 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     // Precio unitario (puede ser precio_unitario o valor_unitario dependiendo del caso)
     $precioUnitario = $this->precio_unitario ?? 0;
 
+    // Precio total
+    $precioTotal = $this->cantidad * $precioUnitario;
+
     // Si es un anticipo regularizado, enviar valores en negativo para Dynamics
     if ($this->anticipo_regularizacion === true) {
       $precioUnitario = -abs($precioUnitario);
+      $precioTotal = -abs($precioTotal);
     }
 
-    // Precio total
-    $precioTotal = $this->cantidad * $precioUnitario;
 
     return [
       'EmpresaId' => Company::AP_DYNAMICS,

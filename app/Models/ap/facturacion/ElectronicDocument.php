@@ -2,9 +2,11 @@
 
 namespace App\Models\ap\facturacion;
 
+use App\Http\Services\BaseService;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\comercial\Vehicles;
 use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
@@ -23,6 +25,7 @@ class ElectronicDocument extends BaseModel
     'sunat_concept_document_type_id',
     'serie',
     'numero',
+    'full_number',
     'sunat_concept_transaction_type_id',
     'origin_module',
     'origin_entity_type',
@@ -137,7 +140,7 @@ class ElectronicDocument extends BaseModel
   ];
 
   const array filters = [
-    'search' => ['serie', 'numero', 'cliente_denominacion'],
+    'search' => ['full_number', 'cliente_denominacion', 'cliente_numero_de_documento'],
     'sunat_concept_document_type_id' => '=',
     'serie' => '=',
     'numero' => '=',
@@ -225,6 +228,17 @@ class ElectronicDocument extends BaseModel
   public function vehicleMovement(): BelongsTo
   {
     return $this->belongsTo(VehicleMovement::class, 'ap_vehicle_movement_id');
+  }
+
+  public function vehicle(): BelongsTo
+  {
+    return $this->hasOneThrough(
+      Vehicles::class,
+      VehicleMovement::class,
+      'id',
+      'id',
+      'ap_vehicle_movement_id'
+    );
   }
 
   public function client(): BelongsTo
@@ -331,6 +345,13 @@ class ElectronicDocument extends BaseModel
   /**
    * Accessors
    */
+  public function setFullNumberAttribute(): void
+  {
+    $service = new BaseService();
+    $numero = $service->completeNumber($this->numero);
+    $this->attributes['full_number'] = "{$this->serie}-{$numero}";
+  }
+
   public function getDocumentNumberAttribute(): string
   {
     return "{$this->serie}-{$this->numero}";
