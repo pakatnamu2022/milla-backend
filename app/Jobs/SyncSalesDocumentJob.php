@@ -9,10 +9,12 @@ use App\Http\Services\DatabaseSyncService;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\gp\gestionsistema\Company;
+use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use function json_encode;
 
 class SyncSalesDocumentJob implements ShouldQueue
 {
@@ -135,9 +137,11 @@ class SyncSalesDocumentJob implements ShouldQueue
           'middle_name' => $document->client->middle_name,
         ];
 
-        $result = $syncService->sync('business_partners', $clientData, 'create');
+        $result = $syncService->sync('business_partners', $clientData);
 
-        if ($result['success']) {
+        throw new Exception(json_encode($result));
+
+        if (isset($result['success']) && $result['success']) {
           $log->markAsCompleted(0);
         } else {
           $log->markAsFailed($result['message'] ?? 'Error al sincronizar cliente');
@@ -166,7 +170,7 @@ class SyncSalesDocumentJob implements ShouldQueue
         $document->id,
         VehiclePurchaseOrderMigrationLog::STEP_SALES_ARTICLE,
         VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_SALES_ARTICLE],
-        $item->codigo,
+        $item->codigo ?? "",
         null,
         $item->codigo
       );
@@ -186,6 +190,8 @@ class SyncSalesDocumentJob implements ShouldQueue
         if ($existingArticle) {
           $log->markAsCompleted($existingArticle->ProcesoEstado ?? 1);
           continue;
+        } else {
+          $log->markAsFailed('Artículo no encontrado en Dynamics: ' . $item->codigo);
         }
 
         // Si no existe, marcar como completado (asumiendo que ya existe en Dynamics)
@@ -207,16 +213,7 @@ class SyncSalesDocumentJob implements ShouldQueue
    */
   protected function syncSalesDocument(ElectronicDocument $document, DatabaseSyncService $syncService): void
   {
-    // Determinar el TipoId basado en el tipo de documento
-    $tipoId = match ($document->sunat_concept_document_type_id) {
-      ElectronicDocument::TYPE_FACTURA => '01',
-      ElectronicDocument::TYPE_BOLETA => '03',
-      ElectronicDocument::TYPE_NOTA_CREDITO => '07',
-      ElectronicDocument::TYPE_NOTA_DEBITO => '08',
-      default => '01',
-    };
-
-    $documentoId = "{$tipoId}-{$document->serie}-{$document->numero}";
+    $documentoId = $document->full_number;
 
     $log = $this->getOrCreateLog(
       $document->id,
@@ -236,9 +233,11 @@ class SyncSalesDocumentJob implements ShouldQueue
       $resource = new SalesDocumentDynamicsResource($document);
       $data = $resource->toArray(request());
 
-      $result = $syncService->sync('sales_document', $data, 'create');
+      $result = $syncService->sync('sales_document', $data);
 
-      if ($result['success']) {
+      throw new Exception(json_encode($result));
+
+      if (isset($result['success']) && $result['success']) {
         $log->markAsCompleted(0);
       } else {
         $log->markAsFailed($result['message'] ?? 'Error al sincronizar documento de venta');
@@ -258,15 +257,7 @@ class SyncSalesDocumentJob implements ShouldQueue
    */
   protected function syncSalesDocumentDetail(ElectronicDocument $document, DatabaseSyncService $syncService): void
   {
-    $tipoId = match ($document->sunat_concept_document_type_id) {
-      ElectronicDocument::TYPE_FACTURA => '01',
-      ElectronicDocument::TYPE_BOLETA => '03',
-      ElectronicDocument::TYPE_NOTA_CREDITO => '07',
-      ElectronicDocument::TYPE_NOTA_DEBITO => '08',
-      default => '01',
-    };
-
-    $documentoId = "{$tipoId}-{$document->serie}-{$document->numero}";
+    $documentoId = $document->full_number;
 
     $log = $this->getOrCreateLog(
       $document->id,
@@ -289,7 +280,10 @@ class SyncSalesDocumentJob implements ShouldQueue
 
         $result = $syncService->sync('sales_document_detail', $data);
 
-        if (!$result['success']) {
+
+        throw new Exception(json_encode($result));
+
+        if (!isset($result['success']) && $result['success']) {
           throw new \Exception($result['message'] ?? 'Error al sincronizar detalle de venta');
         }
       }
@@ -315,15 +309,7 @@ class SyncSalesDocumentJob implements ShouldQueue
       return;
     }
 
-    $tipoId = match ($document->sunat_concept_document_type_id) {
-      ElectronicDocument::TYPE_FACTURA => '01',
-      ElectronicDocument::TYPE_BOLETA => '03',
-      ElectronicDocument::TYPE_NOTA_CREDITO => '07',
-      ElectronicDocument::TYPE_NOTA_DEBITO => '08',
-      default => '01',
-    };
-
-    $documentoId = "{$tipoId}-{$document->serie}-{$document->numero}";
+    $documentoId = $document->full_number;
 
     $log = $this->getOrCreateLog(
       $document->id,
@@ -343,13 +329,15 @@ class SyncSalesDocumentJob implements ShouldQueue
 
       foreach ($document->items as $index => $item) {
         // Crear resource para la serie (VIN)
-        $lineNumber = $item->line_number ?? ($index + 1);
-        $resource = new SalesDocumentSerialDynamicsResource($document, $lineNumber, $vehicle->vin);
+//        $lineNumber = $item->line_number ?? ($index + 1);
+        $resource = new SalesDocumentSerialDynamicsResource($document);
         $data = $resource->toArray(request());
 
-        $result = $syncService->sync('sales_document_serial', $data, 'create');
+        $result = $syncService->sync('sales_document_serial', $data);
 
-        if (!$result['success']) {
+        throw new Exception(json_encode($result));
+
+        if (!isset($result['success']) && $result['success']) {
           throw new \Exception($result['message'] ?? 'Error al sincronizar serie de venta');
         }
       }

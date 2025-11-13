@@ -32,17 +32,8 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
    */
   public function toArray(Request $request): array
   {
-    // Determinar el TipoId basado en el tipo de documento
-    $tipoId = match ($this->document->sunat_concept_document_type_id) {
-      ElectronicDocument::TYPE_FACTURA => '01',
-      ElectronicDocument::TYPE_BOLETA => '03',
-      ElectronicDocument::TYPE_NOTA_CREDITO => '07',
-      ElectronicDocument::TYPE_NOTA_DEBITO => '08',
-      default => '01',
-    };
-
     // Generar el DocumentoId con formato: TipoId-Serie-Correlativo
-    $documentoId = "{$this->document->serie}-{$this->document->numero}";
+    $documentoId = $this->document->full_number;
 
     // Línea del detalle
     $linea = $this->line_number > 0 ? $this->line_number : throw new Exception('El ítem no tiene número de línea definido.');

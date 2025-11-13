@@ -32,7 +32,7 @@ class SalesDocumentDynamicsResource extends JsonResource
     $documentoId = "{$this->full_number}";
 
     // Generar el LoteId (usando el VAT del usuario autenticado) o de TODO:quien creo el documento
-    $loteId = auth()->user()->person->vat;
+    $loteId = $this->creator->person->vat;
 
     // Obtener el cliente
     $clienteId = $this->cliente_numero_de_documento;
@@ -88,7 +88,7 @@ class SalesDocumentDynamicsResource extends JsonResource
       'SitioPredeterminadoId' => $sitioPredeterminadoId,
       'UsuarioId' => 'USUGP',
       'Procesar' => 1,
-      'ProcesoEstado' => 0,
+      'ProcesoEstado' => 1, // TODO: es 0
       'ProcesoError' => '',
       'FechaProceso' => '',
       'Total' => (float)$this->total ?? throw new Exception('El documento no tiene total definido.'),
