@@ -39,6 +39,7 @@ use App\Http\Controllers\ap\maestroGeneral\WarehouseController;
 use App\Http\Controllers\ap\postventa\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\facturacion\BillingCatalogController;
 use App\Http\Controllers\ap\facturacion\ElectronicDocumentController;
+use App\Http\Controllers\ap\postventa\gestionProductos\ProductCategoryController;
 use App\Http\Controllers\Api\EvaluationNotificationController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
@@ -863,7 +864,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     //      POST-VENTA
     Route::group(['prefix' => 'postVenta'], function () {
-      Route::apiResource('ApprovedAccessories', ApprovedAccessoriesController::class)->only([
+      Route::apiResource('productCategory', ProductCategoryController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::apiResource('approvedAccessories', ApprovedAccessoriesController::class)->only([
         'index',
         'show',
         'store',

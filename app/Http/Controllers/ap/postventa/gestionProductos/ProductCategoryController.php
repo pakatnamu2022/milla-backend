@@ -3,64 +3,64 @@
 namespace App\Http\Controllers\ap\postventa\gestionProductos;
 
 use App\Http\Controllers\Controller;
-use App\Models\ap\postventa\gestionProductos\ProductCategory;
-use Illuminate\Http\Request;
+use App\Http\Requests\ap\postventa\gestionProductos\IndexProductCategoryRequest;
+use App\Http\Requests\ap\postventa\gestionProductos\StoreProductCategoryRequest;
+use App\Http\Requests\ap\postventa\gestionProductos\UpdateProductCategoryRequest;
+use App\Http\Services\ap\postventa\gestionProductos\ProductCategoryService;
 
 class ProductCategoryController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+  protected ProductCategoryService $service;
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+  public function __construct(ProductCategoryService $service)
+  {
+    $this->service = $service;
+  }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
+  public function index(IndexProductCategoryRequest $request)
+  {
+    try {
+      return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(ProductCategory $productCategory)
-    {
-        //
+  public function store(StoreProductCategoryRequest $request)
+  {
+    try {
+      return $this->success($this->service->store($request->validated()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(ProductCategory $productCategory)
-    {
-        //
+  public function show($id)
+  {
+    try {
+      return $this->success($this->service->show($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, ProductCategory $productCategory)
-    {
-        //
+  public function update(UpdateProductCategoryRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->update($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(ProductCategory $productCategory)
-    {
-        //
+  public function destroy($id)
+  {
+    try {
+      return $this->service->destroy($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 }

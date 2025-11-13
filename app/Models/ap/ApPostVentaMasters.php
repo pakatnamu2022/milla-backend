@@ -23,7 +23,6 @@ class ApPostVentaMasters extends Model
     'search' => ['code', 'description', 'type'],
     'type' => '=',
     'status' => '=',
-    'open_opportunity_status' => 'accessor_bool',
   ];
 
   const sorts = [
