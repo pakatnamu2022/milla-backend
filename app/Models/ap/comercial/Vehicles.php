@@ -52,6 +52,9 @@ class Vehicles extends Model
     'warehousePhysical.sede_id' => '=',
     'warehousePhysical.is_received' => '=',
     'warehousePhysical.article_class_id' => '=',
+    'warehouse.sede_id' => '=',
+    'warehouse.is_received' => '=',
+    'warehouse.article_class_id' => '=',
   ];
 
   public static array $sorts = [
