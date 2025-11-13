@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ap\ApCommercialMastersController;
+use App\Http\Controllers\ap\ApPostVentaMastersController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
@@ -38,6 +39,7 @@ use App\Http\Controllers\ap\maestroGeneral\WarehouseController;
 use App\Http\Controllers\ap\postventa\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\facturacion\BillingCatalogController;
 use App\Http\Controllers\ap\facturacion\ElectronicDocumentController;
+use App\Http\Controllers\ap\postventa\gestionProductos\ProductCategoryController;
 use App\Http\Controllers\Api\EvaluationNotificationController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
@@ -490,6 +492,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
    * Routes for Automotores Pakatnamu
    */
   Route::group(['prefix' => 'ap'], function () {
+    // Maestros Comercial
     Route::apiResource('commercialMasters', ApCommercialMastersController::class)->only([
       'index',
       'show',
@@ -497,6 +500,16 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       'update',
       'destroy'
     ]);
+
+    // Maestros Post Venta
+    Route::apiResource('postVentaMasters', ApPostVentaMastersController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
+
     Route::group(['prefix' => 'configuration'], function () {
       Route::apiResource('fuelType', ApFuelTypeController::class)->only([
         'index',
@@ -851,7 +864,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     //      POST-VENTA
     Route::group(['prefix' => 'postVenta'], function () {
-      Route::apiResource('ApprovedAccessories', ApprovedAccessoriesController::class)->only([
+      Route::apiResource('productCategory', ProductCategoryController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::apiResource('approvedAccessories', ApprovedAccessoriesController::class)->only([
         'index',
         'show',
         'store',

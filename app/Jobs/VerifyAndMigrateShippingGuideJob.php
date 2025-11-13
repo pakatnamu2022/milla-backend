@@ -6,6 +6,7 @@ use App\Http\Services\DatabaseSyncService;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\gp\gestionsistema\Company;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -95,14 +96,30 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       $shippingGuide->update(['migration_status' => 'in_progress']);
     }
 
-    // 1. Verificar y actualizar estado de transferencia de inventario
-    $this->verifyInventoryTransfer($shippingGuide);
+    // Determinar si es una guía de venta o transferencia
+    $isSale = $this->isSaleShippingGuide($shippingGuide);
 
-    // 2. Verificar y actualizar estado de detalle de transferencia
-    $this->verifyInventoryTransferDetail($shippingGuide);
+    if ($isSale) {
+      // Verificar guía de VENTA
+      // 1. Verificar y actualizar estado de transacción de inventario (venta)
+      $this->verifySaleInventoryTransaction($shippingGuide);
 
-    // 3. Verificar y actualizar estado de serial de transferencia
-    $this->verifyInventoryTransferSerial($shippingGuide);
+      // 2. Verificar y actualizar estado de detalle de transacción (venta)
+      $this->verifySaleInventoryTransactionDetail($shippingGuide);
+
+      // 3. Verificar y actualizar estado de serial de transacción (venta)
+      $this->verifySaleInventoryTransactionSerial($shippingGuide);
+    } else {
+      // Verificar guía de TRANSFERENCIA
+      // 1. Verificar y actualizar estado de transferencia de inventario
+      $this->verifyInventoryTransfer($shippingGuide);
+
+      // 2. Verificar y actualizar estado de detalle de transferencia
+      $this->verifyInventoryTransferDetail($shippingGuide);
+
+      // 3. Verificar y actualizar estado de serial de transferencia
+      $this->verifyInventoryTransferSerial($shippingGuide);
+    }
 
     // 4. Verificar si todo está completo
     $this->checkAndUpdateCompletionStatus($shippingGuide);
@@ -209,6 +226,170 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         $existingSerial->ProcesoError ?? null
       );
     }
+  }
+
+  /**
+   * Verifica el estado de la transacción de inventario (VENTA) en la BD intermedia
+   */
+  protected function verifySaleInventoryTransaction(ShippingGuides $shippingGuide): void
+  {
+    // Verificar tanto la versión normal como la reversión
+    $steps = [
+      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE,
+      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_REVERSAL
+    ];
+
+    foreach ($steps as $step) {
+      $transactionLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
+        ->where('step', $step)
+        ->first();
+
+      if (!$transactionLog) {
+        continue;
+      }
+
+      // Si ya está completado, no hacer nada
+      if ($transactionLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+        continue;
+      }
+
+      // Construir el TransaccionId
+      $transactionId = $this->buildSaleTransactionId($shippingGuide, $step);
+
+      // Verificar en la BD intermedia
+      $existingTransaction = DB::connection('dbtp')
+        ->table('neInTbTransaccionInventario')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('TransaccionId', $transactionId)
+        ->first();
+
+      if ($existingTransaction) {
+        // Actualizar el log con el estado de la BD intermedia
+        $transactionLog->updateProcesoEstado(
+          $existingTransaction->ProcesoEstado ?? 0,
+          $existingTransaction->ProcesoError ?? null
+        );
+      }
+    }
+  }
+
+  /**
+   * Verifica el estado del detalle de transacción de inventario (VENTA) en la BD intermedia
+   */
+  protected function verifySaleInventoryTransactionDetail(ShippingGuides $shippingGuide): void
+  {
+    // Verificar tanto la versión normal como la reversión
+    $steps = [
+      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL,
+      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL_REVERSAL
+    ];
+
+    foreach ($steps as $step) {
+      $detailLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
+        ->where('step', $step)
+        ->first();
+
+      if (!$detailLog) {
+        continue;
+      }
+
+      // Si ya está completado, no hacer nada
+      if ($detailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+        continue;
+      }
+
+      // Construir el TransaccionId
+      $transactionId = $this->buildSaleTransactionId($shippingGuide, $step);
+
+      // Verificar en la BD intermedia
+      $existingDetail = DB::connection('dbtp')
+        ->table('neInTbTransaccionInventarioDet')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('TransaccionId', $transactionId)
+        ->first();
+
+      if ($existingDetail) {
+        // Actualizar el log con el estado de la BD intermedia
+        $detailLog->updateProcesoEstado(
+          $existingDetail->ProcesoEstado ?? 0,
+          $existingDetail->ProcesoError ?? null
+        );
+      }
+    }
+  }
+
+  /**
+   * Verifica el estado del serial de transacción de inventario (VENTA) en la BD intermedia
+   */
+  protected function verifySaleInventoryTransactionSerial(ShippingGuides $shippingGuide): void
+  {
+    // Verificar tanto la versión normal como la reversión
+    $steps = [
+      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL,
+      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL_REVERSAL
+    ];
+
+    foreach ($steps as $step) {
+      $serialLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
+        ->where('step', $step)
+        ->first();
+
+      if (!$serialLog) {
+        continue;
+      }
+
+      // Si ya está completado, no hacer nada
+      if ($serialLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+        continue;
+      }
+
+      // Construir el TransaccionId
+      $transactionId = $this->buildSaleTransactionId($shippingGuide, $step);
+
+      // Verificar en la BD intermedia
+      $existingSerial = DB::connection('dbtp')
+        ->table('neInTbTransaccionInventarioDtS')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('TransaccionId', $transactionId)
+        ->where('Serie', $shippingGuide->vehicleMovement?->vehicle?->vin)
+        ->first();
+
+      if ($existingSerial) {
+        // Actualizar el log con el estado de la BD intermedia
+        $serialLog->updateProcesoEstado(
+          $existingSerial->ProcesoEstado ?? 0,
+          $existingSerial->ProcesoError ?? null
+        );
+      }
+    }
+  }
+
+  /**
+   * Determina si una guía de remisión es de venta
+   */
+  protected function isSaleShippingGuide(ShippingGuides $shippingGuide): bool
+  {
+    // transfer_reason_id = 1 es venta (SunatConcepts::TRANSFER_REASON_VENTA)
+    return $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA;
+  }
+
+  /**
+   * Construye el TransaccionId para guías de venta
+   */
+  protected function buildSaleTransactionId(ShippingGuides $shippingGuide, string $step): string
+  {
+    // Determinar el prefijo según el tipo de guía
+    $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'TVEN-' : 'TSAL-';
+
+    // Construir el TransaccionId base
+    $transactionId = $prefix . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT);
+
+    // Si es una reversión, agregar asterisco
+    if (str_contains($step, 'REVERSAL')) {
+      $transactionId .= '*';
+    }
+
+    return $transactionId;
   }
 
   /**
