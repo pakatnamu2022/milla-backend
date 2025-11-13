@@ -188,6 +188,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       'vin' => $data['vin'],
       'year' => $data['year'],
       'engine_number' => $data['engine_number'],
+      'warehouse_id' => $data['warehouse_id'],
       'ap_models_vn_id' => $data['ap_models_vn_id'],
       'vehicle_color_id' => $data['vehicle_color_id'],
       'engine_type_id' => $data['engine_type_id'],

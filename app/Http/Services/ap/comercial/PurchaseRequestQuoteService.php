@@ -378,6 +378,11 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'items',
         'creator'
       ])
+      ->whereNull('credit_note_id')
+      ->where(function ($query) use ($purchaseRequestQuoteId) {
+        $query->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_FACTURA)
+          ->orWhere('sunat_concept_document_type_id', ElectronicDocument::TYPE_BOLETA);
+      })
       ->where('anulado', false)
       ->where('aceptada_por_sunat', true)
       ->orderBy('fecha_de_emision', 'desc')

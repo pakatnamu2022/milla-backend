@@ -16,6 +16,7 @@ class ElectronicDocumentItem extends BaseModel
 
   protected $fillable = [
     'ap_billing_electronic_document_id',
+    'reference_document_id',
     'account_plan_id',
     'line_number',
     'unidad_de_medida',
@@ -83,6 +84,11 @@ class ElectronicDocumentItem extends BaseModel
   /**
    * Relaciones
    */
+  public function referenceDocument(): BelongsTo
+  {
+    return $this->belongsTo(ElectronicDocument::class, 'reference_document_id');
+  }
+
   public function electronicDocument(): BelongsTo
   {
     return $this->belongsTo(ElectronicDocument::class, 'ap_billing_electronic_document_id');

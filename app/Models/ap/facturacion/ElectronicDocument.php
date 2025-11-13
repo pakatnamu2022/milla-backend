@@ -2,15 +2,18 @@
 
 namespace App\Models\ap\facturacion;
 
+use App\Http\Services\BaseService;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\comercial\Vehicles;
 use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ElectronicDocument extends BaseModel
@@ -23,6 +26,8 @@ class ElectronicDocument extends BaseModel
     'sunat_concept_document_type_id',
     'serie',
     'numero',
+    'full_number',
+    'is_advance_payment',
     'sunat_concept_transaction_type_id',
     'origin_module',
     'origin_entity_type',
@@ -30,6 +35,8 @@ class ElectronicDocument extends BaseModel
     'ap_vehicle_movement_id',
     'client_id',
     'purchase_request_quote_id',
+    'credit_note_id',
+    'debit_note_id',
     'sunat_concept_identity_document_type_id',
     'cliente_numero_de_documento',
     'cliente_denominacion',
@@ -135,22 +142,23 @@ class ElectronicDocument extends BaseModel
   ];
 
   const array filters = [
-    'id',
-    'sunat_concept_document_type_id',
-    'serie',
-    'numero',
-    'origin_module',
-    'origin_entity_type',
-    'origin_entity_id',
-    'ap_vehicle_movement_id',
-    'purchase_request_quote_id',
-    'cliente_numero_de_documento',
-    'sunat_concept_currency_id',
-    'status',
-    'aceptada_por_sunat',
-    'anulado',
-    'fecha_de_emision',
-    'created_by',
+    'search' => ['full_number', 'cliente_denominacion', 'cliente_numero_de_documento'],
+    'is_advance_payment' => '=',
+    'sunat_concept_document_type_id' => '=',
+    'serie' => '=',
+    'numero' => '=',
+    'origin_module' => '=',
+    'origin_entity_type' => '=',
+    'origin_entity_id' => '=',
+    'ap_vehicle_movement_id' => '=',
+    'purchase_request_quote_id' => '=',
+    'cliente_numero_de_documento' => '=',
+    'sunat_concept_currency_id' => '=',
+    'status' => '=',
+    'aceptada_por_sunat' => '=',
+    'anulado' => '=',
+    'fecha_de_emision' => '=',
+    'created_by' => '=',
   ];
 
   const array sorts = ['id', 'fecha_de_emision', 'numero', 'total'];
@@ -173,8 +181,30 @@ class ElectronicDocument extends BaseModel
   const MODULE_POSVENTA = 'posventa';
 
   /**
+   * Booted
+   */
+  protected static function booted()
+  {
+    static::saving(function ($model) {
+      $service = new BaseService();
+      $numero = $service->completeNumber($model->numero);
+      $model->full_number = "{$model->serie}-{$numero}";
+    });
+  }
+
+  /**
    * Relaciones
    */
+  public function creditNote(): BelongsTo
+  {
+    return $this->belongsTo(ElectronicDocument::class, 'credit_note_id');
+  }
+
+  public function debitNote(): BelongsTo
+  {
+    return $this->belongsTo(ElectronicDocument::class, 'debit_note_id');
+  }
+
   public function documentType(): BelongsTo
   {
     return $this->belongsTo(SunatConcepts::class, 'sunat_concept_document_type_id');
@@ -213,6 +243,18 @@ class ElectronicDocument extends BaseModel
   public function vehicleMovement(): BelongsTo
   {
     return $this->belongsTo(VehicleMovement::class, 'ap_vehicle_movement_id');
+  }
+
+  public function vehicle(): HasOneThrough
+  {
+    return $this->hasOneThrough(
+      Vehicles::class,           // Modelo destino final
+      VehicleMovement::class,    // Modelo intermedio
+      'id',                      // Clave en VehicleMovement que se une con Trip (foreign key local)
+      'id',                      // Clave en Vehicles a la que se une VehicleMovement
+      'ap_vehicle_movement_id',  // Clave en Trip que apunta a VehicleMovement
+      'ap_vehicle_id'            // Clave en VehicleMovement que apunta a Vehicles
+    );
   }
 
   public function client(): BelongsTo
@@ -296,7 +338,7 @@ class ElectronicDocument extends BaseModel
 
   public function scopeAnticipos($query)
   {
-    return $query->where('sunat_concept_transaction_type_id', SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS);
+    return $query->where('is_advance_payment', true);
   }
 
   public function scopeByOriginEntity($query, string $module, string $entityType, int $entityId)
@@ -455,7 +497,7 @@ class ElectronicDocument extends BaseModel
    */
   public function isAnticipo(): bool
   {
-    return $this->sunat_concept_transaction_type_id === SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
+    return $this->is_advance_payment;
   }
 
   public function isRegularized(): bool

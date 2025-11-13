@@ -7,7 +7,6 @@ use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\Warehouse;
-use App\Models\gp\maestroGeneral\Sede;
 use App\Models\ap\compras\PurchaseOrder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,6 +26,7 @@ class Vehicles extends Model
     'year',
     'engine_number',
     'ap_models_vn_id',
+    'warehouse_id',
     'vehicle_color_id',
     'engine_type_id',
     'ap_vehicle_status_id',
@@ -42,6 +42,7 @@ class Vehicles extends Model
   public static array $filters = [
     'search' => ['vin', 'engine_number', 'year', 'ap_vehicle_status_id'],
     'ap_models_vn_id' => '=',
+    'warehouse_id' => '=',
     'ap_vehicle_status_id' => 'in',
     'vehicle_color_id' => '=',
     'engine_type_id' => '=',
@@ -94,6 +95,11 @@ class Vehicles extends Model
   public function warehousePhysical(): BelongsTo
   {
     return $this->belongsTo(Warehouse::class, 'warehouse_physical_id');
+  }
+
+  public function warehouse(): BelongsTo
+  {
+    return $this->belongsTo(Warehouse::class, 'warehouse_id');
   }
 
   public function vehicleMovements(): HasMany

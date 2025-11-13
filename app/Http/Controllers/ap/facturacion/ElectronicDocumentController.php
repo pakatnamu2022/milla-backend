@@ -5,6 +5,8 @@ namespace App\Http\Controllers\ap\facturacion;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\facturacion\IndexElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\NextCorrelativeElectronicDocumentRequest;
+use App\Http\Requests\ap\facturacion\StoreCreditNoteRequest;
+use App\Http\Requests\ap\facturacion\StoreDebitNoteRequest;
 use App\Http\Requests\ap\facturacion\StoreElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\UpdateElectronicDocumentRequest;
 use App\Http\Services\ap\facturacion\ElectronicDocumentService;
@@ -13,6 +15,7 @@ use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Exception;
+use function json_encode;
 
 class ElectronicDocumentController extends Controller
 {
@@ -61,6 +64,7 @@ class ElectronicDocumentController extends Controller
   public function store(StoreElectronicDocumentRequest $request): JsonResponse
   {
     try {
+//      throw new Exception(json_encode($request->validated()));
       return $this->success($this->service->store($request->validated()));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
@@ -154,10 +158,13 @@ class ElectronicDocumentController extends Controller
   /**
    * Create credit note from existing document
    */
-  public function createCreditNote(Request $request, $id): JsonResponse
+  public function createCreditNote(StoreCreditNoteRequest $request, $id): JsonResponse
   {
     try {
-      $creditNote = $this->service->createCreditNote($id, $request->all());
+      $data = $request->validated();
+      $data['original_document_id'] = $id;
+
+      $creditNote = $this->service->createCreditNote($id, $data);
 
       return $this->success([
         'success' => true,
@@ -172,10 +179,13 @@ class ElectronicDocumentController extends Controller
   /**
    * Create debit note from existing document
    */
-  public function createDebitNote(Request $request, $id): JsonResponse
+  public function createDebitNote(StoreDebitNoteRequest $request, $id): JsonResponse
   {
     try {
-      $debitNote = $this->service->createDebitNote($id, $request->all());
+      $data = $request->validated();
+      $data['original_document_id'] = $id;
+
+      $debitNote = $this->service->createDebitNote($id, $data);
 
       return $this->success([
         'success' => true,
@@ -212,6 +222,57 @@ class ElectronicDocumentController extends Controller
       $filename = "documento-electronico-{$document->serie}-{$document->numero}.pdf";
 
       return $pdf->download($filename);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function nextCreditNoteNumber(NextCorrelativeElectronicDocumentRequest $request, $id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->nextCreditNoteNumber($request->validated(), $id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function nextDebitNoteNumber(NextCorrelativeElectronicDocumentRequest $request, $id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->nextDebitNoteNumber($request->validated(), $id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Sync electronic document to Dynamics 365
+   */
+  public function syncToDynamics($id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->syncToDynamics($id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Get sync status for electronic document
+   */
+  public function getSyncStatus($id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->getSyncStatus($id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function checkResources($id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->checkResources($id));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

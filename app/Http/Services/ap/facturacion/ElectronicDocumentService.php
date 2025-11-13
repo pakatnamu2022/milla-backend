@@ -3,11 +3,16 @@
 namespace App\Http\Services\ap\facturacion;
 
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
+use App\Http\Resources\Dynamics\SalesDocumentDetailDynamicsResource;
+use App\Http\Resources\Dynamics\SalesDocumentDynamicsResource;
+use App\Http\Resources\Dynamics\SalesDocumentSerialDynamicsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\facturacion\ElectronicDocumentItem;
+use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
@@ -15,6 +20,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use NumberFormatter;
 
 class ElectronicDocumentService extends BaseService implements BaseServiceInterface
 {
@@ -77,19 +83,34 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    * @param string $documentType
    * @param string $series
    * @return int
+   * @throws Exception
    */
   public function nextDocumentNumber(string $documentType, string $series): array
   {
-    $startCorrelative = 0;
     $query = ElectronicDocument::where('sunat_concept_document_type_id', $documentType)
       ->where('serie', $series)
       ->whereNull('deleted_at');
 
+    /**
+     * TODO: Delete this block and always use nextCorrelativeQuery
+     */
     if ($query->count() == 0) {
-      $startCorrelative = 13;
+      if (($documentType == ElectronicDocument::TYPE_FACTURA || $documentType == ElectronicDocument::TYPE_BOLETA)) {
+        $startCorrelative = 1;
+        $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelative;
+      } else if ($documentType == ElectronicDocument::TYPE_NOTA_CREDITO) {
+        $startCorrelativeNC = 0;
+        $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelativeNC;
+      } else if ($documentType == ElectronicDocument::TYPE_NOTA_DEBITO) {
+        $startCorrelativeND = 0;
+        $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelativeND;
+      } else {
+        throw new Exception('El tipo de documento no es valido');
+      }
+    } else {
+      $correlative = (int)$this->nextCorrelativeQuery($query, 'numero');
     }
 
-    $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelative;
     $number = $this->completeNumber($correlative);
     return ["number" => $number];
   }
@@ -385,14 +406,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           'enlace_del_pdf' => $nubefactData['enlace_del_pdf'],
           'enlace_del_xml' => $nubefactData['enlace_del_xml'],
         ]);
-        $message = 'Documento enviado correctamente a SUNAT';
       }
 
       DB::commit();
 
       return response()->json([
         'success' => true,
-        'message' => $message,
+        'message' => 'Documento procesado correctamente',
         'data' => new ElectronicDocumentResource($document->fresh()),
         'sunat_response' => $nubefactData
       ]);
@@ -422,7 +442,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       DB::beginTransaction();
 
-      // Si el documento fue aceptado por SUNAT, actualizar usando el método del modelo
+      // Si el documento fue aceptado por SUNAT, actualizar usando el metodo del modelo
       if (isset($nubefactData['aceptada_por_sunat']) && $nubefactData['aceptada_por_sunat'] && !$document->aceptada_por_sunat) {
         $document->markAsAccepted($nubefactData);
       }
@@ -433,6 +453,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         if ($document->status !== ElectronicDocument::STATUS_CANCELLED || !$document->anulado) {
           $document->markAsCancelled();
         }
+      }
+
+      if ($nubefactData['aceptada_por_sunat'] !== $document->aceptada_por_sunat) {
+        $document->aceptada_por_sunat = $nubefactData['aceptada_por_sunat'];
+        $document->save();
       }
 
       DB::commit();
@@ -472,6 +497,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         throw new Exception('El documento ya está anulado');
       }
 
+      $electronicDocumentItem = ElectronicDocumentItem::where('anticipo_documento_serie', $document->serie)
+        ->where('anticipo_documento_numero', $document->numero)
+        ->whereNull('deleted_at');
+
+      if ($electronicDocumentItem->count() > 0) {
+        throw new Exception('El documento no se puede anular porque tiene anticipos asociados');
+      }
+
       // Enviar anulación a Nubefact
       $response = $this->nubefactService->cancelDocument($document, $reason);
 
@@ -498,6 +531,80 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
+   * Calculate totals from items array
+   * @param array $items
+   * @return array
+   */
+  private function calculateTotalsFromItemsNotes(array $items): array
+  {
+    $totals = [
+      'total_gravada' => 0,
+      'total_inafecta' => 0,
+      'total_exonerada' => 0,
+      'total_igv' => 0,
+      'total_gratuita' => 0,
+      'total_descuento' => 0,
+      'total_anticipo' => 0,
+      'total_otros_cargos' => 0,
+      'total_isc' => 0,
+      'total' => 0,
+    ];
+
+    foreach ($items as $item) {
+      // Verificar si es un item de anticipo regularización
+      $isAnticipo = isset($item['anticipo_regularizacion']) && $item['anticipo_regularizacion'] === true;
+
+      // Determinar el multiplicador (1 para items normales, -1 para anticipos)
+      $multiplier = $isAnticipo ? -1 : 1;
+
+      // Acumular IGV (restar si es anticipo)
+      $totals['total_igv'] += $multiplier * (float)($item['igv'] ?? 0);
+
+      // Acumular descuentos
+      $totals['total_descuento'] += (float)($item['descuento'] ?? 0);
+
+      // Acumular total anticipo (siempre positivo)
+      if ($isAnticipo) {
+        $totals['total_anticipo'] += (float)($item['total'] ?? 0);
+      }
+
+      // Acumular total (restar si es anticipo)
+      $totals['total'] += $multiplier * (float)($item['total'] ?? 0);
+
+      // Determinar el tipo de IGV y acumular en el total correspondiente
+      $igvTypeId = $item['sunat_concept_igv_type_id'] ?? null;
+      $subtotal = (float)($item['subtotal'] ?? 0);
+
+      // Buscar el código del tipo de IGV
+      $igvType = SunatConcepts::find($igvTypeId);
+      $igvCode = $igvType->code_nubefact ?? null;
+
+      if ($igvCode) {
+        if ($igvCode == '1') {
+          // Gravado - Operación Onerosa (restar si es anticipo)
+          $totals['total_gravada'] += $multiplier * $subtotal;
+        } elseif ($igvCode == '20') {
+          // Exonerado - Operación Onerosa (restar si es anticipo)
+          $totals['total_exonerada'] += $multiplier * $subtotal;
+        } elseif ($igvCode == '30') {
+          // Inafecto - Operación Onerosa (restar si es anticipo)
+          $totals['total_inafecta'] += $multiplier * $subtotal;
+        } elseif (in_array($igvCode, ['11', '12', '13', '14', '15', '16', '17', '21', '31', '32', '33', '34', '35', '36', '37'])) {
+          // Operaciones gratuitas (restar si es anticipo)
+          $totals['total_gratuita'] += $multiplier * $subtotal;
+        }
+      }
+    }
+
+    // Redondear a 2 decimales
+    foreach ($totals as $key => $value) {
+      $totals[$key] = round($value, 2);
+    }
+
+    return $totals;
+  }
+
+  /**
    * Create a credit note from an existing document
    * @throws Exception
    */
@@ -512,19 +619,61 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         throw new Exception('Solo se pueden crear notas de crédito para documentos aceptados por SUNAT');
       }
 
+      // Calcular totales desde items si no se proporcionan
+      if (isset($data['items']) && is_array($data['items'])) {
+        $calculatedTotals = $this->calculateTotalsFromItemsNotes($data['items']);
+
+        // Log para debug
+        Log::info('Totales calculados para NC', [
+          'calculated' => $calculatedTotals,
+          'items_count' => count($data['items']),
+          'items' => $data['items']
+        ]);
+
+        // Merge calculated totals only if not provided by user
+        foreach ($calculatedTotals as $key => $value) {
+          if (!isset($data[$key])) {
+            $data[$key] = $value;
+          }
+        }
+      }
+
+      // Copiar moneda y tipo de cambio del documento original
+      if (!isset($data['sunat_concept_currency_id'])) {
+        $data['sunat_concept_currency_id'] = $originalDocument->sunat_concept_currency_id;
+      }
+      if (!isset($data['tipo_de_cambio'])) {
+        $data['tipo_de_cambio'] = $originalDocument->tipo_de_cambio;
+      }
+
+      // Copiar cliente del documento original
+      if (!isset($data['client_id'])) {
+        $data['client_id'] = $originalDocument->client_id;
+      }
+
+      // Copiar tipo de transacción del documento original
+      if (!isset($data['sunat_concept_transaction_type_id'])) {
+        $data['sunat_concept_transaction_type_id'] = $originalDocument->sunat_concept_transaction_type_id;
+      }
+
       // Preparar datos de la nota de crédito
       $creditNoteData = array_merge($data, [
         'sunat_concept_document_type_id' => ElectronicDocument::TYPE_NOTA_CREDITO,
-        'documento_que_se_modifica_tipo' => $originalDocument->sunat_concept_document_type_id,
+        'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
         'origin_module' => $originalDocument->origin_module,
         'origin_entity_type' => $originalDocument->origin_entity_type,
         'origin_entity_id' => $originalDocument->origin_entity_id,
+        'purchase_request_quote_id' => $originalDocument->purchase_request_quote_id ?? null,
       ]);
 
       // Crear la nota de crédito
       $creditNote = $this->store($creditNoteData);
+
+      $originalDocument->update([
+        'credit_note_id' => $creditNote->id,
+      ]);
 
       DB::commit();
       return $creditNote;
@@ -554,19 +703,68 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         throw new Exception('Solo se pueden crear notas de débito para documentos aceptados por SUNAT');
       }
 
+      // Calcular totales desde items si no se proporcionan
+      if (isset($data['items']) && is_array($data['items'])) {
+        $calculatedTotals = $this->calculateTotalsFromItemsNotes($data['items']);
+
+        // Merge calculated totals only if not provided by user
+        foreach ($calculatedTotals as $key => $value) {
+          if (!isset($data[$key])) {
+            $data[$key] = $value;
+          }
+        }
+      }
+
+      // Copiar moneda y tipo de cambio del documento original
+      if (!isset($data['sunat_concept_currency_id'])) {
+        $data['sunat_concept_currency_id'] = $originalDocument->sunat_concept_currency_id;
+      }
+      if (!isset($data['tipo_de_cambio'])) {
+        $data['tipo_de_cambio'] = $originalDocument->tipo_de_cambio;
+      }
+
+      // Copiar cliente del documento original
+      if (!isset($data['client_id'])) {
+        $data['client_id'] = $originalDocument->client_id;
+      }
+
+      // Copiar tipo de transacción del documento original
+      if (!isset($data['sunat_concept_transaction_type_id'])) {
+        $data['sunat_concept_transaction_type_id'] = $originalDocument->sunat_concept_transaction_type_id;
+      }
+
       // Preparar datos de la nota de débito
       $debitNoteData = array_merge($data, [
         'sunat_concept_document_type_id' => ElectronicDocument::TYPE_NOTA_DEBITO,
-        'documento_que_se_modifica_tipo' => $originalDocument->sunat_concept_document_type_id,
+        'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
         'origin_module' => $originalDocument->origin_module,
         'origin_entity_type' => $originalDocument->origin_entity_type,
         'origin_entity_id' => $originalDocument->origin_entity_id,
+        'purchase_request_quote_id' => $originalDocument->purchase_request_quote_id ?? null,
       ]);
+
+      // Validar límite razonable para notas de débito (200% del original)
+      $originalTotal = (float)$originalDocument->total;
+      $debitNoteTotal = (float)$debitNoteData['total'];
+      $maxAllowedTotal = $originalTotal * 2;
+
+      if ($debitNoteTotal > $maxAllowedTotal) {
+        throw new Exception(sprintf(
+          'El total de la nota de débito (%.2f) excede el límite permitido (%.2f). El total no puede ser mayor al 200%% del documento original (%.2f)',
+          $debitNoteTotal,
+          $maxAllowedTotal,
+          $originalTotal
+        ));
+      }
 
       // Crear la nota de débito
       $debitNote = $this->store($debitNoteData);
+
+      $originalDocument->update([
+        'debit_note_id' => $debitNote->id,
+      ]);
 
       DB::commit();
       return $debitNote;
@@ -855,12 +1053,206 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    */
   private function convertNumberToWords($number): string
   {
-    $formatter = new \NumberFormatter('es', \NumberFormatter::SPELLOUT);
+    $formatter = new NumberFormatter('es', NumberFormatter::SPELLOUT);
     $integerPart = floor($number);
     $decimalPart = round(($number - $integerPart) * 100);
 
     $words = strtoupper($formatter->format($integerPart));
 
     return "{$words} CON {$decimalPart}/100";
+  }
+
+  /**
+   * @throws Exception
+   */
+  public function nextCreditNoteNumber(array $data, $id): array
+  {
+    /**
+     * TODO: Change series to series_id in the future
+     */
+    $series = AssignSalesSeries::find($data['series']);
+    $electronicDocument = $this->find($id);
+    $electronicDocumentItem = ElectronicDocumentItem::where('anticipo_documento_serie', $electronicDocument->serie)
+      ->where('anticipo_documento_numero', $electronicDocument->numero)
+      ->whereNull('deleted_at');
+
+    if ($electronicDocumentItem->count() > 0) {
+      throw new Exception('El anticipo ya ha sido regularizado, no se puede crear una nota de crédito. En su lugar cree una nota de crédito para el documento de regularización.');
+    }
+
+    return [
+      'series' => $series->series,
+      'number' => $this->nextDocumentNumber(
+        ElectronicDocument::TYPE_NOTA_CREDITO,
+        $series->series
+      )['number']
+    ];
+
+  }
+
+  /**
+   * @throws Exception
+   */
+  public function nextDebitNoteNumber(array $data, $id): array
+  {
+    /**
+     * TODO: Change series to series_id in the future
+     */
+    $series = AssignSalesSeries::find($data['series']);
+    $electronicDocument = $this->find($id);
+    $electronicDocumentItem = ElectronicDocumentItem::where('anticipo_documento_serie', $electronicDocument->serie)
+      ->where('anticipo_documento_numero', $electronicDocument->numero)
+      ->whereNull('deleted_at');
+
+    if ($electronicDocumentItem->count() > 0) {
+      throw new Exception('El anticipo ya ha sido regularizado, no se puede crear una nota de débito. En su lugar cree una nota de débito para el documento de regularización.');
+    }
+
+    return [
+      'series' => $series->series,
+      'number' => $this->nextDocumentNumber(
+        ElectronicDocument::TYPE_NOTA_DEBITO,
+        $series->series
+      )['number']
+    ];
+
+  }
+
+  /**
+   * Sync electronic document to Dynamics 365
+   *
+   * @param int $id
+   * @return array
+   * @throws Exception
+   */
+  public function syncToDynamics(int $id): array
+  {
+    $document = $this->find($id);
+
+    if (!$document) {
+      throw new Exception('Documento electrónico no encontrado');
+    }
+
+    if ($document->anulado) {
+      throw new Exception('No se puede sincronizar un documento anulado');
+    }
+
+    // Dispatch the sync job
+    \App\Jobs\SyncSalesDocumentJob::dispatch($id);
+
+    return [
+      'success' => true,
+      'message' => 'Sincronización con Dynamics iniciada correctamente',
+      'document_id' => $id,
+      'document_number' => $document->document_number,
+    ];
+  }
+
+  /**
+   * Get sync status for electronic document
+   *
+   * @param int $id
+   * @return array
+   * @throws Exception
+   */
+  public function getSyncStatus(int $id): array
+  {
+    $document = $this->find($id);
+
+    if (!$document) {
+      throw new Exception('Documento electrónico no encontrado');
+    }
+
+    // Get all migration logs for this document
+    $logs = \App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $id)
+      ->orderBy('step')
+      ->get()
+      ->map(function ($log) {
+        return [
+          'step' => $log->step,
+          'table_name' => $log->table_name,
+          'status' => $log->status,
+          'proceso_estado' => $log->proceso_estado,
+          'error_message' => $log->error_message,
+          'attempts' => $log->attempts,
+          'last_attempt_at' => $log->last_attempt_at,
+          'completed_at' => $log->completed_at,
+        ];
+      });
+
+    // Determine overall sync status
+    $allCompleted = $logs->every(fn($log) => $log['status'] === 'completed');
+    $anyFailed = $logs->contains(fn($log) => $log['status'] === 'failed');
+    $anyInProgress = $logs->contains(fn($log) => $log['status'] === 'in_progress');
+
+    $overallStatus = 'not_started';
+    if ($logs->isNotEmpty()) {
+      if ($allCompleted) {
+        $overallStatus = 'completed';
+      } elseif ($anyFailed) {
+        $overallStatus = 'failed';
+      } elseif ($anyInProgress) {
+        $overallStatus = 'in_progress';
+      } else {
+        $overallStatus = 'pending';
+      }
+    }
+
+    // Check intermediate database status if completed
+    $dynamicsStatus = null;
+    if ($allCompleted) {
+      $tipoId = match ($document->sunat_concept_document_type_id) {
+        ElectronicDocument::TYPE_FACTURA => '01',
+        ElectronicDocument::TYPE_BOLETA => '03',
+        ElectronicDocument::TYPE_NOTA_CREDITO => '07',
+        ElectronicDocument::TYPE_NOTA_DEBITO => '08',
+        default => '01',
+      };
+
+      $documentoId = "{$tipoId}-{$document->serie}-{$document->numero}";
+
+      try {
+        $dynamicsRecord = \DB::connection('dbtp')
+          ->table('neInTbVenta')
+          ->where('EmpresaId', \App\Models\gp\gestionsistema\Company::AP_DYNAMICS)
+          ->where('DocumentoId', $documentoId)
+          ->first();
+
+        if ($dynamicsRecord) {
+          $dynamicsStatus = [
+            'found' => true,
+            'proceso_estado' => $dynamicsRecord->ProcesoEstado,
+            'proceso_error' => $dynamicsRecord->ProcesoError,
+            'fecha_proceso' => $dynamicsRecord->FechaProceso,
+            'processed_by_dynamics' => $dynamicsRecord->ProcesoEstado === 1,
+          ];
+        }
+      } catch (\Exception $e) {
+        $dynamicsStatus = [
+          'found' => false,
+          'error' => $e->getMessage(),
+        ];
+      }
+    }
+
+    return [
+      'document_id' => $id,
+      'document_number' => $document->document_number,
+      'overall_status' => $overallStatus,
+      'sync_steps' => $logs,
+      'dynamics_status' => $dynamicsStatus,
+    ];
+  }
+
+  public function checkResources($id)
+  {
+    $document = $this->find($id);
+    return [
+      'sale' => new SalesDocumentDynamicsResource($document),
+      'items' => $document->items()->get()->map(function ($item) use ($document) {
+        return new SalesDocumentDetailDynamicsResource($item, $document);
+      }),
+      'series' => new SalesDocumentSerialDynamicsResource($document)
+    ];
   }
 }

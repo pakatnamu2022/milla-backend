@@ -15,6 +15,9 @@ class NextCorrelativeElectronicDocumentRequest extends StoreRequest
   {
     $userId = $this->user()->id;
     return [
+      /**
+       * TODO: Change name to 'document_type_id' to avoid confusion with document type string
+       */
       'document_type' => [
         'required',
         'integer',
@@ -22,6 +25,9 @@ class NextCorrelativeElectronicDocumentRequest extends StoreRequest
           ->where('type', SunatConcepts::BILLING_DOCUMENT_TYPE)
           ->whereNull('deleted_at')->where('status', 1)
       ],
+      /**
+       * TODO: Change name to 'series_id' to avoid confusion with document series string
+       */
       'series' => [
         'required',
         'integer',

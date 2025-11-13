@@ -80,6 +80,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
 
     // Convertir strings booleanos
     $booleanFields = [
+      'is_advance_payment',
       'detraccion',
       'enviar_automaticamente_a_la_sunat',
       'enviar_automaticamente_al_cliente',
@@ -173,6 +174,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
   {
     $userId = $this->user()->id;
     return [
+      'is_advance_payment' => 'required|boolean',
       // Tipo de documento y serie
       'sunat_concept_document_type_id' => [
         'required',
@@ -292,6 +294,15 @@ class StoreElectronicDocumentRequest extends StoreRequest
 
       // Items (obligatorios)
       'items' => 'required|array|min:1',
+      'items.*.reference_document_id' => [
+        'nullable',
+        'required_if:items.*.anticipo_regularizacion,true',
+        'integer',
+        Rule::exists('ap_billing_electronic_documents', 'id')
+          ->whereNull('deleted_at')
+          ->where('aceptada_por_sunat', true)
+          ->where('anulado', false)
+      ],
       'items.*.account_plan_id' => [
         'required',
         'integer',
@@ -301,7 +312,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'items.*.unidad_de_medida' => 'required|string|max:3',
       'items.*.codigo' => 'nullable|string|max:30',
       'items.*.codigo_producto_sunat' => 'nullable|string|max:8',
-      'items.*.descripcion' => 'required|string|max:250',
+      'items.*.descripcion' => 'required|string',
       'items.*.cantidad' => 'required|numeric|min:0.0000000001',
       'items.*.valor_unitario' => 'required|numeric|min:0',
       'items.*.precio_unitario' => 'required|numeric|min:0',

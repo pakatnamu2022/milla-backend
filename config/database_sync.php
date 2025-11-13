@@ -660,4 +660,107 @@ return [
       ],
     ]
   ],
+
+  //  Configuración para la entidad "sales_document" (Cabecera de Venta)
+  'sales_document' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbVenta',
+      'mapping' => [
+        'EmpresaId' => fn($data) => $data['EmpresaId'],
+        'TipoId' => fn($data) => $data['TipoId'],
+        'DocumentoId' => fn($data) => $data['DocumentoId'],
+        'LoteId' => fn($data) => $data['LoteId'],
+        'ClienteId' => fn($data) => $data['ClienteId'],
+        'TerritorioId' => fn($data) => $data['TerritorioId'],
+        'VendedorId' => fn($data) => $data['VendedorId'],
+        'FechaEmision' => fn($data) => $data['FechaEmision'],
+        'FechaContable' => fn($data) => $data['FechaContable'],
+        'TipoComprobanteId' => fn($data) => $data['TipoComprobanteId'],
+        'Serie' => fn($data) => $data['Serie'],
+        'Correlativo' => fn($data) => $data['Correlativo'],
+        'MonedaId' => fn($data) => $data['MonedaId'],
+        'TipoTasaId' => fn($data) => $data['TipoTasaId'],
+        'TasaCambio' => fn($data) => $data['TasaCambio'],
+        'PlanImpuestoId' => fn($data) => $data['PlanImpuestoId'],
+        'TipoOperacionDetraccionId' => fn($data) => $data['TipoOperacionDetraccionId'] ?? '',
+        'CategoriaDetraccionId' => fn($data) => $data['CategoriaDetraccionId'] ?? '',
+        'SitioPredeterminadoId' => fn($data) => $data['SitioPredeterminadoId'],
+        'UsuarioId' => fn($data) => $data['UsuarioId'],
+        'Procesar' => fn($data) => $data['Procesar'],
+        'ProcesoEstado' => fn($data) => $data['ProcesoEstado'],
+        'ProcesoError' => fn($data) => $data['ProcesoError'],
+        'FechaProceso' => fn($data) => $data['FechaProceso'],
+        'Total' => fn($data) => $data['Total'],
+        'Detraccion' => fn($data) => $data['Detraccion'],
+        'EsAnticipo' => fn($data) => $data['EsAnticipo'],
+        'ApAnticipo' => fn($data) => $data['ApAnticipo'],
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'DocumentoId',
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false,
+      ],
+    ]
+  ],
+
+  //  Configuración para la entidad "sales_document_detail" (Detalle de Venta)
+  'sales_document_detail' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbVentaDt',
+      'mapping' => [
+        'EmpresaId' => fn($data) => $data['EmpresaId'],
+        'DocumentoId' => fn($data) => $data['DocumentoId'],
+        'Linea' => fn($data) => $data['Linea'],
+        'ArticuloId' => fn($data) => $data['ArticuloId'],
+        'ArticuloDescripcionCorta' => fn($data) => $data['ArticuloDescripcionCorta'],
+        'ArticuloDescripcionLarga' => fn($data) => $data['ArticuloDescripcionLarga'],
+        'SitioId' => fn($data) => $data['SitioId'],
+        'UnidadMedidaId' => fn($data) => $data['UnidadMedidaId'],
+        'Cantidad' => fn($data) => $data['Cantidad'],
+        'PrecioUnitario' => fn($data) => $data['PrecioUnitario'],
+        'PrecioTotal' => fn($data) => $data['PrecioTotal'],
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'DocumentoId',
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false,
+      ],
+    ]
+  ],
+
+  //  Configuración para la entidad "sales_document_serial" (Series de Venta)
+  'sales_document_serial' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbVentaDtS',
+      'mapping' => [
+        'EmpresaId' => fn($data) => $data['EmpresaId'],
+        'DocumentoId' => fn($data) => $data['DocumentoId'],
+        'Linea' => fn($data) => $data['Linea'],
+        'Serie' => fn($data) => $data['Serie'],
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'DocumentoId',
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false,
+      ],
+    ]
+  ],
 ];

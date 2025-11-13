@@ -21,6 +21,7 @@ class ElectronicDocumentResource extends JsonResource
       'sunat_concept_document_type_id' => $this->sunat_concept_document_type_id,
       'serie' => $this->serie,
       'numero' => $this->numero,
+      'full_number' => $this->full_number,
       'sunat_concept_transaction_type_id' => $this->sunat_concept_transaction_type_id,
       'origin_module' => $this->origin_module, // COMERCIAL O POSVENTA
       'origin_entity_type' => $this->origin_entity_type,
@@ -28,6 +29,8 @@ class ElectronicDocumentResource extends JsonResource
       'ap_vehicle_movement_id' => $this->ap_vehicle_movement_id,
       'client_id' => $this->client_id,
       'purchase_request_quote_id' => $this->purchase_request_quote_id,
+      'credit_note_id' => $this->credit_note_id,
+      'debit_note_id' => $this->debit_note_id,
       'sunat_concept_identity_document_type_id' => $this->sunat_concept_identity_document_type_id,
       'cliente_numero_de_documento' => $this->cliente_numero_de_documento,
       'cliente_denominacion' => $this->cliente_denominacion,

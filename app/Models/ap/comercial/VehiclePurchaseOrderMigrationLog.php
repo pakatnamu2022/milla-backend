@@ -13,6 +13,7 @@ class VehiclePurchaseOrderMigrationLog extends Model
   protected $fillable = [
     'vehicle_purchase_order_id',
     'shipping_guide_id',
+    'electronic_document_id',
     'ap_vehicles_id',
     'step',
     'status',
@@ -52,6 +53,13 @@ class VehiclePurchaseOrderMigrationLog extends Model
   const STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL = 'inventory_transfer_detail_REVERSAL';
   const STEP_INVENTORY_TRANSFER_SERIAL_REVERSAL = 'inventory_transfer_serial_REVERSAL';
 
+  // Constantes para los pasos de migración (Sales Documents)
+  const STEP_SALES_CLIENT = 'sales_client';
+  const STEP_SALES_ARTICLE = 'sales_article';
+  const STEP_SALES_DOCUMENT = 'sales_document';
+  const STEP_SALES_DOCUMENT_DETAIL = 'sales_document_detail';
+  const STEP_SALES_DOCUMENT_SERIAL = 'sales_document_serial';
+
   // Constantes para los pasos de migración (Shipping Guides - Ventas)
   const STEP_SALE_SHIPPING_GUIDE = 'sale_shipping_guide';
   const STEP_SALE_SHIPPING_GUIDE_DETAIL = 'sale_shipping_guide_detail';
@@ -84,6 +92,11 @@ class VehiclePurchaseOrderMigrationLog extends Model
     self::STEP_SALE_SHIPPING_GUIDE => 'neInTbTransaccionInventario',
     self::STEP_SALE_SHIPPING_GUIDE_DETAIL => 'neInTbTransaccionInventarioDet',
     self::STEP_SALE_SHIPPING_GUIDE_SERIAL => 'neInTbTransaccionInventarioDtS',
+    self::STEP_SALES_CLIENT => 'neInTbCliente',
+    self::STEP_SALES_ARTICLE => 'neInTbArticulo',
+    self::STEP_SALES_DOCUMENT => 'neInTbVenta',
+    self::STEP_SALES_DOCUMENT_DETAIL => 'neInTbVentaDt',
+    self::STEP_SALES_DOCUMENT_SERIAL => 'neInTbVentaDtS',
   ];
 
   /**
@@ -108,6 +121,14 @@ class VehiclePurchaseOrderMigrationLog extends Model
   public function vehicle(): BelongsTo
   {
     return $this->belongsTo(Vehicles::class, 'ap_vehicles_id');
+  }
+
+  /**
+   * Relación con el documento electrónico
+   */
+  public function electronicDocument(): BelongsTo
+  {
+    return $this->belongsTo(\App\Models\ap\facturacion\ElectronicDocument::class, 'electronic_document_id');
   }
 
   /**
