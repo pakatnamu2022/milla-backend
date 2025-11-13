@@ -263,9 +263,9 @@ class SyncShippingGuideSaleJob implements ShouldQueue
       $class_id = $vehicleVn->model->class_id ?? null;
 
       // Lógica para obtener el almacén de origen (venta)
-      $sede_id = $shippingGuide->sedeTransmitter->id ?? null;
+      $sede = $shippingGuide->sedeTransmitter ?? null;
 
-      $baseQuery = Warehouse::where('sede_id', $sede_id)
+      $baseQuery = Warehouse::where('sede_id', $sede->id)
         ->where('type_operation_id', $type_operation_id)
         ->where('article_class_id', $class_id);
 
@@ -284,8 +284,8 @@ class SyncShippingGuideSaleJob implements ShouldQueue
         'Cantidad' => $cantidad,
         'AlmacenId' => $warehouseCode ?? '',
         'CostoUnitario' => 0,
-        'CuentaInventario' => '',
-        'CuentaContrapartida' => '',
+        'CuentaInventario' => $warehouseCode->inventory_account . $sede->dyn_code ?? '',
+        'CuentaContrapartida' => $warehouseCode->counterparty_account . $sede->dyn_code ?? '',
       ];
 
       // Sincronizar detalle de transacción de inventario
