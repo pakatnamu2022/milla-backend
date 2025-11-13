@@ -62,15 +62,22 @@ Schedule::command('shipping-guide:verify-migration --all')
   ->runInBackground();
 
 // Sincronizar invoice_dynamics desde Dynamics
-Schedule::command('po:sync-invoice-dynamics --all')
+//Schedule::command('po:sync-invoice-dynamics --all')
+//  ->everyThirtySeconds()
+//  ->timezone('America/Lima')
+//  ->withoutOverlapping()
+//  ->runInBackground();
+
+// Sincronizar credit_note_dynamics desde Dynamics
+Schedule::command('po:sync-credit-note-dynamics --all')
   ->everyThirtySeconds()
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
 
-// Sincronizar credit_note_dynamics desde Dynamics
-Schedule::command('po:sync-credit-note-dynamics --all')
-  ->everyThirtySeconds()
+// Verificar y sincronizar documentos electrónicos de venta a Dynamics
+Schedule::command('electronic-document:verify-sync --all')
+  ->everyFiveSeconds()
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();

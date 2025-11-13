@@ -79,7 +79,7 @@ class SyncSalesDocumentJob implements ShouldQueue
     $this->syncClient($document, $syncService);
 
     // 2. Sincronizar artículos de los items
-    $this->syncArticles($document, $syncService);
+//    $this->syncArticles($document, $syncService);
 
     // 3. Sincronizar documento de venta (cabecera)
     $this->syncSalesDocument($document, $syncService);
@@ -163,13 +163,15 @@ class SyncSalesDocumentJob implements ShouldQueue
   protected function syncArticles(ElectronicDocument $document, DatabaseSyncService $syncService): void
   {
     foreach ($document->items as $item) {
+      $codigo = $item->accountPlan->code_dynamics;
+
       $log = $this->getOrCreateLog(
         $document->id,
         VehiclePurchaseOrderMigrationLog::STEP_SALES_ARTICLE,
         VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_SALES_ARTICLE],
-        $item->codigo ?? "",
+        $codigo,
         null,
-        $item->codigo
+        $codigo
       );
 
       if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
@@ -181,7 +183,7 @@ class SyncSalesDocumentJob implements ShouldQueue
         $existingArticle = DB::connection('dbtp')
           ->table('neInTbArticulo')
           ->where('EmpresaId', Company::AP_DYNAMICS)
-          ->where('Articulo', $item->codigo)
+          ->where('Articulo', $codigo)
           ->first();
 
         if ($existingArticle) {
@@ -191,13 +193,13 @@ class SyncSalesDocumentJob implements ShouldQueue
           );
           continue;
         } else {
-          $log->markAsFailed('Artículo no encontrado en Dynamics: ' . $item->codigo);
+          $log->markAsFailed('Artículo no encontrado en Dynamics: ' . $codigo);
         }
       } catch (\Exception $e) {
         $log->markAsFailed($e->getMessage());
         Log::error('Error al verificar artículo', [
           'document_id' => $document->id,
-          'article_code' => $item->codigo,
+          'article_code' => $codigo,
           'error' => $e->getMessage(),
         ]);
       }
@@ -239,7 +241,7 @@ class SyncSalesDocumentJob implements ShouldQueue
     $existingDocument = DB::connection('dbtp')
       ->table('neInTbVenta')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('VentaId', $documentoId)
+      ->where('DocumentoId', $documentoId)
       ->first();
 
     if (!$existingDocument) {
@@ -306,7 +308,7 @@ class SyncSalesDocumentJob implements ShouldQueue
     $existingDetail = DB::connection('dbtp')
       ->table('neInTbVentaDt')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('VentaId', $documentoId)
+      ->where('DocumentoId', $documentoId)
       ->first();
 
     if (!$existingDetail) {
@@ -382,7 +384,7 @@ class SyncSalesDocumentJob implements ShouldQueue
     $existingSerial = DB::connection('dbtp')
       ->table('neInTbVentaDtS')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('VentaId', $documentoId)
+      ->where('DocumentoId', $documentoId)
       ->first();
 
     if (!$existingSerial) {

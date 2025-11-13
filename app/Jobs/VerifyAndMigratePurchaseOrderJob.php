@@ -293,7 +293,6 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         $existingPO->ProcesoEstado ?? 0,
         $existingPO->ProcesoError ?? null
       );
-
       $existingPODetail = DB::connection('dbtp')
         ->table('neInTbOrdenCompraDet')
         ->where('EmpresaId', Company::AP_DYNAMICS)
