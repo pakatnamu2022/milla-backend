@@ -256,6 +256,16 @@ class ShippingGuides extends Model
   }
 
   /**
+   * Marca la guía como enviada a Dynamic
+   */
+  public function markAsSentToDynamic(): void
+  {
+    $this->update([
+      'status_dynamic' => true,
+    ]);
+  }
+
+  /**
    * Marca la guía como aceptada por SUNAT
    */
   public function markAsAccepted(array $sunatResponse): void

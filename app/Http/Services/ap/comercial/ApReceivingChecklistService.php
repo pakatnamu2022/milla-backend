@@ -174,6 +174,9 @@ class ApReceivingChecklistService extends BaseService
       // Despachar el Job síncronamente para debugging
       SyncShippingGuideJob::dispatchSync($shippingGuide->id);
 
+      // marcar cono enviada a Dynamics
+      $shippingGuide->markAsSentToDynamic();
+
       // Update shipping guide with note, is_received, received_by and received_date
       $shippingGuide->update([
         'is_received' => true,

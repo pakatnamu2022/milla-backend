@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ap\ApCommercialMastersController;
+use App\Http\Controllers\ap\ApPostVentaMastersController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
@@ -490,6 +491,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
    * Routes for Automotores Pakatnamu
    */
   Route::group(['prefix' => 'ap'], function () {
+    // Maestros Comercial
     Route::apiResource('commercialMasters', ApCommercialMastersController::class)->only([
       'index',
       'show',
@@ -497,6 +499,16 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       'update',
       'destroy'
     ]);
+
+    // Maestros Post Venta
+    Route::apiResource('postVentaMasters', ApPostVentaMastersController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
+
     Route::group(['prefix' => 'configuration'], function () {
       Route::apiResource('fuelType', ApFuelTypeController::class)->only([
         'index',

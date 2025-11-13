@@ -39,7 +39,7 @@ class ApVehicleDelivery extends Model
   ];
 
   const filters = [
-    'search' => [],
+    'search' => ['vehicle.vin', 'advisor.nombre_completo'],
     'vehicle_id',
     'scheduled_delivery_date',
     'real_delivery_date',

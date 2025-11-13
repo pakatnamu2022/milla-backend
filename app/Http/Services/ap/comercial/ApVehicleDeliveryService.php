@@ -503,6 +503,14 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         throw new Exception('La guía debe estar aceptada por SUNAT antes de enviarla a Dynamics');
       }
 
+      // Validar que no haya sido enviada ya a Dynamics
+      if ($shippingGuide->status_dynamic) {
+        throw new Exception('La guía ya ha sido enviada a Dynamics');
+      }
+
+      // marcar cono enviada a Dynamics
+      $shippingGuide->markAsSentToDynamic();
+
       // Despachar el Job síncronamente para debugging
       SyncShippingGuideSaleJob::dispatchSync($shippingGuide->id);
 
