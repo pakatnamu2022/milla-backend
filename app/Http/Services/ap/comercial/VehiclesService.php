@@ -9,10 +9,12 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Utils\Constants;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\facturacion\ElectronicDocument;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class VehiclesService extends BaseService implements BaseServiceInterface
@@ -319,6 +321,130 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'documents' => ElectronicDocumentResource::collection($documents),
       'total_documents' => $documents->count(),
       'total_amount' => $documents->sum('total'),
+    ]);
+  }
+  
+  /**
+   * Obtiene información del cliente asociado a un vehículo y su estado de deuda
+   * @param int $vehicleId
+   * @return \Illuminate\Http\JsonResponse
+   * @throws Exception
+   */
+  public function getVehicleClientDebtInfo(int $vehicleId)
+  {
+    // Usar el método centralizado para obtener vehículo, documento y cliente
+    $data = Vehicles::getElectronicDocumentWithClient($vehicleId);
+
+    $vehicle = $data->vehicle;
+    $electronicDocument = $data->electronicDocument;
+    $client = $data->client;
+    $purchaseRequestQuote = $electronicDocument->purchaseRequestQuote;
+
+    // Obtener el monto total de la venta (sale_price de la cotización)
+    $totalSalePrice = $purchaseRequestQuote->sale_price;
+
+    // Obtener todos los documentos electrónicos asociados a esta cotización
+    $documents = ElectronicDocument::where('purchase_request_quote_id', $purchaseRequestQuote->id)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', false)
+      ->with(['documentType', 'currency', 'installments'])
+      ->get();
+
+    // Calcular total pagado
+    $totalPaid = 0;
+    $facturas = [];
+    $notasCredito = [];
+    $notasDebito = [];
+
+    foreach ($documents as $doc) {
+      $docInfo = [
+        'id' => $doc->id,
+        'serie' => $doc->serie,
+        'numero' => $doc->numero,
+        'document_number' => $doc->document_number,
+        'fecha_emision' => $doc->fecha_de_emision?->format('Y-m-d'),
+        'moneda' => $doc->currency?->description,
+        'total' => $doc->total,
+        'tipo_documento' => $doc->documentType?->description,
+      ];
+
+      // Facturas y boletas suman al total pagado
+      if (in_array($doc->sunat_concept_document_type_id, [
+        ElectronicDocument::TYPE_FACTURA,
+        ElectronicDocument::TYPE_BOLETA
+      ])) {
+        $totalPaid += $doc->total;
+        $facturas[] = $docInfo;
+      } // Notas de crédito restan del total pagado
+      elseif ($doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO) {
+        $totalPaid -= $doc->total;
+        $notasCredito[] = $docInfo;
+      } // Notas de débito suman al total pagado
+      elseif ($doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_DEBITO) {
+        $totalPaid += $doc->total;
+        $notasDebito[] = $docInfo;
+      }
+    }
+
+    // Calcular deuda pendiente
+    $pendingDebt = $totalSalePrice - $totalPaid;
+
+    // Usar el método centralizado para determinar si está pagado
+    $isPaid = Vehicles::isVehiclePaid($vehicle->id);
+
+    // Determinar estado de la deuda
+    $debtStatus = 'sin_deuda';
+    $debtMessage = 'El cliente no tiene deuda pendiente';
+
+    if ($pendingDebt > 0.01) {
+      $debtStatus = 'deuda_pendiente';
+      $debtMessage = 'El cliente tiene deuda pendiente';
+    } elseif ($pendingDebt < -0.01) {
+      $debtStatus = 'sobrepago';
+      $debtMessage = 'El cliente tiene un sobrepago';
+    }
+
+    return response()->json([
+      'vehicle' => [
+        'id' => $vehicle->id,
+        'vin' => $vehicle->vin,
+        'model_code' => $vehicle->model?->code,
+        'year' => $vehicle->year,
+        'engine_number' => $vehicle->engine_number,
+        'engineType' => $vehicle->engineType->description,
+        'model' => $vehicle->model?->version,
+        'warehouse_physical' => $vehicle->warehousePhysical?->description,
+      ],
+      'client' => [
+        'id' => $client->id,
+        'num_doc' => $client->num_doc,
+        'full_name' => $client->full_name,
+        'direction' => $client->direction,
+        'email' => $client->email,
+      ],
+      'purchase_quote' => [
+        'id' => $purchaseRequestQuote->id,
+        'correlative' => $purchaseRequestQuote->correlative,
+        'sale_price' => round($totalSalePrice, 2),
+      ],
+      'debt_summary' => [
+        'total_sale_price' => round($totalSalePrice, 2),
+        'total_paid' => round($totalPaid, 2),
+        'pending_debt' => round($pendingDebt, 2),
+        'status' => $debtStatus,
+        'message' => $debtMessage,
+        'has_pending_debt' => $pendingDebt > 0.01,
+        'debt_is_paid' => $isPaid,
+      ],
+      'documents_summary' => [
+        'total_documents' => $documents->count(),
+        'total_facturas' => count($facturas),
+        'total_notas_credito' => count($notasCredito),
+        'total_notas_debito' => count($notasDebito),
+      ],
+      'facturas' => $facturas,
+      'notas_credito' => $notasCredito,
+      'notas_debito' => $notasDebito,
     ]);
   }
 }

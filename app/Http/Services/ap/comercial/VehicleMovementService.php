@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\comercial;
 use App\Http\Resources\ap\comercial\VehicleMovementResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\compras\PurchaseOrder;
@@ -201,6 +202,113 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
       DB::rollBack();
       throw new Exception($e->getMessage());
     }
+  }
+
+  /**
+   * Create a vehicle movement when a schedule delivery
+   * @throws Exception|Throwable
+   */
+  public function storeSheduleDeliveryVehicleMovement(Vehicles $vehicle): VehicleMovementResource
+  {
+    DB::beginTransaction();
+    try {
+      $vehicleMovement = VehicleMovement::create([
+        'movement_type' => VehicleMovement::SOLD_NOT_DELIVERED,
+        'ap_vehicle_id' => $vehicle->id,
+        'ap_vehicle_status_id' => ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+        'movement_date' => now(),
+        'observation' => 'Vehículo programado para entrega',
+        'previous_status_id' => $vehicle->ap_vehicle_status_id ?? ApVehicleStatus::INVENTARIO_VN,
+        'new_status_id' => ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+      ]);
+
+      $vehicle->update([
+        'ap_vehicle_status_id' => ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+      ]);
+
+      DB::commit();
+      return new VehicleMovementResource($vehicleMovement);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw new Exception($e->getMessage());
+    }
+  }
+
+  /**
+   * Create a vehicle movement when a schedule delivery
+   * @throws Exception|Throwable
+   */
+  public function storeCompletedDeliveryVehicleMovement(Vehicles $vehicle, string $originAddress, string $destinationAddress): VehicleMovementResource
+  {
+    DB::beginTransaction();
+    try {
+      $vehicleMovement = VehicleMovement::create([
+        'movement_type' => VehicleMovement::SOLD_DELIVERED,
+        'ap_vehicle_id' => $vehicle->id,
+        'ap_vehicle_status_id' => ApVehicleStatus::VENDIDO_ENTREGADO,
+        'movement_date' => now(),
+        'observation' => 'Vehículo entregado al cliente',
+        'origin_address' => $originAddress,
+        'destination_address' => $destinationAddress,
+        'previous_status_id' => $vehicle->ap_vehicle_status_id ?? ApVehicleStatus::INVENTARIO_VN,
+        'new_status_id' => ApVehicleStatus::VENDIDO_ENTREGADO,
+      ]);
+
+      $vehicle->update([
+        'ap_vehicle_status_id' => ApVehicleStatus::VENDIDO_ENTREGADO,
+      ]);
+
+      DB::commit();
+      return new VehicleMovementResource($vehicleMovement);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw new Exception($e->getMessage());
+    }
+  }
+
+  /**
+   * Create a vehicle movement for shipping guide (TRAVESIA)
+   * @param int $vehicleId
+   * @param string $originAddress
+   * @param string $destinationAddress
+   * @param string|null $observation
+   * @param string|null $issueDate
+   * @return VehicleMovement
+   * @throws Exception
+   */
+  public function storeShippingGuideVehicleMovement(
+    int $vehicleId,
+    string $originAddress,
+    string $destinationAddress,
+    ?string $observation = null,
+    ?string $issueDate = null
+  ): VehicleMovement
+  {
+    $vehicle = Vehicles::find($vehicleId);
+    if (!$vehicle) {
+      throw new Exception('Vehículo no encontrado');
+    }
+
+    $statusCurrentVehicle = $vehicle->ap_vehicle_status_id;
+
+    $vehicleMovementData = [
+      'ap_vehicle_id' => $vehicleId,
+      'movement_type' => 'TRAVESIA',
+      'movement_date' => $issueDate ?? now(),
+      'observation' => $observation,
+      'origin_address' => $originAddress,
+      'destination_address' => $destinationAddress,
+      'previous_status_id' => $statusCurrentVehicle,
+      'new_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+      'ap_vehicle_status_id' => $statusCurrentVehicle,
+      'created_by' => auth()->id(),
+    ];
+
+    $vehicle->update([
+      'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+    ]);
+
+    return VehicleMovement::create($vehicleMovementData);
   }
 
   /**

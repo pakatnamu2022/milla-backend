@@ -75,6 +75,10 @@ class ShippingGuidesResource extends JsonResource
       'status_dynamic' => $this->status_dynamic,
       'ap_class_article_id' => $this->ap_class_article_id,
       'note_received' => $this->note_received,
+      'destination_ubigeo' => $this->destination_ubigeo ?? "",
+      'destination_address' => $this->destination_address ?? "",
+      'ruc_transport' => $this->ruc_transport ?? "",
+      'company_name_transport' => $this->company_name_transport ?? "",
       'receiving_checklists' => $this->when($this->relationLoaded('receivingChecklists'), function () {
         return $this->receivingChecklists->map(function ($checklist) {
           return [

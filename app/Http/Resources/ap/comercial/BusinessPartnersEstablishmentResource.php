@@ -31,6 +31,8 @@ class BusinessPartnersEstablishmentResource extends JsonResource
       'province_id' => $districtData['province_id'] ?? null,
       'department_id' => $districtData['department_id'] ?? null,
       'business_partner_id' => $this->business_partner_id,
+      'sede_id' => $this->sede_id ?? "",
+      'sede' => $this->sede->abreviatura ?? "",
       'status' => $this->status,
     ];
   }

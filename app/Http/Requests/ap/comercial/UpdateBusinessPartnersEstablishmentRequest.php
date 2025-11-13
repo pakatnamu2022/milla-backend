@@ -48,6 +48,11 @@ class UpdateBusinessPartnersEstablishmentRequest extends StoreRequest
         'nullable',
         'boolean',
       ],
+      'sede_id' => [
+        'nullable',
+        'integer',
+        'exists:config_sede,id',
+      ],
     ];
   }
 
@@ -68,6 +73,9 @@ class UpdateBusinessPartnersEstablishmentRequest extends StoreRequest
       'district_id.exists' => 'El ID del distrito no existe',
       'business_partner_id.integer' => 'El ID del socio de negocios debe ser un número entero',
       'business_partner_id.exists' => 'El ID del socio de negocios no existe',
+      'status.boolean' => 'El estado debe ser verdadero o falso',
+      'sede_id.integer' => 'El ID de la sede debe ser un número entero',
+      'sede_id.exists' => 'El ID de la sede no existe',
     ];
   }
 }

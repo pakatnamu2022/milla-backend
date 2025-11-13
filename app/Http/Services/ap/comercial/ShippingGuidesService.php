@@ -9,9 +9,6 @@ use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Jobs\SyncShippingGuideJob;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
-use App\Models\ap\comercial\VehicleMovement;
-use App\Models\ap\comercial\Vehicles;
-use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\gestionsistema\DigitalFile;
 use App\Models\gp\maestroGeneral\SunatConcepts;
@@ -26,16 +23,19 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 {
   protected NubefactShippingGuideApiService $nubefactService;
   protected DigitalFileService $digitalFileService;
+  protected VehicleMovementService $vehicleMovementService;
 
   private const FILE_PATH = '/ap/comercial/guias-remision/';
 
   public function __construct(
     NubefactShippingGuideApiService $nubefactService,
-    DigitalFileService              $digitalFileService
+    DigitalFileService              $digitalFileService,
+    VehicleMovementService          $vehicleMovementService
   )
   {
     $this->nubefactService = $nubefactService;
     $this->digitalFileService = $digitalFileService;
+    $this->vehicleMovementService = $vehicleMovementService;
   }
 
   public function list(Request $request)
@@ -63,10 +63,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
   public function store(mixed $data)
   {
     return DB::transaction(function () use ($data) {
-      // 1. Crear el vehicle_movement automáticamente
-      $originAddress = BusinessPartnersEstablishment::find($data['transmitter_id'])->address ?? '-';
-      $destinationAddress = BusinessPartnersEstablishment::find($data['receiver_id'])->address ?? '-';
-      $statusCurrentVehicle = Vehicles::find($data['ap_vehicle_id'])->ap_vehicle_status_id ?? null;
+      // 1. Validaciones de negocio
+      $origin = BusinessPartnersEstablishment::find($data['transmitter_id']) ?? null;
+      $destination = BusinessPartnersEstablishment::find($data['receiver_id']) ?? null;
 
       if ($data['transfer_reason_id'] == SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
         if ($data['sede_transmitter_id'] == $data['sede_receiver_id']) {
@@ -77,24 +76,14 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         }
       }
 
-      $vehicleMovementData = [
-        'ap_vehicle_id' => $data['ap_vehicle_id'],
-        'movement_type' => 'TRAVESIA',
-        'movement_date' => $data['issue_date'],
-        'observation' => $data['notes'] ?? null,
-        'origin_address' => $originAddress,
-        'destination_address' => $destinationAddress,
-        'previous_status_id' => $statusCurrentVehicle,
-        'new_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-        'ap_vehicle_status_id' => $statusCurrentVehicle,
-        'created_by' => Auth::id(),
-      ];
-
-      Vehicles::find($data['ap_vehicle_id'])->update([
-        'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-      ]);
-
-      $vehicleMovement = VehicleMovement::create($vehicleMovementData);
+      // Crear el movimiento de vehículo a travesia
+      $vehicleMovement = $this->vehicleMovementService->storeShippingGuideVehicleMovement(
+        $data['ap_vehicle_id'],
+        $origin->address ?? '-',
+        $destination->address ?? '-',
+        $data['notes'] ?? null,
+        $data['issue_date']
+      );
 
       // 2. Manejar la carga del archivo si existe
       $file = null;
@@ -145,7 +134,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       // 4. Manejar type_voucher_id para guías de remisión
       $typeVoucherId = null;
       if ($data['document_type'] == 'GUIA_REMISION') {
-        $typeVoucherId = SunatConcepts::GUIA_REMISION_REMITENTE;
+        $typeVoucherId = SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE;
       }
 
       // 5. Crear la guía de remisión
@@ -177,6 +166,10 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'transfer_modality_id' => $data['transfer_modality_id'] ?? null,
         'created_by' => Auth::id(),
         'ap_class_article_id' => $data['ap_class_article_id'] ?? null,
+        'origin_ubigeo' => $origin->ubigeo ?? '-',
+        'origin_address' => $origin->address ?? '-',
+        'destination_ubigeo' => $destination->ubigeo ?? '-',
+        'destination_address' => $destination->address ?? '-',
       ];
 
       $document = ShippingGuides::create($documentData);
@@ -223,6 +216,15 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede editar un documento que ya ha sido recibido');
       }
 
+      if ($data['transfer_reason_id'] == SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
+        if ($data['sede_transmitter_id'] == $data['sede_receiver_id']) {
+          throw new Exception('La sede de origen y destino no pueden ser la misma para el motivo de traslado seleccionado');
+        }
+        if ($data['transmitter_id'] == $data['receiver_id']) {
+          throw new Exception('El establecimiento de origen y destino no pueden ser el mismo para el motivo de traslado seleccionado');
+        }
+      }
+
       // 1. Manejar la carga del archivo si existe
       $file = null;
       if (isset($data['file']) && $data['file'] instanceof UploadedFile) {
@@ -261,10 +263,53 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       // 3. Manejar type_voucher_id para guías de remisión
       if (isset($data['document_type']) && $data['document_type'] == 'GUIA_REMISION') {
-        $data['type_voucher_id'] = SunatConcepts::GUIA_REMISION_REMITENTE;
+        $data['type_voucher_id'] = SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE;
       }
 
-      // 3. Remover campos que no se pueden actualizar
+      // 4. Actualizar direcciones y ubigeo en el movimiento de vehículo si cambiaron origen o destino
+      if (isset($data['transmitter_id']) || isset($data['receiver_id'])) {
+        // Obtener establecimiento de origen
+        $originEstablishment = isset($data['transmitter_id'])
+          ? BusinessPartnersEstablishment::find($data['transmitter_id'])
+          : null;
+
+        $originAddress = $originEstablishment
+          ? ($originEstablishment->address ?? $document->origin_address)
+          : $document->origin_address;
+
+        $originUbigeo = $originEstablishment
+          ? ($originEstablishment->ubigeo ?? $document->origin_ubigeo)
+          : $document->origin_ubigeo;
+
+        // Obtener establecimiento de destino
+        $destinationEstablishment = isset($data['receiver_id'])
+          ? BusinessPartnersEstablishment::find($data['receiver_id'])
+          : null;
+
+        $destinationAddress = $destinationEstablishment
+          ? ($destinationEstablishment->address ?? $document->destination_address)
+          : $document->destination_address;
+
+        $destinationUbigeo = $destinationEstablishment
+          ? ($destinationEstablishment->ubigeo ?? $document->destination_ubigeo)
+          : $document->destination_ubigeo;
+
+        // Actualizar las direcciones y ubigeo en data para la guía de remisión
+        $data['origin_ubigeo'] = $originUbigeo;
+        $data['origin_address'] = $originAddress;
+        $data['destination_address'] = $destinationAddress;
+        $data['destination_ubigeo'] = $destinationUbigeo;
+
+        // Actualizar el movimiento de vehículo asociado
+        if ($document->vehicle_movement_id) {
+          $document->vehicleMovement->update([
+            'origin_address' => $originAddress,
+            'destination_address' => $destinationAddress,
+          ]);
+        }
+      }
+
+      // 5. Remover campos que no se pueden actualizar
       unset(
         $data['is_sunat_registered'],
         $data['status_nubefac'],
@@ -377,7 +422,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('Debe esperar al menos 30 minutos antes de reenviar la guía a SUNAT');
       }
 
-      if ($guide->document_type != 'GUIA_REMISION' || $guide->type_voucher_id != SunatConcepts::GUIA_REMISION_REMITENTE) {
+      if ($guide->document_type != 'GUIA_REMISION' || $guide->type_voucher_id != SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE) {
         throw new Exception('El tipo de documento o comprobante no es válido para envío a SUNAT');
       }
 

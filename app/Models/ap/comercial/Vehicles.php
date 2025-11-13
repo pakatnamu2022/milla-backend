@@ -147,4 +147,96 @@ class Vehicles extends Model
       'id'                                                   // Local key en vehicle_movement
     );
   }
+
+  /**
+   * Obtiene el documento electrónico y el cliente asociado a un vehículo
+   *
+   * @param int $vehicleId ID del vehículo
+   * @return object Objeto con electronicDocument, client y vehicle
+   * @throws \Exception Si no se encuentra el documento o el cliente
+   */
+  public static function getElectronicDocumentWithClient($vehicleId)
+  {
+    // Obtener el vehículo
+    $vehicle = self::find($vehicleId);
+    if (!$vehicle) {
+      throw new \Exception('Vehículo no encontrado');
+    }
+
+    // Obtener el documento electrónico
+    $electronicDocument = ElectronicDocument::whereHas('vehicleMovement', function ($query) use ($vehicleId) {
+      $query->where('ap_vehicle_id', $vehicleId);
+    })
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', false)
+      ->whereNotNull('client_id')
+      ->whereNotNull('purchase_request_quote_id')
+      ->with(['client', 'purchaseRequestQuote'])
+      ->orderBy('fecha_de_emision', 'desc')
+      ->first();
+
+    if (!$electronicDocument || !$electronicDocument->client_id) {
+      throw new \Exception('No se encontró factura ni cliente asociado al vehículo');
+    }
+
+    if (!$electronicDocument->purchase_request_quote_id) {
+      throw new \Exception('No se encontró cotización asociada al vehículo');
+    }
+
+    return (object)[
+      'vehicle' => $vehicle,
+      'electronicDocument' => $electronicDocument,
+      'client' => $electronicDocument->client
+    ];
+  }
+
+  /**
+   * Valida si un vehículo está completamente pagado
+   *
+   * @param int $vehicleId ID del vehículo
+   * @return bool
+   */
+  public static function isVehiclePaid($vehicleId): bool
+  {
+    try {
+      // Obtener el documento electrónico usando el método centralizado
+      $data = self::getElectronicDocumentWithClient($vehicleId);
+      $electronicDocument = $data->electronicDocument;
+
+      $purchaseRequestQuote = $electronicDocument->purchaseRequestQuote;
+      $totalSalePrice = $purchaseRequestQuote->sale_price;
+
+      // Obtener todos los documentos electrónicos asociados a esta cotización
+      $documents = ElectronicDocument::where('purchase_request_quote_id', $purchaseRequestQuote->id)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', false)
+        ->get();
+
+      // Calcular total pagado
+      $totalPaid = 0;
+      foreach ($documents as $doc) {
+        // Facturas y boletas suman al total pagado
+        if (in_array($doc->sunat_concept_document_type_id, [
+          ElectronicDocument::TYPE_FACTURA,
+          ElectronicDocument::TYPE_BOLETA
+        ])) {
+          $totalPaid += $doc->total;
+        } // Notas de crédito restan del total pagado
+        elseif ($doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO) {
+          $totalPaid -= $doc->total;
+        } // Notas de débito suman al total pagado
+        elseif ($doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_DEBITO) {
+          $totalPaid += $doc->total;
+        }
+      }
+
+      // Calcular deuda pendiente
+      $pendingDebt = $totalSalePrice - $totalPaid;
+
+      // Consideramos pagado si la diferencia es menor a 0.01
+      return abs($pendingDebt) < 0.01;
+    } catch (\Exception $e) {
+      return false;
+    }
+  }
 }

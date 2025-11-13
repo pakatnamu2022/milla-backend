@@ -44,6 +44,11 @@ class StoreBusinessPartnersEstablishmentRequest extends StoreRequest
         'integer',
         'exists:business_partners,id',
       ],
+      'sede_id' => [
+        'nullable',
+        'integer',
+        'exists:config_sede,id',
+      ],
     ];
   }
 
@@ -69,6 +74,8 @@ class StoreBusinessPartnersEstablishmentRequest extends StoreRequest
       'business_partner_id.required' => 'El socio de negocio es obligatorio',
       'business_partner_id.integer' => 'El socio de negocio debe ser un entero',
       'business_partner_id.exists' => 'El socio de negocio no existe',
+      'sede_id.integer' => 'La sede debe ser un entero',
+      'sede_id.exists' => 'La sede no existe',
     ];
   }
 }

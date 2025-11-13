@@ -519,6 +519,34 @@ return [
     ]
   ],
 
+  //  Configuración para la entidad "inventory_transfer_dt"
+  'inventory_transfer_dt' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbTransferenciaInventarioDet',
+      'mapping' => [
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
+        'TransferenciaId' => fn($data) => $data['TransferenciaId'],
+        'Linea' => fn($data) => $data['Linea'],
+        'ArticuloId' => fn($data) => $data['ArticuloId'],
+        'Motivo' => fn($data) => $data['Motivo'],
+        'UnidadMedidaId' => fn($data) => $data['UnidadMedidaId'],
+        'Cantidad' => fn($data) => $data['Cantidad'],
+        'AlmacenId_Ini' => fn($data) => $data['AlmacenId_Ini'],
+        'AlmacenId_Fin' => fn($data) => $data['AlmacenId_Fin'],
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'TransferenciaId',
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false,
+      ],
+    ]
+  ],
 
   //  Configuración para la entidad "inventory_transfer_dts"
   'inventory_transfer_dts' => [
@@ -547,27 +575,84 @@ return [
     ]
   ],
 
-  //  Configuración para la entidad "inventory_transfer_dt"
-  'inventory_transfer_dt' => [
+  //  Configuración para la entidad "inventory_transaction"
+  'inventory_transaction' => [
     'dbtp' => [
       'enabled' => env('SYNC_DBTP_ENABLED', false),
       'connection' => 'dbtp',
-      'table' => 'neInTbTransferenciaInventarioDet',
+      'table' => 'neInTbTransaccionInventario',
       'mapping' => [
         'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
-        'TransferenciaId' => fn($data) => $data['TransferenciaId'],
+        'TransaccionId' => fn($data) => $data['TransaccionId'],
+        'FechaEmision' => fn($data) => $data['FechaEmision'],
+        'FechaContable' => fn($data) => $data['FechaContable'],
+        'Procesar' => fn($data) => $data['Procesar'],
+        'ProcesoEstado' => fn($data) => $data['ProcesoEstado'],
+        'ProcesoError' => fn($data) => $data['ProcesoError'],
+        'FechaProceso' => fn($data) => $data['FechaProceso'],
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'TransaccionId',
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false,
+      ],
+    ]
+  ],
+
+  //  Configuración para la entidad "inventory_transaction_dt"
+  'inventory_transaction_dt' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbTransaccionInventarioDet',
+      'mapping' => [
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
+        'TransaccionId' => fn($data) => $data['TransaccionId'],
         'Linea' => fn($data) => $data['Linea'],
         'ArticuloId' => fn($data) => $data['ArticuloId'],
         'Motivo' => fn($data) => $data['Motivo'],
         'UnidadMedidaId' => fn($data) => $data['UnidadMedidaId'],
         'Cantidad' => fn($data) => $data['Cantidad'],
-        'AlmacenId_Ini' => fn($data) => $data['AlmacenId_Ini'],
-        'AlmacenId_Fin' => fn($data) => $data['AlmacenId_Fin'],
+        'AlmacenId' => fn($data) => $data['AlmacenId'],
+        'CostoUnitario' => fn($data) => $data['CostoUnitario'],
+        'CuentaInventario' => fn($data) => $data['CuentaInventario'],
+        'CuentaContrapartida' => fn($data) => $data['CuentaContrapartida'],
       ],
       'optional_mapping' => [
       ],
       'sync_mode' => 'insert',
-      'unique_key' => 'TransferenciaId',
+      'unique_key' => 'TransaccionId',
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false,
+      ],
+    ]
+  ],
+
+  //  Configuración para la entidad "inventory_transaction_dts"
+  'inventory_transaction_dts' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbTransaccionInventarioDtS',
+      'mapping' => [
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
+        'TransaccionId' => fn($data) => $data['TransaccionId'],
+        'Linea' => fn($data) => $data['Linea'],
+        'Serie' => fn($data) => $data['Serie'],
+        'ArticuloId' => fn($data) => $data['ArticuloId'],
+        'DatoUsuario1' => fn($data) => $data['DatoUsuario1'],
+        'DatoUsuario2' => fn($data) => $data['DatoUsuario2'],
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'TransaccionId',
       'actions' => [
         'create' => true,
         'update' => false,

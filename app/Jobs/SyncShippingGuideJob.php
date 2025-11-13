@@ -11,7 +11,6 @@ use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class SyncShippingGuideJob implements ShouldQueue
@@ -110,7 +109,7 @@ class SyncShippingGuideJob implements ShouldQueue
       $shippingGuide->document_number,
       $vehicle_vn_id
     );
-    
+
     // Si ya está completado, no hacer nada (para este step específico)
     if ($transferLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
       return;
@@ -222,7 +221,6 @@ class SyncShippingGuideJob implements ShouldQueue
   protected function syncInventoryTransferDetail(ShippingGuides $shippingGuide, DatabaseSyncService $syncService, bool $isCancelled): void
   {
     $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
-    $reason = "";
 
     if (!$vehicle_vn_id) {
       throw new \Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.");
@@ -235,21 +233,6 @@ class SyncShippingGuideJob implements ShouldQueue
     // Si está cancelada, agregar asterisco al final del TransferenciaId
     if ($isCancelled) {
       $transferIdFormatted .= '*';
-    }
-
-    // Determinar el motivo según si está cancelada o no
-    if ($isCancelled) {
-      // Si está cancelada, el motivo referencia la transacción original (sin asterisco)
-      $reason = "REVERSION DE LA TRANSACCION {$transferIdOriginal}";
-    } else {
-      // Motivo normal según el tipo de traslado
-      if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
-        $reason = 'RECEPCIÓN DEL VEHÍCULO POR COMPRA';
-      } elseif ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
-        $reason = 'RECEPCIÓN DEL VEHÍCULO POR TRASLADO ENTRE SEDES';
-      } else {
-        $reason = 'OTRO MOTIVO DE RECEPCIÓN';
-      }
     }
 
     // Si está cancelada, usar el step de reversión para crear un nuevo log
@@ -345,7 +328,7 @@ class SyncShippingGuideJob implements ShouldQueue
         'TransferenciaId' => $transferIdFormatted,
         'Linea' => 1,
         'ArticuloId' => $shippingGuide->vehicleMovement?->vehicle?->model->code ?? 'N/A',
-        'Motivo' => $reason,
+        'Motivo' => '',
         'UnidadMedidaId' => 'UND',
         'Cantidad' => 1,
         'AlmacenId_Ini' => $warehouseStartCode ?? '',

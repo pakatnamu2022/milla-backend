@@ -7,6 +7,7 @@ use App\Http\Requests\ap\comercial\IndexApVehicleDeliveryRequest;
 use App\Http\Requests\ap\comercial\StoreApVehicleDeliveryRequest;
 use App\Http\Requests\ap\comercial\UpdateApVehicleDeliveryRequest;
 use App\Http\Services\ap\comercial\ApVehicleDeliveryService;
+use Illuminate\Http\Request;
 
 class ApVehicleDeliveryController extends Controller
 {
@@ -65,6 +66,32 @@ class ApVehicleDeliveryController extends Controller
   }
 
   /**
+   * Genera la guía de remisión para una entrega de vehículo
+   */
+  public function generateShippingGuide($id, Request $request)
+  {
+    try {
+      $data = $request->validate([
+        'driver_doc' => 'nullable|integer|max_digits:11|min_digits:8',
+        'license' => 'nullable|string|max:20',
+        'plate' => 'nullable|string|max:20',
+        'driver_name' => 'nullable|string|max:100',
+        'send_sunat' => 'required|boolean',
+        'transfer_modality_id' => 'required|integer|exists:ap_commercial_masters,id',
+        'carrier_ruc' => 'nullable|string|max:11|min:11',
+        'company_name_transport' => 'nullable|string|max:100',
+      ]);
+
+      return $this->success($this->service->generateShippingGuide($id, $data));
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
+    }
+  }
+
+  /**
    * Envía la guía de remisión a SUNAT mediante Nubefact
    */
   public function sendToNubefact($id)
@@ -95,12 +122,12 @@ class ApVehicleDeliveryController extends Controller
   }
 
   /**
-   * Obtiene la información necesaria para crear la guía de remisión de entrega al cliente
+   * Envía la guía de remisión de venta a Dynamics GP
    */
-  public function getShippingGuideInfo($vehicleId)
+  public function sendToDynamic($id)
   {
     try {
-      return $this->service->getShippingGuideInfo($vehicleId);
+      return $this->service->sendToDynamic($id);
     } catch (\Throwable $th) {
       return response()->json([
         'success' => false,
@@ -108,4 +135,5 @@ class ApVehicleDeliveryController extends Controller
       ], 400);
     }
   }
+
 }

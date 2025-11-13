@@ -76,6 +76,12 @@ class ShippingGuides extends Model
     'migration_status',
     'migrated_at',
     'ap_class_article_id',
+    'origin_ubigeo',
+    'origin_address',
+    'destination_ubigeo',
+    'destination_address',
+    'ruc_transport',
+    'company_name_transport',
   ];
 
   protected $casts = [

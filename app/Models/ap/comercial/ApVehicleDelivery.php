@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
+use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
@@ -24,10 +25,10 @@ class ApVehicleDelivery extends Model
     'sede_id',
     'status_wash',
     'status_delivery',
-    'status_nubefact',
-    'status_sunat',
-    'status_dynamic',
-    'status',
+    'shipping_guide_id',
+    'vehicle_movement_id',
+    'ap_class_article_id',
+    'client_id',
   ];
 
   protected $casts = [
@@ -41,10 +42,11 @@ class ApVehicleDelivery extends Model
     'search' => [],
     'vehicle_id',
     'scheduled_delivery_date',
-    'status_nubefact',
-    'status_sunat',
-    'status_dynamic',
-    'status',
+    'real_delivery_date',
+    'advisor_id',
+    'sede_id',
+    'status_delivery',
+    'status_wash',
   ];
 
   const sorts = [
@@ -53,11 +55,12 @@ class ApVehicleDelivery extends Model
     'vehicle_id',
     'scheduled_delivery_date',
     'real_delivery_date',
-    'status_nubefact',
-    'status_sunat',
-    'status_dynamic',
-    'status',
   ];
+
+  public function setObservationsAttribute($value)
+  {
+    $this->attributes['observations'] = strtoupper($value);
+  }
 
   public function advisor()
   {
@@ -72,5 +75,25 @@ class ApVehicleDelivery extends Model
   public function sede()
   {
     return $this->belongsTo(Sede::class, 'sede_id');
+  }
+
+  public function ShippingGuide()
+  {
+    return $this->belongsTo(ShippingGuides::class, 'shipping_guide_id');
+  }
+
+  public function vehicleMovement()
+  {
+    return $this->belongsTo(VehicleMovement::class, 'vehicle_movement_id');
+  }
+
+  public function apClassArticle()
+  {
+    return $this->belongsTo(ApClassArticle::class, 'ap_class_article_id');
+  }
+
+  public function client()
+  {
+    return $this->belongsTo(BusinessPartners::class, 'client_id');
   }
 }

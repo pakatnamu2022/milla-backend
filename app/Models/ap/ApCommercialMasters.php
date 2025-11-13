@@ -36,6 +36,9 @@ class ApCommercialMasters extends Model
     'type',
   ];
 
+  const int TIPO_OPERACION_COMERCIAL = 794;
+  const int TIPO_OPERACION_POSTVENTA = 804;
+
   public function setCodeAttribute($value)
   {
     $this->attributes['code'] = Str::upper(Str::ascii($value));
