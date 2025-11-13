@@ -128,7 +128,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $series = $data['series'];
         $correlative = $data['correlative'];
         $documentNumber = $series . '-' . $correlative;
-        $documentSeriesId = null;
       }
 
       // 4. Manejar type_voucher_id para guías de remisión

@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Http\Services\DatabaseSyncService;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -220,11 +221,18 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       ->first();
 
     if ($existingSerial) {
+      $procesoEstado = $existingSerial->ProcesoEstado ?? 0;
+
       // Actualizar el log con el estado de la BD intermedia
       $serialLog->updateProcesoEstado(
-        $existingSerial->ProcesoEstado ?? 0,
+        $procesoEstado,
         $existingSerial->ProcesoError ?? null
       );
+
+      // Si Dynamics aceptó la transferencia (ProcesoEstado = 1), actualizar el warehouse_id del vehículo
+      if ($procesoEstado === 1) {
+        $this->updateVehicleWarehouse($shippingGuide);
+      }
     }
   }
 
@@ -422,6 +430,78 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         'migration_status' => 'failed',
       ]);
       Log::warning('Falló la sincronización de guía de remisión', ['id' => $shippingGuide->id]);
+    }
+  }
+
+  /**
+   * Actualiza el warehouse_id del vehículo después de que Dynamics acepta la transferencia
+   */
+  protected function updateVehicleWarehouse(ShippingGuides $shippingGuide): void
+  {
+    try {
+      $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+
+      if (!$vehicle) {
+        Log::warning('No se encontró vehículo asociado a la guía de remisión', [
+          'shipping_guide_id' => $shippingGuide->id
+        ]);
+        return;
+      }
+
+      // Determinar el almacén de destino según el tipo de transferencia
+      $warehouseId = null;
+
+      if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
+        // Para COMPRA: mover al almacén de STOCK (is_received = true) de la sede receptora
+        $warehouseId = Warehouse::where('sede_id', $shippingGuide->sedeReceiver->id)
+          ->where('type_operation_id', $vehicle->type_operation_id)
+          ->where('article_class_id', $vehicle->model->class_id)
+          ->where('is_received', true)
+          ->value('id');
+
+      } elseif ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
+        // Para TRASLADO ENTRE SEDES: mover al almacén de STOCK (is_received = true) de la sede receptora
+        $warehouseId = Warehouse::where('sede_id', $shippingGuide->sedeReceiver->id)
+          ->where('type_operation_id', $vehicle->type_operation_id)
+          ->where('article_class_id', $vehicle->model->class_id)
+          ->where('is_received', true)
+          ->value('id');
+
+      } else {
+        // Para otros motivos: usar almacén de destino de la sede receptora
+        $warehouseId = Warehouse::where('sede_id', $shippingGuide->sedeReceiver->id)
+          ->where('type_operation_id', $vehicle->type_operation_id)
+          ->where('article_class_id', $vehicle->model->class_id)
+          ->where('is_received', true)
+          ->value('id');
+      }
+
+      if ($warehouseId) {
+        $oldWarehouseId = $vehicle->warehouse_id;
+        $vehicle->update(['warehouse_id' => $warehouseId]);
+
+        Log::info('warehouse_id del vehículo actualizado después de confirmación de Dynamics', [
+          'vehicle_id' => $vehicle->id,
+          'vin' => $vehicle->vin,
+          'shipping_guide_id' => $shippingGuide->id,
+          'old_warehouse_id' => $oldWarehouseId,
+          'new_warehouse_id' => $warehouseId,
+          'transfer_reason' => $shippingGuide->transfer_reason_id
+        ]);
+      } else {
+        Log::warning('No se encontró almacén de destino para actualizar warehouse_id', [
+          'vehicle_id' => $vehicle->id,
+          'shipping_guide_id' => $shippingGuide->id,
+          'sede_receiver_id' => $shippingGuide->sedeReceiver->id,
+          'type_operation_id' => $vehicle->type_operation_id,
+          'article_class_id' => $vehicle->model->class_id
+        ]);
+      }
+    } catch (\Exception $e) {
+      Log::error('Error al actualizar warehouse_id del vehículo', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'error' => $e->getMessage()
+      ]);
     }
   }
 
