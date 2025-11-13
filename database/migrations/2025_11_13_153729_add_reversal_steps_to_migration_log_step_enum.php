@@ -33,7 +33,12 @@ return new class extends Migration {
                 'sale_shipping_guide_serial',
                 'sale_shipping_guide_REVERSAL',
                 'sale_shipping_guide_detail_REVERSAL',
-                'sale_shipping_guide_serial_REVERSAL'
+                'sale_shipping_guide_serial_REVERSAL',
+                'sales_client',
+                'sales_article',
+                'sales_document',
+                'sales_document_detail',
+                'sales_document_serial'
             ) NOT NULL COMMENT 'Paso del proceso de migración'");
     });
   }

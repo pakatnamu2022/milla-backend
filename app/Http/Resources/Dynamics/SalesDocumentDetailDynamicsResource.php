@@ -42,7 +42,7 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     $articuloId = $this->accountPlan->code_dynamics ?? throw new Exception('El ítem no tiene una cuenta contable asociada con código Dynamics.');
 
     // Sitio (almacén) - puede venir del contexto
-    $sitioId = $this->document->vehicle ? $this->document->vehicle->warehouse?->dyn_code : throw new Exception('El ítem no tiene vehículo asociado para determinar el almacén.');
+    $sitioId = $this->document->vehicle ? $this->document->vehicle->warehouse?->dyn_code : 'ALM-VN-CIX';
 
     // Unidad de medida
     $unidadMedidaId = 'UND'; // TODO: Mapear desde el item si tiene información de unidad
@@ -54,7 +54,7 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     $precioUnitario = $this->valor_unitario > 0 ? $this->valor_unitario : throw new Exception('El ítem no tiene precio unitario definido.');
 
     // Precio total
-    $precioTotal = $this->total > 0 ? $this->total : throw new Exception('El ítem no tiene precio total definido.');
+    $precioTotal = ($cantidad * $precioUnitario) > 0 ? ($cantidad * $precioUnitario) : throw new Exception('El ítem no tiene precio total definido.');
 
     // Si es un anticipo regularizado, enviar valores en negativo para Dynamics
     if ($this->anticipo_regularizacion === true) {
