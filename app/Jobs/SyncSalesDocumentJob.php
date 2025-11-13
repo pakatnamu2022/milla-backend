@@ -287,7 +287,7 @@ class SyncSalesDocumentJob implements ShouldQueue
         $resource = new SalesDocumentDetailDynamicsResource($item, $document);
         $data = $resource->toArray(request());
 
-        $result = $syncService->sync('sales_document_detail', $data, 'create');
+        $result = $syncService->sync('sales_document_detail', $data);
 
         if (!$result['success']) {
           throw new \Exception($result['message'] ?? 'Error al sincronizar detalle de venta');
@@ -368,13 +368,14 @@ class SyncSalesDocumentJob implements ShouldQueue
    * Obtiene o crea un log de migración
    */
   protected function getOrCreateLog(
-    int $electronicDocumentId,
-    string $step,
-    string $tableName,
-    string $externalId,
-    ?int $vehicleId = null,
+    int     $electronicDocumentId,
+    string  $step,
+    string  $tableName,
+    string  $externalId,
+    ?int    $vehicleId = null,
     ?string $uniqueKey = null
-  ): VehiclePurchaseOrderMigrationLog {
+  ): VehiclePurchaseOrderMigrationLog
+  {
     $query = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $electronicDocumentId)
       ->where('step', $step);
 

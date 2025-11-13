@@ -13,6 +13,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ElectronicDocument extends BaseModel
@@ -26,6 +27,7 @@ class ElectronicDocument extends BaseModel
     'serie',
     'numero',
     'full_number',
+    'is_advance_payment',
     'sunat_concept_transaction_type_id',
     'origin_module',
     'origin_entity_type',
@@ -141,6 +143,7 @@ class ElectronicDocument extends BaseModel
 
   const array filters = [
     'search' => ['full_number', 'cliente_denominacion', 'cliente_numero_de_documento'],
+    'is_advance_payment' => '=',
     'sunat_concept_document_type_id' => '=',
     'serie' => '=',
     'numero' => '=',
@@ -176,6 +179,18 @@ class ElectronicDocument extends BaseModel
   // Módulos de origen
   const MODULE_COMERCIAL = 'comercial';
   const MODULE_POSVENTA = 'posventa';
+
+  /**
+   * Booted
+   */
+  protected static function booted()
+  {
+    static::saving(function ($model) {
+      $service = new BaseService();
+      $numero = $service->completeNumber($model->numero);
+      $model->full_number = "{$model->serie}-{$numero}";
+    });
+  }
 
   /**
    * Relaciones
@@ -230,14 +245,15 @@ class ElectronicDocument extends BaseModel
     return $this->belongsTo(VehicleMovement::class, 'ap_vehicle_movement_id');
   }
 
-  public function vehicle(): BelongsTo
+  public function vehicle(): HasOneThrough
   {
     return $this->hasOneThrough(
-      Vehicles::class,
-      VehicleMovement::class,
-      'id',
-      'id',
-      'ap_vehicle_movement_id'
+      Vehicles::class,           // Modelo destino final
+      VehicleMovement::class,    // Modelo intermedio
+      'id',                      // Clave en VehicleMovement que se une con Trip (foreign key local)
+      'id',                      // Clave en Vehicles a la que se une VehicleMovement
+      'ap_vehicle_movement_id',  // Clave en Trip que apunta a VehicleMovement
+      'ap_vehicle_id'            // Clave en VehicleMovement que apunta a Vehicles
     );
   }
 
@@ -322,7 +338,7 @@ class ElectronicDocument extends BaseModel
 
   public function scopeAnticipos($query)
   {
-    return $query->where('sunat_concept_transaction_type_id', SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS);
+    return $query->where('is_advance_payment', true);
   }
 
   public function scopeByOriginEntity($query, string $module, string $entityType, int $entityId)
@@ -345,13 +361,6 @@ class ElectronicDocument extends BaseModel
   /**
    * Accessors
    */
-  public function setFullNumberAttribute(): void
-  {
-    $service = new BaseService();
-    $numero = $service->completeNumber($this->numero);
-    $this->attributes['full_number'] = "{$this->serie}-{$numero}";
-  }
-
   public function getDocumentNumberAttribute(): string
   {
     return "{$this->serie}-{$this->numero}";
@@ -488,7 +497,7 @@ class ElectronicDocument extends BaseModel
    */
   public function isAnticipo(): bool
   {
-    return $this->sunat_concept_transaction_type_id === SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
+    return $this->is_advance_payment;
   }
 
   public function isRegularized(): bool

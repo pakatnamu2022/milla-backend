@@ -80,6 +80,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
 
     // Convertir strings booleanos
     $booleanFields = [
+      'is_advance_payment',
       'detraccion',
       'enviar_automaticamente_a_la_sunat',
       'enviar_automaticamente_al_cliente',
@@ -173,6 +174,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
   {
     $userId = $this->user()->id;
     return [
+      'is_advance_payment' => 'required|boolean',
       // Tipo de documento y serie
       'sunat_concept_document_type_id' => [
         'required',

@@ -3,6 +3,9 @@
 namespace App\Http\Services\ap\facturacion;
 
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
+use App\Http\Resources\Dynamics\SalesDocumentDetailDynamicsResource;
+use App\Http\Resources\Dynamics\SalesDocumentDynamicsResource;
+use App\Http\Resources\Dynamics\SalesDocumentSerialDynamicsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
@@ -1238,6 +1241,18 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       'overall_status' => $overallStatus,
       'sync_steps' => $logs,
       'dynamics_status' => $dynamicsStatus,
+    ];
+  }
+
+  public function checkResources($id)
+  {
+    $document = $this->find($id);
+    return [
+      'sale' => new SalesDocumentDynamicsResource($document),
+      'items' => $document->items()->get()->map(function ($item) use ($document) {
+        return new SalesDocumentDetailDynamicsResource($item, $document);
+      }),
+      'series' => new SalesDocumentSerialDynamicsResource($document)
     ];
   }
 }

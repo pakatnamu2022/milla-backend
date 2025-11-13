@@ -15,6 +15,7 @@ use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Exception;
+use function json_encode;
 
 class ElectronicDocumentController extends Controller
 {
@@ -63,6 +64,7 @@ class ElectronicDocumentController extends Controller
   public function store(StoreElectronicDocumentRequest $request): JsonResponse
   {
     try {
+//      throw new Exception(json_encode($request->validated()));
       return $this->success($this->service->store($request->validated()));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
@@ -262,6 +264,15 @@ class ElectronicDocumentController extends Controller
   {
     try {
       return $this->success($this->service->getSyncStatus($id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function checkResources($id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->checkResources($id));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

@@ -878,6 +878,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Sincronización con Dynamics 365
       Route::post('electronic-documents/{id}/sync-dynamics', [ElectronicDocumentController::class, 'syncToDynamics']);
       Route::get('electronic-documents/{id}/sync-status', [ElectronicDocumentController::class, 'getSyncStatus']);
+      Route::get('electronic-documents/checkResources/{id}', [ElectronicDocumentController::class, 'checkResources']);
 
       // CRUD de Documentos Electrónicos
       Route::apiResource('electronic-documents', ElectronicDocumentController::class);

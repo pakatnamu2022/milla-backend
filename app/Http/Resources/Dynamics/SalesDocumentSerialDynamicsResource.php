@@ -17,21 +17,17 @@ class SalesDocumentSerialDynamicsResource extends JsonResource
   /**
    * El número de línea
    */
-  public $lineNumber;
-
-  /**
-   * La serie/VIN
-   */
-  public $serie;
+//  public $lineNumber;
 
   /**
    * Constructor
    */
-  public function __construct(ElectronicDocument $document, int $lineNumber, string $serie)
+//  public function __construct(ElectronicDocument $document, int $lineNumber)
+  public function __construct(ElectronicDocument $document)
   {
+    parent::__construct(null);
     $this->document = $document;
-    $this->lineNumber = $lineNumber;
-    $this->serie = $serie;
+//    $this->lineNumber = $lineNumber;
   }
 
   /**
@@ -51,13 +47,16 @@ class SalesDocumentSerialDynamicsResource extends JsonResource
     };
 
     // Generar el DocumentoId con formato: TipoId-Serie-Correlativo
-    $documentoId = "{$tipoId}-{$this->document->serie}-{$this->document->numero}";
+    $documentoId = $this->document->full_number ?? throw new \Exception('El documento no tiene número completo definido.');
+
+    $vin = $this->document->vehicle->vin ?? throw new \Exception('El documento no tiene vehículo asociado con VIN.');
 
     return [
       'EmpresaId' => Company::AP_DYNAMICS,
       'DocumentoId' => $documentoId,
-      'Linea' => $this->lineNumber,
-      'Serie' => $this->serie,
+//      'Linea' => $this->lineNumber,
+      'Linea' => 1,
+      'Serie' => $vin,
     ];
   }
 }
