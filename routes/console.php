@@ -62,11 +62,11 @@ Schedule::command('shipping-guide:verify-migration --all')
   ->runInBackground();
 
 // Sincronizar invoice_dynamics desde Dynamics
-//Schedule::command('po:sync-invoice-dynamics --all')
-//  ->everyThirtySeconds()
-//  ->timezone('America/Lima')
-//  ->withoutOverlapping()
-//  ->runInBackground();
+Schedule::command('po:sync-invoice-dynamics --all')
+  ->everyThirtySeconds()
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
 
 // Sincronizar credit_note_dynamics desde Dynamics
 Schedule::command('po:sync-credit-note-dynamics --all')
