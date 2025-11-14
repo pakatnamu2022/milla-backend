@@ -20,12 +20,14 @@ class ApVehicleBrand extends Model
     'description',
     'logo',
     'logo_min',
+    'is_commercial',
     'status',
     'group_id',
   ];
 
   const filters = [
     'search' => ['code', 'dyn_code', 'name', 'description'],
+    'is_commercial' => '=',
     'status' => '=',
   ];
 

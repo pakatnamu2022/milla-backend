@@ -14,6 +14,7 @@ use App\Http\Controllers\ap\comercial\ShippingGuidesController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
 use App\Http\Controllers\ap\comercial\VehiclesController;
 use App\Http\Controllers\ap\compras\PurchaseOrderController;
+use App\Http\Controllers\ap\compras\PurchaseReceptionController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFamiliesController;
@@ -40,6 +41,7 @@ use App\Http\Controllers\ap\postventa\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\facturacion\BillingCatalogController;
 use App\Http\Controllers\ap\facturacion\ElectronicDocumentController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductCategoryController;
+use App\Http\Controllers\ap\postventa\gestionProductos\ProductsController;
 use App\Http\Controllers\Api\EvaluationNotificationController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
@@ -802,6 +804,18 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/{id}/history', [VehiclePurchaseOrderMigrationController::class, 'history']);
       });
 
+      // Purchase Receptions - Recepciones de Compra
+      Route::get('purchase-receptions/pending-review', [PurchaseReceptionController::class, 'pendingReview']);
+      Route::get('purchase-receptions/by-order/{purchaseOrderId}', [PurchaseReceptionController::class, 'byPurchaseOrder']);
+      Route::post('purchase-receptions/{id}/approve', [PurchaseReceptionController::class, 'approve']);
+      Route::apiResource('purchase-receptions', PurchaseReceptionController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
       // Vehicle Documents (Guías de Remisión/Traslado)
       Route::post('shippingGuides/{id}/cancel', [ShippingGuidesController::class, 'cancel']);
       Route::post('shippingGuides/{id}/send-to-nubefact', [ShippingGuidesController::class, 'sendToNubefact']);
@@ -865,6 +879,20 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     //      POST-VENTA
     Route::group(['prefix' => 'postVenta'], function () {
       Route::apiResource('productCategory', ProductCategoryController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Products - Gestión de Productos
+      Route::get('products/low-stock', [ProductsController::class, 'lowStock']);
+      Route::get('products/needs-reorder', [ProductsController::class, 'needsReorder']);
+      Route::get('products/featured', [ProductsController::class, 'featured']);
+      Route::get('products/best-sellers', [ProductsController::class, 'bestSellers']);
+      Route::post('products/{id}/update-stock', [ProductsController::class, 'updateStock']);
+      Route::apiResource('products', ProductsController::class)->only([
         'index',
         'show',
         'store',
