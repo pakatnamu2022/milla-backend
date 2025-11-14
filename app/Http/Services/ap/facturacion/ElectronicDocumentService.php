@@ -9,6 +9,7 @@ use App\Http\Resources\Dynamics\SalesDocumentSerialDynamicsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
+use App\Jobs\SyncSalesDocumentJob;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
@@ -184,6 +185,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Crear los items
       if (isset($data['items']) && is_array($data['items'])) {
+        $data['items'] = collect($data['items'])->sortBy('anticipo_regularizacion')->values()->all();
         foreach ($data['items'] as $index => $itemData) {
           $itemData['line_number'] = $index + 1;
           $document->items()->create($itemData);
@@ -448,6 +450,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Si el documento fue aceptado por SUNAT, actualizar usando el metodo del modelo
       if (isset($nubefactData['aceptada_por_sunat']) && $nubefactData['aceptada_por_sunat'] && !$document->aceptada_por_sunat) {
         $document->markAsAccepted($nubefactData);
+        SyncSalesDocumentJob::dispatch($id);
       }
 
       // Verificar si el documento fue anulado en Nubefact
@@ -665,6 +668,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
+        'original_document_id' => $originalDocumentId,
         'origin_module' => $originalDocument->origin_module,
         'origin_entity_type' => $originalDocument->origin_entity_type,
         'origin_entity_id' => $originalDocument->origin_entity_id,
@@ -742,6 +746,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
+        'original_document_id' => $originalDocumentId,
         'origin_module' => $originalDocument->origin_module,
         'origin_entity_type' => $originalDocument->origin_entity_type,
         'origin_entity_id' => $originalDocument->origin_entity_id,
@@ -1141,7 +1146,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     // Dispatch the sync job
-    \App\Jobs\SyncSalesDocumentJob::dispatch($id);
+    SyncSalesDocumentJob::dispatch($id);
 
     return [
       'success' => true,

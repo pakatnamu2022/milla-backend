@@ -27,7 +27,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
 
       if ($assignSeries) {
         $this->merge([
-          'assign_sales_series_id' => $seriesId,
+          'series_id' => $seriesId,
           'serie' => $assignSeries->series, // String "F001"
         ]);
       } else {

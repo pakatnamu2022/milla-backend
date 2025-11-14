@@ -76,6 +76,7 @@ class ElectronicDocument extends BaseModel
     'documento_que_se_modifica_tipo',
     'documento_que_se_modifica_serie',
     'documento_que_se_modifica_numero',
+    'original_document_id',
     'sunat_concept_credit_note_type_id',
     'sunat_concept_debit_note_type_id',
     'observaciones',
@@ -146,6 +147,7 @@ class ElectronicDocument extends BaseModel
 
   const array filters = [
     'search' => ['full_number', 'cliente_denominacion', 'cliente_numero_de_documento'],
+    'original_document_id' => '=',
     'is_advance_payment' => '=',
     'sunat_concept_document_type_id' => '=',
     'serie' => '=',
@@ -201,6 +203,11 @@ class ElectronicDocument extends BaseModel
   public function creditNote(): BelongsTo
   {
     return $this->belongsTo(ElectronicDocument::class, 'credit_note_id');
+  }
+
+  public function originalDocument(): BelongsTo
+  {
+    return $this->belongsTo(ElectronicDocument::class, 'original_document_id');
   }
 
   public function debitNote(): BelongsTo

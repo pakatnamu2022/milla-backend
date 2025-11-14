@@ -52,7 +52,12 @@ class VerifyElectronicDocumentSyncCommand extends Command
    */
   private function processSingleDocument(int $documentId, bool $useSync): int
   {
-    $document = ElectronicDocument::find($documentId);
+    $document = ElectronicDocument::whereIn('id', $documentId)
+      ->whereNull('deleted_at')
+      ->where('status', ElectronicDocument::STATUS_ACCEPTED)
+      ->where('anulado', false)
+      ->where('aceptada_por_sunat', true)
+      ->first();
 
     if (!$document) {
       $this->error("Documento electrónico no encontrado: {$documentId}");
@@ -114,7 +119,12 @@ class VerifyElectronicDocumentSyncCommand extends Command
       ->distinct()
       ->pluck('electronic_document_id');
 
-    return ElectronicDocument::whereIn('id', $pendingDocumentIds)->get();
+    return ElectronicDocument::whereIn('id', $pendingDocumentIds)
+      ->where('status', ElectronicDocument::STATUS_ACCEPTED)
+      ->where('anulado', false)
+      ->where('aceptada_por_sunat', true)
+      ->whereNull('deleted_at')
+      ->get();
   }
 
   /**

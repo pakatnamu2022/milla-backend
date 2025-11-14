@@ -36,6 +36,7 @@ class ElectronicDocumentItemResource extends JsonResource
       'anticipo_regularizacion' => $this->anticipo_regularizacion,
       'anticipo_documento_serie' => $this->anticipo_documento_serie,
       'anticipo_documento_numero' => $this->anticipo_documento_numero,
+      'original_document_id' => $this->original_document_id,
       'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
       'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
     ];

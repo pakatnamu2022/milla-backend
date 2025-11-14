@@ -20,6 +20,7 @@ class ElectronicDocumentResource extends JsonResource
       'id' => $this->id,
       'sunat_concept_document_type_id' => $this->sunat_concept_document_type_id,
       'serie' => $this->serie,
+      'series_id' => $this->series_id,
       'numero' => $this->numero,
       'full_number' => $this->full_number,
       'sunat_concept_transaction_type_id' => $this->sunat_concept_transaction_type_id,
@@ -70,6 +71,7 @@ class ElectronicDocumentResource extends JsonResource
       'documento_que_se_modifica_tipo' => $this->documento_que_se_modifica_tipo,
       'documento_que_se_modifica_serie' => $this->documento_que_se_modifica_serie,
       'documento_que_se_modifica_numero' => $this->documento_que_se_modifica_numero,
+      'original_document_id' => $this->original_document_id,
       'sunat_concept_credit_note_type_id' => $this->sunat_concept_credit_note_type_id,
       'sunat_concept_debit_note_type_id' => $this->sunat_concept_debit_note_type_id,
       'observaciones' => $this->observaciones,
@@ -94,12 +96,14 @@ class ElectronicDocumentResource extends JsonResource
       'cadena_para_codigo_qr' => $this->cadena_para_codigo_qr,
       'codigo_hash' => $this->codigo_hash,
       'status' => $this->status,
+      'migration_status' => $this->migration_status,
       'error_message' => $this->error_message,
 
       /**
        * Timestamps and users
        */
       'sent_at' => $this->sent_at,
+      'migrated_at' => $this->migrated_at,
       'accepted_at' => $this->accepted_at,
       'cancelled_at' => $this->cancelled_at,
       'created_by' => $this->created_by,
