@@ -33,100 +33,138 @@ class VerifyElectronicDocumentSyncCommand extends Command
   {
     $documentId = $this->option('id');
     $all = $this->option('all');
-    $sync = $this->option('sync');
-
-    // Por defecto usa cola, solo sync si se especifica --sync
-    $useSync = $sync;
+    $useSync = $this->option('sync');
 
     if ($documentId) {
-      // Verificar un documento específico
-      $document = ElectronicDocument::find($documentId);
-
-      if (!$document) {
-        $this->error("Documento electrónico no encontrado: {$documentId}");
-        return 1;
-      }
-
-      if ($useSync) {
-        $this->info("Ejecutando sincronización para el documento: {$document->full_number}");
-        $syncService = app(DatabaseSyncService::class);
-        $job = new SyncSalesDocumentJob($document->id);
-
-        try {
-          $job->handle($syncService);
-          $this->info("✓ Sincronización completada.");
-        } catch (\Exception $e) {
-          $this->error("Error: {$e->getMessage()}");
-          return 1;
-        }
-      } else {
-        $this->info("Despachando job de sincronización para el documento: {$document->full_number}");
-        SyncSalesDocumentJob::dispatch($document->id);
-        $this->info("Job despachado a la cola.");
-      }
-
-      return 0;
+      return $this->processSingleDocument($documentId, $useSync);
     }
 
     if ($all) {
-      // Verificar todos los documentos con sincronización pendiente
-      $pendingDocumentIds = VehiclePurchaseOrderMigrationLog::whereNotNull('electronic_document_id')
-        ->whereIn('status', [
-          VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
-          VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
-          VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
-        ])
-        ->distinct()
-        ->pluck('electronic_document_id');
+      return $this->processAllPendingDocuments($useSync);
+    }
 
-      if ($pendingDocumentIds->isEmpty()) {
-        $this->info("No hay documentos electrónicos pendientes de sincronización.");
-        return 0;
-      }
+    $this->showHelp();
+    return 1;
+  }
 
-      $pendingDocuments = ElectronicDocument::whereIn('id', $pendingDocumentIds)->get();
+  /**
+   * Procesa un documento electrónico específico
+   */
+  private function processSingleDocument(int $documentId, bool $useSync): int
+  {
+    $document = ElectronicDocument::find($documentId);
 
-      $this->info("Encontrados {$pendingDocuments->count()} documentos pendientes de sincronización.");
+    if (!$document) {
+      $this->error("Documento electrónico no encontrado: {$documentId}");
+      return 1;
+    }
 
-      $bar = $this->output->createProgressBar($pendingDocuments->count());
-      $bar->start();
-      if ($useSync) {
-        $syncService = app(DatabaseSyncService::class);
-        foreach ($pendingDocuments as $document) {
-          try {
-            $job = new SyncSalesDocumentJob($document->id);
-            $job->handle($syncService);
-          } catch (\Exception $e) {
-            $this->newLine();
-            $this->error("Error en documento {$document->full_number}: {$e->getMessage()}");
-          }
-          $bar->advance();
-        }
+    $this->info("Procesando documento: {$document->full_number}");
 
-        $bar->finish();
-        $this->newLine();
-        $this->info("✓ Sincronización completada.");
-      } else {
-        foreach ($pendingDocuments as $document) {
-          SyncSalesDocumentJob::dispatch($document->id);
-          $bar->advance();
-        }
+    return $this->executeSyncJob($document, $useSync) ? 0 : 1;
+  }
 
-        $bar->finish();
-        $this->newLine();
-        $this->info("Jobs despachados a la cola.");
-      }
+  /**
+   * Procesa todos los documentos electrónicos pendientes
+   */
+  private function processAllPendingDocuments(bool $useSync): int
+  {
+    $pendingDocuments = $this->getPendingDocuments();
 
+    if ($pendingDocuments->isEmpty()) {
+      $this->info("No hay documentos electrónicos pendientes de sincronización.");
       return 0;
     }
 
-    // Si no se especifica ninguna opción, mostrar ayuda
+    $this->info("Encontrados {$pendingDocuments->count()} documentos pendientes de sincronización.");
+
+    $bar = $this->output->createProgressBar($pendingDocuments->count());
+    $bar->start();
+
+    $syncService = $useSync ? app(DatabaseSyncService::class) : null;
+
+    foreach ($pendingDocuments as $document) {
+      $this->executeSyncJob($document, $useSync, $syncService);
+      $bar->advance();
+    }
+
+    $bar->finish();
+    $this->newLine();
+
+    $message = $useSync
+      ? "✓ Sincronización completada."
+      : "Jobs despachados a la cola.";
+
+    $this->info($message);
+
+    return 0;
+  }
+
+  /**
+   * Obtiene los documentos electrónicos pendientes de sincronización
+   */
+  private function getPendingDocuments()
+  {
+    $pendingDocumentIds = VehiclePurchaseOrderMigrationLog::whereNotNull('electronic_document_id')
+      ->whereIn('status', [
+        VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+        VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
+        VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
+      ])
+      ->distinct()
+      ->pluck('electronic_document_id');
+
+    return ElectronicDocument::whereIn('id', $pendingDocumentIds)->get();
+  }
+
+  /**
+   * Ejecuta el job de sincronización de forma síncrona o asíncrona
+   */
+  private function executeSyncJob(ElectronicDocument $document, bool $useSync, ?DatabaseSyncService $syncService = null): bool
+  {
+    if ($useSync) {
+      return $this->executeSyncJobSynchronously($document, $syncService);
+    }
+
+    return $this->dispatchSyncJobToQueue($document);
+  }
+
+  /**
+   * Ejecuta el job de sincronización de forma síncrona
+   */
+  private function executeSyncJobSynchronously(ElectronicDocument $document, ?DatabaseSyncService $syncService = null): bool
+  {
+    try {
+      $syncService = $syncService ?? app(DatabaseSyncService::class);
+      $job = new SyncSalesDocumentJob($document->id);
+      $job->handle($syncService);
+
+      return true;
+    } catch (\Exception $e) {
+      $this->newLine();
+      $this->error("Error en documento {$document->full_number}: {$e->getMessage()}");
+      return false;
+    }
+  }
+
+  /**
+   * Despacha el job de sincronización a la cola
+   */
+  private function dispatchSyncJobToQueue(ElectronicDocument $document): bool
+  {
+    SyncSalesDocumentJob::dispatch($document->id);
+    return true;
+  }
+
+  /**
+   * Muestra la ayuda del comando
+   */
+  private function showHelp(): void
+  {
     $this->warn("Debes especificar --id o --all para ejecutar este comando.");
     $this->info("Ejemplos:");
     $this->line("  php artisan electronic-document:verify-sync --id=123");
     $this->line("  php artisan electronic-document:verify-sync --all");
     $this->line("  php artisan electronic-document:verify-sync --all --sync");
-
-    return 1;
   }
 }
