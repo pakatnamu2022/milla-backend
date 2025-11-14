@@ -40,6 +40,7 @@ use App\Http\Controllers\ap\postventa\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\facturacion\BillingCatalogController;
 use App\Http\Controllers\ap\facturacion\ElectronicDocumentController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductCategoryController;
+use App\Http\Controllers\ap\postventa\gestionProductos\ProductsController;
 use App\Http\Controllers\Api\EvaluationNotificationController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
@@ -865,6 +866,20 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     //      POST-VENTA
     Route::group(['prefix' => 'postVenta'], function () {
       Route::apiResource('productCategory', ProductCategoryController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Products - Gestión de Productos
+      Route::get('products/low-stock', [ProductsController::class, 'lowStock']);
+      Route::get('products/needs-reorder', [ProductsController::class, 'needsReorder']);
+      Route::get('products/featured', [ProductsController::class, 'featured']);
+      Route::get('products/best-sellers', [ProductsController::class, 'bestSellers']);
+      Route::post('products/{id}/update-stock', [ProductsController::class, 'updateStock']);
+      Route::apiResource('products', ProductsController::class)->only([
         'index',
         'show',
         'store',

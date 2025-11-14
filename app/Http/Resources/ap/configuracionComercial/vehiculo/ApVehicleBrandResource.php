@@ -17,6 +17,7 @@ class ApVehicleBrandResource extends JsonResource
       'description' => $this->description,
       'logo' => $this->logo,
       'logo_min' => $this->logo_min,
+      'is_commercial' => $this->is_commercial,
       'status' => $this->status,
       'group_id' => $this->group_id,
       'group' => $this->group->description,

@@ -1,7 +1,8 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
   /**
@@ -9,8 +10,9 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    // Agregar los pasos de ventas (sales) al ENUM
-    DB::statement("ALTER TABLE ap_vehicle_purchase_order_migration_log
+    Schema::table('ap_vehicle_purchase_order_migration_log', function (Blueprint $table) {
+      // Agregar los pasos de reversión (cancelación) al ENUM
+      DB::statement("ALTER TABLE ap_vehicle_purchase_order_migration_log
             MODIFY COLUMN step ENUM(
                 'supplier',
                 'supplier_address',
@@ -26,12 +28,19 @@ return new class extends Migration {
                 'inventory_transfer_REVERSAL',
                 'inventory_transfer_detail_REVERSAL',
                 'inventory_transfer_serial_REVERSAL',
+                'sale_shipping_guide',
+                'sale_shipping_guide_detail',
+                'sale_shipping_guide_serial',
+                'sale_shipping_guide_REVERSAL',
+                'sale_shipping_guide_detail_REVERSAL',
+                'sale_shipping_guide_serial_REVERSAL',
                 'sales_client',
                 'sales_article',
                 'sales_document',
                 'sales_document_detail',
                 'sales_document_serial'
             ) NOT NULL COMMENT 'Paso del proceso de migración'");
+    });
   }
 
   /**
@@ -39,8 +48,9 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    // Revertir al estado anterior (sin pasos de ventas)
-    DB::statement("ALTER TABLE ap_vehicle_purchase_order_migration_log
+    Schema::table('ap_vehicle_purchase_order_migration_log', function (Blueprint $table) {
+      // Revertir al estado anterior (sin pasos de reversión)
+      DB::statement("ALTER TABLE ap_vehicle_purchase_order_migration_log
             MODIFY COLUMN step ENUM(
                 'supplier',
                 'supplier_address',
@@ -57,5 +67,6 @@ return new class extends Migration {
                 'inventory_transfer_detail_REVERSAL',
                 'inventory_transfer_serial_REVERSAL'
             ) NOT NULL COMMENT 'Paso del proceso de migración'");
+    });
   }
 };

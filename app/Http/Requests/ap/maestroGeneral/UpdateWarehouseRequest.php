@@ -14,18 +14,11 @@ class UpdateWarehouseRequest extends StoreRequest
         'nullable',
         'string',
         'max:10',
-        Rule::unique('warehouse', 'dyn_code')
-          ->where('sede_id', $this->input('sede_id'))
-          ->whereNull('deleted_at')
-          ->ignore($this->route('warehouse')),
       ],
       'description' => [
         'nullable',
         'string',
         'max:100',
-        Rule::unique('warehouse', 'description')
-          ->whereNull('deleted_at')
-          ->ignore($this->route('warehouse')),
       ],
       'sede_id' => [
         'nullable',

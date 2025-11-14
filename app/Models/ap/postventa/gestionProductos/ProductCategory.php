@@ -5,6 +5,7 @@ namespace App\Models\ap\postventa\gestionProductos;
 use App\Models\ap\ApPostVentaMasters;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class ProductCategory extends Model
 {
@@ -30,6 +31,16 @@ class ProductCategory extends Model
     'description',
     'type',
   ];
+
+  public function setNameAttribute($value)
+  {
+    $this->attributes['name'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setDescriptionAttribute($value)
+  {
+    $this->attributes['description'] = Str::upper(Str::ascii($value));
+  }
 
   public function type()
   {

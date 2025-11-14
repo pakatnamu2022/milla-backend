@@ -110,6 +110,11 @@ class PurchaseOrder extends BaseModel
     return $this->hasMany(PurchaseOrderItem::class, 'purchase_order_id');
   }
 
+  public function receptions(): HasMany
+  {
+    return $this->hasMany(PurchaseReception::class, 'purchase_order_id');
+  }
+
   public function vehicleMovement(): BelongsTo
   {
     return $this->belongsTo(VehicleMovement::class, 'vehicle_movement_id');

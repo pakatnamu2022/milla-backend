@@ -56,6 +56,10 @@ class UpdateApVehicleBrandRequest extends StoreRequest
         'mimes:jpeg,png,webp,jpg',
         'max:2048',
       ],
+      'is_commercial' => [
+        'nullable',
+        'boolean',
+      ],
       'status' => ['nullable', 'boolean'],
     ];
   }

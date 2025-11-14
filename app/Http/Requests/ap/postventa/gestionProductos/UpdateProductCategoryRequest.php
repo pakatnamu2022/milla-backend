@@ -2,27 +2,29 @@
 
 namespace App\Http\Requests\ap\postventa\gestionProductos;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\StoreRequest;
 
-class UpdateProductCategoryRequest extends FormRequest
+class UpdateProductCategoryRequest extends StoreRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return false;
-    }
+  public function rules(): array
+  {
+    return [
+      'name' => 'nullable|string|max:255',
+      'description' => 'nullable|string|max:1000',
+      'status' => 'nullable|boolean',
+      'type_id' => 'nullable|exists:ap_post_venta_masters,id',
+    ];
+  }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
-    public function rules(): array
-    {
-        return [
-            //
-        ];
-    }
+  public function messages(): array
+  {
+    return [
+      'name.string' => 'El nombre debe ser una cadena de texto.',
+      'name.max' => 'El nombre no debe exceder los 255 caracteres.',
+      'description.string' => 'La descripción debe ser una cadena de texto.',
+      'description.max' => 'La descripción no debe exceder los 1000 caracteres.',
+      'status.boolean' => 'El estado debe ser verdadero o falso.',
+      'type_id.exists' => 'El tipo seleccionado no es válido.',
+    ];
+  }
 }

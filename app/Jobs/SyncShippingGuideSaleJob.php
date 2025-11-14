@@ -272,7 +272,7 @@ class SyncShippingGuideSaleJob implements ShouldQueue
       $warehouseCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
 
       // Si está cancelada, la cantidad es negativa (para revertir la salida)
-      $cantidad = $isCancelled ? -1 : 1;
+      $cantidad = $isCancelled ? 1 : -1;
 
       $detailData = [
         'EmpresaId' => Company::AP_DYNAMICS,
