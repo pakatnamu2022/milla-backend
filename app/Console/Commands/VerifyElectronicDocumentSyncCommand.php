@@ -8,6 +8,7 @@ use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class VerifyElectronicDocumentSyncCommand extends Command
 {
@@ -87,10 +88,9 @@ class VerifyElectronicDocumentSyncCommand extends Command
 
       $this->info("Encontrados {$pendingDocuments->count()} documentos pendientes de sincronización.");
 
+      $bar = $this->output->createProgressBar($pendingDocuments->count());
+      $bar->start();
       if ($useSync) {
-        $bar = $this->output->createProgressBar($pendingDocuments->count());
-        $bar->start();
-
         $syncService = app(DatabaseSyncService::class);
         foreach ($pendingDocuments as $document) {
           try {
@@ -107,9 +107,6 @@ class VerifyElectronicDocumentSyncCommand extends Command
         $this->newLine();
         $this->info("✓ Sincronización completada.");
       } else {
-        $bar = $this->output->createProgressBar($pendingDocuments->count());
-        $bar->start();
-
         foreach ($pendingDocuments as $document) {
           SyncSalesDocumentJob::dispatch($document->id);
           $bar->advance();

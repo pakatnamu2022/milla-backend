@@ -41,7 +41,7 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     // Obtener el código del artículo
     $articuloId = $this->accountPlan->code_dynamics ?? throw new Exception('El ítem no tiene una cuenta contable asociada con código Dynamics.');
 
-    // Sitio (almacén) - puede venir del contexto
+    // Sitio (almacén) - puede venir del contexto // TODO: Verificar almacen
     $sitioId = $this->document->vehicle ? $this->document->vehicle->warehouse?->dyn_code : 'ALM-VN-CIX';
 
     // Unidad de medida
