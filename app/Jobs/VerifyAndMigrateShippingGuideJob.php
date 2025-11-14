@@ -12,6 +12,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use function json_encode;
 
 class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 {
@@ -59,9 +60,9 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
   protected function processAllPendingShippingGuides(DatabaseSyncService $syncService): void
   {
     $pendingGuides = ShippingGuides::whereIn('migration_status', [
-      'pending',
-      'in_progress',
-      'failed'
+      VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+      VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
+      VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
     ])->get();
 
     foreach ($pendingGuides as $guide) {

@@ -13,6 +13,7 @@ use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
@@ -21,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use NumberFormatter;
+use Throwable;
 
 class ElectronicDocumentService extends BaseService implements BaseServiceInterface
 {
@@ -129,6 +131,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   /**
    * Create a new electronic document
    * @throws Exception
+   * @throws Throwable
    */
   public function store(mixed $data): ElectronicDocumentResource
   {
@@ -213,7 +216,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       DB::commit();
       return new ElectronicDocumentResource($document->load(['items', 'guides', 'installments', 'vehicleMovement']));
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
       DB::rollBack();
       Log::error('Error creating electronic document', [
         'error' => $e->getMessage(),
@@ -1212,9 +1215,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $documentoId = "{$tipoId}-{$document->serie}-{$document->numero}";
 
       try {
-        $dynamicsRecord = \DB::connection('dbtp')
+        $dynamicsRecord = DB::connection('dbtp')
           ->table('neInTbVenta')
-          ->where('EmpresaId', \App\Models\gp\gestionsistema\Company::AP_DYNAMICS)
+          ->where('EmpresaId', Company::AP_DYNAMICS)
           ->where('DocumentoId', $documentoId)
           ->first();
 
