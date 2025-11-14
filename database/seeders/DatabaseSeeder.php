@@ -16,5 +16,7 @@ class DatabaseSeeder extends Seeder
   {
 //    $this->call(UnitMeasurementSeeder::class);
     $this->call(ViewSeeder::class);
+    $this->call(CrudPermissionsSeeder::class);
+
   }
 }

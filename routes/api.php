@@ -901,6 +901,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('electronic-documents/{id}/sync-status', [ElectronicDocumentController::class, 'getSyncStatus']);
       Route::get('electronic-documents/checkResources/{id}', [ElectronicDocumentController::class, 'checkResources']);
 
+      // Migration logs and history
+      Route::get('electronic-documents/{id}/logs', [ElectronicDocumentController::class, 'logs']);
+      Route::get('electronic-documents/{id}/history', [ElectronicDocumentController::class, 'history']);
+
       // CRUD de Documentos Electrónicos
       Route::apiResource('electronic-documents', ElectronicDocumentController::class);
 

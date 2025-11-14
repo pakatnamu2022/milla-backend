@@ -158,6 +158,11 @@ class CrudPermissionsSeeder extends Seeder
         }
       }
 
+      // Asignar todos los permisos al rol 98
+      $this->command->newLine();
+      $this->command->info("🔐 Asignando permisos al rol 98...");
+      $assigned = $this->assignPermissionsToRole(98);
+
       DB::commit();
 
       $this->command->newLine();
@@ -169,6 +174,7 @@ class CrudPermissionsSeeder extends Seeder
       $this->command->info("🔄 Permisos restaurados/actualizados: {$updated}");
       $this->command->info("⏭️  Permisos omitidos (ya existen): {$skipped}");
       $this->command->info("📊 Total procesado: " . ($created + $skipped + $updated));
+      $this->command->info("🔐 Permisos asignados al rol 98: {$assigned}");
       $this->command->info("════════════════════════════════════════════════════════════");
     } catch (\Exception $e) {
       DB::rollBack();
@@ -176,6 +182,42 @@ class CrudPermissionsSeeder extends Seeder
       $this->command->error("Stack trace: " . $e->getTraceAsString());
       throw $e;
     }
+  }
+
+  /**
+   * Asigna todos los permisos activos al rol especificado
+   *
+   * @param int $roleId ID del rol
+   * @return int Cantidad de permisos asignados
+   */
+  private function assignPermissionsToRole(int $roleId): int
+  {
+    $assigned = 0;
+
+    // Obtener todos los permisos activos
+    $permissions = Permission::where('is_active', true)->get();
+
+    foreach ($permissions as $permission) {
+      // Verificar si ya existe la asignación
+      $exists = DB::table('role_permission')
+        ->where('role_id', $roleId)
+        ->where('permission_id', $permission->id)
+        ->exists();
+
+      if (!$exists) {
+        // Crear la asignación
+        DB::table('role_permission')->insert([
+          'role_id' => $roleId,
+          'permission_id' => $permission->id,
+          'granted' => true,
+          'created_at' => now(),
+          'updated_at' => now(),
+        ]);
+        $assigned++;
+      }
+    }
+
+    return $assigned;
   }
 }
 

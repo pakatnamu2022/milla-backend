@@ -61,26 +61,14 @@ class ViewSeeder extends Seeder
         'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => $POST_VENTA_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
     ];
 
-//    $DELETE = [
-//      ['descripcion' => 'Vehículos VN', 'submodule' => false, 'route' => 'vehiculos-vn',
-//        'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
-//    ];
+    $DELETE = [
+      ['descripcion' => 'Vehículos VN', 'submodule' => false, 'route' => 'vehiculos-vn',
+        'ruta' => '-', 'icon' => 'CircleDot', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
+    ];
 
-    // Procesar eliminaciones
-//    foreach ($DELETE as $deleteItem) {
-//      $view = View::where('descripcion', $deleteItem['descripcion'])
-//        ->where('company_id', $deleteItem['company_id'])
-//        ->where('route', $deleteItem['route'])
-//        ->where('parent_id', $deleteItem['parent_id'])
-//        ->first();
-//
-//      if ($view) {
-//        $view->delete();
-//      }
-//    }
 
     foreach ($data as $item) {
-      $view = View::updateOrCreate(
+      View::updateOrCreate(
         [
           'descripcion' => $item['descripcion'],
           'company_id' => $item['company_id'],
@@ -90,26 +78,7 @@ class ViewSeeder extends Seeder
         $item
       );
 
-//      $permissions = [
-//        ['code' => "{$view->route}.view", 'name' => "Ver {$view->descripcion}", 'description' => "Permite visualizar información -  {$view->descripcion}", 'policy_method' => 'view'],
-//        ['code' => "{$view->route}.create", 'name' => "Crear {$view->descripcion}", 'description' => "Permite crear nuevos registros - {$view->descripcion}", 'policy_method' => 'create'],
-//        ['code' => "{$view->route}.edit", 'name' => "Editar {$view->descripcion}", 'description' => "Permite modificar registros existentes - {$view->descripcion}", 'policy_method' => 'update'],
-//        ['code' => "{$view->route}.delete", 'name' => "Eliminar {$view->descripcion}", 'description' => "Permite eliminar o anular registros - {$view->descripcion}", 'policy_method' => 'delete'],
-//      ];
-//
-//      foreach ($permissions as $perm) {
-//        Permission::updateOrCreate(
-//          ['code' => $perm['code']],
-//          [
-//            'name' => $perm['name'],
-//            'description' => $perm['description'],
-//            'module' => $view->route,
-//            'vista_id' => $view->id,
-//            'is_active' => true,
-//            'policy_method' => $perm['policy_method']
-//          ]
-//        );
-//      }
+
     }
   }
 }

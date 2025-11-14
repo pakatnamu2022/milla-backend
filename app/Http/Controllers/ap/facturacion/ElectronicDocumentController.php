@@ -9,13 +9,15 @@ use App\Http\Requests\ap\facturacion\StoreCreditNoteRequest;
 use App\Http\Requests\ap\facturacion\StoreDebitNoteRequest;
 use App\Http\Requests\ap\facturacion\StoreElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\UpdateElectronicDocumentRequest;
+use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
 use App\Http\Services\ap\facturacion\ElectronicDocumentService;
 use App\Http\Traits\HasApiResponse;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Exception;
-use function json_encode;
 
 class ElectronicDocumentController extends Controller
 {
@@ -273,6 +275,119 @@ class ElectronicDocumentController extends Controller
   {
     try {
       return $this->success($this->service->checkResources($id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Get migration logs for a specific electronic document
+   */
+  public function logs(int $id): JsonResponse
+  {
+    try {
+      $electronicDocument = ElectronicDocument::find($id);
+
+      if (!$electronicDocument) {
+        return response()->json([
+          'success' => false,
+          'message' => 'Documento electrónico no encontrado',
+        ], 404);
+      }
+
+      $logs = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $id)
+        ->orderBy('id')
+        ->get();
+
+      return response()->json([
+        'electronic_document' => [
+          'id' => $electronicDocument->id,
+          'full_number' => $electronicDocument->full_number,
+          'serie' => $electronicDocument->serie,
+          'numero' => $electronicDocument->numero,
+          'migration_status' => $electronicDocument->migration_status,
+          'migrated_at' => $electronicDocument->migrated_at?->format('Y-m-d H:i:s'),
+          'created_at' => $electronicDocument->created_at->format('Y-m-d H:i:s'),
+        ],
+        'logs' => VehiclePurchaseOrderMigrationLogResource::collection($logs),
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Get detailed migration history for an electronic document
+   */
+  public function history(int $id): JsonResponse
+  {
+    try {
+      $electronicDocument = ElectronicDocument::find($id);
+
+      if (!$electronicDocument) {
+        return response()->json([
+          'success' => false,
+          'message' => 'Documento electrónico no encontrado',
+        ], 404);
+      }
+
+      $logs = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $id)
+        ->orderBy('created_at')
+        ->orderBy('id')
+        ->get();
+
+      // Crear timeline de eventos
+      $timeline = $logs->map(function ($log) {
+        $events = [];
+
+        // Evento de creación
+        $events[] = [
+          'timestamp' => $log->created_at->format('Y-m-d H:i:s'),
+          'event' => 'created',
+          'description' => "Paso '{$log->step}' creado",
+          'status' => 'pending',
+        ];
+
+        // Eventos de intentos
+        if ($log->last_attempt_at) {
+          $events[] = [
+            'timestamp' => $log->last_attempt_at->format('Y-m-d H:i:s'),
+            'event' => 'attempt',
+            'description' => "Intento #{$log->attempts} de sincronización",
+            'status' => $log->status,
+            'error' => $log->error_message,
+          ];
+        }
+
+        // Evento de completado
+        if ($log->completed_at) {
+          $events[] = [
+            'timestamp' => $log->completed_at->format('Y-m-d H:i:s'),
+            'event' => 'completed',
+            'description' => "Paso completado exitosamente",
+            'status' => 'completed',
+            'proceso_estado' => $log->proceso_estado,
+          ];
+        }
+
+        return [
+          'step' => $log->step,
+          'step_name' => (new VehiclePurchaseOrderMigrationLogResource($log))->step_name,
+          'events' => $events,
+        ];
+      });
+
+      return response()->json([
+        'electronic_document' => [
+          'id' => $electronicDocument->id,
+          'full_number' => $electronicDocument->full_number,
+          'serie' => $electronicDocument->serie,
+          'numero' => $electronicDocument->numero,
+          'migration_status' => $electronicDocument->migration_status,
+          'migrated_at' => $electronicDocument->migrated_at?->format('Y-m-d H:i:s'),
+        ],
+        'timeline' => $timeline,
+      ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
