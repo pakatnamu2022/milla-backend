@@ -306,7 +306,7 @@ class ElectronicDocumentController extends Controller
           'serie' => $electronicDocument->serie,
           'numero' => $electronicDocument->numero,
           'migration_status' => $electronicDocument->migration_status,
-          'migrated_at' => $electronicDocument->migrated_at?->format('Y-m-d H:i:s'),
+          'migrated_at' => $electronicDocument->migrated_at,
           'created_at' => $electronicDocument->created_at->format('Y-m-d H:i:s'),
         ],
         'logs' => VehiclePurchaseOrderMigrationLogResource::collection($logs),

@@ -140,6 +140,7 @@ class ElectronicDocument extends BaseModel
     'aceptada_por_sunat' => 'boolean',
     'sent_at' => 'datetime',
     'accepted_at' => 'datetime',
+    'migrated_at' => 'datetime',
     'cancelled_at' => 'datetime',
   ];
 
