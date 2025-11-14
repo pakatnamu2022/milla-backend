@@ -14,7 +14,7 @@ class UpdateWarehouseRequest extends StoreRequest
         'nullable',
         'string',
         'max:10',
-        Rule::unique('ap_warehouses', 'dyn_code')
+        Rule::unique('warehouse', 'dyn_code')
           ->where('article_class_id', $this->article_class_id)
           ->ignore($this->route('warehouse')),
       ],
