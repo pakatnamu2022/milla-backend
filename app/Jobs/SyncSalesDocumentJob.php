@@ -335,10 +335,7 @@ class SyncSalesDocumentJob implements ShouldQueue
       }
     } else {
       // Existe, actualizar el estado del log
-      $log->updateProcesoEstado(
-        $existingDetail->ProcesoEstado ?? 0,
-        $existingDetail->ProcesoError ?? null
-      );
+      $log->markAsCompleted(1);
     }
   }
 
