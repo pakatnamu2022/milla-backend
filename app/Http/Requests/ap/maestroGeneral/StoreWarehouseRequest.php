@@ -14,6 +14,9 @@ class StoreWarehouseRequest extends StoreRequest
         'required',
         'string',
         'max:10',
+        Rule::unique('ap_warehouses', 'dyn_code')
+          ->where('article_class_id', $this->article_class_id)
+          ->ignore($this->route('warehouse')),
       ],
       'description' => [
         'required',
@@ -58,7 +61,7 @@ class StoreWarehouseRequest extends StoreRequest
       'dyn_code.required' => 'El código dynamic es obligatorio.',
       'dyn_code.string' => 'El código dynamic debe ser un texto.',
       'dyn_code.max' => 'El código dynamic no puede tener más de 10 caracteres.',
-      'dyn_code.unique' => 'El código dynamic ya existe en el sistema.',
+      'dyn_code.unique' => 'El código dynamic ya está registrado para la clase de artículo seleccionada.',
 
       'description.required' => 'La descripción es obligatoria.',
       'description.string' => 'La descripción debe ser un texto.',

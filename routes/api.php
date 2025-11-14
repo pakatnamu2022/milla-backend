@@ -14,6 +14,7 @@ use App\Http\Controllers\ap\comercial\ShippingGuidesController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
 use App\Http\Controllers\ap\comercial\VehiclesController;
 use App\Http\Controllers\ap\compras\PurchaseOrderController;
+use App\Http\Controllers\ap\compras\PurchaseReceptionController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFamiliesController;
@@ -802,6 +803,18 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/{id}/logs', [VehiclePurchaseOrderMigrationController::class, 'logs']);
         Route::get('/{id}/history', [VehiclePurchaseOrderMigrationController::class, 'history']);
       });
+
+      // Purchase Receptions - Recepciones de Compra
+      Route::get('purchase-receptions/pending-review', [PurchaseReceptionController::class, 'pendingReview']);
+      Route::get('purchase-receptions/by-order/{purchaseOrderId}', [PurchaseReceptionController::class, 'byPurchaseOrder']);
+      Route::post('purchase-receptions/{id}/approve', [PurchaseReceptionController::class, 'approve']);
+      Route::apiResource('purchase-receptions', PurchaseReceptionController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
 
       // Vehicle Documents (Guías de Remisión/Traslado)
       Route::post('shippingGuides/{id}/cancel', [ShippingGuidesController::class, 'cancel']);
