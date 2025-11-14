@@ -44,6 +44,7 @@ class PurchaseOrderResource extends JsonResource
       'currency' => $this->currency->name,
       'currency_code' => $this->currency->code,
       'warehouse' => $this->warehouse->description,
+      'article_class' => $this->warehouse->articleClass,
 
       // Vehículo (si existe)
       'vehicle' => VehiclesResource::make($this->vehicle),
