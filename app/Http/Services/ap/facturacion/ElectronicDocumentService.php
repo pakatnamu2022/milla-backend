@@ -98,14 +98,17 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
      * TODO: Delete this block and always use nextCorrelativeQuery
      */
     if ($query->count() == 0) {
-      if (($documentType == ElectronicDocument::TYPE_FACTURA || $documentType == ElectronicDocument::TYPE_BOLETA)) {
-        $startCorrelative = 1;
+      if (($documentType == ElectronicDocument::TYPE_FACTURA)) {
+        $startCorrelative = 26;
         $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelative;
+      } else if ($documentType == ElectronicDocument::TYPE_BOLETA) {
+        $startCorrelativeNC = 1;
+        $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelativeNC;
       } else if ($documentType == ElectronicDocument::TYPE_NOTA_CREDITO) {
-        $startCorrelativeNC = 0;
+        $startCorrelativeNC = 2;
         $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelativeNC;
       } else if ($documentType == ElectronicDocument::TYPE_NOTA_DEBITO) {
-        $startCorrelativeND = 0;
+        $startCorrelativeND = 1;
         $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelativeND;
       } else {
         throw new Exception('El tipo de documento no es valido');
