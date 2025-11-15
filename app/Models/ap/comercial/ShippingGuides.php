@@ -24,6 +24,7 @@ class ShippingGuides extends Model
     'issuer_type',
     'document_series_id',
     'series',
+    'dyn_series',
     'correlative',
     'document_number',
     'issue_date', // fecha de translado
