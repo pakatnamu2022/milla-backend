@@ -129,11 +129,11 @@ class ApReceivingChecklistService extends BaseService
       }
 
       // validamos que la fecha de hoy no sea menos a la fecha de translado issue_date
-      $today = now()->startOfDay();
-      $issueDate = $shippingGuide->issue_date ? $shippingGuide->issue_date->startOfDay() : null;
-      if ($issueDate && $today->lt($issueDate)) {
-        throw new Exception('La fecha de recepción no puede ser anterior a la fecha de translado de la guía de remisión');
-      }
+//      $today = now()->startOfDay();
+//      $issueDate = $shippingGuide->issue_date ? $shippingGuide->issue_date->startOfDay() : null;
+//      if ($issueDate && $today->lt($issueDate)) {
+//        throw new Exception('La fecha de recepción no puede ser anterior a la fecha de translado de la guía de remisión');
+//      }
 
       // Get existing records for this shipping guide
       $existingRecords = ApReceivingChecklist::where('shipping_guide_id', $data['shipping_guide_id'])->get();
