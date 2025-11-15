@@ -184,7 +184,7 @@ class NubefactShippingGuideApiService
       'tipo_de_comprobante' => $tipoComprobante, // 7 = Remitente, 8 = Transportista
       'serie' => $guide->series,
       'numero' => $guide->correlative,
-      'fecha_de_emision' => $guide->issue_date->format('d-m-Y'),
+      'fecha_de_emision' => $guide->created_at->format('d-m-Y'),
       'peso_bruto_total' => number_format($guide->total_weight, 2, '.', ''),
       'peso_bruto_unidad_de_medida' => 'KGM', // Kilogramos
       'fecha_de_inicio_de_traslado' => $guide->issue_date->format('d-m-Y'),

@@ -82,6 +82,8 @@ class ShippingGuides extends Model
     'destination_address',
     'ruc_transport',
     'company_name_transport',
+    'created_at',
+    'updated_at',
   ];
 
   protected $casts = [
