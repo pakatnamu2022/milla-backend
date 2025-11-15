@@ -23,6 +23,7 @@ class ShippingGuidesResource extends JsonResource
       'issue_date' => $this->issue_date,
       'requires_sunat' => $this->requires_sunat,
       'is_sunat_registered' => $this->is_sunat_registered,
+      'received_date' => $this->received_date,
       'transmitter_id' => $this->transmitter_id,
       'transmitter_name' => $this->transmitter->businessPartner->full_name ?? null,
       'transmitter_establishment' => $this->transmitter ? [
