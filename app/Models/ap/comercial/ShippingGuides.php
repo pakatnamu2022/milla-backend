@@ -26,7 +26,7 @@ class ShippingGuides extends Model
     'series',
     'correlative',
     'document_number',
-    'issue_date',
+    'issue_date', // fecha de translado
     'requires_sunat',
     'is_sunat_registered',
     'sent_at',
