@@ -142,8 +142,8 @@ class SyncShippingGuideJob implements ShouldQueue
       $data = [
         'EmpresaId' => Company::AP_DYNAMICS,
         'TransferenciaId' => $transferId,
-        'FechaEmision' => $shippingGuide->issue_date->format('Y-m-d'),
-        'FechaContable' => $shippingGuide->issue_date->format('Y-m-d'),
+        'FechaEmision' => $shippingGuide->received_date->format('Y-m-d'),
+        'FechaContable' => $shippingGuide->received_date->format('Y-m-d'),
         'Procesar' => 1,
         'ProcesoEstado' => 0,
         'ProcesoError' => '',

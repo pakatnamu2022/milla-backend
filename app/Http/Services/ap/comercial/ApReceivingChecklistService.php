@@ -171,9 +171,6 @@ class ApReceivingChecklistService extends BaseService
           ->update(['quantity' => $data['items_receiving'][$receivingId]]);
       }
 
-      // Despachar el Job síncronamente para debugging
-      SyncShippingGuideJob::dispatchSync($shippingGuide->id);
-
       // marcar cono enviada a Dynamics
       $shippingGuide->markAsSentToDynamic();
 
@@ -184,6 +181,9 @@ class ApReceivingChecklistService extends BaseService
         'received_by' => auth()->id(),
         'received_date' => now(),
       ]);
+
+      // Despachar el Job síncronamente para debugging
+      SyncShippingGuideJob::dispatchSync($shippingGuide->id);
 
       // Get updated records
       $updatedRecords = ApReceivingChecklist::where('shipping_guide_id', $data['shipping_guide_id'])
