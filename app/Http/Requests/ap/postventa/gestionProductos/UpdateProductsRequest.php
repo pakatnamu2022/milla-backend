@@ -21,7 +21,6 @@ class UpdateProductsRequest extends StoreRequest
       'unit_measurement_id' => 'sometimes|required|exists:unit_measurement,id',
       'warehouse_id' => 'nullable|exists:warehouse,id',
       'ap_class_article_id' => 'sometimes|required|exists:ap_class_article,id',
-      'barcode' => 'nullable|string|max:100|unique:products,barcode,' . $productId,
       'product_type' => 'sometimes|required|in:GOOD,SERVICE,KIT',
       'minimum_stock' => 'nullable|numeric|min:0',
       'maximum_stock' => 'nullable|numeric|min:0|gte:minimum_stock',
@@ -32,7 +31,6 @@ class UpdateProductsRequest extends StoreRequest
       'is_taxable' => 'nullable|boolean',
       'sunat_code' => 'nullable|string|max:20',
       'warranty_months' => 'nullable|integer|min:0',
-      'notes' => 'nullable|string',
       'status' => 'sometimes|required|in:ACTIVE,INACTIVE,DISCONTINUED',
     ];
   }
@@ -50,7 +48,6 @@ class UpdateProductsRequest extends StoreRequest
       'unit_measurement_id.required' => 'La unidad de medida es obligatoria.',
       'unit_measurement_id.exists' => 'La unidad de medida seleccionada no es válida.',
       'warehouse_id.exists' => 'El almacén seleccionado no es válido.',
-      'barcode.unique' => 'El código de barras ya existe.',
       'sku.unique' => 'El SKU ya existe.',
       'product_type.required' => 'El tipo de producto es obligatorio.',
       'product_type.in' => 'El tipo de producto debe ser GOOD, SERVICE o KIT.',

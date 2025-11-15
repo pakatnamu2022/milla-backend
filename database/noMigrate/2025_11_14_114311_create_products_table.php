@@ -52,11 +52,7 @@ return new class extends Migration {
       // ApClassArticle - Clase de Artículo AP
       // Clase del artículo según catálogo AP (consumible, repuesto, herramienta, etc.)
       $table->foreignId('ap_class_article_id')->constrained('ap_class_article')->comment('AP article class (consumable, spare part, tool, etc.)');
-
-      // Barcode - Código de Barras
-      // Código de barras del producto (EAN, UPC, etc.)
-      $table->string('barcode', 100)->nullable()->unique()->comment('Product barcode (EAN, UPC, etc.)');
-
+      
       // Product Type - Tipo de Producto
       // Tipo: GOOD (bien físico), SERVICE (servicio), KIT (conjunto de productos)
       $table->enum('product_type', ['GOOD', 'SERVICE', 'KIT'])->default('GOOD')->comment('Product type: GOOD (physical item), SERVICE, KIT (bundle)');
@@ -96,10 +92,6 @@ return new class extends Migration {
       // Warranty Months - Meses de Garantía
       // Meses de garantía del producto
       $table->integer('warranty_months')->nullable()->comment('Product warranty period in months');
-
-      // Notes - Notas
-      // Notas adicionales sobre el producto
-      $table->text('notes')->nullable()->comment('Additional product notes');
 
       // Status - Estado
       // Estado del producto: activo, inactivo, descontinuado

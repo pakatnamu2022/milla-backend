@@ -27,7 +27,6 @@ class Products extends Model
     'unit_measurement_id',
     'warehouse_id',
     'ap_class_article_id',
-    'barcode',
     'product_type',
     'minimum_stock',
     'maximum_stock',
@@ -38,7 +37,6 @@ class Products extends Model
     'is_taxable',
     'sunat_code',
     'warranty_months',
-    'notes',
     'status',
     'ap_class_article',
   ];
@@ -60,7 +58,6 @@ class Products extends Model
       'nubefac_code',
       'name',
       'description',
-      'barcode',
       'category.name',
       'brand.name'
     ],
@@ -111,11 +108,6 @@ class Products extends Model
   public function setDescriptionAttribute($value)
   {
     $this->attributes['description'] = $value ? Str::upper(Str::ascii($value)) : null;
-  }
-
-  public function setBarcodeAttribute($value)
-  {
-    $this->attributes['barcode'] = $value ? Str::upper(Str::ascii($value)) : null;
   }
 
   // Relationships
