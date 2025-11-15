@@ -316,10 +316,10 @@ class SyncShippingGuideJob implements ShouldQueue
         $baseQuery = Warehouse::where('sede_id', $sede_id)
           ->where('type_operation_id', $type_operation_id)
           ->where('article_class_id', $class_id)
-          ->where('status', true);
+          ->where('status', 1); // Activo
 
-        $warehouseStartCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
-        $warehouseEndCode = (clone $baseQuery)->where('is_received', false)->value('dyn_code');
+        $warehouseStartCode = (clone $baseQuery)->where('is_received', 1)->value('dyn_code');
+        $warehouseEndCode = (clone $baseQuery)->where('is_received', 0)->value('dyn_code');
 
         // Si está cancelada, invertir los almacenes
         if ($isCancelled) {
