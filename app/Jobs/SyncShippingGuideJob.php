@@ -154,6 +154,11 @@ class SyncShippingGuideJob implements ShouldQueue
       $transferLog->markAsInProgress();
       $syncService->sync('inventory_transfer', $data, 'create');
       $transferLog->updateProcesoEstado(0); // 0 = En proceso en la BD intermedia
+
+      // Actualizar dyn_series en ShippingGuides con el TransferenciaId
+      $shippingGuide->update([
+        'dyn_series' => $transferId,
+      ]);
     } catch (\Exception $e) {
       $transferLog->markAsFailed("Error al sincronizar transferencia: {$e->getMessage()}");
       throw $e;
