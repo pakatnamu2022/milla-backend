@@ -19,6 +19,7 @@ class ShippingGuidesResource extends JsonResource
       'issuer_type' => $this->issuer_type,
       'document_series' => $this->documentSeries->series ?? $this->series ?? "-",
       'document_number' => $this->document_number,
+      'created_at' => $this->created_at,
       'issue_date' => $this->issue_date,
       'requires_sunat' => $this->requires_sunat,
       'is_sunat_registered' => $this->is_sunat_registered,
