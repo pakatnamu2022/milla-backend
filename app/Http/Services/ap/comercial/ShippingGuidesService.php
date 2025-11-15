@@ -233,14 +233,40 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       // 2. Recalcular serie y correlativo si cambió el document_series_id y el emisor es NOSOTROS
       if (isset($data['issuer_type']) && $data['issuer_type'] == 'NOSOTROS') {
+        $needsRecalculation = false;
+        $seriesId = $data['document_series_id'] ?? $document->document_series_id;
+
+        // Caso 1: Cambió la serie
         if (isset($data['document_series_id']) && $data['document_series_id'] != $document->document_series_id) {
-          // Cambió la serie, recalcular correlativo
-          $assignSeries = AssignSalesSeries::findOrFail($data['document_series_id']);
+          $needsRecalculation = true;
+        }
+        // Caso 2: No cambió la serie, pero verificar si cambió el correlative_start
+        else if ($document->document_series_id) {
+          $assignSeries = AssignSalesSeries::find($document->document_series_id);
+          if ($assignSeries) {
+            // Calcular cuál debería ser el correlativo actual basado en el correlative_start
+            $existingCount = ShippingGuides::where('document_series_id', $document->document_series_id)
+              ->where('id', '!=', $document->id)
+              ->count();
+            $expectedCorrelativeNumber = $assignSeries->correlative_start + $existingCount + 1;
+            $expectedCorrelative = str_pad($expectedCorrelativeNumber, 8, '0', STR_PAD_LEFT);
+
+            // Si el correlativo actual no coincide con el esperado, necesita recalculación
+            if ($document->correlative != $expectedCorrelative) {
+              $needsRecalculation = true;
+              $seriesId = $document->document_series_id;
+            }
+          }
+        }
+
+        if ($needsRecalculation) {
+          // Recalcular correlativo
+          $assignSeries = AssignSalesSeries::findOrFail($seriesId);
           $series = $assignSeries->series;
           $correlativeStart = $assignSeries->correlative_start;
 
-          // Contar documentos existentes con la nueva serie (excluyendo el actual)
-          $existingCount = ShippingGuides::where('document_series_id', $data['document_series_id'])
+          // Contar documentos existentes con la serie (excluyendo el actual)
+          $existingCount = ShippingGuides::where('document_series_id', $seriesId)
             ->where('id', '!=', $document->id)
             ->count();
           $correlativeNumber = $correlativeStart + $existingCount + 1;

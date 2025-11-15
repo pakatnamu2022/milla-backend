@@ -888,9 +888,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Products - Gestión de Productos
       Route::get('products/low-stock', [ProductsController::class, 'lowStock']);
-      Route::get('products/needs-reorder', [ProductsController::class, 'needsReorder']);
       Route::get('products/featured', [ProductsController::class, 'featured']);
-      Route::get('products/best-sellers', [ProductsController::class, 'bestSellers']);
       Route::post('products/{id}/update-stock', [ProductsController::class, 'updateStock']);
       Route::apiResource('products', ProductsController::class)->only([
         'index',

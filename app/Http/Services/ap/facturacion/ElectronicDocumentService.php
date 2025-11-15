@@ -454,6 +454,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if (isset($nubefactData['aceptada_por_sunat']) && $nubefactData['aceptada_por_sunat'] && !$document->aceptada_por_sunat) {
         $document->markAsAccepted($nubefactData);
         SyncSalesDocumentJob::dispatch($id);
+        $document->markAsInProgress();
       }
 
       // Verificar si el documento fue anulado en Nubefact
