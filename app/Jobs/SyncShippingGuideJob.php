@@ -273,7 +273,8 @@ class SyncShippingGuideJob implements ShouldQueue
 
         $baseQuery = Warehouse::where('sede_id', $sede_id)
           ->where('type_operation_id', $type_operation_id)
-          ->where('article_class_id', $class_id);
+          ->where('article_class_id', $class_id)
+          ->where('status', true); // Activo
 
         $warehouseStartCode = (clone $baseQuery)->where('is_received', false)->value('dyn_code');
         $warehouseEndCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
@@ -292,12 +293,14 @@ class SyncShippingGuideJob implements ShouldQueue
         $transmitterQuery = Warehouse::where('sede_id', $sedeTransmitterId)
           ->where('type_operation_id', $type_operation_id)
           ->where('article_class_id', $class_id)
-          ->where('is_received', true);
+          ->where('is_received', true)
+          ->where('status', true); // Activo
 
         $receiverQuery = Warehouse::where('sede_id', $sedeReceiverId)
           ->where('type_operation_id', $type_operation_id)
           ->where('article_class_id', $class_id)
-          ->where('is_received', true);
+          ->where('is_received', true)
+          ->where('status', true); // Activo
 
         $warehouseStartCode = $transmitterQuery->value('dyn_code');
         $warehouseEndCode = $receiverQuery->value('dyn_code');
@@ -316,10 +319,10 @@ class SyncShippingGuideJob implements ShouldQueue
         $baseQuery = Warehouse::where('sede_id', $sede_id)
           ->where('type_operation_id', $type_operation_id)
           ->where('article_class_id', $class_id)
-          ->where('status', 1); // Activo
+          ->where('status', true); // Activo
 
-        $warehouseStartCode = (clone $baseQuery)->where('is_received', 1)->value('dyn_code');
-        $warehouseEndCode = (clone $baseQuery)->where('is_received', 0)->value('dyn_code');
+        $warehouseStartCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
+        $warehouseEndCode = (clone $baseQuery)->where('is_received', false)->value('dyn_code');
 
         // Si está cancelada, invertir los almacenes
         if ($isCancelled) {
