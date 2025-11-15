@@ -474,7 +474,7 @@ class ElectronicDocument extends BaseModel
   public function markAsInProgress(): void
   {
     $this->update([
-      'status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
+      'migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
     ]);
   }
 
