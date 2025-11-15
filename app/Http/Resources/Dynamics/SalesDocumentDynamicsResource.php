@@ -88,7 +88,7 @@ class SalesDocumentDynamicsResource extends JsonResource
       'SitioPredeterminadoId' => $sitioPredeterminadoId,
       'UsuarioId' => 'USUGP',
       'Procesar' => 1,
-      'ProcesoEstado' => 1, // TODO: es 0
+      'ProcesoEstado' => 0, // TODO: es 0
       'ProcesoError' => '',
       'FechaProceso' => '',
       'Total' => (float)$this->total ?? throw new Exception('El documento no tiene total definido.'),
