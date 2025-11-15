@@ -29,6 +29,7 @@ class ApVehicleBrand extends Model
     'search' => ['code', 'dyn_code', 'name', 'description'],
     'is_commercial' => '=',
     'status' => '=',
+    'sede_id' => 'accessor'
   ];
 
   const sorts = [
@@ -36,6 +37,11 @@ class ApVehicleBrand extends Model
     'dyn_code',
     'name',
   ];
+
+  public function getSedeIdAttribute()
+  {
+    return $this->group?->sede_id;
+  }
 
   public function group()
   {
