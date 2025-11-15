@@ -6,6 +6,7 @@ use App\Http\Services\BaseService;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\SunatConcepts;
@@ -463,6 +464,17 @@ class ElectronicDocument extends BaseModel
     $this->update([
       'anulado' => true,
       'cancelled_at' => now(),
+    ]);
+  }
+
+
+  /**
+   * Marca el paso como en progreso
+   */
+  public function markAsInProgress(): void
+  {
+    $this->update([
+      'status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
     ]);
   }
 
