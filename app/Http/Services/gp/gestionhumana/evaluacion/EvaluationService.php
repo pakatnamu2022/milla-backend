@@ -178,13 +178,13 @@ class EvaluationService extends BaseService
       if (in_array($evaluation->typeEvaluation, [self::EVALUACION_180, self::EVALUACION_360])) {
         $competencesResult = $this->crearCompetenciasEvaluacion($evaluation);
 
-//        if (!$competencesResult['success']) {
-        // Log del error pero no fallar la creación de la evaluación
-//          Log::warning('Error al crear competencias automáticamente', [
-//            'evaluation_id' => $evaluation->id,
-//            'error' => $competencesResult['message']
-//          ]);
-//        }
+        if (!$competencesResult['success']) {
+//         Log del error pero no fallar la creación de la evaluación
+          Log::warning('Error al crear competencias automáticamente', [
+            'evaluation_id' => $evaluation->id,
+            'error' => $competencesResult['message']
+          ]);
+        }
       }
 
       DB::commit();
@@ -389,8 +389,8 @@ class EvaluationService extends BaseService
       ->where('gh_evaluation_category_competence.person_id', $persona->id)
       ->where('gh_evaluation_category_competence.active', 1)
       ->where('gh_hierarchical_category_detail.position_id', $persona->cargo_id)
-      ->where('gh_config_competencias.status_delete', 0)
-      ->where('gh_config_subcompetencias.status_delete', 0)
+      ->whereNull('gh_config_competencias.deleted_at')
+      ->whereNull('gh_config_subcompetencias.deleted_at')
       ->whereNull('gh_evaluation_category_competence.deleted_at')
       ->whereNull('gh_hierarchical_category_detail.deleted_at')
       ->select([
