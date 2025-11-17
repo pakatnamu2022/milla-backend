@@ -17,7 +17,7 @@ class UpdatePositionRequest extends StoreRequest
 
     // Limpiar el array de files, removiendo elementos que no sean archivos válidos
     if (isset($input['files']) && is_array($input['files'])) {
-      $input['files'] = array_filter($input['files'], function($file) {
+      $input['files'] = array_filter($input['files'], function ($file) {
         return $file instanceof \Illuminate\Http\UploadedFile;
       });
 
@@ -38,12 +38,12 @@ class UpdatePositionRequest extends StoreRequest
     return [
       'name' => 'required|string|max:255',
       'descripcion' => 'nullable|string',
-      'area_id' => 'nullable|integer|exists:areas,id',
+      'area_id' => 'nullable|integer|exists:rrhh_area,id',
       'ntrabajadores' => 'nullable|integer|min:0',
       'banda_salarial_min' => 'nullable|numeric|min:0',
       'banda_salarial_media' => 'nullable|numeric|min:0',
       'banda_salarial_max' => 'nullable|numeric|min:0',
-      'cargo_id' => 'nullable|integer|exists:cargos,id',
+      'cargo_id' => 'nullable|integer|exists:rrhh_cargo,id',
       'tipo_onboarding_id' => 'nullable|integer|exists:rrhh_tipo_contingencia,id',
       'plazo_proceso_seleccion' => 'nullable|integer|min:0',
       'presupuesto' => 'nullable|numeric|min:0',

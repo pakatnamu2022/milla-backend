@@ -77,6 +77,7 @@ use App\Http\Controllers\gp\gestionsistema\PermissionController;
 use App\Http\Controllers\gp\gestionsistema\PositionController;
 use App\Http\Controllers\gp\gestionsistema\ProvinceController;
 use App\Http\Controllers\gp\gestionsistema\RoleController;
+use App\Http\Controllers\gp\gestionsistema\TypeOnboardingController;
 use App\Http\Controllers\gp\gestionsistema\UserController;
 use App\Http\Controllers\gp\gestionsistema\UserSedeController;
 use App\Http\Controllers\gp\gestionsistema\ViewController;
@@ -289,6 +290,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
         //      POSITIONS
         Route::apiResource('position', PositionController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        //      TYPE ONBOARDING
+        Route::apiResource('type-onboarding', TypeOnboardingController::class)->only([
           'index',
           'show',
           'store',
