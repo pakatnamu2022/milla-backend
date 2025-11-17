@@ -9205,10 +9205,11 @@ class Competence2Seeder extends Seeder
           'nombre' => $item['COMPETENCIA'],
         ]);
 
-        EvaluationSubCompetence::firstOrCreate([
+        EvaluationSubCompetence::updateOrCreate([
           'nombre' => $item['SUBCOMPETENCIA'],
-          'definicion' => $item['DESCRIPCION'],
           'competencia_id' => $competence->id,
+        ], [
+          'definicion' => $item['DESCRIPCION']
         ]);
 
         $categoryCompetenceService->store([
