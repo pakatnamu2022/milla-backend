@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Database\Seeders\ap\compras\UnitMeasurementSeeder;
+use Database\Seeders\gp\evaluation\Competence2Seeder;
 use Database\Seeders\gp\views\ViewSeeder;
 use Illuminate\Database\Seeder;
 
@@ -15,8 +16,9 @@ class DatabaseSeeder extends Seeder
   public function run(): void
   {
 //    $this->call(UnitMeasurementSeeder::class);
-    $this->call(ViewSeeder::class);
-    $this->call(CrudPermissionsSeeder::class);
+//    $this->call(ViewSeeder::class);
+//    $this->call(CrudPermissionsSeeder::class);
+    $this->call(Competence2Seeder::class);
 
   }
 }

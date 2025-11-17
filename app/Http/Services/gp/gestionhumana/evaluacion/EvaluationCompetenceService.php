@@ -15,7 +15,7 @@ class EvaluationCompetenceService extends BaseService
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      EvaluationCompetence::where('status_delete', 0),
+      EvaluationCompetence::class,
       $request,
       EvaluationCompetence::filters,
       EvaluationCompetence::sorts,
@@ -25,8 +25,7 @@ class EvaluationCompetenceService extends BaseService
 
   public function find($id)
   {
-    $evaluationCompetence = EvaluationCompetence::where('id', $id)
-      ->where('status_delete', 0)->first();
+    $evaluationCompetence = EvaluationCompetence::where('id', $id)->first();
     if (!$evaluationCompetence) {
       throw new Exception('Competencia de evaluación no encontrada');
     }
@@ -38,9 +37,6 @@ class EvaluationCompetenceService extends BaseService
     DB::beginTransaction();
 
     try {
-      $data['status_delete'] = 0; // Ensure status_delete is set to 0 for new records
-      $data['grupo_cargos_id'] = 0; // Ensure status_delete is set to 0 for new records
-
       $competence = EvaluationCompetence::create($data);
 
       $subCompetences = $data['subCompetences'] ?? [];
@@ -50,7 +46,6 @@ class EvaluationCompetenceService extends BaseService
           'competencia_id' => $competence->id,
           'nombre' => $subData['nombre'] ?? null,
           'definicion' => $subData['definicion'] ?? null,
-          'status_delete' => 0,
           'level1' => $subData['level1'] ?? null,
           'level2' => $subData['level2'] ?? null,
           'level3' => $subData['level3'] ?? null,
@@ -81,7 +76,6 @@ class EvaluationCompetenceService extends BaseService
 
     try {
       $evaluationCompetence = $this->find($data['id']);
-      $data['status_delete'] = 0; // Ensure status_delete is set to 0 for updates
       $evaluationCompetence->update($data);
 
       // Update sub-competences
@@ -107,7 +101,6 @@ class EvaluationCompetenceService extends BaseService
             'competencia_id' => $evaluationCompetence->id,
             'nombre' => $subData['nombre'] ?? null,
             'definicion' => $subData['definicion'] ?? null,
-            'status_delete' => 0,
             'level1' => $subData['level1'] ?? null,
             'level2' => $subData['level2'] ?? null,
             'level3' => $subData['level3'] ?? null,
@@ -129,12 +122,10 @@ class EvaluationCompetenceService extends BaseService
   public function destroy($id)
   {
     $evaluationCompetence = $this->find($id);
-    $evaluationCompetence->status_delete = 1; // Mark as deleted
-    $evaluationCompetence->save();
+    $evaluationCompetence->delete();
 
     // Also mark related sub-competences as deleted
-    EvaluationSubCompetence::where('competencia_id', $id)
-      ->update(['status_delete' => 1]);
+    EvaluationSubCompetence::where('competencia_id', $id)->delete();
 
     return response()->json(['message' => 'Competencia de evaluación eliminada correctamente']);
   }

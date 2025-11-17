@@ -4,32 +4,30 @@ namespace App\Models\gp\gestionhumana\evaluacion;
 
 use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class EvaluationCompetence extends BaseModel
 {
-    protected $table = 'gh_config_competencias';
+  use SoftDeletes;
 
-    protected $fillable = [
-        'nombre',
-        'grupo_cargos_id',
-        'status_delete',
-    ];
+  protected $table = 'gh_config_competencias';
 
-    const filters = [
-        'search' => ['nombre'],
-        'grupo_cargos_id' => '=',
-    ];
+  protected $fillable = [
+    'nombre',
+  ];
 
-    const sorts = [
-        'id' => 'id',
-        'nombre' => 'nombre',
-        'grupo_cargos_id' => 'grupo_cargos_id',
-    ];
+  const filters = [
+    'search' => ['nombre'],
+  ];
+
+  const sorts = [
+    'id' => 'id',
+    'nombre' => 'nombre',
+  ];
 
 
-    public function subCompetences(): HasMany
-    {
-        return $this->hasMany(EvaluationSubCompetence::class, 'competencia_id')
-            ->where('status_delete', 0);
-    }
+  public function subCompetences(): HasMany
+  {
+    return $this->hasMany(EvaluationSubCompetence::class, 'competencia_id');
+  }
 }
