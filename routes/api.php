@@ -269,6 +269,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('worker-without-competences', [WorkerController::class, 'getWorkersWithoutCompetences']);
         Route::post('worker-assign-objectives', [WorkerController::class, 'assignObjectivesToWorkers']);
 
+        Route::get('worker/revalidate', [WorkerController::class, 'revalidate']);
         Route::apiResource('worker', WorkerController::class)->only([
           'index',
           'show',

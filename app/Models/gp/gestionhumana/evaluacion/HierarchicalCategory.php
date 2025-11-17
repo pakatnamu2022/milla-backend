@@ -6,6 +6,7 @@ use App\Http\Utils\Constants;
 use App\Models\BaseModel;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionsistema\Position;
+use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
@@ -133,7 +134,7 @@ class HierarchicalCategory extends BaseModel
       ])
       ->get();
 
-    return $categories->map(function ($category) {
+    return $categories->map(function ($category, $hasObjectives) {
       $persons = $category->positions->flatMap->persons;
       $total = $persons->count();
 //      $conJefe = $persons->whereNotNull('jefe_id')->count();
@@ -144,7 +145,8 @@ class HierarchicalCategory extends BaseModel
       $issues = [];
 
       // Validar competencias si hasObjectives es false
-      if ($category->hasObjectives === false || $category->hasObjectives === 0) {
+      if (!$hasObjectives) {
+
         $competencesCount = $category->competences->count();
         if ($competencesCount === 0) {
           $issues[] = "La categoría debe tener al menos una competencia asignada cuando no tiene objetivos.";

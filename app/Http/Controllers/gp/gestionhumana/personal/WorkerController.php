@@ -5,6 +5,7 @@ namespace App\Http\Controllers\gp\gestionhumana\personal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\personal\IndexWorkerRequest;
 use App\Http\Services\gp\gestionhumana\personal\WorkerService;
+use Illuminate\Http\Request;
 
 class WorkerController extends Controller
 {
@@ -30,6 +31,19 @@ class WorkerController extends Controller
       return $this->success($this->service->show($id));
     } catch (\Throwable $e) {
       return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Revalidate workers data.
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function revalidate()
+  {
+    try {
+      return $this->success($this->service->revalidate());
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
   }
 

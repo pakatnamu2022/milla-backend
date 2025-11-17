@@ -38,6 +38,36 @@ class WorkerService extends BaseService
     return new WorkerResource($worker);
   }
 
+  public function revalidate()
+  {
+    $workers = Worker::where('status_id', 22)
+      ->where(function ($query) {
+        $query->whereNull('supervisor_id')
+          ->whereNotNull('jefe_id')
+          ->orWhere(fn($q) => $q->whereNull('jefe_id')
+            ->whereNotNull('supervisor_id')
+          );
+      })->get();
+
+    foreach ($workers as $worker) {
+      if ($worker->jefe_id && !$worker->supervisor_id) {
+        $supervisor = Worker::find($worker->jefe_id);
+        if ($supervisor) {
+          $worker->supervisor_id = $supervisor->supervisor_id;
+          $worker->save();
+        }
+      } elseif ($worker->supervisor_id && !$worker->jefe_id) {
+        $jefe = Worker::find($worker->supervisor_id);
+        if ($jefe) {
+          $worker->jefe_id = $jefe->id;
+          $worker->save();
+        }
+      }
+    }
+
+    return WorkerResource::collection($workers);
+  }
+
   public function getWorkersWithoutCategoriesAndObjectives()
   {
     $workers = Worker::where('status_id', 22)
