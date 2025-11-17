@@ -23,11 +23,10 @@ class PositionResource extends JsonResource
       'plazo_proceso_seleccion' => $this->plazo_proceso_seleccion,
       'mof_adjunto' => asset($this->mof_adjunto),
       'presupuesto' => $this->presupuesto,
-
       'tipo_onboarding_id' => $this->tipo_onboarding_id,
       'area_id' => $this->area_id,
-      'cargo_id' => $this->cargo_id,
-
+      'cargo_id' => $this->cargo_id ?? "",
+      'hierarchical_category_id' => $this->hierarchicalCategory?->id,
     ];
   }
 }

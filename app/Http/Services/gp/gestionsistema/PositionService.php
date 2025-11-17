@@ -17,13 +17,13 @@ class PositionService extends BaseService
 
   // Configuración de rutas para archivos en DigitalOcean
   private const FILE_PATHS = [
-    'mof_adjunto' => '/ap/',
-    'fileadic1' => '/ap/',
-    'fileadic2' => '/ap/',
-    'fileadic3' => '/ap/',
-    'fileadic4' => '/ap/',
-    'fileadic5' => '/ap/',
-    'fileadic6' => '/ap/',
+    'mof_adjunto' => '/ap/docs_cargo/',
+    'fileadic1' => '/ap/docs_cargo/',
+    'fileadic2' => '/ap/docs_cargo/',
+    'fileadic3' => '/ap/docs_cargo/',
+    'fileadic4' => '/ap/docs_cargo/',
+    'fileadic5' => '/ap/docs_cargo/',
+    'fileadic6' => '/ap/docs_cargo/',
   ];
 
   public function __construct(DigitalFileService $digitalFileService)
@@ -89,7 +89,7 @@ class PositionService extends BaseService
       $availableFields = $fileFields;
       if ($position) {
         // Filtrar solo los campos que estén vacíos
-        $availableFields = array_filter($fileFields, function($field) use ($position) {
+        $availableFields = array_filter($fileFields, function ($field) use ($position) {
           return empty($position->$field);
         });
         $availableFields = array_values($availableFields);

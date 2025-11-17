@@ -103,12 +103,12 @@ class Position extends BaseModel
       'hierarchical_category_id' // Foreign key que conecta con HierarchicalCategory
     );
   }
-//
-//    public function tipo_onboarding()
-//    {
-//        return $this->belongsTo(Tipo_onboarding::class, 'perfil_id');
-//    }
-//
+
+  public function typeOnboarding()
+  {
+    return $this->belongsTo(TypeOnboarding::class, 'tipo_onboarding_id');
+  }
+
 //    public function perfil()
 //    {
 //        return $this->belongsTo(PerfilxCargo::class, 'perfil_id');
