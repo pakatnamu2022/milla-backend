@@ -72,7 +72,6 @@ class EvaluationPersonCycleDetailService extends BaseService
         ->first();
 
       if (!$exists) {
-
         $evaluatorId = $person->supervisor_id ?? $person->jefe_id;
         $chief = Person::find($evaluatorId);
         $objectives = $category->objectives()->get();
@@ -121,7 +120,7 @@ class EvaluationPersonCycleDetailService extends BaseService
 
             $data = [
               'person_id' => $person->id,
-              'chief_id' => $evaluatorId,
+              'chief_id' => $evaluatorId ?? throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $category->name . ' no tiene un evaluador asignado.'),
               'position_id' => $person->cargo_id,
               'sede_id' => $person->sede_id,
               'area_id' => $person->area_id,
@@ -306,7 +305,11 @@ class EvaluationPersonCycleDetailService extends BaseService
    */
   private function createPersonObjectiveDetail($person, $cycle, $category, $objective, $allObjectives)
   {
-    $chief = Person::find($person->jefe_id);
+    $chief = Person::find($person->supervisor_id ?? $person->jefe_id);
+
+    if (!$chief) {
+      throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $category->name . ' no tiene un evaluador asignado.');
+    }
 
     // Aplicar la misma lógica de goal y weight que en storeByCategoryAndCycle
     $goal = 0;
@@ -348,7 +351,7 @@ class EvaluationPersonCycleDetailService extends BaseService
 
     $data = [
       'person_id' => $person->id,
-      'chief_id' => $person->jefe_id,
+      'chief_id' => $person->supervisor_id ?? $person->jefe_id ?? throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $category->name . ' no tiene un evaluador asignado.'),
       'position_id' => $person->cargo_id,
       'sede_id' => $person->sede_id,
       'area_id' => $person->area_id,
@@ -374,10 +377,13 @@ class EvaluationPersonCycleDetailService extends BaseService
    */
   private function updatePersonBasicInfo($detail, $person, $category)
   {
-    $chief = Person::find($person->jefe_id);
+    $chief = Person::find($person->supervisor_id ?? $person->jefe_id);
+    if (!$chief) {
+      throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $category->name . ' no tiene un evaluador asignado.');
+    }
 
     $detail->update([
-      'chief_id' => $person->jefe_id,
+      'chief_id' => $person->supervisor_id,
       'position_id' => $person->cargo_id,
       'sede_id' => $person->sede_id,
       'area_id' => $person->area_id,
