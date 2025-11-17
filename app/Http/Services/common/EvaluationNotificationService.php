@@ -331,7 +331,7 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => 'wsuclupef2001@gmail.com', // Email hardcodeado para pruebas
+        'to' => $leader->email,
         'subject' => 'Nueva Evaluación de Desempeño Habilitada',
         'template' => 'emails.evaluation-opened',
         'data' => [
@@ -505,7 +505,7 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => 'wsuclupef2001@gmail.com', // Email hardcodeado para pruebas
+        'to' => $leader->email,
         'subject' => 'Evaluación de Desempeño Finalizada - Resumen de Resultados',
         'template' => 'emails.evaluation-closed',
         'data' => [
