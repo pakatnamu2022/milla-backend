@@ -6,6 +6,8 @@ use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationResource;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Resources\gp\gestionsistema\PositionResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\common\EmailService;
+use App\Http\Services\common\EvaluationNotificationService;
 use App\Http\Services\common\ExportService;
 use App\Http\Traits\DisableObservers;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
@@ -28,6 +30,7 @@ class EvaluationService extends BaseService
 
   protected EvaluationPersonService $evaluationPersonService;
   protected EvaluationPersonResultService $evaluationPersonResultService;
+  protected EvaluationNotificationService $notificationService;
   protected $exportService;
 
   // Tipos de evaluador
@@ -44,11 +47,13 @@ class EvaluationService extends BaseService
   public function __construct(
     EvaluationPersonService       $evaluationPersonService,
     EvaluationPersonResultService $evaluationPersonResultService,
+    EvaluationNotificationService $notificationService,
     ExportService                 $exportService
   )
   {
     $this->evaluationPersonService = $evaluationPersonService;
     $this->evaluationPersonResultService = $evaluationPersonResultService;
+    $this->notificationService = $notificationService;
     $this->exportService = $exportService;
   }
 
@@ -188,6 +193,30 @@ class EvaluationService extends BaseService
       }
 
       DB::commit();
+
+      // Enviar correo de apertura de evaluación a los jefes
+      try {
+        $notificationResult = $this->notificationService->sendEvaluationOpened($evaluation->id);
+
+        if ($notificationResult['success']) {
+          Log::info('Correos de apertura de evaluación enviados correctamente', [
+            'evaluation_id' => $evaluation->id,
+            'total_sent' => $notificationResult['total_sent']
+          ]);
+        } else {
+          Log::warning('Error al enviar correos de apertura de evaluación', [
+            'evaluation_id' => $evaluation->id,
+            'error' => $notificationResult['error'] ?? 'Error desconocido'
+          ]);
+        }
+      } catch (\Exception $emailException) {
+        // Log del error pero no fallar la creación de la evaluación
+        Log::error('Excepción al enviar correos de apertura de evaluación', [
+          'evaluation_id' => $evaluation->id,
+          'error' => $emailException->getMessage()
+        ]);
+      }
+
       return new EvaluationResource($evaluation);
 
     } catch (\Exception $e) {
@@ -802,9 +831,41 @@ class EvaluationService extends BaseService
 
     try {
       $evaluation = $this->find($data['id']);
+      $previousStatus = $evaluation->status; // Guardar estado anterior
+
       $data = $this->enrichData($data, $evaluation);
       $evaluation->update($data);
+
       DB::commit();
+
+      // Si cambió de "en progreso" a "completada/cerrada", enviar correos de cierre
+      if (isset($data['status']) &&
+          $previousStatus == Evaluation::IN_PROGRESS_EVALUATION &&
+          $data['status'] == Evaluation::COMPLETED_EVALUATION) {
+
+        try {
+          $notificationResult = $this->notificationService->sendEvaluationClosed($evaluation->id);
+
+          if ($notificationResult['success']) {
+            Log::info('Correos de cierre de evaluación enviados correctamente', [
+              'evaluation_id' => $evaluation->id,
+              'total_sent' => $notificationResult['total_sent']
+            ]);
+          } else {
+            Log::warning('Error al enviar correos de cierre de evaluación', [
+              'evaluation_id' => $evaluation->id,
+              'error' => $notificationResult['error'] ?? 'Error desconocido'
+            ]);
+          }
+        } catch (\Exception $emailException) {
+          // Log del error pero no fallar la actualización de la evaluación
+          Log::error('Excepción al enviar correos de cierre de evaluación', [
+            'evaluation_id' => $evaluation->id,
+            'error' => $emailException->getMessage()
+          ]);
+        }
+      }
+
       return new EvaluationResource($evaluation);
 
     } catch (\Exception $e) {
