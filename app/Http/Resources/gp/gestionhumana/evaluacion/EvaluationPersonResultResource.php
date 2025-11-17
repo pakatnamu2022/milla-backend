@@ -262,7 +262,7 @@ class EvaluationPersonResultResource extends JsonResource
             'evaluator_type_name' => $this->getEvaluatorTypeName($evaluatorType),
             'evaluator_id' => $evaluation?->evaluator_id,
             'evaluator_name' => $evaluation?->evaluator ?? 'Pendiente',
-            'result' => $evaluation?->result ?? '0.00',
+            'result' => round($evaluation?->result, 2) ?? 0,
             'id' => $evaluation?->id,
             'is_completed' => $evaluation && floatval($evaluation->result) > 0,
           ];
