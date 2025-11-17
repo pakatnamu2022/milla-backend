@@ -12,6 +12,7 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use Exception;
@@ -564,6 +565,7 @@ class EvaluationPersonResultService extends BaseService
 
     DB::transaction(function () use ($categories, $evaluation, $cycle) {
       foreach ($categories as $category) {
+        $excludedIds = EvaluationPersonDetail::all();
         $hierarchicalCategory = HierarchicalCategory
           ::where('id', $category->hierarchical_category_id)
           ->with('workers') // Sin constraint, obtiene todos los workers
@@ -572,11 +574,14 @@ class EvaluationPersonResultService extends BaseService
         // Verificar que existe y tiene workers
         if ($hierarchicalCategory && $hierarchicalCategory->workers->isNotEmpty()) {
           foreach ($hierarchicalCategory->workers as $person) {
+            if ($excludedIds->contains('person_id', $person->id)) {
+              continue; // Saltar personas sin ID o en la lista de excluidos
+            }
             if ($person->fecha_inicio <= $cycle->cut_off_date) {
               $objectivesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->objectivesPercentage : 0;
               $competencesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->competencesPercentage : 100;
 
-              $evaluator = $person->evaluator ?? $person->boss;
+              $evaluator = ($person->evaluator ?? $person->boss) ?? throw new Exception('Store Many: La persona ' . $person->nombre_completo . ' de la categoría ' . $person->position->hierarchicalCategory->name . ' no tiene un evaluador asignado.');
 
               $data = [
                 'person_id' => $person->id,
@@ -593,12 +598,12 @@ class EvaluationPersonResultService extends BaseService
                 'position' => $person->position?->name,
                 'area' => $person->position?->area?->name,
                 'sede' => $person->sede?->abreviatura,
-                'boss' => $person->boss?->nombre_completo,
-                'boss_dni' => $person->boss?->vat,
-                'boss_hierarchical_category' => $person->boss?->position?->hierarchicalCategory?->name ?? "-",
-                'boss_position' => $person->boss?->position?->name,
-                'boss_area' => $person->boss?->position?->area?->name,
-                'boss_sede' => $person->boss?->sede?->abreviatura,
+                'boss' => $evaluator->nombre_completo,
+                'boss_dni' => $evaluator->vat,
+                'boss_hierarchical_category' => $evaluator->position?->hierarchicalCategory?->name ?? "-",
+                'boss_position' => $evaluator->position?->name,
+                'boss_area' => $evaluator->position?->area?->name,
+                'boss_sede' => $evaluator->sede?->abreviatura,
                 'comments' => null,
               ];
               EvaluationPersonResult::create($data);

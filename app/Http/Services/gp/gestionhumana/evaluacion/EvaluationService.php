@@ -721,6 +721,8 @@ class EvaluationService extends BaseService
       $objectivesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->objectivesPercentage : 0;
       $competencesPercentage = $evaluation->typeEvaluation == 0 ? 0 : $evaluation->competencesPercentage;
 
+      $evaluator = ($person->evaluator ?? $person->boss) ?? throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $person->position->hierarchicalCategory->name . ' no tiene un evaluador asignado.');
+
       EvaluationPersonResult::create([
         'person_id' => $person->id,
         'evaluation_id' => $evaluation->id,
@@ -736,12 +738,12 @@ class EvaluationService extends BaseService
         'position' => $person->position->name,
         'area' => $person->position->area->name ?? '',
         'sede' => $person->sede->abreviatura ?? '',
-        'boss' => $person->boss->nombre_completo ?? '',
-        'boss_dni' => $person->boss->vat ?? '',
-        'boss_hierarchical_category' => $person->boss->position->hierarchicalCategory->name ?? '',
-        'boss_position' => $person->boss->position->name ?? '',
-        'boss_area' => $person->boss->position->area->name ?? '',
-        'boss_sede' => $person->boss->sede->abreviatura ?? '',
+        'boss' => $evaluator->nombre_completo ?? '',
+        'boss_dni' => $evaluator->vat ?? '',
+        'boss_hierarchical_category' => $evaluator->position->hierarchicalCategory->name ?? '',
+        'boss_position' => $evaluator->position->name ?? '',
+        'boss_area' => $evaluator->position->area->name ?? '',
+        'boss_sede' => $evaluator->sede->abreviatura ?? '',
       ]);
 
       // Agregar detalles de la persona agregada para el log

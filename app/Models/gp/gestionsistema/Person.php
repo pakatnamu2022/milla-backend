@@ -84,7 +84,7 @@ class Person extends BaseModel
 
   public function area()
   {
-      return $this->hasOne(Area::class, 'id', 'area_id');
+    return $this->hasOne(Area::class, 'id', 'area_id');
   }
 
   public function evaluationDetails()
