@@ -66,6 +66,9 @@ class EvaluationPersonCycleDetailService extends BaseService
       ->whereDoesntHave('evaluationDetails') // sin ningún detail asociado (para evitar incluir personas que ya están en evaluación)
       ->get();
 
+
+    throw new Exception(json_encode($persons));
+
     foreach ($persons as $person) {
       $exists = EvaluationPersonCycleDetail::where('person_id', $person->id)
         ->where('cycle_id', $cycleId)
@@ -445,8 +448,6 @@ class EvaluationPersonCycleDetailService extends BaseService
 
     $usedWeight = $fixedObjectives->sum('weight');
     $remaining = max(0, 100 - $usedWeight); // evitar negativos
-
-
     $count = $nonFixedObjectives->count();
     $weight = $count > 0 ? round($remaining / $count, 2) : 0;
 

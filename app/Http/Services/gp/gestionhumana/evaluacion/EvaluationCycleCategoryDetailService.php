@@ -6,9 +6,11 @@ use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
+use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use function json_encode;
 
 class EvaluationCycleCategoryDetailService extends BaseService
 {
@@ -44,7 +46,16 @@ class EvaluationCycleCategoryDetailService extends BaseService
 
   public function storeMany($cycleId, $data)
   {
-    $newCategoryIds = collect($data['categories'] ?? [])->unique()->values();
+    $newCategories = collect($data['categories'] ?? [])->unique()->values();
+
+    $cycle = $this->evaluationCycleService->find($cycleId);
+
+    $listAllInValidatedCategories = HierarchicalCategory::whereAllPersonsHaveJefe
+    ($cycle->typeEvaluation == 0)
+      ->filter(fn($category) => !$category->pass)
+      ->pluck('id');
+
+    $newCategoryIds = $newCategories->diff($listAllInValidatedCategories);
 
     $existing = EvaluationCycleCategoryDetail::where('cycle_id', $cycleId)->get();
     $existingCycleCategoryIds = $existing->pluck('hierarchical_category_id');
@@ -81,7 +92,7 @@ class EvaluationCycleCategoryDetailService extends BaseService
 
     $final = EvaluationCycleCategoryDetail::where('cycle_id', $cycleId)->get();
 
-    foreach ($data['categories'] ?? [] as $category) {
+    foreach ($toInsert as $category) {
       $this->evaluationPersonCycleDetailService->storeByCategoryAndCycle(
         $cycleId,
         $category
