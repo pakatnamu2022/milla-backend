@@ -44,7 +44,7 @@ class UpdatePositionRequest extends StoreRequest
       'banda_salarial_media' => 'nullable|numeric|min:0',
       'banda_salarial_max' => 'nullable|numeric|min:0',
       'cargo_id' => 'nullable|integer|exists:cargos,id',
-      'tipo_onboarding_id' => 'nullable|integer|exists:tipo_onboarding,id',
+      'tipo_onboarding_id' => 'nullable|integer|exists:rrhh_tipo_contingencia,id',
       'plazo_proceso_seleccion' => 'nullable|integer|min:0',
       'presupuesto' => 'nullable|numeric|min:0',
       'mof_adjunto' => 'nullable|file|mimes:pdf,doc,docx|max:5120',

@@ -5,6 +5,7 @@ namespace App\Models\gp\gestionsistema;
 use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategoryDetail;
+use Illuminate\Support\Str;
 
 class Position extends BaseModel
 {
@@ -62,6 +63,16 @@ class Position extends BaseModel
     'banda_salarial_max' => 'asc',
     'tipo_onboarding_id' => 'asc',
   ];
+
+  public function setNameAttribute($value)
+  {
+    $this->attributes['name'] = Str::upper($value);
+  }
+
+  public function setDescripcionAttribute($value)
+  {
+    $this->attributes['descripcion'] = Str::upper($value);
+  }
 
   public function area()
   {

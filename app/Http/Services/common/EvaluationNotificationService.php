@@ -181,7 +181,7 @@ class EvaluationNotificationService
         ]
       ];
 
-      $sent = $this->emailService->send($emailConfig);
+      $sent = $this->emailService->queue($emailConfig); // Usando cola de trabajo
 
       return [
         'leader_id' => $leader->id,
@@ -225,6 +225,331 @@ class EvaluationNotificationService
     }
 
     return "Recuerde completar todas las evaluaciones antes de la fecha límite para asegurar un proceso completo.";
+  }
+
+  /**
+   * Envía notificación de apertura de evaluación a líderes
+   */
+  public function sendEvaluationOpened(int $evaluationId): array
+  {
+    try {
+      $evaluation = Evaluation::find($evaluationId);
+
+      if (!$evaluation) {
+        return [
+          'success' => false,
+          'error' => 'Evaluación no encontrada',
+          'total_sent' => 0,
+          'results' => []
+        ];
+      }
+
+      $leaders = $this->getLeadersForEvaluation($evaluation);
+      $results = [];
+
+      foreach ($leaders as $leaderId => $leaderData) {
+        $leader = Person::find($leaderId);
+
+        if (!$leader || !$leader->email) {
+          continue;
+        }
+
+        $emailResult = $this->sendOpenedEmailToLeader($evaluation, $leader, $leaderData);
+        $results[] = $emailResult;
+      }
+
+      return [
+        'success' => true,
+        'total_sent' => count($results),
+        'results' => $results
+      ];
+
+    } catch (\Exception $e) {
+      return [
+        'success' => false,
+        'error' => $e->getMessage(),
+        'total_sent' => 0,
+        'results' => []
+      ];
+    }
+  }
+
+  /**
+   * Obtiene líderes con sus equipos para una evaluación
+   */
+  private function getLeadersForEvaluation(Evaluation $evaluation): array
+  {
+    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluation->id)
+      ->with(['person', 'person.cargo', 'person.area'])
+      ->get();
+
+    $leadersData = [];
+
+    foreach ($evaluationPersons as $evalPerson) {
+      $leaderId = $evalPerson->chief_id;
+
+      if (!$leaderId) {
+        continue;
+      }
+
+      if (!isset($leadersData[$leaderId])) {
+        $leadersData[$leaderId] = [
+          'leader_id' => $leaderId,
+          'team_count' => 0,
+          'team_members' => []
+        ];
+      }
+
+      $leadersData[$leaderId]['team_count']++;
+      $leadersData[$leaderId]['team_members'][] = [
+        'name' => $evalPerson->person->nombre_completo ?? 'N/A',
+        'position' => $evalPerson->person->cargo->name ?? 'N/A',
+        'area' => $evalPerson->person->area->name ?? 'N/A',
+        'employee_id' => $evalPerson->person_id
+      ];
+    }
+
+    return $leadersData;
+  }
+
+  /**
+   * Envía correo de apertura a un líder
+   */
+  private function sendOpenedEmailToLeader(Evaluation $evaluation, Person $leader, array $leaderData): array
+  {
+    try {
+      $emailConfig = [
+        'to' => 'wsuclupef2001@gmail.com', // Email hardcodeado para pruebas
+        'subject' => 'Nueva Evaluación de Desempeño Habilitada',
+        'template' => 'emails.evaluation-opened',
+        'data' => [
+          'title' => 'Evaluación de Desempeño Habilitada',
+          'subtitle' => 'Su equipo está listo para ser evaluado',
+          'badge' => 'Nueva Evaluación',
+          'leader_name' => $leader->nombre_completo,
+          'evaluation_name' => $evaluation->name,
+          'start_date' => Carbon::parse($evaluation->start_date)->format('d/m/Y'),
+          'end_date' => Carbon::parse($evaluation->end_date)->format('d/m/Y'),
+          'team_count' => $leaderData['team_count'],
+          'team_members' => $leaderData['team_members'],
+          'has_objectives' => true,
+          'has_competences' => true,
+          'has_goals' => true,
+          'evaluation_url' => config('app.frontend_url') . '/evaluations/' . $evaluation->id,
+          'additional_notes' => 'Recuerde que completar las evaluaciones a tiempo contribuye al desarrollo profesional de su equipo.',
+          'date' => now()->format('d/m/Y H:i'),
+          'company_name' => 'Grupo Pakana',
+          'contact_info' => 'rrhh@grupopakatnamu.com'
+        ]
+      ];
+
+      $sent = $this->emailService->queue($emailConfig); // Usando cola de trabajo
+
+      return [
+        'leader_id' => $leader->id,
+        'leader_name' => $leader->nombre_completo,
+        'leader_email' => $leader->email,
+        'team_count' => $leaderData['team_count'],
+        'sent' => $sent,
+        'evaluation_id' => $evaluation->id,
+        'evaluation_name' => $evaluation->name
+      ];
+
+    } catch (\Exception $e) {
+      return [
+        'leader_id' => $leader->id,
+        'leader_name' => $leader->nombre_completo,
+        'leader_email' => $leader->email,
+        'team_count' => $leaderData['team_count'] ?? 0,
+        'sent' => false,
+        'error' => $e->getMessage(),
+        'evaluation_id' => $evaluation->id,
+        'evaluation_name' => $evaluation->name
+      ];
+    }
+  }
+
+  /**
+   * Envía resumen final cuando se cierra una evaluación
+   */
+  public function sendEvaluationClosed(int $evaluationId): array
+  {
+    try {
+      $evaluation = Evaluation::find($evaluationId);
+
+      if (!$evaluation) {
+        return [
+          'success' => false,
+          'error' => 'Evaluación no encontrada',
+          'total_sent' => 0,
+          'results' => []
+        ];
+      }
+
+      $leaders = $this->getLeadersForEvaluation($evaluation);
+      $results = [];
+
+      foreach ($leaders as $leaderId => $leaderData) {
+        $leader = Person::find($leaderId);
+
+        if (!$leader || !$leader->email) {
+          continue;
+        }
+
+        $teamSummary = $this->calculateTeamSummary($evaluation, $leaderId);
+        $emailResult = $this->sendClosedEmailToLeader($evaluation, $leader, $leaderData, $teamSummary);
+        $results[] = $emailResult;
+      }
+
+      return [
+        'success' => true,
+        'total_sent' => count($results),
+        'results' => $results
+      ];
+
+    } catch (\Exception $e) {
+      return [
+        'success' => false,
+        'error' => $e->getMessage(),
+        'total_sent' => 0,
+        'results' => []
+      ];
+    }
+  }
+
+  /**
+   * Calcula el resumen de desempeño del equipo
+   */
+  private function calculateTeamSummary(Evaluation $evaluation, int $leaderId): array
+  {
+    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluation->id)
+      ->where('chief_id', $leaderId)
+      ->with('person')
+      ->get();
+
+    $totalEvaluated = 0;
+    $totalScore = 0;
+    $teamResults = [];
+    $distribution = [
+      'Excelente' => ['count' => 0, 'percentage' => 0],
+      'Bueno' => ['count' => 0, 'percentage' => 0],
+      'Regular' => ['count' => 0, 'percentage' => 0],
+      'Deficiente' => ['count' => 0, 'percentage' => 0]
+    ];
+
+    foreach ($evaluationPersons as $evalPerson) {
+      if ($evalPerson->wasEvaluated == 1 && $evalPerson->result !== null) {
+        $totalEvaluated++;
+        $score = (float)$evalPerson->result;
+        $totalScore += $score;
+
+        $level = $this->getPerformanceLevel($score);
+        $distribution[$level]['count']++;
+
+        $teamResults[] = [
+          'employee_name' => $evalPerson->person->nombre_completo ?? 'N/A',
+          'score' => $score,
+          'level' => $level
+        ];
+      }
+    }
+
+    $averageScore = $totalEvaluated > 0 ? $totalScore / $totalEvaluated : 0;
+
+    // Calcular porcentajes
+    foreach ($distribution as $level => &$data) {
+      $data['percentage'] = $totalEvaluated > 0 ? ($data['count'] / $totalEvaluated) * 100 : 0;
+    }
+
+    return [
+      'average_score' => $averageScore,
+      'total_evaluated' => $totalEvaluated,
+      'team_results' => $teamResults,
+      'performance_distribution' => $distribution,
+      'stats' => [
+        'Mejor Calificación' => $totalEvaluated > 0 ? number_format(max(array_column($teamResults, 'score')), 1) . '%' : 'N/A',
+        'Menor Calificación' => $totalEvaluated > 0 ? number_format(min(array_column($teamResults, 'score')), 1) . '%' : 'N/A',
+        'Tasa de Completitud' => number_format(($totalEvaluated / count($evaluationPersons)) * 100, 1) . '%',
+        'Total Evaluados' => $totalEvaluated . ' de ' . count($evaluationPersons)
+      ]
+    ];
+  }
+
+  /**
+   * Determina el nivel de desempeño según la calificación
+   */
+  private function getPerformanceLevel(float $score): string
+  {
+    if ($score >= 90) return 'Excelente';
+    if ($score >= 70) return 'Bueno';
+    if ($score >= 60) return 'Regular';
+    return 'Deficiente';
+  }
+
+  /**
+   * Envía correo de cierre a un líder
+   */
+  private function sendClosedEmailToLeader(Evaluation $evaluation, Person $leader, array $leaderData, array $teamSummary): array
+  {
+    try {
+      $emailConfig = [
+        'to' => 'wsuclupef2001@gmail.com', // Email hardcodeado para pruebas
+        'subject' => 'Evaluación de Desempeño Finalizada - Resumen de Resultados',
+        'template' => 'emails.evaluation-closed',
+        'data' => [
+          'title' => 'Evaluación de Desempeño Finalizada',
+          'subtitle' => 'Resumen de resultados de su equipo',
+          'badge' => 'Evaluación Cerrada',
+          'leader_name' => $leader->nombre_completo,
+          'evaluation_name' => $evaluation->name,
+          'start_date' => Carbon::parse($evaluation->start_date)->format('d/m/Y'),
+          'end_date' => Carbon::parse($evaluation->end_date)->format('d/m/Y'),
+          'closed_date' => now()->format('d/m/Y'),
+          'team_count' => $leaderData['team_count'],
+          'total_evaluated' => $teamSummary['total_evaluated'],
+          'team_summary' => $teamSummary,
+          'team_results' => $teamSummary['team_results'],
+          'top_competences' => [
+            'Trabajo en equipo',
+            'Cumplimiento de objetivos',
+            'Responsabilidad'
+          ],
+          'areas_improvement' => [
+            'Comunicación efectiva',
+            'Gestión del tiempo'
+          ],
+          'evaluation_url' => config('app.frontend_url') . '/evaluations/' . $evaluation->id . '/results',
+          'additional_notes' => 'Los resultados detallados están disponibles en la plataforma para su revisión.',
+          'date' => now()->format('d/m/Y H:i'),
+          'company_name' => 'Grupo Pakana',
+          'contact_info' => 'rrhh@grupopakatnamu.com'
+        ]
+      ];
+
+      $sent = $this->emailService->queue($emailConfig); // Usando cola de trabajo
+
+      return [
+        'leader_id' => $leader->id,
+        'leader_name' => $leader->nombre_completo,
+        'leader_email' => $leader->email,
+        'team_count' => $leaderData['team_count'],
+        'average_score' => $teamSummary['average_score'],
+        'sent' => $sent,
+        'evaluation_id' => $evaluation->id,
+        'evaluation_name' => $evaluation->name
+      ];
+
+    } catch (\Exception $e) {
+      return [
+        'leader_id' => $leader->id,
+        'leader_name' => $leader->nombre_completo,
+        'leader_email' => $leader->email,
+        'sent' => false,
+        'error' => $e->getMessage(),
+        'evaluation_id' => $evaluation->id,
+        'evaluation_name' => $evaluation->name
+      ];
+    }
   }
 
   /**
@@ -291,7 +616,7 @@ class EvaluationNotificationService
         ]
       ];
 
-      $sent = $this->emailService->send($emailConfig);
+      $sent = $this->emailService->queue($emailConfig); // Usando cola de trabajo
 
       return [
         'success' => $sent,

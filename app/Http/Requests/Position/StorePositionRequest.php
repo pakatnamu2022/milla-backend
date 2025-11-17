@@ -45,7 +45,7 @@ class StorePositionRequest extends Storerequest
       'banda_salarial_min' => 'nullable|numeric|min:0',
       'banda_salarial_media' => 'nullable|numeric|min:0',
       'banda_salarial_max' => 'nullable|numeric|min:0',
-      'tipo_onboarding_id' => 'nullable|integer|exists:tipo_onboarding,id',
+      'tipo_onboarding_id' => 'nullable|integer|exists:rrhh_tipo_contingencia,id',
       'plazo_proceso_seleccion' => 'nullable|integer|min:0',
       'presupuesto' => 'nullable|numeric|min:0',
       'mof_adjunto' => 'nullable|file|mimes:pdf,doc,docx|max:5120',

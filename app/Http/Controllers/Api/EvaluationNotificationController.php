@@ -166,6 +166,90 @@ class EvaluationNotificationController extends Controller
   }
 
   /**
+   * Envía notificación de apertura de evaluación (Correo 1)
+   */
+  public function sendEvaluationOpened(Request $request): JsonResponse
+  {
+    $validator = Validator::make($request->all(), [
+      'evaluation_id' => 'required|integer|exists:gh_evaluation,id'
+    ]);
+
+    if ($validator->fails()) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Datos de entrada inválidos',
+        'errors' => $validator->errors()
+      ], 422);
+    }
+
+    try {
+      $evaluationId = $request->input('evaluation_id');
+
+      $results = $this->notificationService->sendEvaluationOpened($evaluationId);
+
+      return response()->json([
+        'success' => $results['success'],
+        'message' => $results['success']
+          ? "Se enviaron {$results['total_sent']} notificaciones de apertura"
+          : "Error al enviar notificaciones: {$results['error']}",
+        'data' => [
+          'notifications_sent' => $results['total_sent'],
+          'results' => $results['results']
+        ]
+      ], $results['success'] ? 200 : 500);
+
+    } catch (\Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error interno del servidor',
+        'error' => $e->getMessage()
+      ], 500);
+    }
+  }
+
+  /**
+   * Envía resumen de cierre de evaluación (Correo 3)
+   */
+  public function sendEvaluationClosed(Request $request): JsonResponse
+  {
+    $validator = Validator::make($request->all(), [
+      'evaluation_id' => 'required|integer|exists:gh_evaluation,id'
+    ]);
+
+    if ($validator->fails()) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Datos de entrada inválidos',
+        'errors' => $validator->errors()
+      ], 422);
+    }
+
+    try {
+      $evaluationId = $request->input('evaluation_id');
+
+      $results = $this->notificationService->sendEvaluationClosed($evaluationId);
+
+      return response()->json([
+        'success' => $results['success'],
+        'message' => $results['success']
+          ? "Se enviaron {$results['total_sent']} resúmenes de cierre"
+          : "Error al enviar resúmenes: {$results['error']}",
+        'data' => [
+          'summaries_sent' => $results['total_sent'],
+          'results' => $results['results']
+        ]
+      ], $results['success'] ? 200 : 500);
+
+    } catch (\Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error interno del servidor',
+        'error' => $e->getMessage()
+      ], 500);
+    }
+  }
+
+  /**
    * Prueba el servicio de correos con un correo específico
    */
   public function testReminder(Request $request): JsonResponse

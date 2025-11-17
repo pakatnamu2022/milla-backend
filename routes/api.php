@@ -47,6 +47,7 @@ use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Dashboard\ap\comercial\DashboardComercialController;
 use App\Http\Controllers\DocumentValidationController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\DetailedDevelopmentPlanController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCompetenceController;
@@ -429,7 +430,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
         //        EVALUATION NOTIFICATIONS
         Route::group(['prefix' => 'evaluation/notifications'], function () {
-          Route::post('/send-reminders', [EvaluationNotificationController::class, 'sendReminders']);
+          Route::post('/send-opened', [EvaluationNotificationController::class, 'sendEvaluationOpened']); // Correo 1
+          Route::post('/send-reminders', [EvaluationNotificationController::class, 'sendReminders']); // Correo 2
+          Route::post('/send-closed', [EvaluationNotificationController::class, 'sendEvaluationClosed']); // Correo 3
           Route::post('/send-hr-summary', [EvaluationNotificationController::class, 'sendHrSummary']);
           Route::get('/pending-status', [EvaluationNotificationController::class, 'getPendingStatus']);
           Route::post('/test-reminder', [EvaluationNotificationController::class, 'testReminder']);
@@ -472,6 +475,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         // Agregar estas rutas dentro del grupo performanceEvaluation en routes/api.php
 
         Route::apiResource('personCompetenceDetail', EvaluationPersonCompetenceDetailController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        // DETAILED DEVELOPMENT PLAN
+        Route::apiResource('detailedDevelopmentPlan', DetailedDevelopmentPlanController::class)->only([
           'index',
           'show',
           'store',
