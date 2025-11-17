@@ -118,27 +118,19 @@ class HierarchicalCategory extends BaseModel
               ->whereDoesntHave('evaluationDetails')
               ->with([
                 'evaluator' => function ($qb) {
-                  $qb->with('position'); // traemos cargo del jefe
+                  $qb->with('position');
                 },
                 'position',
               ]);
-//            ->with([
-//                'boss' => function ($qb) {
-//                  $qb->with('position'); // traemos cargo del jefe
-//                },
-//                'position',
-//              ]);
           }]);
         },
-        'competences' // Cargar las competencias de la categoría
+        'competences'
       ])
       ->get();
 
-    return $categories->map(function ($category, $hasObjectives) {
+    return $categories->map(function ($category) use ($hasObjectives) {
       $persons = $category->positions->flatMap->persons;
       $total = $persons->count();
-//      $conJefe = $persons->whereNotNull('jefe_id')->count();
-//      $sinJefe = $persons->whereNull('jefe_id')->count();
       $conJefe = $persons->whereNotNull('supervisor_id')->count();
       $sinJefe = $persons->whereNull('supervisor_id')->count();
 
@@ -146,7 +138,6 @@ class HierarchicalCategory extends BaseModel
 
       // Validar competencias si hasObjectives es false
       if (!$hasObjectives) {
-
         $competencesCount = $category->competences->count();
         if ($competencesCount === 0) {
           $issues[] = "La categoría debe tener al menos una competencia asignada cuando no tiene objetivos.";
@@ -155,28 +146,24 @@ class HierarchicalCategory extends BaseModel
 
       foreach ($persons as $person) {
         if (is_null($person->supervisor_id)) {
-//        if (is_null($person->jefe_id)) {
           $issues[] = "La persona {$person->nombre_completo} no tiene evaluador asignado.";
-//        } elseif ($person->boss && $person->boss->status_id == 23) {
-//          $issues[] = "El jefe {$person->boss->nombre_completo} de la persona {$person->nombre_completo} está dado de baja.";
-//        }
         } elseif ($person->evaluator && $person->evaluator->status_id == 23) {
           $issues[] = "El evaluador {$person->evaluator->nombre_completo} de la persona {$person->nombre_completo} está dado de baja.";
         }
       }
 
-      if ($total === 0) {
+      if ($total === 0 && empty($issues)) {
         $pass = false;
         $issues = ['No tiene personas asignadas'];
       } elseif (empty($issues)) {
         $pass = true;
-        $issues = ['Todas las personas tienen jefe válido'];
+        $issues = ['Todas las personas tienen evaluador válido'];
       } else {
         $pass = false;
       }
 
       $category->pass = $pass;
-      $category->issues = $issues; // ahora es un array de strings
+      $category->issues = $issues;
       $category->total_personas = $total;
       $category->con_jefe = $conJefe;
       $category->sin_jefe = $sinJefe;
