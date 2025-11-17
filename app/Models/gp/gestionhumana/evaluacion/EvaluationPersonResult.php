@@ -623,7 +623,7 @@ class EvaluationPersonResult extends BaseModel
     }
 
     return [
-      'completion_rate' => round(($objectivesProgress['completion_rate'] / $objectivesPercentage) + ($competencesPercentage > 0 ? ($competencesProgress['completion_rate'] / $competencesPercentage) : 0), 2),
+      'completion_rate' => round(($objectivesProgress['completion_rate'] * $objectivesPercentage / 100) + ($competencesPercentage > 0 ? ($competencesProgress['completion_rate'] * $competencesPercentage / 100) : 0), 2),
       'completed_sections' => $completedSections,
       'total_sections' => $totalSections,
       'is_completed' => $completedSections === $totalSections,
