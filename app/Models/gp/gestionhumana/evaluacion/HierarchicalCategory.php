@@ -128,7 +128,8 @@ class HierarchicalCategory extends BaseModel
 //                'position',
 //              ]);
           }]);
-        }
+        },
+        'competences' // Cargar las competencias de la categoría
       ])
       ->get();
 
@@ -141,6 +142,14 @@ class HierarchicalCategory extends BaseModel
       $sinJefe = $persons->whereNull('supervisor_id')->count();
 
       $issues = [];
+
+      // Validar competencias si hasObjectives es false
+      if ($category->hasObjectives === false || $category->hasObjectives === 0) {
+        $competencesCount = $category->competences->count();
+        if ($competencesCount === 0) {
+          $issues[] = "La categoría debe tener al menos una competencia asignada cuando no tiene objetivos.";
+        }
+      }
 
       foreach ($persons as $person) {
         if (is_null($person->supervisor_id)) {
@@ -181,6 +190,7 @@ class HierarchicalCategory extends BaseModel
     $T_POS = 'rrhh_cargo';
     $T_PER = 'rrhh_persona';
     $T_EPD = 'gh_evaluation_person_detail'; // <-- ajusta al nombre real
+    $T_COMP = 'gh_evaluation_category_competence'; // tabla de competencias
 
     // si necesitas por ciclo, setea aquí; si no, déjalo como null
     $cycleId = null;
@@ -220,6 +230,12 @@ class HierarchicalCategory extends BaseModel
       ->where('b.status_id', 23)
       ->selectRaw('COUNT(*)');
 
+    // Subquery para contar competencias de la categoría
+    $sqCompetences = DB::query()->fromRaw("$T_COMP as comp")
+      ->whereColumn("comp.category_id", "$T_CAT.id")
+      ->whereNull('comp.deleted_at')
+      ->selectRaw('COUNT(DISTINCT comp.competence_id)');
+
     $sqIssuesRaw = $base()->cloneWithout([])
       ->leftJoin("$T_PER as b", 'b.id', '=', 'p.supervisor_id')
 //      ->leftJoin("$T_PER as b", 'b.id', '=', 'p.jefe_id')
@@ -248,6 +264,7 @@ class HierarchicalCategory extends BaseModel
 //      )
 //    ");
 
+    // Crear issues combinando las validaciones de personas y competencias
     $issuesFinal = DB::query()->selectRaw("
     COALESCE(
       ( {$sqIssuesRaw->toSql()} ),
@@ -265,11 +282,14 @@ class HierarchicalCategory extends BaseModel
     $passExpr = DB::query()->selectRaw("
     CASE
       WHEN ( {$sqTotal->toSql()} ) = 0 THEN 0
+      -- Si hasObjectives = 0 y no tiene competencias, falla
+      WHEN $T_CAT.hasObjectives = 0 AND ({$sqCompetences->toSql()}) = 0 THEN 0
       WHEN ( {$sqSinJefe->toSql()} ) = 0 AND ( {$sqConJefeBaja->toSql()} ) = 0 THEN 1
       ELSE 0
     END
   ")->setBindings(array_merge(
       $sqTotal->getBindings(),
+      $sqCompetences->getBindings(),
       $sqSinJefe->getBindings(),
       $sqConJefeBaja->getBindings()
     ));
@@ -282,6 +302,7 @@ class HierarchicalCategory extends BaseModel
       ->selectSub($sqConJefe, 'con_jefe')
       ->selectSub($sqSinJefe, 'sin_jefe')
       ->selectSub($sqConJefeBaja, 'con_jefe_baja')
+      ->selectSub($sqCompetences, 'competences_count')
       ->selectSub($issuesFinal, 'issues')
       ->selectSub($passExpr, 'pass');
   }
