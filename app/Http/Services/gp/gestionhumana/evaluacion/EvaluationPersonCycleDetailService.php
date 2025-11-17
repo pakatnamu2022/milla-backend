@@ -66,9 +66,6 @@ class EvaluationPersonCycleDetailService extends BaseService
       ->whereDoesntHave('evaluationDetails') // sin ningún detail asociado (para evitar incluir personas que ya están en evaluación)
       ->get();
 
-
-    throw new Exception(json_encode($persons));
-
     foreach ($persons as $person) {
       $exists = EvaluationPersonCycleDetail::where('person_id', $person->id)
         ->where('cycle_id', $cycleId)

@@ -4,9 +4,11 @@ namespace App\Http\Services\gp\gestionhumana\personal;
 
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Services\BaseService;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -40,10 +42,12 @@ class WorkerService extends BaseService
 
   public function revalidate()
   {
+    $details = EvaluationPersonDetail::all()->pluck('person_id');
     $workers = Worker::where('status_id', 22)
+      ->whereNotIn('id', $details)
       ->where(function ($query) {
-        $query->whereNull('supervisor_id')
-          ->whereNotNull('jefe_id')
+        $query
+          ->whereNull('supervisor_id')
           ->orWhere(fn($q) => $q->whereNull('jefe_id')
             ->whereNotNull('supervisor_id')
           );
@@ -53,7 +57,7 @@ class WorkerService extends BaseService
       if ($worker->jefe_id && !$worker->supervisor_id) {
         $supervisor = Worker::find($worker->jefe_id);
         if ($supervisor) {
-          $worker->supervisor_id = $supervisor->supervisor_id;
+          $worker->supervisor_id = $supervisor->id;
           $worker->save();
         }
       } elseif ($worker->supervisor_id && !$worker->jefe_id) {
@@ -61,6 +65,21 @@ class WorkerService extends BaseService
         if ($jefe) {
           $worker->jefe_id = $jefe->id;
           $worker->save();
+        }
+      } else {
+        $position = $worker->position;
+        if ($position) {
+          $supervisorPosition = $position->cargo_id;
+          if ($supervisorPosition) {
+            $supervisorWorker = Worker::where('cargo_id', $supervisorPosition)
+              ->where('status_id', 22)
+              ->first();
+            if ($supervisorWorker) {
+              $worker->supervisor_id = $supervisorWorker->id;
+              $worker->jefe_id = $supervisorWorker->id;
+              $worker->save();
+            }
+          }
         }
       }
     }
