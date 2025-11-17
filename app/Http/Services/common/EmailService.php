@@ -34,7 +34,6 @@ class EmailService
 
       return true;
     } catch (\Exception $e) {
-      // Log::error('Error sending email: ' . $e->getMessage());
       return false;
     }
   }
@@ -52,10 +51,8 @@ class EmailService
       if (isset($config['to'])) {
         Mail::to($config['to'])->queue($mailable);
       }
-
       return true;
     } catch (\Exception $e) {
-      // Log::error('Error queuing email: ' . $e->getMessage());
       return false;
     }
   }

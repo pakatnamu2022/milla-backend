@@ -82,12 +82,10 @@ class Person extends BaseModel
     return $this->hasOne(Sede::class, 'id', 'sede_id');
   }
 
-//
-//    public function area()
-//    {
-//        return $this->hasOne(Area::class, 'id', 'area_id');
-//    }
-//
+  public function area()
+  {
+      return $this->hasOne(Area::class, 'id', 'area_id');
+  }
 
   public function evaluationDetails()
   {

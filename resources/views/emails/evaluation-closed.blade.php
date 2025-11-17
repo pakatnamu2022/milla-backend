@@ -20,7 +20,7 @@
     @isset($team_summary)
       <div class="card">
         <div style="font:600 16px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:12px;color:#01237e;">
-          📊 Resumen General del Equipo
+          Resumen General del Equipo
         </div>
 
         <div style="margin-bottom:16px;">
@@ -60,7 +60,7 @@
 
               <div style="margin-bottom:12px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                  <span style="font:600 13px/1 Inter,Arial,Helvetica,sans-serif;color:{{ $levelColor }};">
+                  <span style="font:600 13px/1 Inter,Arial,Helvetica,sans-serif;color:{{ $levelColor }};margin-right: 10px;">
                     {{ $level }}
                   </span>
                   <span style="font:700 13px/1 Inter,Arial,Helvetica,sans-serif;color:{{ $levelColor }};">
@@ -142,7 +142,7 @@
 
     @isset($areas_improvement)
       <div class="callout" style="background:#fff7ed;border-left-color:#f59e0b;">
-        <div class="callout-title" style="color:#d97706;">⚠ Áreas de Oportunidad</div>
+        <div class="callout-title" style="color:#d97706;">Áreas de Oportunidad</div>
         <ul style="margin:6px 0 0 0;padding-left:20px;">
           @foreach($areas_improvement as $area)
             <li>{{ $area }}</li>

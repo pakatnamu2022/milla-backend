@@ -280,7 +280,7 @@ class EvaluationNotificationService
   private function getLeadersForEvaluation(Evaluation $evaluation): array
   {
     $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluation->id)
-      ->with(['person', 'person.cargo', 'person.area'])
+      ->with(['person', 'person.position', 'person.area'])
       ->get();
 
     $leadersData = [];
@@ -296,17 +296,29 @@ class EvaluationNotificationService
         $leadersData[$leaderId] = [
           'leader_id' => $leaderId,
           'team_count' => 0,
-          'team_members' => []
+          'team_members' => [],
+          'person_ids' => [] // Para trackear los person_id únicos
         ];
       }
 
+      // Verificar si ya agregamos este person_id para evitar duplicados
+      if (in_array($evalPerson->person_id, $leadersData[$leaderId]['person_ids'])) {
+        continue;
+      }
+
+      $leadersData[$leaderId]['person_ids'][] = $evalPerson->person_id;
       $leadersData[$leaderId]['team_count']++;
       $leadersData[$leaderId]['team_members'][] = [
         'name' => $evalPerson->person->nombre_completo ?? 'N/A',
-        'position' => $evalPerson->person->cargo->name ?? 'N/A',
+        'position' => $evalPerson->person->position->name ?? 'N/A',
         'area' => $evalPerson->person->area->name ?? 'N/A',
         'employee_id' => $evalPerson->person_id
       ];
+    }
+
+    // Remover el array person_ids antes de retornar (no lo necesitamos en el resultado final)
+    foreach ($leadersData as &$leaderData) {
+      unset($leaderData['person_ids']);
     }
 
     return $leadersData;
@@ -335,10 +347,10 @@ class EvaluationNotificationService
           'has_objectives' => true,
           'has_competences' => true,
           'has_goals' => true,
-          'evaluation_url' => config('app.frontend_url') . '/evaluations/' . $evaluation->id,
+          'evaluation_url' => config('app.frontend_url'),
           'additional_notes' => 'Recuerde que completar las evaluaciones a tiempo contribuye al desarrollo profesional de su equipo.',
           'date' => now()->format('d/m/Y H:i'),
-          'company_name' => 'Grupo Pakana',
+          'company_name' => 'Grupo Pakatnamu',
           'contact_info' => 'rrhh@grupopakatnamu.com'
         ]
       ];
@@ -518,10 +530,10 @@ class EvaluationNotificationService
             'Comunicación efectiva',
             'Gestión del tiempo'
           ],
-          'evaluation_url' => config('app.frontend_url') . '/evaluations/' . $evaluation->id . '/results',
+          'evaluation_url' => config('app.frontend_url'),
           'additional_notes' => 'Los resultados detallados están disponibles en la plataforma para su revisión.',
           'date' => now()->format('d/m/Y H:i'),
-          'company_name' => 'Grupo Pakana',
+          'company_name' => 'Grupo Pakatnamu',
           'contact_info' => 'rrhh@grupopakatnamu.com'
         ]
       ];
