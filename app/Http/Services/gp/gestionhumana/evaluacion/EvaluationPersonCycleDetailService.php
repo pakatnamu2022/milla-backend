@@ -427,9 +427,9 @@ class EvaluationPersonCycleDetailService extends BaseService
     return new EvaluationPersonCycleDetailResource($personCycleDetail);
   }
 
-  public function recalculateWeights($cyclePersonDetailId)
+  public function recalculateWeights($cyclePersonDetailId, EvaluationPersonCycleDetail $optionalPersonCycleDetail = null): array
   {
-    $personCycleDetail = $this->find($cyclePersonDetailId);
+    $personCycleDetail = $optionalPersonCycleDetail ?? $this->find($cyclePersonDetailId);
 
     $allObjectives = EvaluationPersonCycleDetail::where('person_id', $personCycleDetail->person_id)
       ->where('chief_id', $personCycleDetail->chief_id)
@@ -465,8 +465,9 @@ class EvaluationPersonCycleDetailService extends BaseService
   {
     $personCycleDetail = $this->find($id);
     DB::transaction(function () use ($personCycleDetail) {
-      $this->recalculateWeights($personCycleDetail->id);
+      $clone = $personCycleDetail->replicate();
       $personCycleDetail->delete();
+      $this->recalculateWeights($clone->id, $clone);
     });
     return response()->json(['message' => 'Detalle de Ciclo Persona eliminado correctamente']);
   }
