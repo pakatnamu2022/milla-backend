@@ -474,9 +474,9 @@ class EvaluationService extends BaseService
       ->get();
   }
 
-  public function show($id)
+  public function show(bool $show_extra, $id)
   {
-    return (new EvaluationResource($this->find($id)))->showExtra();
+    return (new EvaluationResource($this->find($id)))->showExtra($show_extra);
   }
 
   public function regenerateEvaluation($evaluationId, array $params = [])
@@ -840,8 +840,8 @@ class EvaluationService extends BaseService
 
       // Si cambió de "en progreso" a "completada/cerrada", enviar correos de cierre
       if (isset($data['status']) &&
-          $previousStatus == Evaluation::IN_PROGRESS_EVALUATION &&
-          $data['status'] == Evaluation::COMPLETED_EVALUATION) {
+        $previousStatus == Evaluation::IN_PROGRESS_EVALUATION &&
+        $data['status'] == Evaluation::COMPLETED_EVALUATION) {
 
         try {
           $notificationResult = $this->notificationService->sendEvaluationClosed($evaluation->id);

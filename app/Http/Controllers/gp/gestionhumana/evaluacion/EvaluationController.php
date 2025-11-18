@@ -98,10 +98,14 @@ class EvaluationController extends Controller
   }
 
 
-  public function show(int $id)
+  public function show(Request $request, int $id)
   {
     try {
-      return $this->success($this->service->show($id));
+      $request->validate([
+        'show_extra' => 'sometimes|boolean',
+      ]);
+      $showExtra = $request->input('show_extra', 1);
+      return $this->success($this->service->show($showExtra, $id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

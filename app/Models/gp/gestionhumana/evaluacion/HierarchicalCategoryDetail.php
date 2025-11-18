@@ -4,9 +4,12 @@ namespace App\Models\gp\gestionhumana\evaluacion;
 
 use App\Models\BaseModel;
 use App\Models\gp\gestionsistema\Position;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class HierarchicalCategoryDetail extends BaseModel
 {
+  use SoftDeletes;
+
   protected $table = 'gh_hierarchical_category_detail';
 
   protected $fillable = [

@@ -3,8 +3,10 @@
 namespace App\Models\gp\gestionhumana\evaluacion;
 
 use App\Http\Traits\Reportable;
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use function json_encode;
 
 class Evaluation extends Model
 {

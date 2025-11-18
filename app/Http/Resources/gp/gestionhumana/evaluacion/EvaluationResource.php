@@ -7,9 +7,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class EvaluationResource extends JsonResource
 {
-  protected $showExtra = false;
+  protected bool $showExtra = false;
 
-  public function showExtra($show = true)
+  public function showExtra($show = true): static
   {
     $this->showExtra = $show;
     return $this;
