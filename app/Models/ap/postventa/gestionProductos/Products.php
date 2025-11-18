@@ -27,7 +27,6 @@ class Products extends Model
     'unit_measurement_id',
     'warehouse_id',
     'ap_class_article_id',
-    'product_type',
     'minimum_stock',
     'maximum_stock',
     'current_stock',
@@ -66,7 +65,6 @@ class Products extends Model
     'unit_measurement_id' => '=',
     'warehouse_id' => '=',
     'ap_class_article' => '=',
-    'product_type' => '=',
     'status' => '=',
     'is_taxable' => '=',
     'cost_price' => '>=',
@@ -182,10 +180,5 @@ class Products extends Model
   public function scopeByBrand($query, $brandId)
   {
     return $query->where('brand_id', $brandId);
-  }
-
-  public function scopeByType($query, $type)
-  {
-    return $query->where('product_type', $type);
   }
 }

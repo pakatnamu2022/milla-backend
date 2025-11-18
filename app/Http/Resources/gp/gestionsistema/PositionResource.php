@@ -26,7 +26,9 @@ class PositionResource extends JsonResource
       'tipo_onboarding_id' => $this->tipo_onboarding_id,
       'area_id' => $this->area_id,
       'cargo_id' => $this->cargo_id ?? "",
+      'position_head_name' => $this->lidership?->name ?? "",
       'hierarchical_category_id' => $this->hierarchicalCategory?->id,
+      'hierarchical_category_name' => $this->hierarchicalCategory?->name ?? "-",
     ];
   }
 }

@@ -85,6 +85,10 @@ class ApVehicleBrandService extends BaseService implements BaseServiceInterface
 
       $brand = $this->find($data['id']);
 
+      if ($brand->is_commercial != $data['is_commercial']) {
+        throw new Exception('No puedes editar una marca que no corresponde al modulo respectivo.');
+      }
+
       // Extraer archivos del array de datos
       $files = $this->extractFiles($data);
 
