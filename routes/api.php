@@ -818,18 +818,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/{id}/history', [VehiclePurchaseOrderMigrationController::class, 'history']);
       });
 
-      // Purchase Receptions - Recepciones de Compra
-      Route::get('purchase-receptions/pending-review', [PurchaseReceptionController::class, 'pendingReview']);
-      Route::get('purchase-receptions/by-order/{purchaseOrderId}', [PurchaseReceptionController::class, 'byPurchaseOrder']);
-      Route::post('purchase-receptions/{id}/approve', [PurchaseReceptionController::class, 'approve']);
-      Route::apiResource('purchase-receptions', PurchaseReceptionController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
       // Vehicle Documents (Guías de Remisión/Traslado)
       Route::post('shippingGuides/{id}/cancel', [ShippingGuidesController::class, 'cancel']);
       Route::post('shippingGuides/{id}/send-to-nubefact', [ShippingGuidesController::class, 'sendToNubefact']);
@@ -905,6 +893,18 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('products/featured', [ProductsController::class, 'featured']);
       Route::post('products/{id}/update-stock', [ProductsController::class, 'updateStock']);
       Route::apiResource('products', ProductsController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Purchase Receptions - Recepciones de Compra
+      Route::get('purchase-receptions/pending-review', [PurchaseReceptionController::class, 'pendingReview']);
+      Route::get('purchase-receptions/by-order/{purchaseOrderId}', [PurchaseReceptionController::class, 'byPurchaseOrder']);
+      Route::post('purchase-receptions/{id}/approve', [PurchaseReceptionController::class, 'approve']);
+      Route::apiResource('purchase-receptions', PurchaseReceptionController::class)->only([
         'index',
         'show',
         'store',

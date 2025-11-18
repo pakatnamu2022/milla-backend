@@ -100,10 +100,8 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     }
 
     // Obtener tipo de cambio actual si no viene en el request
-    if (!isset($data['exchange_rate_id'])) {
-      $exchangeRateService = new ExchangeRateService();
-      $data['exchange_rate_id'] = $exchangeRateService->getCurrentUSDRate()->id;
-    }
+    $exchangeRateService = new ExchangeRateService();
+    $data['exchange_rate_id'] = $exchangeRateService->getCurrentUSDRate()->id;
 
     // Validar que los valores requeridos de la factura estén presentes
     $requiredFields = ['subtotal', 'igv', 'total'];
@@ -356,6 +354,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
           'quantity' => $quantity,
           'total' => $total,
           'is_vehicle' => $itemData['is_vehicle'] ?? false,
+          'product_id' => $itemData['product_id'] ?? null,
         ]);
       }
     }
