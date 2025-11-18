@@ -9,14 +9,11 @@ class StoreWarehouseRequest extends StoreRequest
 {
   public function rules(): array
   {
-    return [
+    $rules = [
       'dyn_code' => [
         'required',
         'string',
         'max:10',
-//        Rule::unique('warehouse', 'dyn_code')
-//          ->where('article_class_id', $this->article_class_id)
-//          ->ignore($this->route('warehouse')),
       ],
       'description' => [
         'required',
@@ -53,6 +50,16 @@ class StoreWarehouseRequest extends StoreRequest
         'max:50',
       ],
     ];
+
+    // Solo validar unicidad de dyn_code si la sede no es 14 o 16
+    if (!in_array($this->sede_id, [14, 16])) {
+      $rules['dyn_code'][] = Rule::unique('warehouse', 'dyn_code')
+        ->where(function ($query) {
+          return $query->whereNotIn('sede_id', [14, 16]);
+        });
+    }
+
+    return $rules;
   }
 
   public function messages(): array
@@ -61,7 +68,7 @@ class StoreWarehouseRequest extends StoreRequest
       'dyn_code.required' => 'El código dynamic es obligatorio.',
       'dyn_code.string' => 'El código dynamic debe ser un texto.',
       'dyn_code.max' => 'El código dynamic no puede tener más de 10 caracteres.',
-      //'dyn_code.unique' => 'El código dynamic ya está registrado para la clase de artículo seleccionada.',
+      'dyn_code.unique' => 'El código dynamic ya está registrado para otro almacén.',
 
       'description.required' => 'La descripción es obligatoria.',
       'description.string' => 'La descripción debe ser un texto.',
