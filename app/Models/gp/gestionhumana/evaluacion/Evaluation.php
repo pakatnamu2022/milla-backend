@@ -670,7 +670,7 @@ class Evaluation extends Model
 
     $notStartedParticipants = $totalParticipants - $completedParticipants - $inProgressParticipants;
 
-    return [
+    $stats = [
       'total_participants' => $totalParticipants,
       'completed_participants' => $completedParticipants,
       'in_progress_participants' => $inProgressParticipants,
@@ -680,5 +680,21 @@ class Evaluation extends Model
       'progress_percentage' => $totalParticipants > 0 ?
         round((($completedParticipants + $inProgressParticipants) / $totalParticipants) * 100, 2) : 0,
     ];
+
+    // Crear o actualizar el dashboard con los datos calculados
+    $this->dashboard()->updateOrCreate(
+      ['evaluation_id' => $this->id],
+      [
+        'total_participants' => $stats['total_participants'],
+        'completed_participants' => $stats['completed_participants'],
+        'in_progress_participants' => $stats['in_progress_participants'],
+        'not_started_participants' => $stats['not_started_participants'],
+        'completion_percentage' => $stats['completion_percentage'],
+        'progress_percentage' => $stats['progress_percentage'],
+        'last_calculated_at' => now(),
+      ]
+    );
+
+    return $stats;
   }
 }

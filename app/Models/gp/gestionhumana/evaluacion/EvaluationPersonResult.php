@@ -5,7 +5,9 @@ namespace App\Models\gp\gestionhumana\evaluacion;
 use App\Http\Traits\Reportable;
 use App\Models\BaseModel;
 use App\Models\gp\gestionsistema\Person;
+use Exception;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use function json_encode;
 
 class EvaluationPersonResult extends BaseModel
 {
@@ -623,7 +625,7 @@ class EvaluationPersonResult extends BaseModel
     }
 
     return [
-      'completion_rate' => round(($objectivesProgress['completion_rate'] * $objectivesPercentage / 100) + ($competencesPercentage > 0 ? ($competencesProgress['completion_rate'] * $competencesPercentage / 100) : 0), 2),
+      'completion_rate' => round(($objectivesProgress['completion_rate'] * $objectivesPercentage / 100) + (($competencesProgress['completion_rate'] * $competencesPercentage / 100)), 2),
       'completed_sections' => $completedSections,
       'total_sections' => $totalSections,
       'is_completed' => $completedSections === $totalSections,
