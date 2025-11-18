@@ -32,10 +32,10 @@ class StoreApClassArticleRequest extends StoreRequest
         Rule::unique('ap_class_article', 'account')
           ->whereNull('deleted_at'),
       ],
-      'type' => [
+      'type_operation_id' => [
         'required',
-        'string',
-        Rule::in(['POSTVENTA', 'VEHICULO']),
+        'integer',
+        'exists:ap_commercial_masters,id',
       ],
     ];
   }
@@ -58,9 +58,9 @@ class StoreApClassArticleRequest extends StoreRequest
       'account.max' => 'La cuenta no debe exceder los 150 caracteres.',
       'account.unique' => 'El campo cuenta ya existe.',
 
-      'type.required' => 'El campo tipo es obligatorio.',
-      'type.string' => 'El tipo debe ser una cadena de texto.',
-      'type.in' => 'El tipo seleccionado no es válido.',
+      'type_operation_id.required' => 'El campo tipo de operación es obligatorio.',
+      'type_operation_id.integer' => 'El campo tipo de operación debe ser un entero.',
+      'type_operation_id.exists' => 'El tipo de operación seleccionado no es válido.',
     ];
   }
 }

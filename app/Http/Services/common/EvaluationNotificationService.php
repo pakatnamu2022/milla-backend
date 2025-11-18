@@ -246,6 +246,7 @@ class EvaluationNotificationService
 
       $leaders = $this->getLeadersForEvaluation($evaluation);
       $results = [];
+      $allSuccessful = true; // Bandera para verificar si todos se enviaron
 
       foreach ($leaders as $leaderId => $leaderData) {
         $leader = Person::find($leaderId);
@@ -256,11 +257,22 @@ class EvaluationNotificationService
 
         $emailResult = $this->sendOpenedEmailToLeader($evaluation, $leader, $leaderData);
         $results[] = $emailResult;
+
+        // Verificar si este correo falló
+        if (!$emailResult['sent']) {
+          $allSuccessful = false;
+        }
+      }
+
+      // Solo actualizar si TODOS los correos se enviaron exitosamente
+      if ($allSuccessful && count($results) > 0) {
+        $evaluation->update(['send_opened_email' => true]);
       }
 
       return [
-        'success' => true,
-        'total_sent' => count($results),
+        'success' => $allSuccessful,
+        'total_sent' => count(array_filter($results, fn($r) => $r['sent'])),
+        'total_failed' => count(array_filter($results, fn($r) => !$r['sent'])),
         'results' => $results
       ];
 
@@ -400,6 +412,7 @@ class EvaluationNotificationService
 
       $leaders = $this->getLeadersForEvaluation($evaluation);
       $results = [];
+      $allSuccessful = true; // Bandera para verificar si todos se enviaron
 
       foreach ($leaders as $leaderId => $leaderData) {
         $leader = Person::find($leaderId);
@@ -411,11 +424,22 @@ class EvaluationNotificationService
         $teamSummary = $this->calculateTeamSummary($evaluation, $leaderId);
         $emailResult = $this->sendClosedEmailToLeader($evaluation, $leader, $leaderData, $teamSummary);
         $results[] = $emailResult;
+
+        // Verificar si este correo falló
+        if (!$emailResult['sent']) {
+          $allSuccessful = false;
+        }
+      }
+
+      // Solo actualizar si TODOS los correos se enviaron exitosamente
+      if ($allSuccessful && count($results) > 0) {
+        $evaluation->update(['send_closed_email' => true]);
       }
 
       return [
-        'success' => true,
-        'total_sent' => count($results),
+        'success' => $allSuccessful,
+        'total_sent' => count(array_filter($results, fn($r) => $r['sent'])),
+        'total_failed' => count(array_filter($results, fn($r) => !$r['sent'])),
         'results' => $results
       ];
 
