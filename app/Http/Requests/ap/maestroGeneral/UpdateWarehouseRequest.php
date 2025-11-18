@@ -55,14 +55,11 @@ class UpdateWarehouseRequest extends StoreRequest
       ],
     ];
 
-    // Solo validar unicidad de dyn_code si la sede no es 14 o 16
-    if (!in_array($this->sede_id, [14, 16])) {
-      $rules['dyn_code'][] = Rule::unique('warehouse', 'dyn_code')
-        ->where(function ($query) {
-          return $query->whereNotIn('sede_id', [14, 16]);
-        })
-        ->ignore($this->route('warehouse'));
-    }
+    // Validar unicidad de la combinación [dyn_code, article_class_id, sede_id]
+    $rules['dyn_code'][] = Rule::unique('warehouse', 'dyn_code')
+      ->where('article_class_id', $this->article_class_id)
+      ->where('sede_id', $this->sede_id)
+      ->ignore($this->route('warehouse'));
 
     return $rules;
   }
@@ -72,7 +69,7 @@ class UpdateWarehouseRequest extends StoreRequest
     return [
       'dyn_code.string' => 'El código dynamic debe ser un texto.',
       'dyn_code.max' => 'El código dynamic no puede tener más de 10 caracteres.',
-      'dyn_code.unique' => 'El código dynamic ya está registrado para otro almacén.',
+      'dyn_code.unique' => 'Ya existe un almacén con esta combinación de código, clase de artículo y sede.',
 
       'description.string' => 'La descripción debe ser un texto.',
       'description.max' => 'La descripción no puede exceder los 100 caracteres.',
