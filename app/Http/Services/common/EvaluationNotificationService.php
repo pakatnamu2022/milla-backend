@@ -43,8 +43,6 @@ class EvaluationNotificationService
       ];
 
     } catch (\Exception $e) {
-      // Log::error('Error sending evaluation reminders: ' . $e->getMessage());
-
       return [
         'success' => false,
         'error' => $e->getMessage(),
@@ -161,7 +159,7 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => $leader->email,
+        'to' => 'wsuclupef2001@gmail.com',//$leader->email,
         'subject' => 'Recordatorio: Evaluaciones de Desempeño Pendientes',
         'template' => 'emails.evaluation-reminder',
         'data' => [
@@ -246,6 +244,15 @@ class EvaluationNotificationService
 
       $leaders = $this->getLeadersForEvaluation($evaluation);
       $results = [];
+
+      if (empty($leaders)) {
+        return [
+          'success' => false,
+          'error' => 'No se encontraron líderes para esta evaluación',
+          'total_sent' => 0,
+          'results' => []
+        ];
+      }
 
       foreach ($leaders as $leaderId => $leaderData) {
         $leader = Person::find($leaderId);
@@ -400,6 +407,15 @@ class EvaluationNotificationService
 
       $leaders = $this->getLeadersForEvaluation($evaluation);
       $results = [];
+
+      if (empty($leaders)) {
+        return [
+          'success' => false,
+          'error' => 'No se encontraron líderes para esta evaluación',
+          'total_sent' => 0,
+          'results' => []
+        ];
+      }
 
       foreach ($leaders as $leaderId => $leaderData) {
         $leader = Person::find($leaderId);
