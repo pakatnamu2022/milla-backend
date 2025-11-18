@@ -48,15 +48,22 @@ class UpdateEvaluationDashboards implements ShouldQueue
    */
   protected function updateEvaluationDashboard(Evaluation $evaluation)
   {
-    // Obtener datos originales del modelo
-    $progressStats = $evaluation->progress_stats_fallback;
-    $competenceStats = $evaluation->competence_stats;
-    $evaluatorTypeStats = $evaluation->evaluator_type_stats;
-    $participantRanking = $evaluation->participant_ranking;
-    $executiveSummary = $evaluation->executive_summary;
+    // Usar métodos optimizados con SQL directo (no calculan sobre cada participante)
+    // Pasar false para no disparar el job recursivamente
+    $progressStats = $evaluation->fallbackCalculateProgressStats(false);
     $resultsStats = $evaluation->fallbackCalculateResultsStats();
 
-    // Actualizar o crear el dashboard
+    // Calcular promedio final score de forma eficiente con SQL
+    $avgFinalScore = \DB::table('gh_evaluation_person_result')
+      ->where('evaluation_id', $evaluation->id)
+      ->where('result', '>', 0)
+      ->avg('result') ?? 0;
+
+    $maxScore = $evaluation->max_score_final ?? 100;
+    $performancePercentage = $maxScore > 0 ? round(($avgFinalScore / $maxScore) * 100, 2) : 0;
+
+    // Actualizar o crear el dashboard con datos básicos
+    // Los datos pesados (competence_stats, etc.) se calcularán después con los dashboards individuales
     EvaluationDashboard::updateOrCreate(
       ['evaluation_id' => $evaluation->id],
       [
@@ -66,74 +73,39 @@ class UpdateEvaluationDashboards implements ShouldQueue
         'not_started_participants' => $progressStats['not_started_participants'],
         'completion_percentage' => $progressStats['completion_percentage'],
         'progress_percentage' => $progressStats['progress_percentage'],
-        'average_final_score' => $executiveSummary['average_final_score'] ?? 0,
-        'performance_percentage' => $executiveSummary['performance_percentage'] ?? 0,
-        'competence_stats' => $competenceStats,
-        'evaluator_type_stats' => $evaluatorTypeStats,
-        'participant_ranking' => $participantRanking,
-        'executive_summary' => $executiveSummary,
+        'average_final_score' => round($avgFinalScore, 2),
+        'performance_percentage' => $performancePercentage,
         'results_stats' => $resultsStats,
         'last_calculated_at' => Carbon::now(),
+        // Estos campos pesados se actualizarán cuando los chunks terminen
+        // 'competence_stats' => null,
+        // 'evaluator_type_stats' => null,
+        // 'participant_ranking' => null,
+        // 'executive_summary' => null,
       ]
     );
   }
 
   /**
-   * Actualiza los dashboards de las personas
+   * Actualiza los dashboards de las personas despachando jobs por chunks
    */
   protected function updatePersonDashboards(Evaluation $evaluation)
   {
-    $personResults = $evaluation->personResults()->get();
-
-    foreach ($personResults as $personResult) {
-      $totalProgress = $personResult->total_progress_fallback;
-      $objectivesProgress = $personResult->objectives_progress_fallback;
-      $competencesProgress = $personResult->competences_progress_fallback;
-      $groupedCompetences = $personResult->getGroupedCompetences();
-
-      EvaluationPersonDashboard::updateOrCreate(
-        [
-          'evaluation_id' => $evaluation->id,
-          'person_id' => $personResult->person_id
-        ],
-        [
-          // Total Progress
-          'completion_rate' => $totalProgress['completion_rate'],
-          'completed_sections' => $totalProgress['completed_sections'],
-          'total_sections' => $totalProgress['total_sections'],
-          'is_completed' => $totalProgress['is_completed'],
-
-          // Objectives Progress
-          'objectives_completion_rate' => $objectivesProgress['completion_rate'],
-          'objectives_completed' => $objectivesProgress['completed'],
-          'objectives_total' => $objectivesProgress['total'],
-          'objectives_is_completed' => $objectivesProgress['is_completed'],
-          'has_objectives' => $objectivesProgress['has_objectives'],
-
-          // Competences Progress
-          'competences_completion_rate' => $competencesProgress['completion_rate'],
-          'competences_completed' => $competencesProgress['completed'],
-          'competences_total' => $competencesProgress['total'],
-          'competences_is_completed' => $competencesProgress['is_completed'],
-          'competence_groups' => $competencesProgress['groups'],
-
-          // Status
-          'progress_status' => $personResult->progress_status,
-
-          // JSON Data
-          'grouped_competences' => $groupedCompetences,
-          'total_progress_detail' => $totalProgress,
-          'objectives_progress_detail' => $objectivesProgress,
-          'competences_progress_detail' => $competencesProgress,
-
-          'last_calculated_at' => Carbon::now(),
-        ]
-      );
-    }
+    $personIds = $evaluation->personResults()->pluck('person_id')->toArray();
 
     // Eliminar dashboards de personas que ya no están en la evaluación
     EvaluationPersonDashboard::where('evaluation_id', $evaluation->id)
-      ->whereNotIn('person_id', $personResults->pluck('person_id'))
+      ->whereNotIn('person_id', $personIds)
       ->delete();
+
+    // Dividir en chunks de 25 personas y despachar un job por cada chunk
+    $chunks = array_chunk($personIds, 25);
+
+    foreach ($chunks as $chunk) {
+      UpdateEvaluationPersonDashboardsChunk::dispatch(
+        $evaluation->id,
+        $chunk
+      )->onQueue('evaluation-dashboards');
+    }
   }
 }

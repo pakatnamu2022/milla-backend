@@ -587,48 +587,33 @@ class Evaluation extends Model
       ];
     }
 
-    // Obtener resultados completados con puntaje > 0
-    $completedResults = $this->personResults()
-      ->get()
-      ->filter(function ($result) {
-        return $result->is_completed;
-      });
-
-    $totalEvaluated = $completedResults->count();
-
-    if ($totalEvaluated === 0) {
-      return [
-        'ranges' => [],
-        'total_evaluated' => 0,
-        'message' => 'No hay resultados evaluados'
-      ];
-    }
-
     // Obtener rangos ordenados
     $ranges = $finalParameter->details()
       ->orderBy('from')
       ->get();
 
+    // Usar SQL directo para contar resultados por rango (mucho más eficiente)
+    // Solo contamos personas con result > 0 como "evaluados"
     $rangeStats = [];
+    $totalEvaluated = 0;
 
     foreach ($ranges as $index => $range) {
-      // Determinar si es el último rango
       $isLastRange = $index === ($ranges->count() - 1);
 
-      // Contar cuántos resultados caen en este rango
-      $countInRange = $completedResults->filter(function ($result) use ($range, $isLastRange) {
-        $score = floatval($result->result);
+      // Query SQL directa para contar en este rango
+      $query = \DB::table('gh_evaluation_person_result')
+        ->where('evaluation_id', $this->id)
+        ->where('result', '>', 0)
+        ->where('result', '>=', $range->from);
 
-        // Para todos los rangos excepto el último: [from, to)
-        // Para el último rango: [from, to]
-        if ($isLastRange) {
-          return $score >= $range->from && $score <= $range->to;
-        } else {
-          return $score >= $range->from && $score < $range->to;
-        }
-      })->count();
+      if ($isLastRange) {
+        $query->where('result', '<=', $range->to);
+      } else {
+        $query->where('result', '<', $range->to);
+      }
 
-      $percentage = $totalEvaluated > 0 ? round(($countInRange / $totalEvaluated) * 100, 2) : 0;
+      $countInRange = $query->count();
+      $totalEvaluated += $countInRange;
 
       $rangeStats[] = [
         'range_index' => $index,
@@ -636,7 +621,22 @@ class Evaluation extends Model
         'range_from' => $range->from,
         'range_to' => $range->to,
         'count' => $countInRange,
-        'percentage' => $percentage
+        'percentage' => 0 // Se calcula después
+      ];
+    }
+
+    // Calcular porcentajes
+    foreach ($rangeStats as &$stat) {
+      $stat['percentage'] = $totalEvaluated > 0
+        ? round(($stat['count'] / $totalEvaluated) * 100, 2)
+        : 0;
+    }
+
+    if ($totalEvaluated === 0) {
+      return [
+        'ranges' => [],
+        'total_evaluated' => 0,
+        'message' => 'No hay resultados evaluados'
       ];
     }
 
@@ -648,25 +648,118 @@ class Evaluation extends Model
   }
 
   /**
+   * @param bool $dispatchJob Si debe disparar el job para crear dashboards individuales
    * @return array
    */
-  public function fallbackCalculateProgressStats(): array
+  public function fallbackCalculateProgressStats(bool $dispatchJob = true): array
   {
-    $totalParticipants = $this->personResults()->count();
-    $completedParticipants = $this->personResults()
-      ->get()
-      ->filter(function ($result) {
-        return $result->is_completed_fallback; // Usa el accessor del modelo EvaluationPersonResult
-      })
-      ->count();
+    // Primero intentar obtener datos de los dashboards pre-calculados (SQL directo)
+    $dashboardStats = \DB::table('evaluation_person_dashboards')
+      ->where('evaluation_id', $this->id)
+      ->whereNotNull('last_calculated_at')
+      ->selectRaw('
+        COUNT(*) as total,
+        SUM(CASE WHEN is_completed = 1 THEN 1 ELSE 0 END) as completed,
+        SUM(CASE WHEN completion_rate > 0 AND is_completed = 0 THEN 1 ELSE 0 END) as in_progress
+      ')
+      ->first();
 
-    $inProgressParticipants = $this->personResults()
-      ->get()
-      ->filter(function ($result) {
-        $progress = $result->completion_percentage_fallback * 100;
-        return $progress > 0 && $progress < 100;
-      })
-      ->count();
+    // Si hay dashboards calculados, usar esos datos
+    if ($dashboardStats && $dashboardStats->total > 0) {
+      $totalParticipants = $dashboardStats->total;
+      $completedParticipants = (int) $dashboardStats->completed;
+      $inProgressParticipants = (int) $dashboardStats->in_progress;
+    } else {
+      // Fallback optimizado: Calcular con queries SQL directas sin procesar cada persona
+      $totalParticipants = $this->personResults()->count();
+
+      if ($totalParticipants === 0) {
+        $completedParticipants = 0;
+        $inProgressParticipants = 0;
+      } else {
+        // Determinar completados basándose en el tipo de evaluación
+        if ($this->typeEvaluation == 0) {
+          // Evaluación de objetivos: completado si todos los objetivos están evaluados
+          $completedParticipants = \DB::table('gh_evaluation_person_result as epr')
+            ->where('epr.evaluation_id', $this->id)
+            ->whereNotExists(function ($query) {
+              $query->select(\DB::raw(1))
+                ->from('gh_evaluation_person as ep')
+                ->whereRaw('ep.evaluation_id = epr.evaluation_id')
+                ->whereRaw('ep.person_id = epr.person_id')
+                ->where('ep.wasEvaluated', 0)
+                ->whereNull('ep.deleted_at');
+            })
+            ->whereExists(function ($query) {
+              $query->select(\DB::raw(1))
+                ->from('gh_evaluation_person as ep')
+                ->whereRaw('ep.evaluation_id = epr.evaluation_id')
+                ->whereRaw('ep.person_id = epr.person_id')
+                ->whereNull('ep.deleted_at');
+            })
+            ->count();
+
+          // En progreso: tiene al menos un objetivo evaluado pero no todos
+          $inProgressParticipants = \DB::table('gh_evaluation_person_result as epr')
+            ->where('epr.evaluation_id', $this->id)
+            ->whereExists(function ($query) {
+              $query->select(\DB::raw(1))
+                ->from('gh_evaluation_person as ep')
+                ->whereRaw('ep.evaluation_id = epr.evaluation_id')
+                ->whereRaw('ep.person_id = epr.person_id')
+                ->where('ep.wasEvaluated', 1)
+                ->whereNull('ep.deleted_at');
+            })
+            ->whereExists(function ($query) {
+              $query->select(\DB::raw(1))
+                ->from('gh_evaluation_person as ep')
+                ->whereRaw('ep.evaluation_id = epr.evaluation_id')
+                ->whereRaw('ep.person_id = epr.person_id')
+                ->where('ep.wasEvaluated', 0)
+                ->whereNull('ep.deleted_at');
+            })
+            ->count();
+        } else {
+          // Evaluación 180° o 360°: basarse en competencias
+          // Completado: todas las competencias tienen resultado > 0
+          $completedParticipants = \DB::table('gh_evaluation_person_result as epr')
+            ->where('epr.evaluation_id', $this->id)
+            ->whereNotExists(function ($query) {
+              $query->select(\DB::raw(1))
+                ->from('gh_evaluation_person_competence_detail as epcd')
+                ->whereRaw('epcd.evaluation_id = epr.evaluation_id')
+                ->whereRaw('epcd.person_id = epr.person_id')
+                ->where('epcd.result', 0);
+            })
+            ->whereExists(function ($query) {
+              $query->select(\DB::raw(1))
+                ->from('gh_evaluation_person_competence_detail as epcd')
+                ->whereRaw('epcd.evaluation_id = epr.evaluation_id')
+                ->whereRaw('epcd.person_id = epr.person_id');
+            })
+            ->count();
+
+          // En progreso: tiene al menos una competencia con resultado pero no todas
+          $inProgressParticipants = \DB::table('gh_evaluation_person_result as epr')
+            ->where('epr.evaluation_id', $this->id)
+            ->whereExists(function ($query) {
+              $query->select(\DB::raw(1))
+                ->from('gh_evaluation_person_competence_detail as epcd')
+                ->whereRaw('epcd.evaluation_id = epr.evaluation_id')
+                ->whereRaw('epcd.person_id = epr.person_id')
+                ->where('epcd.result', '>', 0);
+            })
+            ->whereExists(function ($query) {
+              $query->select(\DB::raw(1))
+                ->from('gh_evaluation_person_competence_detail as epcd')
+                ->whereRaw('epcd.evaluation_id = epr.evaluation_id')
+                ->whereRaw('epcd.person_id = epr.person_id')
+                ->where('epcd.result', 0);
+            })
+            ->count();
+        }
+      }
+    }
 
     $notStartedParticipants = $totalParticipants - $completedParticipants - $inProgressParticipants;
 
@@ -681,7 +774,7 @@ class Evaluation extends Model
         round((($completedParticipants + $inProgressParticipants) / $totalParticipants) * 100, 2) : 0,
     ];
 
-    // Crear o actualizar el dashboard con los datos calculados
+    // Crear o actualizar el dashboard global con los datos calculados
     $this->dashboard()->updateOrCreate(
       ['evaluation_id' => $this->id],
       [
@@ -694,6 +787,12 @@ class Evaluation extends Model
         'last_calculated_at' => now(),
       ]
     );
+
+    // Si no había dashboards individuales, disparar job para crearlos en background
+    if ($dispatchJob && (!isset($dashboardStats) || !$dashboardStats || $dashboardStats->total == 0)) {
+      \App\Jobs\UpdateEvaluationDashboards::dispatch($this->id)
+        ->onQueue('evaluation-dashboards');
+    }
 
     return $stats;
   }

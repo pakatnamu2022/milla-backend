@@ -501,6 +501,12 @@ class EvaluationPersonResult extends BaseModel
    */
   private function hasSubordinates()
   {
+    // Usar la relación ya cargada por eager loading si está disponible
+    if ($this->person->relationLoaded('subordinates')) {
+      return $this->person->subordinates->isNotEmpty();
+    }
+
+    // Fallback a query si no está cargada
     return $this->person->subordinates()->exists();
   }
 
@@ -600,8 +606,9 @@ class EvaluationPersonResult extends BaseModel
    */
   public function fallbackCalculateTotalProgress(): array
   {
-    $objectivesProgress = $this->getObjectivesProgressAttribute();
-    $competencesProgress = $this->getCompetencesProgressAttribute();
+    // Llamar directamente a los métodos fallback para evitar queries adicionales al dashboard
+    $objectivesProgress = $this->fallbackCalculateObjectivesProgress();
+    $competencesProgress = $this->fallbackCalculateCompetencesProgress();
     $objectivesPercentage = max($this->objectivesPercentage, 1);
     $competencesPercentage = max($this->competencesPercentage, 1);
 
