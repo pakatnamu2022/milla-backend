@@ -2,7 +2,9 @@
 
 namespace App\Models\ap\configuracionComercial\vehiculo;
 
+use App\Models\ap\ApCommercialMasters;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -16,13 +18,13 @@ class ApClassArticle extends Model
     'dyn_code',
     'description',
     'account',
-    'type',
+    'type_operation_id',
     'status',
   ];
 
   const filters = [
-    'search' => ['dyn_code', 'description', 'account', 'type'],
-    'type' => '='
+    'search' => ['dyn_code', 'description', 'account', 'typeOperation.description'],
+    'type_operation_id' => '='
   ];
 
   const sorts = [
@@ -43,5 +45,10 @@ class ApClassArticle extends Model
   public function setAccountAttribute($value)
   {
     $this->attributes['account'] = Str::upper(Str::ascii($value));
+  }
+
+  public function typeOperation(): BelongsTo
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'type_operation_id');
   }
 }

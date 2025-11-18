@@ -31,6 +31,8 @@ use App\Http\Controllers\ap\configuracionComercial\venta\ApCommercialManagerBran
 use App\Http\Controllers\ap\configuracionComercial\venta\ApGoalSellOutInController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApSafeCreditGoalController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApShopController;
+use App\Http\Controllers\ap\facturacion\BillingCatalogController;
+use App\Http\Controllers\ap\facturacion\ElectronicDocumentController;
 use App\Http\Controllers\ap\maestroGeneral\AssignSalesSeriesController;
 use App\Http\Controllers\ap\maestroGeneral\TaxClassTypesController;
 use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
@@ -38,11 +40,8 @@ use App\Http\Controllers\ap\maestroGeneral\UnitMeasurementController;
 use App\Http\Controllers\ap\maestroGeneral\UserSeriesAssignmentController;
 use App\Http\Controllers\ap\maestroGeneral\WarehouseController;
 use App\Http\Controllers\ap\postventa\ApprovedAccessoriesController;
-use App\Http\Controllers\ap\facturacion\BillingCatalogController;
-use App\Http\Controllers\ap\facturacion\ElectronicDocumentController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductCategoryController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductsController;
-use App\Http\Controllers\Api\EvaluationNotificationController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Dashboard\ap\comercial\DashboardComercialController;
@@ -55,6 +54,7 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationMetricController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationNotificationController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationObjectiveController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationParameterController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPeriodController;
@@ -88,15 +88,6 @@ use App\Http\Controllers\gp\tics\EquipmentTypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login'])->name('login');
-
-// Email testing routes (sin autenticación para facilitar pruebas)
-Route::group(['prefix' => 'email/test'], function () {
-  Route::get('/status', [App\Http\Controllers\Api\EmailTestController::class, 'status']);
-  Route::post('/evaluation-reminder', [App\Http\Controllers\Api\EmailTestController::class, 'testEvaluationReminder']);
-  Route::post('/basic-template', [App\Http\Controllers\Api\EmailTestController::class, 'testBasicTemplate']);
-  Route::post('/notification-template', [App\Http\Controllers\Api\EmailTestController::class, 'testNotificationTemplate']);
-});
-
 Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::get('/authenticate', [AuthController::class, 'authenticate'])->name('authenticate');
   Route::get('/permissions', [AuthController::class, 'permissions'])->name('permissions');

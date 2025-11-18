@@ -52,10 +52,6 @@ return new class extends Migration {
       // ApClassArticle - Clase de Artículo AP
       // Clase del artículo según catálogo AP (consumible, repuesto, herramienta, etc.)
       $table->foreignId('ap_class_article_id')->constrained('ap_class_article')->comment('AP article class (consumable, spare part, tool, etc.)');
-      
-      // Product Type - Tipo de Producto
-      // Tipo: GOOD (bien físico), SERVICE (servicio), KIT (conjunto de productos)
-      $table->enum('product_type', ['GOOD', 'SERVICE', 'KIT'])->default('GOOD')->comment('Product type: GOOD (physical item), SERVICE, KIT (bundle)');
 
       // Minimum Stock - Stock Mínimo
       // Cantidad mínima que debe haber en inventario
@@ -106,8 +102,6 @@ return new class extends Migration {
       $table->index('product_category_id');
       $table->index('brand_id');
       $table->index('status');
-      $table->index('product_type');
-      $table->index(['status', 'product_type']);
     });
   }
 

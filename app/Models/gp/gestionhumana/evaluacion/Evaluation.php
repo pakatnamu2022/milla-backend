@@ -15,15 +15,28 @@ class Evaluation extends Model
   protected $table = 'gh_evaluation';
 
   protected $fillable = [
-    'name', 'start_date', 'end_date', 'status', 'selfEvaluation',
-    'partnersEvaluation', 'typeEvaluation', 'objectivesPercentage',
-    'competencesPercentage', 'cycle_id', 'period_id',
-    'competence_parameter_id', 'objective_parameter_id', 'final_parameter_id'
+    'name',
+    'start_date',
+    'end_date',
+    'status',
+    'selfEvaluation',
+    'partnersEvaluation',
+    'typeEvaluation',
+    'objectivesPercentage',
+    'competencesPercentage',
+    'cycle_id', 'period_id',
+    'competence_parameter_id',
+    'objective_parameter_id',
+    'final_parameter_id',
+    'send_opened_email',
+    'send_closed_email',
   ];
 
   protected $casts = [
     'selfEvaluation' => 'boolean',
     'partnersEvaluation' => 'boolean',
+    'send_opened_email' => 'boolean',
+    'send_closed_email' => 'boolean',
     'objectivesPercentage' => 'decimal:2',
     'competencesPercentage' => 'decimal:2',
   ];

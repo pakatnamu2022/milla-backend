@@ -35,10 +35,10 @@ class UpdateApClassArticleRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('classArticle')),
       ],
-      'type' => [
+      'type_operation_id' => [
         'nullable',
-        'string',
-        Rule::in(['POSTVENTA', 'VEHICULO']),
+        'integer',
+        'exists:ap_commercial_masters,id',
       ],
       'status' => ['nullable', 'boolean']
     ];
@@ -59,8 +59,9 @@ class UpdateApClassArticleRequest extends StoreRequest
       'account.max' => 'La cuenta no debe exceder los 150 caracteres.',
       'account.unique' => 'El campo cuenta ya existe.',
 
-      'type.string' => 'El tipo debe ser una cadena de texto.',
-      'type.in' => 'El tipo seleccionado no es válido.',
+      'type_operation_id.required' => 'El campo tipo de operación es obligatorio.',
+      'type_operation_id.integer' => 'El tipo de operación debe ser un número entero.',
+      'type_operation_id.exists' => 'El tipo de operación seleccionado no es válido.',
     ];
   }
 }

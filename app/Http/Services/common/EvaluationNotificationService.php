@@ -43,8 +43,6 @@ class EvaluationNotificationService
       ];
 
     } catch (\Exception $e) {
-      // Log::error('Error sending evaluation reminders: ' . $e->getMessage());
-
       return [
         'success' => false,
         'error' => $e->getMessage(),
@@ -161,7 +159,7 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => $leader->email,
+        'to' => 'wsuclupef2001@gmail.com',//$leader->email,
         'subject' => 'Recordatorio: Evaluaciones de Desempeño Pendientes',
         'template' => 'emails.evaluation-reminder',
         'data' => [
@@ -246,6 +244,16 @@ class EvaluationNotificationService
 
       $leaders = $this->getLeadersForEvaluation($evaluation);
       $results = [];
+      $allSuccessful = true; // Bandera para verificar si todos se enviaron
+
+      if (empty($leaders)) {
+        return [
+          'success' => false,
+          'error' => 'No se encontraron líderes para esta evaluación',
+          'total_sent' => 0,
+          'results' => []
+        ];
+      }
 
       foreach ($leaders as $leaderId => $leaderData) {
         $leader = Person::find($leaderId);
@@ -256,11 +264,22 @@ class EvaluationNotificationService
 
         $emailResult = $this->sendOpenedEmailToLeader($evaluation, $leader, $leaderData);
         $results[] = $emailResult;
+
+        // Verificar si este correo falló
+        if (!$emailResult['sent']) {
+          $allSuccessful = false;
+        }
+      }
+
+      // Solo actualizar si TODOS los correos se enviaron exitosamente
+      if ($allSuccessful && count($results) > 0) {
+        $evaluation->update(['send_opened_email' => true]);
       }
 
       return [
-        'success' => true,
-        'total_sent' => count($results),
+        'success' => $allSuccessful,
+        'total_sent' => count(array_filter($results, fn($r) => $r['sent'])),
+        'total_failed' => count(array_filter($results, fn($r) => !$r['sent'])),
         'results' => $results
       ];
 
@@ -400,6 +419,16 @@ class EvaluationNotificationService
 
       $leaders = $this->getLeadersForEvaluation($evaluation);
       $results = [];
+      $allSuccessful = true; // Bandera para verificar si todos se enviaron
+
+      if (empty($leaders)) {
+        return [
+          'success' => false,
+          'error' => 'No se encontraron líderes para esta evaluación',
+          'total_sent' => 0,
+          'results' => []
+        ];
+      }
 
       foreach ($leaders as $leaderId => $leaderData) {
         $leader = Person::find($leaderId);
@@ -411,11 +440,22 @@ class EvaluationNotificationService
         $teamSummary = $this->calculateTeamSummary($evaluation, $leaderId);
         $emailResult = $this->sendClosedEmailToLeader($evaluation, $leader, $leaderData, $teamSummary);
         $results[] = $emailResult;
+
+        // Verificar si este correo falló
+        if (!$emailResult['sent']) {
+          $allSuccessful = false;
+        }
+      }
+
+      // Solo actualizar si TODOS los correos se enviaron exitosamente
+      if ($allSuccessful && count($results) > 0) {
+        $evaluation->update(['send_closed_email' => true]);
       }
 
       return [
-        'success' => true,
-        'total_sent' => count($results),
+        'success' => $allSuccessful,
+        'total_sent' => count(array_filter($results, fn($r) => $r['sent'])),
+        'total_failed' => count(array_filter($results, fn($r) => !$r['sent'])),
         'results' => $results
       ];
 

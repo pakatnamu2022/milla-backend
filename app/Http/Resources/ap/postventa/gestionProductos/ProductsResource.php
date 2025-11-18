@@ -32,7 +32,6 @@ class ProductsResource extends JsonResource
       'part_number' => $this->part_number,
       'alternative_part_numbers' => $this->alternative_part_numbers,
       'sku' => $this->sku,
-      'product_type' => $this->product_type,
       'minimum_stock' => $this->minimum_stock,
       'maximum_stock' => $this->maximum_stock,
       'current_stock' => $this->current_stock,

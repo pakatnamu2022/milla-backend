@@ -22,7 +22,6 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
     if ($onlyAll) {
       $isCached = Cache::has('models.all');
-      \Log::info('ApModelsVn - Usando caché: ' . ($isCached ? 'SI (desde caché)' : 'NO (generando nueva)'));
 
       // Cachear solo los datos, no la respuesta completa
       $data = Cache::remember('models.all', now()->addMonth(), function () use ($request) { // 1 mes

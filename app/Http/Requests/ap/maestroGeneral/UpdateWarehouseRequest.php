@@ -14,9 +14,9 @@ class UpdateWarehouseRequest extends StoreRequest
         'nullable',
         'string',
         'max:10',
-        Rule::unique('warehouse', 'dyn_code')
-          ->where('article_class_id', $this->article_class_id)
-          ->ignore($this->route('warehouse')),
+//        Rule::unique('warehouse', 'dyn_code')
+//          ->where('article_class_id', $this->article_class_id)
+//          ->ignore($this->route('warehouse')),
       ],
       'description' => [
         'nullable',
@@ -64,11 +64,11 @@ class UpdateWarehouseRequest extends StoreRequest
     return [
       'dyn_code.string' => 'El código dynamic debe ser un texto.',
       'dyn_code.max' => 'El código dynamic no puede tener más de 10 caracteres.',
-      'dyn_code.unique' => 'El código dynamic ya está registrado para la clase de artículo seleccionada.',
+      //'dyn_code.unique' => 'El código dynamic ya está registrado para la clase de artículo seleccionada.',
 
       'description.string' => 'La descripción debe ser un texto.',
       'description.max' => 'La descripción no puede exceder los 100 caracteres.',
-      'description.unique' => 'La descripción ya está registrada.',
+      //'description.unique' => 'La descripción ya está registrada.',
 
       'sede_id.integer' => 'La sede debe ser un número entero.',
       'sede_id.exists' => 'La sede seleccionada no existe.',
