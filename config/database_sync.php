@@ -535,6 +535,8 @@ return [
         'Cantidad' => fn($data) => $data['Cantidad'],
         'AlmacenId_Ini' => fn($data) => $data['AlmacenId_Ini'],
         'AlmacenId_Fin' => fn($data) => $data['AlmacenId_Fin'],
+        'CuentaInventario' => fn($data) => $data['CuentaInventario'],
+        'CuentaContrapartida' => fn($data) => $data['CuentaContrapartida'],
       ],
       'optional_mapping' => [
       ],

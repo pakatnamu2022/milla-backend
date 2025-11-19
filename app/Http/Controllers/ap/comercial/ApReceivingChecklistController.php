@@ -4,7 +4,6 @@ namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\IndexApReceivingChecklistRequest;
-use App\Http\Requests\ap\comercial\StoreApReceivingChecklistRequest;
 use App\Http\Requests\ap\comercial\UpdateApReceivingChecklistRequest;
 use App\Http\Services\ap\comercial\ApReceivingChecklistService;
 use Exception;
