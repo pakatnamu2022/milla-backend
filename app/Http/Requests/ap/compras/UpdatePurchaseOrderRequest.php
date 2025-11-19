@@ -11,9 +11,6 @@ class UpdatePurchaseOrderRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      // ID requerido para actualización
-      'id' => ['required', 'integer', Rule::exists('ap_purchase_order', 'id')->whereNull('deleted_at')],
-
       // Información de la Factura (Cabecera) - Todos opcionales en update
       'invoice_series' => ['sometimes', 'string', 'max:10'],
       'invoice_number' => ['sometimes', 'string', 'max:20'],
@@ -24,6 +21,7 @@ class UpdatePurchaseOrderRequest extends StoreRequest
       'subtotal' => ['sometimes', 'numeric', 'min:0'],
       'igv' => ['sometimes', 'numeric', 'min:0'],
       'total' => ['sometimes', 'numeric', 'min:0'],
+      'payment_term' => ['sometimes', 'nullable', 'string', 'max:100'],
       'discount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
       'isc' => ['sometimes', 'nullable', 'numeric', 'min:0'],
 
@@ -36,16 +34,19 @@ class UpdatePurchaseOrderRequest extends StoreRequest
       // Movimiento de Vehículo (opcional)
       'vehicle_movement_id' => ['sometimes', 'nullable', 'integer', Rule::exists('ap_vehicle_movement', 'id')->whereNull('deleted_at')],
 
+      // Tipo de Operación (opcional)
+      'type_operation_id' => ['sometimes', 'nullable', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('status', 1)->whereNull('deleted_at')],
+
       // Items de la Orden de Compra (opcional, si se envía se reemplazan todos)
       'items' => ['sometimes', 'array', 'min:1'],
-      'items.*.unit_measurement_id' => ['required', 'integer', Rule::exists('unit_measurement', 'id')->where('status', 1)->whereNull('deleted_at')],
-      'items.*.description' => ['required', 'string', 'max:255'],
+      'items.*.unit_measurement_id' => ['sometimes', 'integer', Rule::exists('unit_measurement', 'id')->where('status', 1)->whereNull('deleted_at')],
+      'items.*.description' => ['sometimes', 'string', 'max:255'],
       'items.*.unit_price' => ['required', 'numeric', 'min:0'],
       'items.*.quantity' => ['required', 'integer', 'min:1'],
       'items.*.is_vehicle' => ['sometimes', 'boolean'],
+      'items.*.product_id' => ['required_if:items.*.is_vehicle,false', 'nullable', 'integer', Rule::exists('products', 'id')->where('status', 'ACTIVE')->whereNull('deleted_at')],
 
       // Campos de estado
-      'status' => ['sometimes', 'boolean'],
       'migration_status' => ['sometimes', 'string', Rule::in(['pending', 'in_progress', 'completed', 'failed', 'updated_with_nc'])],
     ];
   }
@@ -53,9 +54,6 @@ class UpdatePurchaseOrderRequest extends StoreRequest
   public function attributes()
   {
     return [
-      // ID
-      'id' => 'ID de la Orden de Compra',
-
       // Factura
       'invoice_series' => 'Serie de la Factura',
       'invoice_number' => 'Número de la Factura',
@@ -85,7 +83,6 @@ class UpdatePurchaseOrderRequest extends StoreRequest
       'items.*.is_vehicle' => 'Es Vehículo',
 
       // Estado
-      'status' => 'Estado',
       'migration_status' => 'Estado de Migración',
     ];
   }

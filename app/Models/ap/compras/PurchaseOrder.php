@@ -35,6 +35,7 @@ class PurchaseOrder extends BaseModel
     'isc',
     'igv',
     'total',
+    'payment_term',
     'supplier_id',
     'currency_id',
     'exchange_rate_id',
@@ -50,6 +51,7 @@ class PurchaseOrder extends BaseModel
     'migration_status',
     'status',
     'vehicle_movement_id',
+    'type_operation_id',
     'migrated_at',
   ];
 
@@ -76,6 +78,7 @@ class PurchaseOrder extends BaseModel
     'sede_id' => '=',
     'vehicle.ap_models_vn_id' => '=',
     'vehicle.ap_vehicle_status_id' => '=',
+    'type_operation_id' => '=',
   ];
 
   const sorts = [

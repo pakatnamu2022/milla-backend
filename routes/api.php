@@ -81,6 +81,7 @@ use App\Http\Controllers\gp\gestionsistema\TypeOnboardingController;
 use App\Http\Controllers\gp\gestionsistema\UserController;
 use App\Http\Controllers\gp\gestionsistema\UserSedeController;
 use App\Http\Controllers\gp\gestionsistema\ViewController;
+use App\Http\Controllers\gp\maestroGeneral\ExchangeRateController;
 use App\Http\Controllers\gp\maestroGeneral\SedeController;
 use App\Http\Controllers\gp\maestroGeneral\SunatConceptsController;
 use App\Http\Controllers\gp\tics\EquipmentController;
@@ -227,6 +228,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::apiResource('sunatConcepts', SunatConceptsController::class)->only([
         'index',
       ]);
+
+      Route::get('exchange-rate/by-date-and-currency', [ExchangeRateController::class, 'getByDateAndCurrency']);
     });
 
     Route::group(['prefix' => 'gs'], function () {

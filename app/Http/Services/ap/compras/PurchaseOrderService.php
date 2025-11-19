@@ -114,6 +114,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     // Establecer valores por defecto para campos opcionales
     $data['discount'] = $data['discount'] ?? 0;
     $data['isc'] = $data['isc'] ?? 0;
+    $data['payment_terms'] = $data['payment_terms'] ?? null;
 
     return $data;
   }
@@ -348,8 +349,8 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         $total = round($unitPrice * $quantity, 2);
 
         $purchaseOrder->items()->create([
-          'unit_measurement_id' => $itemData['unit_measurement_id'],
-          'description' => $itemData['description'],
+          'unit_measurement_id' => $itemData['unit_measurement_id'] ?? null,
+          'description' => $itemData['description'] ?? '',
           'unit_price' => $unitPrice,
           'quantity' => $quantity,
           'total' => $total,

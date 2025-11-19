@@ -20,8 +20,15 @@ class DetailedDevelopmentPlanResource extends JsonResource
       'worker_name' => $this->worker ? $this->worker->nombre_completo : null,
       'boss_id' => $this->boss_id,
       'boss_name' => $this->boss ? $this->boss->nombre_completo : null,
-      'gh_evaluation_id' => $this->gh_evaluation_id,
       'evaluation_name' => $this->evaluation ? $this->evaluation->name : null,
+      'tasks' => $this->tasks ? $this->tasks->map(function ($task) {
+        return [
+          'id' => $task->id,
+          'description' => $task->description,
+          'end_date' => $task->end_date ? $task->end_date->format('Y-m-d') : null,
+          'fulfilled' => (bool)$task->fulfilled,
+        ];
+      }) : [],
     ];
   }
 }
