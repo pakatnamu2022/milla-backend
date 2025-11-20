@@ -21,6 +21,10 @@ class UpdateDetailedDevelopmentPlanRequest extends StoreRequest
       'tasks.*.description' => 'required|string|max:500',
       'tasks.*.end_date' => 'required|date',
       'tasks.*.fulfilled' => 'nullable|boolean',
+      'objectives_competences' => 'nullable|array',
+      'objectives_competences.*.id' => 'nullable|integer|exists:development_plan_objective_competence,id',
+      'objectives_competences.*.objective_detail_id' => 'nullable|integer|exists:gh_evaluation_person_cycle_detail,id',
+      'objectives_competences.*.competence_detail_id' => 'nullable|integer|exists:gh_evaluation_person_competence_detail,id',
     ];
   }
 

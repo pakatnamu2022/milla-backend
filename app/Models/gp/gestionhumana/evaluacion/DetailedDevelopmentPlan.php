@@ -73,4 +73,21 @@ class DetailedDevelopmentPlan extends Model
   {
     return $this->hasMany(DevelopmentPlanTask::class, 'detailed_development_plan_id');
   }
+
+  public function objectivesCompetences()
+  {
+    return $this->hasMany(DevelopmentPlanObjectiveCompetence::class, 'development_plan_id');
+  }
+
+  public function objectives()
+  {
+    return $this->hasMany(DevelopmentPlanObjectiveCompetence::class, 'development_plan_id')
+      ->whereNotNull('objective_detail_id');
+  }
+
+  public function competences()
+  {
+    return $this->hasMany(DevelopmentPlanObjectiveCompetence::class, 'development_plan_id')
+      ->whereNotNull('competence_detail_id');
+  }
 }

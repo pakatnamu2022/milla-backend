@@ -30,6 +30,20 @@ class DetailedDevelopmentPlanResource extends JsonResource
           'fulfilled' => (bool)$task->fulfilled,
         ];
       }) : [],
+      'objectives_competences' => $this->objectivesCompetences ? $this->objectivesCompetences->map(function ($objComp) {
+        return [
+          'objective_detail' => $objComp->objectiveDetail ? [
+            'id' => $objComp->objectiveDetail->id,
+            'objective' => $objComp->objectiveDetail->objective,
+            // Agrega aquí los campos que necesites del objetivo
+          ] : null,
+          'competence_detail' => $objComp->competenceDetail ? [
+            'id' => $objComp->competenceDetail->id,
+            'competence' => $objComp->competenceDetail->competence,
+            // Agrega aquí los campos que necesites de la competencia
+          ] : null,
+        ];
+      }) : [],
     ];
   }
 }

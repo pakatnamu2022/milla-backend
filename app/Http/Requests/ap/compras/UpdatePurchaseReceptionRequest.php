@@ -12,8 +12,6 @@ class UpdatePurchaseReceptionRequest extends StoreRequest
     return [
       'reception_date' => 'sometimes|required|date',
       'warehouse_id' => 'sometimes|required|exists:warehouse,id',
-      'supplier_invoice_number' => 'nullable|string|max:100',
-      'supplier_invoice_date' => 'nullable|date',
       'shipping_guide_number' => 'nullable|string|max:100',
       'notes' => 'nullable|string',
       'received_by' => 'nullable|exists:users,id',

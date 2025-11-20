@@ -26,7 +26,11 @@ class DetailedDevelopmentPlanService extends BaseService
 
     public function find($id)
     {
-        $detailedDevelopmentPlan = DetailedDevelopmentPlan::with('tasks')->where('id', $id)->first();
+        $detailedDevelopmentPlan = DetailedDevelopmentPlan::with([
+            'tasks',
+            'objectivesCompetences.objectiveDetail',
+            'objectivesCompetences.competenceDetail'
+        ])->where('id', $id)->first();
         if (!$detailedDevelopmentPlan) {
             throw new Exception('Plan de desarrollo detallado no encontrado');
         }
@@ -39,6 +43,10 @@ class DetailedDevelopmentPlanService extends BaseService
             // Extraer las tareas si existen
             $tasks = $data['tasks'] ?? [];
             unset($data['tasks']);
+
+            // Extraer objetivos y competencias si existen
+            $objectivesCompetences = $data['objectives_competences'] ?? [];
+            unset($data['objectives_competences']);
 
             // Crear el plan de desarrollo
             $detailedDevelopmentPlan = DetailedDevelopmentPlan::create($data);
@@ -54,8 +62,22 @@ class DetailedDevelopmentPlanService extends BaseService
                 }
             }
 
-            // Recargar con tareas
-            $detailedDevelopmentPlan->load('tasks');
+            // Crear objetivos y competencias asociados
+            if (!empty($objectivesCompetences)) {
+                foreach ($objectivesCompetences as $objCompData) {
+                    $detailedDevelopmentPlan->objectivesCompetences()->create([
+                        'objective_detail_id' => $objCompData['objective_detail_id'] ?? null,
+                        'competence_detail_id' => $objCompData['competence_detail_id'] ?? null,
+                    ]);
+                }
+            }
+
+            // Recargar con relaciones
+            $detailedDevelopmentPlan->load([
+                'tasks',
+                'objectivesCompetences.objectiveDetail',
+                'objectivesCompetences.competenceDetail'
+            ]);
 
             return new DetailedDevelopmentPlanResource($detailedDevelopmentPlan);
         });
@@ -74,6 +96,10 @@ class DetailedDevelopmentPlanService extends BaseService
             // Extraer las tareas si existen
             $tasks = $data['tasks'] ?? null;
             unset($data['tasks']);
+
+            // Extraer objetivos y competencias si existen
+            $objectivesCompetences = $data['objectives_competences'] ?? null;
+            unset($data['objectives_competences']);
             unset($data['id']);
 
             // Actualizar el plan de desarrollo
@@ -112,8 +138,43 @@ class DetailedDevelopmentPlanService extends BaseService
                 }
             }
 
-            // Recargar con tareas
-            $detailedDevelopmentPlan->load('tasks');
+            // Si se enviaron objetivos y competencias, sincronizarlos
+            if ($objectivesCompetences !== null) {
+                // Obtener IDs enviados
+                $sentObjCompIds = collect($objectivesCompetences)->pluck('id')->filter()->toArray();
+
+                // Eliminar los que ya no están en el request
+                $detailedDevelopmentPlan->objectivesCompetences()
+                    ->whereNotIn('id', $sentObjCompIds)
+                    ->delete();
+
+                // Crear o actualizar
+                foreach ($objectivesCompetences as $objCompData) {
+                    if (isset($objCompData['id'])) {
+                        // Actualizar existente
+                        $objComp = $detailedDevelopmentPlan->objectivesCompetences()->find($objCompData['id']);
+                        if ($objComp) {
+                            $objComp->update([
+                                'objective_detail_id' => $objCompData['objective_detail_id'] ?? null,
+                                'competence_detail_id' => $objCompData['competence_detail_id'] ?? null,
+                            ]);
+                        }
+                    } else {
+                        // Crear nuevo
+                        $detailedDevelopmentPlan->objectivesCompetences()->create([
+                            'objective_detail_id' => $objCompData['objective_detail_id'] ?? null,
+                            'competence_detail_id' => $objCompData['competence_detail_id'] ?? null,
+                        ]);
+                    }
+                }
+            }
+
+            // Recargar con relaciones
+            $detailedDevelopmentPlan->load([
+                'tasks',
+                'objectivesCompetences.objectiveDetail',
+                'objectivesCompetences.competenceDetail'
+            ]);
 
             return new DetailedDevelopmentPlanResource($detailedDevelopmentPlan);
         });
