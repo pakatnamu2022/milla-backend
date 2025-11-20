@@ -94,25 +94,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ->where('serie', $series)
       ->whereNull('deleted_at');
 
+    $series = AssignSalesSeries::where('series', $series)
+      ->whereNull('deleted_at')
+      ->first();
+
     /**
      * TODO: Delete this block and always use nextCorrelativeQuery
      */
     if ($query->count() == 0) {
-      if (($documentType == ElectronicDocument::TYPE_FACTURA)) {
-        $startCorrelative = 26;
-        $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelative;
-      } else if ($documentType == ElectronicDocument::TYPE_BOLETA) {
-        $startCorrelativeNC = 1;
-        $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelativeNC;
-      } else if ($documentType == ElectronicDocument::TYPE_NOTA_CREDITO) {
-        $startCorrelativeNC = 2;
-        $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelativeNC;
-      } else if ($documentType == ElectronicDocument::TYPE_NOTA_DEBITO) {
-        $startCorrelativeND = 1;
-        $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $startCorrelativeND;
-      } else {
-        throw new Exception('El tipo de documento no es valido');
-      }
+      $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $series->correlative_start;
     } else {
       $correlative = (int)$this->nextCorrelativeQuery($query, 'numero');
     }
@@ -1084,11 +1074,27 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
      */
     $series = AssignSalesSeries::find($data['series']);
     $electronicDocument = $this->find($id);
-    $electronicDocumentItem = ElectronicDocumentItem::where('anticipo_documento_serie', $electronicDocument->serie)
+    $electronicDocumentItems = ElectronicDocumentItem::where('anticipo_documento_serie', $electronicDocument->serie)
       ->where('anticipo_documento_numero', $electronicDocument->numero)
-      ->whereNull('deleted_at');
+      ->whereNull('deleted_at')->get();
 
-    if ($electronicDocumentItem->count() > 0) {
+    $isRegularized = false;
+
+    foreach ($electronicDocumentItems as $electronicDocumentItem) {
+      $electronicDocumentParent = ElectronicDocument::where('id', $electronicDocumentItem->ap_billing_electronic_document_id)
+        ->where('anulado', false)
+        ->where('aceptada_por_sunat', true)
+        ->whereNull('deleted_at')
+        ->first();
+
+      if ($electronicDocumentParent) {
+        $isRegularized = true;
+        break;
+      }
+//    throw new Exception($electronicDocumentFirstItem);
+    }
+
+    if ($isRegularized) {
       throw new Exception('El anticipo ya ha sido regularizado, no se puede crear una nota de crédito. En su lugar cree una nota de crédito para el documento de regularización.');
     }
 
