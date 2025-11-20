@@ -191,29 +191,30 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     ]);
   });
 
-
-  //    EQUIPMENTS
-  Route::get('/equipment/useStateGraph', [EquipmentController::class, 'useStateGraph']);
-  Route::get('/equipment/sedeGraph', [EquipmentController::class, 'sedeGraph']);
-  Route::apiResource('equipment', EquipmentController::class)->only([
-    'index',
-    'show',
-    'store',
-    'update',
-    'destroy'
-  ]);
-
-  //    TYPE EQUIPMENTS
-  Route::apiResource('equipmentType', EquipmentTypeController::class)->only([
-    'index',
-    'show',
-    'store',
-    'update',
-    'destroy'
-  ]);
-
-
   Route::group(['prefix' => 'gp'], function () {
+//    TICS
+    Route::group(['prefix' => 'tics'], function () {
+      //    EQUIPMENTS
+      Route::get('/equipment/useStateGraph', [EquipmentController::class, 'useStateGraph']);
+      Route::get('/equipment/sedeGraph', [EquipmentController::class, 'sedeGraph']);
+      Route::apiResource('equipment', EquipmentController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      //    TYPE EQUIPMENTS
+      Route::apiResource('equipmentType', EquipmentTypeController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+    });
+
     Route::group(['prefix' => 'mg'], function () {
       Route::get('sede/availableLocationsShop', [SedeController::class, 'availableLocationsShop']);
       Route::get('sede/my', [SedeController::class, 'mySedes']);

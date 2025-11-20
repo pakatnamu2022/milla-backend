@@ -8,7 +8,9 @@ use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\gestionsistema\Company;
+use App\Models\gp\maestroGeneral\Sede;
 use App\Models\gp\maestroGeneral\SunatConcepts;
+use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -276,14 +278,30 @@ class SyncShippingGuideJob implements ShouldQueue
           ->where('article_class_id', $class_id)
           ->where('status', true); // Activo
 
-        $warehouseStartCode = (clone $baseQuery)->where('is_received', false)->value('dyn_code');
-        $warehouseEndCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
+        $warehouseStart = (clone $baseQuery)->where('is_received', false);
+        $warehouseEnd = (clone $baseQuery)->where('is_received', true);
+
+        $warehouseStartCode = $warehouseStart->value('dyn_code');
+        $warehouseEndCode = $warehouseEnd->value('dyn_code');
 
         // Si está cancelada, invertir los almacenes
         if ($isCancelled) {
           $temp = $warehouseStartCode;
           $warehouseStartCode = $warehouseEndCode;
           $warehouseEndCode = $temp;
+        }
+
+        $sede = Sede::findOrFail($sede_id)->dyn_code ?? throw new Exception('La Sede receptora no fue encontrada.');
+
+        $inventoryAccount = $warehouseStart->value('inventory_account') ?
+          $warehouseStart->value('inventory_account') . '-' . $sede : throw new Exception('La Cuenta de Inventario no fue encontrada.');
+        $counterpartInventoryAccount = $warehouseEnd->value('inventory_account') ?
+          $warehouseEnd->value('inventory_account') . '-' . $sede : throw new Exception('La Cuenta Contrapartida no fue encontrada.');
+
+        if ($isCancelled) {
+          $tempAccount = $inventoryAccount;
+          $inventoryAccount = $counterpartInventoryAccount;
+          $counterpartInventoryAccount = $tempAccount;
         }
 
       } elseif ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
@@ -302,6 +320,9 @@ class SyncShippingGuideJob implements ShouldQueue
           ->where('is_received', true)
           ->where('status', true); // Activo
 
+        $sedeStart = Sede::findOrFail($sedeTransmitterId)->dyn_code ?? throw new Exception('La Sede transmisora no fue encontrada.');
+        $sedeEnd = Sede::findOrFail($sedeReceiverId)->dyn_code ?? throw new Exception('La Sede receptora no fue encontrada.');
+
         $warehouseStartCode = $transmitterQuery->value('dyn_code');
         $warehouseEndCode = $receiverQuery->value('dyn_code');
 
@@ -310,6 +331,17 @@ class SyncShippingGuideJob implements ShouldQueue
           $temp = $warehouseStartCode;
           $warehouseStartCode = $warehouseEndCode;
           $warehouseEndCode = $temp;
+        }
+
+        $inventoryAccount = $transmitterQuery->value('inventory_account') ?
+          $transmitterQuery->value('inventory_account') . '-' . $sedeStart : throw new Exception('La Cuenta de Inventario no fue encontrada.');
+        $counterpartInventoryAccount = $receiverQuery->value('inventory_account') ?
+          $receiverQuery->value('inventory_account') . '-' . $sedeEnd : throw new Exception('La Cuenta Contrapartida no fue encontrada.');
+
+        if ($isCancelled) {
+          $tempAccount = $inventoryAccount;
+          $inventoryAccount = $counterpartInventoryAccount;
+          $counterpartInventoryAccount = $tempAccount;
         }
 
       } else {
@@ -330,6 +362,19 @@ class SyncShippingGuideJob implements ShouldQueue
           $warehouseStartCode = $warehouseEndCode;
           $warehouseEndCode = $temp;
         }
+
+        $sede = Sede::findOrFail($sede_id)->dyn_code ?? throw new Exception('La Sede receptora no fue encontrada.');
+
+        $inventoryAccount = $baseQuery->where('is_received', true)->value('inventory_account') ?
+          $baseQuery->where('is_received', true)->value('inventory_account') . '-' . $sede : throw new Exception('La Cuenta de Inventario no fue encontrada.');
+        $counterpartInventoryAccount = $baseQuery->where('is_received', false)->value('inventory_account') ?
+          $baseQuery->where('is_received', false)->value('inventory_account') . '-' . $sede : throw new Exception('La Cuenta Contrapartida no fue encontrada.');
+
+        if ($isCancelled) {
+          $tempAccount = $inventoryAccount;
+          $inventoryAccount = $counterpartInventoryAccount;
+          $counterpartInventoryAccount = $tempAccount;
+        }
       }
 
       $serialData = [
@@ -340,8 +385,10 @@ class SyncShippingGuideJob implements ShouldQueue
         'Motivo' => '',
         'UnidadMedidaId' => 'UND',
         'Cantidad' => 1,
-        'AlmacenId_Ini' => $warehouseStartCode ?? '',
-        'AlmacenId_Fin' => $warehouseEndCode ?? '',
+        'AlmacenId_Ini' => $warehouseStartCode ?? throw new Exception('El Almacén de inicio no fue encontrado.'),
+        'AlmacenId_Fin' => $warehouseEndCode ?? throw new Exception('El Almacén de fin no fue encontrado.'),
+        'CuentaInventario' => $inventoryAccount ?? throw new Exception('La Cuenta de Inventario no fue encontrada.'),
+        'CuentaContrapartida' => $counterpartInventoryAccount ?? throw new Exception('La Cuenta Contrapartida no fue encontrada.'),
       ];
 
       // Sincronizar serial de transferencia

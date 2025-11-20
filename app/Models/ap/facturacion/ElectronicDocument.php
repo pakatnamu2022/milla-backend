@@ -26,6 +26,7 @@ class ElectronicDocument extends BaseModel
   protected $fillable = [
     'sunat_concept_document_type_id',
     'serie',
+    'series_id',
     'numero',
     'full_number',
     'is_advance_payment',

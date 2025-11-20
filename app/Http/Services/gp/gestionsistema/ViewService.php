@@ -69,11 +69,10 @@ class ViewService extends BaseService
   }
 
   /**
-   * Obtener vistas con sus permisos en formato árbol
+   * Obtener vistas con sus permisos en formato árbol (sin paginación)
    */
   public function getViewsWithPermissions(Request $request)
   {
-    $perPage = $request->get('per_page', 10);
     $search = $request->get('search', null);
     $roleId = $request->get('rol_id', null);
 
@@ -92,9 +91,9 @@ class ViewService extends BaseService
           ->orderBy('code');
       }])
       ->orderBy('descripcion')
-      ->paginate($perPage);
+      ->get();
 
-    return $views->through(function ($view) use ($rolePermissions) {
+    return $views->map(function ($view) use ($rolePermissions) {
       $permissions = $view->permissions->map(function ($permission) use ($rolePermissions) {
         $resource = (new PermissionResource($permission))->resolve();
         $resource['is_assigned'] = $rolePermissions->has($permission->id);
