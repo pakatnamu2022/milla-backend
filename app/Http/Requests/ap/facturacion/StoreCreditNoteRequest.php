@@ -4,7 +4,6 @@ namespace App\Http\Requests\ap\facturacion;
 
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\facturacion\ElectronicDocument;
-use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
@@ -27,6 +26,7 @@ class StoreCreditNoteRequest extends StoreRequest
     $dataToMerge = [
       'serie',
     ];
+    
     foreach ($numericFields as $field) {
       if ($this->has($field) && $this->input($field) !== null && $this->input($field) !== '') {
         $dataToMerge[$field] = (int)$this->input($field);
