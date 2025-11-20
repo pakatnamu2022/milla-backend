@@ -34,7 +34,21 @@ class PotentialBuyersResource extends JsonResource
       'district' => $this->sede->district->name ?? null,
       'status_num_doc' => $this->status_num_doc,
       'client_id' => $this->client_id,
+      'use' => $this->getUseStatus(),
       'created_at' => $this->created_at ? $this->created_at->format('Y-m-d') : null,
     ];
+  }
+
+  /**
+   * Get descriptive status for 'use' field
+   */
+  private function getUseStatus(): string
+  {
+    return match ($this->use) {
+      0 => 'Subido',
+      1 => 'Atendido',
+      2 => 'Descartado',
+      default => 'Desconocido',
+    };
   }
 }
