@@ -11,7 +11,7 @@ return new class extends Migration {
   public function up(): void
   {
     Schema::table('detailed_development_plan', function (Blueprint $table) {
-      $table->string('title', 255);
+      $table->string('title', 255)->after('description');
       $table->date('start_date');
       $table->date('end_date');
       $table->dropForeign(['gh_evaluation_id']);

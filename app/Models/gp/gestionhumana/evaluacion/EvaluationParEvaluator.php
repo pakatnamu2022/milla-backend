@@ -2,30 +2,22 @@
 
 namespace App\Models\gp\gestionhumana\evaluacion;
 
-use App\Models\BaseModel;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class EvaluationPeriod extends BaseModel
+class EvaluationParEvaluator extends Model
 {
   use SoftDeletes;
 
   protected $table = 'gh_evaluation_periods';
 
   protected $fillable = [
-    'name',
-    'start_date',
-    'end_date',
-    'active',
-  ];
-
-  protected $casts = [
-    'start_date' => 'date',
-    'end_date' => 'date',
-    'active' => 'boolean',
+    'worker_id',
+    'mate_id',
   ];
 
   const filters = [
-    'name' => '=',
+    'worker_id' => '=',
     'start_date' => '=',
     'end_date' => '=',
     'active' => '=',
@@ -38,5 +30,17 @@ class EvaluationPeriod extends BaseModel
     'active',
   ];
 
+  /**
+   * Relations
+   */
 
+  public function worker()
+  {
+    return $this->belongsTo(EvaluationPerson::class, 'worker_id');
+  }
+
+  public function mate()
+  {
+    return $this->belongsTo(EvaluationPerson::class, 'mate_id');
+  }
 }
