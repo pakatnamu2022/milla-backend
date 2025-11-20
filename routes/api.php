@@ -904,10 +904,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Purchase Receptions - Recepciones de Compra
-      Route::get('purchase-receptions/pending-review', [PurchaseReceptionController::class, 'pendingReview']);
-      Route::get('purchase-receptions/by-order/{purchaseOrderId}', [PurchaseReceptionController::class, 'byPurchaseOrder']);
-      Route::post('purchase-receptions/{id}/approve', [PurchaseReceptionController::class, 'approve']);
-      Route::apiResource('purchase-receptions', PurchaseReceptionController::class)->only([
+      Route::get('purchaseReceptions/pending-review', [PurchaseReceptionController::class, 'pendingReview']);
+      Route::get('purchaseReceptions/by-order/{purchaseOrderId}', [PurchaseReceptionController::class, 'byPurchaseOrder']);
+      Route::post('purchaseReceptions/{id}/approve', [PurchaseReceptionController::class, 'approve']);
+      Route::apiResource('purchaseReceptions', PurchaseReceptionController::class)->only([
         'index',
         'show',
         'store',

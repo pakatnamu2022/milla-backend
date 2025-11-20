@@ -21,6 +21,7 @@ class DetailedDevelopmentPlanResource extends JsonResource
       'boss_id' => $this->boss_id,
       'boss_name' => $this->boss ? $this->boss->nombre_completo : null,
       'evaluation_name' => $this->evaluation ? $this->evaluation->name : null,
+      'comment' => $this->comment,
       'tasks' => $this->tasks ? $this->tasks->map(function ($task) {
         return [
           'id' => $task->id,
