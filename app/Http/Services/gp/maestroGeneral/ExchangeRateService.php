@@ -100,4 +100,21 @@ class ExchangeRateService extends BaseService
     }
     return $exchangeRate;
   }
+
+  /**
+   * Obtiene el tipo de cambio según la moneda origen, moneda destino y fecha
+   *
+   * @param int $toCurrencyId
+   * @param string $date (formato: Y-m-d)
+   * @param string $type (VENDER o NEGOCIADOR, por defecto VENDER)
+   * @return ExchangeRate|null
+   */
+  public function getExchangeRate(int $toCurrencyId, string $date, string $type = ExchangeRate::TYPE_VENTA)
+  {
+    return ExchangeRate::where('to_currency_id', $toCurrencyId)
+      ->where('date', $date)
+      ->where('type', $type)
+      ->orderBy('created_at', 'desc')
+      ->first();
+  }
 }

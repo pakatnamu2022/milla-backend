@@ -47,6 +47,7 @@ class StorePurchaseOrderRequest extends StoreRequest
       'subtotal' => ['required', 'numeric', 'min:0'],
       'igv' => ['required', 'numeric', 'min:0'],
       'total' => ['required', 'numeric', 'min:0'],
+      'payment_term' => ['nullable', 'string', 'max:100'],
       'discount' => ['nullable', 'numeric', 'min:0'],
       'isc' => ['nullable', 'numeric', 'min:0'],
 
@@ -55,19 +56,22 @@ class StorePurchaseOrderRequest extends StoreRequest
       'supplier_order_type_id' => ['required', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'TIPO_PEDIDO_PROVEEDOR')->where('status', 1)->whereNull('deleted_at')],
       'supplier_id' => ['required', 'integer', Rule::exists('business_partners', 'id')->where('status_ap', 1)->whereNull('deleted_at')],
       'currency_id' => ['required', 'integer', Rule::exists('type_currency', 'id')->where('status', 1)->whereNull('deleted_at')],
-      'exchange_rate_id' => ['nullable', 'integer', Rule::exists('ap_exchange_rate', 'id')],
       'warehouse_id' => ['required', 'integer', Rule::exists('warehouse', 'id')->where('type', Warehouse::REAL)->where('status', 1)->whereNull('deleted_at')],
 
       // Movimiento de Vehículo (opcional, solo si la OC está relacionada a un movimiento)
       'vehicle_movement_id' => ['nullable', 'integer', Rule::exists('ap_vehicle_movement', 'id')->whereNull('deleted_at')],
 
+      // Tipo de Operación (opcional)
+      'type_operation_id' => ['required', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'TIPO_OPERACION')->where('status', 1)->whereNull('deleted_at')],
+
       // Items de la Orden de Compra
       'items' => ['required', 'array', 'min:1'],
-      'items.*.unit_measurement_id' => ['required', 'integer', Rule::exists('unit_measurement', 'id')->where('status', 1)->whereNull('deleted_at')],
-      'items.*.description' => ['required', 'string', 'max:255'],
+      'items.*.unit_measurement_id' => ['nullable', 'integer', Rule::exists('unit_measurement', 'id')->where('status', 1)->whereNull('deleted_at')],
+      'items.*.description' => ['nullable', 'string', 'max:255'],
       'items.*.unit_price' => ['required', 'numeric', 'min:0'],
       'items.*.quantity' => ['required', 'integer', 'min:1'],
       'items.*.is_vehicle' => ['nullable', 'boolean'],
+      'items.*.product_id' => ['required_if:items.*.is_vehicle,false', 'nullable', 'integer', Rule::exists('products', 'id')->where('status', 'ACTIVE')->whereNull('deleted_at')],
     ]);
   }
 
@@ -100,7 +104,6 @@ class StorePurchaseOrderRequest extends StoreRequest
       // Relaciones
       'supplier_id' => 'Proveedor',
       'currency_id' => 'Moneda',
-      'exchange_rate_id' => 'Tipo de Cambio',
       'warehouse_id' => 'Almacén',
       'vehicle_movement_id' => 'Movimiento de Vehículo',
 

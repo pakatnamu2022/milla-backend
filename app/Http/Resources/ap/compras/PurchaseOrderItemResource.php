@@ -17,12 +17,14 @@ class PurchaseOrderItemResource extends JsonResource
   {
     return [
       'id' => $this->id,
-      'description' => $this->description,
+      'description' => $this->description ?? null,
       'unit_price' => (float)$this->unit_price,
       'quantity' => (int)$this->quantity,
       'total' => (float)$this->total,
       'is_vehicle' => (bool)$this->is_vehicle,
-      'unit_measurement' => UnitMeasurementResource::make($this->unitMeasurement),
+      'unit_measurement' => UnitMeasurementResource::make($this->unitMeasurement) ?? null,
+      'product_id' => $this->product_id ?? null,
+      'product_name' => $this->product->name ?? null,
     ];
   }
 }

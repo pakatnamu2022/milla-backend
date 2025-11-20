@@ -100,10 +100,8 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     }
 
     // Obtener tipo de cambio actual si no viene en el request
-    if (!isset($data['exchange_rate_id'])) {
-      $exchangeRateService = new ExchangeRateService();
-      $data['exchange_rate_id'] = $exchangeRateService->getCurrentUSDRate()->id;
-    }
+    $exchangeRateService = new ExchangeRateService();
+    $data['exchange_rate_id'] = $exchangeRateService->getCurrentUSDRate()->id;
 
     // Validar que los valores requeridos de la factura estén presentes
     $requiredFields = ['subtotal', 'igv', 'total'];
@@ -116,6 +114,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     // Establecer valores por defecto para campos opcionales
     $data['discount'] = $data['discount'] ?? 0;
     $data['isc'] = $data['isc'] ?? 0;
+    $data['payment_terms'] = $data['payment_terms'] ?? null;
 
     return $data;
   }
@@ -350,12 +349,13 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         $total = round($unitPrice * $quantity, 2);
 
         $purchaseOrder->items()->create([
-          'unit_measurement_id' => $itemData['unit_measurement_id'],
-          'description' => $itemData['description'],
+          'unit_measurement_id' => $itemData['unit_measurement_id'] ?? null,
+          'description' => $itemData['description'] ?? '',
           'unit_price' => $unitPrice,
           'quantity' => $quantity,
           'total' => $total,
           'is_vehicle' => $itemData['is_vehicle'] ?? false,
+          'product_id' => $itemData['product_id'] ?? null,
         ]);
       }
     }
