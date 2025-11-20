@@ -9,7 +9,7 @@ use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
 use Illuminate\Validation\Rule;
 
-class StoreCreditNoteRequest extends StoreRequest
+class UpdateCreditNoteRequest extends StoreRequest
 {
   /**
    * Prepare the data for validation.

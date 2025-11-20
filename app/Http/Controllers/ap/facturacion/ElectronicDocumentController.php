@@ -179,6 +179,27 @@ class ElectronicDocumentController extends Controller
   }
 
   /**
+   * Update credit note
+   */
+  public function updateCreditNote(UpdateCreditNote $request, $id): JsonResponse
+  {
+    try {
+      $data = $request->validated();
+      $data['original_document_id'] = $id;
+
+      $creditNote = $this->service->createCreditNote($id, $data);
+
+      return $this->success([
+        'success' => true,
+        'message' => 'Nota de crédito creada correctamente',
+        'data' => $creditNote
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Create debit note from existing document
    */
   public function createDebitNote(StoreDebitNoteRequest $request, $id): JsonResponse
