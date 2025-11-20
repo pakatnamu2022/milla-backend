@@ -9,7 +9,7 @@ class EvaluationParEvaluator extends Model
 {
   use SoftDeletes;
 
-  protected $table = 'gh_evaluation_periods';
+  protected $table = 'gh_evaluation_par_evaluator';
 
   protected $fillable = [
     'worker_id',

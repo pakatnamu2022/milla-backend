@@ -18,9 +18,13 @@ class ViewSeeder extends Seeder
     $TICS = 98;
 
     $AP = 3;
+    $GP = 4;
+
+//    VIEWS
     $VERSION_2 = 381;
     $COMMERCIAL_ID = 418;
     $POST_VENTA_ID = 431;
+    $EVALUATION = 308;
 
     $data = [
 //      COMMERCIAL AP
@@ -50,6 +54,8 @@ class ViewSeeder extends Seeder
         'ruta' => '-', 'icon' => 'Handshake', 'parent_id' => null, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
       ['descripcion' => 'Accesorios Homologados', 'submodule' => false, 'route' => 'accesorios-homologados',
         'ruta' => '-', 'icon' => 'Handshake', 'parent_id' => $POST_VENTA_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
+      ['descripcion' => 'Asignación de Pares', 'submodule' => false, 'route' => 'asignacion-pares',
+        'ruta' => '-', 'icon' => 'UserRoundCog', 'parent_id' => $EVALUATION, 'company_id' => $GP, 'idPadre' => $VERSION_2,],
     ];
 
     foreach ($data as $item) {

@@ -14,6 +14,17 @@ class EvaluationParEvaluatorResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        return [
+            'id' => $this->id,
+            'worker_id' => $this->worker_id,
+            'mate_id' => $this->mate_id,
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+            'deleted_at' => $this->deleted_at,
+
+            // Relationships
+            'worker' => EvaluationPersonResource::make($this->whenLoaded('worker')),
+            'mate' => EvaluationPersonResource::make($this->whenLoaded('mate')),
+        ];
     }
 }

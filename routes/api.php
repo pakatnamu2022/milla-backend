@@ -57,6 +57,7 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationMetricController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationNotificationController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationObjectiveController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationParameterController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationParEvaluatorController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPeriodController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonController;
@@ -490,6 +491,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
         // DETAILED DEVELOPMENT PLAN
         Route::apiResource('detailedDevelopmentPlan', DetailedDevelopmentPlanController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        // PAR EVALUATOR
+        Route::apiResource('parEvaluator', EvaluationParEvaluatorController::class)->only([
           'index',
           'show',
           'store',
