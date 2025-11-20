@@ -11,11 +11,10 @@ class DetailedDevelopmentPlanResource extends JsonResource
   {
     return [
       'id' => $this->id,
+      'title' => $this->title,
       'description' => $this->description,
-      'boss_confirms' => (bool)$this->boss_confirms,
-      'worker_confirms' => (bool)$this->worker_confirms,
-      'boss_confirms_completion' => (bool)$this->boss_confirms_completion,
-      'worker_confirms_completion' => (bool)$this->worker_confirms_completion,
+      'start_date' => $this->start_date ? $this->start_date->format('Y-m-d') : "",
+      'end_date' => $this->end_date ? $this->end_date->format('Y-m-d') : "",
       'worker_id' => $this->worker_id,
       'worker_name' => $this->worker ? $this->worker->nombre_completo : null,
       'boss_id' => $this->boss_id,

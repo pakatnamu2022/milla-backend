@@ -23,6 +23,11 @@ class DetailedDevelopmentPlan extends Model
     'boss_id',
   ];
 
+  protected $casts = [
+    'start_date' => 'date',
+    'end_date' => 'date',
+  ];
+
   const filters = [
     'search' => ['description', 'worker.nombre_completo', 'boss.nombre_completo'],
     'worker_id' => '=',
