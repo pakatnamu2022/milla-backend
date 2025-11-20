@@ -57,7 +57,7 @@ class SalesDocumentDynamicsResource extends JsonResource
     $apAnticipo = $this->is_advance_payment;
 
     // Sitio predeterminado (almacén)
-    $sitioPredeterminadoId = 'ALM-VN-CIX'; // TODO: Obtener del contexto si es necesario
+    $sitioPredeterminadoId = 'ALM-CM-CIX'; // TODO: Obtener del contexto si es necesario
 
     // Territorio y Vendedor (pueden venir de la cotización o datos del cliente)
     $territorioId = ''; // TODO: Mapear según lógica de negocio

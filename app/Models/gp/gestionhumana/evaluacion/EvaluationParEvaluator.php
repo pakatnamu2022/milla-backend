@@ -2,6 +2,7 @@
 
 namespace App\Models\gp\gestionhumana\evaluacion;
 
+use App\Models\gp\gestionsistema\Person;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -36,11 +37,11 @@ class EvaluationParEvaluator extends Model
 
   public function worker()
   {
-    return $this->belongsTo(EvaluationPerson::class, 'worker_id');
+    return $this->belongsTo(Person::class, 'worker_id');
   }
 
   public function mate()
   {
-    return $this->belongsTo(EvaluationPerson::class, 'mate_id');
+    return $this->belongsTo(Person::class, 'mate_id');
   }
 }

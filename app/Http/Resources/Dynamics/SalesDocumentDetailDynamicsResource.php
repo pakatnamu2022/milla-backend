@@ -8,6 +8,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Str;
+use function round;
 
 class SalesDocumentDetailDynamicsResource extends JsonResource
 {
@@ -53,8 +54,11 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     // Precio unitario (puede ser precio_unitario o valor_unitario dependiendo del caso)
     $precioUnitario = $this->valor_unitario > 0 ? $this->valor_unitario : throw new Exception('El ítem no tiene precio unitario definido.');
 
+    // Descuento
+    $descuentoUnitario = (float)$this->descuento;
+
     // Precio total
-    $precioTotal = ($cantidad * $precioUnitario) > 0 ? ($cantidad * $precioUnitario) : throw new Exception('El ítem no tiene precio total definido.');
+    $precioTotal = ($cantidad * $precioUnitario) > 0 ? round(($cantidad * $precioUnitario), 2) : throw new Exception('El ítem no tiene precio total definido.');
 
     // Si es un anticipo regularizado, enviar valores en negativo para Dynamics
     if ($this->anticipo_regularizacion === true) {
@@ -81,7 +85,6 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     if ($descripcionCorta === '') throw new Exception('El ítem no tiene descripción corta definida.');
     if ($descripcionLarga === '') throw new Exception('El ítem no tiene descripción larga definida.');
 
-
     return [
       'EmpresaId' => Company::AP_DYNAMICS,
       'DocumentoId' => $documentoId,
@@ -93,6 +96,7 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
       'UnidadMedidaId' => $unidadMedidaId,
       'Cantidad' => $cantidad,
       'PrecioUnitario' => $precioUnitario,
+      'DescuentoUnitario' => $descuentoUnitario,
       'PrecioTotal' => $precioTotal,
     ];
   }

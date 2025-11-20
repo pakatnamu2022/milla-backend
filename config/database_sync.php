@@ -728,6 +728,7 @@ return [
         'UnidadMedidaId' => fn($data) => $data['UnidadMedidaId'],
         'Cantidad' => fn($data) => $data['Cantidad'],
         'PrecioUnitario' => fn($data) => $data['PrecioUnitario'],
+        'DescuentoUnitario' => fn($data) => $data['DescuentoUnitario'],
         'PrecioTotal' => fn($data) => $data['PrecioTotal'],
       ],
       'optional_mapping' => [

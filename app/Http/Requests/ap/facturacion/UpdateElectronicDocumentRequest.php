@@ -289,7 +289,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       'items.*.unidad_de_medida' => 'required_with:items|string|max:3',
       'items.*.codigo' => 'nullable|string|max:30',
       'items.*.codigo_producto_sunat' => 'nullable|string|max:8',
-      'items.*.descripcion' => 'required_with:items|string|max:250',
+      'items.*.descripcion' => 'required_with:items|string',
       'items.*.cantidad' => 'required_with:items|numeric|min:0.0000000001',
       'items.*.valor_unitario' => 'required_with:items|numeric|min:0',
       'items.*.precio_unitario' => 'required_with:items|numeric|min:0',

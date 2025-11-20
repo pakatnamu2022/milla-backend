@@ -291,19 +291,6 @@ class SyncSalesDocumentJob implements ShouldQueue
       return;
     }
 
-    // Verificar que el documento de venta esté procesado primero
-    $documentLog = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $document->id)
-      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT)
-      ->first();
-
-    if (!$documentLog || $documentLog->proceso_estado !== 1) {
-      Log::info('Esperando que el documento sea procesado antes de sincronizar detalle', [
-        'document_id' => $document->id,
-        'document_log_status' => $documentLog?->proceso_estado
-      ]);
-      return;
-    }
-
     // Verificar en la BD intermedia si ya existe el detalle
     $existingDetail = DB::connection('dbtp')
       ->table('neInTbVentaDt')
