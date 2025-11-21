@@ -7,7 +7,9 @@ use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\ap\maestroGeneral\UnitMeasurement;
 use App\Models\ap\maestroGeneral\Warehouse;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class Products extends Model
@@ -25,11 +27,7 @@ class Products extends Model
     'product_category_id',
     'brand_id',
     'unit_measurement_id',
-    'warehouse_id',
     'ap_class_article_id',
-    'minimum_stock',
-    'maximum_stock',
-    'current_stock',
     'cost_price',
     'sale_price',
     'tax_rate',
@@ -41,9 +39,6 @@ class Products extends Model
   ];
 
   protected $casts = [
-    'minimum_stock' => 'decimal:2',
-    'maximum_stock' => 'decimal:2',
-    'current_stock' => 'decimal:2',
     'cost_price' => 'decimal:2',
     'sale_price' => 'decimal:2',
     'tax_rate' => 'decimal:2',
@@ -63,20 +58,17 @@ class Products extends Model
     'product_category_id' => '=',
     'brand_id' => '=',
     'unit_measurement_id' => '=',
-    'warehouse_id' => '=',
     'ap_class_article' => '=',
     'status' => '=',
     'is_taxable' => '=',
     'cost_price' => '>=',
     'sale_price' => '>=',
-    'current_stock' => '>=',
   ];
 
   const sorts = [
     'code',
     'dyn_code',
     'name',
-    'current_stock',
     'cost_price',
     'sale_price',
     'created_at',
@@ -124,14 +116,33 @@ class Products extends Model
     return $this->belongsTo(UnitMeasurement::class, 'unit_measurement_id');
   }
 
-  public function warehouse()
-  {
-    return $this->belongsTo(Warehouse::class, 'warehouse_id');
-  }
-
   public function articleClass()
   {
     return $this->belongsTo(ApClassArticle::class, 'ap_class_article_id');
+  }
+
+  // NEW: Relationship with warehouse stock
+  public function warehouseStocks(): HasMany
+  {
+    return $this->hasMany(ProductWarehouseStock::class, 'product_id');
+  }
+
+  // Get stock for a specific warehouse
+  public function getStockForWarehouse($warehouseId)
+  {
+    return $this->warehouseStocks()->where('warehouse_id', $warehouseId)->first();
+  }
+
+  // Get total stock across all warehouses
+  public function getTotalStockAttribute(): float
+  {
+    return $this->warehouseStocks()->sum('quantity');
+  }
+
+  // Get total available stock across all warehouses
+  public function getTotalAvailableStockAttribute(): float
+  {
+    return $this->warehouseStocks()->sum('available_quantity');
   }
 
   // Accessors
@@ -151,25 +162,31 @@ class Products extends Model
     return $this->cost_price * (1 + ($this->tax_rate / 100));
   }
 
-  public function getIsLowStockAttribute()
-  {
-    return $this->current_stock <= $this->minimum_stock;
-  }
-
   // Scopes
   public function scopeActive($query)
   {
     return $query->where('status', 'ACTIVE');
   }
 
-  public function scopeLowStock($query)
+  // NEW: Scopes for warehouse stock
+  public function scopeWithWarehouseStock($query, $warehouseId = null)
   {
-    return $query->whereColumn('current_stock', '<=', 'minimum_stock');
+    return $query->with(['warehouseStocks' => function ($q) use ($warehouseId) {
+      if ($warehouseId) {
+        $q->where('warehouse_id', $warehouseId);
+      }
+    }]);
   }
 
-  public function scopeOutOfStock($query)
+  public function scopeWithTotalStock($query)
   {
-    return $query->where('current_stock', 0);
+    return $query->addSelect([
+      'total_stock' => ProductWarehouseStock::selectRaw('SUM(quantity)')
+        ->whereColumn('product_id', 'products.id')
+    ])->addSelect([
+      'total_available_stock' => ProductWarehouseStock::selectRaw('SUM(available_quantity)')
+        ->whereColumn('product_id', 'products.id')
+    ]);
   }
 
   public function scopeByCategory($query, $categoryId)

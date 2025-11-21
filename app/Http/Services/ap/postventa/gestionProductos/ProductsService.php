@@ -6,6 +6,7 @@ use App\Http\Resources\ap\postventa\gestionProductos\ProductsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\postventa\gestionProductos\Products;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,12 @@ class ProductsService extends BaseService implements BaseServiceInterface
     }
 
     // Apply eager loading for relationships
-    $query->with(['category', 'brand', 'unitMeasurement', 'warehouse']);
+    $query->with(['category', 'brand', 'unitMeasurement', 'warehouse', 'warehouseStocks.warehouse']);
+
+    // NEW: Add total stock calculation if needed
+    if ($request->has('with_total_stock') && $request->with_total_stock) {
+      $query->withTotalStock();
+    }
 
     return $this->getFilteredResults(
       Products::class,
@@ -40,7 +46,7 @@ class ProductsService extends BaseService implements BaseServiceInterface
 
   public function find($id)
   {
-    $product = Products::with(['category', 'brand', 'unitMeasurement', 'warehouse'])
+    $product = Products::with(['category', 'brand', 'unitMeasurement', 'warehouse', 'warehouseStocks.warehouse'])
       ->where('id', $id)
       ->first();
 
@@ -82,8 +88,32 @@ class ProductsService extends BaseService implements BaseServiceInterface
 
       $product = Products::create($data);
 
+      // NEW: Create warehouse stock records if provided
+      if (isset($data['warehouses']) && is_array($data['warehouses'])) {
+        foreach ($data['warehouses'] as $warehouseData) {
+          ProductWarehouseStock::create([
+            'product_id' => $product->id,
+            'warehouse_id' => $warehouseData['warehouse_id'],
+            'quantity' => $warehouseData['initial_quantity'] ?? 0,
+            'available_quantity' => $warehouseData['initial_quantity'] ?? 0,
+            'minimum_stock' => $warehouseData['minimum_stock'] ?? 0,
+            'maximum_stock' => $warehouseData['maximum_stock'] ?? null,
+          ]);
+        }
+      } // DEPRECATED: Backwards compatibility - if warehouse_id is provided
+      elseif (isset($data['warehouse_id']) && $data['warehouse_id']) {
+        ProductWarehouseStock::create([
+          'product_id' => $product->id,
+          'warehouse_id' => $data['warehouse_id'],
+          'quantity' => $data['current_stock'] ?? 0,
+          'available_quantity' => $data['current_stock'] ?? 0,
+          'minimum_stock' => $data['minimum_stock'] ?? 0,
+          'maximum_stock' => $data['maximum_stock'] ?? null,
+        ]);
+      }
+
       DB::commit();
-      return new ProductsResource($product->load(['category', 'brand', 'unitMeasurement', 'warehouse']));
+      return new ProductsResource($product->load(['category', 'brand', 'unitMeasurement', 'warehouse', 'warehouseStocks.warehouse']));
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -103,7 +133,7 @@ class ProductsService extends BaseService implements BaseServiceInterface
       $product->update($data);
 
       DB::commit();
-      return new ProductsResource($product->load(['category', 'brand', 'unitMeasurement', 'warehouse']));
+      return new ProductsResource($product->load(['category', 'brand', 'unitMeasurement', 'warehouse', 'warehouseStocks.warehouse']));
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -142,10 +172,24 @@ class ProductsService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Update stock for a product
+   * DEPRECATED: Update stock for a product
+   *
+   * This method is deprecated and maintained only for backwards compatibility.
+   * Stock updates should now be done through InventoryMovement to maintain proper audit trail.
+   *
+   * @deprecated Use InventoryMovementService instead
    */
   public function updateStock($productId, $quantity, $operation = 'add')
   {
+    throw new Exception(
+      'Este método está deprecado. ' .
+      'Los cambios de stock deben realizarse a través de Movimientos de Inventario (InventoryMovement) ' .
+      'para mantener la trazabilidad completa. ' .
+      'Por favor, utilice el módulo de Ajustes de Inventario.'
+    );
+
+    // DEPRECATED CODE - Kept for reference but not executed
+    /*
     DB::beginTransaction();
     try {
       $product = $this->find($productId);
@@ -169,6 +213,7 @@ class ProductsService extends BaseService implements BaseServiceInterface
       DB::rollBack();
       throw $e;
     }
+    */
   }
 
   /**
