@@ -23,7 +23,7 @@ class EvaluationModelResource extends JsonResource
       'report_weight' => $this->report_weight,
 
       // Relationships
-      'category_details' => SimpleHierarchicalCategoryResource::collection($this->categories()),
+      'category_details' => SimpleHierarchicalCategoryResource::collection($this->categoriesData()),
     ];
   }
 }

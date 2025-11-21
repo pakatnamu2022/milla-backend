@@ -9,6 +9,8 @@ use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationModel;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationParEvaluator;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
@@ -279,6 +281,19 @@ class EvaluationService extends BaseService
   {
     $competenciasCreadas = 0;
 
+    // Obtener el modelo de evaluación para la categoría jerárquica de la persona
+    if (!$persona->position || !$persona->position->hierarchicalCategory) {
+      return $competenciasCreadas;
+    }
+
+    $categoryId = $persona->position->hierarchicalCategory->id;
+    $evaluationModel = EvaluationModel::getModelByCategory($categoryId);
+
+    // Si no hay modelo de evaluación para esta categoría, no crear competencias
+    if (!$evaluationModel) {
+      return $competenciasCreadas;
+    }
+
     // Determinar la estructura jerárquica de la persona
     $tieneJefe = !is_null($persona->jefe_id);
     $tieneSubordinados = $this->tieneSubordinados($persona->id);
@@ -287,8 +302,8 @@ class EvaluationService extends BaseService
     $competenciasData = $this->obtenerCompetenciasParaPersona($persona);
 
     foreach ($competenciasData as $competenciaData) {
-      // 1. Autoevaluación (si está habilitada)
-      if ($evaluacion->selfEvaluation) {
+      // 1. Autoevaluación (solo si el peso es mayor a 0)
+      if ($evaluacion->selfEvaluation && $evaluationModel->self_weight > 0) {
         $this->crearDetalleCompetencia(
           $evaluacion->id,
           $persona,
@@ -299,8 +314,8 @@ class EvaluationService extends BaseService
         $competenciasCreadas++;
       }
 
-      // 2. Evaluación del jefe directo
-      if ($tieneJefe) {
+      // 2. Evaluación del jefe directo (solo si el peso es mayor a 0)
+      if ($tieneJefe && $evaluationModel->leadership_weight > 0) {
         $this->crearDetalleCompetencia(
           $evaluacion->id,
           $persona,
@@ -311,9 +326,9 @@ class EvaluationService extends BaseService
         $competenciasCreadas++;
       }
 
-      // 3. Evaluación de compañeros (si está habilitada)
-      if ($evaluacion->partnersEvaluation && $tieneJefe) {
-        $partners = $this->obtenerCompaneros($persona);
+      // 3. Evaluación de compañeros (solo si está habilitada y el peso es mayor a 0)
+      if ($evaluacion->partnersEvaluation && $evaluationModel->par_weight > 0) {
+        $partners = $this->obtenerCompanerosPorEvaluationParEvaluator($persona);
         foreach ($partners as $partner) {
           $this->crearDetalleCompetencia(
             $evaluacion->id,
@@ -326,8 +341,8 @@ class EvaluationService extends BaseService
         }
       }
 
-      // 4. Evaluación de reportes directos (solo si tiene subordinados)
-      if ($tieneSubordinados) {
+      // 4. Evaluación de reportes directos (solo si el peso es mayor a 0 y tiene subordinados)
+      if ($tieneSubordinados && $evaluationModel->report_weight > 0) {
         $subordinados = $this->obtenerSubordinados($persona->id);
         foreach ($subordinados as $subordinado) {
           $this->crearDetalleCompetencia(
@@ -419,6 +434,25 @@ class EvaluationService extends BaseService
   private function obtenerSubordinados($personaId)
   {
     return Person::where('jefe_id', $personaId)
+      ->where('status_deleted', 1)
+      ->where('status_id', 22)
+      ->get();
+  }
+
+  /**
+   * Obtener compañeros desde EvaluationParEvaluator
+   */
+  private function obtenerCompanerosPorEvaluationParEvaluator($persona)
+  {
+    $parEvaluators = EvaluationParEvaluator::where('worker_id', $persona->id)->get();
+
+    if ($parEvaluators->isEmpty()) {
+      return collect();
+    }
+
+    $mateIds = $parEvaluators->pluck('mate_id')->toArray();
+
+    return Person::whereIn('id', $mateIds)
       ->where('status_deleted', 1)
       ->where('status_id', 22)
       ->get();

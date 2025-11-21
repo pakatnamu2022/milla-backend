@@ -37,7 +37,7 @@ class EvaluationModel extends Model
   /**
    * Relations
    */
-  public function categories()
+  public function categoriesData()
   {
     $categoryIds = explode(',', $this->categories);
     return HierarchicalCategory::whereIn('id', $categoryIds)->get();
@@ -50,6 +50,14 @@ class EvaluationModel extends Model
     } else {
       $this->attributes['categories'] = $value;
     }
+  }
+
+  /**
+   * Obtener el modelo de evaluación para una categoría jerárquica específica
+   */
+  public static function getModelByCategory($categoryId)
+  {
+    return self::whereRaw("FIND_IN_SET(?, categories)", [$categoryId])->first();
   }
 
 }
