@@ -53,11 +53,23 @@ class EvaluationPersonResultService extends BaseService
       return null;
     }
 
+    // Obtener IDs de personas donde el chief es evaluador de compañeros (pares)
+    $parEvaluationPersonIds = EvaluationPersonCompetenceDetail::where('evaluation_id', $activeEvaluation->id)
+      ->where('evaluator_id', $chief_id)
+      ->pluck('person_id')
+      ->unique()
+      ->toArray();
+
     return $this->getFilteredResults(
-      EvaluationPersonResult::whereHas('person', function ($query) use ($chief_id) {
-        $query->where('supervisor_id', $chief_id)
-          ->where('status_deleted', 1)
-          ->where('status_id', 22);
+      EvaluationPersonResult::where(function ($query) use ($chief_id, $parEvaluationPersonIds) {
+        // 1. Personas que tienen al chief como supervisor directo
+        $query->whereHas('person', function ($q) use ($chief_id) {
+          $q->where('supervisor_id', $chief_id)
+            ->where('status_deleted', 1)
+            ->where('status_id', 22);
+        })
+          // 2. O personas donde el chief debe evaluar como par
+          ->orWhereIn('person_id', $parEvaluationPersonIds);
       })->where('evaluation_id', $activeEvaluation->id),
       $request,
       EvaluationPersonResult::filters,
