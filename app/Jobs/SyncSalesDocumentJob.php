@@ -270,6 +270,10 @@ class SyncSalesDocumentJob implements ShouldQueue
         $existingDocument->ProcesoEstado ?? 0,
         $existingDocument->ProcesoError ?? null
       );
+
+      if ($existingDocument->ProcesoEstado) {
+        $log->markAsCompletedElectronicDocument();
+      }
     }
   }
 

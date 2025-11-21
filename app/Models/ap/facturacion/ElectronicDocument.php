@@ -479,6 +479,17 @@ class ElectronicDocument extends BaseModel
     ]);
   }
 
+  /**
+   * Marca el paso como en completado
+   * @return void
+   */
+  public function markAsCompleted(): void
+  {
+    $this->update([
+      'migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED,
+    ]);
+  }
+
   public function markAsLocalCancelled(string $reason = null): void
   {
     $this->update([

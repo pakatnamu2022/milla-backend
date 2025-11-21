@@ -62,7 +62,7 @@ class CheckPendingElectronicDocuments extends Command
 
 //        Log::debug("CheckPendingElectronicDocuments: Job dispatched for document", [
 //          'document_id' => $document->id,
-//          'serie' => $document->serie,
+//          'serie' => $document->serie
 //          'numero' => $document->numero
 //        ]);
       }
