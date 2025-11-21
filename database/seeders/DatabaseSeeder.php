@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
     $this->call(CrudPermissionsSeeder::class);
 //    $this->call(Competence2Seeder::class);
     $this->call(TruncateTablesSeeder::class);
-//    $this->call(EvaluationModelSeeder::class);
+    $this->call(EvaluationModelSeeder::class);
+    $this->call(EvaluationParEvaluatorSeeder::class);
   }
 }
