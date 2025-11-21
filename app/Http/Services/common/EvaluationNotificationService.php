@@ -159,7 +159,7 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => 'wsuclupef2001@gmail.com',//$leader->email,
+        'to' => $leader->email,
         'subject' => 'Recordatorio: Evaluaciones de Desempeño Pendientes',
         'template' => 'emails.evaluation-reminder',
         'data' => [
