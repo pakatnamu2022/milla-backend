@@ -23,6 +23,11 @@ class DetailedDevelopmentPlan extends Model
     'boss_id',
   ];
 
+  protected $casts = [
+    'start_date' => 'date',
+    'end_date' => 'date',
+  ];
+
   const filters = [
     'search' => ['description', 'worker.nombre_completo', 'boss.nombre_completo'],
     'worker_id' => '=',
@@ -72,5 +77,22 @@ class DetailedDevelopmentPlan extends Model
   public function tasks()
   {
     return $this->hasMany(DevelopmentPlanTask::class, 'detailed_development_plan_id');
+  }
+
+  public function objectivesCompetences()
+  {
+    return $this->hasMany(DevelopmentPlanObjectiveCompetence::class, 'development_plan_id');
+  }
+
+  public function objectives()
+  {
+    return $this->hasMany(DevelopmentPlanObjectiveCompetence::class, 'development_plan_id')
+      ->whereNotNull('objective_detail_id');
+  }
+
+  public function competences()
+  {
+    return $this->hasMany(DevelopmentPlanObjectiveCompetence::class, 'development_plan_id')
+      ->whereNotNull('competence_detail_id');
   }
 }

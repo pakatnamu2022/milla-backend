@@ -438,9 +438,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
         //        EVALUATION NOTIFICATIONS
         Route::group(['prefix' => 'evaluation/notifications'], function () {
-          Route::post('/send-opened', [EvaluationNotificationController::class, 'sendEvaluationOpened']); // Correo 1
-          Route::post('/send-reminders', [EvaluationNotificationController::class, 'sendReminders']); // Correo 2
-          Route::post('/send-closed', [EvaluationNotificationController::class, 'sendEvaluationClosed']); // Correo 3
+          Route::post('/send-opened', [EvaluationNotificationController::class, 'sendEvaluationOpened']); // Notifica apertura de evaluación - Correo 1
+          Route::post('/send-reminders', [EvaluationNotificationController::class, 'sendReminders']); // Es correo de recordatorio - Correo 2
+          Route::post('/send-closed', [EvaluationNotificationController::class, 'sendEvaluationClosed']); // Notifica cierre de evaluación - Correo 3
           Route::post('/send-hr-summary', [EvaluationNotificationController::class, 'sendHrSummary']);
           Route::get('/pending-status', [EvaluationNotificationController::class, 'getPendingStatus']);
           Route::post('/test-reminder', [EvaluationNotificationController::class, 'testReminder']);

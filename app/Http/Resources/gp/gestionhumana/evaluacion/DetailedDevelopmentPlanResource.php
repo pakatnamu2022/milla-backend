@@ -11,11 +11,10 @@ class DetailedDevelopmentPlanResource extends JsonResource
   {
     return [
       'id' => $this->id,
+      'title' => $this->title,
       'description' => $this->description,
-      'boss_confirms' => (bool)$this->boss_confirms,
-      'worker_confirms' => (bool)$this->worker_confirms,
-      'boss_confirms_completion' => (bool)$this->boss_confirms_completion,
-      'worker_confirms_completion' => (bool)$this->worker_confirms_completion,
+      'start_date' => $this->start_date ? $this->start_date->format('Y-m-d') : "",
+      'end_date' => $this->end_date ? $this->end_date->format('Y-m-d') : "",
       'worker_id' => $this->worker_id,
       'worker_name' => $this->worker ? $this->worker->nombre_completo : null,
       'boss_id' => $this->boss_id,
@@ -28,6 +27,20 @@ class DetailedDevelopmentPlanResource extends JsonResource
           'description' => $task->description,
           'end_date' => $task->end_date ? $task->end_date->format('Y-m-d') : null,
           'fulfilled' => (bool)$task->fulfilled,
+        ];
+      }) : [],
+      'objectives_competences' => $this->objectivesCompetences ? $this->objectivesCompetences->map(function ($objComp) {
+        return [
+          'objective_detail' => $objComp->objectiveDetail ? [
+            'id' => $objComp->objectiveDetail->id,
+            'objective' => $objComp->objectiveDetail->objective,
+            // Agrega aquí los campos que necesites del objetivo
+          ] : null,
+          'competence_detail' => $objComp->competenceDetail ? [
+            'id' => $objComp->competenceDetail->id,
+            'competence' => $objComp->competenceDetail->competence,
+            // Agrega aquí los campos que necesites de la competencia
+          ] : null,
         ];
       }) : [],
     ];
