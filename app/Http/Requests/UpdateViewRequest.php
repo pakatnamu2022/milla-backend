@@ -25,7 +25,7 @@ class UpdateViewRequest extends StoreRequest
       'ruta' => 'nullable|string|max:255',
       'icono' => 'nullable|string|max:255',
       'icon' => 'nullable|string|max:255',
-      'parent_id' => 'sometimes|integer|exists:config_vista,id',
+      'parent_id' => 'nullable|integer|exists:config_vista,id',
       'company_id' => 'nullable|integer|exists:companies,id',
       'idPadre' => 'nullable|integer|exists:config_vista,id',
       'idSubPadre' => 'nullable|integer|exists:config_vista,id',

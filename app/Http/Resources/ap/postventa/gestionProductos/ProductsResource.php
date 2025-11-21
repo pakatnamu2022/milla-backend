@@ -27,11 +27,7 @@ class ProductsResource extends JsonResource
       'product_category_id' => $this->product_category_id,
       'brand_id' => $this->brand_id,
       'unit_measurement_id' => $this->unit_measurement_id,
-      'warehouse_id' => $this->warehouse_id,
       'ap_class_article_id' => $this->ap_class_article_id,
-      'minimum_stock' => $this->minimum_stock,
-      'maximum_stock' => $this->maximum_stock,
-      'current_stock' => $this->current_stock,
       'cost_price' => $this->cost_price,
       'sale_price' => $this->sale_price,
       'tax_rate' => $this->tax_rate,
@@ -39,16 +35,18 @@ class ProductsResource extends JsonResource
       'sunat_code' => $this->sunat_code,
       'warranty_months' => $this->warranty_months,
       'status' => $this->status,
-      'brand_name' => $this->brand->name,
-      'category_name' => $this->category->description,
-      'unit_measurement_name' => $this->unitMeasurement->description,
+      'brand_name' => $this->brand->name ?? null,
+      'category_name' => $this->category->description ?? null,
+      'unit_measurement_name' => $this->unitMeasurement->description ?? null,
+
+      // NEW: Multi-warehouse stock information
+      'warehouse_stocks' => ProductWarehouseStockResource::collection($this->whenLoaded('warehouseStocks')),
+      'total_stock' => $this->when(isset($this->total_stock), (float)$this->total_stock),
+      'total_available_stock' => $this->when(isset($this->total_available_stock), (float)$this->total_available_stock),
 
       // Computed attributes
-//      'price_with_tax' => $this->price_with_tax,
-//      'cost_with_tax' => $this->cost_with_tax,
-//      'wholesale_price_with_tax' => $this->wholesale_price_with_tax,
-//      'is_low_stock' => $this->is_low_stock,
-//      'needs_reorder' => $this->needs_reorder,
+      'price_with_tax' => $this->price_with_tax,
+      'cost_with_tax' => $this->cost_with_tax,
 
       // Relationships
       'category' => new ProductCategoryResource($this->whenLoaded('category')),

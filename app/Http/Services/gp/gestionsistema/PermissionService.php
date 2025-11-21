@@ -8,6 +8,7 @@ use App\Models\gp\gestionsistema\Access;
 use App\Models\gp\gestionsistema\Permission;
 use App\Models\gp\gestionsistema\Role;
 use App\Models\gp\gestionsistema\RolePermission;
+use App\Models\gp\gestionsistema\View;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -193,6 +194,13 @@ class PermissionService extends BaseService
       $actions = $data['actions'];
       $vistaId = $data['vista_id'] ?? null;
       $isActive = $data['is_active'] ?? true;
+
+      if ($vistaId) {
+        $view = View::find($vistaId);
+        if ($view->submodule || $view->route === null) {
+          throw new \Exception("No se puede asignar la acción 'view' a una vista que es submódulo");
+        }
+      }
 
       $permissionsConfig = config('permissions.actions');
       $syncedPermissions = [];
