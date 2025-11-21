@@ -421,42 +421,54 @@ class EvaluationPersonResult extends BaseModel
 
       foreach ($subCompetencesByEvaluator as $subCompetenceId => $evaluations) {
         $firstEvaluation = $evaluations->first();
-        $evaluationsByType = $evaluations->groupBy('evaluatorType');
 
         $evaluators = [];
+
+        // Listar TODOS los evaluadores individuales
+        foreach ($evaluations as $evaluation) {
+          $evaluators[] = [
+            'evaluator_type' => $evaluation->evaluatorType,
+            'evaluator_type_name' => $this->getEvaluatorTypeName($evaluation->evaluatorType),
+            'evaluator_id' => $evaluation->evaluator_id,
+            'evaluator_name' => $evaluation->evaluator ?? 'Pendiente',
+            'result' => $evaluation->result ?? '0.00',
+            'id' => $evaluation->id,
+            'is_completed' => floatval($evaluation->result) > 0,
+          ];
+        }
+
+        // Calcular promedio ponderado por tipo de evaluador
+        $evaluationsByType = $evaluations->groupBy('evaluatorType');
         $totalScore = 0;
         $validEvaluations = 0;
 
-        $requiredEvaluatorTypes = $this->getRequiredEvaluatorTypes($evaluationType);
+        foreach ($evaluationsByType as $evaluatorType => $typeEvaluations) {
+          $completedEvaluations = $typeEvaluations->filter(function($eval) {
+            return floatval($eval->result) > 0;
+          });
 
-        foreach ($requiredEvaluatorTypes as $evaluatorType) {
-          $evaluation = $evaluationsByType->get($evaluatorType)?->first();
-
-          $evaluators[] = [
-            'evaluator_type' => $evaluatorType,
-            'evaluator_type_name' => $this->getEvaluatorTypeName($evaluatorType),
-            'evaluator_id' => $evaluation?->evaluator_id,
-            'evaluator_name' => $evaluation?->evaluator ?? 'Pendiente',
-            'result' => $evaluation?->result ?? '0.00',
-            'id' => $evaluation?->id,
-            'is_completed' => $evaluation && floatval($evaluation->result) > 0,
-          ];
-
-          if ($evaluation && floatval($evaluation->result) > 0) {
-            $totalScore += floatval($evaluation->result);
+          if ($completedEvaluations->isNotEmpty()) {
+            $typeAverage = $completedEvaluations->avg('result');
+            $totalScore += $typeAverage;
             $validEvaluations++;
           }
         }
 
         $averageScore = $validEvaluations > 0 ? $totalScore / $validEvaluations : 0;
 
+        // Calcular completion basándose en los tipos únicos que existen
+        $uniqueEvaluatorTypes = $evaluations->pluck('evaluatorType')->unique()->count();
+        $completedTypes = $evaluationsByType->filter(function($typeEvals) {
+          return $typeEvals->filter(fn($e) => floatval($e->result) > 0)->isNotEmpty();
+        })->count();
+
         $processedSubCompetences[] = [
           'sub_competence_id' => $subCompetenceId,
           'sub_competence_name' => $firstEvaluation->sub_competence,
           'evaluators' => $evaluators,
           'average_result' => round($averageScore, 2),
-          'completion_percentage' => ($validEvaluations / count($requiredEvaluatorTypes)) * 100,
-          'is_completed' => $validEvaluations === count($requiredEvaluatorTypes),
+          'completion_percentage' => $uniqueEvaluatorTypes > 0 ? ($completedTypes / $uniqueEvaluatorTypes) * 100 : 0,
+          'is_completed' => $completedTypes === $uniqueEvaluatorTypes,
         ];
       }
 
