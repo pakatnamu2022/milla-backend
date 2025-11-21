@@ -4,7 +4,7 @@ namespace App\Http\Requests\gp\gestionhumana\evaluacion;
 
 use App\Http\Requests\IndexRequest;
 
-class IndexEvaluationParEvaluatorRequest extends IndexRequest
+class IndexEvaluationModelRequest extends IndexRequest
 {
   public function rules(): array
   {

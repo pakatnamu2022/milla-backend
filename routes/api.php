@@ -54,6 +54,7 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationMetricController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationModelController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationNotificationController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationObjectiveController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationParameterController;
@@ -499,7 +500,17 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         ]);
 
         // PAR EVALUATOR
+        Route::get('parEvaluator/worker/{workerId}', [EvaluationParEvaluatorController::class, 'getByWorker']);
         Route::apiResource('parEvaluator', EvaluationParEvaluatorController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        // EVALUATION MODEL
+        Route::apiResource('evaluationModel', EvaluationModelController::class)->only([
           'index',
           'show',
           'store',

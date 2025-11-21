@@ -3,21 +3,21 @@
 namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationParEvaluatorRequest;
-use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationParEvaluatorRequest;
-use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationParEvaluatorRequest;
-use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationParEvaluatorService;
+use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationModelRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationModelRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationModelRequest;
+use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationModelService;
 
-class EvaluationParEvaluatorController extends Controller
+class EvaluationModelController extends Controller
 {
-  protected EvaluationParEvaluatorService $service;
+  protected EvaluationModelService $service;
 
-  public function __construct(EvaluationParEvaluatorService $service)
+  public function __construct(EvaluationModelService $service)
   {
     $this->service = $service;
   }
 
-  public function index(IndexEvaluationParEvaluatorRequest $request)
+  public function index(IndexEvaluationModelRequest $request)
   {
     try {
       return $this->service->list($request);
@@ -26,7 +26,7 @@ class EvaluationParEvaluatorController extends Controller
     }
   }
 
-  public function store(StoreEvaluationParEvaluatorRequest $request)
+  public function store(StoreEvaluationModelRequest $request)
   {
     try {
       return $this->success($this->service->store($request->validated()));
@@ -44,7 +44,7 @@ class EvaluationParEvaluatorController extends Controller
     }
   }
 
-  public function update(UpdateEvaluationParEvaluatorRequest $request, $id)
+  public function update(UpdateEvaluationModelRequest $request, $id)
   {
     try {
       $data = $request->validated();
@@ -59,15 +59,6 @@ class EvaluationParEvaluatorController extends Controller
   {
     try {
       return $this->service->destroy($id);
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
-  public function getByWorker($workerId)
-  {
-    try {
-      return $this->success($this->service->getByWorker($workerId));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

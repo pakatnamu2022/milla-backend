@@ -56,6 +56,8 @@ class ViewSeeder extends Seeder
         'ruta' => '-', 'icon' => 'Handshake', 'parent_id' => $POST_VENTA_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
       ['descripcion' => 'Asignación de Pares', 'submodule' => false, 'route' => 'asignacion-pares', 'slug' => 'asignacion-de-pares',
         'ruta' => '-', 'icon' => 'UserRoundCog', 'parent_id' => $EVALUATION, 'company_id' => $GP, 'idPadre' => $VERSION_2,],
+      ['descripcion' => 'Modelo de Evaluación', 'submodule' => false, 'route' => 'modelo-evaluacion', 'slug' => 'modelo-de-evaluacion',
+        'ruta' => '-', 'icon' => 'FileBox', 'parent_id' => $EVALUATION, 'company_id' => $GP, 'idPadre' => $VERSION_2,],
     ];
 
     foreach ($data as $item) {

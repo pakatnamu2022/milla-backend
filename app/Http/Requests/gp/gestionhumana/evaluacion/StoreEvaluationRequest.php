@@ -38,6 +38,10 @@ class StoreEvaluationRequest extends StoreRequest
       ],
       'competence_parameter_id' => 'nullable|exists:gh_evaluation_parameter,id',
       'final_parameter_id' => 'nullable|exists:gh_evaluation_parameter,id',
+      'leadership_weight' => 'nullable|numeric|min:0|max:100',
+      'self_weight' => 'nullable|numeric|min:0|max:100',
+      'par_weight' => 'nullable|numeric|min:0|max:100',
+      'report_weight' => 'nullable|numeric|min:0|max:100',
     ];
   }
 

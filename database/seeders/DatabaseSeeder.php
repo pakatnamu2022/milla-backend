@@ -18,6 +18,6 @@ class DatabaseSeeder extends Seeder
     $this->call(ViewSeeder::class);
     $this->call(CrudPermissionsSeeder::class);
 //    $this->call(Competence2Seeder::class);
-    $this->call(TruncateTablesSeeder::class);
+//    $this->call(TruncateTablesSeeder::class);
   }
 }

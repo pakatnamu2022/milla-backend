@@ -648,7 +648,6 @@ class EvaluationPersonResult extends BaseModel
   public function fallbackCalculateObjectivesProgress(): array
   {
     $objectives = $this->details();
-    Log::debug("Calculando progreso de objetivos para persona_id {$this->person_id}, evaluation_id {$this->evaluation_id}: " . $objectives->count() . " objetivos encontrados.");
     $totalObjectives = $objectives->count();
     $completedObjectives = $objectives->where('wasEvaluated', 1)->count();
 
