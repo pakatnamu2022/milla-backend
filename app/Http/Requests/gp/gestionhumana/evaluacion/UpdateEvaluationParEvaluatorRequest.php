@@ -14,7 +14,7 @@ class UpdateEvaluationParEvaluatorRequest extends StoreRequest
       'mate_ids.*' => [
         'required',
         'integer',
-        Rule::exists('gh_person', 'id')->whereNull('deleted_at'),
+        Rule::exists('rrhh_persona', 'id')->whereNull('deleted_at'),
       ],
     ];
   }

@@ -13,13 +13,13 @@ class StoreEvaluationParEvaluatorRequest extends StoreRequest
       'worker_id' => [
         'required',
         'integer',
-        Rule::exists('gh_person', 'id')->whereNull('deleted_at'),
+        Rule::exists('rrhh_persona', 'id')->where('status_id', 22),
       ],
       'mate_ids' => 'required|array|min:1',
       'mate_ids.*' => [
         'required',
         'integer',
-        Rule::exists('gh_person', 'id')->whereNull('deleted_at'),
+        Rule::exists('rrhh_persona', 'id')->where('status_id', 22),
         'different:worker_id', // Un trabajador no puede ser su propio par evaluador
       ],
     ];
