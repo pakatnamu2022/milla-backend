@@ -4,6 +4,7 @@ namespace App\Http\Requests\gp\gestionhumana\evaluacion;
 
 use App\Http\Requests\StoreRequest;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use Illuminate\Validation\Rule;
 
 class StoreEvaluationRequest extends StoreRequest
@@ -44,6 +45,20 @@ class StoreEvaluationRequest extends StoreRequest
   {
     $validator->after(function ($validator) {
       $data = $this->all();
+
+      if (isset($data['cycle_id'])) {
+        $cycleId = $data['cycle_id'];
+
+        $cyclePersonDetail = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+          ->whereNull('deleted_at')->get();
+
+        if ($cyclePersonDetail->isEmpty()) {
+          $validator->errors()->add(
+            'cycle_id',
+            'El ciclo seleccionado no tiene personas asociadas.'
+          );
+        }
+      }
 
       // Validación de suma de porcentajes
       if (isset($data['objectivesPercentage']) && isset($data['competencesPercentage'])) {

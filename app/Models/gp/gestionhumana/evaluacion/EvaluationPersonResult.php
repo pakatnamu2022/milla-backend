@@ -7,6 +7,7 @@ use App\Models\BaseModel;
 use App\Models\gp\gestionsistema\Person;
 use Exception;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Log;
 use function json_encode;
 
 class EvaluationPersonResult extends BaseModel
@@ -104,7 +105,7 @@ class EvaluationPersonResult extends BaseModel
 
   public function dashboard()
   {
-    return $this->hasOne(\App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard::class, 'person_id', 'person_id')
+    return $this->hasOne(EvaluationPersonDashboard::class, 'person_id', 'person_id')
       ->where('evaluation_id', $this->evaluation_id);
   }
 
@@ -646,7 +647,8 @@ class EvaluationPersonResult extends BaseModel
    */
   public function fallbackCalculateObjectivesProgress(): array
   {
-    $objectives = $this->details;
+    $objectives = $this->details();
+    Log::debug("Calculando progreso de objetivos para persona_id {$this->person_id}, evaluation_id {$this->evaluation_id}: " . $objectives->count() . " objetivos encontrados.");
     $totalObjectives = $objectives->count();
     $completedObjectives = $objectives->where('wasEvaluated', 1)->count();
 

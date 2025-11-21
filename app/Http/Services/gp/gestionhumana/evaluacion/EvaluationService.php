@@ -7,7 +7,6 @@ use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Resources\gp\gestionsistema\PositionResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
-use App\Http\Traits\DisableObservers;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
@@ -24,8 +23,6 @@ use Illuminate\Support\Facades\Log;
 
 class EvaluationService extends BaseService
 {
-  use DisableObservers;
-
   protected EvaluationPersonService $evaluationPersonService;
   protected EvaluationPersonResultService $evaluationPersonResultService;
   protected $exportService;
@@ -45,7 +42,8 @@ class EvaluationService extends BaseService
     EvaluationPersonService       $evaluationPersonService,
     EvaluationPersonResultService $evaluationPersonResultService,
     ExportService                 $exportService
-  ) {
+  )
+  {
     $this->evaluationPersonService = $evaluationPersonService;
     $this->evaluationPersonResultService = $evaluationPersonResultService;
     $this->exportService = $exportService;

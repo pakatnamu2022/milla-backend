@@ -174,24 +174,21 @@ class EvaluationPersonCompetenceDetailService extends BaseService
   public function calculateCompetencesResult($evaluationId, $personId, $evaluationType)
   {
     $evaluation = Evaluation::find($evaluationId);
-    $maxScore = $evaluation->typeEvaluation !== 0 ? $evaluation?->max_score_competence : 0; // Como atributo
-
+    $maxScore = $evaluation->typeEvaluation !== Evaluation::EVALUATION_TYPE_OBJECTIVES ? $evaluation?->max_score_competence : 0; // Como atributo
 
     $competences = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
-      ->where('person_id', $personId)
-      ->get();
+      ->where('person_id', $personId)->get();
 
     if ($competences->isEmpty()) {
       return 0;
     }
 
     switch ($evaluationType) {
-      case self::EVALUACION_180:
+      case Evaluation::EVALUATION_TYPE_180:
         // Para 180°, solo considerar evaluación del jefe
-        $jefeCompetences = $competences->where('evaluatorType', self::TIPO_EVALUADOR_JEFE);
-        return ($jefeCompetences->avg('result') / $maxScore) * 100;
+        return ($this->calculate180CompetencesResult($competences) / $maxScore) * 100;
 
-      case self::EVALUACION_360:
+      case Evaluation::EVALUATION_TYPE_360:
         // Para 360°, calcular promedio ponderado por tipo de evaluador
         return ($this->calculate360CompetencesResult($competences) / $maxScore) * 100;
 
@@ -199,6 +196,33 @@ class EvaluationPersonCompetenceDetailService extends BaseService
         // Para evaluación de objetivos, promedio simple
         return $competences->avg('result') ?? 0;
     }
+  }
+
+  /**
+   * Calcular resultado de competencias para evaluación 180°
+   */
+  private function calculate180CompetencesResult($competences)
+  {
+    // Pesos por tipo de evaluador (esto puede ser configurable)
+    $weights = [
+      self::TIPO_EVALUADOR_JEFE => 0.9,          // 40% jefe
+      self::TIPO_EVALUADOR_AUTOEVALUACION => 0.1, // 20% autoevaluación
+    ];
+
+    $totalWeightedScore = 0;
+    $totalWeight = 0;
+
+    foreach ($weights as $evaluatorType => $weight) {
+      $typeCompetences = $competences->where('evaluatorType', $evaluatorType);
+
+      if ($typeCompetences->isNotEmpty()) {
+        $avgScore = $typeCompetences->avg('result');
+        $totalWeightedScore += $avgScore * $weight;
+        $totalWeight += $weight;
+      }
+    }
+
+    return $totalWeight > 0 ? $totalWeightedScore / $totalWeight : 0;
   }
 
   /**

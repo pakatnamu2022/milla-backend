@@ -4,6 +4,7 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonResource;
 use App\Http\Services\BaseService;
+use App\Jobs\UpdateEvaluationPersonDashboardsChunk;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
@@ -129,6 +130,8 @@ class EvaluationPersonService extends BaseService
     $evaluationPerson->update($data);
 
     $this->recalculatePersonResults($evaluationPerson->evaluation_id, $evaluationPerson->person_id);
+    UpdateEvaluationPersonDashboardsChunk::dispatchSync($evaluationPerson->evaluation_id, [$evaluationPerson->person_id]);
+
 
     return new EvaluationPersonResource($evaluationPerson);
   }

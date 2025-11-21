@@ -24,7 +24,7 @@ class EvaluationPersonResultResource extends JsonResource
       'id' => $this->id,
       'person_id' => $this->person_id,
       'evaluation_id' => $this->evaluation_id,
-      'person' => new WorkerResource($this->person),
+      'person' => (new WorkerResource($this->person))->showExtra(),
       'competencesPercentage' => round($this->competencesPercentage, 2),
       'objectivesPercentage' => round($this->objectivesPercentage, 2),
       'objectivesResult' => round($this->objectivesResult, 2),
@@ -87,8 +87,8 @@ class EvaluationPersonResultResource extends JsonResource
         max(($totalSubCompetences > 0 ? 1 : 0) + ($totalObjectives > 0 ? 1 : 0), 1)
         ), 2),
       'competences' => [
-        'index_range_result' => $this->calculateIndexRangeResult($this->competencesResult, $this->evaluation->competenceParameter),
-        'label_range' => $this->calculateLabelRangeResult($this->competencesResult, $this->evaluation->competenceParameter),
+        'index_range_result' => $this->calculateIndexRangeResult(round(collect($competenceGroups)->avg('average_result'), 2), $this->evaluation->competenceParameter),
+        'label_range' => $this->calculateLabelRangeResult(round(collect($competenceGroups)->avg('average_result'), 2), $this->evaluation->competenceParameter),
         'completion_rate' => $competenceCompletionRate,
         'completed' => $completedSubCompetences,
         'total' => $totalSubCompetences,
