@@ -18,8 +18,16 @@ class DiscountCoupons extends Model
     'type',
     'percentage',
     'amount',
+    'igv',
+    'valor_unitario',
+    'precio_unitario',
+    'is_negative',
     'concept_code_id',
     'purchase_request_quote_id',
+  ];
+
+  protected $casts = [
+    'is_negative' => 'boolean',
   ];
 
   const filter = [

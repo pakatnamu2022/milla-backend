@@ -2,7 +2,10 @@
 
 namespace App\Models\ap\facturacion;
 
+use App\Http\Services\ap\comercial\OpportunityService;
 use App\Http\Services\BaseService;
+use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\VehicleMovement;
@@ -196,6 +199,19 @@ class ElectronicDocument extends BaseModel
       $service = new BaseService();
       $numero = $service->completeNumber($model->numero);
       $model->full_number = "{$model->serie}-{$numero}";
+    });
+
+    static::saved(function ($model) {
+      if ($model->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+        $quote = $model->purchaseRequestQuote;
+        $opportunity = Opportunity::find($quote->opportunity_id);
+        $opportunity->update([
+          'opportunity_status_id' => ApCommercialMasters::where('code', Opportunity::SOLD)
+            ->whereNull('deleted_at')
+            ->first()
+            ->id,
+        ]);
+      }
     });
   }
 
