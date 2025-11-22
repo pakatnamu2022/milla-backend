@@ -46,36 +46,42 @@ class EvaluationPersonResultService extends BaseService
     );
   }
 
-  public function getTeamByChief(Request $request, int $chief_id)
+  public function getActiveEvaluation()
   {
-    $activeEvaluation = Evaluation::where('status', 1)->first();
-    if (!$activeEvaluation) {
-      return null;
+    $evaluation = Evaluation::where('status', 1)->first();
+    if (!$evaluation) {
+      throw new Exception('No hay una evaluación activa en este momento.');
     }
+    return $evaluation;
+  }
 
-    // Obtener IDs de personas donde el chief es evaluador de compañeros (pares)
-    $parEvaluationPersonIds = EvaluationPersonCompetenceDetail::where('evaluation_id', $activeEvaluation->id)
-      ->where('evaluator_id', $chief_id)
+  public function getEvaluationsByPersonToEvaluate(Request $request, int $id)
+  {
+    $activeEvaluation = $this->getActiveEvaluation();
+
+    // Get person_ids where the person is evaluator in competences
+    $competencePersonIds = EvaluationPersonCompetenceDetail::where('evaluation_id', $activeEvaluation->id)
+      ->where('evaluator_id', $id)
       ->pluck('person_id')
-      ->unique()
-      ->toArray();
+      ->unique();
+
+    // Get person_ids where the person is chief in objectives
+    $objectivePersonIds = EvaluationPerson::where('evaluation_id', $activeEvaluation->id)
+      ->where('chief_id', $id)
+      ->pluck('person_id')
+      ->unique();
+
+    // Merge both collections and get unique person_ids
+    $allEvaluations = $competencePersonIds->merge($objectivePersonIds)->unique();
 
     return $this->getFilteredResults(
-      EvaluationPersonResult::where(function ($query) use ($chief_id, $parEvaluationPersonIds) {
-        // 1. Personas que tienen al chief como supervisor directo
-        $query->whereHas('person', function ($q) use ($chief_id) {
-          $q->where('supervisor_id', $chief_id)
-            ->where('status_deleted', 1)
-            ->where('status_id', 22);
-        })
-          // 2. O personas donde el chief debe evaluar como par
-          ->orWhereIn('person_id', $parEvaluationPersonIds);
-      })->where('evaluation_id', $activeEvaluation->id),
+      EvaluationPersonResult::where('evaluation_id', $activeEvaluation->id)
+        ->whereIn('person_id', $allEvaluations),
       $request,
       EvaluationPersonResult::filters,
       EvaluationPersonResult::sorts,
       EvaluationPersonResultResource::class,
-      ['showExtra' => [true]] // 👈 Configuración del Resource
+      ['showExtra' => [true]]
     );
   }
 
