@@ -27,9 +27,9 @@ class ProductsService extends BaseService implements BaseServiceInterface
     }
 
     // Apply eager loading for relationships
-    $query->with(['category', 'brand', 'unitMeasurement', 'warehouse', 'warehouseStocks.warehouse']);
+    $query->with(['category', 'brand', 'unitMeasurement', 'articleClass']);
 
-    // NEW: Add total stock calculation if needed
+    // Add total stock calculation if needed
     if ($request->has('with_total_stock') && $request->with_total_stock) {
       $query->withTotalStock();
     }
@@ -46,7 +46,7 @@ class ProductsService extends BaseService implements BaseServiceInterface
 
   public function find($id)
   {
-    $product = Products::with(['category', 'brand', 'unitMeasurement', 'warehouseStocks.warehouse'])
+    $product = Products::with(['category', 'brand', 'unitMeasurement', 'articleClass', 'warehouseStocks.warehouse'])
       ->where('id', $id)
       ->first();
 
@@ -165,7 +165,7 @@ class ProductsService extends BaseService implements BaseServiceInterface
   public function getLowStockProducts()
   {
     $products = Products::lowStock()
-      ->with(['category', 'brand', 'unitMeasurement', 'warehouse'])
+      ->with(['category', 'brand', 'unitMeasurement', 'articleClass', 'warehouseStocks.warehouse'])
       ->get();
 
     return ProductsResource::collection($products);
@@ -223,7 +223,7 @@ class ProductsService extends BaseService implements BaseServiceInterface
   {
     $products = Products::featured()
       ->active()
-      ->with(['category', 'brand', 'unitMeasurement', 'warehouse'])
+      ->with(['category', 'brand', 'unitMeasurement', 'articleClass', 'warehouseStocks.warehouse'])
       ->get();
 
     return ProductsResource::collection($products);

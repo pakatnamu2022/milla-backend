@@ -4,6 +4,7 @@ namespace App\Http\Traits;
 
 use App\Http\Utils\Constants;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 trait Filterable
 {
@@ -26,6 +27,17 @@ trait Filterable
       // 👇 NUEVO: soporte para accessors (se filtran después de la query)
       if (is_string($operator) && str_starts_with($operator, 'accessor')) {
         // Los accessors se manejan después en getFilteredResults
+        continue;
+      }
+
+      // 👇 NUEVO: soporte para scopes personalizados
+      if (is_string($operator) && $operator === 'scope') {
+        // Llamar al scope usando el nombre del filtro
+        // Por ejemplo: 'warehouse_id' => 'scope' llamará a $query->warehouseId($value)
+        $scopeName = Str::camel($filter);
+        if (method_exists($query->getModel(), 'scope' . ucfirst($scopeName))) {
+          $query->{$scopeName}($value);
+        }
         continue;
       }
 

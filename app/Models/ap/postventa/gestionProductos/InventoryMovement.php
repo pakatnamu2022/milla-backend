@@ -214,7 +214,7 @@ class InventoryMovement extends Model
       ->first();
 
     if ($lastMovement) {
-      $lastNumber = (int) substr($lastMovement->movement_number, -4);
+      $lastNumber = (int)substr($lastMovement->movement_number, -4);
       $newNumber = $lastNumber + 1;
     } else {
       $newNumber = 1;

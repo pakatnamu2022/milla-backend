@@ -61,6 +61,7 @@ class Products extends Model
     'is_taxable' => '=',
     'cost_price' => '>=',
     'sale_price' => '>=',
+    'warehouse_id' => 'scope',
   ];
 
   const sorts = [
@@ -195,5 +196,20 @@ class Products extends Model
   public function scopeByBrand($query, $brandId)
   {
     return $query->where('brand_id', $brandId);
+  }
+
+  public function scopeInWarehouse($query, $warehouseId)
+  {
+    return $query->whereHas('warehouseStocks', function ($q) use ($warehouseId) {
+      $q->where('warehouse_id', $warehouseId);
+    });
+  }
+
+  // Scope for filtering by warehouse_id (used by Filterable trait)
+  public function scopeWarehouseId($query, $warehouseId)
+  {
+    return $query->whereHas('warehouseStocks', function ($q) use ($warehouseId) {
+      $q->where('warehouse_id', $warehouseId);
+    });
   }
 }
