@@ -5,11 +5,9 @@ namespace App\Models\ap\postventa\gestionProductos;
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\ap\maestroGeneral\UnitMeasurement;
-use App\Models\ap\maestroGeneral\Warehouse;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class Products extends Model

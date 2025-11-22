@@ -38,6 +38,8 @@ class EvaluationResource extends JsonResource
       'competenceParameter' => $this->competenceParameter?->name,
       'objectiveParameter' => $this->objectiveParameter?->name,
       'finalParameter' => $this->finalParameter?->name,
+      'send_opened_email' => $this->send_opened_email,
+      'send_closed_email' => $this->send_closed_email,
     ];
 
     if ($this->showExtra) {

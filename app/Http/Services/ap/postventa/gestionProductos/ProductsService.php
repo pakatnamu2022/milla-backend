@@ -46,7 +46,7 @@ class ProductsService extends BaseService implements BaseServiceInterface
 
   public function find($id)
   {
-    $product = Products::with(['category', 'brand', 'unitMeasurement', 'warehouse', 'warehouseStocks.warehouse'])
+    $product = Products::with(['category', 'brand', 'unitMeasurement', 'warehouseStocks.warehouse'])
       ->where('id', $id)
       ->first();
 
@@ -113,7 +113,7 @@ class ProductsService extends BaseService implements BaseServiceInterface
       }
 
       DB::commit();
-      return new ProductsResource($product->load(['category', 'brand', 'unitMeasurement', 'warehouse', 'warehouseStocks.warehouse']));
+      return new ProductsResource($product->load(['category', 'brand', 'unitMeasurement', 'warehouseStocks.warehouse']));
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -133,7 +133,7 @@ class ProductsService extends BaseService implements BaseServiceInterface
       $product->update($data);
 
       DB::commit();
-      return new ProductsResource($product->load(['category', 'brand', 'unitMeasurement', 'warehouse', 'warehouseStocks.warehouse']));
+      return new ProductsResource($product->load(['category', 'brand', 'unitMeasurement', 'warehouseStocks.warehouse']));
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
