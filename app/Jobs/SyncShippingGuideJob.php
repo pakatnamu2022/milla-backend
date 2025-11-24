@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Http\Services\DatabaseSyncService;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
@@ -14,6 +15,7 @@ use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class SyncShippingGuideJob implements ShouldQueue
 {
@@ -93,11 +95,14 @@ class SyncShippingGuideJob implements ShouldQueue
 
   /**
    * Sincroniza la cabecera de transferencia de inventario
+   * @throws Throwable
    */
   protected function syncInventoryTransfer(ShippingGuides $shippingGuide, DatabaseSyncService $syncService, bool $isCancelled): void
   {
     $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
     $prefix = $this->getTransferPrefix($shippingGuide);
+
+    $vehicle = $shippingGuide->vehicleMovement?->vehicle;
 
     // Si está cancelada, usar el step de reversión para crear un nuevo log
     $step = $isCancelled
@@ -114,6 +119,12 @@ class SyncShippingGuideJob implements ShouldQueue
 
     // Si ya está completado, no hacer nada (para este step específico)
     if ($transferLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+      if (!$vehicle) {
+        throw new Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.");
+      }
+
+      $vehicleMovementService = new VehicleMovementService();
+      $vehicleMovementService->storeInventoryVehicleMovement($vehicle);
       return;
     }
 

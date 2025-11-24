@@ -93,7 +93,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         }
 
         // creamos el movimiento de vehículo asociado
-        $vehicleMovement = $this->vehicleMovementService->storeSheduleDeliveryVehicleMovement($vehicle);
+        $vehicleMovement = $this->vehicleMovementService->storeScheduleDeliveryVehicleMovement($vehicle);
         $vehicleDelivery->update(['vehicle_movement_id' => $vehicleMovement->id]);
 
         return new ApVehicleDeliveryResource($vehicleDelivery);
