@@ -117,6 +117,11 @@ class PurchaseOrder extends BaseModel
   {
     return $this->hasMany(PurchaseReception::class, 'purchase_order_id');
   }
+  
+  public function hasActiveReceptions(): bool
+  {
+    return $this->receptions()->whereNull('deleted_at')->exists();
+  }
 
   public function vehicleMovement(): BelongsTo
   {

@@ -4,12 +4,15 @@ namespace App\Http\Services\ap\compras;
 
 use App\Http\Resources\ap\compras\PurchaseOrderResource;
 use App\Http\Services\ap\comercial\VehiclesService;
+use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
+use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Http\Utils\Constants;
 use App\Jobs\VerifyAndMigratePurchaseOrderJob;
+use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
@@ -132,6 +135,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
   /**
    * Crea una nueva orden de compra
    * Si tiene datos de vehículo, crea: Vehicle → VehicleMovement → PurchaseOrder
+   * Si type_operation_id = TIPO_OPERACION_POSTVENTA, actualiza quantity_in_transit
    * @throws Exception
    * @throws Throwable
    */
@@ -154,11 +158,21 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       // Enriquecer datos de la orden
       $data = $this->enrichData($data);
 
+      // Si type_operation_id = TIPO_OPERACION_POSTVENTA, validar que productos existan en almacén
+      if (isset($data['type_operation_id']) && $data['type_operation_id'] == ApCommercialMasters::TIPO_OPERACION_POSTVENTA) {
+        $this->validateProductsInWarehouse($items, $data['warehouse_id']);
+      }
+
       // Crear la orden de compra
       $purchaseOrder = PurchaseOrder::create($data);
 
       // Guardar items si existen
       $this->saveItemsIfExists($items, $purchaseOrder);
+
+      // Si type_operation_id = TIPO_OPERACION_POSTVENTA, actualizar quantity_in_transit
+      if (isset($data['type_operation_id']) && $data['type_operation_id'] == ApCommercialMasters::TIPO_OPERACION_POSTVENTA) {
+        $this->updateInTransitStockOnCreate($purchaseOrder);
+      }
 
       // Despachar job de migración y sincronización si está habilitado
       if (config('database_sync.enabled', false)) {
@@ -287,6 +301,9 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       // Guardar items temporalmente
       $items = $data['items'] ?? null;
 
+      // Save old items for stock update (before deletion)
+      $oldItems = $purchaseOrder->items->all();
+
       // Validar datos si vienen valores de factura (sin recalcular)
       if (isset($data['subtotal']) || isset($data['igv']) || isset($data['total'])) {
         $data = $this->enrichData($data, false);
@@ -302,6 +319,11 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
         // Crear nuevos items
         $this->saveItemsIfExists($items, $purchaseOrder);
+
+        // Si type_operation_id = TIPO_OPERACION_POSTVENTA, actualizar quantity_in_transit
+        if ($purchaseOrder->type_operation_id == ApCommercialMasters::TIPO_OPERACION_POSTVENTA) {
+          $this->updateInTransitStockOnUpdate($purchaseOrder, $oldItems, $items);
+        }
       }
 
       // Despachar job de migración si está habilitado y la orden está pendiente de migración
@@ -327,6 +349,11 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
   {
     $purchaseOrder = $this->find($id);
     DB::transaction(function () use ($purchaseOrder) {
+      // Si type_operation_id = TIPO_OPERACION_POSTVENTA, remover quantity_in_transit antes de eliminar
+      if ($purchaseOrder->type_operation_id == ApCommercialMasters::TIPO_OPERACION_POSTVENTA) {
+        $this->removeInTransitStockOnDestroy($purchaseOrder);
+      }
+
       // Eliminar items primero
       $purchaseOrder->items()->delete();
       // Eliminar la orden
@@ -461,6 +488,129 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
+    }
+  }
+
+  /**
+   * Update quantity_in_transit when creating a purchase order with type_operation_id = TIPO_OPERACION_POSTVENTA
+   * @param PurchaseOrder $purchaseOrder
+   * @return void
+   * @throws Exception
+   */
+  protected function updateInTransitStockOnCreate(PurchaseOrder $purchaseOrder): void
+  {
+    $stockService = new ProductWarehouseStockService();
+
+    foreach ($purchaseOrder->items as $item) {
+      // Only process items with product_id
+      if ($item->product_id) {
+        $stockService->addInTransitStock(
+          $item->product_id,
+          $purchaseOrder->warehouse_id,
+          $item->quantity
+        );
+      }
+    }
+  }
+
+  /**
+   * Update quantity_in_transit when updating a purchase order with type_operation_id = TIPO_OPERACION_POSTVENTA
+   * @param PurchaseOrder $purchaseOrder
+   * @param array $oldItems
+   * @param array $newItems
+   * @return void
+   * @throws Exception
+   */
+  protected function updateInTransitStockOnUpdate(PurchaseOrder $purchaseOrder, array $oldItems, array $newItems): void
+  {
+    $stockService = new ProductWarehouseStockService();
+
+    // Create a map of old items by product_id
+    $oldItemsMap = [];
+    foreach ($oldItems as $oldItem) {
+      if ($oldItem->product_id) {
+        $oldItemsMap[$oldItem->product_id] = $oldItem->quantity;
+      }
+    }
+
+    // Create a map of new items by product_id
+    $newItemsMap = [];
+    foreach ($newItems as $newItem) {
+      if (isset($newItem['product_id']) && $newItem['product_id']) {
+        $newItemsMap[$newItem['product_id']] = $newItem['quantity'];
+      }
+    }
+
+    // Update stock for each product
+    $allProductIds = array_unique(array_merge(array_keys($oldItemsMap), array_keys($newItemsMap)));
+
+    foreach ($allProductIds as $productId) {
+      $oldQuantity = $oldItemsMap[$productId] ?? 0;
+      $newQuantity = $newItemsMap[$productId] ?? 0;
+
+      if ($oldQuantity != $newQuantity) {
+        $stockService->updateInTransitStock(
+          $productId,
+          $purchaseOrder->warehouse_id,
+          $oldQuantity,
+          $newQuantity
+        );
+      }
+    }
+  }
+
+  /**
+   * Remove quantity_in_transit when destroying a purchase order with type_operation_id = TIPO_OPERACION_POSTVENTA
+   * @param PurchaseOrder $purchaseOrder
+   * @return void
+   * @throws Exception
+   */
+  protected function removeInTransitStockOnDestroy(PurchaseOrder $purchaseOrder): void
+  {
+    $stockService = new ProductWarehouseStockService();
+
+    foreach ($purchaseOrder->items as $item) {
+      // Only process items with product_id
+      if ($item->product_id) {
+        $stockService->removeInTransitStock(
+          $item->product_id,
+          $purchaseOrder->warehouse_id,
+          $item->quantity
+        );
+      }
+    }
+  }
+
+  /**
+   * Validate that products exist in warehouse stock before creating purchase order
+   * Only for TIPO_OPERACION_POSTVENTA orders
+   * @param array $items
+   * @param int $warehouseId
+   * @return void
+   * @throws Exception
+   */
+  protected function validateProductsInWarehouse(array $items, int $warehouseId): void
+  {
+    $stockService = new ProductWarehouseStockService();
+    $missingProducts = [];
+
+    foreach ($items as $item) {
+      // Only validate items with product_id (skip vehicles or items without product)
+      if (isset($item['product_id']) && $item['product_id']) {
+        $stock = $stockService->getStock($item['product_id'], $warehouseId);
+
+        if (!$stock) {
+          $missingProducts[] = "Producto ID {$item['product_id']}";
+        }
+      }
+    }
+
+    if (!empty($missingProducts)) {
+      throw new Exception(
+        'Los siguientes productos no están registrados en el almacén seleccionado. ' .
+        'Debe registrarlos primero en product_warehouse_stock: ' .
+        implode(', ', $missingProducts)
+      );
     }
   }
 

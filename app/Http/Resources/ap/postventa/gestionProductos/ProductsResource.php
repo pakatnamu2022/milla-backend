@@ -52,7 +52,6 @@ class ProductsResource extends JsonResource
       'category' => new ProductCategoryResource($this->whenLoaded('category')),
       'brand' => new ApVehicleBrandResource($this->whenLoaded('brand')),
       'unit_measurement' => new UnitMeasurementResource($this->whenLoaded('unitMeasurement')),
-      'warehouse' => new WarehouseResource($this->whenLoaded('warehouse')),
     ];
   }
 }

@@ -67,6 +67,7 @@ class PurchaseOrderResource extends JsonResource
       'receipt_dynamics' => $this->receipt_dynamics,
       'credit_note_dynamics' => $this->credit_note_dynamics,
       'vehicleMovement' => VehicleMovementResource::make($this->vehicleMovement),
+      'has_receptions' => $this->hasActiveReceptions(),
 
       // Fechas
       'migrated_at' => $this->migrated_at?->format('Y-m-d H:i:s'),
