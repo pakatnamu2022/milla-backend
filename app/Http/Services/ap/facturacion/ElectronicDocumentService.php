@@ -540,16 +540,27 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   public function preCancelInNubefact($id): array
   {
     $document = $this->find($id);
-    $documentDynamics = DB::connection('dbtest')
+
+    $documentDynamics30200 = DB::connection('dbtest')
       ->table('SOP30200')
       ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
       ->first();
-    if (!$documentDynamics) {
-      throw new Exception('Documento no encontrado en Dynamics');
+
+    if (!$documentDynamics30200) {
+      $documentDynamics10100 = DB::connection('dbtest')
+        ->table('SOP10100')
+        ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
+        ->first();
+
+      if (!$documentDynamics10100) {
+        throw new Exception('No se encontró el documento en Dynamics para pre-anulación');
+      } else {
+        throw new Exception('El documento está en trabajo pendiente en Dynamics y no puede ser anulado');
+      }
     }
 
     return [
-      'active' => $documentDynamics->VOIDSTTS == "0",
+      'annulled' => $documentDynamics30200->VOIDSTTS == "1",
     ];
   }
 
