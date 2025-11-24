@@ -78,17 +78,11 @@ class SyncSalesDocumentJob implements ShouldQueue
     // 1. Sincronizar cliente (si no existe en Dynamics)
     $this->syncClient($document, $syncService);
 
-    // 2. Sincronizar artículos de los items
-//    $this->syncArticles($document, $syncService);
+    // 2. Sincronizar detalle de venta (incluyendo anticipos con valores negativos)
+    $this->syncSalesDocumentDetail($document, $syncService);
 
     // 3. Sincronizar documento de venta (cabecera)
     $this->syncSalesDocument($document, $syncService);
-
-    // 4. Sincronizar detalle de venta (incluyendo anticipos con valores negativos)
-    $this->syncSalesDocumentDetail($document, $syncService);
-
-    // 5. Sincronizar series (VIN) si existen
-//    $this->syncSalesDocumentSerial($document, $syncService);
   }
 
   /**
@@ -158,55 +152,6 @@ class SyncSalesDocumentJob implements ShouldQueue
   }
 
   /**
-   * Sincroniza los artículos de los items del documento
-   */
-  protected function syncArticles(ElectronicDocument $document, DatabaseSyncService $syncService): void
-  {
-    foreach ($document->items as $item) {
-      $codigo = $item->accountPlan->code_dynamics;
-
-      $log = $this->getOrCreateLog(
-        $document->id,
-        VehiclePurchaseOrderMigrationLog::STEP_SALES_ARTICLE,
-        VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_SALES_ARTICLE],
-        $codigo,
-        null,
-        $codigo
-      );
-
-      if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-        continue;
-      }
-
-      try {
-        // Verificar si el artículo ya existe en la BD intermedia
-        $existingArticle = DB::connection('dbtp')
-          ->table('neInTbArticulo')
-          ->where('EmpresaId', Company::AP_DYNAMICS)
-          ->where('Articulo', $codigo)
-          ->first();
-
-        if ($existingArticle) {
-          $log->updateProcesoEstado(
-            $existingArticle->ProcesoEstado ?? 0,
-            $existingArticle->ProcesoError ?? null
-          );
-          continue;
-        } else {
-          $log->markAsFailed('Artículo no encontrado en Dynamics: ' . $codigo);
-        }
-      } catch (\Exception $e) {
-        $log->markAsFailed($e->getMessage());
-        Log::error('Error al verificar artículo', [
-          'document_id' => $document->id,
-          'article_code' => $codigo,
-          'error' => $e->getMessage(),
-        ]);
-      }
-    }
-  }
-
-  /**
    * Sincroniza la cabecera del documento de venta
    */
   protected function syncSalesDocument(ElectronicDocument $document, DatabaseSyncService $syncService): void
@@ -217,6 +162,13 @@ class SyncSalesDocumentJob implements ShouldQueue
       $document->id,
       VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT,
       VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT],
+      $documentoId
+    );
+
+    $detailLog = $this->getOrCreateLog(
+      $document->id,
+      VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT_DETAIL,
+      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT_DETAIL],
       $documentoId
     );
 
@@ -249,13 +201,13 @@ class SyncSalesDocumentJob implements ShouldQueue
       try {
         $log->markAsInProgress();
 
-        // Transformar documento usando el Resource
-        $resource = new SalesDocumentDynamicsResource($document);
-        $data = $resource->toArray(request());
-
-        $syncService->sync('sales_document', $data);
-        $log->updateProcesoEstado(0);
-
+        if ($detailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+          // Transformar documento usando el Resource
+          $resource = new SalesDocumentDynamicsResource($document);
+          $data = $resource->toArray(request());
+          $syncService->sync('sales_document', $data);
+          $log->updateProcesoEstado(0);
+        }
       } catch (\Exception $e) {
         $log->markAsFailed($e->getMessage());
         Log::error('Error al sincronizar documento de venta', [
@@ -264,14 +216,14 @@ class SyncSalesDocumentJob implements ShouldQueue
         ]);
         throw $e;
       }
-    } else {
+    } else if ($detailLog) {
       // Existe, actualizar el estado del log
       $log->updateProcesoEstado(
         $existingDocument->ProcesoEstado ?? 0,
         $existingDocument->ProcesoError ?? null
       );
 
-      if ($existingDocument->ProcesoEstado) {
+      if ($existingDocument->ProcesoEstado === 1 && $detailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
         $log->markAsCompletedElectronicDocument();
       }
     }
@@ -327,84 +279,6 @@ class SyncSalesDocumentJob implements ShouldQueue
     } else {
       // Existe, actualizar el estado del log
       $log->markAsCompleted(1);
-    }
-  }
-
-  /**
-   * Sincroniza las series (VIN) del documento de venta
-   */
-  protected function syncSalesDocumentSerial(ElectronicDocument $document, DatabaseSyncService $syncService): void
-  {
-    // Solo sincronizar series si el documento está relacionado con vehículos
-    if (!$document->vehicleMovement?->vehicle) {
-      return;
-    }
-
-    $documentoId = $document->full_number;
-    $vehicleId = $document->vehicleMovement->vehicle->id ?? null;
-
-    $log = $this->getOrCreateLog(
-      $document->id,
-      VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT_SERIAL,
-      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT_SERIAL],
-      $documentoId,
-      $vehicleId
-    );
-
-    if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-      return;
-    }
-
-    // Verificar que el detalle del documento esté procesado primero
-    $detailLog = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $document->id)
-      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT_DETAIL)
-      ->first();
-
-    if (!$detailLog || $detailLog->proceso_estado !== 1) {
-      Log::info('Esperando que el detalle sea procesado antes de sincronizar series', [
-        'document_id' => $document->id,
-        'detail_log_status' => $detailLog?->proceso_estado
-      ]);
-      return;
-    }
-
-    // Verificar en la BD intermedia si ya existe la serie
-    $existingSerial = DB::connection('dbtp')
-      ->table('neInTbVentaDtS')
-      ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('DocumentoId', $documentoId)
-      ->first();
-
-    if (!$existingSerial) {
-      // No existe, intentar sincronizar
-      try {
-        $log->markAsInProgress();
-
-        $vehicle = $document->vehicleMovement->vehicle;
-
-        foreach ($document->items as $index => $item) {
-          // Crear resource para la serie (VIN)
-          $resource = new SalesDocumentSerialDynamicsResource($document);
-          $data = $resource->toArray(request());
-
-          $syncService->sync('sales_document_serial', $data);
-        }
-
-        $log->updateProcesoEstado(0);
-      } catch (\Exception $e) {
-        $log->markAsFailed($e->getMessage());
-        Log::error('Error al sincronizar serie de venta', [
-          'document_id' => $document->id,
-          'error' => $e->getMessage(),
-        ]);
-        throw $e;
-      }
-    } else {
-      // Existe, actualizar el estado del log
-      $log->updateProcesoEstado(
-        $existingSerial->ProcesoEstado ?? 0,
-        $existingSerial->ProcesoError ?? null
-      );
     }
   }
 

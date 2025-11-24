@@ -57,7 +57,7 @@ class SalesDocumentDynamicsResource extends JsonResource
     $apAnticipo = $this->is_advance_payment;
 
     // Sitio predeterminado (almacén)
-    $sitioPredeterminadoId = 'ALM-CM-CIX'; // TODO: Obtener del contexto si es necesario
+    $sitioPredeterminadoId = $this->warehouse() ?? throw new Exception('El documento no tiene un almacén asociado.');
 
     // Territorio y Vendedor (pueden venir de la cotización o datos del cliente)
     $territorioId = ''; // TODO: Mapear según lógica de negocio
@@ -88,7 +88,7 @@ class SalesDocumentDynamicsResource extends JsonResource
       'SitioPredeterminadoId' => $sitioPredeterminadoId,
       'UsuarioId' => 'USUGP',
       'Procesar' => 1,
-      'ProcesoEstado' => 0, // TODO: es 0
+      'ProcesoEstado' => 0,
       'ProcesoError' => '',
       'FechaProceso' => '',
       'Total' => (float)$this->total ?? throw new Exception('El documento no tiene total definido.'),
