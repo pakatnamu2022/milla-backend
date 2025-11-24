@@ -30,6 +30,7 @@ class InventoryMovement extends Model
     'notes',
     'total_items',
     'total_quantity',
+    'reason_in_out_id'
   ];
 
   protected $casts = [
@@ -40,12 +41,13 @@ class InventoryMovement extends Model
 
   const filters = [
     'search' => ['movement_number'],
-    'movement_type' => '=',
+    'movement_type' => 'in',
     'movement_date' => '=',
     'warehouse_id' => '=',
     'warehouse_destination_id' => '=',
     'status' => '=',
     'user_id' => '=',
+    'reason_in_out_id' => '=',
   ];
 
   const sorts = [
@@ -64,8 +66,6 @@ class InventoryMovement extends Model
   const TYPE_TRANSFER_IN = 'TRANSFER_IN';
   const TYPE_RETURN_IN = 'RETURN_IN';
   const TYPE_RETURN_OUT = 'RETURN_OUT';
-  const TYPE_LOSS = 'LOSS';
-  const TYPE_DAMAGE = 'DAMAGE';
 
   // Status
   const STATUS_DRAFT = 'DRAFT';
@@ -209,7 +209,8 @@ class InventoryMovement extends Model
   public static function generateMovementNumber(): string
   {
     $year = date('Y');
-    $lastMovement = self::where('movement_number', 'LIKE', "MOV-{$year}-%")
+    $lastMovement = self::withTrashed()
+      ->where('movement_number', 'LIKE', "MOV-{$year}-%")
       ->orderBy('movement_number', 'desc')
       ->first();
 

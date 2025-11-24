@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ap\postventa\gestionProductos;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ap\postventa\gestionProductos\IndexInventoryMovementRequest;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use Exception;
@@ -13,59 +14,23 @@ use Illuminate\Support\Facades\Validator;
 class InventoryMovementController extends Controller
 {
   protected $inventoryMovementService;
+  protected InventoryMovementService $service;
 
-  public function __construct()
+  public function __construct(InventoryMovementService $service)
   {
     $this->inventoryMovementService = new InventoryMovementService();
+    $this->service = $service;
   }
 
   /**
-   * List inventory movements with filters
-   *
-   * @param Request $request
-   * @return JsonResponse
+   * Display a listing of purchase receptions
    */
-  public function index(Request $request): JsonResponse
+  public function index(IndexInventoryMovementRequest $request)
   {
     try {
-      $query = InventoryMovement::with(['warehouse', 'user', 'details.product']);
-
-      // Apply filters
-      if ($request->has('warehouse_id')) {
-        $query->where('warehouse_id', $request->warehouse_id);
-      }
-
-      if ($request->has('movement_type')) {
-        $query->where('movement_type', $request->movement_type);
-      }
-
-      if ($request->has('status')) {
-        $query->where('status', $request->status);
-      }
-
-      if ($request->has('date_from')) {
-        $query->whereDate('movement_date', '>=', $request->date_from);
-      }
-
-      if ($request->has('date_to')) {
-        $query->whereDate('movement_date', '<=', $request->date_to);
-      }
-
-      // Apply sorting
-      $sortBy = $request->get('sort_by', 'created_at');
-      $sortOrder = $request->get('sort_order', 'desc');
-      $query->orderBy($sortBy, $sortOrder);
-
-      // Paginate
-      $perPage = $request->get('per_page', 15);
-      $movements = $query->paginate($perPage);
-
-      return response()->json($movements);
-    } catch (Exception $e) {
-      return response()->json([
-        'message' => 'Error al obtener movimientos de inventario',
-        'error' => $e->getMessage()
-      ], 500);
+      return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
   }
 
@@ -105,8 +70,9 @@ class InventoryMovementController extends Controller
   {
     // Validate request
     $validator = Validator::make($request->all(), [
-      'movement_type' => 'required|in:ADJUSTMENT_IN,ADJUSTMENT_OUT,LOSS,DAMAGE',
+      'movement_type' => 'required|in:ADJUSTMENT_IN,ADJUSTMENT_OUT',
       'warehouse_id' => 'required|exists:warehouse,id',
+      'reason_in_out_id' => 'nullable|exists:ap_post_venta_masters,id',
       'movement_date' => 'nullable|date',
       'notes' => 'nullable|string|max:1000',
       'details' => 'required|array|min:1',
@@ -141,50 +107,5 @@ class InventoryMovementController extends Controller
         'error' => $e->getMessage()
       ], 500);
     }
-  }
-
-  /**
-   * Get movement types available
-   *
-   * @return JsonResponse
-   */
-  public function getMovementTypes(): JsonResponse
-  {
-    return response()->json([
-      'adjustment_types' => [
-        [
-          'value' => InventoryMovement::TYPE_LOSS,
-          'label' => 'Pérdida',
-          'description' => 'Productos perdidos (robo, extravío)'
-        ],
-        [
-          'value' => InventoryMovement::TYPE_DAMAGE,
-          'label' => 'Daño',
-          'description' => 'Productos dañados o defectuosos'
-        ],
-        [
-          'value' => InventoryMovement::TYPE_ADJUSTMENT_OUT,
-          'label' => 'Ajuste Negativo',
-          'description' => 'Disminución manual de inventario'
-        ],
-        [
-          'value' => InventoryMovement::TYPE_ADJUSTMENT_IN,
-          'label' => 'Ajuste Positivo',
-          'description' => 'Aumento manual de inventario (stock encontrado)'
-        ],
-      ],
-      'all_types' => [
-        ['value' => InventoryMovement::TYPE_PURCHASE_RECEPTION, 'label' => 'Recepción de Compra'],
-        ['value' => InventoryMovement::TYPE_SALE, 'label' => 'Venta'],
-        ['value' => InventoryMovement::TYPE_ADJUSTMENT_IN, 'label' => 'Ajuste Positivo'],
-        ['value' => InventoryMovement::TYPE_ADJUSTMENT_OUT, 'label' => 'Ajuste Negativo'],
-        ['value' => InventoryMovement::TYPE_TRANSFER_OUT, 'label' => 'Transferencia Salida'],
-        ['value' => InventoryMovement::TYPE_TRANSFER_IN, 'label' => 'Transferencia Entrada'],
-        ['value' => InventoryMovement::TYPE_RETURN_IN, 'label' => 'Devolución Entrada'],
-        ['value' => InventoryMovement::TYPE_RETURN_OUT, 'label' => 'Devolución Salida'],
-        ['value' => InventoryMovement::TYPE_LOSS, 'label' => 'Pérdida'],
-        ['value' => InventoryMovement::TYPE_DAMAGE, 'label' => 'Daño'],
-      ]
-    ]);
   }
 }

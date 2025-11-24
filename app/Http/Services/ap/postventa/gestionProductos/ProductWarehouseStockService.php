@@ -214,6 +214,38 @@ class ProductWarehouseStockService
   }
 
   /**
+   * Remove quantity from pending credit note (when reception is deleted)
+   *
+   * @param int $productId
+   * @param int $warehouseId
+   * @param float $quantity
+   * @return ProductWarehouseStock
+   * @throws Exception
+   */
+  public function removePendingCreditNote(int $productId, int $warehouseId, float $quantity): ProductWarehouseStock
+  {
+    DB::beginTransaction();
+    try {
+      $stock = ProductWarehouseStock::where('product_id', $productId)
+        ->where('warehouse_id', $warehouseId)
+        ->firstOrFail();
+
+      // Remove from pending credit note
+      $stock->quantity_pending_credit_note -= $quantity;
+      if ($stock->quantity_pending_credit_note < 0) {
+        $stock->quantity_pending_credit_note = 0;
+      }
+      $stock->save();
+
+      DB::commit();
+      return $stock;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw new Exception("No se encontró registro de stock para el producto ID {$productId} en el almacén ID {$warehouseId}");
+    }
+  }
+
+  /**
    * Remove stock from warehouse
    *
    * @param int $productId

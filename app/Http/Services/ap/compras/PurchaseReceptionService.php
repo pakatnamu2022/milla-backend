@@ -11,6 +11,7 @@ use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseOrderItem;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
+use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -145,11 +146,6 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     try {
       $reception = $this->find($data['id']);
 
-      // Only allow update if status is INCOMPLETE
-      if (!in_array($reception->status, ['INCOMPLETE'])) {
-        throw new Exception('Solo se pueden modificar recepciones con estado INCOMPLETE');
-      }
-
       $purchaseOrder = $reception->purchaseOrder;
 
       // VALIDACIÓN: La fecha de recepción no puede ser anterior a la fecha de emisión de la orden
@@ -160,62 +156,8 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         }
       }
 
-      // If details are being updated, validate and recalculate
-      if (isset($data['details'])) {
-        $details = $data['details'];
-        unset($data['details']);
-
-        // Delete existing details
-        $reception->details()->delete();
-
-        // Process new details
-        $totalItems = 0;
-        $totalQuantity = 0;
-        $allItemsFullyReceived = true;
-
-        foreach ($details as $detail) {
-          // Validate detail
-          $this->validateReceptionDetail($detail, $purchaseOrder);
-
-          // Set reception id
-          $detail['purchase_reception_id'] = $reception->id;
-
-          // Create detail
-          PurchaseReceptionDetail::create($detail);
-
-          $totalItems++;
-          $totalQuantity += $detail['quantity_received'];
-
-          // Check if ALL OC items are fully received
-          if ($detail['reception_type'] === 'ORDERED' && $detail['purchase_order_item_id']) {
-            $orderItem = PurchaseOrderItem::find($detail['purchase_order_item_id']);
-            if ($orderItem) {
-              // quantity_received already contains only good items
-              $quantityReceived = $detail['quantity_received'];
-              $totalReceivedNow = $orderItem->quantity_received + $quantityReceived;
-
-              if ($totalReceivedNow < $orderItem->quantity) {
-                $allItemsFullyReceived = false;
-              }
-            }
-          }
-        }
-
-        // Update totals
-        $data['total_items'] = $totalItems;
-        $data['total_quantity'] = $totalQuantity;
-
-        // CÁLCULO AUTOMÁTICO DE STATUS
-        $status = $allItemsFullyReceived ? 'APPROVED' : 'INCOMPLETE';
-        $data['status'] = $status;
-      }
-
+      // Update only reception header fields
       $reception->update($data);
-
-      // Si el status cambió a APPROVED, procesar
-      if (isset($data['status']) && $data['status'] === 'APPROVED') {
-        $this->processReception($reception->fresh(['details']));
-      }
 
       DB::commit();
       return new PurchaseReceptionResource($reception->fresh([
@@ -236,15 +178,71 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     try {
       $reception = $this->find($id);
 
-      // Only allow delete if status is INCOMPLETE
-      if ($reception->status !== 'INCOMPLETE') {
-        throw new Exception('Solo se pueden eliminar recepciones con estado INCOMPLETE');
+      // IMPORTANTE: Revertir los cambios antes de eliminar
+      $stockService = new ProductWarehouseStockService();
+
+      foreach ($reception->details as $detail) {
+        $quantityReceived = $detail->quantity_received;
+        $observedQuantity = $detail->observed_quantity ?? 0;
+        $totalProcessed = $quantityReceived + $observedQuantity;
+
+        // Revertir stock físico (quantity) - para TODOS los tipos
+        if ($quantityReceived > 0) {
+          $stockService->removeStock(
+            $detail->product_id,
+            $reception->warehouse_id,
+            $quantityReceived
+          );
+        }
+
+        // Solo revertir PurchaseOrderItem para items de tipo ORDERED
+        if ($detail->reception_type === 'ORDERED' && $detail->purchase_order_item_id) {
+          $orderItem = PurchaseOrderItem::find($detail->purchase_order_item_id);
+          if ($orderItem) {
+            // Revertir quantity_received en PurchaseOrderItem
+            $orderItem->quantity_received -= $quantityReceived;
+            $orderItem->quantity_pending = $orderItem->quantity - $orderItem->quantity_received;
+            $orderItem->save();
+
+            // Revertir quantity_pending_credit_note si había observaciones
+            if ($observedQuantity > 0) {
+              $stockService->removePendingCreditNote(
+                $detail->product_id,
+                $reception->warehouse_id,
+                $observedQuantity
+              );
+            }
+
+            // Volver a agregar a quantity_in_transit
+            $stockService->addInTransitStock(
+              $detail->product_id,
+              $reception->warehouse_id,
+              $totalProcessed
+            );
+          }
+        }
       }
 
+      // Delete associated inventory movements and details
+      $inventoryMovements = InventoryMovement::where('reference_type', PurchaseReception::class)
+        ->where('reference_id', $reception->id)
+        ->get();
+
+      foreach ($inventoryMovements as $movement) {
+        // Delete movement details first (soft delete)
+        $movement->details()->delete();
+        // Delete movement (soft delete)
+        $movement->delete();
+      }
+
+      // Delete all details first (soft delete)
+      $reception->details()->delete();
+
+      // Delete reception (soft delete)
       $reception->delete();
 
       DB::commit();
-      return response()->json(['message' => 'Recepción eliminada correctamente']);
+      return response()->json(['message' => 'Recepción eliminada correctamente. Se han revertido todas las cantidades y movimientos de inventario.']);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -358,7 +356,8 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
   protected function generateReceptionNumber()
   {
     $year = date('Y');
-    $lastReception = PurchaseReception::whereYear('created_at', $year)
+    $lastReception = PurchaseReception::withTrashed()
+      ->whereYear('created_at', $year)
       ->orderBy('id', 'desc')
       ->first();
 

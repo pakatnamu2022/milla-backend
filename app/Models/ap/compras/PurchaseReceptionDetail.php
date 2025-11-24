@@ -6,6 +6,7 @@ use App\Models\ap\postventa\gestionProductos\Products;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class PurchaseReceptionDetail extends Model
 {
@@ -33,6 +34,11 @@ class PurchaseReceptionDetail extends Model
     'observed_quantity' => 'decimal:2',
     'expiration_date' => 'date',
   ];
+
+  public function setObservationNotesAttribute($value)
+  {
+    $this->attributes['observation_notes'] = Str::upper($value);
+  }
 
   // Relationships
   public function reception(): BelongsTo

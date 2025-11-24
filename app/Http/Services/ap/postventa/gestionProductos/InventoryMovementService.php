@@ -2,20 +2,34 @@
 
 namespace App\Http\Services\ap\postventa\gestionProductos;
 
+use App\Http\Resources\ap\postventa\gestionProductos\InventoryMovementResource;
+use App\Http\Services\BaseService;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
 use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 
-class InventoryMovementService
+class InventoryMovementService extends BaseService
 {
   protected $stockService;
 
   public function __construct()
   {
     $this->stockService = new ProductWarehouseStockService();
+  }
+
+  public function list(Request $request)
+  {
+    return $this->getFilteredResults(
+      InventoryMovement::class,
+      $request,
+      InventoryMovement::filters,
+      InventoryMovement::sorts,
+      InventoryMovementResource::class,
+    );
   }
 
   /**
@@ -105,8 +119,6 @@ class InventoryMovementService
       $validTypes = [
         InventoryMovement::TYPE_ADJUSTMENT_IN,
         InventoryMovement::TYPE_ADJUSTMENT_OUT,
-        InventoryMovement::TYPE_LOSS,
-        InventoryMovement::TYPE_DAMAGE,
       ];
 
       if (!in_array($data['movement_type'], $validTypes)) {
@@ -129,6 +141,7 @@ class InventoryMovementService
         'movement_type' => $data['movement_type'],
         'movement_date' => $data['movement_date'] ?? now(),
         'warehouse_id' => $data['warehouse_id'],
+        'reason_in_out_id' => $data['reason_in_out_id'] ?? null,
         'reference_type' => null,
         'reference_id' => null,
         'user_id' => Auth::id(),
@@ -146,16 +159,22 @@ class InventoryMovementService
         // Validate product exists in warehouse
         $stock = $this->stockService->getStock($detail['product_id'], $data['warehouse_id']);
 
-        // For outbound movements (loss, damage, adjustment_out), validate sufficient stock
+        // For outbound movements (adjustment_out), validate sufficient stock
         if (in_array($data['movement_type'], [
           InventoryMovement::TYPE_ADJUSTMENT_OUT,
-          InventoryMovement::TYPE_LOSS,
-          InventoryMovement::TYPE_DAMAGE
         ])) {
-          if ($stock < $detail['quantity']) {
+          // Check if stock exists
+          if (!$stock) {
+            throw new Exception(
+              "No se encontró registro de stock para el producto ID {$detail['product_id']} en el almacén especificado"
+            );
+          }
+
+          // Validate sufficient available quantity
+          if ($stock->available_quantity < $detail['quantity']) {
             throw new Exception(
               "Stock insuficiente para producto ID {$detail['product_id']}. " .
-              "Stock disponible: {$stock}, Cantidad solicitada: {$detail['quantity']}"
+              "Stock disponible: {$stock->available_quantity}, Cantidad solicitada: {$detail['quantity']}"
             );
           }
         }
@@ -201,8 +220,6 @@ class InventoryMovementService
   private function getDefaultNotes(string $movementType): string
   {
     $notes = [
-      InventoryMovement::TYPE_LOSS => 'Regularización por pérdida de productos',
-      InventoryMovement::TYPE_DAMAGE => 'Regularización por productos dañados',
       InventoryMovement::TYPE_ADJUSTMENT_OUT => 'Ajuste negativo de inventario',
       InventoryMovement::TYPE_ADJUSTMENT_IN => 'Ajuste positivo de inventario',
     ];

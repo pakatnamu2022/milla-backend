@@ -9,33 +9,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class PurchaseReceptionResource extends JsonResource
 {
-  /**
-   * Traducciones para reception_type
-   */
-  private function translateReceptionType(?string $type): ?string
-  {
-    $translations = [
-      'COMPLETE' => 'Completa',
-      'PARTIAL' => 'Parcial',
-    ];
-
-    return $type ? ($translations[$type] ?? $type) : null;
-  }
-
-  /**
-   * Traducciones para status
-   */
-  private function translateStatus(?string $status): ?string
-  {
-    $translations = [
-      'APPROVED' => 'Aprobado',
-      'PARTIAL' => 'Parcial',
-      'INCOMPLETE' => 'Incompleto',
-    ];
-
-    return $status ? ($translations[$status] ?? $status) : null;
-  }
-
   public function toArray(Request $request): array
   {
     return [
@@ -43,7 +16,7 @@ class PurchaseReceptionResource extends JsonResource
       'reception_number' => $this->reception_number,
       'reception_date' => $this->reception_date->format('Y-m-d'),
       'shipping_guide_number' => $this->shipping_guide_number,
-      'reception_type' => $this->translateReceptionType($this->reception_type),
+      'reception_type' => $this->reception_type,
       'notes' => $this->notes ?? "",
       'received_by' => $this->received_by,
       'received_by_user_name' => $this->receivedByUser ? $this->receivedByUser->name : null,
@@ -51,7 +24,7 @@ class PurchaseReceptionResource extends JsonResource
       'total_quantity' => $this->total_quantity,
       'purchase_order_id' => $this->purchase_order_id,
       'warehouse_id' => $this->warehouse_id,
-      'status' => $this->translateStatus($this->status),
+      'status' => $this->status,
 
       // Relationships
       'purchase_order' => new PurchaseOrderResource($this->purchaseOrder),

@@ -68,6 +68,11 @@ class PurchaseReception extends BaseModel
     $this->attributes['shipping_guide_number'] = $value ? Str::upper(Str::ascii($value)) : null;
   }
 
+  public function setNotesAttribute($value)
+  {
+    $this->attributes['notes'] = Str::upper($value);
+  }
+
   // Relationships
   public function purchaseOrder(): BelongsTo
   {

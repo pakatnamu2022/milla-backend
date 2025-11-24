@@ -9,7 +9,6 @@ class IndexApPostVentaMastersRequest extends IndexRequest
   public function rules(): array
   {
     return [
-      'type' => ['nullable', 'string'],
     ];
   }
 }

@@ -20,8 +20,8 @@ class ApPostVentaMasters extends Model
   ];
 
   const filters = [
-    'search' => ['code', 'description', 'type'],
-    'type' => '=',
+    'search' => ['code', 'description'],
+    'type' => 'in',
     'status' => '=',
   ];
 
