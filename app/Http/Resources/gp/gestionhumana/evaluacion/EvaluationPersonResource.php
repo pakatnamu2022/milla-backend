@@ -13,6 +13,8 @@ class EvaluationPersonResource extends JsonResource
     return [
       'id' => $this->id,
       'person' => $this->person->nombre_completo,
+      'chief' => $this->chief,
+      'chief_id' => $this->chief_id,
       'personCycleDetail' => new EvaluationPersonCycleDetailResource($this->personCycleDetail),
       'evaluation' => $this->evaluation->name,
       'result' => round($this->result, 2),

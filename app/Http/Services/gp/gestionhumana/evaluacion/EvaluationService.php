@@ -750,7 +750,7 @@ class EvaluationService extends BaseService
       $objectivesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->objectivesPercentage : 0;
       $competencesPercentage = $evaluation->typeEvaluation == 0 ? 0 : $evaluation->competencesPercentage;
 
-      $evaluator = ($person->evaluator ?? $person->boss) ?? throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $person->position->hierarchicalCategory->name . ' no tiene un evaluador asignado.');
+      $evaluator = $person->evaluator ?? throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $person->position->hierarchicalCategory->name . ' no tiene un evaluador asignado.');
 
       EvaluationPersonResult::create([
         'person_id' => $person->id,
