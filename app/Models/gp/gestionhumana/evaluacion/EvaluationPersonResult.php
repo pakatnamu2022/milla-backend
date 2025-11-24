@@ -443,7 +443,7 @@ class EvaluationPersonResult extends BaseModel
         $validEvaluations = 0;
 
         foreach ($evaluationsByType as $evaluatorType => $typeEvaluations) {
-          $completedEvaluations = $typeEvaluations->filter(function($eval) {
+          $completedEvaluations = $typeEvaluations->filter(function ($eval) {
             return floatval($eval->result) > 0;
           });
 
@@ -458,7 +458,7 @@ class EvaluationPersonResult extends BaseModel
 
         // Calcular completion basándose en los tipos únicos que existen
         $uniqueEvaluatorTypes = $evaluations->pluck('evaluatorType')->unique()->count();
-        $completedTypes = $evaluationsByType->filter(function($typeEvals) {
+        $completedTypes = $evaluationsByType->filter(function ($typeEvals) {
           return $typeEvals->filter(fn($e) => floatval($e->result) > 0)->isNotEmpty();
         })->count();
 

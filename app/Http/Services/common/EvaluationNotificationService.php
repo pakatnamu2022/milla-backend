@@ -242,6 +242,15 @@ class EvaluationNotificationService
         ];
       }
 
+      if ($evaluation->send_opened_email) {
+        return [
+          'success' => false,
+          'error' => 'El correo de apertura ya fue enviado para esta evaluación',
+          'total_sent' => 0,
+          'results' => []
+        ];
+      }
+
       $leaders = $this->getLeadersForEvaluation($evaluation);
       $results = [];
       $allSuccessful = true; // Bandera para verificar si todos se enviaron
@@ -412,6 +421,15 @@ class EvaluationNotificationService
         return [
           'success' => false,
           'error' => 'Evaluación no encontrada',
+          'total_sent' => 0,
+          'results' => []
+        ];
+      }
+
+      if ($evaluation->send_closed_email) {
+        return [
+          'success' => false,
+          'error' => 'El correo de cierre ya fue enviado para esta evaluación',
           'total_sent' => 0,
           'results' => []
         ];

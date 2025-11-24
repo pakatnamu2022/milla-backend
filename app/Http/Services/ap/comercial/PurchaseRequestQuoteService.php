@@ -80,6 +80,8 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       // Guardar bonus_discounts en DiscountCoupons
       if (isset($data['bonus_discounts']) && is_array($data['bonus_discounts'])) {
         $this->saveBonusDiscounts($purchaseRequestQuote->id, $data['bonus_discounts'], $data['sale_price']);
+        // Aplicar descuentos negativos al sale_price
+        $this->applyNegativeDiscounts($purchaseRequestQuote->id);
       }
 
       // Guardar accessories en DetailsApprovedAccessoriesQuote
@@ -118,6 +120,8 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         if (is_array($data['bonus_discounts']) && count($data['bonus_discounts']) > 0) {
           $salePrice = $data['sale_price'];
           $this->saveBonusDiscounts($purchaseRequestQuote->id, $data['bonus_discounts'], $salePrice);
+          // Aplicar descuentos negativos al sale_price
+          $this->applyNegativeDiscounts($purchaseRequestQuote->id);
         }
       }
 
@@ -306,15 +310,28 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     foreach ($bonusDiscounts as $discount) {
       $percentage = 0;
       $amount = 0;
+      $precioUnitario = 0;
+      $valorUnitario = 0;
+      $igv = 0;
 
       if ($discount['type'] === 'FIJO') {
         // Si es monto fijo, guardar en amount y calcular el porcentaje
         $amount = $discount['value'];
         $percentage = ($salePrice > 0) ? ($amount / $salePrice) * 100 : 0;
+
+        // Calcular IGV y valores unitarios
+        $precioUnitario = $amount; // El valor ingresado ya incluye IGV
+        $valorUnitario = $precioUnitario / 1.18;
+        $igv = $precioUnitario - $valorUnitario;
       } elseif ($discount['type'] === 'PORCENTAJE') {
         // Si es porcentaje, guardar en percentage y calcular el monto
         $percentage = $discount['value'];
         $amount = ($salePrice * $percentage) / 100;
+
+        // Calcular IGV y valores unitarios
+        $precioUnitario = $amount; // El monto calculado incluye IGV
+        $valorUnitario = $precioUnitario / 1.18;
+        $igv = $precioUnitario - $valorUnitario;
       }
 
       DiscountCoupons::create([
@@ -322,10 +339,39 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'type' => $discount['type'],
         'percentage' => $percentage,
         'amount' => $amount,
+        'igv' => $igv,
+        'valor_unitario' => $valorUnitario,
+        'precio_unitario' => $precioUnitario,
+        'is_negative' => $discount['is_negative'] ?? false,
         'concept_code_id' => $discount['concept_id'],
         'purchase_request_quote_id' => $purchaseRequestQuoteId,
       ]);
     }
+  }
+
+  /**
+   * Aplica los descuentos negativos al sale_price del PurchaseRequestQuote
+   */
+  private function applyNegativeDiscounts($purchaseRequestQuoteId)
+  {
+    // Obtener todos los descuentos con is_negative = true
+    $negativeDiscounts = DiscountCoupons::where('purchase_request_quote_id', $purchaseRequestQuoteId)
+      ->where('is_negative', true)
+      ->get();
+
+    // Si no hay descuentos negativos, no hacer nada
+    if ($negativeDiscounts->isEmpty()) {
+      return;
+    }
+
+    // Sumar todos los montos de descuentos negativos
+    $totalDiscount = $negativeDiscounts->sum('precio_unitario');
+
+    // Obtener el PurchaseRequestQuote y actualizar el sale_price
+    $purchaseRequestQuote = PurchaseRequestQuote::find($purchaseRequestQuoteId);
+    $newSalePrice = $purchaseRequestQuote->sale_price - $totalDiscount;
+
+    $purchaseRequestQuote->update(['sale_price' => $newSalePrice]);
   }
 
   /**

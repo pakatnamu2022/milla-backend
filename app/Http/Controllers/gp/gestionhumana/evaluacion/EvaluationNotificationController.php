@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
+use App\Http\Services\common\EmailService;
 use App\Http\Services\common\EvaluationNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -303,7 +304,7 @@ class EvaluationNotificationController extends Controller
         ]
       ];
 
-      $emailService = app(\App\Http\Services\common\EmailService::class);
+      $emailService = app(EmailService::class);
       $sent = $emailService->send($testData);
 
       return response()->json([

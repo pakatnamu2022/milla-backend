@@ -40,6 +40,7 @@ use App\Http\Controllers\ap\maestroGeneral\UnitMeasurementController;
 use App\Http\Controllers\ap\maestroGeneral\UserSeriesAssignmentController;
 use App\Http\Controllers\ap\maestroGeneral\WarehouseController;
 use App\Http\Controllers\ap\postventa\ApprovedAccessoriesController;
+use App\Http\Controllers\ap\postventa\gestionProductos\InventoryMovementController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductCategoryController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductsController;
 use App\Http\Controllers\AuditLogsController;
@@ -469,7 +470,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         // PERSON RESULT
         Route::get('personResult/export', [EvaluationPersonResultController::class, 'export']);
         Route::get('personResult/getByPersonAndEvaluation', [EvaluationPersonResultController::class, 'getByPersonAndEvaluation']);
-        Route::get('personResult/getTeamByChief/{chief}', [EvaluationPersonResultController::class, 'getTeamByChief']);
+        Route::get('personResult/evaluations-to-evaluate/{id}', [EvaluationPersonResultController::class, 'getEvaluationsByPersonToEvaluate']);
         Route::get('leader-dashboard/{evaluation_id}', [EvaluationPersonResultController::class, 'getLeaderDashboard']);
         Route::post('personResult/regenerate/{personId}/{evaluationId}', [EvaluationPersonResultController::class, 'regenerate']);
         Route::apiResource('personResult', EvaluationPersonResultController::class)->only([
@@ -926,15 +927,21 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Purchase Receptions - Recepciones de Compra
-      Route::get('purchaseReceptions/pending-review', [PurchaseReceptionController::class, 'pendingReview']);
       Route::get('purchaseReceptions/by-order/{purchaseOrderId}', [PurchaseReceptionController::class, 'byPurchaseOrder']);
-      Route::post('purchaseReceptions/{id}/approve', [PurchaseReceptionController::class, 'approve']);
       Route::apiResource('purchaseReceptions', PurchaseReceptionController::class)->only([
         'index',
         'show',
         'store',
         'update',
         'destroy'
+      ]);
+
+      // Inventory Movements - Movimientos de Inventario
+      Route::get('inventory-movements/types', [InventoryMovementController::class, 'getMovementTypes']);
+      Route::post('inventory-movements/adjustments', [InventoryMovementController::class, 'createAdjustment']);
+      Route::apiResource('inventory-movements', InventoryMovementController::class)->only([
+        'index',
+        'show'
       ]);
 
       Route::apiResource('approvedAccessories', ApprovedAccessoriesController::class)->only([

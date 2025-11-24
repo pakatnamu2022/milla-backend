@@ -56,6 +56,10 @@ class PurchaseRequestQuoteResource extends JsonResource
           'type' => $discount->type,
           'percentage' => $discount->percentage,
           'amount' => $discount->amount,
+          'igv' => $discount->igv,
+          'valor_unitario' => $discount->valor_unitario,
+          'precio_unitario' => $discount->precio_unitario,
+          'is_negative' => $discount->is_negative,
           'concept_code_id' => $discount->concept_code_id,
           'concept_code' => $discount->conceptCode->description ?? null,
         ];

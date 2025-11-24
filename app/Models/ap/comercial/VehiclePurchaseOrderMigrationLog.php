@@ -3,6 +3,7 @@
 namespace App\Models\ap\comercial;
 
 use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\facturacion\ElectronicDocument;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -154,6 +155,15 @@ class VehiclePurchaseOrderMigrationLog extends Model
       'proceso_estado' => $procesoEstado,
       'error_message' => null,
     ]);
+  }
+
+  public function markAsCompletedElectronicDocument(): void
+  {
+    $this->markAsCompleted(1);
+    $electronicDocument = ElectronicDocument::find($this->electronic_document_id);
+    if ($electronicDocument) {
+      $electronicDocument->markAsCompleted();
+    }
   }
 
   /**
