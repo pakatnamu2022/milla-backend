@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use NumberFormatter;
 use Throwable;
+use function json_encode;
 
 class ElectronicDocumentService extends BaseService implements BaseServiceInterface
 {
@@ -528,6 +529,28 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ]);
       throw new Exception('Error al anular el documento: ' . $e->getMessage());
     }
+  }
+
+  /**
+   * Pre-cancel document in Nubefact (check status in Dynamics)
+   * @param $id
+   * @return array
+   * @throws Exception
+   */
+  public function preCancelInNubefact($id): array
+  {
+    $document = $this->find($id);
+    $documentDynamics = DB::connection('dbtest')
+      ->table('SOP30200')
+      ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
+      ->first();
+    if (!$documentDynamics) {
+      throw new Exception('Documento no encontrado en Dynamics');
+    }
+
+    return [
+      'active' => $documentDynamics->VOIDSTTS == "0",
+    ];
   }
 
   /**
