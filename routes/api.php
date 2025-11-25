@@ -55,9 +55,11 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCycleController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationMetricController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationModelController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationNotificationController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationObjectiveController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationParameterController;
+use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationParEvaluatorController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPeriodController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonController;
@@ -468,7 +470,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         // PERSON RESULT
         Route::get('personResult/export', [EvaluationPersonResultController::class, 'export']);
         Route::get('personResult/getByPersonAndEvaluation', [EvaluationPersonResultController::class, 'getByPersonAndEvaluation']);
-        Route::get('personResult/getTeamByChief/{chief}', [EvaluationPersonResultController::class, 'getTeamByChief']);
+        Route::get('personResult/evaluations-to-evaluate/{id}', [EvaluationPersonResultController::class, 'getEvaluationsByPersonToEvaluate']);
         Route::get('leader-dashboard/{evaluation_id}', [EvaluationPersonResultController::class, 'getLeaderDashboard']);
         Route::post('personResult/regenerate/{personId}/{evaluationId}', [EvaluationPersonResultController::class, 'regenerate']);
         Route::apiResource('personResult', EvaluationPersonResultController::class)->only([
@@ -491,6 +493,25 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
         // DETAILED DEVELOPMENT PLAN
         Route::apiResource('detailedDevelopmentPlan', DetailedDevelopmentPlanController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        // PAR EVALUATOR
+        Route::get('parEvaluator/worker/{workerId}', [EvaluationParEvaluatorController::class, 'getByWorker']);
+        Route::apiResource('parEvaluator', EvaluationParEvaluatorController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        // EVALUATION MODEL
+        Route::apiResource('evaluationModel', EvaluationModelController::class)->only([
           'index',
           'show',
           'store',
@@ -942,6 +963,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('electronic-documents/{id}/nextDebitNoteNumber', [ElectronicDocumentController::class, 'nextDebitNoteNumber']);
       Route::post('electronic-documents/{id}/send', [ElectronicDocumentController::class, 'sendToNubefact']);
       Route::post('electronic-documents/{id}/query', [ElectronicDocumentController::class, 'queryFromNubefact']);
+      Route::get('electronic-documents/{id}/pre-cancel', [ElectronicDocumentController::class, 'preCancelInNubefact']);
       Route::post('electronic-documents/{id}/cancel', [ElectronicDocumentController::class, 'cancelInNubefact']);
       Route::post('electronic-documents/{id}/credit-note', [ElectronicDocumentController::class, 'createCreditNote']);
       Route::post('electronic-documents/{id}/debit-note', [ElectronicDocumentController::class, 'createDebitNote']);

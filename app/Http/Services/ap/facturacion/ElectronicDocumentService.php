@@ -11,6 +11,9 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Jobs\SyncSalesDocumentJob;
 use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
@@ -24,6 +27,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use NumberFormatter;
 use Throwable;
+use function json_encode;
 
 class ElectronicDocumentService extends BaseService implements BaseServiceInterface
 {
@@ -531,6 +535,39 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
+   * Pre-cancel document in Nubefact (check status in Dynamics)
+   * @param $id
+   * @return array
+   * @throws Exception
+   */
+  public function preCancelInNubefact($id): array
+  {
+    $document = $this->find($id);
+
+    $documentDynamics30200 = DB::connection('dbtest')
+      ->table('SOP30200')
+      ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
+      ->first();
+
+    if (!$documentDynamics30200) {
+      $documentDynamics10100 = DB::connection('dbtest')
+        ->table('SOP10100')
+        ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
+        ->first();
+
+      if (!$documentDynamics10100) {
+        throw new Exception('No se encontró el documento en Dynamics para pre-anulación');
+      } else {
+        throw new Exception('El documento está en trabajo pendiente en Dynamics y no puede ser anulado');
+      }
+    }
+
+    return [
+      'annulled' => $documentDynamics30200->VOIDSTTS == "1",
+    ];
+  }
+
+  /**
    * Calculate totals from items array
    * @param array $items
    * @return array
@@ -998,13 +1035,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    * Create vehicle movement when electronic document is created
    * @param int $vehicleId
    * @param ElectronicDocument $document
-   * @return \App\Models\ap\comercial\VehicleMovement
+   * @return VehicleMovement
    * @throws Exception
    */
   private function createVehicleMovement(int $vehicleId, ElectronicDocument $document)
   {
     try {
-      $vehicle = \App\Models\ap\comercial\Vehicles::find($vehicleId);
+      $vehicle = Vehicles::find($vehicleId);
 
       if (!$vehicle) {
         throw new Exception("Vehículo con ID {$vehicleId} no encontrado");
@@ -1014,20 +1051,20 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $previousStatusId = $vehicle->ap_vehicle_status_id;
 
       // Crear el movimiento de vehículo
-      $vehicleMovement = \App\Models\ap\comercial\VehicleMovement::create([
+      $vehicleMovement = VehicleMovement::create([
         'movement_type' => 'VENTA',
         'ap_vehicle_id' => $vehicleId,
-        'ap_vehicle_status_id' => \App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+        'ap_vehicle_status_id' => ApVehicleStatus::FACTURADO,
         'movement_date' => now(),
         'observation' => "Venta de vehículo - Documento: {$document->serie}-{$document->numero}",
         'previous_status_id' => $previousStatusId,
-        'new_status_id' => \App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+        'new_status_id' => ApVehicleStatus::FACTURADO,
         'created_by' => auth()->id(),
       ]);
 
       // Actualizar el estado del vehículo
       $vehicle->update([
-        'ap_vehicle_status_id' => \App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+        'ap_vehicle_status_id' => ApVehicleStatus::FACTURADO,
       ]);
 
       Log::info('Vehicle movement created for electronic document', [
@@ -1036,7 +1073,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'document_id' => $document->id,
         'document_number' => "{$document->serie}-{$document->numero}",
         'previous_status' => $previousStatusId,
-        'new_status' => \App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+        'new_status' => ApVehicleStatus::FACTURADO,
       ]);
 
       return $vehicleMovement;
@@ -1182,7 +1219,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     // Get all migration logs for this document
-    $logs = \App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $id)
+    $logs = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $id)
       ->orderBy('step')
       ->get()
       ->map(function ($log) {

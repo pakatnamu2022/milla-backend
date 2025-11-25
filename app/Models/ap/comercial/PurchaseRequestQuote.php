@@ -82,6 +82,7 @@ class PurchaseRequestQuote extends Model
       })
       ->where('anulado', 0)
       ->whereNull('deleted_at')
+      ->where('is_advance_payment', 0)
       ->sum('total');
     return $this->sale_price == $total;
   }

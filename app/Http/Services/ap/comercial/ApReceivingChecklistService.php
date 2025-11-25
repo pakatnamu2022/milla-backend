@@ -191,7 +191,7 @@ class ApReceivingChecklistService extends BaseService
 
       // Despachar el Job síncronamente para debugging
       SyncShippingGuideJob::dispatchSync($shippingGuide->id);
-
+      
       // Get updated records
       $updatedRecords = ApReceivingChecklist::where('shipping_guide_id', $data['shipping_guide_id'])
         ->with('receiving')

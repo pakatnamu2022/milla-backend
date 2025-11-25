@@ -728,31 +728,8 @@ return [
         'UnidadMedidaId' => fn($data) => $data['UnidadMedidaId'],
         'Cantidad' => fn($data) => $data['Cantidad'],
         'PrecioUnitario' => fn($data) => $data['PrecioUnitario'],
+        'DescuentoUnitario' => fn($data) => $data['DescuentoUnitario'],
         'PrecioTotal' => fn($data) => $data['PrecioTotal'],
-      ],
-      'optional_mapping' => [
-      ],
-      'sync_mode' => 'insert',
-      'unique_key' => 'DocumentoId',
-      'actions' => [
-        'create' => true,
-        'update' => false,
-        'delete' => false,
-      ],
-    ]
-  ],
-
-  //  Configuración para la entidad "sales_document_serial" (Series de Venta)
-  'sales_document_serial' => [
-    'dbtp' => [
-      'enabled' => env('SYNC_DBTP_ENABLED', false),
-      'connection' => 'dbtp',
-      'table' => 'neInTbVentaDtS',
-      'mapping' => [
-        'EmpresaId' => fn($data) => $data['EmpresaId'],
-        'DocumentoId' => fn($data) => $data['DocumentoId'],
-        'Linea' => fn($data) => $data['Linea'],
-        'Serie' => fn($data) => $data['Serie'],
       ],
       'optional_mapping' => [
       ],

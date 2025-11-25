@@ -39,6 +39,7 @@ class ApVehicleStatus extends Model
   const VENDIDO_NO_ENTREGADO = 4;
   const INVENTARIO_VN = 5;
   const VENDIDO_ENTREGADO = 6;
+  const FACTURADO = 7;
 
   public function setCodeAttribute($value)
   {

@@ -13,7 +13,7 @@ class StoreEvaluationCategoryCompetenceDetailRequest extends StoreRequest
       'competence_id' => [
         'required',
         'integer',
-        Rule::exists('gh_config_competencias', 'id')->where('status_delete', 0),
+        Rule::exists('gh_config_competencias', 'id')->whereNull('deleted_at'),
         Rule::unique('gh_evaluation_category_competence')->where(function ($query) {
           return $query->where('category_id', $this->category_id)
             ->whereNull('deleted_at');

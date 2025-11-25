@@ -7,36 +7,36 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class EvaluationPeriod extends BaseModel
 {
-    use SoftDeletes;
+  use SoftDeletes;
 
-    protected $table = 'gh_evaluation_periods';
+  protected $table = 'gh_evaluation_periods';
 
-    protected $fillable = [
-        'name',
-        'start_date',
-        'end_date',
-        'active',
-    ];
+  protected $fillable = [
+    'name',
+    'start_date',
+    'end_date',
+    'active',
+  ];
 
-    protected $casts = [
-        'start_date' => 'date',
-        'end_date' => 'date',
-        'active' => 'boolean',
-    ];
+  protected $casts = [
+    'start_date' => 'date',
+    'end_date' => 'date',
+    'active' => 'boolean',
+  ];
 
-    const filters = [
-        'name' => 'string',
-        'start_date' => 'date',
-        'end_date' => 'date',
-        'active' => 'boolean',
-    ];
+  const filters = [
+    'name' => '=',
+    'start_date' => '=',
+    'end_date' => '=',
+    'active' => '=',
+  ];
 
-    const sorts = [
-        'name' => 'string',
-        'start_date' => 'date',
-        'end_date' => 'date',
-        'active' => 'boolean',
-    ];
+  const sorts = [
+    'name',
+    'start_date',
+    'end_date',
+    'active',
+  ];
 
 
 }

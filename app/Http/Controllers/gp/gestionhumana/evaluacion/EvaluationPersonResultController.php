@@ -28,10 +28,10 @@ class EvaluationPersonResultController extends Controller
     }
   }
 
-  public function getTeamByChief(Request $request, int $chief_id)
+  public function getEvaluationsByPersonToEvaluate(Request $request, int $id)
   {
     try {
-      return $this->service->getTeamByChief($request, $chief_id);
+      return $this->service->getEvaluationsByPersonToEvaluate($request, $id);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

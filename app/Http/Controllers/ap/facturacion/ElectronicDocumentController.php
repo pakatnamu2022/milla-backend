@@ -158,6 +158,20 @@ class ElectronicDocumentController extends Controller
   }
 
   /**
+   * Pre-cancel document in Nubefact (Comunicación de baja)
+   * @param $id
+   * @return JsonResponse
+   */
+  public function preCancelInNubefact($id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->preCancelInNubefact($id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Create credit note from existing document
    */
   public function createCreditNote(StoreCreditNoteRequest $request, $id): JsonResponse

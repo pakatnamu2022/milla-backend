@@ -46,24 +46,42 @@ class EvaluationPersonResultService extends BaseService
     );
   }
 
-  public function getTeamByChief(Request $request, int $chief_id)
+  public function getActiveEvaluation()
   {
-    $activeEvaluation = Evaluation::where('status', 1)->first();
-    if (!$activeEvaluation) {
-      return null;
+    $evaluation = Evaluation::where('status', 1)->first();
+    if (!$evaluation) {
+      throw new Exception('No hay una evaluación activa en este momento.');
     }
+    return $evaluation;
+  }
+
+  public function getEvaluationsByPersonToEvaluate(Request $request, int $id)
+  {
+    $activeEvaluation = $this->getActiveEvaluation();
+
+    // Get person_ids where the person is evaluator in competences
+    $competencePersonIds = EvaluationPersonCompetenceDetail::where('evaluation_id', $activeEvaluation->id)
+      ->where('evaluator_id', $id)
+      ->pluck('person_id')
+      ->unique();
+
+    // Get person_ids where the person is chief in objectives
+    $objectivePersonIds = EvaluationPerson::where('evaluation_id', $activeEvaluation->id)
+      ->where('chief_id', $id)
+      ->pluck('person_id')
+      ->unique();
+
+    // Merge both collections and get unique person_ids
+    $allEvaluations = $competencePersonIds->merge($objectivePersonIds)->unique();
 
     return $this->getFilteredResults(
-      EvaluationPersonResult::whereHas('person', function ($query) use ($chief_id) {
-        $query->where('supervisor_id', $chief_id)
-          ->where('status_deleted', 1)
-          ->where('status_id', 22);
-      })->where('evaluation_id', $activeEvaluation->id),
+      EvaluationPersonResult::where('evaluation_id', $activeEvaluation->id)
+        ->whereIn('person_id', $allEvaluations),
       $request,
       EvaluationPersonResult::filters,
       EvaluationPersonResult::sorts,
       EvaluationPersonResultResource::class,
-      ['showExtra' => [true]] // 👈 Configuración del Resource
+      ['showExtra' => [true]]
     );
   }
 
@@ -71,6 +89,7 @@ class EvaluationPersonResultService extends BaseService
    * Dashboard del Líder - Vista consolidada del equipo
    * Devuelve estadísticas agregadas del equipo del líder autenticado
    * OPTIMIZADO: Usa datos precalculados de EvaluationPersonDashboard
+   * @throws Exception
    */
   public function getLeaderDashboard(Request $request, int $evaluation_id)
   {
@@ -118,17 +137,7 @@ class EvaluationPersonResultService extends BaseService
       ->get();
 
     if ($teamResults->isEmpty()) {
-      return [
-        'evaluation' => new EvaluationResource($evaluation),
-        'team_summary' => [
-          'total_collaborators' => 0,
-          'completed' => 0,
-          'in_progress' => 0,
-          'not_started' => 0,
-          'completion_percentage' => 0,
-        ],
-        'message' => 'No se encontraron colaboradores en tu equipo para esta evaluación'
-      ];
+      throw new Exception('No se encontraron resultados de evaluación para los colaboradores del líder autenticado.');
     }
 
     // Obtener dashboards precalculados para el equipo
@@ -581,7 +590,11 @@ class EvaluationPersonResultService extends BaseService
               $objectivesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->objectivesPercentage : 0;
               $competencesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->competencesPercentage : 100;
 
-              $evaluator = ($person->evaluator ?? $person->boss) ?? throw new Exception('Store Many: La persona ' . $person->nombre_completo . ' de la categoría ' . $person->position->hierarchicalCategory->name . ' no tiene un evaluador asignado.');
+              /**
+               * TODO: Revisar la lógica de asignación de evaluador
+               * Actualmente asigna el evaluador si existe, sino el jefe directo
+               */
+              $evaluator = $person->evaluator ?? throw new Exception('Store Many: La persona ' . $person->nombre_completo . ' de la categoría ' . $person->position->hierarchicalCategory->name . ' no tiene un evaluador asignado.');
 
               $data = [
                 'person_id' => $person->id,

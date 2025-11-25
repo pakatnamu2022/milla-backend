@@ -135,6 +135,12 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
     }
   }
 
+  /**
+   * Create a vehicle movement when vehicle is added to inventory
+   * @param $vehicleId
+   * @return VehicleMovementResource
+   * @throws Throwable
+   */
   public function storeInventoryVehicleMovement($vehicleId): VehicleMovementResource
   {
     DB::beginTransaction();
@@ -208,7 +214,7 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
    * Create a vehicle movement when a schedule delivery
    * @throws Exception|Throwable
    */
-  public function storeSheduleDeliveryVehicleMovement(Vehicles $vehicle): VehicleMovementResource
+  public function storeScheduleDeliveryVehicleMovement(Vehicles $vehicle): VehicleMovementResource
   {
     DB::beginTransaction();
     try {
@@ -277,9 +283,9 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
    * @throws Exception
    */
   public function storeShippingGuideVehicleMovement(
-    int $vehicleId,
-    string $originAddress,
-    string $destinationAddress,
+    int     $vehicleId,
+    string  $originAddress,
+    string  $destinationAddress,
     ?string $observation = null,
     ?string $issueDate = null
   ): VehicleMovement

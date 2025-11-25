@@ -8,7 +8,6 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
 use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Log;
 
 class UpdateEvaluationDashboards implements ShouldQueue
 {

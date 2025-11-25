@@ -52,7 +52,7 @@ class VerifyElectronicDocumentSyncCommand extends Command
    */
   private function processSingleDocument(int $documentId, bool $useSync): int
   {
-    $document = ElectronicDocument::whereIn('id', $documentId)
+    $document = ElectronicDocument::whereIn('id', [$documentId])
       ->whereNull('deleted_at')
       ->where('status', ElectronicDocument::STATUS_ACCEPTED)
       ->where('anulado', false)

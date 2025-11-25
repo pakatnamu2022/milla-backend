@@ -34,6 +34,7 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'bonus_discounts.*.description' => ['required', 'string', 'max:255'],
       'bonus_discounts.*.type' => ['required', 'string', 'in:FIJO,PORCENTAJE'],
       'bonus_discounts.*.value' => ['required', 'numeric', 'min:0'],
+      'bonus_discounts.*.is_negative' => ['nullable', 'boolean'],
 
       // Validaciones para accessories
       'accessories' => ['nullable', 'array'],
@@ -92,6 +93,7 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'bonus_discounts.*.value.required' => 'El valor es obligatorio para cada descuento/bono.',
       'bonus_discounts.*.value.numeric' => 'El valor debe ser un número.',
       'bonus_discounts.*.value.min' => 'El valor debe ser mayor o igual a 0.',
+      'bonus_discounts.*.is_negative.boolean' => 'El campo es negativo debe ser verdadero o falso.',
 
       // Mensajes para accessories
       'accessories.array' => 'Los accesorios deben ser una lista.',

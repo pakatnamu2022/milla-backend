@@ -30,22 +30,6 @@ Schedule::command('app:sync-exchange-rate')
   ->between('8:00', '9:00')
   ->timezone('America/Lima')
   ->withoutOverlapping();
-//  ->before(function () {
-//    Log::info('Iniciando sincronización de tasa de cambio', [
-//      'timestamp' => now()->toDateTimeString(),
-//    ]);
-//  })
-//  ->onSuccess(function () {
-//    Log::info('Sincronización de tasa de cambio completada exitosamente', [
-//      'timestamp' => now()->toDateTimeString(),
-//    ]);
-//  })
-//  ->onFailure(function () {
-//    Log::error('Error en la sincronización de tasa de cambio', [
-//      'timestamp' => now()->toDateTimeString(),
-//    ]);
-//  })
-//  ->appendOutputTo(storage_path('logs/exchange-rate-sync.log'));
 
 // Verificar y migrar órdenes de compra de vehículos pendientes
 Schedule::command('po:verify-migration --all')
@@ -82,16 +66,10 @@ Schedule::command('electronic-document:verify-sync --all')
   ->withoutOverlapping()
   ->runInBackground();
 
-// DESHABILITADO: Ya no se usa, el reenvío se hace desde frontend con endpoint /resend
-// Schedule::command('po:process-credit-note-updates')
-//   ->everyMinute()
-//   ->timezone('America/Lima')
-//   ->withoutOverlapping()
-//   ->runInBackground();
-
 // Consultar estado de documentos electrónicos enviados a SUNAT
 Schedule::command('app:check-pending-electronic-documents')
   ->everyFiveSeconds()
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
+

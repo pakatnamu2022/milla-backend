@@ -3,10 +3,10 @@
 namespace App\Models\gp\gestionhumana\evaluacion;
 
 use App\Http\Traits\Reportable;
-use Exception;
+use App\Jobs\UpdateEvaluationDashboards;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use function json_encode;
+use Illuminate\Support\Facades\DB;
 
 class Evaluation extends Model
 {
@@ -24,6 +24,10 @@ class Evaluation extends Model
     'typeEvaluation',
     'objectivesPercentage',
     'competencesPercentage',
+    'leadership_weight',
+    'self_weight',
+    'par_weight',
+    'report_weight',
     'cycle_id',
     'period_id',
     'competence_parameter_id',
@@ -46,6 +50,10 @@ class Evaluation extends Model
   const int PROGRAMMED_EVALUATION = 0;
   const int IN_PROGRESS_EVALUATION = 1;
   const int COMPLETED_EVALUATION = 2;
+
+  const int EVALUATION_TYPE_OBJECTIVES = 0;
+  const int EVALUATION_TYPE_180 = 1;
+  const int EVALUATION_TYPE_360 = 2;
 
   // Configuración para reportes
   protected $reportColumns = [
@@ -668,7 +676,7 @@ class Evaluation extends Model
   public function fallbackCalculateProgressStats(bool $dispatchJob = true): array
   {
     // Primero intentar obtener datos de los dashboards pre-calculados (SQL directo)
-    $dashboardStats = \DB::table('evaluation_person_dashboards')
+    $dashboardStats = DB::table('evaluation_person_dashboards')
       ->where('evaluation_id', $this->id)
       ->whereNotNull('last_calculated_at')
       ->selectRaw('
@@ -681,8 +689,8 @@ class Evaluation extends Model
     // Si hay dashboards calculados, usar esos datos
     if ($dashboardStats && $dashboardStats->total > 0) {
       $totalParticipants = $dashboardStats->total;
-      $completedParticipants = (int) $dashboardStats->completed;
-      $inProgressParticipants = (int) $dashboardStats->in_progress;
+      $completedParticipants = (int)$dashboardStats->completed;
+      $inProgressParticipants = (int)$dashboardStats->in_progress;
     } else {
       // Fallback optimizado: Calcular con queries SQL directas sin procesar cada persona
       $totalParticipants = $this->personResults()->count();
@@ -804,7 +812,7 @@ class Evaluation extends Model
 
     // Si no había dashboards individuales, disparar job para crearlos en background
     if ($dispatchJob && (!isset($dashboardStats) || !$dashboardStats || $dashboardStats->total == 0)) {
-      \App\Jobs\UpdateEvaluationDashboards::dispatch($this->id)
+      UpdateEvaluationDashboards::dispatch($this->id)
         ->onQueue('evaluation-dashboards');
     }
 

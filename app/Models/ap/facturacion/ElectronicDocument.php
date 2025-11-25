@@ -2,20 +2,27 @@
 
 namespace App\Models\ap\facturacion;
 
+use App\Http\Services\ap\comercial\OpportunityService;
 use App\Http\Services\BaseService;
+use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
+use Exception;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use function json_decode;
 
 class ElectronicDocument extends BaseModel
 {
@@ -197,11 +204,37 @@ class ElectronicDocument extends BaseModel
       $numero = $service->completeNumber($model->numero);
       $model->full_number = "{$model->serie}-{$numero}";
     });
+
+    static::saved(function ($model) {
+      if ($model->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+        $quote = $model->purchaseRequestQuote;
+        $opportunity = Opportunity::find($quote->opportunity_id);
+        $opportunity->update([
+          'opportunity_status_id' => ApCommercialMasters::where('code', Opportunity::SOLD)
+            ->whereNull('deleted_at')
+            ->first()
+            ->id,
+        ]);
+      }
+    });
   }
 
   /**
    * Relaciones
    */
+  public function warehouse()
+  {
+    if ($this->ap_vehicle_movement_id) {
+      $series = AssignSalesSeries::find($this->series_id);
+      $ap_vehicle_movement = $this->vehicleMovement;
+      $model = $ap_vehicle_movement->vehicle->model;
+      $warehouse = Warehouse::where('article_class_id', $model->class_id)->where('status', 1)->where('is_received', 1)->where('sede_id', $series->sede_id)->first();
+      return $warehouse->dyn_code;
+    } else {
+      throw new Exception("El documento no tiene asociado un movimiento de vehículo.");
+    }
+  }
+
   public function creditNote(): BelongsTo
   {
     return $this->belongsTo(ElectronicDocument::class, 'credit_note_id');
@@ -476,6 +509,17 @@ class ElectronicDocument extends BaseModel
   {
     $this->update([
       'migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
+    ]);
+  }
+
+  /**
+   * Marca el paso como en completado
+   * @return void
+   */
+  public function markAsCompleted(): void
+  {
+    $this->update([
+      'migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED,
     ]);
   }
 

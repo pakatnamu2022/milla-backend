@@ -4,11 +4,13 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetailResource;
 use App\Http\Services\BaseService;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationModel;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationParameter;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Person;
 use Exception;
 use Illuminate\Http\Request;
@@ -174,26 +176,23 @@ class EvaluationPersonCompetenceDetailService extends BaseService
   public function calculateCompetencesResult($evaluationId, $personId, $evaluationType)
   {
     $evaluation = Evaluation::find($evaluationId);
-    $maxScore = $evaluation->typeEvaluation !== 0 ? $evaluation?->max_score_competence : 0; // Como atributo
-
+    $maxScore = $evaluation->typeEvaluation !== Evaluation::EVALUATION_TYPE_OBJECTIVES ? $evaluation?->max_score_competence : 0; // Como atributo
 
     $competences = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
-      ->where('person_id', $personId)
-      ->get();
+      ->where('person_id', $personId)->get();
 
     if ($competences->isEmpty()) {
       return 0;
     }
 
     switch ($evaluationType) {
-      case self::EVALUACION_180:
+      case Evaluation::EVALUATION_TYPE_180:
         // Para 180°, solo considerar evaluación del jefe
-        $jefeCompetences = $competences->where('evaluatorType', self::TIPO_EVALUADOR_JEFE);
-        return ($jefeCompetences->avg('result') / $maxScore) * 100;
+        return ($this->calculate180CompetencesResult($competences) / $maxScore) * 100;
 
-      case self::EVALUACION_360:
+      case Evaluation::EVALUATION_TYPE_360:
         // Para 360°, calcular promedio ponderado por tipo de evaluador
-        return ($this->calculate360CompetencesResult($competences) / $maxScore) * 100;
+        return ($this->calculate360CompetencesResult($competences, $personId) / $maxScore) * 100;
 
       default:
         // Para evaluación de objetivos, promedio simple
@@ -202,16 +201,14 @@ class EvaluationPersonCompetenceDetailService extends BaseService
   }
 
   /**
-   * Calcular resultado de competencias para evaluación 360°
+   * Calcular resultado de competencias para evaluación 180°
    */
-  private function calculate360CompetencesResult($competences)
+  private function calculate180CompetencesResult($competences)
   {
     // Pesos por tipo de evaluador (esto puede ser configurable)
     $weights = [
-      self::TIPO_EVALUADOR_JEFE => 0.4,          // 40% jefe
-      self::TIPO_EVALUADOR_AUTOEVALUACION => 0.2, // 20% autoevaluación
-      self::TIPO_EVALUADOR_COMPANEROS => 0.25,    // 25% compañeros
-      self::TIPO_EVALUADOR_REPORTES => 0.15       // 15% reportes
+      self::TIPO_EVALUADOR_JEFE => 0.9,          // 40% jefe
+      self::TIPO_EVALUADOR_AUTOEVALUACION => 0.1, // 20% autoevaluación
     ];
 
     $totalWeightedScore = 0;
@@ -224,6 +221,65 @@ class EvaluationPersonCompetenceDetailService extends BaseService
         $avgScore = $typeCompetences->avg('result');
         $totalWeightedScore += $avgScore * $weight;
         $totalWeight += $weight;
+      }
+    }
+
+    return $totalWeight > 0 ? $totalWeightedScore / $totalWeight : 0;
+  }
+
+  /**
+   * Calcular resultado de competencias para evaluación 360°
+   */
+  private function calculate360CompetencesResult($competences, $personId)
+  {
+    // Obtener la persona y su categoría jerárquica
+    $person = Person::with('position.hierarchicalCategory')->find($personId);
+
+    if (!$person || !$person->position || !$person->position->hierarchicalCategory) {
+      // Si no hay categoría, usar pesos por defecto
+      $weights = [
+        self::TIPO_EVALUADOR_JEFE => 0.4,
+        self::TIPO_EVALUADOR_AUTOEVALUACION => 0.2,
+        self::TIPO_EVALUADOR_COMPANEROS => 0.25,
+        self::TIPO_EVALUADOR_REPORTES => 0.15
+      ];
+    } else {
+      // Obtener el modelo de evaluación para esta categoría
+      $categoryId = $person->position->hierarchicalCategory->id;
+      $evaluationModel = EvaluationModel::getModelByCategory($categoryId);
+
+      if ($evaluationModel) {
+        // Usar los pesos del modelo (convertir de porcentaje a decimal)
+        $weights = [
+          self::TIPO_EVALUADOR_JEFE => $evaluationModel->leadership_weight / 100,
+          self::TIPO_EVALUADOR_AUTOEVALUACION => $evaluationModel->self_weight / 100,
+          self::TIPO_EVALUADOR_COMPANEROS => $evaluationModel->par_weight / 100,
+          self::TIPO_EVALUADOR_REPORTES => $evaluationModel->report_weight / 100
+        ];
+      } else {
+        // Si no hay modelo, usar pesos por defecto
+        $weights = [
+          self::TIPO_EVALUADOR_JEFE => 0.4,
+          self::TIPO_EVALUADOR_AUTOEVALUACION => 0.2,
+          self::TIPO_EVALUADOR_COMPANEROS => 0.25,
+          self::TIPO_EVALUADOR_REPORTES => 0.15
+        ];
+      }
+    }
+
+    $totalWeightedScore = 0;
+    $totalWeight = 0;
+
+    foreach ($weights as $evaluatorType => $weight) {
+      // Solo considerar tipos de evaluador con peso mayor a 0
+      if ($weight > 0) {
+        $typeCompetences = $competences->where('evaluatorType', $evaluatorType);
+
+        if ($typeCompetences->isNotEmpty()) {
+          $avgScore = $typeCompetences->avg('result');
+          $totalWeightedScore += $avgScore * $weight;
+          $totalWeight += $weight;
+        }
       }
     }
 
