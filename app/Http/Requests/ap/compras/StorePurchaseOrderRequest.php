@@ -81,7 +81,7 @@ class StorePurchaseOrderRequest extends StoreRequest
       'items.*.unit_price' => ['required', 'numeric', 'min:0'],
       'items.*.quantity' => ['required', 'integer', 'min:1'],
       'items.*.is_vehicle' => ['nullable', 'boolean'],
-      'items.*.product_id' => ['required_if:items.*.is_vehicle,false', 'nullable', 'integer', Rule::exists('products', 'id')->where('status', 'ACTIVE')->whereNull('deleted_at')],
+      'items.*.product_id' => ['nullable', 'integer', Rule::exists('products', 'id')->where('status', 'ACTIVE')->whereNull('deleted_at')],
     ]);
   }
 
