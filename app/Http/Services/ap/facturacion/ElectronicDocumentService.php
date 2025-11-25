@@ -819,6 +819,208 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
+   * Update an existing credit note
+   * @throws Exception
+   */
+  public function updateCreditNote($creditNoteId, array $data): ElectronicDocumentResource
+  {
+    DB::beginTransaction();
+    try {
+      // Buscar la nota de crédito existente
+      $creditNote = ElectronicDocument::with(['items'])->find($creditNoteId);
+
+      if (!$creditNote) {
+        throw new Exception('Nota de crédito no encontrada');
+      }
+
+      // Validar que sea una nota de crédito
+      if ($creditNote->sunat_concept_document_type_id !== ElectronicDocument::TYPE_NOTA_CREDITO) {
+        throw new Exception('El documento especificado no es una nota de crédito');
+      }
+
+      // Validar que no haya sido enviada a SUNAT
+      if ($creditNote->aceptada_por_sunat) {
+        throw new Exception('No se puede actualizar una nota de crédito que ya ha sido aceptada por SUNAT');
+      }
+
+      // Validar que no esté anulada
+      if ($creditNote->anulado) {
+        throw new Exception('No se puede actualizar una nota de crédito anulada');
+      }
+
+      // Obtener el documento original
+      $originalDocument = $this->find($data['original_document_id']);
+
+      // Calcular totales desde items si no se proporcionan
+      if (isset($data['items']) && is_array($data['items'])) {
+        $calculatedTotals = $this->calculateTotalsFromItemsNotes($data['items']);
+
+        // Merge calculated totals only if not provided by user
+        foreach ($calculatedTotals as $key => $value) {
+          if (!isset($data[$key])) {
+            $data[$key] = $value;
+          }
+        }
+      }
+
+      // Copiar moneda y tipo de cambio del documento original si no se proporcionan
+      if (!isset($data['sunat_concept_currency_id'])) {
+        $data['sunat_concept_currency_id'] = $originalDocument->sunat_concept_currency_id;
+      }
+      if (!isset($data['tipo_de_cambio'])) {
+        $data['tipo_de_cambio'] = $originalDocument->tipo_de_cambio;
+      }
+
+      // Copiar cliente del documento original si no se proporciona
+      if (!isset($data['client_id'])) {
+        $data['client_id'] = $originalDocument->client_id;
+      }
+
+      // Copiar tipo de transacción del documento original si no se proporciona
+      if (!isset($data['sunat_concept_transaction_type_id'])) {
+        $data['sunat_concept_transaction_type_id'] = $originalDocument->sunat_concept_transaction_type_id;
+      }
+
+      // Preparar datos para actualización
+      $updateData = array_merge($data, [
+        'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
+        'documento_que_se_modifica_serie' => $originalDocument->serie,
+        'documento_que_se_modifica_numero' => $originalDocument->numero,
+        'original_document_id' => $data['original_document_id'],
+      ]);
+
+      // No permitir cambiar estos campos
+      unset($updateData['sunat_concept_document_type_id']);
+      unset($updateData['origin_module']);
+      unset($updateData['origin_entity_type']);
+      unset($updateData['origin_entity_id']);
+
+      // Actualizar la nota de crédito
+      $updateData['id'] = $creditNoteId;
+      $updatedCreditNote = $this->update($updateData);
+
+      DB::commit();
+      return $updatedCreditNote;
+    } catch (Exception $e) {
+      DB::rollBack();
+      Log::error('Error updating credit note', [
+        'credit_note_id' => $creditNoteId,
+        'error' => $e->getMessage(),
+        'data' => $data
+      ]);
+      throw new Exception('Error al actualizar la nota de crédito: ' . $e->getMessage());
+    }
+  }
+
+  /**
+   * Update an existing debit note
+   * @throws Exception
+   */
+  public function updateDebitNote($debitNoteId, array $data): ElectronicDocumentResource
+  {
+    DB::beginTransaction();
+    try {
+      // Buscar la nota de débito existente
+      $debitNote = ElectronicDocument::with(['items'])->find($debitNoteId);
+
+      if (!$debitNote) {
+        throw new Exception('Nota de débito no encontrada');
+      }
+
+      // Validar que sea una nota de débito
+      if ($debitNote->sunat_concept_document_type_id !== ElectronicDocument::TYPE_NOTA_DEBITO) {
+        throw new Exception('El documento especificado no es una nota de débito');
+      }
+
+      // Validar que no haya sido enviada a SUNAT
+      if ($debitNote->aceptada_por_sunat) {
+        throw new Exception('No se puede actualizar una nota de débito que ya ha sido aceptada por SUNAT');
+      }
+
+      // Validar que no esté anulada
+      if ($debitNote->anulado) {
+        throw new Exception('No se puede actualizar una nota de débito anulada');
+      }
+
+      // Obtener el documento original
+      $originalDocument = $this->find($data['original_document_id']);
+
+      // Calcular totales desde items si no se proporcionan
+      if (isset($data['items']) && is_array($data['items'])) {
+        $calculatedTotals = $this->calculateTotalsFromItemsNotes($data['items']);
+
+        // Merge calculated totals only if not provided by user
+        foreach ($calculatedTotals as $key => $value) {
+          if (!isset($data[$key])) {
+            $data[$key] = $value;
+          }
+        }
+      }
+
+      // Copiar moneda y tipo de cambio del documento original si no se proporcionan
+      if (!isset($data['sunat_concept_currency_id'])) {
+        $data['sunat_concept_currency_id'] = $originalDocument->sunat_concept_currency_id;
+      }
+      if (!isset($data['tipo_de_cambio'])) {
+        $data['tipo_de_cambio'] = $originalDocument->tipo_de_cambio;
+      }
+
+      // Copiar cliente del documento original si no se proporciona
+      if (!isset($data['client_id'])) {
+        $data['client_id'] = $originalDocument->client_id;
+      }
+
+      // Copiar tipo de transacción del documento original si no se proporciona
+      if (!isset($data['sunat_concept_transaction_type_id'])) {
+        $data['sunat_concept_transaction_type_id'] = $originalDocument->sunat_concept_transaction_type_id;
+      }
+
+      // Preparar datos para actualización
+      $updateData = array_merge($data, [
+        'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
+        'documento_que_se_modifica_serie' => $originalDocument->serie,
+        'documento_que_se_modifica_numero' => $originalDocument->numero,
+        'original_document_id' => $data['original_document_id'],
+      ]);
+
+      // No permitir cambiar estos campos
+      unset($updateData['sunat_concept_document_type_id']);
+      unset($updateData['origin_module']);
+      unset($updateData['origin_entity_type']);
+      unset($updateData['origin_entity_id']);
+
+      // Validar límite razonable para notas de débito (200% del original)
+      $originalTotal = (float)$originalDocument->total;
+      $debitNoteTotal = (float)$updateData['total'];
+      $maxAllowedTotal = $originalTotal * 2;
+
+      if ($debitNoteTotal > $maxAllowedTotal) {
+        throw new Exception(sprintf(
+          'El total de la nota de débito (%.2f) excede el límite permitido (%.2f). El total no puede ser mayor al 200%% del documento original (%.2f)',
+          $debitNoteTotal,
+          $maxAllowedTotal,
+          $originalTotal
+        ));
+      }
+
+      // Actualizar la nota de débito
+      $updateData['id'] = $debitNoteId;
+      $updatedDebitNote = $this->update($updateData);
+
+      DB::commit();
+      return $updatedDebitNote;
+    } catch (Exception $e) {
+      DB::rollBack();
+      Log::error('Error updating debit note', [
+        'debit_note_id' => $debitNoteId,
+        'error' => $e->getMessage(),
+        'data' => $data
+      ]);
+      throw new Exception('Error al actualizar la nota de débito: ' . $e->getMessage());
+    }
+  }
+
+  /**
    * Get documents by module and entity
    */
   public function getByOriginEntity(string $module, string $entityType, int $entityId): JsonResponse
