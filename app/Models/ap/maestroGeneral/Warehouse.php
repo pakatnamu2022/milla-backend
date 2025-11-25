@@ -25,6 +25,7 @@ class Warehouse extends Model
     'is_received',
     'sede_id',
     'type_operation_id',
+    'header_warehouse_id',
     'inventory_account',
     'counterparty_account',
   ];
@@ -74,5 +75,10 @@ class Warehouse extends Model
   public function articleClass(): BelongsTo
   {
     return $this->belongsTo(ApClassArticle::class, 'article_class_id');
+  }
+
+  public function headerWarehouse(): BelongsTo
+  {
+    return $this->belongsTo(HeaderWarehouse::class, 'header_warehouse_id');
   }
 }
