@@ -102,7 +102,7 @@
       border-collapse: collapse;
       margin-bottom: 10px;
       font-size: {{ $tableFontSize }}px;
-      table-layout: auto;
+      table-layout: fixed;
     }
 
     th {
@@ -113,7 +113,9 @@
       font-weight: bold;
       font-size: {{ $tableFontSize }}px;
       border-bottom: 1px solid #cbd5e1;
-      word-wrap: break-word;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     td {
@@ -121,8 +123,9 @@
       border-bottom: 1px solid #e2e8f0;
       font-size: {{ $tdFontSize }}px;
       line-height: 1.2;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     tr:nth-child(even) {
@@ -153,35 +156,34 @@
       $columnWidth = floor($availableWidth / $columnCount);
     @endphp
 
+    /* Distribuir ancho equitativamente entre todas las columnas */
+    th, td {
+      width: {{ $columnWidth }}%;
+    }
+
     .col-id {
-      width: {{ max(4, min(8, $columnWidth)) }}%;
+      width: {{ max(5, min(8, $columnWidth * 0.8)) }}%;
     }
 
     .col-name {
-      width: {{ max(15, min(25, $columnWidth * 2)) }}%;
+      width: {{ max(15, min(20, $columnWidth * 1.5)) }}%;
     }
 
     .col-date {
-      width: {{ max(8, min(12, $columnWidth)) }}%;
+      width: {{ max(8, min(10, $columnWidth)) }}%;
     }
 
     .col-status {
-      width: {{ max(10, min(15, $columnWidth)) }}%;
+      width: {{ max(8, min(12, $columnWidth)) }}%;
     }
 
     .col-percentage {
-      width: {{ max(6, min(10, $columnWidth)) }}%;
+      width: {{ max(6, min(8, $columnWidth * 0.8)) }}%;
     }
 
     .col-boolean {
-      width: {{ max(6, min(10, $columnWidth)) }}%;
+      width: {{ max(5, min(8, $columnWidth * 0.7)) }}%;
       text-align: center;
-    }
-
-    /* Columnas sin clase específica obtienen ancho automático */
-    th:not([class*="col-"]),
-    td:not([class*="col-"]) {
-      width: auto;
     }
 
     /* Evitar quiebres de página en lugares inapropiados */
@@ -284,11 +286,6 @@
                         $value = is_numeric($value) ? number_format($value) : $value;
                         break;
                 }
-            }
-
-            // Truncar texto muy largo
-            if (is_string($value) && strlen($value) > 50) {
-                $value = substr($value, 0, 47) . '...';
             }
           @endphp
           {{ $value }}

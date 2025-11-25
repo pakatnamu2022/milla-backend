@@ -175,7 +175,7 @@ class Vehicles extends Model
 
   public function vehicleDelivery(): BelongsTo
   {
-    return $this->belongsTo(ApVehicleDelivery::class, 'id');
+    return $this->belongsTo(ApVehicleDelivery::class, 'id', 'vehicle_id');
   }
 
   /**
@@ -307,104 +307,84 @@ class Vehicles extends Model
     'electronicDocumentParent.seriesModel.sede.suc_abrev' => [
       'label' => 'PISO',
       'formatter' => null,
-      'width' => 35,
     ],
     'electronicDocumentParent.seriesModel.sede.shop.description' => [
       'label' => 'SEDE',
       'formatter' => null,
-      'width' => 35,
-    ],
-    'model.family.brand.name' => [
-      'label' => 'MARCA',
-      'formatter' => null,
-      'width' => 35,
-    ],
-    'model.family.description' => [
-      'label' => 'MODELO',
-      'formatter' => null,
-      'width' => 35,
-    ],
-    'model.version' => [
-      'label' => 'VERSION',
-      'formatter' => null,
-      'width' => 35,
-    ],
-    'color.description' => [
-      'label' => 'VERSION',
-      'formatter' => null,
-      'width' => 35,
-    ],
-    'electronicDocumentParent.full_number' => [
-      'label' => 'NRO. FACTURA',
-      'formatter' => null,
-      'width' => 35,
-    ],
-    'vin' => [
-      'label' => 'VIN',
-      'formatter' => null,
-      'width' => 35,
-    ],
-    'engine_number' => [
-      'label' => 'NRO. MOTOR',
-      'formatter' => null,
-      'width' => 35,
-    ],
-    'electronicDocumentParent.cliente_numero_de_documento' => [
-      'label' => 'NRO DOCUMENTO',
-      'formatter' => null,
-      'width' => 35,
-    ],
-    'electronicDocumentParent.cliente_denominacion' => [
-      'label' => 'CLIENTE',
-      'formatter' => null,
-      'width' => 35,
-    ],
-    'electronicDocumentParent.client_phone' => [
-      'label' => 'CELULAR',
-      'formatter' => null,
-      'width' => 35,
-    ],
-    'electronicDocumentParent.cliente_email' => [
-      'label' => 'EMAIL',
-      'formatter' => null,
-      'width' => 35,
-    ],
-    'electronicDocumentParent.purchaseRequestQuote.opportunity.worker.nombre_completo' => [
-      'label' => 'ASESOR',
-      'formatter' => null,
-      'width' => 35,
     ],
     'model.family.brand.group.description' => [
       'label' => 'GRUPOS',
       'formatter' => null,
-      'width' => 35,
+    ],
+    'model.family.brand.name' => [
+      'label' => 'MARCA',
+      'formatter' => null,
+    ],
+    'model.family.description' => [
+      'label' => 'MODELO',
+      'formatter' => null,
+    ],
+    'model.version' => [
+      'label' => 'VERSION',
+      'formatter' => null,
+    ],
+    'color.description' => [
+      'label' => 'COLOR',
+      'formatter' => null,
+    ],
+    'vin' => [
+      'label' => 'VIN',
+      'formatter' => null,
+    ],
+    'engine_number' => [
+      'label' => 'NRO. MOTOR',
+      'formatter' => null,
+    ],
+    'electronicDocumentParent.full_number' => [
+      'label' => 'NRO. FACTURA',
+      'formatter' => null,
+    ],
+    'electronicDocumentParent.cliente_numero_de_documento' => [
+      'label' => 'NRO DOCUMENTO',
+      'formatter' => null,
+    ],
+    'electronicDocumentParent.cliente_denominacion' => [
+      'label' => 'CLIENTE',
+      'formatter' => null,
+    ],
+    'electronicDocumentParent.client_phone' => [
+      'label' => 'CELULAR',
+      'formatter' => null,
+    ],
+    'electronicDocumentParent.cliente_email' => [
+      'label' => 'EMAIL',
+      'formatter' => null,
+    ],
+    'electronicDocumentParent.purchaseRequestQuote.opportunity.worker.nombre_completo' => [
+      'label' => 'ASESOR',
+      'formatter' => null,
+    ],
+    'purchaseOrder.supplierOrderType.description' => [
+      'label' => 'FECHA COMPRA',
+      'formatter' => 'date',
     ],
 //    DATES
-    'electronicDocumentParent.sale_date' => [
-      'label' => 'FECHA VENTA',
-      'formatter' => null,
-      'width' => 35,
-    ],
-    'shippingGuideReceiving.received_daporqte' => [
-      'label' => 'FECHA RECEPCIÓN',
-      'formatter' => null,
-      'width' => 35,
-    ],
     'purchaseOrder.emission_date' => [
       'label' => 'FECHA COMPRA',
-      'formatter' => null,
-      'width' => 35,
+      'formatter' => 'date',
+    ],
+    'shippingGuideReceiving.received_date' => [
+      'label' => 'FECHA RECEPCIÓN',
+      'formatter' => 'date',
+    ],
+    'electronicDocumentParent.sale_date' => [
+      'label' => 'FECHA VENTA',
+      'formatter' => 'date',
     ],
     'vehicleDelivery.real_delivery_date' => [
-      'label' => 'FECHA COMPRA',
-      'formatter' => null,
-      'width' => 35,
+      'label' => 'FECHA ENTREGA',
+      'formatter' => 'date',
     ],
-//    'purchaseOrder.emission_date' => [
-//      'label' => 'FECHA COMPRA',
-//      'formatter' => null,
-//      'width' => 35,
-//    ],
   ];
 
   protected $reportRelations = [
@@ -413,7 +393,7 @@ class Vehicles extends Model
     'model.family.brand.group',
     'color',
     'shippingGuideReceiving',
-    'purchaseOrder',
+    'purchaseOrder.supplierOrderType',
     'vehicleDelivery',
   ];
 }
