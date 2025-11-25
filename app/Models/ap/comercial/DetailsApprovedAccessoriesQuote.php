@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
-use App\Models\ap\postventa\ApprovedAccessories;
+use App\Models\ap\postventa\repuestos\ApprovedAccessories;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 

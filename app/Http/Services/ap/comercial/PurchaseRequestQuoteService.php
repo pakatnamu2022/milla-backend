@@ -14,7 +14,7 @@ use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
-use App\Models\ap\postventa\ApprovedAccessories;
+use App\Models\ap\postventa\repuestos\ApprovedAccessories;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;

@@ -49,6 +49,11 @@ class StoreWarehouseRequest extends StoreRequest
         'string',
         'max:50',
       ],
+      'header_warehouse_id' => [
+        'nullable',
+        'integer',
+        'exists:header_warehouses,id',
+      ],
     ];
 
     // Validar unicidad de la combinación [dyn_code, article_class_id, sede_id]
@@ -86,6 +91,13 @@ class StoreWarehouseRequest extends StoreRequest
 
       'is_received.required' => 'El campo de recibido es obligatorio.',
       'is_received.boolean' => 'El campo de recibido debe ser verdadero o falso.',
+
+      'inventory_account.string' => 'La cuenta de inventario debe ser un texto.',
+      'inventory_account.max' => 'La cuenta de inventario no puede exceder los 50 caracteres.',
+      'counterparty_account.string' => 'La cuenta contrapartida debe ser un texto.',
+      'counterparty_account.max' => 'La cuenta contrapartida no puede exceder los 50 caracteres.',
+      'header_warehouse_id.integer' => 'El campo encabezado de almacén debe ser un número entero.',
+      'header_warehouse_id.exists' => 'El encabezado de almacén seleccionado no existe.',
     ];
   }
 }

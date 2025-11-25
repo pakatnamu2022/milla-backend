@@ -34,15 +34,17 @@ use App\Http\Controllers\ap\configuracionComercial\venta\ApShopController;
 use App\Http\Controllers\ap\facturacion\BillingCatalogController;
 use App\Http\Controllers\ap\facturacion\ElectronicDocumentController;
 use App\Http\Controllers\ap\maestroGeneral\AssignSalesSeriesController;
+use App\Http\Controllers\ap\maestroGeneral\HeaderWarehouseController;
 use App\Http\Controllers\ap\maestroGeneral\TaxClassTypesController;
 use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
 use App\Http\Controllers\ap\maestroGeneral\UnitMeasurementController;
 use App\Http\Controllers\ap\maestroGeneral\UserSeriesAssignmentController;
 use App\Http\Controllers\ap\maestroGeneral\WarehouseController;
-use App\Http\Controllers\ap\postventa\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\postventa\gestionProductos\InventoryMovementController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductCategoryController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductsController;
+use App\Http\Controllers\ap\postventa\gestionProductos\TransferReceptionController;
+use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Dashboard\ap\comercial\DashboardComercialController;
@@ -724,6 +726,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
+      Route::apiResource('headerWarehouse', HeaderWarehouseController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
       Route::get('warehouse/by-model-sede', [WarehouseController::class, 'getWarehousesByModelAndSede']);
       Route::get('warehouse/warehouses-by-company', [WarehouseController::class, 'getWarehousesByCompany']);
       Route::apiResource('warehouse', WarehouseController::class)->only([
@@ -938,10 +948,20 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Inventory Movements - Movimientos de Inventario
       Route::post('inventoryMovements/adjustments', [InventoryMovementController::class, 'createAdjustment']);
+      Route::post('inventoryMovements/transfers', [InventoryMovementController::class, 'createTransfer']);
+      Route::post('inventoryMovements/{id}/send-to-nubefact', [InventoryMovementController::class, 'sendShippingGuideToNubefact']);
       Route::apiResource('inventoryMovements', InventoryMovementController::class)->only([
         'index',
         'show',
         'update',
+        'destroy'
+      ]);
+
+      // Transfer Receptions - Recepciones de Transferencias
+      Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
+        'index',
+        'show',
+        'store',
         'destroy'
       ]);
 

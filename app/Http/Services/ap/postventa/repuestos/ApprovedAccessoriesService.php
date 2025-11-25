@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Http\Services\ap\postventa;
+namespace App\Http\Services\ap\postventa\repuestos;
 
-use App\Http\Resources\ap\postventa\ApprovedAccessoriesResource;
+use App\Http\Resources\ap\postventa\repuestos\ApprovedAccessoriesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
-use App\Models\ap\postventa\ApprovedAccessories;
+use App\Models\ap\postventa\repuestos\ApprovedAccessories;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +19,7 @@ class ApprovedAccessoriesService extends BaseService implements BaseServiceInter
       $request,
       ApprovedAccessories::filters,
       ApprovedAccessories::sorts,
-      ApprovedAccessoriesResource::class,
+      \App\Http\Resources\ap\postventa\repuestos\ApprovedAccessoriesResource::class,
     );
   }
 
@@ -48,7 +48,7 @@ class ApprovedAccessoriesService extends BaseService implements BaseServiceInter
   {
     $ApprovedAccessories = $this->find($data['id']);
     $ApprovedAccessories->update($data);
-    return new ApprovedAccessoriesResource($ApprovedAccessories);
+    return new \App\Http\Resources\ap\postventa\repuestos\ApprovedAccessoriesResource($ApprovedAccessories);
   }
 
   public function destroy($id)

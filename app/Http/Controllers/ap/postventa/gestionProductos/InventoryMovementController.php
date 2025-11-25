@@ -5,12 +5,11 @@ namespace App\Http\Controllers\ap\postventa\gestionProductos;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\postventa\gestionProductos\IndexInventoryMovementRequest;
 use App\Http\Requests\ap\postventa\gestionProductos\StoreAdjustmentInventoryRequest;
+use App\Http\Requests\ap\postventa\gestionProductos\StoreTransferInventoryRequest;
 use App\Http\Requests\ap\postventa\gestionProductos\UpdateInventoryMovementRequest;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
-use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use Exception;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class InventoryMovementController extends Controller
 {
@@ -71,6 +70,96 @@ class InventoryMovementController extends Controller
   {
     try {
       return $this->inventoryMovementService->reverseStockFromMovement($id);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+  
+  /**
+   * Create warehouse transfer with shipping guide
+   * Creates TRANSFER_OUT movement + Shipping Guide (NOT sent to Nubefact yet)
+   *
+   * @param StoreTransferInventoryRequest $request
+   * @return JsonResponse
+   */
+  public function createTransfer(StoreTransferInventoryRequest $request): JsonResponse
+  {
+    $request->validated();
+    try {
+      $result = $this->inventoryMovementService->createTransfer(
+        $request->only([
+          // Transfer data
+          'warehouse_origin_id',
+          'warehouse_destination_id',
+          'movement_date',
+          'notes',
+          'reason_in_out_id',
+          // Shipping guide data
+          'driver_name',
+          'driver_doc',
+          'license',
+          'plate',
+          'transfer_reason_id',
+          'transfer_modality_id',
+          'transport_company_id',
+          'total_packages',
+          'total_weight',
+          'origin_ubigeo',
+          'origin_address',
+          'destination_ubigeo',
+          'destination_address',
+          'ruc_transport',
+          'company_name_transport',
+        ]),
+        $request->details
+      );
+
+      return $this->success([
+        'message' => 'Transferencia y guía de remisión creadas exitosamente. La guía aún no ha sido enviada a SUNAT.',
+        'movement' => $result['movement'],
+        'shipping_guide' => $result['shipping_guide'],
+        'can_edit' => true, // Can edit while guide is not sent
+        'can_send_to_sunat' => true,
+      ]);
+    } catch (Exception $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Send shipping guide to Nubefact/SUNAT
+   * After this, the transfer cannot be edited
+   *
+   * @param int $id Movement ID
+   * @return JsonResponse
+   */
+  public function sendShippingGuideToNubefact(int $id): JsonResponse
+  {
+    try {
+      $movement = $this->inventoryMovementService->find($id);
+
+      // Validate movement has shipping guide
+      if (!$movement->shipping_guide_id) {
+        return $this->error('Este movimiento no tiene una guía de remisión asociada', 400);
+      }
+
+      $shippingGuide = $movement->shippingGuide;
+
+      // Validate guide is not already sent
+      if ($shippingGuide->is_sunat_registered) {
+        return $this->error('La guía de remisión ya fue enviada a SUNAT', 400);
+      }
+
+      // TODO: Call Nubefact service to send the guide
+      // For now, just mark as sent (implement Nubefact integration later)
+      $shippingGuide->markAsSent();
+
+      return $this->success([
+        'message' => 'Guía de remisión enviada a SUNAT exitosamente. La transferencia ya no puede ser editada.',
+        'shipping_guide' => $shippingGuide->fresh(),
+        'can_edit' => false,
+        'can_receive' => true, // Now can be received at destination
+      ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

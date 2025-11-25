@@ -53,6 +53,11 @@ class UpdateWarehouseRequest extends StoreRequest
         'string',
         'max:50',
       ],
+      'header_warehouse_id' => [
+        'nullable',
+        'integer',
+        'exists:header_warehouses,id',
+      ],
     ];
 
     // Validar unicidad de la combinación [dyn_code, article_class_id, sede_id]

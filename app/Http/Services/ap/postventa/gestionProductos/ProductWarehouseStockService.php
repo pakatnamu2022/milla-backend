@@ -451,4 +451,131 @@ class ProductWarehouseStockService
 
     return $query->get();
   }
+
+  /**
+   * Move stock from quantity to quantity_in_transit (for transfers)
+   * Used when creating TRANSFER_OUT movement
+   *
+   * @param InventoryMovement $movement
+   * @return array Updated stock records
+   * @throws Exception
+   */
+  public function moveStockToInTransit(InventoryMovement $movement): array
+  {
+    DB::beginTransaction();
+    try {
+      $updatedStocks = [];
+
+      foreach ($movement->details as $detail) {
+        // Get stock record
+        $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
+          ->where('warehouse_id', $movement->warehouse_id)
+          ->first();
+
+        if (!$stock) {
+          throw new Exception(
+            "No se encontró stock para producto ID {$detail->product_id} en almacén {$movement->warehouse_id}"
+          );
+        }
+
+        // Validate sufficient quantity
+        if ($stock->quantity < $detail->quantity) {
+          throw new Exception(
+            "Stock insuficiente para producto ID {$detail->product_id}. " .
+            "Stock: {$stock->quantity}, Solicitado: {$detail->quantity}"
+          );
+        }
+
+        // Move from quantity to quantity_in_transit
+        $stock->quantity -= $detail->quantity;
+        $stock->quantity_in_transit += $detail->quantity;
+        $stock->last_movement_date = now();
+
+        // Update available quantity (quantity - reserved)
+        $stock->updateAvailableQuantity();
+
+        $updatedStocks[] = $stock;
+      }
+
+      DB::commit();
+      return $updatedStocks;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Move stock from quantity_in_transit to quantity (when reception is done)
+   * Used when creating TRANSFER_IN movement after reception
+   *
+   * @param int $productId
+   * @param int $warehouseOriginId
+   * @param int $warehouseDestinationId
+   * @param float $quantityReceived
+   * @return array [origin_stock, destination_stock]
+   * @throws Exception
+   */
+  public function moveFromInTransitToDestination(
+    int $productId,
+    int $warehouseOriginId,
+    int $warehouseDestinationId,
+    float $quantityReceived
+  ): array {
+    DB::beginTransaction();
+    try {
+      // Remove from in_transit in origin warehouse
+      $originStock = ProductWarehouseStock::where('product_id', $productId)
+        ->where('warehouse_id', $warehouseOriginId)
+        ->first();
+
+      if (!$originStock) {
+        throw new Exception(
+          "No se encontró stock en tránsito para producto ID {$productId} en almacén origen {$warehouseOriginId}"
+        );
+      }
+
+      if ($originStock->quantity_in_transit < $quantityReceived) {
+        throw new Exception(
+          "Stock en tránsito insuficiente para producto ID {$productId}. " .
+          "En tránsito: {$originStock->quantity_in_transit}, Recibido: {$quantityReceived}"
+        );
+      }
+
+      // Remove from in_transit
+      $originStock->quantity_in_transit -= $quantityReceived;
+      $originStock->last_movement_date = now();
+      $originStock->save();
+
+      // Add to quantity in destination warehouse
+      $destinationStock = ProductWarehouseStock::firstOrCreate(
+        [
+          'product_id' => $productId,
+          'warehouse_id' => $warehouseDestinationId,
+        ],
+        [
+          'quantity' => 0,
+          'quantity_in_transit' => 0,
+          'quantity_pending_credit_note' => 0,
+          'reserved_quantity' => 0,
+          'available_quantity' => 0,
+          'minimum_stock' => 0,
+          'maximum_stock' => 0,
+        ]
+      );
+
+      $destinationStock->quantity += $quantityReceived;
+      $destinationStock->last_movement_date = now();
+      $destinationStock->updateAvailableQuantity();
+
+      DB::commit();
+      return [
+        'origin' => $originStock,
+        'destination' => $destinationStock,
+      ];
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
 }

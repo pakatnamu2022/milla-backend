@@ -1,25 +1,23 @@
 <?php
 
-namespace App\Http\Controllers\ap\postventa;
+namespace App\Http\Controllers\ap\maestroGeneral;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\ap\postventa\IndexApprovedAccessoriesRequest;
-use App\Http\Requests\ap\postventa\StoreApprovedAccessoriesRequest;
-use App\Http\Requests\ap\postventa\UpdateApprovedAccessoriesRequest;
-use App\Http\Services\ap\postventa\ApprovedAccessoriesService;
-use App\Models\ap\postventa\ApprovedAccessories;
-use Illuminate\Http\Request;
+use App\Http\Requests\ap\maestroGeneral\IndexHeaderWarehouseRequest;
+use App\Http\Requests\ap\maestroGeneral\StoreHeaderWarehouseRequest;
+use App\Http\Requests\ap\maestroGeneral\UpdateHeaderWarehouseRequest;
+use App\Http\Services\ap\maestroGeneral\HeaderWarehouseService;
 
-class ApprovedAccessoriesController extends Controller
+class HeaderWarehouseController extends Controller
 {
-  protected ApprovedAccessoriesService $service;
+  protected HeaderWarehouseService $service;
 
-  public function __construct(ApprovedAccessoriesService $service)
+  public function __construct(HeaderWarehouseService $service)
   {
     $this->service = $service;
   }
 
-  public function index(IndexApprovedAccessoriesRequest $request)
+  public function index(IndexHeaderWarehouseRequest $request)
   {
     try {
       return $this->service->list($request);
@@ -28,10 +26,10 @@ class ApprovedAccessoriesController extends Controller
     }
   }
 
-  public function store(StoreApprovedAccessoriesRequest $request)
+  public function store(StoreHeaderWarehouseRequest $request)
   {
     try {
-      return $this->success($this->service->store($request->all()));
+      return $this->success($this->service->store($request->validated()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -46,10 +44,10 @@ class ApprovedAccessoriesController extends Controller
     }
   }
 
-  public function update(UpdateApprovedAccessoriesRequest $request, $id)
+  public function update(UpdateHeaderWarehouseRequest $request, $id)
   {
     try {
-      $data = $request->all();
+      $data = $request->validated();
       $data['id'] = $id;
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {

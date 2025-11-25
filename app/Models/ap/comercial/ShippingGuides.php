@@ -100,6 +100,10 @@ class ShippingGuides extends Model
     'status' => 'boolean',
   ];
 
+  // Issuer types
+  const ISSUER_TYPE_SUPPLIER = 'PROVEEDOR';
+  const ISSUER_TYPE_AUTOMOTORES = 'AUTOMOTORES';
+
   const filters = [
     'search' => ['document_number', 'plate', 'driver_name', 'documentSeries.series'],
     'document_type',

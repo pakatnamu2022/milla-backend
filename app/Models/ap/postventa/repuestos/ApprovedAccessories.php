@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\ap\postventa;
+namespace App\Models\ap\postventa\repuestos;
 
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -52,7 +52,7 @@ class ApprovedAccessories extends Model
       $this->attributes['type'] = Str::upper($value);
     }
   }
-  
+
   public function setDescriptionAttribute($value): void
   {
     if ($value) {

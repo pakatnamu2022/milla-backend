@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\ap\maestroGeneral\HeaderWarehouse;
+use App\Models\ap\maestroGeneral\HeaderWarehouse1;
 use App\Models\ap\maestroGeneral\Warehouse;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -29,7 +29,7 @@ class HeaderWarehouseSeeder extends Seeder
       $dynCode = $warehouse->dyn_code;
 
       // Crear el header_warehouse
-      $headerWarehouse = HeaderWarehouse::create([
+      $headerWarehouse = HeaderWarehouse1::create([
         'dyn_code' => $dynCode,
         'status' => $warehouse->status,
         'is_received' => $warehouse->is_received,
@@ -47,7 +47,7 @@ class HeaderWarehouseSeeder extends Seeder
       $counter++;
     }
 
-    $this->command->info('HeaderWarehouse seeder completado exitosamente.');
+    $this->command->info('HeaderWarehouse1 seeder completado exitosamente.');
     $this->command->info('Total de header_warehouses creados: ' . $distinctWarehouses->count());
   }
 }

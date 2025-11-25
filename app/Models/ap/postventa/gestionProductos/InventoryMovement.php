@@ -3,6 +3,7 @@
 namespace App\Models\ap\postventa\gestionProductos;
 
 use App\Models\ap\ApPostVentaMasters;
+use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -24,6 +25,7 @@ class InventoryMovement extends Model
     'movement_date',
     'warehouse_id',
     'warehouse_destination_id',
+    'shipping_guide_id',
     'reference_type',
     'reference_id',
     'user_id',
@@ -73,6 +75,7 @@ class InventoryMovement extends Model
   // Status
   const STATUS_DRAFT = 'DRAFT';
   const STATUS_APPROVED = 'APPROVED';
+  const STATUS_IN_TRANSIT = 'IN_TRANSIT';
   const STATUS_CANCELLED = 'CANCELLED';
 
   // Boot method
@@ -129,6 +132,11 @@ class InventoryMovement extends Model
     return $this->morphTo();
   }
 
+  public function shippingGuide(): BelongsTo
+  {
+    return $this->belongsTo(ShippingGuides::class, 'shipping_guide_id');
+  }
+
   // Accessors
   public function getIsDraftAttribute(): bool
   {
@@ -175,6 +183,11 @@ class InventoryMovement extends Model
     ]);
   }
 
+  public function getIsInTransitAttribute(): bool
+  {
+    return $this->status === self::STATUS_IN_TRANSIT;
+  }
+
   // Scopes
   public function scopeDraft($query)
   {
@@ -189,6 +202,11 @@ class InventoryMovement extends Model
   public function scopeCancelled($query)
   {
     return $query->where('status', self::STATUS_CANCELLED);
+  }
+
+  public function scopeInTransit($query)
+  {
+    return $query->where('status', self::STATUS_IN_TRANSIT);
   }
 
   public function scopeByType($query, $type)

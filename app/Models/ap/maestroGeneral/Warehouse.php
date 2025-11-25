@@ -79,6 +79,6 @@ class Warehouse extends Model
 
   public function headerWarehouse(): BelongsTo
   {
-    return $this->belongsTo(HeaderWarehouse::class, 'header_warehouse_id');
+    return $this->belongsTo(HeaderWarehouse1::class, 'header_warehouse_id');
   }
 }
