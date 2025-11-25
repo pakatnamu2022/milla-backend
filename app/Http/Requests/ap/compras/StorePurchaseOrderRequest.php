@@ -8,6 +8,16 @@ use Illuminate\Validation\Rule;
 
 class StorePurchaseOrderRequest extends StoreRequest
 {
+
+  public function prepareForValidation()
+  {
+    if (!$this->has('type_operation_id')) {
+      $this->merge([
+        'type_operation_id' => 794,
+      ]);
+    }
+  }
+
   public function rules(): array
   {
     $hasVehicle = false;
