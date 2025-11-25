@@ -235,6 +235,11 @@ class ElectronicDocument extends BaseModel
     }
   }
 
+  public function seriesModel(): BelongsTo
+  {
+    return $this->belongsTo(AssignSalesSeries::class, 'series_id');
+  }
+
   public function creditNote(): BelongsTo
   {
     return $this->belongsTo(ElectronicDocument::class, 'credit_note_id');
@@ -449,6 +454,17 @@ class ElectronicDocument extends BaseModel
   public function getIsCancelledAttribute(): bool
   {
     return $this->status === self::STATUS_CANCELLED || $this->anulado === true;
+  }
+
+  public function getSaleDateAttribute(): string
+  {
+    return $this->fecha_de_emision->format('d/m/Y');
+  }
+
+  public function getClientPhoneAttribute(): ?string
+  {
+    $client = $this->client;
+    return $client ? $client->phone : null;
   }
 
   /**

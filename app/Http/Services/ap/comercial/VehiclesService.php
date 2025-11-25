@@ -6,6 +6,7 @@ use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\ExportService;
 use App\Http\Utils\Constants;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
@@ -14,11 +15,17 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class VehiclesService extends BaseService implements BaseServiceInterface
 {
+
+  public function exportSales(Request $request)
+  {
+    $exportService = new ExportService();
+    return $exportService->exportFromRequest($request, Vehicles::class);
+  }
+
   /**
    * Lista vehículos con filtros, búsqueda y paginación
    * @param Request $request
@@ -323,7 +330,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'total_amount' => $documents->sum('total'),
     ]);
   }
-  
+
   /**
    * Obtiene información del cliente asociado a un vehículo y su estado de deuda
    * @param int $vehicleId
