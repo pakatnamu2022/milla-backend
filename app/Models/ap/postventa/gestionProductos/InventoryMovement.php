@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\postventa\gestionProductos;
 
+use App\Models\ap\ApPostVentaMasters;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -30,7 +31,9 @@ class InventoryMovement extends Model
     'notes',
     'total_items',
     'total_quantity',
-    'reason_in_out_id'
+    'reason_in_out_id',
+    'created_at',
+    'updated_at',
   ];
 
   protected $casts = [
@@ -40,9 +43,9 @@ class InventoryMovement extends Model
   ];
 
   const filters = [
-    'search' => ['movement_number'],
+    'search' => ['movement_number', 'user.name', 'warehouse.dyn_code', 'warehouseDestination.dyn_code'],
     'movement_type' => 'in',
-    'movement_date' => '=',
+    'movement_date' => 'between',
     'warehouse_id' => '=',
     'warehouse_destination_id' => '=',
     'status' => '=',
@@ -72,7 +75,24 @@ class InventoryMovement extends Model
   const STATUS_APPROVED = 'APPROVED';
   const STATUS_CANCELLED = 'CANCELLED';
 
+  // Boot method
+  protected static function boot()
+  {
+    parent::boot();
+
+    // When deleting a movement, also delete its details
+    static::deleting(function ($movement) {
+      // Delete all details associated with this movement
+      $movement->details()->delete();
+    });
+  }
+
   // Mutators
+  public function setNotesAttribute($value)
+  {
+    $this->attributes['notes'] = Str::upper(Str::ascii($value));
+  }
+
   public function setMovementNumberAttribute($value)
   {
     $this->attributes['movement_number'] = Str::upper(Str::ascii($value));
@@ -92,6 +112,11 @@ class InventoryMovement extends Model
   public function user(): BelongsTo
   {
     return $this->belongsTo(User::class, 'user_id');
+  }
+
+  public function reasonInOut(): BelongsTo
+  {
+    return $this->belongsTo(ApPostVentaMasters::class, 'reason_in_out_id');
   }
 
   public function details(): HasMany

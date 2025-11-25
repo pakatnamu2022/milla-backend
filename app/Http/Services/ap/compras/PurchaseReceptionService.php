@@ -229,16 +229,11 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         ->get();
 
       foreach ($inventoryMovements as $movement) {
-        // Delete movement details first (soft delete)
-        $movement->details()->delete();
-        // Delete movement (soft delete)
+        // Delete movement (soft delete) - details will be deleted automatically via boot method
         $movement->delete();
       }
 
-      // Delete all details first (soft delete)
-      $reception->details()->delete();
-
-      // Delete reception (soft delete)
+      // Delete reception (soft delete) - details will be deleted automatically via boot method
       $reception->delete();
 
       DB::commit();

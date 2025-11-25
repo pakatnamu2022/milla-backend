@@ -15,7 +15,6 @@ use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
 use App\Http\Controllers\ap\comercial\VehiclesController;
 use App\Http\Controllers\ap\compras\PurchaseOrderController;
 use App\Http\Controllers\ap\compras\PurchaseReceptionController;
-use App\Http\Controllers\ap\compras\ReasonsTransactionController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFamiliesController;
@@ -916,20 +915,13 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
-      // Reasons Transaction - Motivos de Transacción
-      Route::apiResource('reasonsTransaction', ReasonsTransactionController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
       // Inventory Movements - Movimientos de Inventario
       Route::post('inventoryMovements/adjustments', [InventoryMovementController::class, 'createAdjustment']);
       Route::apiResource('inventoryMovements', InventoryMovementController::class)->only([
         'index',
-        'show'
+        'show',
+        'update',
+        'destroy'
       ]);
 
       Route::apiResource('approvedAccessories', ApprovedAccessoriesController::class)->only([

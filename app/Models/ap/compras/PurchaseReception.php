@@ -57,6 +57,18 @@ class PurchaseReception extends BaseModel
     'created_at',
   ];
 
+  // Boot method
+  protected static function boot()
+  {
+    parent::boot();
+
+    // When deleting a reception, also delete its details
+    static::deleting(function ($reception) {
+      // Delete all details associated with this reception
+      $reception->details()->delete();
+    });
+  }
+
   // Mutators
   public function setReceptionNumberAttribute($value)
   {

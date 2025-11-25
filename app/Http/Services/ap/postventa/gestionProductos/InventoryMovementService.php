@@ -32,13 +32,22 @@ class InventoryMovementService extends BaseService
     );
   }
 
-  /**
-   * Create inventory movement from purchase reception
-   *
-   * @param PurchaseReception $reception
-   * @return InventoryMovement
-   * @throws Exception
-   */
+  public function find($id)
+  {
+    $reception = InventoryMovement::where('id', $id)->first();
+
+    if (!$reception) {
+      throw new Exception('Movimiento de Inventario no encontrada');
+    }
+
+    return $reception;
+  }
+
+  public function show($id)
+  {
+    return new InventoryMovementResource($this->find($id)->load(['details']));
+  }
+
   public function createFromPurchaseReception(PurchaseReception $reception): InventoryMovement
   {
     DB::beginTransaction();
@@ -103,14 +112,6 @@ class InventoryMovementService extends BaseService
     }
   }
 
-  /**
-   * Create inventory adjustment (loss, damage, theft, etc.)
-   *
-   * @param array $data
-   * @param array $details
-   * @return InventoryMovement
-   * @throws Exception
-   */
   public function createAdjustment(array $data, array $details): InventoryMovement
   {
     DB::beginTransaction();
@@ -211,12 +212,29 @@ class InventoryMovementService extends BaseService
     }
   }
 
-  /**
-   * Get default notes based on movement type
-   *
-   * @param string $movementType
-   * @return string
-   */
+  public function updateAdjustment(Mixed $data): InventoryMovement
+  {
+    DB::beginTransaction();
+    try {
+      $adjustmentInventory = $this->find($data['id']);
+
+      if ($adjustmentInventory->status === InventoryMovement::STATUS_CANCELLED) {
+        throw new Exception('No se puede actualizar un movimiento cancelado');
+      }
+
+      $adjustmentInventory->update([
+        'movement_date' => $data['movement_date'] ?? $adjustmentInventory->movement_date,
+        'notes' => $data['notes'] ?? $adjustmentInventory->notes,
+      ]);
+
+      DB::commit();
+      return $adjustmentInventory;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
   private function getDefaultNotes(string $movementType): string
   {
     $notes = [
@@ -225,6 +243,54 @@ class InventoryMovementService extends BaseService
     ];
 
     return $notes[$movementType] ?? 'Ajuste de inventario';
+  }
+
+  public function reverseStockFromMovement($id)
+  {
+    DB::beginTransaction();
+    try {
+      $adjustmentInventory = $this->find($id);
+
+      if ($adjustmentInventory->status === InventoryMovement::STATUS_CANCELLED) {
+        throw new Exception('No se puede revertir el stock de un movimiento cancelado');
+      }
+
+      $movement = $adjustmentInventory->load('details');
+      $updatedStocks = [];
+
+      foreach ($movement->details as $detail) {
+        $productId = $detail->product_id;
+        $quantity = $detail->quantity;
+
+        // Reverse the stock change
+        // If it was an INBOUND movement (added stock), we need to REMOVE it
+        // If it was an OUTBOUND movement (removed stock), we need to ADD it back
+        if ($movement->is_inbound) {
+          // INBOUND: Remove the stock that was added
+          $stock = $this->stockService->removeStock($productId, $movement->warehouse_id, abs($quantity));
+          $updatedStocks[] = $stock;
+        } else {
+          // OUTBOUND: Add back the stock that was removed
+          $stock = $this->stockService->addStock($productId, $movement->warehouse_id, abs($quantity));
+          $updatedStocks[] = $stock;
+        }
+
+        // Handle transfers (TRANSFER_OUT and TRANSFER_IN)
+        if ($movement->movement_type === InventoryMovement::TYPE_TRANSFER_IN && $movement->warehouse_destination_id) {
+          // For transfer in, also reverse destination warehouse stock
+          $destinationStock = $this->stockService->removeStock($productId, $movement->warehouse_destination_id, abs($quantity));
+          $updatedStocks[] = $destinationStock;
+        }
+      }
+
+      $movement->delete();
+
+      DB::commit();
+      return response()->json(['message' => 'Recepción eliminada correctamente. Se han revertido todas las cantidades y movimientos de inventario.']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 
 }
