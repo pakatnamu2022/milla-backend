@@ -8,6 +8,8 @@ use App\Http\Requests\ap\facturacion\NextCorrelativeElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\StoreCreditNoteRequest;
 use App\Http\Requests\ap\facturacion\StoreDebitNoteRequest;
 use App\Http\Requests\ap\facturacion\StoreElectronicDocumentRequest;
+use App\Http\Requests\ap\facturacion\UpdateCreditNoteRequest;
+use App\Http\Requests\ap\facturacion\UpdateDebitNoteRequest;
 use App\Http\Requests\ap\facturacion\UpdateElectronicDocumentRequest;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
 use App\Http\Services\ap\facturacion\ElectronicDocumentService;
@@ -195,17 +197,16 @@ class ElectronicDocumentController extends Controller
   /**
    * Update credit note
    */
-  public function updateCreditNote(UpdateCreditNote $request, $id): JsonResponse
+  public function updateCreditNote(UpdateCreditNoteRequest $request, $id): JsonResponse
   {
     try {
       $data = $request->validated();
-      $data['original_document_id'] = $id;
 
-      $creditNote = $this->service->createCreditNote($id, $data);
+      $creditNote = $this->service->updateCreditNote($id, $data);
 
       return $this->success([
         'success' => true,
-        'message' => 'Nota de crédito creada correctamente',
+        'message' => 'Nota de crédito actualizada correctamente',
         'data' => $creditNote
       ]);
     } catch (Exception $e) {
@@ -227,6 +228,26 @@ class ElectronicDocumentController extends Controller
       return $this->success([
         'success' => true,
         'message' => 'Nota de débito creada correctamente',
+        'data' => $debitNote
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Update debit note
+   */
+  public function updateDebitNote(UpdateDebitNoteRequest $request, $id): JsonResponse
+  {
+    try {
+      $data = $request->validated();
+
+      $debitNote = $this->service->updateDebitNote($id, $data);
+
+      return $this->success([
+        'success' => true,
+        'message' => 'Nota de débito actualizada correctamente',
         'data' => $debitNote
       ]);
     } catch (Exception $e) {
