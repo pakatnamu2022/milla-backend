@@ -28,6 +28,7 @@ class Warehouse extends Model
     'parent_warehouse_id',
     'inventory_account',
     'counterparty_account',
+    'is_physical_warehouse',
   ];
 
   const filters = [
@@ -38,6 +39,8 @@ class Warehouse extends Model
     'is_received' => '=',
     'sede_id' => '=',
     'type_operation_id' => '=',
+    'parent_warehouse_id' => '=',
+    'is_physical_warehouse' => '=',
   ];
 
   const sorts = [

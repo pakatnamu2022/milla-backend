@@ -13,8 +13,8 @@ class WarehouseResource extends JsonResource
       'id' => $this->id,
       'dyn_code' => $this->dyn_code,
       'description' => $this->description,
-      'article_class_id' => $this->article_class_id,
-      'article_class' => $this->articleClass->description,
+      'article_class_id' => $this->article_class_id ?? "",
+      'article_class' => $this->articleClass->description ?? "-",
       'sede_id' => $this->sede_id,
       'sede' => $this->sede->abreviatura,
       'type_operation_id' => $this->type_operation_id,
@@ -23,7 +23,8 @@ class WarehouseResource extends JsonResource
       'is_received' => $this->is_received,
       'inventory_account' => $this->inventory_account,
       'counterparty_account' => $this->counterparty_account,
-      'parent_warehouse_id' => $this->header_warehouse_id ?? "",
+      'is_physical_warehouse' => $this->is_physical_warehouse,
+      'parent_warehouse_id' => $this->parent_warehouse_id ?? "",
       'parent_warehouse_dyn_code' => $this->parentWarehouse ? $this->parentWarehouse->dyn_code : "-",
     ];
   }

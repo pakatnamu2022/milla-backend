@@ -12,6 +12,8 @@ return new class extends Migration {
   {
     Schema::table('warehouse', function (Blueprint $table) {
       $table->foreignId('parent_warehouse_id')->nullable()->constrained('warehouse')->nullOnDelete()->after('id')->comment('Parent warehouse for sub-warehouses');
+      $table->boolean('is_physical_warehouse')->default(false)->after('parent_warehouse_id')->comment('Indicates if the warehouse is a physical warehouse');
+      $table->unsignedBigInteger('article_class_id')->nullable()->change();
     });
   }
 
@@ -23,6 +25,8 @@ return new class extends Migration {
     Schema::table('warehouse', function (Blueprint $table) {
       $table->dropForeign(['parent_warehouse_id']);
       $table->dropColumn('parent_warehouse_id');
+      $table->dropColumn('is_physical_warehouse');
+      $table->unsignedBigInteger('article_class_id')->change();
     });
   }
 };
