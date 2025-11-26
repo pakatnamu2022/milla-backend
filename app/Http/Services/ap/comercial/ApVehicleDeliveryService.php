@@ -259,9 +259,15 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         $series = $assignSeries->series;
         $correlativeStart = $assignSeries->correlative_start;
 
-        // Contar documentos existentes con la misma serie
-        $existingCount = ShippingGuides::where('document_series_id', $assignSeries->id)->count();
-        $correlativeNumber = $correlativeStart + $existingCount;
+        // Buscar el último correlativo usado para esta serie
+        $lastShippingGuide = ShippingGuides::where('document_series_id', $assignSeries->id)
+          ->orderBy('correlative', 'desc')
+          ->first();
+
+        // Si existe un correlativo previo, sumar 1; si no, usar el correlative_start
+        $correlativeNumber = $lastShippingGuide
+          ? ((int)$lastShippingGuide->correlative + 1)
+          : $correlativeStart;
 
         $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
         $documentNumber = $series . '-' . $correlative;

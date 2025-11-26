@@ -53,6 +53,7 @@ class PurchaseOrder extends BaseModel
     'vehicle_movement_id',
     'type_operation_id',
     'migrated_at',
+    'payment_terms',
   ];
 
   protected $casts = [
@@ -117,7 +118,7 @@ class PurchaseOrder extends BaseModel
   {
     return $this->hasMany(PurchaseReception::class, 'purchase_order_id');
   }
-  
+
   public function hasActiveReceptions(): bool
   {
     return $this->receptions()->whereNull('deleted_at')->exists();

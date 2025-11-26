@@ -4,8 +4,11 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 
 use App\Http\Resources\ap\postventa\gestionProductos\InventoryMovementResource;
 use App\Http\Services\BaseService;
+use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\compras\PurchaseReception;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
 use Exception;
@@ -224,8 +227,8 @@ class InventoryMovementService extends BaseService
       }
 
       // Validate if movement has shipping guide sent to SUNAT (for transfers)
-      if ($adjustmentInventory->shipping_guide_id) {
-        $shippingGuide = $adjustmentInventory->shippingGuide;
+      if ($adjustmentInventory->reference_type === 'App\\Models\\ap\\comercial\\ShippingGuides' && $adjustmentInventory->reference_id) {
+        $shippingGuide = $adjustmentInventory->reference;
         if ($shippingGuide && $shippingGuide->is_sunat_registered) {
           throw new Exception('No se puede editar una transferencia cuya guía de remisión ya fue enviada a SUNAT');
         }
@@ -291,12 +294,29 @@ class InventoryMovementService extends BaseService
         }
       }
 
+      // Get info for shipping guide
+      $business_partner = BusinessPartners::find($transferData['transmitter_origin_id']);
+      $sede_transmitter = Warehouse::find($transferData['warehouse_origin_id'])->sede;
+      $sede_receiver = Warehouse::find($transferData['warehouse_destination_id'])->sede;
+      $transmitter = BusinessPartnersEstablishment::where('sede_id', $sede_transmitter->id)
+        ->where('business_partner_id', $business_partner->id)
+        ->first();
+      $receiver = BusinessPartnersEstablishment::where('sede_id', $sede_receiver->id)
+        ->where('business_partner_id', $business_partner->id)
+        ->first();
+      $transport_company = BusinessPartners::find($transferData['transport_company_id']);
+
+      // validamos que si $transmitter o $receiver no sean nulos
+      if (!$transmitter || !$receiver) {
+        throw new Exception('Por favor, configure la sede en el apartado de establecimientos de cliente automotores');
+      }
+
       // Generate shipping guide number
       $shippingGuideNumber = $this->generateShippingGuideNumber();
 
       // Create Shipping Guide (NOT sent to Nubefact yet)
       $shippingGuide = ShippingGuides::create([
-        'document_type' => '09', // Guía de remisión
+        'document_type' => $transferData['document_type'],
         'issuer_type' => ShippingGuides::ISSUER_TYPE_AUTOMOTORES,
         'document_number' => $shippingGuideNumber,
         'series' => 'GR01',
@@ -304,8 +324,10 @@ class InventoryMovementService extends BaseService
         'issue_date' => $transferData['movement_date'] ?? now(),
         'requires_sunat' => true,
         'is_sunat_registered' => false, // NOT sent yet
-        'sede_transmitter_id' => $transferData['warehouse_origin_id'],
-        'sede_receiver_id' => $transferData['warehouse_destination_id'],
+        'sede_transmitter_id' => $sede_transmitter->id,
+        'sede_receiver_id' => $sede_receiver->id,
+        'transmitter_id' => $transmitter ? $transmitter->id : null,
+        'receiver_id' => $receiver ? $receiver->id : null,
         'driver_name' => $transferData['driver_name'],
         'driver_doc' => $transferData['driver_doc'],
         'license' => $transferData['license'],
@@ -315,12 +337,12 @@ class InventoryMovementService extends BaseService
         'transport_company_id' => $transferData['transport_company_id'] ?? null,
         'total_packages' => $transferData['total_packages'] ?? null,
         'total_weight' => $transferData['total_weight'] ?? null,
-        'origin_ubigeo' => $transferData['origin_ubigeo'] ?? null,
-        'origin_address' => $transferData['origin_address'] ?? null,
-        'destination_ubigeo' => $transferData['destination_ubigeo'] ?? null,
-        'destination_address' => $transferData['destination_address'] ?? null,
-        'ruc_transport' => $transferData['ruc_transport'] ?? null,
-        'company_name_transport' => $transferData['company_name_transport'] ?? null,
+        'origin_ubigeo' => $sede_transmitter ? $sede_transmitter->district->ubigeo : null,
+        'origin_address' => $sede_transmitter ? $sede_transmitter->direccion : null,
+        'destination_ubigeo' => $sede_receiver ? $sede_receiver->district->ubigeo : null,
+        'destination_address' => $sede_receiver ? $sede_receiver->direccion : null,
+        'ruc_transport' => $transport_company->num_doc ?? null,
+        'company_name_transport' => $transport_company->full_name ?? null,
         'notes' => $transferData['notes'] ?? null,
         'status' => true,
         'created_by' => Auth::id(),
@@ -333,10 +355,9 @@ class InventoryMovementService extends BaseService
         'movement_date' => $transferData['movement_date'] ?? now(),
         'warehouse_id' => $transferData['warehouse_origin_id'],
         'warehouse_destination_id' => $transferData['warehouse_destination_id'],
-        'shipping_guide_id' => $shippingGuide->id,
         'reason_in_out_id' => $transferData['reason_in_out_id'] ?? null,
-        'reference_type' => null,
-        'reference_id' => null,
+        'reference_type' => ShippingGuides::class,
+        'reference_id' => $shippingGuide->id,
         'user_id' => Auth::id(),
         'status' => InventoryMovement::STATUS_IN_TRANSIT, // IN TRANSIT (not approved yet)
         'notes' => $transferData['notes'] ?? 'Transferencia en tránsito',
@@ -375,7 +396,7 @@ class InventoryMovementService extends BaseService
 
       DB::commit();
       return [
-        'movement' => $movementOut->load(['warehouse', 'warehouseDestination', 'user', 'details.product', 'shippingGuide']),
+        'movement' => $movementOut->load(['warehouse', 'warehouseDestination', 'user', 'details.product', 'reference']),
         'shipping_guide' => $shippingGuide->fresh(['sedeTransmitter', 'sedeReceiver', 'transferReason', 'transferModality']),
       ];
     } catch (Exception $e) {

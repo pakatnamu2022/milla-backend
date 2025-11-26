@@ -104,12 +104,9 @@ class InventoryMovementController extends Controller
           'transport_company_id',
           'total_packages',
           'total_weight',
-          'origin_ubigeo',
-          'origin_address',
-          'destination_ubigeo',
-          'destination_address',
-          'ruc_transport',
-          'company_name_transport',
+          // Business Partners (will be used to get address and ubigeo data)
+          'transmitter_origin_id',
+          'receiver_destination_id',
         ]),
         $request->details
       );
@@ -138,12 +135,12 @@ class InventoryMovementController extends Controller
     try {
       $movement = $this->inventoryMovementService->find($id);
 
-      // Validate movement has shipping guide
-      if (!$movement->shipping_guide_id) {
+      // Validate movement has shipping guide (using polymorphic relation)
+      if (!$movement->reference_id || $movement->reference_type !== 'App\\Models\\ap\\comercial\\ShippingGuides') {
         return $this->error('Este movimiento no tiene una guía de remisión asociada', 400);
       }
 
-      $shippingGuide = $movement->shippingGuide;
+      $shippingGuide = $movement->reference;
 
       // Validate guide is not already sent
       if ($shippingGuide->is_sunat_registered) {

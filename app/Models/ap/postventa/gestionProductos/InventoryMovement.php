@@ -3,7 +3,6 @@
 namespace App\Models\ap\postventa\gestionProductos;
 
 use App\Models\ap\ApPostVentaMasters;
-use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -25,7 +24,6 @@ class InventoryMovement extends Model
     'movement_date',
     'warehouse_id',
     'warehouse_destination_id',
-    'shipping_guide_id',
     'reference_type',
     'reference_id',
     'user_id',
@@ -130,11 +128,6 @@ class InventoryMovement extends Model
   public function reference(): MorphTo
   {
     return $this->morphTo();
-  }
-
-  public function shippingGuide(): BelongsTo
-  {
-    return $this->belongsTo(ShippingGuides::class, 'shipping_guide_id');
   }
 
   // Accessors
