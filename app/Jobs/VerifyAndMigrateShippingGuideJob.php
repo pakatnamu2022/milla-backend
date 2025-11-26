@@ -303,14 +303,6 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
       // Si ya está completado, no hacer nada
       if ($transactionLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-
-        $vehicle = $shippingGuide->vehicleMovement?->vehicle;
-        if (!$vehicle) {
-          throw new Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.");
-        }
-
-        $vehicleMovementService = new VehicleMovementService();
-        $vehicleMovementService->storeInventoryVehicleMovement($vehicle);
         continue;
       }
 
@@ -330,6 +322,16 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
           $existingTransaction->ProcesoEstado ?? 0,
           $existingTransaction->ProcesoError ?? null
         );
+
+        if ($existingTransaction->ProcesoEstado === 1) {
+          $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+          if (!$vehicle) {
+            throw new Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.");
+          }
+
+          $vehicleMovementService = new VehicleMovementService();
+          $vehicleMovementService->storeInventoryVehicleMovement($vehicle);
+        }
       }
     }
   }
