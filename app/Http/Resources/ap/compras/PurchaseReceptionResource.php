@@ -14,7 +14,7 @@ class PurchaseReceptionResource extends JsonResource
     return [
       'id' => $this->id,
       'reception_number' => $this->reception_number,
-      'reception_date' => $this->reception_date->format('Y-m-d'),
+      'reception_date' => $this->reception_date,
       'shipping_guide_number' => $this->shipping_guide_number,
       'reception_type' => $this->reception_type,
       'notes' => $this->notes ?? "",

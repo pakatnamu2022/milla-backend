@@ -74,6 +74,8 @@ class StorePurchaseOrderRequest extends StoreRequest
       // Tipo de Operación (opcional)
       'type_operation_id' => ['required', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'TIPO_OPERACION')->where('status', 1)->whereNull('deleted_at')],
 
+      'payment_terms' => ['nullable', 'string', 'max:100'],
+
       // Items de la Orden de Compra
       'items' => ['required', 'array', 'min:1'],
       'items.*.unit_measurement_id' => ['nullable', 'integer', Rule::exists('unit_measurement', 'id')->where('status', 1)->whereNull('deleted_at')],

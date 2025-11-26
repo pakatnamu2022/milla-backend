@@ -13,7 +13,7 @@ class InventoryMovementResource extends JsonResource
       'id' => $this->id,
       'movement_number' => $this->movement_number,
       'movement_type' => $this->movement_type,
-      'movement_date' => $this->movement_date->format('Y-m-d'),
+      'movement_date' => $this->movement_date,
       'warehouse_id' => $this->warehouse_id,
       'warehouse_code' => $this->warehouse ? $this->warehouse->dyn_code : null,
       'warehouse' => $this->warehouse,

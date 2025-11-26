@@ -58,6 +58,7 @@ class WarehouseService extends BaseService implements BaseServiceInterface
     $articleClassId = $request->get('ap_class_article_id');
     $empresaId = $request->get('empresa_id');
     $typeOperationId = $request->get('type_operation_id');
+    $onlyPhysical = $request->get('only_physical', false);
 
     // Obtener las sedes según el parámetro 'my'
     $sedesQuery = DB::table('config_sede')
@@ -83,12 +84,13 @@ class WarehouseService extends BaseService implements BaseServiceInterface
       throw new Exception('No se encontraron sedes disponibles para los filtros aplicados');
     }
 
-    // Filtrar almacenes por las sedes obtenidas, is_received y article_class_id
+    // Filtrar almacenes con filtros condicionales
     $warehouses = Warehouse::whereIn('sede_id', $sedeIds)
       ->where('is_received', $isReceived)
-      ->where('article_class_id', $articleClassId)
       ->where('type_operation_id', $typeOperationId)
       ->where('status', 1)
+      ->when($articleClassId, fn($q) => $q->where('article_class_id', $articleClassId))
+      ->when($onlyPhysical, fn($q) => $q->where('is_physical_warehouse', 1))
       ->orderBy('dyn_code', 'asc')
       ->get();
 

@@ -30,17 +30,15 @@ class StoreTransferInventoryRequest extends StoreRequest
       'driver_doc' => 'required|string|max:20',
       'license' => 'required|string|max:20',
       'plate' => 'required|string|max:20',
-      'transfer_reason_id' => 'required|integer|exists:gp_sunat_concepts,id',
-      'transfer_modality_id' => 'required|integer|exists:gp_sunat_concepts,id',
-      'transport_company_id' => 'nullable|integer|exists:business_partners,id',
+      'transfer_reason_id' => 'required|integer|exists:sunat_concepts,id',
+      'transfer_modality_id' => 'required|integer|exists:sunat_concepts,id',
+      'transport_company_id' => 'required|integer|exists:business_partners,id',
       'total_packages' => 'nullable|integer|min:1',
       'total_weight' => 'nullable|numeric|min:0',
-      'origin_ubigeo' => 'nullable|string|max:6',
-      'origin_address' => 'nullable|string|max:500',
-      'destination_ubigeo' => 'nullable|string|max:6',
-      'destination_address' => 'nullable|string|max:500',
-      'ruc_transport' => 'nullable|string|max:11',
-      'company_name_transport' => 'nullable|string|max:255',
+
+      // Transmitter and Receiver IDs (will be used to get address and ubigeo data)
+      'transmitter_origin_id' => 'required|integer|exists:business_partners,id',
+      'receiver_destination_id' => 'required|integer|exists:business_partners,id',
     ];
   }
 
@@ -81,11 +79,18 @@ class StoreTransferInventoryRequest extends StoreRequest
       'transfer_reason_id.exists' => 'El motivo de traslado no es válido',
       'transfer_modality_id.required' => 'La modalidad de traslado es requerida',
       'transfer_modality_id.exists' => 'La modalidad de traslado no es válida',
+      'transport_company_id.required' => 'La empresa de transporte es requerida',
       'transport_company_id.exists' => 'La empresa de transporte no existe',
       'total_packages.integer' => 'El total de bultos debe ser un número entero',
       'total_packages.min' => 'El total de bultos debe ser mayor a 0',
       'total_weight.numeric' => 'El peso total debe ser numérico',
       'total_weight.min' => 'El peso total debe ser mayor o igual a 0',
+
+      // Transmitter and Receiver
+      'transmitter_origin_id.required' => 'El remitente de origen es requerido',
+      'transmitter_origin_id.exists' => 'El remitente de origen no existe',
+      'receiver_destination_id.required' => 'El destinatario es requerido',
+      'receiver_destination_id.exists' => 'El destinatario no existe',
     ];
   }
 }
