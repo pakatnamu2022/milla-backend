@@ -217,7 +217,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         }
 
         $vehicleMovementService = new VehicleMovementService();
-        $vehicleMovementService->storeInventoryVehicleMovement($vehicle);
+        $vehicleMovementService->storeInventoryVehicleMovement($vehicle->id);
       }
     }
   }
