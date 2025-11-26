@@ -13,6 +13,8 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use function json_encode;
+use function str_pad;
+use const STR_PAD_LEFT;
 
 class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 {
@@ -170,7 +172,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       return;
     }
 
-    $transfer_id = $this->getTransferPrefix($shippingGuide) . $shippingGuide->correlative;
+    $transfer_id = $this->getTransferPrefix($shippingGuide) . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT);
 
 
     Log::info('Verificando en la base de datos intermedia', [
@@ -227,7 +229,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       return;
     }
 
-    $transfer_id = $this->getTransferPrefix($shippingGuide) . $shippingGuide->correlative;
+    $transfer_id = $this->getTransferPrefix($shippingGuide) . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT);
 
     // Verificar en la BD intermedia
     $existingDetail = DB::connection('dbtp')
@@ -262,7 +264,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     if ($serialLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
       return;
     }
-    $transfer_id = $this->getTransferPrefix($shippingGuide) . $shippingGuide->correlative;
+    $transfer_id = $this->getTransferPrefix($shippingGuide) . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT);
 
     // Verificar en la BD intermedia
     $existingSerial = DB::connection('dbtp')
@@ -442,7 +444,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'TVEN-' : 'TSAL-';
 
     // Construir el TransaccionId base
-    $transactionId = $prefix . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT);
+    $transactionId = $prefix . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
 
     // Si es una reversión, agregar asterisco
     if (str_contains($step, 'REVERSAL')) {
