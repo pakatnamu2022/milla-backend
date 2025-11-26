@@ -172,19 +172,17 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       return;
     }
 
-    $transfer_id = $this->getTransferPrefix($shippingGuide) . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT);
-
 
     Log::info('Verificando en la base de datos intermedia', [
       'shipping_guide_id' => $shippingGuide->id,
-      'transfer_id' => $transfer_id
+      'transfer_id' => $shippingGuide->dyn_series
     ]);
 
     // Verificar en la BD intermedia
     $existingTransfer = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventario')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', $transfer_id)
+      ->where('TransferenciaId', $shippingGuide->dyn_series)
       ->first();
 
     Log::info('Resultado de la verificación en BD intermedia', [
@@ -229,13 +227,11 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       return;
     }
 
-    $transfer_id = $this->getTransferPrefix($shippingGuide) . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT);
-
     // Verificar en la BD intermedia
     $existingDetail = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventarioDet')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', $transfer_id)
+      ->where('TransferenciaId', $shippingGuide->dyn_series)
       ->first();
 
     if ($existingDetail) {
@@ -264,13 +260,12 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     if ($serialLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
       return;
     }
-    $transfer_id = $this->getTransferPrefix($shippingGuide) . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT);
 
     // Verificar en la BD intermedia
     $existingSerial = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventarioDtS')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', $transfer_id)
+      ->where('TransferenciaId', $shippingGuide->dyn_series)
       ->where('Serie', $shippingGuide->vehicleMovement?->vehicle?->vin)
       ->first();
 
