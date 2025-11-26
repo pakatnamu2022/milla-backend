@@ -3,13 +3,12 @@
 namespace App\Jobs;
 
 use App\Http\Resources\Dynamics\ShippingGuideDetailDynamicsResource;
+use App\Http\Resources\Dynamics\ShippingGuideHeaderDynamicsResource;
+use App\Http\Resources\Dynamics\ShippingGuideSeriesDynamicsResource;
 use App\Http\Services\DatabaseSyncService;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
-use App\Models\ap\maestroGeneral\Warehouse;
-use App\Models\gp\gestionsistema\Company;
-use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
