@@ -210,7 +210,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       ]);
 
 
-      if ($existingTransfer->ProcesoEstado === 1) {
+      if ($transferLog->proceso_estado === 1) {
         $vehicle = $shippingGuide->vehicleMovement?->vehicle;
         if (!$vehicle) {
           throw new Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.");
