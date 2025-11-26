@@ -76,11 +76,24 @@ class SyncShippingGuideSaleJob implements ShouldQueue
     //     throw new \Exception('El vehículo no existe en Dynamics');
     // }
 
+    Log::info('Iniciando sincronización de guía de remisión de venta', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'is_cancelled' => $isCancelled,
+    ]);
+
     // 1. Sincronizar transacción de inventario (cabecera)
     $this->syncInventoryTransaction($shippingGuide, $syncService, $isCancelled);
 
+    Log::info('Sincronización de transacción de inventario completada', [
+      'shipping_guide_id' => $shippingGuide->id,
+    ]);
+
     // 2. Sincronizar detalle de transacción de inventario
     $this->syncInventoryTransactionDetail($shippingGuide, $syncService, $isCancelled);
+
+    Log::info('Sincronización de detalle de transacción de inventario completada', [
+      'shipping_guide_id' => $shippingGuide->id,
+    ]);
 
     // 3. Sincronizar serial de transacción de inventario (VIN)
     $this->syncInventoryTransactionSerial($shippingGuide, $syncService, $isCancelled);
@@ -220,25 +233,52 @@ class SyncShippingGuideSaleJob implements ShouldQueue
    */
   protected function syncInventoryTransactionDetail(ShippingGuides $shippingGuide, DatabaseSyncService $syncService, bool $isCancelled): void
   {
+    Log::info('Iniciando sincronización de detalle de transacción de inventario', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'is_cancelled' => $isCancelled,
+    ]);
     $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
 
+    Log::info('ID del vehículo asociado a la guía de remisión', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'vehicle_vn_id' => $vehicle_vn_id,
+    ]);
     if (!$vehicle_vn_id) {
       throw new \Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.");
     }
 
+    Log::info('Obteniendo prefijo para TransaccionId', [
+      'shipping_guide_id' => $shippingGuide->id,
+    ]);
+
     $prefix = $this->getSalePrefix($shippingGuide);
     $transactionIdOriginal = $prefix . str_pad($shippingGuide->correlative, 10, '0', STR_PAD_LEFT);
     $transactionIdFormatted = $transactionIdOriginal;
+
+    Log::info('TransaccionId formateado', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'transaction_id' => $transactionIdFormatted,
+    ]);
 
     // Si está cancelada, agregar asterisco al final del TransaccionId
     if ($isCancelled) {
       $transactionIdFormatted .= '*';
     }
 
+    Log::info('TransaccionId final para sincronización', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'transaction_id' => $transactionIdFormatted,
+    ]);
+
     // Si está cancelada, usar el step de reversión para crear un nuevo log
     $step = $isCancelled
       ? VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL_REVERSAL
       : VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL;
+
+    Log::info('Determinando step para el log de detalle de transacción', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'step' => $step,
+    ]);
 
     $transactionDetailLog = $this->getOrCreateLog(
       $shippingGuide->id,
@@ -248,10 +288,19 @@ class SyncShippingGuideSaleJob implements ShouldQueue
       $vehicle_vn_id
     );
 
+    Log::info('Registro de log obtenido/creado para detalle de transacción', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'log_id' => $transactionDetailLog->id,
+    ]);
+
     // Si ya está completado, no hacer nada (para este step específico)
     if ($transactionDetailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
       return;
     }
+
+    Log::info('Preparando datos para sincronización de detalle de transacción de inventario', [
+      'shipping_guide_id' => $shippingGuide->id,
+    ]);
 
     try {
       $vehicleVn = Vehicles::findOrFail(
@@ -259,15 +308,35 @@ class SyncShippingGuideSaleJob implements ShouldQueue
         ?? throw new \Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.")
       );
 
+      Log::info('Información del vehículo obtenida', [
+        'vehicle_id' => $vehicleVn->id,
+        'type_operation_id' => $vehicleVn->type_operation_id,
+        'class_id' => $vehicleVn->model->class_id ?? null,
+      ]);
+
       $type_operation_id = $vehicleVn->type_operation_id ?? null;
       $class_id = $vehicleVn->model->class_id ?? null;
+
+      Log::info('Determinando almacén de origen basado en sede transmisora', [
+        'sede_id' => $shippingGuide->sedeTransmitter->id ?? null,
+      ]);
 
       // Lógica para obtener el almacén de origen (venta)
       $sede = $shippingGuide->sedeTransmitter ?? null;
 
+      Log::info('Sede transmisora obtenida', [
+        'sede_id' => $sede->id ?? null,
+        'sede_dyn_code' => $sede->dyn_code ?? null,
+      ]);
+
       $baseQuery = Warehouse::where('sede_id', $sede->id)
         ->where('type_operation_id', $type_operation_id)
         ->where('article_class_id', $class_id);
+
+      Log::info('Consulta base para determinar almacén', [
+        'query' => $baseQuery->toSql(),
+        'bindings' => $baseQuery->getBindings(),
+      ]);
 
       $warehouseCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
 
@@ -278,6 +347,11 @@ class SyncShippingGuideSaleJob implements ShouldQueue
 
       // Si está cancelada, la cantidad es negativa (para revertir la salida)
       $cantidad = $isCancelled ? 1 : -1;
+
+      Log::info('Cantidad determinada para el detalle de transacción', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'cantidad' => $cantidad,
+      ]);
 
       $detailData = [
         'EmpresaId' => Company::AP_DYNAMICS,
@@ -293,10 +367,19 @@ class SyncShippingGuideSaleJob implements ShouldQueue
         'CuentaContrapartida' => $warehouseCode->counterparty_account . $sede->dyn_code ?? '',
       ];
 
+      Log::info('Datos preparados para sincronización de detalle de transacción', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'detail_data' => $detailData,
+      ]);
+
       // Sincronizar detalle de transacción de inventario
       $transactionDetailLog->markAsInProgress();
       $syncService->sync('inventory_transaction_dt', $detailData, 'create');
       $transactionDetailLog->updateProcesoEstado(0);
+
+      Log::info('Detalle de transacción de inventario sincronizado exitosamente', [
+        'shipping_guide_id' => $shippingGuide->id,
+      ]);
 
     } catch (\Exception $e) {
       $transactionDetailLog->markAsFailed("Error al sincronizar detalle de transacción de inventario: {$e->getMessage()}");
