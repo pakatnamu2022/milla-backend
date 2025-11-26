@@ -36,8 +36,13 @@ class ApCommercialMasters extends Model
     'type',
   ];
 
+//  OPERATION TYPE
   const int TIPO_OPERACION_COMERCIAL = 794;
   const int TIPO_OPERACION_POSTVENTA = 804;
+
+//  CURRENCY TYPE
+  const int CURRENCY_TYPE_SOLES = 1;
+  const int CURRENCY_TYPE_DOLLARS = 2;
 
   public function setCodeAttribute($value)
   {
