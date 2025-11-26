@@ -236,10 +236,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
     if ($existingDetail) {
       // Actualizar el log con el estado de la BD intermedia
-      $detailLog->updateProcesoEstado(
-        $existingDetail->ProcesoEstado ?? 0,
-        $existingDetail->ProcesoError ?? null
-      );
+      $detailLog->updateProcesoEstado(1);
     }
   }
 
@@ -273,10 +270,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       $procesoEstado = $existingSerial->ProcesoEstado ?? 0;
 
       // Actualizar el log con el estado de la BD intermedia
-      $serialLog->updateProcesoEstado(
-        $procesoEstado,
-        $existingSerial->ProcesoError ?? null
-      );
+      $serialLog->updateProcesoEstado(1);
 
       // Si Dynamics aceptó la transferencia (ProcesoEstado = 1), actualizar el warehouse_id del vehículo
       if ($procesoEstado === 1) {
