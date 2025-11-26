@@ -53,10 +53,10 @@ class UpdateWarehouseRequest extends StoreRequest
         'string',
         'max:50',
       ],
-      'header_warehouse_id' => [
+      'parent_warehouse_id' => [
         'nullable',
         'integer',
-        'exists:header_warehouses,id',
+        'exists:warehouse,id',
       ],
     ];
 

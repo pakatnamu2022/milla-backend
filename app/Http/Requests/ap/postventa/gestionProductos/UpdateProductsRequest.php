@@ -3,17 +3,32 @@
 namespace App\Http\Requests\ap\postventa\gestionProductos;
 
 use App\Http\Requests\StoreRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateProductsRequest extends StoreRequest
 {
   public function rules(): array
   {
-    $productId = $this->route('product');
-
     return [
-      'code' => 'sometimes|required|string|max:50|unique:products,code,' . $productId,
-      'dyn_code' => 'nullable|string|max:50|unique:products,dyn_code,' . $productId,
-      'nubefac_code' => 'nullable|string|max:50',
+      'code' => [
+        'sometimes',
+        'required',
+        'string',
+        'max:50',
+        Rule::unique('products', 'code')->ignore($this->route('product'))->whereNull('deleted_at'),
+      ],
+      'dyn_code' => [
+        'nullable',
+        'string',
+        'max:50',
+        Rule::unique('products', 'dyn_code')->ignore($this->route('product'))->whereNull('deleted_at'),
+      ],
+      'nubefac_code' => [
+        'nullable',
+        'string',
+        'max:50',
+        Rule::unique('products', 'nubefac_code')->ignore($this->route('product'))->whereNull('deleted_at'),
+      ],
       'name' => 'sometimes|required|string|max:255',
       'description' => 'nullable|string',
       'product_category_id' => 'sometimes|required|exists:product_category,id',
@@ -21,7 +36,7 @@ class UpdateProductsRequest extends StoreRequest
       'unit_measurement_id' => 'sometimes|required|exists:unit_measurement,id',
       'ap_class_article_id' => 'sometimes|required|exists:ap_class_article,id',
       'cost_price' => 'nullable|numeric|min:0',
-      
+
       'sale_price' => 'sometimes|required|numeric|min:0',
       'tax_rate' => 'nullable|numeric|min:0|max:100',
       'is_taxable' => 'nullable|boolean',

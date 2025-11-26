@@ -3,15 +3,31 @@
 namespace App\Http\Requests\ap\postventa\gestionProductos;
 
 use App\Http\Requests\StoreRequest;
+use Illuminate\Validation\Rule;
 
 class StoreProductsRequest extends StoreRequest
 {
   public function rules(): array
   {
     return [
-      'code' => 'required|string|max:50|unique:products,code',
-      'dyn_code' => 'nullable|string|max:50|unique:products,dyn_code',
-      'nubefac_code' => 'nullable|string|max:50',
+      'code' => [
+        'required',
+        'string',
+        'max:50',
+        Rule::unique('products', 'code')->whereNull('deleted_at'),
+      ],
+      'dyn_code' => [
+        'nullable',
+        'string',
+        'max:50',
+        Rule::unique('products', 'dyn_code')->whereNull('deleted_at'),
+      ],
+      'nubefac_code' => [
+        'nullable',
+        'string',
+        'max:50',
+        Rule::unique('products', 'nubefac_code')->whereNull('deleted_at'),
+      ],
       'name' => 'required|string|max:255',
       'description' => 'nullable|string',
       'product_category_id' => 'required|exists:product_category,id',

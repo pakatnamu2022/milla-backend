@@ -49,10 +49,10 @@ class StoreWarehouseRequest extends StoreRequest
         'string',
         'max:50',
       ],
-      'header_warehouse_id' => [
+      'parent_warehouse_id' => [
         'nullable',
         'integer',
-        'exists:header_warehouses,id',
+        'exists:warehouse,id',
       ],
     ];
 
@@ -96,8 +96,8 @@ class StoreWarehouseRequest extends StoreRequest
       'inventory_account.max' => 'La cuenta de inventario no puede exceder los 50 caracteres.',
       'counterparty_account.string' => 'La cuenta contrapartida debe ser un texto.',
       'counterparty_account.max' => 'La cuenta contrapartida no puede exceder los 50 caracteres.',
-      'header_warehouse_id.integer' => 'El campo encabezado de almacén debe ser un número entero.',
-      'header_warehouse_id.exists' => 'El encabezado de almacén seleccionado no existe.',
+      'parent_warehouse_id.integer' => 'El campo encabezado de almacén debe ser un número entero.',
+      'parent_warehouse_id.exists' => 'El encabezado de almacén seleccionado no existe.',
     ];
   }
 }
