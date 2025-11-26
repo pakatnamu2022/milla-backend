@@ -23,6 +23,8 @@ class WarehouseResource extends JsonResource
       'is_received' => $this->is_received,
       'inventory_account' => $this->inventory_account,
       'counterparty_account' => $this->counterparty_account,
+      'header_warehouse_id' => $this->header_warehouse_id ?? "",
+      'header_warehouse_dyn_code' => $this->headerWarehouse ? $this->headerWarehouse->dyn_code : "-",
     ];
   }
 }
