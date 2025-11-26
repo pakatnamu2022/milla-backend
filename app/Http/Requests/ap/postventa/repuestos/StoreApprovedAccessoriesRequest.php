@@ -3,7 +3,7 @@
 namespace App\Http\Requests\ap\postventa\repuestos;
 
 use App\Http\Requests\StoreRequest;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use Illuminate\Validation\Rule;
 
 class StoreApprovedAccessoriesRequest extends StoreRequest
@@ -11,7 +11,7 @@ class StoreApprovedAccessoriesRequest extends StoreRequest
   public function prepareForValidation(): void
   {
     $this->merge([
-      'type_currency_id' => ApCommercialMasters::CURRENCY_TYPE_SOLES,
+      'type_currency_id' => TypeCurrency::PEN_ID,
     ]);
   }
 

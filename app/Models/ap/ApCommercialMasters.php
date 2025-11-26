@@ -40,10 +40,6 @@ class ApCommercialMasters extends Model
   const int TIPO_OPERACION_COMERCIAL = 794;
   const int TIPO_OPERACION_POSTVENTA = 804;
 
-//  CURRENCY TYPE
-  const int CURRENCY_TYPE_SOLES = 1;
-  const int CURRENCY_TYPE_DOLLARS = 2;
-
   public function setCodeAttribute($value)
   {
     $this->attributes['code'] = Str::upper(Str::ascii($value));
