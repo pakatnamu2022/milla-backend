@@ -170,16 +170,19 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       return;
     }
 
+    $transfer_id = $this->getTransferPrefix($shippingGuide) . $shippingGuide->correlative;
+
+
     Log::info('Verificando en la base de datos intermedia', [
       'shipping_guide_id' => $shippingGuide->id,
-      'transfer_id' => 'VEH-' . $shippingGuide->correlative
+      'transfer_id' => $transfer_id
     ]);
 
     // Verificar en la BD intermedia
     $existingTransfer = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventario')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', 'VEH-' . $shippingGuide->correlative)
+      ->where('TransferenciaId', $transfer_id)
       ->first();
 
     Log::info('Resultado de la verificación en BD intermedia', [
@@ -224,11 +227,13 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       return;
     }
 
+    $transfer_id = $this->getTransferPrefix($shippingGuide) . $shippingGuide->correlative;
+
     // Verificar en la BD intermedia
     $existingDetail = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventarioDet')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', 'VEH-' . $shippingGuide->correlative)
+      ->where('TransferenciaId', $transfer_id)
       ->first();
 
     if ($existingDetail) {
@@ -257,12 +262,13 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     if ($serialLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
       return;
     }
+    $transfer_id = $this->getTransferPrefix($shippingGuide) . $shippingGuide->correlative;
 
     // Verificar en la BD intermedia
     $existingSerial = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventarioDtS')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', 'VEH-' . $shippingGuide->correlative)
+      ->where('TransferenciaId', $transfer_id)
       ->where('Serie', $shippingGuide->vehicleMovement?->vehicle?->vin)
       ->first();
 
@@ -557,5 +563,18 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       'shipping_guide_id' => $this->shippingGuideId,
       'error' => $exception->getMessage(),
     ]);
+  }
+
+  private function getTransferPrefix(ShippingGuides $shippingGuide): string
+  {
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
+      return 'CREC-';
+    }
+
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
+      return 'CTRA-';
+    }
+
+    return '-';
   }
 }
