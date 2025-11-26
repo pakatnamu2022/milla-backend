@@ -339,7 +339,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'type' => $discount['type'],
         'percentage' => $percentage,
         'amount' => $amount,
-        'igv' => $igv,
+//        'igv' => $igv,
         'valor_unitario' => $valorUnitario,
         'precio_unitario' => $precioUnitario,
         'is_negative' => $discount['is_negative'] ?? false,
