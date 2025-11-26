@@ -151,14 +151,29 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       ->where('step', VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER)
       ->first();
 
+    Log::info('Iniciando verificación de transferencia de inventario', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'transfer_log_found' => $transferLog ? true : false
+    ]);
+
     if (!$transferLog) {
       return;
     }
+
+    Log::info('Transfer log encontrado', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'transfer_log_status' => $transferLog->status
+    ]);
 
     // Si ya está completado, no hacer nada
     if ($transferLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
       return;
     }
+
+    Log::info('Verificando en la base de datos intermedia', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'transfer_id' => 'VEH-' . $shippingGuide->correlative
+    ]);
 
     // Verificar en la BD intermedia
     $existingTransfer = DB::connection('dbtp')
@@ -167,12 +182,27 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       ->where('TransferenciaId', 'VEH-' . $shippingGuide->correlative)
       ->first();
 
+    Log::info('Resultado de la verificación en BD intermedia', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'existing_transfer_found' => $existingTransfer ? true : false
+    ]);
+
     if ($existingTransfer) {
+      Log::info('Actualizando estado del log de transferencia', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'proceso_estado' => $existingTransfer->ProcesoEstado ?? 0,
+        'proceso_error' => $existingTransfer->ProcesoError ?? null
+      ]);
       // Actualizar el log con el estado de la BD intermedia
       $transferLog->updateProcesoEstado(
         $existingTransfer->ProcesoEstado ?? 0,
         $existingTransfer->ProcesoError ?? null
       );
+      Log::info('Estado del log de transferencia actualizado', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'log_status' => $transferLog->status,
+        'proceso_estado' => $transferLog->proceso_estado
+      ]);
     }
   }
 
