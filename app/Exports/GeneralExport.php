@@ -6,9 +6,7 @@ use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithColumnWidths;
-
-//use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
@@ -19,7 +17,7 @@ class GeneralExport implements
   WithHeadings,
   WithMapping,
   WithStyles,
-  WithColumnWidths,
+  ShouldAutoSize,
   WithTitle,
   WithEvents
 {
@@ -118,29 +116,6 @@ class GeneralExport implements
     return $this->styles;
   }
 
-  public function columnWidths(): array
-  {
-    $widths = [];
-    $columnLetter = 'A';
-
-    foreach ($this->columns as $key => $column) {
-      $width = 15; // Default
-
-      if (is_array($column) && isset($column['width'])) {
-        $width = $column['width'];
-      } else if (is_array($column)) {
-        // Auto-calcular basado en el label
-        $labelLength = strlen($column['label'] ?? '');
-        $width = max(12, min($labelLength * 1.2, 40));
-      }
-
-      $widths[$columnLetter] = $width;
-      $columnLetter++;
-    }
-
-    return $widths;
-  }
-
   public function title(): string
   {
     return $this->title;
@@ -159,8 +134,21 @@ class GeneralExport implements
         $lastColumn = chr(ord('A') + count($this->columns) - 1);
         $sheet->setAutoFilter("A1:{$lastColumn}1");
 
-        // Altura de filas
+        // Altura de filas del header
         $sheet->getRowDimension(1)->setRowHeight(25);
+
+        // Ajustar alineación vertical sin wrap text
+        $lastRow = $sheet->getHighestRow();
+        $alignment = $sheet->getStyle("A1:{$lastColumn}{$lastRow}")->getAlignment();
+        $alignment->setVertical('center');
+        $alignment->setWrapText(false); // Explícitamente desactivar wrap text
+        $alignment->setHorizontal('left'); // Alinear a la izquierda para mejor legibilidad
+
+        // Ajustar manualmente el ancho de columnas si es necesario
+        // ShouldAutoSize ya hace el trabajo principal, pero podemos refinar
+        foreach (range('A', $lastColumn) as $columnID) {
+          $sheet->getColumnDimension($columnID)->setAutoSize(true);
+        }
       },
     ];
   }

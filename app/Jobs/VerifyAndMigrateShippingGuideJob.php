@@ -112,15 +112,30 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       // 3. Verificar y actualizar estado de serial de transacción (venta)
       $this->verifySaleInventoryTransactionSerial($shippingGuide);
     } else {
+      Log::info('Guía de remisión no es de venta, procediendo con verificación de transferencia', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'transfer_reason_id' => $shippingGuide->transfer_reason_id
+      ]);
       // Verificar guía de TRANSFERENCIA
       // 1. Verificar y actualizar estado de transferencia de inventario
       $this->verifyInventoryTransfer($shippingGuide);
 
+      Log::info('Verificación de transferencia completada para guía de remisión', [
+        'shipping_guide_id' => $shippingGuide->id
+      ]);
+
       // 2. Verificar y actualizar estado de detalle de transferencia
       $this->verifyInventoryTransferDetail($shippingGuide);
 
+      Log::info('Verificación de detalle de transferencia completada para guía de remisión', [
+        'shipping_guide_id' => $shippingGuide->id
+      ]);
+
       // 3. Verificar y actualizar estado de serial de transferencia
       $this->verifyInventoryTransferSerial($shippingGuide);
+      Log::info('Verificación de serial de transferencia completada para guía de remisión', [
+        'shipping_guide_id' => $shippingGuide->id
+      ]);
     }
 
     // 4. Verificar si todo está completo

@@ -8,6 +8,16 @@ use Illuminate\Validation\Rule;
 
 class StorePurchaseOrderRequest extends StoreRequest
 {
+
+  public function prepareForValidation()
+  {
+    if (!$this->has('type_operation_id')) {
+      $this->merge([
+        'type_operation_id' => 794,
+      ]);
+    }
+  }
+
   public function rules(): array
   {
     $hasVehicle = false;
@@ -71,7 +81,7 @@ class StorePurchaseOrderRequest extends StoreRequest
       'items.*.unit_price' => ['required', 'numeric', 'min:0'],
       'items.*.quantity' => ['required', 'integer', 'min:1'],
       'items.*.is_vehicle' => ['nullable', 'boolean'],
-      'items.*.product_id' => ['required_if:items.*.is_vehicle,false', 'nullable', 'integer', Rule::exists('products', 'id')->where('status', 'ACTIVE')->whereNull('deleted_at')],
+      'items.*.product_id' => ['nullable', 'integer', Rule::exists('products', 'id')->where('status', 'ACTIVE')->whereNull('deleted_at')],
     ]);
   }
 

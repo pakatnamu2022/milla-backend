@@ -29,11 +29,10 @@ class VehiclesController extends Controller
    * @param Request $request
    * @return JsonResponse
    */
-  public function export(Request $request)
+  public function exportSales(Request $request)
   {
     try {
-//      return $this->service->export($request);
-      return true;
+      return $this->service->exportSales($request);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

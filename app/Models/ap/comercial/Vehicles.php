@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
+use App\Http\Traits\Reportable;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
@@ -13,11 +14,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Vehicles extends Model
 {
-  use SoftDeletes;
+  use SoftDeletes, Reportable;
 
   protected $table = 'ap_vehicles';
 
@@ -42,6 +44,7 @@ class Vehicles extends Model
   public static array $filters = [
     'search' => ['vin', 'engine_number', 'year', 'ap_vehicle_status_id'],
     'ap_models_vn_id' => '=',
+    'model.class_id' => '=',
     'warehouse_id' => '=',
     'ap_vehicle_status_id' => 'in',
     'vehicle_color_id' => '=',
@@ -55,6 +58,7 @@ class Vehicles extends Model
     'warehouse.sede_id' => '=',
     'warehouse.is_received' => '=',
     'warehouse.article_class_id' => '=',
+    'is_paid' => 'accessor_bool',
   ];
 
   public static array $sorts = [
@@ -126,6 +130,18 @@ class Vehicles extends Model
     );
   }
 
+  public function purchaseOrder(): HasOneThrough
+  {
+    return $this->HasOneThrough(
+      PurchaseOrder::class,       // Modelo final que queremos obtener
+      VehicleMovement::class,     // Modelo intermedio
+      'ap_vehicle_id',            // Foreign key en vehicle_movement que apunta a vehicles
+      'vehicle_movement_id',      // Foreign key en purchase_order que apunta a vehicle_movement
+      'id',                       // Local key en vehicles
+      'id'                        // Local key en vehicle_movement
+    )->whereNull('ap_purchase_order.deleted_at');
+  }
+
   /**
    * Obtiene todas las guías de remisión a través de los movimientos del vehículo
    * Un vehículo puede tener múltiples movimientos y cada movimiento puede tener una guía
@@ -140,6 +156,27 @@ class Vehicles extends Model
       'id',                       // Local key en vehicles
       'id'                        // Local key en vehicle_movement
     );
+  }
+
+  /**
+   * Reception
+   * @return HasOneThrough
+   */
+  public function shippingGuideReceiving(): HasOneThrough
+  {
+    return $this->HasOneThrough(
+      ShippingGuides::class,      // Modelo final que queremos obtener
+      VehicleMovement::class,     // Modelo intermedio
+      'ap_vehicle_id',            // Foreign key en vehicle_movement que apunta a vehicles
+      'vehicle_movement_id',      // Foreign key en shipping_guides que apunta a vehicle_movement
+      'id',                       // Local key en vehicles
+      'id'                        // Local key en vehicle_movement
+    )->whereHas('receivingChecklists');
+  }
+
+  public function vehicleDelivery(): BelongsTo
+  {
+    return $this->belongsTo(ApVehicleDelivery::class, 'id', 'vehicle_id');
   }
 
   /**
@@ -249,4 +286,115 @@ class Vehicles extends Model
       return false;
     }
   }
+
+  public function getIsPaidAttribute(): bool
+  {
+    return self::isVehiclePaid($this->id);
+  }
+
+  public function electronicDocumentParent(): HasOneThrough
+  {
+    return $this->HasOneThrough(
+      ElectronicDocument::class,
+      VehicleMovement::class,
+      'ap_vehicle_id',
+      'ap_vehicle_movement_id',
+      'id',
+      'id'
+    )->where('is_advance_payment', false);
+  }
+
+  protected $reportColumns = [
+    'electronicDocumentParent.seriesModel.sede.suc_abrev' => [
+      'label' => 'PISO',
+      'formatter' => null,
+    ],
+    'electronicDocumentParent.seriesModel.sede.shop.description' => [
+      'label' => 'SEDE',
+      'formatter' => null,
+    ],
+    'model.family.brand.group.description' => [
+      'label' => 'GRUPOS',
+      'formatter' => null,
+    ],
+    'model.family.brand.name' => [
+      'label' => 'MARCA',
+      'formatter' => null,
+    ],
+    'model.family.description' => [
+      'label' => 'MODELO',
+      'formatter' => null,
+    ],
+    'model.version' => [
+      'label' => 'VERSION',
+      'formatter' => null,
+    ],
+    'color.description' => [
+      'label' => 'COLOR',
+      'formatter' => null,
+    ],
+    'vin' => [
+      'label' => 'VIN',
+      'formatter' => null,
+    ],
+    'engine_number' => [
+      'label' => 'NRO. MOTOR',
+      'formatter' => null,
+    ],
+    'electronicDocumentParent.full_number' => [
+      'label' => 'NRO. FACTURA',
+      'formatter' => null,
+    ],
+    'electronicDocumentParent.cliente_numero_de_documento' => [
+      'label' => 'NRO DOCUMENTO',
+      'formatter' => null,
+    ],
+    'electronicDocumentParent.cliente_denominacion' => [
+      'label' => 'CLIENTE',
+      'formatter' => null,
+    ],
+    'electronicDocumentParent.client_phone' => [
+      'label' => 'CELULAR',
+      'formatter' => null,
+    ],
+    'electronicDocumentParent.cliente_email' => [
+      'label' => 'EMAIL',
+      'formatter' => null,
+    ],
+    'electronicDocumentParent.purchaseRequestQuote.opportunity.worker.nombre_completo' => [
+      'label' => 'ASESOR',
+      'formatter' => null,
+    ],
+    'purchaseOrder.supplierOrderType.description' => [
+      'label' => 'FECHA COMPRA',
+      'formatter' => 'date',
+    ],
+//    DATES
+    'purchaseOrder.emission_date' => [
+      'label' => 'FECHA COMPRA',
+      'formatter' => 'date',
+    ],
+    'shippingGuideReceiving.received_date' => [
+      'label' => 'FECHA RECEPCIÓN',
+      'formatter' => 'date',
+    ],
+    'electronicDocumentParent.sale_date' => [
+      'label' => 'FECHA VENTA',
+      'formatter' => 'date',
+    ],
+    'vehicleDelivery.real_delivery_date' => [
+      'label' => 'FECHA ENTREGA',
+      'formatter' => 'date',
+    ],
+  ];
+
+  protected $reportRelations = [
+    'electronicDocumentParent.seriesModel.sede.shop',
+    'electronicDocumentParent.purchaseRequestQuote.opportunity.worker',
+    'model.family.brand.group',
+    'color',
+    'shippingGuideReceiving',
+    'purchaseOrder.supplierOrderType',
+    'vehicleDelivery',
+  ];
 }

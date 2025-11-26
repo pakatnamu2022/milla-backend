@@ -4,13 +4,45 @@
   <meta charset="utf-8">
   <title>{{ $title }}</title>
   <style>
+    @php
+      // Calcular dinámicamente el tamaño de fuente y orientación basado en número de columnas
+      $columnCount = count($columns);
+
+      // Ajustar tamaño de fuente según columnas
+      if ($columnCount <= 5) {
+        $baseFontSize = 10;
+        $tableFontSize = 9;
+        $tdFontSize = 8;
+        $thPadding = '8px 4px';
+        $tdPadding = '6px 4px';
+      } elseif ($columnCount <= 8) {
+        $baseFontSize = 9;
+        $tableFontSize = 8;
+        $tdFontSize = 7;
+        $thPadding = '6px 3px';
+        $tdPadding = '5px 3px';
+      } elseif ($columnCount <= 12) {
+        $baseFontSize = 8;
+        $tableFontSize = 7;
+        $tdFontSize = 6;
+        $thPadding = '5px 2px';
+        $tdPadding = '4px 2px';
+      } else {
+        $baseFontSize = 7;
+        $tableFontSize = 6;
+        $tdFontSize = 5;
+        $thPadding = '4px 2px';
+        $tdPadding = '3px 2px';
+      }
+    @endphp
+
     @page {
       margin: 10mm 8mm; /* Márgenes mínimos */
     }
 
     body {
       font-family: Arial, sans-serif;
-      font-size: 11px;
+      font-size: {{ $baseFontSize }}px;
       margin: 0;
       padding: 0;
     }
@@ -69,24 +101,31 @@
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 10px;
-      font-size: 9px;
+      font-size: {{ $tableFontSize }}px;
+      table-layout: fixed;
     }
 
     th {
       background-color: #f1f5f9;
       color: #64748B;
-      padding: 8px 4px;
+      padding: {{ $thPadding }};
       text-align: left;
       font-weight: bold;
-      font-size: 9px;
+      font-size: {{ $tableFontSize }}px;
       border-bottom: 1px solid #cbd5e1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     td {
-      padding: 6px 4px;
+      padding: {{ $tdPadding }};
       border-bottom: 1px solid #e2e8f0;
-      font-size: 8px;
+      font-size: {{ $tdFontSize }}px;
       line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     tr:nth-child(even) {
@@ -110,29 +149,40 @@
       font-size: 8px;
     }
 
-    /* Ajustes para columnas específicas */
+    /* Ajustes dinámicos para columnas específicas */
+    @php
+      // Calcular anchos dinámicos basados en el número de columnas
+      $availableWidth = 100;
+      $columnWidth = floor($availableWidth / $columnCount);
+    @endphp
+
+    /* Distribuir ancho equitativamente entre todas las columnas */
+    th, td {
+      width: {{ $columnWidth }}%;
+    }
+
     .col-id {
-      width: 5%;
+      width: {{ max(5, min(8, $columnWidth * 0.8)) }}%;
     }
 
     .col-name {
-      width: 25%;
+      width: {{ max(15, min(20, $columnWidth * 1.5)) }}%;
     }
 
     .col-date {
-      width: 10%;
+      width: {{ max(8, min(10, $columnWidth)) }}%;
     }
 
     .col-status {
-      width: 12%;
+      width: {{ max(8, min(12, $columnWidth)) }}%;
     }
 
     .col-percentage {
-      width: 8%;
+      width: {{ max(6, min(8, $columnWidth * 0.8)) }}%;
     }
 
     .col-boolean {
-      width: 8%;
+      width: {{ max(5, min(8, $columnWidth * 0.7)) }}%;
       text-align: center;
     }
 
@@ -236,11 +286,6 @@
                         $value = is_numeric($value) ? number_format($value) : $value;
                         break;
                 }
-            }
-
-            // Truncar texto muy largo
-            if (is_string($value) && strlen($value) > 50) {
-                $value = substr($value, 0, 47) . '...';
             }
           @endphp
           {{ $value }}

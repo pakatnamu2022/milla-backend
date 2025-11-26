@@ -49,11 +49,21 @@ class ExportService
 
     $pdf = Pdf::loadView('exports.pdf-template', $viewData);
 
-    // Auto orientación basada en número de columnas
-    if (count($columns) > 6) {
-      $pdf->setPaper('a4', 'landscape');
-    } else {
+    // Auto-ajuste dinámico de papel y orientación basado en número de columnas
+    $columnCount = count($columns);
+
+    if ($columnCount <= 5) {
+      // Pocas columnas: A4 vertical
       $pdf->setPaper('a4', 'portrait');
+    } elseif ($columnCount <= 8) {
+      // Columnas moderadas: A4 horizontal
+      $pdf->setPaper('a4', 'landscape');
+    } elseif ($columnCount <= 12) {
+      // Muchas columnas: A3 horizontal
+      $pdf->setPaper('a3', 'landscape');
+    } else {
+      // Demasiadas columnas: A2 horizontal (o el más grande disponible)
+      $pdf->setPaper([0, 0, 1190.55, 1683.78], 'landscape'); // A2 en puntos
     }
 
     $filename = $this->generateFilename($title, 'pdf');
