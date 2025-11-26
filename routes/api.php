@@ -34,7 +34,6 @@ use App\Http\Controllers\ap\configuracionComercial\venta\ApShopController;
 use App\Http\Controllers\ap\facturacion\BillingCatalogController;
 use App\Http\Controllers\ap\facturacion\ElectronicDocumentController;
 use App\Http\Controllers\ap\maestroGeneral\AssignSalesSeriesController;
-use App\Http\Controllers\ap\maestroGeneral\HeaderWarehouseController;
 use App\Http\Controllers\ap\maestroGeneral\TaxClassTypesController;
 use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
 use App\Http\Controllers\ap\maestroGeneral\UnitMeasurementController;
@@ -719,14 +718,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       Route::get('userSeriesAssignment/authorized-series', [UserSeriesAssignmentController::class, 'getAuthorizedSeries']);
       Route::apiResource('userSeriesAssignment', UserSeriesAssignmentController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::apiResource('headerWarehouse', HeaderWarehouseController::class)->only([
         'index',
         'show',
         'store',
