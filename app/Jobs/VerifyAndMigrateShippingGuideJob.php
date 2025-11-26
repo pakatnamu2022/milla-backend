@@ -323,14 +323,40 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
           $existingTransaction->ProcesoError ?? null
         );
 
+        Log::info('Estado de transacción de inventario de venta actualizado', [
+          'shipping_guide_id' => $shippingGuide->id,
+          'transaction_id' => $transactionId,
+          'proceso_estado' => $existingTransaction->ProcesoEstado ?? 0
+        ]);
+
         if ($existingTransaction->ProcesoEstado === 1) {
+          Log::info('Dynamics aceptó la transacción de inventario de venta', [
+            'shipping_guide_id' => $shippingGuide->id,
+            'transaction_id' => $transactionId
+          ]);
           $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+          Log::info('Obteniendo vehículo asociado a la guía de remisión', [
+            'shipping_guide_id' => $shippingGuide->id,
+            'vehicle_found' => $vehicle ? true : false
+          ]);
           if (!$vehicle) {
             throw new Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.");
           }
 
+          Log::info('Almacenando movimiento de vehículo en inventario después de aceptación de Dynamics', [
+            'shipping_guide_id' => $shippingGuide->id,
+            'vehicle_id' => $vehicle->id,
+            'vin' => $vehicle->vin
+          ]);
+
           $vehicleMovementService = new VehicleMovementService();
           $vehicleMovementService->storeInventoryVehicleMovement($vehicle);
+
+          Log::info('Movimiento de vehículo almacenado en inventario exitosamente', [
+            'shipping_guide_id' => $shippingGuide->id,
+            'vehicle_id' => $vehicle->id,
+            'vin' => $vehicle->vin
+          ]);
         }
       }
     }
