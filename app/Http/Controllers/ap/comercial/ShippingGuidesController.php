@@ -250,4 +250,19 @@ class ShippingGuidesController extends Controller
       ], 400);
     }
   }
+
+  public function checkResources($id)
+  {
+    try {
+      return response()->json([
+        'success' => true,
+        'data' => $this->service->checkResources($id)
+      ]);
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
+    }
+  }
 }
