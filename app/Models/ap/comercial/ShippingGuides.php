@@ -102,7 +102,7 @@ class ShippingGuides extends Model
 
   // Issuer types
   const ISSUER_TYPE_SUPPLIER = 'PROVEEDOR';
-  const ISSUER_TYPE_AUTOMOTORES = 'AUTOMOTORES';
+  const ISSUER_TYPE_AUTOMOTORES = 'NOSOTROS';
 
   const filters = [
     'search' => ['document_number', 'plate', 'driver_name', 'documentSeries.series'],
@@ -335,5 +335,26 @@ class ShippingGuides extends Model
   public function isAcceptedBySunat(): bool
   {
     return $this->aceptada_por_sunat === true;
+  }
+  
+  public static function generateNextCorrelative(int $documentSeriesId, int $correlativeStart = 1): array
+  {
+    // Buscar el último correlativo usado para esta serie
+    $lastShippingGuide = self::where('document_series_id', $documentSeriesId)
+      ->orderBy('correlative', 'desc')
+      ->first();
+
+    // Si existe un correlativo previo, sumar 1; si no, usar el correlative_start
+    $correlativeNumber = $lastShippingGuide
+      ? ((int)$lastShippingGuide->correlative + 1)
+      : $correlativeStart;
+
+    // Formatear a 8 dígitos con ceros a la izquierda
+    $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
+
+    return [
+      'correlative_number' => $correlativeNumber,
+      'correlative' => $correlative,
+    ];
   }
 }

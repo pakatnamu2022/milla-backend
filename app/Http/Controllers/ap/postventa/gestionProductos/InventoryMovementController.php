@@ -74,7 +74,7 @@ class InventoryMovementController extends Controller
       return $this->error($e->getMessage());
     }
   }
-  
+
   /**
    * Create warehouse transfer with shipping guide
    * Creates TRANSFER_OUT movement + Shipping Guide (NOT sent to Nubefact yet)
@@ -89,8 +89,10 @@ class InventoryMovementController extends Controller
       $result = $this->inventoryMovementService->createTransfer(
         $request->only([
           // Transfer data
+          'document_type',
           'warehouse_origin_id',
           'warehouse_destination_id',
+          'document_series_id',
           'movement_date',
           'notes',
           'reason_in_out_id',

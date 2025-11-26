@@ -8,6 +8,7 @@ use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\compras\PurchaseReception;
+use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
@@ -305,22 +306,35 @@ class InventoryMovementService extends BaseService
         ->where('business_partner_id', $business_partner->id)
         ->first();
       $transport_company = BusinessPartners::find($transferData['transport_company_id']);
+      $assignedSeries = AssignSalesSeries::find($transferData['document_series_id']);
 
       // validamos que si $transmitter o $receiver no sean nulos
       if (!$transmitter || !$receiver) {
         throw new Exception('Por favor, configure la sede en el apartado de establecimientos de cliente automotores');
       }
 
-      // Generate shipping guide number
-      $shippingGuideNumber = $this->generateShippingGuideNumber();
+      // Validar que se haya encontrado la serie asignada
+      if (!$assignedSeries) {
+        throw new Exception('Serie de documentos no encontrada');
+      }
+
+      // Generar el siguiente correlativo usando el método centralizado
+      $nextCorrelative = ShippingGuides::generateNextCorrelative(
+        $transferData['document_series_id'],
+        $assignedSeries->correlative_start
+      );
+
+      $correlative = $nextCorrelative['correlative'];
+      $documentNumber = $assignedSeries->series . '-' . $correlative;
 
       // Create Shipping Guide (NOT sent to Nubefact yet)
       $shippingGuide = ShippingGuides::create([
         'document_type' => $transferData['document_type'],
         'issuer_type' => ShippingGuides::ISSUER_TYPE_AUTOMOTORES,
-        'document_number' => $shippingGuideNumber,
-        'series' => 'GR01',
-        'correlative' => substr($shippingGuideNumber, -8),
+        'document_number' => $documentNumber,
+        'document_series_id' => $transferData['document_series_id'],
+        'series' => $assignedSeries->series,
+        'correlative' => $correlative,
         'issue_date' => $transferData['movement_date'] ?? now(),
         'requires_sunat' => true,
         'is_sunat_registered' => false, // NOT sent yet
@@ -403,29 +417,6 @@ class InventoryMovementService extends BaseService
       DB::rollBack();
       throw $e;
     }
-  }
-
-  /**
-   * Generate unique shipping guide number
-   *
-   * @return string
-   */
-  private function generateShippingGuideNumber(): string
-  {
-    $year = date('Y');
-    $lastGuide = \App\Models\ap\comercial\ShippingGuides::withTrashed()
-      ->where('document_number', 'LIKE', "GR-{$year}-%")
-      ->orderBy('document_number', 'desc')
-      ->first();
-
-    if ($lastGuide) {
-      $lastNumber = (int)substr($lastGuide->document_number, -8);
-      $newNumber = $lastNumber + 1;
-    } else {
-      $newNumber = 1;
-    }
-
-    return sprintf('GR-%s-%08d', $year, $newNumber);
   }
 
   private function getDefaultNotes(string $movementType): string
