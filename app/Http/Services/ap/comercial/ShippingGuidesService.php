@@ -610,4 +610,17 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       throw new Exception('Error al programar la sincronización: ' . $e->getMessage());
     }
   }
+
+  public function checkResources($id)
+  {
+    $shippingGuide = $this->find($id);
+
+    $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+
+    return [
+      'header' => new \App\Http\Resources\Dynamics\ShippingGuideHeaderDynamicsResource($shippingGuide),
+      'detail' => $vehicle ? new \App\Http\Resources\Dynamics\ShippingGuideDetailDynamicsResource($vehicle, $shippingGuide) : null,
+      'series' => new \App\Http\Resources\Dynamics\ShippingGuideSeriesDynamicsResource($shippingGuide),
+    ];
+  }
 }

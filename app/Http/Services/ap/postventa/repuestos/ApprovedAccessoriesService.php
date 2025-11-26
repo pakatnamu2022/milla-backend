@@ -48,7 +48,7 @@ class ApprovedAccessoriesService extends BaseService implements BaseServiceInter
   {
     $ApprovedAccessories = $this->find($data['id']);
     $ApprovedAccessories->update($data);
-    return new \App\Http\Resources\ap\postventa\repuestos\ApprovedAccessoriesResource($ApprovedAccessories);
+    return new ApprovedAccessoriesResource($ApprovedAccessories);
   }
 
   public function destroy($id)

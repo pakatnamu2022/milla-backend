@@ -36,6 +36,7 @@ class ApCommercialMasters extends Model
     'type',
   ];
 
+//  OPERATION TYPE
   const int TIPO_OPERACION_COMERCIAL = 794;
   const int TIPO_OPERACION_POSTVENTA = 804;
 

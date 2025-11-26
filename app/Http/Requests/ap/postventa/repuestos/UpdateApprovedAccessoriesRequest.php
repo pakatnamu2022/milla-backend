@@ -3,10 +3,18 @@
 namespace App\Http\Requests\ap\postventa\repuestos;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use Illuminate\Validation\Rule;
 
 class UpdateApprovedAccessoriesRequest extends StoreRequest
 {
+  public function prepareForValidation(): void
+  {
+    $this->merge([
+      'type_currency_id' => TypeCurrency::PEN_ID,
+    ]);
+  }
+
   public function rules(): array
   {
     return [
@@ -16,7 +24,7 @@ class UpdateApprovedAccessoriesRequest extends StoreRequest
         'max:20',
         Rule::unique('approved_accessories', 'code')
           ->whereNull('deleted_at')
-          ->ignore($this->route('ApprovedAccessory')),
+          ->ignore($this->route('approvedAccessory')),
       ],
       'type' => ['sometimes', Rule::in(['SERVICIO', 'REPUESTO'])],
       'description' => ['sometimes', 'string'],
