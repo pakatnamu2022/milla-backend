@@ -102,8 +102,6 @@ class SyncShippingGuideJob implements ShouldQueue
     $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
     $prefix = $this->getTransferPrefix($shippingGuide);
 
-    $vehicle = $shippingGuide->vehicleMovement?->vehicle;
-
     // Si está cancelada, usar el step de reversión para crear un nuevo log
     $step = $isCancelled
       ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL
@@ -119,12 +117,6 @@ class SyncShippingGuideJob implements ShouldQueue
 
     // Si ya está completado, no hacer nada (para este step específico)
     if ($transferLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-      if (!$vehicle) {
-        throw new Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.");
-      }
-
-      $vehicleMovementService = new VehicleMovementService();
-      $vehicleMovementService->storeInventoryVehicleMovement($vehicle);
       return;
     }
 

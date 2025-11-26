@@ -2,12 +2,14 @@
 
 namespace App\Jobs;
 
+use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Http\Services\DatabaseSyncService;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
+use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -301,6 +303,14 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
       // Si ya está completado, no hacer nada
       if ($transactionLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+
+        $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+        if (!$vehicle) {
+          throw new Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.");
+        }
+
+        $vehicleMovementService = new VehicleMovementService();
+        $vehicleMovementService->storeInventoryVehicleMovement($vehicle);
         continue;
       }
 
