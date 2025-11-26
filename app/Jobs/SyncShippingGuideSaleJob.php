@@ -271,6 +271,11 @@ class SyncShippingGuideSaleJob implements ShouldQueue
 
       $warehouseCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
 
+      Log::info('Almacén determinado para la guía de remisión', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'warehouse_code' => $warehouseCode,
+      ]);
+
       // Si está cancelada, la cantidad es negativa (para revertir la salida)
       $cantidad = $isCancelled ? 1 : -1;
 
