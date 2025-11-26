@@ -9,7 +9,9 @@ use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\maestroGeneral\Warehouse;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -160,8 +162,15 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
         'new_status_id' => ApVehicleStatus::INVENTARIO_VN,
       ]);
 
+      $warehouse = Warehouse::where('is_received', 1)
+        ->where('article_class_id', $vehicle->warehouse->article_class_id)
+        ->where('sede_id', $vehicle->warehouse->sede_id)
+        ->where('type_operation_id', $vehicle->warehouse->type_operation_id)
+        ->where('status', 1)->first();
+
       $vehicle->update([
         'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
+        'warehouse_id' => $warehouse ? $warehouse->id : throw new Exception('No se encontró un almacén válido para el vehículo'),
       ]);
 
       DB::commit();
