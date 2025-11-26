@@ -81,8 +81,8 @@ class ShippingGuideDetailDynamicsResource extends JsonResource
       'Cantidad' => $cantidad,
       'AlmacenId' => $warehouse->dyn_code ?? '',
       'CostoUnitario' => 0,
-      'CuentaInventario' => $warehouse->inventory_account . $sede->dyn_code ?? '',
-      'CuentaContrapartida' => $warehouse->counterparty_account . $sede->dyn_code ?? '',
+      'CuentaInventario' => $warehouse->inventory_account . '-' . $sede->dyn_code ?? '',
+      'CuentaContrapartida' => $warehouse->counterparty_account . '-' . $sede->dyn_code ?? '',
     ];
   }
 }
