@@ -112,15 +112,30 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       // 3. Verificar y actualizar estado de serial de transacción (venta)
       $this->verifySaleInventoryTransactionSerial($shippingGuide);
     } else {
+      Log::info('Guía de remisión no es de venta, procediendo con verificación de transferencia', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'transfer_reason_id' => $shippingGuide->transfer_reason_id
+      ]);
       // Verificar guía de TRANSFERENCIA
       // 1. Verificar y actualizar estado de transferencia de inventario
       $this->verifyInventoryTransfer($shippingGuide);
 
+      Log::info('Verificación de transferencia completada para guía de remisión', [
+        'shipping_guide_id' => $shippingGuide->id
+      ]);
+
       // 2. Verificar y actualizar estado de detalle de transferencia
       $this->verifyInventoryTransferDetail($shippingGuide);
 
+      Log::info('Verificación de detalle de transferencia completada para guía de remisión', [
+        'shipping_guide_id' => $shippingGuide->id
+      ]);
+
       // 3. Verificar y actualizar estado de serial de transferencia
       $this->verifyInventoryTransferSerial($shippingGuide);
+      Log::info('Verificación de serial de transferencia completada para guía de remisión', [
+        'shipping_guide_id' => $shippingGuide->id
+      ]);
     }
 
     // 4. Verificar si todo está completo
@@ -136,30 +151,58 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       ->where('step', VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER)
       ->first();
 
+    Log::info('Iniciando verificación de transferencia de inventario', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'transfer_log_found' => $transferLog ? true : false
+    ]);
+
     if (!$transferLog) {
       return;
     }
+
+    Log::info('Transfer log encontrado', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'transfer_log_status' => $transferLog->status
+    ]);
 
     // Si ya está completado, no hacer nada
     if ($transferLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
       return;
     }
 
-    $transfer_id = $this->getTransferPrefix($shippingGuide) . $shippingGuide->correlative;
+    Log::info('Verificando en la base de datos intermedia', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'transfer_id' => 'VEH-' . $shippingGuide->correlative
+    ]);
 
     // Verificar en la BD intermedia
     $existingTransfer = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventario')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', $transfer_id)
+      ->where('TransferenciaId', 'VEH-' . $shippingGuide->correlative)
       ->first();
 
+    Log::info('Resultado de la verificación en BD intermedia', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'existing_transfer_found' => $existingTransfer ? true : false
+    ]);
+
     if ($existingTransfer) {
+      Log::info('Actualizando estado del log de transferencia', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'proceso_estado' => $existingTransfer->ProcesoEstado ?? 0,
+        'proceso_error' => $existingTransfer->ProcesoError ?? null
+      ]);
       // Actualizar el log con el estado de la BD intermedia
       $transferLog->updateProcesoEstado(
         $existingTransfer->ProcesoEstado ?? 0,
         $existingTransfer->ProcesoError ?? null
       );
+      Log::info('Estado del log de transferencia actualizado', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'log_status' => $transferLog->status,
+        'proceso_estado' => $transferLog->proceso_estado
+      ]);
     }
   }
 
@@ -215,13 +258,11 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       return;
     }
 
-    $transfer_id = $this->getTransferPrefix($shippingGuide) . $shippingGuide->correlative;
-
     // Verificar en la BD intermedia
     $existingSerial = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventarioDtS')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', $transfer_id)
+      ->where('TransferenciaId', 'VEH-' . $shippingGuide->correlative)
       ->where('Serie', $shippingGuide->vehicleMovement?->vehicle?->vin)
       ->first();
 
@@ -428,6 +469,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         'migration_status' => 'completed',
         'migrated_at' => now(),
       ]);
+      Log::info('Guía de remisión sincronizada completamente', ['id' => $shippingGuide->id]);
     } elseif ($hasFailed) {
       $shippingGuide->update([
         'status_dynamic' => 0,
@@ -515,18 +557,5 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       'shipping_guide_id' => $this->shippingGuideId,
       'error' => $exception->getMessage(),
     ]);
-  }
-
-  private function getTransferPrefix(ShippingGuides $shippingGuide): string
-  {
-    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
-      return 'CREC-';
-    }
-
-    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
-      return 'CTRA-';
-    }
-
-    return '-';
   }
 }
