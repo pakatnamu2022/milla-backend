@@ -77,6 +77,7 @@ class SyncAccountingEntryJob implements ShouldQueue
         'vehicleMovement.vehicle.model.classArticle',
         'vehicle',
       ])
+        ->where('is_advance_payment', 0)
         ->whereHas('vehicle', function ($query) use ($shippingGuide) {
           $query->where('vin', $shippingGuide->vehicleMovement->vehicle->vin);
         })
