@@ -20,6 +20,6 @@ class DatabaseSeeder extends Seeder
 //    $this->call(TruncateTablesSeeder::class);
 //    $this->call(EvaluationModelSeeder::class);
 //    $this->call(EvaluationParEvaluatorSeeder::class);
-    $this->call(ApClassArticleAccountMappingSeeder::class);
+//    $this->call(ApClassArticleAccountMappingSeeder::class);
   }
 }
