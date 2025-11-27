@@ -431,10 +431,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       }
 
       // EXISTE → ACTUALIZAR ESTADO
-      $detailLog->updateProcesoEstado(
-        $existingDetail->ProcesoEstado ?? 0,
-        $existingDetail->ProcesoError ?? null
-      );
+      $detailLog->updateProcesoEstado(1);
     }
   }
 
@@ -483,10 +480,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       }
 
       // EXISTE → ACTUALIZAR ESTADO
-      $serialLog->updateProcesoEstado(
-        $existingSerial->ProcesoEstado ?? 0,
-        $existingSerial->ProcesoError ?? null
-      );
+      $serialLog->updateProcesoEstado(1);
     }
   }
 
