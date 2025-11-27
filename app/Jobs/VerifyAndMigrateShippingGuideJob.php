@@ -523,6 +523,21 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         $existingTransaction->ProcesoEstado ?? 0,
         $existingTransaction->ProcesoError ?? null
       );
+
+      // Verificar si la transacción fue aceptada por Dynamics (ProcesoEstado = 1)
+      // y si es una transacción normal (no reversal)
+      if ($existingTransaction->ProcesoEstado === 1 && !str_contains($step, 'REVERSAL')) {
+        Log::info('Transacción de inventario aceptada por Dynamics, disparando sincronización de asientos', [
+          'shipping_guide_id' => $shippingGuide->id,
+          'transaction_id' => $existingTransaction->TransaccionId,
+          'step' => $step
+        ]);
+
+        // Dispatch job con pequeño delay para asegurar consistencia
+        SyncAccountingEntryJob::dispatch($shippingGuide->id)
+          ->onQueue('sync')
+          ->delay(now()->addSeconds(5));
+      }
     }
   }
 
@@ -714,20 +729,6 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         'step' => $step
       ]);
       $serialLog->updateProcesoEstado(1);
-
-      // Verificar si es el último paso de sincronización (serial normal, no reversal)
-      // y si la transacción fue aceptada por Dynamics (ProcesoEstado = 1)
-      if ($existingSerial->ProcesoEstado === 1 && !str_contains($step, 'REVERSAL')) {
-        Log::info('Transacción de inventario aceptada por Dynamics, disparando sincronización de asientos', [
-          'shipping_guide_id' => $shippingGuide->id,
-          'transaction_id' => $existingSerial->TransaccionId
-        ]);
-
-        // Dispatch job con pequeño delay para asegurar consistencia
-        SyncAccountingEntryJob::dispatch($shippingGuide->id)
-          ->onQueue('sync')
-          ->delay(now()->addSeconds(5));
-      }
     }
   }
 
