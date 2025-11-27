@@ -121,11 +121,15 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
     if ($isSale) {
       // Verificar guía de VENTA
-      // 1. Verificar y actualizar estado de transacción de inventario (venta)
       Log::info('Guía de remisión es de venta, procediendo con verificación de venta', [
         'shipping_guide_id' => $shippingGuide->id,
         'transfer_reason_id' => $shippingGuide->transfer_reason_id
       ]);
+
+      // NUEVO: Crear logs si no existen (primera vez)
+      $this->ensureSaleLogsExist($shippingGuide);
+
+      // 1. Verificar y actualizar estado de transacción de inventario (venta)
       $this->verifySaleInventoryTransaction($shippingGuide);
       Log::info('Verificación de venta completada para guía de remisión', [
         'shipping_guide_id' => $shippingGuide->id
@@ -147,6 +151,10 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         'shipping_guide_id' => $shippingGuide->id,
         'transfer_reason_id' => $shippingGuide->transfer_reason_id
       ]);
+
+      // NUEVO: Crear logs si no existen (primera vez)
+      $this->ensureTransferLogsExist($shippingGuide);
+
       // Verificar guía de TRANSFERENCIA
       // 1. Verificar y actualizar estado de transferencia de inventario
       $this->verifyInventoryTransfer($shippingGuide);
@@ -767,6 +775,130 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         'migration_status' => 'failed',
       ]);
       Log::warning('Falló la sincronización de guía de remisión', ['id' => $shippingGuide->id]);
+    }
+  }
+
+  /**
+   * Asegura que existan los logs para guías de VENTA
+   * Crea los logs con estado pendiente si no existen
+   */
+  protected function ensureSaleLogsExist(ShippingGuides $shippingGuide): void
+  {
+    Log::info('Verificando existencia de logs de venta', [
+      'shipping_guide_id' => $shippingGuide->id
+    ]);
+
+    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+
+    // Determinar los steps según si está cancelada o no
+    $steps = $isCancelled
+      ? [
+          VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_REVERSAL,
+          VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL_REVERSAL,
+          VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL_REVERSAL,
+        ]
+      : [
+          VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE,
+          VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL,
+          VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL,
+        ];
+
+    // Tablas correspondientes
+    $tables = [
+      'neInTbTransaccionInventario',
+      'neInTbTransaccionInventarioDet',
+      'neInTbTransaccionInventarioDtS',
+    ];
+
+    // Crear logs para cada step si no existen
+    foreach ($steps as $index => $step) {
+      $existingLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
+        ->where('step', $step)
+        ->first();
+
+      if (!$existingLog) {
+        Log::info('Creando log de venta inexistente', [
+          'shipping_guide_id' => $shippingGuide->id,
+          'step' => $step,
+          'table' => $tables[$index]
+        ]);
+
+        $this->getOrCreateLog(
+          $shippingGuide->id,
+          $step,
+          $tables[$index],
+          null,
+          $shippingGuide->vehicleMovement?->vehicle?->id
+        );
+      } else {
+        Log::info('Log de venta ya existe', [
+          'shipping_guide_id' => $shippingGuide->id,
+          'step' => $step,
+          'status' => $existingLog->status
+        ]);
+      }
+    }
+  }
+
+  /**
+   * Asegura que existan los logs para guías de TRANSFERENCIA
+   * Crea los logs con estado pendiente si no existen
+   */
+  protected function ensureTransferLogsExist(ShippingGuides $shippingGuide): void
+  {
+    Log::info('Verificando existencia de logs de transferencia', [
+      'shipping_guide_id' => $shippingGuide->id
+    ]);
+
+    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+
+    // Determinar los steps según si está cancelada o no
+    $steps = $isCancelled
+      ? [
+          VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL,
+          VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL,
+          VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL_REVERSAL,
+        ]
+      : [
+          VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
+          VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL,
+          VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL,
+        ];
+
+    // Tablas correspondientes
+    $tables = [
+      'neInTbTransferenciaInventario',
+      'neInTbTransferenciaInventarioDet',
+      'neInTbTransferenciaInventarioDtS',
+    ];
+
+    // Crear logs para cada step si no existen
+    foreach ($steps as $index => $step) {
+      $existingLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
+        ->where('step', $step)
+        ->first();
+
+      if (!$existingLog) {
+        Log::info('Creando log de transferencia inexistente', [
+          'shipping_guide_id' => $shippingGuide->id,
+          'step' => $step,
+          'table' => $tables[$index]
+        ]);
+
+        $this->getOrCreateLog(
+          $shippingGuide->id,
+          $step,
+          $tables[$index],
+          null,
+          $shippingGuide->vehicleMovement?->vehicle?->id
+        );
+      } else {
+        Log::info('Log de transferencia ya existe', [
+          'shipping_guide_id' => $shippingGuide->id,
+          'step' => $step,
+          'status' => $existingLog->status
+        ]);
+      }
     }
   }
 
