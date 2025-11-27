@@ -107,23 +107,41 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     }
 
     // Actualizar estado general a 'in_progress' si está pending
-    if ($shippingGuide->migration_status === 'pending') {
-      $shippingGuide->update(['migration_status' => 'in_progress']);
+    if ($shippingGuide->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_PENDING) {
+      $shippingGuide->update(['migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS]);
     }
 
+    Log::info('Iniciando verificación de guía de remisión', ['shipping_guide_id' => $shippingGuide->id]);
     // Determinar si es una guía de venta o transferencia
     $isSale = $this->isSaleShippingGuide($shippingGuide);
+    Log::info('Tipo de guía de remisión determinado', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'is_sale' => $isSale
+    ]);
 
     if ($isSale) {
       // Verificar guía de VENTA
       // 1. Verificar y actualizar estado de transacción de inventario (venta)
+      Log::info('Guía de remisión es de venta, procediendo con verificación de venta', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'transfer_reason_id' => $shippingGuide->transfer_reason_id
+      ]);
       $this->verifySaleInventoryTransaction($shippingGuide);
+      Log::info('Verificación de venta completada para guía de remisión', [
+        'shipping_guide_id' => $shippingGuide->id
+      ]);
 
       // 2. Verificar y actualizar estado de detalle de transacción (venta)
       $this->verifySaleInventoryTransactionDetail($shippingGuide);
+      Log::info('Verificación de detalle de venta completada para guía de remisión', [
+        'shipping_guide_id' => $shippingGuide->id
+      ]);
 
       // 3. Verificar y actualizar estado de serial de transacción (venta)
       $this->verifySaleInventoryTransactionSerial($shippingGuide);
+      Log::info('Verificación de serial de venta completada para guía de remisión', [
+        'shipping_guide_id' => $shippingGuide->id
+      ]);
     } else {
       Log::info('Guía de remisión no es de venta, procediendo con verificación de transferencia', [
         'shipping_guide_id' => $shippingGuide->id,
