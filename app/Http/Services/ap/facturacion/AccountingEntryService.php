@@ -4,7 +4,6 @@ namespace App\Http\Services\ap\facturacion;
 
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticleAccountMapping;
 use App\Models\ap\facturacion\ElectronicDocument;
-use App\Models\ap\facturacion\ElectronicDocumentItem;
 use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -40,11 +39,24 @@ class AccountingEntryService
     // Validar que existan mapeos de cuentas
     $this->validateAccountMapping($classId);
 
+    // Sumar todos los valores unitarios y descuentos de todos los items
+    $totalValorUnitario = 0;
+    $totalDescuento = 0;
+
     foreach ($document->items as $item) {
-      $accountLines = $this->processItem($item, $sedeDynCode, $asientoNumber, $lineNumber, $classId);
-      $lines = array_merge($lines, $accountLines);
-      $lineNumber += count($accountLines);
+      $totalValorUnitario += (float)$item->valor_unitario;
+      $totalDescuento += (float)($item->descuento ?? 0);
     }
+
+    // Generar las líneas contables con los totales
+    $lines = $this->generateAccountingLinesForTotals(
+      $totalValorUnitario,
+      $totalDescuento,
+      $sedeDynCode,
+      $asientoNumber,
+      $lineNumber,
+      $classId
+    );
 
     // Validar balance antes de retornar
     $this->validateBalance($lines);
@@ -53,14 +65,15 @@ class AccountingEntryService
   }
 
   /**
-   * Procesa un item de factura y genera sus líneas contables
+   * Genera las líneas contables para los totales del documento
    */
-  protected function processItem(
-    ElectronicDocumentItem $item,
-    string                 $sedeDynCode,
-    int                    $asientoNumber,
-    int                    &$lineNumber,
-    int                    $classId
+  protected function generateAccountingLinesForTotals(
+    float  $totalValorUnitario,
+    float  $totalDescuento,
+    string $sedeDynCode,
+    int    $asientoNumber,
+    int    &$lineNumber,
+    int    $classId
   ): array
   {
     $lines = [];
@@ -84,57 +97,54 @@ class AccountingEntryService
       throw new Exception("No existe mapeo de cuenta DESCUENTO para class_id={$classId}");
     }
 
-    $valorUnitario = (float)$item->valor_unitario;
-    $descuento = (float)($item->descuento ?? 0);
-
     // LÍNEA 1 - REVERSIÓN PRECIO: Cuenta Origen (según is_debit_origin de PRECIO)
     // PRECIO tiene is_debit_origin = true, entonces va en DÉBITO
-    if ($valorUnitario > 0) {
+    if ($totalValorUnitario > 0) {
       $lines[] = [
         'Asiento' => $asientoNumber,
         'Linea' => $lineNumber++,
         'CuentaNumero' => $priceMapping->getFullAccountOrigin($sedeDynCode),
-        'Debito' => $priceMapping->is_debit_origin ? round($valorUnitario, 2) : 0.00,
-        'Credito' => $priceMapping->is_debit_origin ? 0.00 : round($valorUnitario, 2),
+        'Debito' => $priceMapping->is_debit_origin ? round($totalValorUnitario, 2) : 0.00,
+        'Credito' => $priceMapping->is_debit_origin ? 0.00 : round($totalValorUnitario, 2),
         'Descripcion' => 'Reversion precio unitario',
       ];
     }
 
     // LÍNEA 2 - REVERSIÓN DESCUENTO: Cuenta Origen (según is_debit_origin de DESCUENTO)
     // DESCUENTO tiene is_debit_origin = false, entonces va en CRÉDITO
-    if ($descuento > 0) {
+    if ($totalDescuento > 0) {
       $lines[] = [
         'Asiento' => $asientoNumber,
         'Linea' => $lineNumber++,
         'CuentaNumero' => $discountMapping->getFullAccountOrigin($sedeDynCode),
-        'Debito' => $discountMapping->is_debit_origin ? round($descuento, 2) : 0.00,
-        'Credito' => $discountMapping->is_debit_origin ? 0.00 : round($descuento, 2),
+        'Debito' => $discountMapping->is_debit_origin ? round($totalDescuento, 2) : 0.00,
+        'Credito' => $discountMapping->is_debit_origin ? 0.00 : round($totalDescuento, 2),
         'Descripcion' => 'Reversion descuento',
       ];
     }
 
     // LÍNEA 3 - BALANCE PRECIO: Cuenta Destino (INVERSO a is_debit_origin)
     // Como PRECIO tiene is_debit_origin = true, la cuenta destino va en CRÉDITO
-    if ($valorUnitario > 0) {
+    if ($totalValorUnitario > 0) {
       $lines[] = [
         'Asiento' => $asientoNumber,
         'Linea' => $lineNumber++,
         'CuentaNumero' => $priceMapping->getFullAccountDestination($sedeDynCode),
-        'Debito' => !$priceMapping->is_debit_origin ? round($valorUnitario, 2) : 0.00,
-        'Credito' => !$priceMapping->is_debit_origin ? 0.00 : round($valorUnitario, 2),
+        'Debito' => !$priceMapping->is_debit_origin ? round($totalValorUnitario, 2) : 0.00,
+        'Credito' => !$priceMapping->is_debit_origin ? 0.00 : round($totalValorUnitario, 2),
         'Descripcion' => 'Balance precio',
       ];
     }
 
     // LÍNEA 4 - BALANCE DESCUENTO: Cuenta Destino (INVERSO a is_debit_origin)
     // Como DESCUENTO tiene is_debit_origin = false, la cuenta destino va en DÉBITO
-    if ($descuento > 0) {
+    if ($totalDescuento > 0) {
       $lines[] = [
         'Asiento' => $asientoNumber,
         'Linea' => $lineNumber++,
         'CuentaNumero' => $discountMapping->getFullAccountDestination($sedeDynCode),
-        'Debito' => !$discountMapping->is_debit_origin ? round($descuento, 2) : 0.00,
-        'Credito' => !$discountMapping->is_debit_origin ? 0.00 : round($descuento, 2),
+        'Debito' => !$discountMapping->is_debit_origin ? round($totalDescuento, 2) : 0.00,
+        'Credito' => !$discountMapping->is_debit_origin ? 0.00 : round($totalDescuento, 2),
         'Descripcion' => 'Balance descuento',
       ];
     }
