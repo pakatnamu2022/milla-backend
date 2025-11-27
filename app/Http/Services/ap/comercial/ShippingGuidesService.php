@@ -7,6 +7,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Jobs\SyncShippingGuideJob;
+use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
@@ -239,8 +240,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         // Caso 1: Cambió la serie
         if (isset($data['document_series_id']) && $data['document_series_id'] != $document->document_series_id) {
           $needsRecalculation = true;
-        }
-        // Caso 2: No cambió la serie, pero verificar si cambió el correlative_start
+        } // Caso 2: No cambió la serie, pero verificar si cambió el correlative_start
         else if ($document->document_series_id) {
           $assignSeries = AssignSalesSeries::find($document->document_series_id);
           if ($assignSeries) {
@@ -419,7 +419,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       ]);
 
       // Sincronizar cancelación con Dynamics
-      SyncShippingGuideJob::dispatchSync($document->id);
+      VerifyAndMigrateShippingGuideJob::dispatchSync($document->id);
 
       return new ShippingGuidesResource($document);
     });
@@ -569,7 +569,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       }
 
       if ($guide->document_type === 'GUIA_REMISION') {
-        SyncShippingGuideJob::dispatchSync($guide->id);
+        VerifyAndMigrateShippingGuideJob::dispatchSync($guide->id);
       }
 
       $guide->update([

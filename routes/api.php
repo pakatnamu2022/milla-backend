@@ -31,6 +31,7 @@ use App\Http\Controllers\ap\configuracionComercial\venta\ApCommercialManagerBran
 use App\Http\Controllers\ap\configuracionComercial\venta\ApGoalSellOutInController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApSafeCreditGoalController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApShopController;
+use App\Http\Controllers\ap\facturacion\AccountingEntryController;
 use App\Http\Controllers\ap\facturacion\BillingCatalogController;
 use App\Http\Controllers\ap\facturacion\ElectronicDocumentController;
 use App\Http\Controllers\ap\maestroGeneral\AssignSalesSeriesController;
@@ -987,6 +988,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Sincronización con Dynamics 365
       Route::post('electronic-documents/{id}/sync-dynamics', [ElectronicDocumentController::class, 'syncToDynamics']);
+
+      // Preview de asientos contables
+      Route::get('accounting-entries/preview/{shippingGuideId}', [AccountingEntryController::class, 'preview']);
+      Route::get('accounting-entries/mappings', [AccountingEntryController::class, 'accountMappings']);
       Route::get('electronic-documents/{id}/sync-status', [ElectronicDocumentController::class, 'getSyncStatus']);
       Route::get('electronic-documents/checkResources/{id}', [ElectronicDocumentController::class, 'checkResources']);
 

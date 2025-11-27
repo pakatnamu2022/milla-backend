@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Database\Seeders\gp\evaluation\TruncateTablesSeeder;
 use Database\Seeders\gp\views\ViewSeeder;
 use Illuminate\Database\Seeder;
 
@@ -21,5 +20,6 @@ class DatabaseSeeder extends Seeder
 //    $this->call(TruncateTablesSeeder::class);
 //    $this->call(EvaluationModelSeeder::class);
 //    $this->call(EvaluationParEvaluatorSeeder::class);
+    $this->call(ApClassArticleAccountMappingSeeder::class);
   }
 }
