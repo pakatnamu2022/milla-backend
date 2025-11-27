@@ -39,14 +39,15 @@ class AccountingEntryService
     // Validar que existan mapeos de cuentas
     $this->validateAccountMapping($classId);
 
-    // Sumar todos los valores unitarios y descuentos de todos los items
-    $totalValorUnitario = 0;
-    $totalDescuento = 0;
+    // Obtener solo el item donde anticipo_regularizacion = 0
+    $item = $document->items->where('anticipo_regularizacion', 0)->first();
 
-    foreach ($document->items as $item) {
-      $totalValorUnitario += (float)$item->valor_unitario;
-      $totalDescuento += (float)($item->descuento ?? 0);
+    if (!$item) {
+      throw new Exception('No se encontró item con anticipo_regularizacion = 0');
     }
+
+    $totalValorUnitario = (float)$item->valor_unitario;
+    $totalDescuento = (float)($item->descuento ?? 0);
 
     // Generar las líneas contables con los totales
     $lines = $this->generateAccountingLinesForTotals(
