@@ -509,7 +509,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'TVEN-' : 'TSAL-';
 
     // Construir el TransaccionId base
-    $transactionId = $prefix . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
+    $transactionId = $prefix . $shippingGuide->dyn_series;
 
     // Si es una reversión, agregar asterisco
     if (str_contains($step, 'REVERSAL')) {
