@@ -409,7 +409,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     $serialLog->updateProcesoEstado(1);
 
     // Si Dynamics aceptó la transferencia (ProcesoEstado = 1), actualizar el warehouse_id del vehículo
-    if ($procesoEstado === 1) {
+    if ($procesoEstado === "1") {
       Log::info('ProcesoEstado = 1, actualizando warehouse del vehículo', [
         'shipping_guide_id' => $shippingGuide->id
       ]);
@@ -524,9 +524,17 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         $existingTransaction->ProcesoError ?? null
       );
 
+      Log::info('Estado del log de transacción actualizado', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'step' => $step,
+        'log_status' => $transactionLog->status,
+        'proceso_estado' => $transactionLog->proceso_estado,
+        'contains_reversal' => str_contains($step, 'REVERSAL')
+      ]);
+
       // Verificar si la transacción fue aceptada por Dynamics (ProcesoEstado = 1)
       // y si es una transacción normal (no reversal)
-      if ($existingTransaction->ProcesoEstado === 1 && !str_contains($step, 'REVERSAL')) {
+      if ($existingTransaction->ProcesoEstado === "1" && !str_contains($step, 'REVERSAL')) {
         Log::info('Transacción de inventario aceptada por Dynamics, disparando sincronización de asientos', [
           'shipping_guide_id' => $shippingGuide->id,
           'transaction_id' => $existingTransaction->TransaccionId,
@@ -833,15 +841,15 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     // Determinar los steps según si está cancelada o no
     $steps = $isCancelled
       ? [
-          VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_REVERSAL,
-          VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL_REVERSAL,
-          VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL_REVERSAL,
-        ]
+        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_REVERSAL,
+        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL_REVERSAL,
+        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL_REVERSAL,
+      ]
       : [
-          VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE,
-          VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL,
-          VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL,
-        ];
+        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE,
+        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL,
+        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL,
+      ];
 
     // Tablas correspondientes
     $tables = [
@@ -899,15 +907,15 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     // Determinar los steps según si está cancelada o no
     $steps = $isCancelled
       ? [
-          VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL,
-          VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL,
-          VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL_REVERSAL,
-        ]
+        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL,
+        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL,
+        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL_REVERSAL,
+      ]
       : [
-          VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
-          VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL,
-          VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL,
-        ];
+        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
+        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL,
+        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL,
+      ];
 
     // Tablas correspondientes
     $tables = [
