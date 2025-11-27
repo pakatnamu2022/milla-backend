@@ -6,7 +6,7 @@ use App\Http\Resources\ap\comercial\ApVehicleDeliveryResource;
 use App\Http\Resources\ap\comercial\ShippingGuidesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
-use App\Jobs\SyncShippingGuideSaleJob;
+use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\BusinessPartners;
@@ -517,7 +517,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       $shippingGuide->markAsSentToDynamic();
 
       // Despachar el Job síncronamente para debugging
-      SyncShippingGuideSaleJob::dispatchSync($shippingGuide->id);
+      VerifyAndMigrateShippingGuideJob::dispatchSync($shippingGuide->id);
 
       return response()->json([
         'success' => true,

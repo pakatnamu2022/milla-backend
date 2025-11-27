@@ -7,14 +7,18 @@ Se implementó el mismo patrón que usan las Purchase Orders para sincronizar Sh
 ## Archivos Creados/Modificados
 
 ### ✅ Archivos Modificados:
-1. `app/Jobs/SyncShippingGuideJob.php` - Removida verificación inmediata
+1. `app/Jobs/VerifyAndMigrateShippingGuideJob.php` - Job unificado que verifica y sincroniza
 2. `app/Models/ap/comercial/ShippingGuides.php` - Agregada relación `migrationLogs()`
-3. `routes/console.php` - Agregado comando programado cada 30 segundos
+3. `app/Http/Services/ap/comercial/ApVehicleDeliveryService.php` - Usa VerifyAndMigrateShippingGuideJob
+4. `routes/console.php` - Agregado comando programado cada 30 segundos
 
 ### ✅ Archivos Nuevos:
-1. `app/Jobs/VerifyAndMigrateShippingGuideJob.php` - Job de verificación periódica
-2. `app/Console/Commands/VerifyShippingGuideMigrationCommand.php` - Comando de verificación
-3. `app/Console/Commands/ShowShippingGuideMigrationStatusCommand.php` - Comando para ver estado
+1. `app/Console/Commands/VerifyShippingGuideMigrationCommand.php` - Comando de verificación
+2. `app/Console/Commands/ShowShippingGuideMigrationStatusCommand.php` - Comando para ver estado
+
+### ❌ Archivos Eliminados:
+1. `app/Jobs/SyncShippingGuideSaleJob.php` - Consolidado en VerifyAndMigrateShippingGuideJob
+2. `app/Jobs/SyncShippingGuideJob.php` - Consolidado en VerifyAndMigrateShippingGuideJob
 
 ---
 
@@ -62,18 +66,22 @@ php artisan shipping-guide:verify-migration --all --sync
 
 ### Cuando se crea una guía de remisión:
 
-1. **Frontend/API** llama al endpoint que crea la guía
-2. Se ejecuta `SyncShippingGuideJob::dispatch($shippingGuideId)`
-3. El job envía los 3 registros a BD intermedia con `proceso_estado = 0`
+1. **Frontend/API** llama al endpoint `sendToDynamic()`
+2. Se ejecuta `VerifyAndMigrateShippingGuideJob::dispatchSync($shippingGuideId)`
+3. El job:
+   - **Verifica** si ya existe en BD intermedia
+   - **Si NO existe** → Sincroniza (envía los 3 registros con `proceso_estado = 0`)
+   - **Si existe** → Actualiza el estado según `ProcesoEstado`
 4. El job termina ✓
 
 ### Verificación automática (cada 30 segundos):
 
 5. El **scheduler** ejecuta: `php artisan shipping-guide:verify-migration --all`
 6. El comando despacha `VerifyAndMigrateShippingGuideJob`
-7. Este job:
-   - Lee la BD intermedia
-   - Actualiza los logs con `ProcesoEstado` de la BD intermedia
+7. Este job repite el mismo proceso:
+   - Verifica si existe en BD intermedia
+   - Si no existe → Sincroniza
+   - Si existe → Lee `ProcesoEstado` y actualiza logs
    - Si todos tienen `ProcesoEstado = 1` → marca guía como `completed`
 
 ---
@@ -171,22 +179,31 @@ php artisan queue:restart
 
 ### ❌ Sistema Anterior (NO funcionaba):
 ```
-SyncShippingGuideJob:
-1. Enviar datos → proceso_estado = 0
-2. INMEDIATAMENTE verificar si proceso_estado = 1 ← NUNCA es 1 aquí
-3. No marca como completado nunca
+Había DOS jobs separados:
+- SyncShippingGuideSaleJob: Solo sincronizaba guías de VENTA
+- SyncShippingGuideJob: Solo sincronizaba guías de TRANSFERENCIA
+- VerifyAndMigrateShippingGuideJob: Solo verificaba
+
+Problemas:
+1. Duplicación de código
+2. Sincronización inmediata → NUNCA verificaba si proceso_estado = 1
+3. No había re-intentos automáticos si fallaba la sincronización
 ```
 
 ### ✅ Sistema Nuevo (Funciona):
 ```
-SyncShippingGuideJob:
-1. Enviar datos → proceso_estado = 0
-2. Terminar ✓
+UN SOLO job unificado: VerifyAndMigrateShippingGuideJob
 
-VerifyAndMigrateShippingGuideJob (cada 30 segundos):
-1. Leer BD intermedia
-2. Si ProcesoEstado = 1 → actualizar logs
-3. Si todos están en 1 → marcar como completed ✓
+1. Verifica si existe en BD intermedia
+2. SI NO EXISTE → Sincroniza (envía datos con proceso_estado = 0)
+3. SI EXISTE → Lee ProcesoEstado y actualiza logs
+4. Si todos están en ProcesoEstado = 1 → marcar como completed ✓
+
+Ventajas:
+- Un solo job para VENTA y TRANSFERENCIA
+- Idempotente: se puede ejecutar múltiples veces sin efectos secundarios
+- Verifica antes de sincronizar → evita duplicados
+- Código más limpio y mantenible
 ```
 
 ---
