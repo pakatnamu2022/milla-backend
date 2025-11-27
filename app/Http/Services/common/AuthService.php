@@ -54,7 +54,7 @@ class AuthService
     $user = Auth::user();
     if ($user) {
       $user->tokens()->delete();
-      return response()->json(['message' => 'Sesión cerrada correctamente'], 200);
+      return response()->json(['message' => 'Sesión cerrada correctamente']);
     } else {
       return response()->json(['message' => 'No autenticado'], 401);
     }
