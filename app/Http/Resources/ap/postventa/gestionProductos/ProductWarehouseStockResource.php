@@ -35,6 +35,7 @@ class ProductWarehouseStockResource extends JsonResource
       'total_expected_stock' => $this->total_expected_stock,
 
       // Relationships
+      'product' => new ProductsResource($this->whenLoaded('product')),
       'warehouse' => new WarehouseResource($this->whenLoaded('warehouse')),
 
       // Timestamps

@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\ap\configuracionComercial\vehiculo;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\StoreRequest;
 use Illuminate\Validation\Rule;
 
-class UpdateApModelsVnRequest extends FormRequest
+class UpdateApModelsVnRequest extends StoreRequest
 {
   public function rules(): array
   {
@@ -15,6 +15,7 @@ class UpdateApModelsVnRequest extends FormRequest
         'string',
         'max:50',
         Rule::unique('ap_models_vn', 'code')
+          ->where('type_operation_id', $this->input('type_operation_id'))
           ->ignore($this->route('modelsVn'))
           ->whereNull('deleted_at'),
       ],
@@ -198,6 +199,11 @@ class UpdateApModelsVnRequest extends FormRequest
         'integer',
         'exists:type_currency,id',
       ],
+      'type_operation_id' => [
+        'nullable',
+        'integer',
+        'exists:ap_commercial_masters,id',
+      ],
       'status' => ['nullable', 'boolean']
     ];
   }
@@ -355,6 +361,10 @@ class UpdateApModelsVnRequest extends FormRequest
       // Tipo de moneda
       'currency_type_id.integer' => 'El tipo de moneda debe ser un número entero.',
       'currency_type_id.exists' => 'El tipo de moneda seleccionado no existe.',
+
+      // Tipo de operación
+      'type_operation_id.integer' => 'El tipo de operación debe ser un número entero.',
+      'type_operation_id.exists' => 'El tipo de operación seleccionado no existe.',
     ];
   }
 }

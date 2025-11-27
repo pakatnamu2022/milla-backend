@@ -7,9 +7,11 @@ use App\Http\Requests\ap\postventa\gestionProductos\IndexInventoryMovementReques
 use App\Http\Requests\ap\postventa\gestionProductos\StoreAdjustmentInventoryRequest;
 use App\Http\Requests\ap\postventa\gestionProductos\StoreTransferInventoryRequest;
 use App\Http\Requests\ap\postventa\gestionProductos\UpdateInventoryMovementRequest;
+use App\Http\Requests\ap\postventa\gestionProductos\UpdateTransferInventoryRequest;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use Exception;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class InventoryMovementController extends Controller
 {
@@ -126,6 +128,67 @@ class InventoryMovementController extends Controller
   }
 
   /**
+   * Update warehouse transfer
+   * Only updates simple fields (NOT products)
+   * Only allowed if shipping guide has NOT been sent to SUNAT
+   *
+   * @param UpdateTransferInventoryRequest $request
+   * @param int $id Movement ID
+   * @return JsonResponse
+   */
+  public function updateTransfer(UpdateTransferInventoryRequest $request, int $id): JsonResponse
+  {
+    $request->validated();
+    try {
+      $result = $this->inventoryMovementService->updateTransfer(
+        $request->only([
+          'movement_date',
+          'notes',
+          'driver_name',
+          'driver_doc',
+          'license',
+          'plate',
+          'transfer_reason_id',
+          'transfer_modality_id',
+          'transport_company_id',
+          'total_packages',
+          'total_weight',
+        ]),
+        $id
+      );
+
+      return $this->success([
+        'message' => 'Transferencia actualizada correctamente',
+        'movement' => $result['movement'],
+        'shipping_guide' => $result['shipping_guide'],
+      ]);
+    } catch (Exception $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Delete warehouse transfer
+   * Only allowed if shipping guide has NOT been sent to SUNAT
+   * Reverses stock from in_transit back to available
+   *
+   * @param int $id Movement ID
+   * @return JsonResponse
+   */
+  public function destroyTransfer(int $id): JsonResponse
+  {
+    try {
+      $this->inventoryMovementService->destroyTransfer($id);
+
+      return $this->success([
+        'message' => 'Transferencia eliminada correctamente. El stock ha sido revertido.'
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Send shipping guide to Nubefact/SUNAT
    * After this, the transfer cannot be edited
    *
@@ -159,6 +222,32 @@ class InventoryMovementController extends Controller
         'can_edit' => false,
         'can_receive' => true, // Now can be received at destination
       ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Get movement history for a specific product in a warehouse
+   * Returns all inventory movements for a product
+   *
+   * @param int $productId Product ID
+   * @param int $warehouseId Warehouse ID
+   * @param Request $request
+   * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\Resources\Json\AnonymousResourceCollection
+   */
+  public function getProductMovementHistory(int $productId, int $warehouseId, Request $request)
+  {
+    try {
+      $movements = $this->inventoryMovementService->getProductMovementHistory(
+        $productId,
+        $warehouseId,
+        $request
+      );
+
+      // Return with pagination preserved
+      // Format: { data: [], links: {}, meta: {} }
+      return $movements;
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
