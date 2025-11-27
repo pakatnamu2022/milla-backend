@@ -253,12 +253,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
     // Función de transformación para incluir costos
     $transformVehicle = function ($vehicle) {
-      // Obtener la primera orden de compra del vehículo (puedes cambiar a last() si necesitas la última)
-      $firstPurchaseOrder = $vehicle->purchaseOrders->first();
-
-      // Obtener el costo facturado (subtotal de la orden de compra)
-      $billedCost = $firstPurchaseOrder?->subtotal ?? 0;
-
       // Obtener transport_cost del modelo (temporal)
       $freightCost = $vehicle->model?->transport_cost ?? 0;
 
@@ -281,7 +275,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'status_color' => $vehicle->vehicleStatus?->color,
         'warehouse_physical_id' => $vehicle->warehouse_physical_id,
         'warehouse_physical' => $vehicle->warehousePhysical?->description,
-        'billed_cost' => $billedCost,
+        'billed_cost' => $vehicle->purchase_price,
         'freight_cost' => $freightCost,
       ];
     };
