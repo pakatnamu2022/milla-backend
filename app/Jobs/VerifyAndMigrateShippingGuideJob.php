@@ -423,6 +423,12 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         ->where('TransaccionId', $transactionId)
         ->first();
 
+      Log::info('Verificación de detalle de transacción de inventario', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'step' => $step,
+        'existing_detail_found' => $existingDetail ? true : false
+      ]);
+
       if (!$existingDetail) {
         // NO EXISTE → SINCRONIZAR
         $isCancelled = str_contains($step, 'REVERSAL');
