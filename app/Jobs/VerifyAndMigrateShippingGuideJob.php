@@ -202,6 +202,16 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       return;
     }
 
+    // Si no tiene dyn_series, necesita sincronizar
+    if (empty($shippingGuide->dyn_series)) {
+      Log::info('La guía no tiene dyn_series, necesita sincronizar', [
+        'shipping_guide_id' => $shippingGuide->id
+      ]);
+      $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+      $this->syncInventoryTransfer($shippingGuide, $isCancelled);
+      return;
+    }
+
     Log::info('Verificando en la base de datos intermedia', [
       'shipping_guide_id' => $shippingGuide->id,
       'transfer_id' => $shippingGuide->dyn_series
@@ -359,6 +369,17 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
       // Si ya está completado, no hacer nada
       if ($transactionLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+        continue;
+      }
+
+      // Si no tiene dyn_series, necesita sincronizar
+      if (empty($shippingGuide->dyn_series)) {
+        Log::info('La guía de venta no tiene dyn_series, necesita sincronizar', [
+          'shipping_guide_id' => $shippingGuide->id,
+          'step' => $step
+        ]);
+        $isCancelled = str_contains($step, 'REVERSAL');
+        $this->syncSaleInventoryTransaction($shippingGuide, $isCancelled);
         continue;
       }
 
@@ -656,6 +677,22 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     }
 
     try {
+      // Generar el TransactionId si no existe
+      if (empty($shippingGuide->dyn_series)) {
+        $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'TVEN-' : 'TSAL-';
+        $transactionId = $prefix . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
+
+        // Actualizar dyn_series en ShippingGuides
+        $shippingGuide->update([
+          'dyn_series' => $transactionId,
+        ]);
+
+        Log::info('dyn_series generado para guía de venta', [
+          'shipping_guide_id' => $shippingGuide->id,
+          'dyn_series' => $transactionId
+        ]);
+      }
+
       // Transformar datos usando el Resource
       $resource = new ShippingGuideHeaderDynamicsResource($shippingGuide);
       $data = $resource->toArray(request());

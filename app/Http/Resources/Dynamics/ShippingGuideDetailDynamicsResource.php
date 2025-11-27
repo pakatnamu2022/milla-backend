@@ -35,14 +35,20 @@ class ShippingGuideDetailDynamicsResource extends JsonResource
    */
   public function toArray(Request $request): array
   {
-    $prefix = $this->shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA
-      ? 'TVEN-'
-      : 'TSAL-';
+    // Usar dyn_series si existe, sino generar uno nuevo
+    if (!empty($this->shippingGuide->dyn_series)) {
+      $transactionId = $this->shippingGuide->dyn_series;
+    } else {
+      $prefix = $this->shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA
+        ? 'TVEN-'
+        : 'TSAL-';
 
-    $transactionId = $prefix . str_pad($this->shippingGuide->correlative, 10, '0', STR_PAD_LEFT);
+      $transactionId = $prefix . str_pad($this->shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
+    }
+
+    // Agregar asterisco si está cancelada
     $isCancelled = $this->shippingGuide->status === false || $this->shippingGuide->cancelled_at !== null;
-
-    if ($isCancelled) {
+    if ($isCancelled && !str_ends_with($transactionId, '*')) {
       $transactionId .= '*';
     }
 

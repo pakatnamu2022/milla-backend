@@ -17,16 +17,22 @@ class ShippingGuideHeaderDynamicsResource extends JsonResource
    */
   public function toArray(Request $request): array
   {
-    // Determinar el prefijo del TransaccionId para ventas
-    $prefix = $this->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA
-      ? 'TVEN-'
-      : 'TSAL-';
+    // Usar dyn_series si existe, sino generar uno nuevo
+    if (!empty($this->dyn_series)) {
+      $transactionId = $this->dyn_series;
+    } else {
+      // Determinar el prefijo del TransaccionId para ventas
+      $prefix = $this->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA
+        ? 'TVEN-'
+        : 'TSAL-';
 
-    // Preparar TransaccionId con asterisco si está cancelada
-    $transactionId = $prefix . str_pad($this->correlative, 10, '0', STR_PAD_LEFT);
+      // Preparar TransaccionId
+      $transactionId = $prefix . str_pad($this->correlative, 8, '0', STR_PAD_LEFT);
+    }
+
+    // Agregar asterisco si está cancelada
     $isCancelled = $this->status === false || $this->cancelled_at !== null;
-
-    if ($isCancelled) {
+    if ($isCancelled && !str_ends_with($transactionId, '*')) {
       $transactionId .= '*';
     }
 
