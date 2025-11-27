@@ -87,7 +87,8 @@ class AccountingEntryService
     $valorUnitario = (float)$item->valor_unitario;
     $descuento = (float)($item->descuento ?? 0);
 
-    // Línea 1: Cuenta Origen Precio (según is_debit_origin)
+    // LÍNEA 1 - REVERSIÓN PRECIO: Cuenta Origen (según is_debit_origin de PRECIO)
+    // PRECIO tiene is_debit_origin = true, entonces va en DÉBITO
     if ($valorUnitario > 0) {
       $lines[] = [
         'Asiento' => $asientoNumber,
@@ -99,7 +100,8 @@ class AccountingEntryService
       ];
     }
 
-    // Línea 2: Cuenta Origen Descuento (según is_debit_origin) - solo si hay descuento
+    // LÍNEA 2 - REVERSIÓN DESCUENTO: Cuenta Origen (según is_debit_origin de DESCUENTO)
+    // DESCUENTO tiene is_debit_origin = false, entonces va en CRÉDITO
     if ($descuento > 0) {
       $lines[] = [
         'Asiento' => $asientoNumber,
@@ -111,26 +113,28 @@ class AccountingEntryService
       ];
     }
 
-    // Línea 3: Cuenta Destino Precio (inverso a origen)
+    // LÍNEA 3 - BALANCE PRECIO: Cuenta Destino (INVERSO a is_debit_origin)
+    // Como PRECIO tiene is_debit_origin = true, la cuenta destino va en CRÉDITO
     if ($valorUnitario > 0) {
       $lines[] = [
         'Asiento' => $asientoNumber,
         'Linea' => $lineNumber++,
         'CuentaNumero' => $priceMapping->getFullAccountDestination($sedeDynCode),
-        'Debito' => $priceMapping->is_debit_origin ? 0.00 : round($valorUnitario, 2),
-        'Credito' => $priceMapping->is_debit_origin ? round($valorUnitario, 2) : 0.00,
+        'Debito' => !$priceMapping->is_debit_origin ? round($valorUnitario, 2) : 0.00,
+        'Credito' => !$priceMapping->is_debit_origin ? 0.00 : round($valorUnitario, 2),
         'Descripcion' => 'Balance precio',
       ];
     }
 
-    // Línea 4: Cuenta Destino Descuento (inverso a origen) - solo si hay descuento
+    // LÍNEA 4 - BALANCE DESCUENTO: Cuenta Destino (INVERSO a is_debit_origin)
+    // Como DESCUENTO tiene is_debit_origin = false, la cuenta destino va en DÉBITO
     if ($descuento > 0) {
       $lines[] = [
         'Asiento' => $asientoNumber,
         'Linea' => $lineNumber++,
         'CuentaNumero' => $discountMapping->getFullAccountDestination($sedeDynCode),
-        'Debito' => $discountMapping->is_debit_origin ? 0.00 : round($descuento, 2),
-        'Credito' => $discountMapping->is_debit_origin ? round($descuento, 2) : 0.00,
+        'Debito' => !$discountMapping->is_debit_origin ? round($descuento, 2) : 0.00,
+        'Credito' => !$discountMapping->is_debit_origin ? 0.00 : round($descuento, 2),
         'Descripcion' => 'Balance descuento',
       ];
     }

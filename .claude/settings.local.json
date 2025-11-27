@@ -12,7 +12,8 @@
       "Bash(find:*)",
       "Bash(dir \"C:\\laragon\\www\\milla-backend\\database\\migrations\")",
       "Bash(findstr:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(mysql:*)"
     ],
     "deny": [],
     "ask": []
