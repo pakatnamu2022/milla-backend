@@ -424,6 +424,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         ->first();
 
       Log::info('Verificación de detalle de transacción de inventario', [
+        'transaction_id' => $transactionId,
         'shipping_guide_id' => $shippingGuide->id,
         'step' => $step,
         'existing_detail_found' => $existingDetail ? true : false
