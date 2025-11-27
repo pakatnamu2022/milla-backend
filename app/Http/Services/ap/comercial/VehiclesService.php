@@ -240,6 +240,13 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       $query->where('warehouse_physical_id', $request->warehouse_physical_id);
     }
 
+    // family_id
+    if ($request->has('family_id') && $request->family_id) {
+      $query->whereHas('model.family', function ($q) use ($request) {
+        $q->where('id', $request->family_id);
+      });
+    }
+    
     // Verificar si se solicita todos los registros sin paginación
     $all = filter_var($request->get('all', false), FILTER_VALIDATE_BOOLEAN);
 
