@@ -5,6 +5,9 @@ namespace App\Console\Commands;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use Illuminate\Console\Command;
 
+/**
+ * php artisan app:sync-exchange-rate
+ */
 class SyncExchangeRate extends Command
 {
   /**

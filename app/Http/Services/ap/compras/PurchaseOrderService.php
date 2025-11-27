@@ -100,8 +100,8 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       $number = $this->completeNumber($number_correlative, 7);
 
       $data['number_correlative'] = $number_correlative;
-      $data['number'] = $series . $number;
-      $data['number_guide'] = $series . $number;
+      $data['number'] = $series->series . $number;
+      $data['number_guide'] = $series->series . $number;
 
       // Estado inicial de migración
       $data['migration_status'] = 'pending';
