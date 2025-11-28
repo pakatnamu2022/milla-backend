@@ -10,14 +10,16 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class AccountingEntryHeaderDynamicsResource extends JsonResource
 {
   protected int $asientoNumber;
+  protected $date;
 
   /**
    * Constructor
    */
-  public function __construct($resource, int $asientoNumber)
+  public function __construct($resource, $date, int $asientoNumber)
   {
     parent::__construct($resource);
     $this->asientoNumber = $asientoNumber;
+    $this->date = $date;
   }
 
   /**
@@ -30,7 +32,7 @@ class AccountingEntryHeaderDynamicsResource extends JsonResource
       'EmpresaId' => Company::AP_DYNAMICS, // 'CTEST'
       'LoteId' => $this->creator->person->vat,
       'Referencia' => $this->full_number,
-      'Fecha' => $this->fecha_de_emision->format('Y-m-d H:i:s'),
+      'Fecha' => $this->date->format('Y-m-d H:i:s'),
       'MonedaId' => $this->currency->iso_code,
       'TipoTasaId' => 'VENDER',
       'TipoCambio' => (float)$this->tipo_de_cambio ?? throw new Exception('Tipo de cambio no existe'),

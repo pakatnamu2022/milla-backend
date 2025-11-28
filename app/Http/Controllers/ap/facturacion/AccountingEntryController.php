@@ -86,7 +86,7 @@ class AccountingEntryController extends Controller
       $asientoNumber = $this->accountingService->getNextAsientoNumber();
 
       // 6. Generar resource de cabecera
-      $headerResource = new AccountingEntryHeaderDynamicsResource($electronicDocument, $asientoNumber);
+      $headerResource = new AccountingEntryHeaderDynamicsResource($electronicDocument, $shippingGuide->issue_date, $asientoNumber);
       $headerData = $headerResource->toArray(request());
 
       // 7. Generar líneas de detalle

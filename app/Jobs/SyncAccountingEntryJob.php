@@ -126,7 +126,7 @@ class SyncAccountingEntryJob implements ShouldQueue
       // 7. Sincronizar cabecera
       $headerLog->update(['status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS]);
 
-      $headerResource = new AccountingEntryHeaderDynamicsResource($electronicDocument, $asientoNumber);
+      $headerResource = new AccountingEntryHeaderDynamicsResource($electronicDocument, $shippingGuide->issue_date, $asientoNumber);
       $headerData = $headerResource->toArray(request());
 
       $syncService->sync('accounting_entry_header', $headerData, 'create');
