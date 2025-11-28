@@ -756,6 +756,8 @@ return [
         'Referencia' => fn($data) => $data['Referencia'],
         'Fecha' => fn($data) => $data['Fecha'],
         'MonedaId' => fn($data) => $data['MonedaId'],
+        'TipoTasaId' => fn($data) => $data['TipoTasaId'],
+        'TipoCambio' => fn($data) => $data['TipoCambio'],
         'Error' => fn($data) => $data['Error'],
         'Estado' => fn($data) => $data['Estado'],
         'FechaEstado' => fn($data) => $data['FechaEstado'],
