@@ -53,21 +53,11 @@ class TransferReceptionService extends BaseService
         'transferMovement.details.product',
         'shippingGuide',
         'warehouse',
-        'receiver',
-        'reviewer',
         'details.product'
       ])
     );
   }
 
-  /**
-   * Create transfer reception from TRANSFER_OUT movement
-   * Creates TRANSFER_IN movement and moves stock from in_transit to actual quantity
-   *
-   * @param array $data Reception data
-   * @return TransferReception
-   * @throws Exception
-   */
   public function createReception(array $data): TransferReception
   {
     DB::beginTransaction();
@@ -75,30 +65,8 @@ class TransferReceptionService extends BaseService
       // Get the TRANSFER_OUT movement
       $transferOutMovement = $this->inventoryMovementService->find($data['transfer_movement_id']);
 
-      // Validate it's a TRANSFER_OUT
-      if ($transferOutMovement->movement_type !== InventoryMovement::TYPE_TRANSFER_OUT) {
-        throw new Exception('El movimiento debe ser de tipo TRANSFERENCIA SALIDA');
-      }
-
-      // Validate shipping guide exists and is sent to SUNAT
-      if (!$transferOutMovement->shipping_guide_id) {
-        throw new Exception('El movimiento no tiene una guía de remisión asociada');
-      }
-
-      $shippingGuide = $transferOutMovement->shippingGuide;
-      if (!$shippingGuide || !$shippingGuide->is_sunat_registered) {
-        throw new Exception('No se puede recepcionar: la guía de remisión aún no ha sido enviada a SUNAT');
-      }
-
-      // Validate warehouse matches destination
-      if ($transferOutMovement->warehouse_destination_id !== $data['warehouse_id']) {
-        throw new Exception('El almacén debe ser el almacén de destino de la transferencia');
-      }
-
-      // Check if already received
-      if ($transferOutMovement->transferReception) {
-        throw new Exception('Esta transferencia ya ha sido recepcionada');
-      }
+      // Get the shipping guide associated with the TRANSFER_OUT
+      $shippingGuide = $transferOutMovement->reference;
 
       // Generate reception number
       $receptionNumber = TransferReception::generateReceptionNumber();
@@ -149,7 +117,6 @@ class TransferReceptionService extends BaseService
         'movement_date' => $data['reception_date'],
         'warehouse_id' => $data['warehouse_id'], // Destination warehouse
         'warehouse_destination_id' => null,
-        'shipping_guide_id' => $shippingGuide->id,
         'reason_in_out_id' => $transferOutMovement->reason_in_out_id,
         'reference_type' => TransferReception::class,
         'reference_id' => $reception->id,
@@ -233,8 +200,6 @@ class TransferReceptionService extends BaseService
         'transferMovement.details.product',
         'shippingGuide',
         'warehouse',
-        'receiver',
-        'reviewer',
         'details.product'
       ]);
     } catch (Exception $e) {
@@ -243,33 +208,68 @@ class TransferReceptionService extends BaseService
     }
   }
 
-  /**
-   * Delete transfer reception and reverse stock movements
-   *
-   * @param int $id
-   * @return array
-   * @throws Exception
-   */
   public function destroy(int $id)
   {
     DB::beginTransaction();
     try {
-      $reception = $this->find($id);
+      $reception = $this->find($id)->load(['details', 'transferMovement']);
 
       if ($reception->status === TransferReception::STATUS_APPROVED) {
-        // Find and delete the TRANSFER_IN movement (which will reverse the stock)
+        $transferOutMovement = $reception->transferMovement;
+
+        // Find the TRANSFER_IN movement
         $transferInMovement = InventoryMovement::where('reference_type', TransferReception::class)
           ->where('reference_id', $reception->id)
           ->first();
 
         if ($transferInMovement) {
-          // Reverse stock by deleting the TRANSFER_IN movement
-          // The reverseStockFromMovement will handle putting stock back to in_transit
-          $this->inventoryMovementService->reverseStockFromMovement($transferInMovement->id);
+          // Revert stock changes manually
+          // 1. Remove stock from destination warehouse (that was added by TRANSFER_IN)
+          // 2. Add stock back to in_transit in origin warehouse (to restore TRANSFER_OUT state)
+
+          foreach ($reception->details as $detail) {
+            // Remove stock from destination warehouse (where it was received)
+            if ($detail->quantity_received > 0) {
+              $this->stockService->removeStock(
+                $detail->product_id,
+                $reception->warehouse_id,
+                $detail->quantity_received
+              );
+
+              // Add back to in_transit in origin warehouse
+              $originStock = $this->stockService->getStock(
+                $detail->product_id,
+                $transferOutMovement->warehouse_id
+              );
+
+              if ($originStock) {
+                $originStock->quantity_in_transit += $detail->quantity_received;
+                $originStock->save();
+              }
+            }
+
+            // Handle observed quantities (damaged/missing items)
+            // Add them back to in_transit as they were lost during reception
+            $observedQty = $detail->observed_quantity ?? 0;
+            if ($observedQty > 0) {
+              $originStock = $this->stockService->getStock(
+                $detail->product_id,
+                $transferOutMovement->warehouse_id
+              );
+
+              if ($originStock) {
+                $originStock->quantity_in_transit += $observedQty;
+                $originStock->save();
+              }
+            }
+          }
+
+          // Delete the TRANSFER_IN movement
+          $transferInMovement->delete();
         }
 
         // Set TRANSFER_OUT movement back to IN_TRANSIT
-        $reception->transferMovement->update([
+        $transferOutMovement->update([
           'status' => InventoryMovement::STATUS_IN_TRANSIT
         ]);
       }

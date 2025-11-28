@@ -16,7 +16,6 @@ class StoreApPostVentaMastersRequest extends StoreRequest
         'max:50',
         Rule::unique('ap_post_venta_masters', 'code')
           ->where('type', $this->type)
-          ->whereNotIn('type', ['TIPO_DOCUMENTO'])
           ->whereNull('deleted_at'),
       ],
       'description' => [

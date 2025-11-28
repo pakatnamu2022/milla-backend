@@ -3,7 +3,9 @@
 namespace App\Http\Requests\ap\postventa\gestionProductos;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
+use App\Models\ap\postventa\gestionProductos\TransferReception;
 
 class StoreTransferReceptionRequest extends StoreRequest
 {
@@ -74,26 +76,28 @@ class StoreTransferReceptionRequest extends StoreRequest
         }
 
         // Check if the shipping guide exists
-        if (!$movement->shipping_guide_id) {
+        if ($movement->reference_type !== ShippingGuides::class) {
           $validator->errors()->add('transfer_movement_id', 'El movimiento no tiene una guía de remisión asociada');
         } else {
           // Check if the shipping guide has been sent to SUNAT
-          $shippingGuide = $movement->shippingGuide;
+          $shippingGuide = $movement->reference;
           if (!$shippingGuide || !$shippingGuide->is_sunat_registered) {
             $validator->errors()->add('transfer_movement_id', 'No se puede recepcionar: la guía de remisión aún no ha sido enviada a SUNAT');
           }
         }
 
         // Validate that warehouse_id matches destination warehouse
-        $warehouseId = $this->input('warehouse_id');
+        $warehouseId = (int)$this->input('warehouse_id');
         if ($warehouseId && $movement->warehouse_destination_id !== $warehouseId) {
           $validator->errors()->add('warehouse_id', 'El almacén debe ser el almacén de destino de la transferencia');
         }
 
-        // Check if already received
-        $existingReception = $movement->transferReception;
-        if ($existingReception) {
-          $validator->errors()->add('transfer_movement_id', 'Esta transferencia ya ha sido recepcionada');
+        // Check if already has an approved reception
+        $existingApprovedReception = TransferReception::where('transfer_movement_id', $movement->id)
+          ->where('status', TransferReception::STATUS_APPROVED)
+          ->first();
+        if ($existingApprovedReception) {
+          $validator->errors()->add('transfer_movement_id', 'Esta transferencia ya tiene una recepción aprobada');
         }
       }
 

@@ -4,9 +4,12 @@ namespace App\Models\ap\postventa\gestionProductos;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TransferReceptionDetail extends Model
 {
+  use SoftDeletes;
+
   protected $table = 'transfer_reception_details';
 
   protected $fillable = [
@@ -47,7 +50,7 @@ class TransferReceptionDetail extends Model
 
   public function product(): BelongsTo
   {
-    return $this->belongsTo(Product::class, 'product_id');
+    return $this->belongsTo(Products::class, 'product_id');
   }
 
   // Accessors

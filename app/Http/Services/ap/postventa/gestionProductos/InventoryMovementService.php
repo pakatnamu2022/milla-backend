@@ -12,6 +12,7 @@ use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -360,6 +361,7 @@ class InventoryMovementService extends BaseService
         'notes' => $transferData['notes'] ?? null,
         'status' => true,
         'created_by' => Auth::id(),
+        'type_voucher_id' => SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE,
       ]);
 
       // Create TRANSFER_OUT movement (stock goes to in_transit)

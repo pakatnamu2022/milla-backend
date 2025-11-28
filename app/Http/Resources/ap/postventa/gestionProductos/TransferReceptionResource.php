@@ -32,24 +32,12 @@ class TransferReceptionResource extends JsonResource
       'updated_at' => $this->updated_at,
 
       // Relationships
-      'transfer_movement' => new InventoryMovementResource($this->whenLoaded('transferMovement')),
-      'shipping_guide' => $this->whenLoaded('shippingGuide'),
-      'warehouse' => $this->whenLoaded('warehouse'),
-      'receiver' => $this->whenLoaded('receiver', function () {
-        return [
-          'id' => $this->receiver->id,
-          'name' => $this->receiver->name,
-          'email' => $this->receiver->email,
-        ];
-      }),
-      'reviewer' => $this->whenLoaded('reviewer', function () {
-        return $this->reviewer ? [
-          'id' => $this->reviewer->id,
-          'name' => $this->reviewer->name,
-          'email' => $this->reviewer->email,
-        ] : null;
-      }),
-      'details' => TransferReceptionDetailResource::collection($this->whenLoaded('details')),
+      'transfer_movement' => new InventoryMovementResource($this->transferMovement),
+      'shipping_guide' => $this->shippingGuide,
+      'warehouse' => $this->warehouse,
+      'received_name' => $this->receivedByUser ? $this->receivedByUser->name : null,
+      'reviewer_name' => $this->reviewedByUser ? $this->reviewedByUser->name : null,
+      'details' => TransferReceptionDetailResource::collection($this->details->loadMissing('product')),
 
       // Calculated attributes
       'has_observations' => $this->when($this->details, function () {

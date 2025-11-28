@@ -4,6 +4,8 @@ namespace App\Http\Services\ap\comercial;
 
 use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\comercial\ShippingGuides;
+use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
@@ -376,30 +378,72 @@ class NubefactShippingGuideApiService
 
   /**
    * Construye los items (productos) de la guía
+   * Maneja tanto vehículos como productos de inventario
    */
   protected function buildItems($guide): array
   {
-    $items = [];
+    // Caso 1: Guía con vehículo
+    if ($guide->vehicleMovement && $guide->vehicleMovement->vehicle) {
+      return $this->buildVehicleItems($guide->vehicleMovement->vehicle);
+    }
 
-    /*
-     * los items solo va aparecer 1 registro que es el vehiculo de conforma de
-     * marca + version + año + SERIE: vin + MOTOR: motor
-     * */
-    $vehicle = $guide->vehicleMovement->vehicle;
-    $items[] = [
+    // Caso 2: Guía con productos de inventario (transferencias)
+    $inventoryMovement = InventoryMovement::where('reference_type', ShippingGuides::class)
+      ->where('reference_id', $guide->id)
+      ->with('details.product')
+      ->first();
+
+    if ($inventoryMovement && $inventoryMovement->details->isNotEmpty()) {
+      return $this->buildProductItems($inventoryMovement->details);
+    }
+
+    // Caso 3: Si no hay items, agregar uno genérico
+    return [[
       'unidad_de_medida' => 'NIU',
       'codigo' => '001',
-      'descripcion' => strtoupper($vehicle->model->family->brand->name . ' ' . $vehicle->model->version . ' ' . $vehicle->model->model_year . ' SERIE: ' . $vehicle->vin . ' MOTOR: ' . $vehicle->engine_number),
+      'descripcion' => 'MERCADERIA DIVERSA',
       'cantidad' => '1',
-    ];
+    ]];
+  }
 
-    // Si no hay items, agregar uno genérico
-    if (empty($items)) {
+  /**
+   * Construye items para vehículos
+   */
+  protected function buildVehicleItems($vehicle): array
+  {
+    return [[
+      'unidad_de_medida' => 'NIU',
+      'codigo' => '001',
+      'descripcion' => strtoupper(
+        $vehicle->model->family->brand->name . ' ' .
+        $vehicle->model->version . ' ' .
+        $vehicle->model->model_year . ' ' .
+        'SERIE: ' . $vehicle->vin . ' ' .
+        'MOTOR: ' . $vehicle->engine_number
+      ),
+      'cantidad' => '1',
+    ]];
+  }
+
+  /**
+   * Construye items para productos de inventario
+   */
+  protected function buildProductItems($details): array
+  {
+    $items = [];
+
+    foreach ($details as $detail) {
+      $product = $detail->product;
+
+      if (!$product) {
+        continue;
+      }
+
       $items[] = [
-        'unidad_de_medida' => 'NIU',
-        'codigo' => '001',
-        'descripcion' => 'MERCADERIA DIVERSA',
-        'cantidad' => '1',
+        'unidad_de_medida' => $product->unitMeasurement->code_nubefact ?? 'NIU',
+        'codigo' => $product->code ?? 'PROD',
+        'descripcion' => strtoupper($product->name ?? 'PRODUCTO'),
+        'cantidad' => (string) $detail->quantity,
       ];
     }
 
