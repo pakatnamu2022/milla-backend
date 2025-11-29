@@ -47,27 +47,33 @@ class DailyDeliveryReportSummarySheet implements FromCollection, WithHeadings, W
   public function collection()
   {
     $summary = $this->reportData['summary'];
+    $data = [];
 
-    return collect([
-      [
-        'TOTAL AP LIVIANOS',
-        $summary['TOTAL_AP_LIVIANOS']['entregas'],
-        $summary['TOTAL_AP_LIVIANOS']['facturacion'],
-        $summary['TOTAL_AP_LIVIANOS']['reporteria_dealer_portal'] ?? '',
-      ],
-      [
-        'TOTAL AP CAMIONES',
-        $summary['TOTAL_AP_CAMIONES']['entregas'],
-        $summary['TOTAL_AP_CAMIONES']['facturacion'],
-        $summary['TOTAL_AP_CAMIONES']['reporteria_dealer_portal'] ?? '',
-      ],
-      [
+    // Agregar todas las clases encontradas (excepto TOTAL_AP)
+    foreach ($summary as $className => $counts) {
+      if ($className === 'TOTAL_AP') {
+        continue; // Lo agregamos al final
+      }
+
+      $data[] = [
+        $className,
+        $counts['entregas'],
+        $counts['facturacion'],
+        $counts['reporteria_dealer_portal'] ?? '',
+      ];
+    }
+
+    // Agregar TOTAL_AP al final
+    if (isset($summary['TOTAL_AP'])) {
+      $data[] = [
         'TOTAL AP',
         $summary['TOTAL_AP']['entregas'],
         $summary['TOTAL_AP']['facturacion'],
         $summary['TOTAL_AP']['reporteria_dealer_portal'] ?? '',
-      ],
-    ]);
+      ];
+    }
+
+    return collect($data);
   }
 
   public function headings(): array
@@ -82,6 +88,10 @@ class DailyDeliveryReportSummarySheet implements FromCollection, WithHeadings, W
 
   public function styles(Worksheet $sheet)
   {
+    $summary = $this->reportData['summary'];
+    $totalRows = count($summary); // Número de clases + TOTAL_AP
+    $lastDataRow = 4 + $totalRows; // Fila donde está TOTAL_AP
+
     return [
       1 => [
         'font' => ['bold' => true, 'size' => 14, 'color' => ['rgb' => 'FFFFFF']],
@@ -97,7 +107,7 @@ class DailyDeliveryReportSummarySheet implements FromCollection, WithHeadings, W
         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
         'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
       ],
-      7 => [ // TOTAL AP row (última fila)
+      $lastDataRow => [ // TOTAL AP row (última fila dinámica)
         'font' => ['bold' => true, 'size' => 11],
         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E7E6E6']],
       ],
@@ -114,6 +124,9 @@ class DailyDeliveryReportSummarySheet implements FromCollection, WithHeadings, W
     return [
       AfterSheet::class => function (AfterSheet $event) {
         $sheet = $event->sheet->getDelegate();
+        $summary = $this->reportData['summary'];
+        $totalRows = count($summary);
+        $lastDataRow = 4 + $totalRows;
 
         // Merge cells for title
         $sheet->mergeCells('A1:D1');
@@ -123,8 +136,8 @@ class DailyDeliveryReportSummarySheet implements FromCollection, WithHeadings, W
         $sheet->getRowDimension(1)->setRowHeight(30);
         $sheet->getRowDimension(4)->setRowHeight(25);
 
-        // Add borders
-        $sheet->getStyle('A4:D7')->applyFromArray([
+        // Add borders (dinámico según cantidad de clases)
+        $sheet->getStyle('A4:D' . $lastDataRow)->applyFromArray([
           'borders' => [
             'allBorders' => [
               'borderStyle' => Border::BORDER_THIN,
@@ -133,8 +146,8 @@ class DailyDeliveryReportSummarySheet implements FromCollection, WithHeadings, W
           ],
         ]);
 
-        // Center align numbers
-        $sheet->getStyle('B5:D7')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        // Center align numbers (dinámico)
+        $sheet->getStyle('B5:D' . $lastDataRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
       },
     ];
   }

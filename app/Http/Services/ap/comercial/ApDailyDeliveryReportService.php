@@ -11,6 +11,7 @@ use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -64,7 +65,7 @@ class ApDailyDeliveryReportService
    */
   protected function getDeliveredVehicles(int $year, int $month): Collection
   {
-    return DB::table('ap_vehicles')
+    $vehicles = DB::table('ap_vehicles')
       ->join('ap_vehicle_delivery', 'ap_vehicles.id', '=', 'ap_vehicle_delivery.vehicle_id')
       ->join('purchase_request_quote', 'ap_vehicles.id', '=', 'purchase_request_quote.ap_vehicle_id')
       ->join('ap_opportunity', 'purchase_request_quote.opportunity_id', '=', 'ap_opportunity.id')
@@ -80,10 +81,13 @@ class ApDailyDeliveryReportService
         'ap_vehicles.id as vehicle_id',
         'ap_vehicle_delivery.real_delivery_date',
         'ap_opportunity.worker_id as advisor_id',
-        'ap_class_article.description as article_class',
+        'ap_class_article.id as article_class_id',
+        'ap_class_article.description as article_class_description',
         'purchase_request_quote.id as quote_id',
       ])
       ->get();
+    dd($year, $month, $vehicles);
+    return $vehicles;
   }
 
   /**
@@ -112,7 +116,9 @@ class ApDailyDeliveryReportService
   }
 
   /**
-   * Construye el resumen por clase de artículo
+   * Construye el resumen por clase de artículo (dinámico)
+   *
+   * Genera categorías basadas en las clases reales encontradas en los datos
    *
    * @param Collection $vehicles
    * @param Collection $invoicedQuoteIds
@@ -120,49 +126,37 @@ class ApDailyDeliveryReportService
    */
   protected function buildSummaryByArticleClass(Collection $vehicles, Collection $invoicedQuoteIds): array
   {
-    $totals = [
-      'TOTAL_AP_LIVIANOS' => ['entregas' => 0, 'facturacion' => 0, 'reporteria_dealer_portal' => null],
-      'TOTAL_AP_CAMIONES' => ['entregas' => 0, 'facturacion' => 0, 'reporteria_dealer_portal' => null],
-      'TOTAL_AP' => ['entregas' => 0, 'facturacion' => 0, 'reporteria_dealer_portal' => null],
+    $classSummary = [];
+    $totalEntregas = 0;
+    $totalFacturacion = 0;
+
+    // Agrupar por clase de artículo
+    $groupedByClass = $vehicles->groupBy('article_class_description');
+
+    foreach ($groupedByClass as $className => $classVehicles) {
+      $entregas = $classVehicles->count();
+      $facturacion = $classVehicles->filter(function ($vehicle) use ($invoicedQuoteIds) {
+        return $invoicedQuoteIds->contains($vehicle->quote_id);
+      })->count();
+
+      $classSummary[$className] = [
+        'entregas' => $entregas,
+        'facturacion' => $facturacion,
+        'reporteria_dealer_portal' => null,
+      ];
+
+      $totalEntregas += $entregas;
+      $totalFacturacion += $facturacion;
+    }
+
+    // Agregar total general al final
+    $classSummary['TOTAL_AP'] = [
+      'entregas' => $totalEntregas,
+      'facturacion' => $totalFacturacion,
+      'reporteria_dealer_portal' => null,
     ];
 
-    foreach ($vehicles as $vehicle) {
-      $category = $this->classifyArticle($vehicle->article_class);
-
-      // Contar entrega
-      $totals[$category]['entregas']++;
-      $totals['TOTAL_AP']['entregas']++;
-
-      // Contar facturación si aplica
-      if ($invoicedQuoteIds->contains($vehicle->quote_id)) {
-        $totals[$category]['facturacion']++;
-        $totals['TOTAL_AP']['facturacion']++;
-      }
-    }
-
-    return $totals;
-  }
-
-  /**
-   * Clasifica un artículo en LIVIANOS o CAMIONES según su descripción
-   *
-   * @param string $description
-   * @return string
-   */
-  protected function classifyArticle(string $description): string
-  {
-    $description = strtoupper($description);
-
-    if (str_contains($description, 'LIVIAN')) {
-      return 'TOTAL_AP_LIVIANOS';
-    }
-
-    if (str_contains($description, 'CAMION') || str_contains($description, 'PESAD')) {
-      return 'TOTAL_AP_CAMIONES';
-    }
-
-    // Por defecto, clasificar como livianos
-    return 'TOTAL_AP_LIVIANOS';
+    return $classSummary;
   }
 
   /**
