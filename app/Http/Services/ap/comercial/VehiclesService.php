@@ -38,8 +38,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       $request,
       Vehicles::$filters,
       Vehicles::$sorts,
-      VehiclesResource::class,
-      ['model', 'color', 'engineType', 'status', 'sede', 'warehousePhysical', 'vehicleMovements']
+      VehiclesResource::class
     );
   }
 

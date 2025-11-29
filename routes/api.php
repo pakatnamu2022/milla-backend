@@ -45,6 +45,7 @@ use App\Http\Controllers\ap\postventa\gestionProductos\ProductsController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductWarehouseStockController;
 use App\Http\Controllers\ap\postventa\gestionProductos\TransferReceptionController;
 use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
+use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Dashboard\ap\comercial\DashboardComercialController;
@@ -966,6 +967,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       Route::apiResource('approvedAccessories', ApprovedAccessoriesController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::apiResource('appointmentPlanning', AppointmentPlanningController::class)->only([
         'index',
         'show',
         'store',

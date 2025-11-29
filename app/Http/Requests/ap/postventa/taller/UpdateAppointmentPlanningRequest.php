@@ -2,27 +2,108 @@
 
 namespace App\Http\Requests\ap\postventa\taller;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\StoreRequest;
 
-class UpdateAppointmentPlanningRequest extends FormRequest
+class UpdateAppointmentPlanningRequest extends StoreRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return false;
-    }
+  public function rules(): array
+  {
+    return [
+      'description' => [
+        'nullable',
+        'string',
+        'max:255',
+      ],
+      'delivery_date' => [
+        'nullable',
+        'date',
+      ],
+      'delivery_time' => [
+        'nullable',
+        'date_format:H:i',
+      ],
+      'date_appointment' => [
+        'nullable',
+        'date',
+      ],
+      'time_appointment' => [
+        'nullable',
+        'date_format:H:i',
+      ],
+      'full_name_client' => [
+        'nullable',
+        'string',
+        'max:100',
+      ],
+      'email_client' => [
+        'nullable',
+        'string',
+        'email',
+        'max:100',
+      ],
+      'phone_client' => [
+        'nullable',
+        'string',
+        'max:20',
+      ],
+      'type_operation_appointment_id' => [
+        'nullable',
+        'integer',
+        'exists:ap_post_venta_masters,id,type=TIPO_OPERACION',
+      ],
+      'type_planning_id' => [
+        'nullable',
+        'integer',
+        'exists:ap_post_venta_masters,id,type=TIPO_PLANIFICACION',
+      ],
+      'ap_vehicle_id' => [
+        'nullable',
+        'integer',
+        'exists:ap_vehicles,id',
+      ],
+      'advisor_id' => [
+        'nullable',
+        'integer',
+        'exists:rrhh_persona,id',
+      ],
+    ];
+  }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
-    public function rules(): array
-    {
-        return [
-            //
-        ];
-    }
+  public function messages(): array
+  {
+    return [
+      'description.string' => 'El campo descripción debe ser una cadena de texto.',
+      'description.max' => 'El campo descripción no debe exceder los 255 caracteres.',
+
+      'delivery_date.date' => 'El campo fecha de entrega debe ser una fecha válida.',
+
+      'delivery_time.date_format' => 'El campo hora de entrega debe tener el formato HH:MM.',
+
+      'date_appointment.date' => 'El campo fecha de cita debe ser una fecha válida.',
+
+      'time_appointment.date_format' => 'El campo hora de cita debe tener el formato HH:MM.',
+
+      'full_name_client.string' => 'El campo nombre completo del cliente debe ser una cadena de texto.',
+      'full_name_client.max' => 'El campo nombre completo del cliente no debe exceder los 100 caracteres.',
+
+      'email_client.string' => 'El campo correo electrónico del cliente debe ser una cadena de texto.',
+      'email_client.email' => 'El campo correo electrónico del cliente debe ser una dirección de correo válida.',
+      'email_client.max' => 'El campo correo electrónico del cliente no debe exceder los 100 caracteres.',
+
+      'phone_client.string' => 'El campo teléfono del cliente debe ser una cadena de texto.',
+      'phone_client.max' => 'El campo teléfono del cliente no debe exceder los 20 caracteres.',
+
+      'type_operation_appointment_id.integer' => 'El campo tipo de operación de cita debe ser un entero.',
+      'type_operation_appointment_id.exists' => 'El tipo de operación de cita seleccionado no es válido.',
+
+      'type_planning_id.integer' => 'El campo tipo de planificación debe ser un entero.',
+      'type_planning_id.exists' => 'El tipo de planificación seleccionado no es válido.',
+
+      'ap_vehicle_id.integer' => 'El campo vehículo debe ser un entero.',
+      'ap_vehicle_id.exists' => 'El vehículo seleccionado no es válido.',
+
+      'advisor_id.integer' => 'El campo asesor debe ser un entero.',
+      'advisor_id.exists' => 'El asesor seleccionado no es válido.',
+    ];
+  }
 }

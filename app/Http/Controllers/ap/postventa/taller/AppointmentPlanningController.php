@@ -3,64 +3,64 @@
 namespace App\Http\Controllers\ap\postventa\taller;
 
 use App\Http\Controllers\Controller;
-use App\Models\ap\postventa\taller\AppointmentPlanning;
-use Illuminate\Http\Request;
+use App\Http\Requests\ap\postventa\taller\IndexAppointmentPlanningRequest;
+use App\Http\Requests\ap\postventa\taller\StoreAppointmentPlanningRequest;
+use App\Http\Requests\ap\postventa\taller\UpdateAppointmentPlanningRequest;
+use App\Http\Services\ap\postventa\taller\AppointmentPlanningService;
 
 class AppointmentPlanningController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+  protected AppointmentPlanningService $service;
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+  public function __construct(AppointmentPlanningService $service)
+  {
+    $this->service = $service;
+  }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
+  public function index(IndexAppointmentPlanningRequest $request)
+  {
+    try {
+      return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(AppointmentPlanning $appointmentPlanning)
-    {
-        //
+  public function store(StoreAppointmentPlanningRequest $request)
+  {
+    try {
+      return $this->success($this->service->store($request->all()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(AppointmentPlanning $appointmentPlanning)
-    {
-        //
+  public function show($id)
+  {
+    try {
+      return $this->success($this->service->show($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, AppointmentPlanning $appointmentPlanning)
-    {
-        //
+  public function update(UpdateAppointmentPlanningRequest $request, $id)
+  {
+    try {
+      $data = $request->all();
+      $data['id'] = $id;
+      return $this->success($this->service->update($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(AppointmentPlanning $appointmentPlanning)
-    {
-        //
+  public function destroy($id)
+  {
+    try {
+      return $this->service->destroy($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 }
