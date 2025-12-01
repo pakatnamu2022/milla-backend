@@ -2,19 +2,22 @@
 
 namespace App\Http\Requests\ap\configuracionComercial\vehiculo;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\StoreRequest;
+use App\Models\ap\ApCommercialMasters;
 use Illuminate\Validation\Rule;
 
-class StoreApModelsVnRequest extends FormRequest
+class StoreApModelsVnRequest extends StoreRequest
 {
   public function rules(): array
   {
     return [
       'code' => [
-        'required',
+        'nullable',
         'string',
         'max:50',
-        Rule::unique('ap_models_vn', 'code')->whereNull('deleted_at'),
+        Rule::unique('ap_models_vn', 'code')
+          ->where('type_operation_id', $this->input('type_operation_id'))
+          ->whereNull('deleted_at'),
       ],
       'version' => [
         'required',
@@ -103,55 +106,64 @@ class StoreApModelsVnRequest extends FormRequest
         'max:50',
       ],
       'distributor_price' => [
-        'required',
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        'nullable',
         'numeric',
         'min:0',
         'max:9999999999.99',
       ],
       'transport_cost' => [
-        'required',
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        'nullable',
         'numeric',
         'min:0',
         'max:9999999999.99',
       ],
       'other_amounts' => [
-        'required',
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        'nullable',
         'numeric',
         'min:0',
         'max:9999999999.99',
       ],
       'purchase_discount' => [
-        'required',
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        'nullable',
         'numeric',
         'min:0',
         'max:9999999999.99',
       ],
       'igv_amount' => [
-        'required',
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        'nullable',
         'numeric',
         'min:0',
         'max:9999999999.99',
       ],
       'total_purchase_excl_igv' => [
-        'required',
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        'nullable',
         'numeric',
         'min:0',
         'max:9999999999.99',
       ],
       'total_purchase_incl_igv' => [
-        'required',
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        'nullable',
         'numeric',
         'min:0',
         'max:9999999999.99',
       ],
       'sale_price' => [
-        'required',
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        'nullable',
         'numeric',
         'min:0',
         'max:9999999999.99',
       ],
       'margin' => [
-        'required',
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        'nullable',
         'numeric',
         'min:0',
         'max:9999999999.99',
@@ -192,9 +204,15 @@ class StoreApModelsVnRequest extends FormRequest
         'exists:ap_commercial_masters,id',
       ],
       'currency_type_id' => [
-        'required',
+        Rule::requiredIf(fn() => $this->input('currency_type_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        'nullable',
         'integer',
         'exists:type_currency,id',
+      ],
+      'type_operation_id' => [
+        'required',
+        'integer',
+        'exists:ap_commercial_masters,id',
       ],
     ];
   }
@@ -387,6 +405,11 @@ class StoreApModelsVnRequest extends FormRequest
       'currency_type_id.required' => 'El tipo de moneda es obligatorio.',
       'currency_type_id.integer' => 'El tipo de moneda debe ser un número entero.',
       'currency_type_id.exists' => 'El tipo de moneda seleccionado no existe.',
+
+      // Tipo de operación
+      'type_operation_id.required' => 'El tipo de operación es obligatorio.',
+      'type_operation_id.integer' => 'El tipo de operación debe ser un número entero.',
+      'type_operation_id.exists' => 'El tipo de operación seleccionado no existe.',
     ];
   }
 }

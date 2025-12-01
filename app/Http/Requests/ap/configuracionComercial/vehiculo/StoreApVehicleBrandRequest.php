@@ -50,9 +50,10 @@ class StoreApVehicleBrandRequest extends StoreRequest
         'mimes:jpeg,png,webp,jpg',
         'max:2048',
       ],
-      'is_commercial' => [
+      'type_operation_id' => [
         'required',
-        'boolean',
+        'integer',
+        'exists:ap_commercial_masters,id',
       ],
     ];
   }

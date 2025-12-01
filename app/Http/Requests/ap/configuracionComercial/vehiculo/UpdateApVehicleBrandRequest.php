@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ap\configuracionComercial\vehiculo;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\ApCommercialMasters;
 use Illuminate\Validation\Rule;
 
 class UpdateApVehicleBrandRequest extends StoreRequest
@@ -24,7 +25,7 @@ class UpdateApVehicleBrandRequest extends StoreRequest
         'max:100',
         Rule::unique('ap_vehicle_brand', 'dyn_code')->whereNull('deleted_at')
           ->whereNull('deleted_at')
-          ->where('is_commercial', true)
+          ->where('type_operation_id', ApCommercialMasters::TIPO_OPERACION_COMERCIAL)
           ->ignore($this->route('vehicleBrand')),
       ],
       'name' => [
@@ -57,9 +58,10 @@ class UpdateApVehicleBrandRequest extends StoreRequest
         'mimes:jpeg,png,webp,jpg',
         'max:2048',
       ],
-      'is_commercial' => [
+      'type_operation_id' => [
         'nullable',
-        'boolean',
+        'integer',
+        'exists:ap_commercial_masters,id',
       ],
       'status' => ['nullable', 'boolean'],
     ];
@@ -87,6 +89,9 @@ class UpdateApVehicleBrandRequest extends StoreRequest
       'logo.max' => 'El logo no debe superar los 2MB',
       'logo_min.mimes' => 'El logo min debe ser un archivo JPG, PNG o WebP',
       'logo_min.max' => 'El logo min no debe superar los 2MB',
+
+      'type_operation_id.integer' => 'El campo tipo de operación es obligatorio.',
+      'type_operation_id.exists' => 'El tipo de operación seleccionado no existe',
     ];
   }
 }

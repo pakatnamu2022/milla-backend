@@ -80,6 +80,8 @@ class PurchaseOrder extends BaseModel
     'vehicle.ap_models_vn_id' => '=',
     'vehicle.ap_vehicle_status_id' => '=',
     'type_operation_id' => '=',
+    'emission_date' => 'between',
+    'due_date' => 'between',
   ];
 
   const sorts = [

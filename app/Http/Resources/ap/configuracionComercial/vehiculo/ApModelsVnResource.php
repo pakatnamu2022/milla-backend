@@ -57,9 +57,10 @@ class ApModelsVnResource extends JsonResource
       'traction_type' => $this->tractionType->description,
       'transmission_id' => $this->transmission_id,
       'transmission' => $this->vehicleTransmission->description,
-      'currency_type_id' => $this->currency_type_id,
-      'currency_type' => $this->typeCurrency->name,
-      'currency_symbol' => $this->typeCurrency->symbol,
+      'currency_type_id' => $this->currency_type_id ?? "",
+      'currency_type' => $this->typeCurrency->name ?? "",
+      'currency_symbol' => $this->typeCurrency->symbol ?? "",
+      'type_operation_id' => $this->type_operation_id,
       'status' => $this->status,
     ];
   }

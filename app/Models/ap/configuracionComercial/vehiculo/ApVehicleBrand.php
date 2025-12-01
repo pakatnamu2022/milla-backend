@@ -20,14 +20,14 @@ class ApVehicleBrand extends Model
     'description',
     'logo',
     'logo_min',
-    'is_commercial',
+    'type_operation_id',
     'status',
     'group_id',
   ];
 
   const filters = [
     'search' => ['code', 'dyn_code', 'name', 'description'],
-    'is_commercial' => '=',
+    'type_operation_id' => '=',
     'status' => '=',
     'sede_id' => 'accessor'
   ];
@@ -66,5 +66,10 @@ class ApVehicleBrand extends Model
   public function setDescriptionAttribute($value)
   {
     $this->attributes['description'] = Str::upper(Str::ascii($value));
+  }
+
+  public function typeOperation()
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'type_operation_id');
   }
 }

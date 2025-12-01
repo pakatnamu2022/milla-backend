@@ -44,8 +44,10 @@ use App\Http\Controllers\ap\maestroGeneral\WarehouseController;
 use App\Http\Controllers\ap\postventa\gestionProductos\InventoryMovementController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductCategoryController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductsController;
+use App\Http\Controllers\ap\postventa\gestionProductos\ProductWarehouseStockController;
 use App\Http\Controllers\ap\postventa\gestionProductos\TransferReceptionController;
 use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
+use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Dashboard\ap\comercial\DashboardComercialController;
@@ -948,13 +950,19 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Inventory Movements - Movimientos de Inventario
       Route::post('inventoryMovements/adjustments', [InventoryMovementController::class, 'createAdjustment']);
       Route::post('inventoryMovements/transfers', [InventoryMovementController::class, 'createTransfer']);
+      Route::put('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'updateTransfer']);
+      Route::delete('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'destroyTransfer']);
       Route::post('inventoryMovements/{id}/send-to-nubefact', [InventoryMovementController::class, 'sendShippingGuideToNubefact']);
+      Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history', [InventoryMovementController::class, 'getProductMovementHistory']);
       Route::apiResource('inventoryMovements', InventoryMovementController::class)->only([
         'index',
         'show',
         'update',
         'destroy'
       ]);
+
+      // Product Warehouse Stock - Stock de Productos por Almacén
+      Route::get('productWarehouseStock/warehouse-stock-with-transit', [ProductWarehouseStockController::class, 'getWarehouseStockWithTransit']);
 
       // Transfer Receptions - Recepciones de Transferencias
       Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
@@ -965,6 +973,16 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       Route::apiResource('approvedAccessories', ApprovedAccessoriesController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::get('appointmentPlanning/available-slots', [AppointmentPlanningController::class, 'availableSlots']);
+      Route::get('appointmentPlanning/{id}/pdf', [AppointmentPlanningController::class, 'downloadPDF']);
+      Route::apiResource('appointmentPlanning', AppointmentPlanningController::class)->only([
         'index',
         'show',
         'store',

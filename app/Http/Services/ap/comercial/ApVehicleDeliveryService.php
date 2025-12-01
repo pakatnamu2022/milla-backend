@@ -257,21 +257,16 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
         $assignSeries = $userSeriesAssignment->voucher;
         $series = $assignSeries->series;
-        $correlativeStart = $assignSeries->correlative_start;
-
-        // Buscar el último correlativo usado para esta serie
-        $lastShippingGuide = ShippingGuides::where('document_series_id', $assignSeries->id)
-          ->orderBy('correlative', 'desc')
-          ->first();
-
-        // Si existe un correlativo previo, sumar 1; si no, usar el correlative_start
-        $correlativeNumber = $lastShippingGuide
-          ? ((int)$lastShippingGuide->correlative + 1)
-          : $correlativeStart;
-
-        $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
-        $documentNumber = $series . '-' . $correlative;
         $documentSeriesId = $assignSeries->id;
+
+        // Generar el siguiente correlativo usando el método centralizado
+        $nextCorrelative = ShippingGuides::generateNextCorrelative(
+          $documentSeriesId,
+          $assignSeries->correlative_start
+        );
+
+        $correlative = $nextCorrelative['correlative'];
+        $documentNumber = $series . '-' . $correlative;
 
         $driverDoc = $data['driver_doc'];
         $transportCompanyId = BusinessPartners::where('num_doc', $driverDoc)

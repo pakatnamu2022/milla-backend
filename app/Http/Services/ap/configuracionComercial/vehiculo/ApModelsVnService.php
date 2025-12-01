@@ -70,13 +70,13 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       throw new Exception('Ya existe un modelo con esa familia y año.');
     }
 
-    $familia = ApFamilies::findOrFail($data['family_id']);
-    $anioCorto = substr($data['model_year'], -2);
-    $data['code'] = $familia->code . $anioCorto . $this->nextCorrelativeCount(
-        ApModelsVn::class,
-        3,
-        ['family_id' => $data['family_id']]
-      );
+    // Generate code using model method (separates correlatives by operation type)
+    $data['code'] = ApModelsVn::generateNextCode(
+      $data['family_id'],
+      $data['model_year'],
+      $data['type_operation_id']
+    );
+
     $engineType = ApModelsVn::create($data);
 
     // Invalidar caché
@@ -93,6 +93,10 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
   public function update(mixed $data)
   {
     $modelVn = $this->find($data['id']);
+
+    if ($modelVn->type_operation_id != $data['type_operation_id']) {
+      throw new Exception('No puedes editar una marca que no corresponde al modulo respectivo.');
+    }
 
     $familyId = $data['family_id'] ?? null;
     $modelYear = $data['model_year'] ?? null;
@@ -111,14 +115,12 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
         throw new Exception('Ya existe un modelo con esa familia y año.');
       }
 
-      $familia = ApFamilies::findOrFail($familyId);
-      $anioCorto = substr($modelYear, -2);
-
-      $data['code'] = $familia->code . $anioCorto . $this->nextCorrelativeCount(
-          ApModelsVn::class,
-          3,
-          ['family_id' => $familyId]
-        );
+      // Generate new code using model method (separates correlatives by operation type)
+      $data['code'] = ApModelsVn::generateNextCode(
+        $familyId,
+        $modelYear,
+        $modelVn->type_operation_id
+      );
     }
 
     $modelVn->update($data);

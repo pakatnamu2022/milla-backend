@@ -8,9 +8,11 @@ use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\compras\PurchaseReception;
+use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -49,7 +51,7 @@ class InventoryMovementService extends BaseService
 
   public function show($id)
   {
-    return new InventoryMovementResource($this->find($id)->load(['details']));
+    return new InventoryMovementResource($this->find($id)->load(['details', 'reference']));
   }
 
   public function createFromPurchaseReception(PurchaseReception $reception): InventoryMovement
@@ -305,22 +307,35 @@ class InventoryMovementService extends BaseService
         ->where('business_partner_id', $business_partner->id)
         ->first();
       $transport_company = BusinessPartners::find($transferData['transport_company_id']);
+      $assignedSeries = AssignSalesSeries::find($transferData['document_series_id']);
 
       // validamos que si $transmitter o $receiver no sean nulos
       if (!$transmitter || !$receiver) {
         throw new Exception('Por favor, configure la sede en el apartado de establecimientos de cliente automotores');
       }
 
-      // Generate shipping guide number
-      $shippingGuideNumber = $this->generateShippingGuideNumber();
+      // Validar que se haya encontrado la serie asignada
+      if (!$assignedSeries) {
+        throw new Exception('Serie de documentos no encontrada');
+      }
+
+      // Generar el siguiente correlativo usando el método centralizado
+      $nextCorrelative = ShippingGuides::generateNextCorrelative(
+        $transferData['document_series_id'],
+        $assignedSeries->correlative_start
+      );
+
+      $correlative = $nextCorrelative['correlative'];
+      $documentNumber = $assignedSeries->series . '-' . $correlative;
 
       // Create Shipping Guide (NOT sent to Nubefact yet)
       $shippingGuide = ShippingGuides::create([
         'document_type' => $transferData['document_type'],
         'issuer_type' => ShippingGuides::ISSUER_TYPE_AUTOMOTORES,
-        'document_number' => $shippingGuideNumber,
-        'series' => 'GR01',
-        'correlative' => substr($shippingGuideNumber, -8),
+        'document_number' => $documentNumber,
+        'document_series_id' => $transferData['document_series_id'],
+        'series' => $assignedSeries->series,
+        'correlative' => $correlative,
         'issue_date' => $transferData['movement_date'] ?? now(),
         'requires_sunat' => true,
         'is_sunat_registered' => false, // NOT sent yet
@@ -346,6 +361,7 @@ class InventoryMovementService extends BaseService
         'notes' => $transferData['notes'] ?? null,
         'status' => true,
         'created_by' => Auth::id(),
+        'type_voucher_id' => SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE,
       ]);
 
       // Create TRANSFER_OUT movement (stock goes to in_transit)
@@ -406,26 +422,199 @@ class InventoryMovementService extends BaseService
   }
 
   /**
-   * Generate unique shipping guide number
+   * Update warehouse transfer with simple fields
+   * Only updates movement and shipping guide metadata (NOT products/details)
    *
-   * @return string
+   * @param array $transferData Updated transfer data
+   * @param int $movementId Movement ID
+   * @return array [movement, shipping_guide]
+   * @throws Exception
    */
-  private function generateShippingGuideNumber(): string
+  public function updateTransfer(array $transferData, int $movementId): array
   {
-    $year = date('Y');
-    $lastGuide = \App\Models\ap\comercial\ShippingGuides::withTrashed()
-      ->where('document_number', 'LIKE', "GR-{$year}-%")
-      ->orderBy('document_number', 'desc')
-      ->first();
+    DB::beginTransaction();
+    try {
+      // Find movement
+      $movement = $this->find($movementId);
 
-    if ($lastGuide) {
-      $lastNumber = (int)substr($lastGuide->document_number, -8);
-      $newNumber = $lastNumber + 1;
-    } else {
-      $newNumber = 1;
+      // Validate movement type
+      if ($movement->movement_type !== InventoryMovement::TYPE_TRANSFER_OUT) {
+        throw new Exception('Solo se pueden actualizar movimientos de tipo TRANSFER_OUT');
+      }
+
+      // Validate movement is not cancelled
+      if ($movement->status === InventoryMovement::STATUS_CANCELLED) {
+        throw new Exception('No se puede actualizar un movimiento cancelado');
+      }
+
+      // Validate shipping guide exists
+      if ($movement->reference_type !== ShippingGuides::class || !$movement->reference_id) {
+        throw new Exception('No se encontró la guía de remisión asociada a este movimiento');
+      }
+
+      $shippingGuide = $movement->reference;
+
+      // Validate shipping guide has NOT been sent to SUNAT
+      if ($shippingGuide && $shippingGuide->is_sunat_registered) {
+        throw new Exception('No se puede editar una transferencia cuya guía de remisión ya fue enviada a SUNAT');
+      }
+
+      // Update inventory movement (only simple fields)
+      $movement->update([
+        'movement_date' => $transferData['movement_date'] ?? $movement->movement_date,
+        'notes' => $transferData['notes'] ?? $movement->notes,
+      ]);
+
+      // Update shipping guide (only metadata fields, NOT products)
+      $shippingGuideData = [];
+
+      if (isset($transferData['movement_date'])) {
+        $shippingGuideData['issue_date'] = $transferData['movement_date'];
+      }
+
+      if (isset($transferData['driver_name'])) {
+        $shippingGuideData['driver_name'] = $transferData['driver_name'];
+      }
+
+      if (isset($transferData['driver_doc'])) {
+        $shippingGuideData['driver_doc'] = $transferData['driver_doc'];
+      }
+
+      if (isset($transferData['license'])) {
+        $shippingGuideData['license'] = $transferData['license'];
+      }
+
+      if (isset($transferData['plate'])) {
+        $shippingGuideData['plate'] = $transferData['plate'];
+      }
+
+      if (isset($transferData['total_packages'])) {
+        $shippingGuideData['total_packages'] = $transferData['total_packages'];
+      }
+
+      if (isset($transferData['total_weight'])) {
+        $shippingGuideData['total_weight'] = $transferData['total_weight'];
+      }
+
+      if (isset($transferData['transport_company_id'])) {
+        $shippingGuideData['transport_company_id'] = $transferData['transport_company_id'];
+
+        // Update transport company info
+        if ($transferData['transport_company_id']) {
+          $transport_company = BusinessPartners::find($transferData['transport_company_id']);
+          if ($transport_company) {
+            $shippingGuideData['ruc_transport'] = $transport_company->num_doc;
+            $shippingGuideData['company_name_transport'] = $transport_company->full_name;
+          }
+        }
+      }
+
+      if (isset($transferData['transfer_reason_id'])) {
+        $shippingGuideData['transfer_reason_id'] = $transferData['transfer_reason_id'];
+      }
+
+      if (isset($transferData['transfer_modality_id'])) {
+        $shippingGuideData['transfer_modality_id'] = $transferData['transfer_modality_id'];
+      }
+
+      // Update shipping guide notes if provided in transfer data
+      if (isset($transferData['notes'])) {
+        $shippingGuideData['notes'] = $transferData['notes'];
+      }
+
+      if (!empty($shippingGuideData)) {
+        $shippingGuide->update($shippingGuideData);
+      }
+
+      DB::commit();
+      return [
+        'movement' => $movement->fresh(['warehouse', 'warehouseDestination', 'user', 'details.product', 'reference']),
+        'shipping_guide' => $shippingGuide->fresh(['sedeTransmitter', 'sedeReceiver', 'transferReason', 'transferModality']),
+      ];
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
     }
+  }
 
-    return sprintf('GR-%s-%08d', $year, $newNumber);
+  /**
+   * Delete warehouse transfer
+   * Only allowed if shipping guide has NOT been sent to SUNAT
+   * Reverses stock from in_transit back to available
+   *
+   * @param int $movementId Movement ID
+   * @return void
+   * @throws Exception
+   */
+  public function destroyTransfer(int $movementId): void
+  {
+    DB::beginTransaction();
+    try {
+      // Find movement
+      $movement = $this->find($movementId);
+
+      // Validate movement type
+      if ($movement->movement_type !== InventoryMovement::TYPE_TRANSFER_OUT) {
+        throw new Exception('Solo se pueden eliminar movimientos de tipo TRANSFER_OUT');
+      }
+
+      // Validate shipping guide exists
+      if ($movement->reference_type !== ShippingGuides::class || !$movement->reference_id) {
+        throw new Exception('No se encontró la guía de remisión asociada a este movimiento');
+      }
+
+      $shippingGuide = $movement->reference;
+
+      // Validate shipping guide has NOT been sent to SUNAT
+      if ($shippingGuide && $shippingGuide->is_sunat_registered) {
+        throw new Exception('No se puede eliminar una transferencia cuya guía de remisión ya fue enviada a SUNAT');
+      }
+
+      // Load movement details
+      $movement->load('details');
+
+      // Reverse stock: move from in_transit back to available quantity
+      foreach ($movement->details as $detail) {
+        $stock = $this->stockService->getStock($detail->product_id, $movement->warehouse_id);
+
+        if (!$stock) {
+          throw new Exception(
+            "No se encontró registro de stock para el producto ID {$detail->product_id} en el almacén de origen"
+          );
+        }
+
+        // Validate that we have enough in_transit quantity
+        if ($stock->quantity_in_transit < $detail->quantity) {
+          throw new Exception(
+            "Cantidad en tránsito insuficiente para producto ID {$detail->product_id}. " .
+            "En tránsito: {$stock->quantity_in_transit}, Cantidad a revertir: {$detail->quantity}"
+          );
+        }
+
+        // Move stock back from in_transit to available
+        $stock->update([
+          'quantity_in_transit' => $stock->quantity_in_transit - $detail->quantity,
+          'quantity' => $stock->quantity + $detail->quantity,
+          'available_quantity' => $stock->available_quantity + $detail->quantity,
+        ]);
+      }
+
+      // Delete shipping guide
+      if ($shippingGuide) {
+        $shippingGuide->delete();
+      }
+
+      // Delete movement details
+      $movement->details()->delete();
+
+      // Delete movement
+      $movement->delete();
+
+      DB::commit();
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 
   private function getDefaultNotes(string $movementType): string
@@ -486,4 +675,63 @@ class InventoryMovementService extends BaseService
     }
   }
 
+  /**
+   * Get movement history for a specific product in a warehouse
+   * Returns all inventory movements for a product in a specific warehouse
+   *
+   * @param int $productId Product ID
+   * @param int $warehouseId Warehouse ID
+   * @param Request $request Request with filters
+   * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+   */
+  public function getProductMovementHistory(int $productId, int $warehouseId, Request $request)
+  {
+    // Base query: get all movements that have details for this product in this warehouse
+    $query = InventoryMovement::query()
+      ->whereHas('details', function ($q) use ($productId) {
+        $q->where('product_id', $productId);
+      })
+      ->where(function ($q) use ($warehouseId) {
+        $q->where('warehouse_id', $warehouseId)
+          ->orWhere('warehouse_destination_id', $warehouseId);
+      })
+      ->with([
+        'details' => function ($q) use ($productId) {
+          $q->where('product_id', $productId)
+            ->with('product');
+        },
+        'warehouse',
+        'warehouseDestination',
+        'user',
+        'reasonInOut',
+        'reference'
+      ])
+      ->orderBy('movement_date', 'desc')
+      ->orderBy('created_at', 'desc');
+
+    // Apply date range filter if provided
+    if ($request->has('date_from')) {
+      $query->where('movement_date', '>=', $request->date_from);
+    }
+
+    if ($request->has('date_to')) {
+      $query->where('movement_date', '<=', $request->date_to);
+    }
+
+    // Apply movement type filter if provided
+    if ($request->has('movement_type')) {
+      $query->where('movement_type', $request->movement_type);
+    }
+
+    // Apply status filter if provided
+    if ($request->has('status')) {
+      $query->where('status', $request->status);
+    }
+
+    // Paginate results
+    $perPage = $request->get('per_page', 15);
+    $movements = $query->paginate($perPage);
+
+    return InventoryMovementResource::collection($movements);
+  }
 }

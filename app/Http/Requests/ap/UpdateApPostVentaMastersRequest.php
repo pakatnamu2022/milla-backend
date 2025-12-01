@@ -16,9 +16,8 @@ class UpdateApPostVentaMastersRequest extends StoreRequest
         'max:50',
         Rule::unique('ap_post_venta_masters', 'code')
           ->where('type', $this->type)
-          ->whereNotIn('type', ['TIPO_DOCUMENTO'])
           ->whereNull('deleted_at')
-          ->ignore($this->route('commercialMaster')),
+          ->ignore($this->route('postVentaMaster')),
       ],
       'description' => [
         'nullable',
@@ -27,7 +26,7 @@ class UpdateApPostVentaMastersRequest extends StoreRequest
         Rule::unique('ap_post_venta_masters', 'description')
           ->where('type', $this->type)
           ->whereNull('deleted_at')
-          ->ignore($this->route('commercialMaster')),
+          ->ignore($this->route('postVentaMaster')),
       ],
       'type' => [
         'nullable',

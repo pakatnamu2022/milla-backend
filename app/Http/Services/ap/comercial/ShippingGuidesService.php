@@ -77,14 +77,17 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         }
       }
 
-      // Crear el movimiento de vehículo a travesia
-      $vehicleMovement = $this->vehicleMovementService->storeShippingGuideVehicleMovement(
-        $data['ap_vehicle_id'],
-        $origin->address ?? '-',
-        $destination->address ?? '-',
-        $data['notes'] ?? null,
-        $data['issue_date']
-      );
+      // Crear el movimiento de vehículo SOLO si hay un vehículo (no para transferencias de productos)
+      $vehicleMovement = null;
+      if (isset($data['ap_vehicle_id']) && $data['ap_vehicle_id']) {
+        $vehicleMovement = $this->vehicleMovementService->storeShippingGuideVehicleMovement(
+          $data['ap_vehicle_id'],
+          $origin->address ?? '-',
+          $destination->address ?? '-',
+          $data['notes'] ?? null,
+          $data['issue_date']
+        );
+      }
 
       // 2. Manejar la carga del archivo si existe
       $file = null;
@@ -150,7 +153,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'requires_sunat' => $data['requires_sunat'] ?? false,
         'total_packages' => $data['total_packages'] ?? null,
         'total_weight' => $data['total_weight'] ?? null,
-        'vehicle_movement_id' => $vehicleMovement->id,
+        'vehicle_movement_id' => $vehicleMovement ? $vehicleMovement->id : null,
         'sede_transmitter_id' => $data['sede_transmitter_id'],
         'sede_receiver_id' => $data['sede_receiver_id'],
         'transmitter_id' => $data['transmitter_id'],

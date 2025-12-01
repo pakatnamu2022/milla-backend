@@ -517,11 +517,12 @@ class ProductWarehouseStockService
    * @throws Exception
    */
   public function moveFromInTransitToDestination(
-    int $productId,
-    int $warehouseOriginId,
-    int $warehouseDestinationId,
+    int   $productId,
+    int   $warehouseOriginId,
+    int   $warehouseDestinationId,
     float $quantityReceived
-  ): array {
+  ): array
+  {
     DB::beginTransaction();
     try {
       // Remove from in_transit in origin warehouse
@@ -577,5 +578,100 @@ class ProductWarehouseStockService
       DB::rollBack();
       throw $e;
     }
+  }
+
+  /**
+   * Get warehouse stock with transit information
+   * Returns products with their stock information for a specific warehouse
+   * Includes quantity_in_transit and other stock details
+   *
+   * @param \Illuminate\Http\Request $request Request with filters (warehouse_id required)
+   * @return \Illuminate\Database\Eloquent\Collection|\Illuminate\Contracts\Pagination\LengthAwarePaginator
+   * @throws Exception
+   */
+  public function getWarehouseStockWithTransit($request)
+  {
+    // Warehouse ID is required
+    if (!$request->has('warehouse_id')) {
+      throw new Exception('El ID del almacén es requerido');
+    }
+
+    $warehouseId = $request->warehouse_id;
+
+    // Base query
+    $query = ProductWarehouseStock::query()
+      ->where('warehouse_id', $warehouseId)
+      ->with(['product.category', 'warehouse']);
+
+    // Filter by product name or code
+    if ($request->has('search')) {
+      $search = $request->search;
+      $query->whereHas('product', function ($q) use ($search) {
+        $q->where('name', 'LIKE', "%{$search}%")
+          ->orWhere('code', 'LIKE', "%{$search}%");
+      });
+    }
+
+    // Filter by product category
+    if ($request->has('category_id')) {
+      $query->whereHas('product', function ($q) use ($request) {
+        $q->where('category_id', $request->category_id);
+      });
+    }
+
+    // Filter by stock status
+    if ($request->has('stock_status')) {
+      $status = $request->stock_status;
+      switch ($status) {
+        case 'OUT_OF_STOCK':
+          $query->where('quantity', '<=', 0);
+          break;
+        case 'LOW_STOCK':
+          $query->whereColumn('quantity', '<=', 'minimum_stock')
+            ->where('quantity', '>', 0);
+          break;
+        case 'NORMAL':
+          $query->whereColumn('quantity', '>', 'minimum_stock')
+            ->where(function ($q) {
+              $q->whereNull('maximum_stock')
+                ->orWhereColumn('quantity', '<', 'maximum_stock');
+            });
+          break;
+        case 'OVER_STOCK':
+          $query->whereNotNull('maximum_stock')
+            ->whereColumn('quantity', '>=', 'maximum_stock');
+          break;
+      }
+    }
+
+    // Filter by products with stock in transit
+    if ($request->has('with_transit') && $request->with_transit == true) {
+      $query->where('quantity_in_transit', '>', 0);
+    }
+
+    // Filter by available quantity
+    if ($request->has('has_available_stock') && $request->has_available_stock == true) {
+      $query->where('available_quantity', '>', 0);
+    }
+
+    // Order by
+    $sortBy = $request->get('sort_by', 'created_at');
+    $sortDirection = $request->get('sort_direction', 'desc');
+
+    if (in_array($sortBy, ProductWarehouseStock::sorts)) {
+      $query->orderBy($sortBy, $sortDirection);
+    }
+
+    // Check if all=true to return all results without pagination
+    $all = $request->get('all', false);
+
+    if ($all == true || $all == 'true' || $all == '1') {
+      // Return all results without pagination
+      return $query->get();
+    }
+
+    // Paginate results (default behavior)
+    $perPage = $request->get('per_page', 15);
+    return $query->paginate($perPage);
   }
 }

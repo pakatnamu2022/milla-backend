@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Vehicles extends Model
 {
@@ -25,6 +26,7 @@ class Vehicles extends Model
 
   protected $fillable = [
     'vin',
+    'plate',
     'year',
     'engine_number',
     'ap_models_vn_id',
@@ -35,6 +37,7 @@ class Vehicles extends Model
     'type_operation_id',
     'status',
     'warehouse_physical_id',
+    'customer_id'
   ];
 
   protected $casts = [
@@ -42,7 +45,7 @@ class Vehicles extends Model
   ];
 
   public static array $filters = [
-    'search' => ['vin', 'engine_number', 'year', 'ap_vehicle_status_id'],
+    'search' => ['vin', 'plate', 'engine_number', 'year', 'ap_vehicle_status_id'],
     'ap_models_vn_id' => '=',
     'model.class_id' => '=',
     'warehouse_id' => '=',
@@ -59,6 +62,7 @@ class Vehicles extends Model
     'warehouse.is_received' => '=',
     'warehouse.article_class_id' => '=',
     'is_paid' => 'accessor_bool',
+    'customer_id' => '=',
   ];
 
   public static array $sorts = [
@@ -67,6 +71,11 @@ class Vehicles extends Model
     'engine_number',
     'created_at',
   ];
+
+  public function setPlateAttribute($value)
+  {
+    $this->attributes['plate'] = Str::upper($value);
+  }
 
   public function getHasPurchaseRequestQuoteAttribute(): bool
   {
@@ -112,6 +121,11 @@ class Vehicles extends Model
   public function vehicleMovements(): HasMany
   {
     return $this->hasMany(VehicleMovement::class, 'ap_vehicle_id');
+  }
+
+  public function customer(): BelongsTo
+  {
+    return $this->belongsTo(BusinessPartners::class, 'customer_id');
   }
 
   /**

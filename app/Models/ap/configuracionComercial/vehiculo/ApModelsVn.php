@@ -50,6 +50,7 @@ class ApModelsVn extends Model
     'traction_type_id',
     'transmission_id',
     'currency_type_id',
+    'type_operation_id',
     'status'
   ];
 
@@ -58,6 +59,14 @@ class ApModelsVn extends Model
     'status' => '=',
     'family_id' => '=',
     'family.brand_id' => '=',
+    'class_id' => '=',
+    'fuel_id' => '=',
+    'vehicle_type_id' => '=',
+    'body_type_id' => '=',
+    'traction_type_id' => '=',
+    'transmission_id' => '=',
+    'currency_type_id' => '=',
+    'type_operation_id' => '=',
   ];
 
   const sorts = [
@@ -188,5 +197,47 @@ class ApModelsVn extends Model
   public function setWheelsNumberAttribute($value)
   {
     $this->attributes['wheels_number'] = Str::upper(Str::ascii($value));
+  }
+
+  public function typeOperation()
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'type_operation_id');
+  }
+
+  /**
+   * Generate next code for a model based on family, year and operation type
+   * Each operation type (COMERCIAL/POSTVENTA) has its own correlative sequence
+   *
+   * @param int $familyId Family ID
+   * @param string $modelYear Model year (e.g., "2024")
+   * @param int $typeOperationId Operation type ID (COMERCIAL or POSTVENTA)
+   * @return string Generated code (e.g., "HILUX24001")
+   */
+  public static function generateNextCode(int $familyId, string $modelYear, int $typeOperationId): string
+  {
+    // Get family code
+    $familia = ApFamilies::findOrFail($familyId);
+    $familyCode = $familia->code;
+
+    // Get short year (last 2 digits)
+    $shortYear = substr($modelYear, -2);
+
+    // Get next correlative for this family, year AND operation type
+    $lastModel = self::where('family_id', $familyId)
+      ->where('type_operation_id', $typeOperationId)
+      ->where('code', 'LIKE', $familyCode . $shortYear . '%')
+      ->whereNull('deleted_at')
+      ->orderByRaw('CAST(SUBSTRING(code, -3) AS UNSIGNED) DESC')
+      ->first();
+
+    $nextNumber = $lastModel
+      ? ((int) substr($lastModel->code, -3)) + 1
+      : 1;
+
+    // Format correlative with 3 digits (001, 002, etc.)
+    $correlative = str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+
+    // Return complete code: FAMILY + YEAR + CORRELATIVE
+    return $familyCode . $shortYear . $correlative;
   }
 }
