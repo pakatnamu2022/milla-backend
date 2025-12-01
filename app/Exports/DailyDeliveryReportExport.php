@@ -49,27 +49,27 @@ class DailyDeliveryReportSummarySheet implements FromCollection, WithHeadings, W
     $summary = $this->reportData['summary'];
     $data = [];
 
-    // Agregar todas las clases encontradas (excepto TOTAL_AP)
+    // Agregar todas las clases encontradas (excepto TOTAL)
     foreach ($summary as $className => $counts) {
-      if ($className === 'TOTAL_AP') {
+      if ($className === 'TOTAL') {
         continue; // Lo agregamos al final
       }
 
       $data[] = [
         $className,
         $counts['entregas'],
-        $counts['facturacion'],
+        $counts['facturadas'],
         $counts['reporteria_dealer_portal'] ?? '',
       ];
     }
 
-    // Agregar TOTAL_AP al final
-    if (isset($summary['TOTAL_AP'])) {
+    // Agregar TOTAL al final
+    if (isset($summary['TOTAL'])) {
       $data[] = [
         'TOTAL AP',
-        $summary['TOTAL_AP']['entregas'],
-        $summary['TOTAL_AP']['facturacion'],
-        $summary['TOTAL_AP']['reporteria_dealer_portal'] ?? '',
+        $summary['TOTAL']['entregas'],
+        $summary['TOTAL']['facturadas'],
+        $summary['TOTAL']['reporteria_dealer_portal'] ?? '',
       ];
     }
 
@@ -89,8 +89,8 @@ class DailyDeliveryReportSummarySheet implements FromCollection, WithHeadings, W
   public function styles(Worksheet $sheet)
   {
     $summary = $this->reportData['summary'];
-    $totalRows = count($summary); // Número de clases + TOTAL_AP
-    $lastDataRow = 4 + $totalRows; // Fila donde está TOTAL_AP
+    $totalRows = count($summary); // Número de clases + TOTAL
+    $lastDataRow = 4 + $totalRows; // Fila donde está TOTAL
 
     return [
       1 => [
@@ -172,7 +172,7 @@ class DailyDeliveryReportAdvisorsSheet implements FromCollection, WithHeadings, 
       $data[] = [
         $advisor['name'],
         $advisor['entregas'],
-        $advisor['facturacion'],
+        $advisor['facturadas'],
         $advisor['reporteria_dealer_portal'] ?? '',
       ];
     }
@@ -288,7 +288,7 @@ class DailyDeliveryReportHierarchySheet implements FromCollection, WithHeadings,
         'name' => $indent . $levelLabel . $node['name'],
         'level' => ucfirst($node['level']),
         'entregas' => $node['entregas'],
-        'facturacion' => $node['facturacion'],
+        'facturadas' => $node['facturadas'],
         'reporteria' => $node['reporteria_dealer_portal'] ?? '',
       ];
 

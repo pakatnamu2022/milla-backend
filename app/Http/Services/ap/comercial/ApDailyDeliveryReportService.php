@@ -86,7 +86,7 @@ class ApDailyDeliveryReportService
         'purchase_request_quote.id as quote_id',
       ])
       ->get();
-    dd($year, $month, $vehicles);
+//    dd($year, $month, $vehicles);
     return $vehicles;
   }
 
@@ -141,7 +141,7 @@ class ApDailyDeliveryReportService
 
       $classSummary[$className] = [
         'entregas' => $entregas,
-        'facturacion' => $facturacion,
+        'facturadas' => $facturacion,
         'reporteria_dealer_portal' => null,
       ];
 
@@ -150,9 +150,9 @@ class ApDailyDeliveryReportService
     }
 
     // Agregar total general al final
-    $classSummary['TOTAL_AP'] = [
+    $classSummary['TOTAL'] = [
       'entregas' => $totalEntregas,
-      'facturacion' => $totalFacturacion,
+      'facturadas' => $totalFacturacion,
       'reporteria_dealer_portal' => null,
     ];
 
@@ -189,7 +189,7 @@ class ApDailyDeliveryReportService
         'id' => $advisorId,
         'name' => $advisor ? $advisor->nombre_completo : 'Desconocido',
         'entregas' => $entregas,
-        'facturacion' => $facturacion,
+        'facturadas' => $facturacion,
         'reporteria_dealer_portal' => null,
       ];
     }
@@ -277,7 +277,7 @@ class ApDailyDeliveryReportService
         'level' => 'gerente',
         'brand_group' => $managerAssignment->brandGroup?->description ?? 'Sin grupo',
         'entregas' => 0,
-        'facturacion' => 0,
+        'facturadas' => 0,
         'reporteria_dealer_portal' => null,
         'children' => [],
       ];
@@ -297,7 +297,7 @@ class ApDailyDeliveryReportService
           if ($jefeNode) {
             $managerNode['children'][] = $jefeNode;
             $managerNode['entregas'] += $jefeNode['entregas'];
-            $managerNode['facturacion'] += $jefeNode['facturacion'];
+            $managerNode['facturadas'] += $jefeNode['facturadas'];
           }
         }
       }
@@ -372,7 +372,7 @@ class ApDailyDeliveryReportService
       'name' => $jefe->nombre_completo,
       'level' => 'jefe',
       'entregas' => 0,
-      'facturacion' => 0,
+      'facturadas' => 0,
       'reporteria_dealer_portal' => null,
       'children' => [],
     ];
@@ -394,19 +394,19 @@ class ApDailyDeliveryReportService
         }
 
         $asesorEntregas = $advisorCounts[$workerId]['entregas'] ?? 0;
-        $asesorFacturacion = $advisorCounts[$workerId]['facturacion'] ?? 0;
+        $asesorFacturacion = $advisorCounts[$workerId]['facturadas'] ?? 0;
 
         $jefeNode['children'][] = [
           'id' => $workerId,
           'name' => $asesor->nombre_completo,
           'level' => 'asesor',
           'entregas' => $asesorEntregas,
-          'facturacion' => $asesorFacturacion,
+          'facturadas' => $asesorFacturacion,
           'reporteria_dealer_portal' => null,
         ];
 
         $jefeNode['entregas'] += $asesorEntregas;
-        $jefeNode['facturacion'] += $asesorFacturacion;
+        $jefeNode['facturadas'] += $asesorFacturacion;
       }
     }
 
@@ -431,7 +431,7 @@ class ApDailyDeliveryReportService
 
       $counts[$advisorId] = [
         'entregas' => $advisorVehicles->count(),
-        'facturacion' => $advisorVehicles->filter(function ($vehicle) use ($invoicedQuoteIds) {
+        'facturadas' => $advisorVehicles->filter(function ($vehicle) use ($invoicedQuoteIds) {
           return $invoicedQuoteIds->contains($vehicle->quote_id);
         })->count(),
       ];
