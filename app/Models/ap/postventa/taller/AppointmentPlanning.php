@@ -32,11 +32,12 @@ class AppointmentPlanning extends Model
   ];
 
   const filters = [
-    'search' => ['full_name_client', 'email_client', 'phone_client', 'description'],
+    'search' => ['full_name_client', 'email_client', 'phone_client', 'description', 'vehicle.plate'],
     'type_operation_appointment_id' => '=',
     'type_planning_id' => '=',
     'ap_vehicle_id' => '=',
     'advisor_id' => '=',
+    'date_appointment' => 'between',
     'delivery_date' => 'between',
     'created_by' => '=',
   ];

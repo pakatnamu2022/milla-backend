@@ -22,8 +22,8 @@ class AppointmentPlanningResource extends JsonResource
       'type_operation_appointment_id' => $this->type_operation_appointment_id,
       'type_planning_id' => $this->type_planning_id,
       'ap_vehicle_id' => $this->ap_vehicle_id,
-      'created_at' => $this->created_at,
-      'updated_at' => $this->updated_at,
+      'advisor_id' => $this->advisor_id,
+      'plate' => $this->vehicle ? $this->vehicle->plate : null,
     ];
   }
 }

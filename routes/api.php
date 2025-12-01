@@ -974,6 +974,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
+      Route::get('appointmentPlanning/available-slots', [AppointmentPlanningController::class, 'availableSlots']);
+      Route::get('appointmentPlanning/{id}/pdf', [AppointmentPlanningController::class, 'downloadPDF']);
       Route::apiResource('appointmentPlanning', AppointmentPlanningController::class)->only([
         'index',
         'show',

@@ -20,6 +20,7 @@ class VehiclesResource extends JsonResource
     return [
       'id' => $this->id,
       'vin' => $this->vin,
+      'plate' => $this->plate,
       'year' => $this->year,
       'engine_number' => $this->engine_number,
       'ap_models_vn_id' => $this->ap_models_vn_id,

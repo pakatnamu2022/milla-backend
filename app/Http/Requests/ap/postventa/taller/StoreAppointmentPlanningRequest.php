@@ -3,6 +3,10 @@
 namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\postventa\taller\AppointmentPlanning;
+use Carbon\Carbon;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreAppointmentPlanningRequest extends StoreRequest
 {
@@ -49,12 +53,14 @@ class StoreAppointmentPlanningRequest extends StoreRequest
       'type_operation_appointment_id' => [
         'required',
         'integer',
-        'exists:ap_post_venta_masters,id,type=TIPO_OPERACION',
+        Rule::exists('ap_post_venta_masters', 'id')
+          ->where('type', 'TIPO_OPERACION'),
       ],
       'type_planning_id' => [
         'required',
         'integer',
-        'exists:ap_post_venta_masters,id,type=TIPO_PLANIFICACION',
+        Rule::exists('ap_post_venta_masters', 'id')
+          ->where('type', 'TIPO_PLANIFICACION'),
       ],
       'ap_vehicle_id' => [
         'required',
@@ -118,4 +124,70 @@ class StoreAppointmentPlanningRequest extends StoreRequest
       'advisor_id.exists' => 'El asesor seleccionado no es válido.',
     ];
   }
+
+  public function withValidator(Validator $validator): void
+  {
+    $validator->after(function (Validator $validator) {
+      $dateAppointment = $this->input('date_appointment');
+      $timeAppointment = $this->input('time_appointment');
+      $deliveryDate = $this->input('delivery_date');
+      $deliveryTime = $this->input('delivery_time');
+
+      if ($dateAppointment && $timeAppointment && $deliveryDate && $deliveryTime) {
+        $appointmentDateTime = Carbon::parse("$dateAppointment $timeAppointment");
+        $deliveryDateTime = Carbon::parse("$deliveryDate $deliveryTime");
+
+        // Validar que la entrega sea posterior a la cita
+        if ($deliveryDateTime->lte($appointmentDateTime)) {
+          $validator->errors()->add(
+            'delivery_date',
+            'La fecha y hora de entrega debe ser posterior a la fecha y hora de la cita.'
+          );
+          $validator->errors()->add(
+            'delivery_time',
+            'La fecha y hora de entrega debe ser posterior a la fecha y hora de la cita.'
+          );
+        }
+
+        // Validar que no exista otra cita en esa fecha y hora
+        $existingAppointment = AppointmentPlanning::where('date_appointment', $dateAppointment)
+          ->where('time_appointment', $timeAppointment)
+          ->when($this->route('id'), function ($query, $id) {
+            return $query->where('id', '!=', $id);
+          })
+          ->exists();
+
+        if ($existingAppointment) {
+          $validator->errors()->add(
+            'date_appointment',
+            'Ya existe una cita programada para esta fecha y hora.'
+          );
+          $validator->errors()->add(
+            'time_appointment',
+            'Ya existe una cita programada para esta fecha y hora.'
+          );
+        }
+
+        // Validar que no exista otra entrega en esa fecha y hora
+        $existingDelivery = AppointmentPlanning::where('delivery_date', $deliveryDate)
+          ->where('delivery_time', $deliveryTime)
+          ->when($this->route('id'), function ($query, $id) {
+            return $query->where('id', '!=', $id);
+          })
+          ->exists();
+
+        if ($existingDelivery) {
+          $validator->errors()->add(
+            'delivery_date',
+            'Ya existe una entrega programada para esta fecha y hora.'
+          );
+          $validator->errors()->add(
+            'delivery_time',
+            'Ya existe una entrega programada para esta fecha y hora.'
+          );
+        }
+      }
+    });
+  }
+
 }

@@ -63,4 +63,22 @@ class AppointmentPlanningController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function availableSlots(IndexAppointmentPlanningRequest $request)
+  {
+    try {
+      return $this->service->getAvailableSlots($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function downloadPDF($id)
+  {
+    try {
+      return $this->service->generateAppointmentPDF($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
