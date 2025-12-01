@@ -214,10 +214,6 @@ class ApCommercialManagerBrandGroupService extends BaseService
 
     $items = $query->get();
 
-    if ($items->isEmpty()) {
-      throw new Exception("Grupo de marca no encontrado.");
-    }
-
     return new ApCommercialManagerBrandGroupResource($items);
   }
 }

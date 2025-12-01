@@ -195,7 +195,7 @@ class EvaluationPersonResultService extends BaseService
       // Determinar estado usando dashboard precalculado si está disponible
       if ($dashboard && $dashboard->last_calculated_at) {
         $isCompleted = $dashboard->is_completed;
-        $completionRate = $dashboard->completion_rate * 100;
+        $completionRate = $dashboard->completion_rate;
         $status = $dashboard->progress_status;
         $statusLabel = $this->getStatusLabel($status);
       } else {

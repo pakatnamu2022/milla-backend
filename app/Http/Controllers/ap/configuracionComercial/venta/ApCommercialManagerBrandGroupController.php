@@ -47,7 +47,8 @@ class ApCommercialManagerBrandGroupController extends Controller
   public function update(UpdateApCommercialManagerBrandGroupRequest $request, $id)
   {
     try {
-      $data = $request->all();
+      $data = $request->validated();
+      $data['id'] = $id;
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());

@@ -10,8 +10,10 @@ class UpdateApCommercialManagerBrandGroupRequest extends StoreRequest
   {
     return [
       'brand_group_id' => 'required|exists:ap_commercial_masters,id',
-      'commercial_managers' => 'required|array|min:1',
+      'commercial_managers' => 'nullable|array',
       'commercial_managers.*' => 'integer|exists:rrhh_persona,id',
+      'year' => 'required|integer|digits:4',
+      'month' => 'required|integer|digits:2',
     ];
   }
 
