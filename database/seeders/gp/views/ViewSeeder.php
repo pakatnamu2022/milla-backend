@@ -25,6 +25,7 @@ class ViewSeeder extends Seeder
     $COMMERCIAL_ID = 418;
     $POST_VENTA_ID = 431;
     $EVALUATION = 308;
+    $PERSONAL = 46;
 
     $data = [
 //      COMMERCIAL AP
@@ -60,6 +61,8 @@ class ViewSeeder extends Seeder
         'ruta' => '-', 'icon' => 'FileBox', 'parent_id' => $EVALUATION, 'company_id' => $GP, 'idPadre' => $VERSION_2,],
       ['descripcion' => 'Reportes', 'submodule' => false, 'route' => 'reportes', 'slug' => 'reportes',
         'ruta' => '-', 'icon' => 'Sheet', 'parent_id' => $COMMERCIAL_ID, 'company_id' => $AP, 'idPadre' => $VERSION_2,],
+      ['descripcion' => 'Trabajadores', 'submodule' => false, 'route' => 'trabajadores', 'slug' => 'trabajadores',
+        'ruta' => '-', 'icon' => 'User2', 'parent_id' => $PERSONAL, 'company_id' => $GP, 'idPadre' => $VERSION_2,],
     ];
 
     foreach ($data as $item) {
