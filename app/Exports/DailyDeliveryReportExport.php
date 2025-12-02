@@ -271,22 +271,9 @@ class DailyDeliveryReportHierarchySheet implements FromCollection, WithHeadings,
   {
     foreach ($nodes as $node) {
       $indent = str_repeat('  ', $level);
-      $levelLabel = '';
-
-      switch ($node['level']) {
-        case 'gerente':
-          $levelLabel = '📊 ';
-          break;
-        case 'jefe':
-          $levelLabel = '👔 ';
-          break;
-        case 'asesor':
-          $levelLabel = '👤 ';
-          break;
-      }
 
       $this->flattenedData[] = [
-        'name' => $indent . $levelLabel . $node['name'],
+        'name' => $indent . $node['name'],
         'level' => ucfirst($node['level']),
         'entregas' => $node['entregas'],
         'facturadas' => $node['facturadas'],
@@ -398,23 +385,48 @@ class DailyDeliveryReportHierarchySheet implements FromCollection, WithHeadings,
         // Set column widths
         $sheet->getColumnDimension('A')->setWidth(50);
 
-        // Agrupar filas por jefe (agrupar asesores bajo su jefe)
+        // Agrupar filas en 3 niveles: Gerente > Jefe > Asesor
+        $currentGerenteRow = null;
+        $jefeStartRow = null;
         $currentJefeRow = null;
         $asesorStartRow = null;
 
         for ($row = 5; $row <= $lastRow; $row++) {
           $level = $this->flattenedData[$row - 5]['level'] ?? '';
 
-          if ($level === 'Jefe') {
-            // Si ya había un jefe anterior, agrupar sus asesores
+          if ($level === 'Gerente') {
+            // Cerrar grupo de asesores del jefe anterior
             if ($currentJefeRow !== null && $asesorStartRow !== null) {
-              $groupEndRow = $row - 1;
-              if ($groupEndRow >= $asesorStartRow) {
-                $sheet->getRowDimension($asesorStartRow)->setOutlineLevel(1);
-                for ($i = $asesorStartRow + 1; $i <= $groupEndRow; $i++) {
+              for ($i = $asesorStartRow; $i <= $row - 1; $i++) {
+                $sheet->getRowDimension($i)->setOutlineLevel(2);
+              }
+            }
+
+            // Cerrar grupo de jefes del gerente anterior
+            if ($currentGerenteRow !== null && $jefeStartRow !== null) {
+              for ($i = $jefeStartRow; $i <= $row - 1; $i++) {
+                if ($sheet->getRowDimension($i)->getOutlineLevel() === 0) {
                   $sheet->getRowDimension($i)->setOutlineLevel(1);
                 }
               }
+            }
+
+            // Nuevo gerente
+            $currentGerenteRow = $row;
+            $jefeStartRow = null;
+            $currentJefeRow = null;
+            $asesorStartRow = null;
+          } elseif ($level === 'Jefe') {
+            // Cerrar grupo de asesores del jefe anterior
+            if ($currentJefeRow !== null && $asesorStartRow !== null) {
+              for ($i = $asesorStartRow; $i <= $row - 1; $i++) {
+                $sheet->getRowDimension($i)->setOutlineLevel(2);
+              }
+            }
+
+            // Marcar inicio de jefes si es el primero
+            if ($jefeStartRow === null) {
+              $jefeStartRow = $row;
             }
 
             // Nuevo jefe
@@ -427,11 +439,16 @@ class DailyDeliveryReportHierarchySheet implements FromCollection, WithHeadings,
           }
         }
 
-        // Agrupar los últimos asesores si existen
+        // Cerrar últimos grupos
         if ($currentJefeRow !== null && $asesorStartRow !== null) {
-          $groupEndRow = $lastRow;
-          if ($groupEndRow >= $asesorStartRow) {
-            for ($i = $asesorStartRow; $i <= $groupEndRow; $i++) {
+          for ($i = $asesorStartRow; $i <= $lastRow; $i++) {
+            $sheet->getRowDimension($i)->setOutlineLevel(2);
+          }
+        }
+
+        if ($currentGerenteRow !== null && $jefeStartRow !== null) {
+          for ($i = $jefeStartRow; $i <= $lastRow; $i++) {
+            if ($sheet->getRowDimension($i)->getOutlineLevel() === 0) {
               $sheet->getRowDimension($i)->setOutlineLevel(1);
             }
           }
@@ -476,21 +493,18 @@ class DailyDeliveryReportBrandsSheet implements FromCollection, WithHeadings, Wi
       // Agregar items del grupo (sedes y marcas, sin el item "AP Total")
       foreach ($section['items'] as $item) {
         $indent = '';
-        $icon = '';
 
         switch ($item['level']) {
           case 'sede':
-            $icon = '  📍 ';
             $indent = '  ';
             break;
           case 'brand':
-            $icon = '    🏷️ ';
             $indent = '    ';
             break;
         }
 
         $this->flattenedData[] = [
-          'name' => $indent . $icon . $item['name'],
+          'name' => $indent . $item['name'],
           'level' => $item['level'],
           'compras' => $item['compras'],
           'entregas' => $item['entregas'],
