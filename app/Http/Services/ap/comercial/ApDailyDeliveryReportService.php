@@ -260,6 +260,9 @@ class ApDailyDeliveryReportService
     // Construir mapa de asesor -> grupos de marcas
     $advisorBrandGroups = $this->buildAdvisorBrandGroupMap($brandAssignments);
 
+    // Construir mapa de asesor -> nombres de marcas
+    $advisorBrands = $this->buildAdvisorBrandsMap($brandAssignments);
+
     // Construir mapa de jefe -> asesores
     $bossToWorkers = $assignments->groupBy('boss_id');
 
@@ -287,14 +290,14 @@ class ApDailyDeliveryReportService
       $brandGroupIds = $managerAssignments->pluck('brand_group_id')->toArray();
       $brandGroupNames = $managerAssignments->pluck('brandGroup.description')->filter()->unique()->implode(', ');
 
-      $node = $this->buildGerenteNodeMultiGroup($managerId, $brandGroupIds, $brandGroupNames, $bossToWorkers, $advisorBrandGroups, $advisorCounts, 'VEHICULOS NUEVO', $vehicleTypeId, $vehicles, $invoicedQuoteIds, $camionesJefeId);
+      $node = $this->buildGerenteNodeMultiGroup($managerId, $brandGroupIds, $brandGroupNames, $bossToWorkers, $advisorBrandGroups, $advisorBrands, $advisorCounts, 'VEHICULOS NUEVO', $vehicleTypeId, $vehicles, $invoicedQuoteIds, $camionesJefeId);
       if ($node) {
         $tree[] = $node;
       }
     }
 
     // ÚLTIMO NODO: Jefe CAMIONES (directo, sin gerente) - siempre mostrar
-    $node = $this->buildCamionesNode($year, $month, $vehiclesCamiones, $invoicedQuoteIds);
+    $node = $this->buildCamionesNode($year, $month, $vehiclesCamiones, $invoicedQuoteIds, $advisorBrands);
     if ($node) {
       $tree[] = $node;
     }
@@ -531,6 +534,30 @@ class ApDailyDeliveryReportService
   }
 
   /**
+   * Construye mapa de asesor -> marcas asignadas
+   */
+  protected function buildAdvisorBrandsMap(Collection $brandAssignments): array
+  {
+    $map = [];
+
+    foreach ($brandAssignments as $assignment) {
+      $workerId = $assignment->worker_id;
+      $brandName = $assignment->brand?->name;
+
+      if ($brandName) {
+        if (!isset($map[$workerId])) {
+          $map[$workerId] = [];
+        }
+        if (!in_array($brandName, $map[$workerId])) {
+          $map[$workerId][] = $brandName;
+        }
+      }
+    }
+
+    return $map;
+  }
+
+  /**
    * Verifica si un jefe tiene asesores con marcas de un grupo específico
    */
   protected function jefeHasBrandGroup(int $jefeId, int $brandGroupId, Collection $bossToWorkers, array $advisorBrandGroups): bool
@@ -638,7 +665,7 @@ class ApDailyDeliveryReportService
   /**
    * Construye nodo de gerente que maneja múltiples grupos de marcas
    */
-  protected function buildGerenteNodeMultiGroup(int $managerId, array $brandGroupIds, string $brandGroupNames, Collection $bossToWorkers, array $advisorBrandGroups, array $advisorCounts, string $className, int $vehicleTypeId, Collection $allVehicles, Collection $invoicedQuoteIds, ?int $camionesJefeId = null): ?array
+  protected function buildGerenteNodeMultiGroup(int $managerId, array $brandGroupIds, string $brandGroupNames, Collection $bossToWorkers, array $advisorBrandGroups, array $advisorBrands, array $advisorCounts, string $className, int $vehicleTypeId, Collection $allVehicles, Collection $invoicedQuoteIds, ?int $camionesJefeId = null): ?array
   {
     $manager = Person::find($managerId);
 
@@ -677,7 +704,7 @@ class ApDailyDeliveryReportService
       }
 
       // Construir nodo de jefe considerando TODOS los grupos del gerente
-      $jefeNode = $this->buildJefeNodeForMultipleGroups($jefeId, $brandGroupIds, $bossToWorkers, $advisorBrandGroups, $groupAdvisorCounts);
+      $jefeNode = $this->buildJefeNodeForMultipleGroups($jefeId, $brandGroupIds, $bossToWorkers, $advisorBrandGroups, $advisorBrands, $groupAdvisorCounts);
 
       if ($jefeNode && !empty($jefeNode['children'])) {
         $managerNode['children'][] = $jefeNode;
@@ -746,7 +773,7 @@ class ApDailyDeliveryReportService
   /**
    * Construye nodo de jefe para múltiples grupos de marcas
    */
-  protected function buildJefeNodeForMultipleGroups(int $jefeId, array $brandGroupIds, Collection $bossToWorkers, array $advisorBrandGroups, array $advisorCounts): ?array
+  protected function buildJefeNodeForMultipleGroups(int $jefeId, array $brandGroupIds, Collection $bossToWorkers, array $advisorBrandGroups, array $advisorBrands, array $advisorCounts): ?array
   {
     $jefe = Person::find($jefeId);
     if (!$jefe) {
@@ -771,6 +798,7 @@ class ApDailyDeliveryReportService
     foreach ($workers as $assignment) {
       $workerId = $assignment->worker_id;
       $workerGroups = $advisorBrandGroups[$workerId] ?? [];
+      $workerBrands = $advisorBrands[$workerId] ?? [];
 
       // Incluir asesores que tienen marcas de CUALQUIERA de estos grupos O que no tienen marcas asignadas
       $hasAnyGroup = !empty(array_intersect($brandGroupIds, $workerGroups));
@@ -787,6 +815,7 @@ class ApDailyDeliveryReportService
           'id' => $workerId,
           'name' => $asesor->nombre_completo,
           'level' => 'asesor',
+          'brands' => !empty($workerBrands) ? $workerBrands : null,
           'entregas' => $asesorEntregas,
           'facturadas' => $asesorFacturacion,
           'reporteria_dealer_portal' => null,
@@ -860,7 +889,7 @@ class ApDailyDeliveryReportService
    * Construye nodo para camiones (jefe directo sin gerente)
    * Siempre retorna un nodo, incluso si no hay entregas
    */
-  protected function buildCamionesNode(int $year, int $month, Collection $vehicles, Collection $invoicedQuoteIds): ?array
+  protected function buildCamionesNode(int $year, int $month, Collection $vehicles, Collection $invoicedQuoteIds, array $advisorBrands): ?array
   {
     // Obtener asignaciones de liderazgo
     $assignments = ApAssignmentLeadership::where('year', $year)
@@ -921,11 +950,13 @@ class ApDailyDeliveryReportService
 
           $workerEntregas = $advisorCounts[$workerId]['entregas'] ?? 0;
           $workerFacturadas = $advisorCounts[$workerId]['facturadas'] ?? 0;
+          $workerBrands = $advisorBrands[$workerId] ?? [];
 
           $bossNode['children'][] = [
             'id' => $workerId,
             'name' => $worker->nombre_completo,
             'level' => 'asesor',
+            'brands' => !empty($workerBrands) ? $workerBrands : null,
             'entregas' => $workerEntregas,
             'facturadas' => $workerFacturadas,
             'reporteria_dealer_portal' => null,
