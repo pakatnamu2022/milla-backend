@@ -106,6 +106,39 @@ class ApDailyDeliveryReportService
   }
 
   /**
+   * Obtiene las compras (purchase orders) del mes
+   *
+   * @param int $year
+   * @param int $month
+   * @return Collection
+   */
+  protected function getPurchaseOrders(int $year, int $month): Collection
+  {
+    $purchases = DB::table('ap_purchase_order')
+      ->join('ap_vehicle_movement', 'ap_purchase_order.vehicle_movement_id', '=', 'ap_vehicle_movement.id')
+      ->join('ap_vehicles', 'ap_vehicle_movement.ap_vehicle_id', '=', 'ap_vehicles.id')
+      ->join('ap_models_vn', 'ap_vehicles.ap_models_vn_id', '=', 'ap_models_vn.id')
+      ->join('ap_class_article', 'ap_models_vn.class_id', '=', 'ap_class_article.id')
+      ->leftJoin('ap_familia_marca', 'ap_models_vn.family_id', '=', 'ap_familia_marca.id')
+      ->leftJoin('ap_vehicle_brand', 'ap_familia_marca.marca_id', '=', 'ap_vehicle_brand.id')
+      ->whereYear('ap_purchase_order.emission_date', $year)
+      ->whereMonth('ap_purchase_order.emission_date', $month)
+      ->where('ap_purchase_order.status', true)
+      ->whereNull('ap_purchase_order.deleted_at')
+      ->select([
+        'ap_purchase_order.id as purchase_order_id',
+        'ap_purchase_order.sede_id',
+        'ap_class_article.type_class_id',
+        'ap_vehicle_brand.id as brand_id',
+        'ap_vehicle_brand.name as brand_name',
+        'ap_vehicle_brand.group_id as brand_group_id',
+      ])
+      ->get();
+
+    return $purchases;
+  }
+
+  /**
    * Obtiene IDs de cotizaciones que tienen facturas válidas
    *
    * @param Collection $quoteIds
@@ -1002,6 +1035,16 @@ class ApDailyDeliveryReportService
       ->where('code', ApCommercialMasters::CLASS_TYPE_CAMION_CODE)
       ->value('id');
 
+    // Obtener compras del mes
+    $purchaseOrders = $this->getPurchaseOrders($year, $month);
+
+    // Mapear compras a shops de sus sedes
+    $sedeToShopMap = $this->getSedeToShopMap();
+    $purchaseOrders = $purchaseOrders->map(function ($p) use ($sedeToShopMap) {
+      $p->shop_id = $sedeToShopMap[$p->sede_id] ?? null;
+      return $p;
+    });
+
     // Obtener asignaciones de sedes de los asesores
     $advisorSedeAssignments = $this->getAdvisorSedeAssignments($year, $month);
 
@@ -1016,19 +1059,23 @@ class ApDailyDeliveryReportService
     $livianos = $vehicles->filter(fn($v) => $v->type_class_id == $vehicleTypeId);
     $camiones = $vehicles->filter(fn($v) => $v->type_class_id == $camionTypeId);
 
+    // Separar compras de livianos y camiones
+    $comprasLivianos = $purchaseOrders->filter(fn($p) => $p->type_class_id == $vehicleTypeId);
+    $comprasCamiones = $purchaseOrders->filter(fn($p) => $p->type_class_id == $camionTypeId);
+
     // Obtener todas las sedes disponibles
     $allSedes = $this->getAllSedesFromAssignments($year, $month);
 
     $report = [];
 
     // Reporte por grupos de marcas (Chinas, Tradicionales, Inchcape)
-    $brandGroupSections = $this->buildBrandGroupSections($livianos, $invoicedQuoteIds, $allSedes);
+    $brandGroupSections = $this->buildBrandGroupSections($livianos, $invoicedQuoteIds, $allSedes, $comprasLivianos);
     foreach ($brandGroupSections as $section) {
       $report[] = $section;
     }
 
     // Reporte de camiones
-    $report[] = $this->buildCamionesSection($camiones, $invoicedQuoteIds, $allSedes);
+    $report[] = $this->buildCamionesSection($camiones, $invoicedQuoteIds, $allSedes, $comprasCamiones);
 
     return $report;
   }
@@ -1077,7 +1124,7 @@ class ApDailyDeliveryReportService
   /**
    * Construye secciones por grupo de marcas
    */
-  protected function buildBrandGroupSections(Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes): array
+  protected function buildBrandGroupSections(Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders): array
   {
     $sections = [];
 
@@ -1089,9 +1136,10 @@ class ApDailyDeliveryReportService
 
     foreach ($brandGroups as $group) {
       $groupVehicles = $vehicles->where('brand_group_id', $group->id);
+      $groupPurchases = $purchaseOrders->where('brand_group_id', $group->id);
 
       // Siempre construir la sección, aunque esté vacía
-      $section = $this->buildBrandGroupSection($group, $groupVehicles, $invoicedQuoteIds, $allSedes);
+      $section = $this->buildBrandGroupSection($group, $groupVehicles, $invoicedQuoteIds, $allSedes, $groupPurchases);
       $sections[] = $section;
     }
 
@@ -1101,29 +1149,26 @@ class ApDailyDeliveryReportService
   /**
    * Construye una sección de grupo de marcas con sus sedes y marcas
    */
-  protected function buildBrandGroupSection($brandGroup, Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes): array
+  protected function buildBrandGroupSection($brandGroup, Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders): array
   {
     $groupName = $brandGroup->description;
 
     $items = [];
 
     // Total del grupo
-    $totalCompras = $vehicles->whereNotNull('purchase_order_id')->count();
+    $totalCompras = $purchaseOrders->count();
     $totalEntregas = $vehicles->count();
     $totalFacturadas = $vehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
-    $items[] = [
-      'name' => 'AP Total',
-      'level' => 'group',
-      'compras' => $totalCompras,
-      'entregas' => $totalEntregas,
-      'facturadas' => $totalFacturadas,
-      'reporteria_dealer_portal' => null,
-    ];
-
     // Obtener TODAS las marcas del grupo (aunque no tengan entregas)
+    // Solo marcas de tipo VEHICULOS (excluir CAMIONES)
+    $vehicleTypeId = ApCommercialMasters::ofType('CLASS_TYPE')
+      ->where('code', ApCommercialMasters::CLASS_TYPE_VEHICLE_CODE)
+      ->value('id');
+
     $allGroupBrands = DB::table('ap_vehicle_brand')
       ->where('group_id', $brandGroup->id)
+      ->where('type_class_id', $vehicleTypeId)
       ->where('status', 1)
       ->whereNull('deleted_at')
       ->pluck('name', 'id')
@@ -1131,11 +1176,12 @@ class ApDailyDeliveryReportService
 
     // Por cada sede (mostrar TODAS las sedes, aunque tengan 0)
     foreach ($allSedes as $sedeId => $sedeName) {
-      // Filtrar vehículos de esta sede usando advisor_sede_id
+      // Filtrar vehículos y compras de esta sede/shop
       $sedeVehicles = $vehicles->filter(fn($v) => $v->advisor_sede_id == $sedeId);
+      $sedePurchases = $purchaseOrders->filter(fn($p) => $p->shop_id == $sedeId);
 
       // Total por sede
-      $sedeCompras = $sedeVehicles->whereNotNull('purchase_order_id')->count();
+      $sedeCompras = $sedePurchases->count();
       $sedeEntregas = $sedeVehicles->count();
       $sedeFacturadas = $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
@@ -1151,8 +1197,9 @@ class ApDailyDeliveryReportService
       // Mostrar TODAS las marcas del grupo (aunque tengan 0)
       foreach ($allGroupBrands as $brandId => $brandName) {
         $brandVehicles = $sedeVehicles->filter(fn($v) => $v->brand_id == $brandId);
+        $brandPurchases = $sedePurchases->filter(fn($p) => $p->brand_id == $brandId);
 
-        $brandCompras = $brandVehicles->whereNotNull('purchase_order_id')->count();
+        $brandCompras = $brandPurchases->count();
         $brandEntregas = $brandVehicles->count();
         $brandFacturadas = $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
@@ -1169,6 +1216,9 @@ class ApDailyDeliveryReportService
 
     return [
       'title' => strtoupper($groupName),
+      'total_compras' => $totalCompras,
+      'total_entregas' => $totalEntregas,
+      'total_facturadas' => $totalFacturadas,
       'items' => $items,
     ];
   }
@@ -1176,31 +1226,33 @@ class ApDailyDeliveryReportService
   /**
    * Construye sección de camiones
    */
-  protected function buildCamionesSection(Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes): array
+  protected function buildCamionesSection(Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders): array
   {
     $items = [];
 
     // Total de camiones
-    $totalCompras = $vehicles->whereNotNull('purchase_order_id')->count();
+    $totalCompras = $purchaseOrders->count();
     $totalEntregas = $vehicles->count();
     $totalFacturadas = $vehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
-    $items[] = [
-      'name' => 'AP Total',
-      'level' => 'group',
-      'compras' => $totalCompras,
-      'entregas' => $totalEntregas,
-      'facturadas' => $totalFacturadas,
-      'reporteria_dealer_portal' => null,
-    ];
+    // Obtener todas las marcas de camiones (solo una vez)
+    $camionBrands = DB::table('ap_vehicle_brand')
+      ->where('type_class_id', ApCommercialMasters::ofType('CLASS_TYPE')
+        ->where('code', ApCommercialMasters::CLASS_TYPE_CAMION_CODE)
+        ->value('id'))
+      ->where('status', 1)
+      ->whereNull('deleted_at')
+      ->pluck('name', 'id')
+      ->toArray();
 
     // Por cada sede (mostrar TODAS las sedes, aunque tengan 0)
     foreach ($allSedes as $sedeId => $sedeName) {
-      // Filtrar vehículos de esta sede usando advisor_sede_id
+      // Filtrar vehículos y compras de esta sede/shop
       $sedeVehicles = $vehicles->filter(fn($v) => $v->advisor_sede_id == $sedeId);
+      $sedePurchases = $purchaseOrders->filter(fn($p) => $p->shop_id == $sedeId);
 
       // Total por sede
-      $sedeCompras = $sedeVehicles->whereNotNull('purchase_order_id')->count();
+      $sedeCompras = $sedePurchases->count();
       $sedeEntregas = $sedeVehicles->count();
       $sedeFacturadas = $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
@@ -1213,21 +1265,12 @@ class ApDailyDeliveryReportService
         'reporteria_dealer_portal' => null,
       ];
 
-      // Obtener todas las marcas de camiones
-      $camionBrands = DB::table('ap_vehicle_brand')
-        ->where('type_class_id', ApCommercialMasters::ofType('CLASS_TYPE')
-          ->where('code', ApCommercialMasters::CLASS_TYPE_CAMION_CODE)
-          ->value('id'))
-        ->where('status', 1)
-        ->whereNull('deleted_at')
-        ->pluck('name', 'id')
-        ->toArray();
-
       // Mostrar TODAS las marcas de camiones (aunque tengan 0)
       foreach ($camionBrands as $brandId => $brandName) {
         $brandVehicles = $sedeVehicles->filter(fn($v) => $v->brand_id == $brandId);
+        $brandPurchases = $sedePurchases->filter(fn($p) => $p->brand_id == $brandId);
 
-        $brandCompras = $brandVehicles->whereNotNull('purchase_order_id')->count();
+        $brandCompras = $brandPurchases->count();
         $brandEntregas = $brandVehicles->count();
         $brandFacturadas = $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
@@ -1244,8 +1287,29 @@ class ApDailyDeliveryReportService
 
     return [
       'title' => 'JAC CAMIONES',
+      'total_compras' => $totalCompras,
+      'total_entregas' => $totalEntregas,
+      'total_facturadas' => $totalFacturadas,
       'items' => $items,
     ];
+  }
+
+  /**
+   * Obtiene un mapa de sede_id => shop_id
+   */
+  protected function getSedeToShopMap(): array
+  {
+    $sedes = DB::table('config_sede')
+      ->whereNotNull('shop_id')
+      ->select('id', 'shop_id')
+      ->get();
+
+    $map = [];
+    foreach ($sedes as $sede) {
+      $map[$sede->id] = $sede->shop_id;
+    }
+
+    return $map;
   }
 
   /**

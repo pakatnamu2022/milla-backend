@@ -421,25 +421,22 @@ class DailyDeliveryReportBrandsSheet implements FromCollection, WithHeadings, Wi
     }
 
     foreach ($this->reportData['brand_report'] as $section) {
-      // Agregar título del grupo como encabezado
+      // Agregar título del grupo como encabezado con totales
       $this->flattenedData[] = [
         'name' => $section['title'],
         'level' => 'title',
-        'compras' => '',
-        'entregas' => '',
-        'facturadas' => '',
+        'compras' => $section['total_compras'] ?? '',
+        'entregas' => $section['total_entregas'] ?? '',
+        'facturadas' => $section['total_facturadas'] ?? '',
         'reporteria' => '',
       ];
 
-      // Agregar items del grupo
+      // Agregar items del grupo (sedes y marcas, sin el item "AP Total")
       foreach ($section['items'] as $item) {
         $indent = '';
         $icon = '';
 
         switch ($item['level']) {
-          case 'group':
-            $icon = '📊 ';
-            break;
           case 'sede':
             $icon = '  📍 ';
             $indent = '  ';
@@ -474,7 +471,16 @@ class DailyDeliveryReportBrandsSheet implements FromCollection, WithHeadings, Wi
 
   public function collection()
   {
-    return collect($this->flattenedData);
+    // Convertir array asociativo a array de valores en orden: Descripción, Compras, Entregas, Facturación, Reportería
+    return collect($this->flattenedData)->map(function ($row) {
+      return [
+        $row['name'],
+        $row['compras'],
+        $row['entregas'],
+        $row['facturadas'],
+        $row['reporteria'],
+      ];
+    });
   }
 
   public function headings(): array
