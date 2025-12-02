@@ -263,7 +263,7 @@ class ApDailyDeliveryReportService
     // Construir mapa de jefe -> asesores
     $bossToWorkers = $assignments->groupBy('boss_id');
 
-    // Árbol con 3 nodos fijos
+    // Árbol dinámico: agrupar por gerente (no por grupo de marcas)
     $tree = [];
 
     // Identificar al jefe de CAMIONES primero para excluirlo de los gerentes
@@ -278,31 +278,22 @@ class ApDailyDeliveryReportService
     }
     $camionesJefeId = $topBossIds->first();
 
-    // NODO 1: Gerente TRADICIONAL
-    $gerenteTradicional = $commercialManagers->first(function($m) {
-      return $m->brandGroup?->description === 'TRADICIONAL';
-    });
-    if ($gerenteTradicional) {
-      $tradicionalGroupId = $gerenteTradicional->brand_group_id;
-      $node = $this->buildGerenteNode($gerenteTradicional, $tradicionalGroupId, $bossToWorkers, $advisorBrandGroups, $advisorCounts, 'VEHICULOS NUEVO', $vehicleTypeId, $vehicles, $invoicedQuoteIds, $camionesJefeId);
+    // Agrupar gerentes por commercial_manager_id (para unificar si maneja múltiples grupos)
+    $managersByPerson = $commercialManagers->groupBy('commercial_manager_id');
+
+    // Construir un nodo por cada gerente único
+    foreach ($managersByPerson as $managerId => $managerAssignments) {
+      // Obtener todos los grupos que maneja este gerente
+      $brandGroupIds = $managerAssignments->pluck('brand_group_id')->toArray();
+      $brandGroupNames = $managerAssignments->pluck('brandGroup.description')->filter()->unique()->implode(', ');
+
+      $node = $this->buildGerenteNodeMultiGroup($managerId, $brandGroupIds, $brandGroupNames, $bossToWorkers, $advisorBrandGroups, $advisorCounts, 'VEHICULOS NUEVO', $vehicleTypeId, $vehicles, $invoicedQuoteIds, $camionesJefeId);
       if ($node) {
         $tree[] = $node;
       }
     }
 
-    // NODO 2: Gerente CHINA
-    $gerenteChina = $commercialManagers->first(function($m) {
-      return $m->brandGroup?->description === 'CHINA';
-    });
-    if ($gerenteChina) {
-      $chinaGroupId = $gerenteChina->brand_group_id;
-      $node = $this->buildGerenteNode($gerenteChina, $chinaGroupId, $bossToWorkers, $advisorBrandGroups, $advisorCounts, 'VEHICULOS NUEVO', $vehicleTypeId, $vehicles, $invoicedQuoteIds, $camionesJefeId);
-      if ($node) {
-        $tree[] = $node;
-      }
-    }
-
-    // NODO 3: Jefe CAMIONES (directo, sin gerente) - siempre mostrar
+    // ÚLTIMO NODO: Jefe CAMIONES (directo, sin gerente) - siempre mostrar
     $node = $this->buildCamionesNode($year, $month, $vehiclesCamiones, $invoicedQuoteIds);
     if ($node) {
       $tree[] = $node;
@@ -645,7 +636,61 @@ class ApDailyDeliveryReportService
   }
 
   /**
-   * Construye nodo de gerente con sus jefes y asesores
+   * Construye nodo de gerente que maneja múltiples grupos de marcas
+   */
+  protected function buildGerenteNodeMultiGroup(int $managerId, array $brandGroupIds, string $brandGroupNames, Collection $bossToWorkers, array $advisorBrandGroups, array $advisorCounts, string $className, int $vehicleTypeId, Collection $allVehicles, Collection $invoicedQuoteIds, ?int $camionesJefeId = null): ?array
+  {
+    $manager = Person::find($managerId);
+
+    if (!$manager) {
+      return null;
+    }
+
+    // Filtrar vehículos de todos los grupos de este gerente
+    $groupVehicles = $allVehicles->filter(function ($v) use ($vehicleTypeId, $brandGroupIds) {
+      return $v->type_class_id == $vehicleTypeId && in_array($v->brand_group_id, $brandGroupIds);
+    });
+
+    // Recalcular conteos solo para estos grupos
+    $groupAdvisorCounts = $this->calculateAdvisorCounts($groupVehicles, $invoicedQuoteIds);
+
+    $managerNode = [
+      'id' => $managerId,
+      'name' => $manager->nombre_completo,
+      'level' => 'gerente',
+      'brand_group' => $brandGroupNames ?: 'Sin grupo',
+      'article_class' => $className,
+      'entregas' => 0,
+      'facturadas' => 0,
+      'reporteria_dealer_portal' => null,
+      'children' => [],
+    ];
+
+    // Identificar todos los jefes
+    $allBossIds = $bossToWorkers->keys();
+
+    // Encontrar jefes que manejan cualquiera de estos grupos de marcas
+    foreach ($allBossIds as $jefeId) {
+      // Excluir al jefe de CAMIONES
+      if ($camionesJefeId && $jefeId == $camionesJefeId) {
+        continue;
+      }
+
+      // Construir nodo de jefe considerando TODOS los grupos del gerente
+      $jefeNode = $this->buildJefeNodeForMultipleGroups($jefeId, $brandGroupIds, $bossToWorkers, $advisorBrandGroups, $groupAdvisorCounts);
+
+      if ($jefeNode && !empty($jefeNode['children'])) {
+        $managerNode['children'][] = $jefeNode;
+        $managerNode['entregas'] += $jefeNode['entregas'];
+        $managerNode['facturadas'] += $jefeNode['facturadas'];
+      }
+    }
+
+    return empty($managerNode['children']) ? null : $managerNode;
+  }
+
+  /**
+   * Construye nodo de gerente con sus jefes y asesores (versión antigua para un solo grupo)
    */
   protected function buildGerenteNode($managerAssignment, int $brandGroupId, Collection $bossToWorkers, array $advisorBrandGroups, array $advisorCounts, string $className, int $vehicleTypeId, Collection $allVehicles, Collection $invoicedQuoteIds, ?int $camionesJefeId = null): ?array
   {
@@ -699,6 +744,63 @@ class ApDailyDeliveryReportService
   }
 
   /**
+   * Construye nodo de jefe para múltiples grupos de marcas
+   */
+  protected function buildJefeNodeForMultipleGroups(int $jefeId, array $brandGroupIds, Collection $bossToWorkers, array $advisorBrandGroups, array $advisorCounts): ?array
+  {
+    $jefe = Person::find($jefeId);
+    if (!$jefe) {
+      return null;
+    }
+
+    $jefeNode = [
+      'id' => $jefeId,
+      'name' => $jefe->nombre_completo,
+      'level' => 'jefe',
+      'entregas' => 0,
+      'facturadas' => 0,
+      'reporteria_dealer_portal' => null,
+      'children' => [],
+    ];
+
+    $workers = $bossToWorkers->get($jefeId);
+    if (!$workers) {
+      return null;
+    }
+
+    foreach ($workers as $assignment) {
+      $workerId = $assignment->worker_id;
+      $workerGroups = $advisorBrandGroups[$workerId] ?? [];
+
+      // Incluir asesores que tienen marcas de CUALQUIERA de estos grupos O que no tienen marcas asignadas
+      $hasAnyGroup = !empty(array_intersect($brandGroupIds, $workerGroups));
+      if ($hasAnyGroup || empty($workerGroups)) {
+        $asesor = Person::find($workerId);
+        if (!$asesor) {
+          continue;
+        }
+
+        $asesorEntregas = $advisorCounts[$workerId]['entregas'] ?? 0;
+        $asesorFacturacion = $advisorCounts[$workerId]['facturadas'] ?? 0;
+
+        $jefeNode['children'][] = [
+          'id' => $workerId,
+          'name' => $asesor->nombre_completo,
+          'level' => 'asesor',
+          'entregas' => $asesorEntregas,
+          'facturadas' => $asesorFacturacion,
+          'reporteria_dealer_portal' => null,
+        ];
+
+        $jefeNode['entregas'] += $asesorEntregas;
+        $jefeNode['facturadas'] += $asesorFacturacion;
+      }
+    }
+
+    return $jefeNode;
+  }
+
+  /**
    * Construye nodo de jefe para un grupo específico
    */
   protected function buildJefeNodeForGroup(int $jefeId, int $brandGroupId, Collection $bossToWorkers, array $advisorBrandGroups, array $advisorCounts): ?array
@@ -727,8 +829,8 @@ class ApDailyDeliveryReportService
       $workerId = $assignment->worker_id;
       $workerGroups = $advisorBrandGroups[$workerId] ?? [];
 
-      // Solo incluir asesores que tienen marcas de este grupo
-      if (in_array($brandGroupId, $workerGroups)) {
+      // Incluir asesores que tienen marcas de este grupo O que no tienen marcas asignadas
+      if (in_array($brandGroupId, $workerGroups) || empty($workerGroups)) {
         $asesor = Person::find($workerId);
         if (!$asesor) {
           continue;

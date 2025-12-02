@@ -127,7 +127,7 @@ class ApCommercialManagerBrandGroupService extends BaseService
     }
 
     foreach ($data['commercial_managers'] as $asesorId) {
-      ApCommercialManagerBrandGroup::create([
+      ApCommercialManagerBrandGroup::createOrRestore([
         'brand_group_id' => $data['brand_group_id'],
         'commercial_manager_id' => $asesorId,
         'year' => $data['year'],
