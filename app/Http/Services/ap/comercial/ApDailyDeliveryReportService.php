@@ -1069,13 +1069,13 @@ class ApDailyDeliveryReportService
     $report = [];
 
     // Reporte por grupos de marcas (Chinas, Tradicionales, Inchcape)
-    $brandGroupSections = $this->buildBrandGroupSections($livianos, $invoicedQuoteIds, $allSedes, $comprasLivianos);
+    $brandGroupSections = $this->buildBrandGroupSections($year, $month, $vehicleTypeId, $livianos, $invoicedQuoteIds, $allSedes, $comprasLivianos);
     foreach ($brandGroupSections as $section) {
       $report[] = $section;
     }
 
     // Reporte de camiones
-    $report[] = $this->buildCamionesSection($camiones, $invoicedQuoteIds, $allSedes, $comprasCamiones);
+    $report[] = $this->buildCamionesSection($year, $month, $camionTypeId, $camiones, $invoicedQuoteIds, $allSedes, $comprasCamiones);
 
     return $report;
   }
@@ -1124,7 +1124,7 @@ class ApDailyDeliveryReportService
   /**
    * Construye secciones por grupo de marcas
    */
-  protected function buildBrandGroupSections(Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders): array
+  protected function buildBrandGroupSections(int $year, int $month, int $typeClassId, Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders): array
   {
     $sections = [];
 
@@ -1138,8 +1138,11 @@ class ApDailyDeliveryReportService
       $groupVehicles = $vehicles->where('brand_group_id', $group->id);
       $groupPurchases = $purchaseOrders->where('brand_group_id', $group->id);
 
+      // Obtener marcas asignadas por shop para este grupo
+      $brandsByShop = $this->getBrandsByShop($year, $month, $group->id, $typeClassId);
+
       // Siempre construir la sección, aunque esté vacía
-      $section = $this->buildBrandGroupSection($group, $groupVehicles, $invoicedQuoteIds, $allSedes, $groupPurchases);
+      $section = $this->buildBrandGroupSection($group, $groupVehicles, $invoicedQuoteIds, $allSedes, $groupPurchases, $brandsByShop);
       $sections[] = $section;
     }
 
@@ -1149,7 +1152,7 @@ class ApDailyDeliveryReportService
   /**
    * Construye una sección de grupo de marcas con sus sedes y marcas
    */
-  protected function buildBrandGroupSection($brandGroup, Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders): array
+  protected function buildBrandGroupSection($brandGroup, Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders, array $brandsByShop): array
   {
     $groupName = $brandGroup->description;
 
@@ -1160,22 +1163,16 @@ class ApDailyDeliveryReportService
     $totalEntregas = $vehicles->count();
     $totalFacturadas = $vehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
-    // Obtener TODAS las marcas del grupo (aunque no tengan entregas)
-    // Solo marcas de tipo VEHICULOS (excluir CAMIONES)
-    $vehicleTypeId = ApCommercialMasters::ofType('CLASS_TYPE')
-      ->where('code', ApCommercialMasters::CLASS_TYPE_VEHICLE_CODE)
-      ->value('id');
-
-    $allGroupBrands = DB::table('ap_vehicle_brand')
-      ->where('group_id', $brandGroup->id)
-      ->where('type_class_id', $vehicleTypeId)
-      ->where('status', 1)
-      ->whereNull('deleted_at')
-      ->pluck('name', 'id')
-      ->toArray();
-
-    // Por cada sede (mostrar TODAS las sedes, aunque tengan 0)
+    // Por cada shop que tenga marcas asignadas
     foreach ($allSedes as $sedeId => $sedeName) {
+      // Obtener solo las marcas asignadas a asesores en esta sede/shop
+      $shopBrands = $brandsByShop[$sedeId] ?? [];
+
+      // Si no hay marcas asignadas en este shop, no mostrar el shop
+      if (empty($shopBrands)) {
+        continue;
+      }
+
       // Filtrar vehículos y compras de esta sede/shop
       $sedeVehicles = $vehicles->filter(fn($v) => $v->advisor_sede_id == $sedeId);
       $sedePurchases = $purchaseOrders->filter(fn($p) => $p->shop_id == $sedeId);
@@ -1194,8 +1191,8 @@ class ApDailyDeliveryReportService
         'reporteria_dealer_portal' => null,
       ];
 
-      // Mostrar TODAS las marcas del grupo (aunque tengan 0)
-      foreach ($allGroupBrands as $brandId => $brandName) {
+      // Mostrar solo las marcas asignadas (aunque tengan 0)
+      foreach ($shopBrands as $brandId => $brandName) {
         $brandVehicles = $sedeVehicles->filter(fn($v) => $v->brand_id == $brandId);
         $brandPurchases = $sedePurchases->filter(fn($p) => $p->brand_id == $brandId);
 
@@ -1226,7 +1223,7 @@ class ApDailyDeliveryReportService
   /**
    * Construye sección de camiones
    */
-  protected function buildCamionesSection(Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders): array
+  protected function buildCamionesSection(int $year, int $month, int $typeClassId, Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders): array
   {
     $items = [];
 
@@ -1235,18 +1232,27 @@ class ApDailyDeliveryReportService
     $totalEntregas = $vehicles->count();
     $totalFacturadas = $vehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
-    // Obtener todas las marcas de camiones (solo una vez)
-    $camionBrands = DB::table('ap_vehicle_brand')
-      ->where('type_class_id', ApCommercialMasters::ofType('CLASS_TYPE')
-        ->where('code', ApCommercialMasters::CLASS_TYPE_CAMION_CODE)
-        ->value('id'))
-      ->where('status', 1)
-      ->whereNull('deleted_at')
-      ->pluck('name', 'id')
-      ->toArray();
+    // Obtener el grupo de JAC CAMIONES
+    $jacCamionesGroup = ApCommercialMasters::where('type', 'GRUPO_MARCAS')
+      ->where('description', 'CHINA')
+      ->first();
 
-    // Por cada sede (mostrar TODAS las sedes, aunque tengan 0)
+    // Obtener marcas de camiones asignadas por shop
+    $brandsByShop = [];
+    if ($jacCamionesGroup) {
+      $brandsByShop = $this->getBrandsByShop($year, $month, $jacCamionesGroup->id, $typeClassId);
+    }
+
+    // Por cada shop que tenga marcas de camiones asignadas
     foreach ($allSedes as $sedeId => $sedeName) {
+      // Obtener solo las marcas asignadas a asesores en esta sede/shop
+      $shopBrands = $brandsByShop[$sedeId] ?? [];
+
+      // Si no hay marcas asignadas en este shop, no mostrar el shop
+      if (empty($shopBrands)) {
+        continue;
+      }
+
       // Filtrar vehículos y compras de esta sede/shop
       $sedeVehicles = $vehicles->filter(fn($v) => $v->advisor_sede_id == $sedeId);
       $sedePurchases = $purchaseOrders->filter(fn($p) => $p->shop_id == $sedeId);
@@ -1265,8 +1271,8 @@ class ApDailyDeliveryReportService
         'reporteria_dealer_portal' => null,
       ];
 
-      // Mostrar TODAS las marcas de camiones (aunque tengan 0)
-      foreach ($camionBrands as $brandId => $brandName) {
+      // Mostrar solo las marcas de camiones asignadas (aunque tengan 0)
+      foreach ($shopBrands as $brandId => $brandName) {
         $brandVehicles = $sedeVehicles->filter(fn($v) => $v->brand_id == $brandId);
         $brandPurchases = $sedePurchases->filter(fn($p) => $p->brand_id == $brandId);
 
@@ -1310,6 +1316,47 @@ class ApDailyDeliveryReportService
     }
 
     return $map;
+  }
+
+  /**
+   * Obtiene las marcas asignadas a asesores por shop en el período
+   * Retorna: [shop_id => [brand_id => brand_name]]
+   */
+  protected function getBrandsByShop(int $year, int $month, int $brandGroupId, int $typeClassId): array
+  {
+    $sedeToShopMap = $this->getSedeToShopMap();
+
+    // Obtener asignaciones de marcas a asesores en el período
+    $assignments = DB::table('ap_assign_brand_consultant')
+      ->join('ap_vehicle_brand', 'ap_assign_brand_consultant.brand_id', '=', 'ap_vehicle_brand.id')
+      ->where('ap_assign_brand_consultant.year', $year)
+      ->where('ap_assign_brand_consultant.month', $month)
+      ->where('ap_vehicle_brand.group_id', $brandGroupId)
+      ->where('ap_vehicle_brand.type_class_id', $typeClassId)
+      ->where('ap_vehicle_brand.status', 1)
+      ->whereNull('ap_vehicle_brand.deleted_at')
+      ->whereNull('ap_assign_brand_consultant.deleted_at')
+      ->select([
+        'ap_assign_brand_consultant.sede_id',
+        'ap_vehicle_brand.id as brand_id',
+        'ap_vehicle_brand.name as brand_name',
+      ])
+      ->distinct()
+      ->get();
+
+    // Agrupar por shop
+    $brandsByShop = [];
+    foreach ($assignments as $assignment) {
+      $shopId = $sedeToShopMap[$assignment->sede_id] ?? null;
+      if ($shopId) {
+        if (!isset($brandsByShop[$shopId])) {
+          $brandsByShop[$shopId] = [];
+        }
+        $brandsByShop[$shopId][$assignment->brand_id] = $assignment->brand_name;
+      }
+    }
+
+    return $brandsByShop;
   }
 
   /**
