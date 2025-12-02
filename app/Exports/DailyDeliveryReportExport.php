@@ -397,6 +397,48 @@ class DailyDeliveryReportHierarchySheet implements FromCollection, WithHeadings,
 
         // Set column widths
         $sheet->getColumnDimension('A')->setWidth(50);
+
+        // Agrupar filas por jefe (agrupar asesores bajo su jefe)
+        $currentJefeRow = null;
+        $asesorStartRow = null;
+
+        for ($row = 5; $row <= $lastRow; $row++) {
+          $level = $this->flattenedData[$row - 5]['level'] ?? '';
+
+          if ($level === 'Jefe') {
+            // Si ya había un jefe anterior, agrupar sus asesores
+            if ($currentJefeRow !== null && $asesorStartRow !== null) {
+              $groupEndRow = $row - 1;
+              if ($groupEndRow >= $asesorStartRow) {
+                $sheet->getRowDimension($asesorStartRow)->setOutlineLevel(1);
+                for ($i = $asesorStartRow + 1; $i <= $groupEndRow; $i++) {
+                  $sheet->getRowDimension($i)->setOutlineLevel(1);
+                }
+              }
+            }
+
+            // Nuevo jefe
+            $currentJefeRow = $row;
+            $asesorStartRow = null;
+          } elseif ($level === 'Asesor') {
+            if ($asesorStartRow === null) {
+              $asesorStartRow = $row;
+            }
+          }
+        }
+
+        // Agrupar los últimos asesores si existen
+        if ($currentJefeRow !== null && $asesorStartRow !== null) {
+          $groupEndRow = $lastRow;
+          if ($groupEndRow >= $asesorStartRow) {
+            for ($i = $asesorStartRow; $i <= $groupEndRow; $i++) {
+              $sheet->getRowDimension($i)->setOutlineLevel(1);
+            }
+          }
+        }
+
+        // Colapsar grupos por defecto
+        $sheet->setShowSummaryBelow(false);
       },
     ];
   }
@@ -578,6 +620,59 @@ class DailyDeliveryReportBrandsSheet implements FromCollection, WithHeadings, Wi
 
         // Set column widths
         $sheet->getColumnDimension('A')->setWidth(50);
+
+        // Agrupar filas por sede (agrupar marcas bajo su sede)
+        $currentSedeRow = null;
+        $brandStartRow = null;
+
+        for ($row = 5; $row <= $lastRow; $row++) {
+          $level = $this->flattenedData[$row - 5]['level'] ?? '';
+
+          if ($level === 'sede') {
+            // Si ya había una sede anterior, agrupar sus marcas
+            if ($currentSedeRow !== null && $brandStartRow !== null) {
+              $groupEndRow = $row - 1;
+              if ($groupEndRow >= $brandStartRow) {
+                for ($i = $brandStartRow; $i <= $groupEndRow; $i++) {
+                  $sheet->getRowDimension($i)->setOutlineLevel(1);
+                }
+              }
+            }
+
+            // Nueva sede
+            $currentSedeRow = $row;
+            $brandStartRow = null;
+          } elseif ($level === 'brand') {
+            if ($brandStartRow === null) {
+              $brandStartRow = $row;
+            }
+          } elseif ($level === 'separator' || $level === 'title') {
+            // Si encontramos un separador o título, cerrar grupo anterior
+            if ($currentSedeRow !== null && $brandStartRow !== null) {
+              $groupEndRow = $row - 1;
+              if ($groupEndRow >= $brandStartRow) {
+                for ($i = $brandStartRow; $i <= $groupEndRow; $i++) {
+                  $sheet->getRowDimension($i)->setOutlineLevel(1);
+                }
+              }
+            }
+            $currentSedeRow = null;
+            $brandStartRow = null;
+          }
+        }
+
+        // Agrupar las últimas marcas si existen
+        if ($currentSedeRow !== null && $brandStartRow !== null) {
+          $groupEndRow = $lastRow;
+          if ($groupEndRow >= $brandStartRow) {
+            for ($i = $brandStartRow; $i <= $groupEndRow; $i++) {
+              $sheet->getRowDimension($i)->setOutlineLevel(1);
+            }
+          }
+        }
+
+        // Colapsar grupos por defecto
+        $sheet->setShowSummaryBelow(false);
       },
     ];
   }
