@@ -63,6 +63,14 @@ class UpdateApVehicleBrandRequest extends StoreRequest
         'integer',
         'exists:ap_commercial_masters,id',
       ],
+      'type_class_id' => [
+        'nullable',
+        'integer',
+        Rule::exists('ap_commercial_masters', 'id')
+          ->where('type', 'CLASS_TYPE')
+          ->where('status', 1)
+          ->whereNull('deleted_at'),
+      ],
       'status' => ['nullable', 'boolean'],
     ];
   }
@@ -92,6 +100,9 @@ class UpdateApVehicleBrandRequest extends StoreRequest
 
       'type_operation_id.integer' => 'El campo tipo de operación es obligatorio.',
       'type_operation_id.exists' => 'El tipo de operación seleccionado no existe',
+
+      'type_class_id.integer' => 'El campo tipo de clase debe ser un número.',
+      'type_class_id.exists' => 'El tipo de clase seleccionado no es válido',
     ];
   }
 }

@@ -55,6 +55,14 @@ class StoreApVehicleBrandRequest extends StoreRequest
         'integer',
         'exists:ap_commercial_masters,id',
       ],
+      'type_class_id' => [
+        'required',
+        'integer',
+        Rule::exists('ap_commercial_masters', 'id')
+          ->where('type', 'CLASS_TYPE')
+          ->where('status', 1)
+          ->whereNull('deleted_at'),
+      ],
     ];
   }
 
@@ -80,6 +88,8 @@ class StoreApVehicleBrandRequest extends StoreRequest
       'logo.max' => 'El logo no debe superar los 2MB',
       'logo_min.mimes' => 'El logo min debe ser un archivo JPG, PNG o WebP',
       'logo_min.max' => 'El logo min no debe superar los 2MB',
+      'type_class_id.required' => 'El tipo de clase es requerido',
+      'type_class_id.exists' => 'El tipo de clase seleccionado no es válido',
     ];
   }
 }

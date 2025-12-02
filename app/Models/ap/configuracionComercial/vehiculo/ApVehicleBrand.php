@@ -21,6 +21,7 @@ class ApVehicleBrand extends Model
     'logo',
     'logo_min',
     'type_operation_id',
+    'type_class_id',
     'status',
     'group_id',
   ];
@@ -71,5 +72,10 @@ class ApVehicleBrand extends Model
   public function typeOperation()
   {
     return $this->belongsTo(ApCommercialMasters::class, 'type_operation_id');
+  }
+
+  public function typeClass()
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'type_class_id');
   }
 }

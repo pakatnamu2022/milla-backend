@@ -21,5 +21,10 @@ class DatabaseSeeder extends Seeder
 //    $this->call(EvaluationModelSeeder::class);
 //    $this->call(EvaluationParEvaluatorSeeder::class);
 //    $this->call(ApClassArticleAccountMappingSeeder::class);
+
+    // CLASS_TYPE seeders - ejecutar antes de las migraciones de type_class_id
+    // php artisan db:seed --class=Database\\Seeders\\ap\\commercial\\ApCommercialMastersClassTypeSeeder
+    // Luego ejecutar migraciones: php artisan migrate
+    // Finalmente poblar datos: php artisan db:seed --class=Database\\Seeders\\PopulateClassTypeDataSeeder
   }
 }

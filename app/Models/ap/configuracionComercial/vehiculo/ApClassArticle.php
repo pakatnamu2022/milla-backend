@@ -20,6 +20,7 @@ class ApClassArticle extends Model
     'description',
     'account',
     'type_operation_id',
+    'type_class_id',
     'status',
   ];
 
@@ -70,5 +71,10 @@ class ApClassArticle extends Model
       ->where('account_type', $accountType)
       ->where('status', true)
       ->first();
+  }
+
+  public function typeClass()
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'type_class_id');
   }
 }

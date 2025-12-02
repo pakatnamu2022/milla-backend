@@ -40,6 +40,12 @@ class ApCommercialMasters extends Model
   const int TIPO_OPERACION_COMERCIAL = 794;
   const int TIPO_OPERACION_POSTVENTA = 804;
 
+  // CLASS TYPE (para clasificación de marcas y clases de artículos)
+  // Estos valores se obtienen dinámicamente de la BD, aquí solo como referencia
+  // para obtener los IDs reales usar: ApCommercialMasters::ofType('CLASS_TYPE')->where('code', '0')->first()->id
+  const string CLASS_TYPE_VEHICLE_CODE = '0';
+  const string CLASS_TYPE_CAMION_CODE = '1';
+
   public function setCodeAttribute($value)
   {
     $this->attributes['code'] = Str::upper(Str::ascii($value));
