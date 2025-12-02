@@ -46,6 +46,9 @@ class ApDailyDeliveryReportService
     // Paso 5: Construir árbol jerárquico
     $hierarchy = $this->buildHierarchyTree($year, $month, $vehiclesWithDelivery, $invoicedQuoteIds);
 
+    // Paso 6: Construir reporte por marcas y sedes
+    $brandReport = $this->buildBrandReport($year, $month, $vehiclesWithDelivery, $invoicedQuoteIds);
+
     return [
       'date' => $date,
       'period' => [
@@ -55,6 +58,7 @@ class ApDailyDeliveryReportService
       'summary' => $summary,
       'advisors' => $advisors,
       'hierarchy' => $hierarchy,
+      'brand_report' => $brandReport,
     ];
   }
 
@@ -75,6 +79,7 @@ class ApDailyDeliveryReportService
       ->join('ap_class_article', 'ap_models_vn.class_id', '=', 'ap_class_article.id')
       ->leftJoin('ap_familia_marca', 'ap_models_vn.family_id', '=', 'ap_familia_marca.id')
       ->leftJoin('ap_vehicle_brand', 'ap_familia_marca.marca_id', '=', 'ap_vehicle_brand.id')
+      ->leftJoin('config_sede', 'purchase_request_quote.sede_id', '=', 'config_sede.id')
       ->whereYear('ap_vehicle_delivery.real_delivery_date', $year)
       ->whereMonth('ap_vehicle_delivery.real_delivery_date', $month)
       ->whereNotNull('ap_vehicle_delivery.real_delivery_date')
@@ -85,11 +90,14 @@ class ApDailyDeliveryReportService
         'ap_vehicles.id as vehicle_id',
         'ap_vehicle_delivery.real_delivery_date',
         'ap_opportunity.worker_id as advisor_id',
+        'purchase_request_quote.sede_id',
+        'config_sede.abreviatura as sede_name',
         'ap_class_article.id as article_class_id',
         'ap_class_article.description as article_class_description',
         'ap_class_article.type_class_id',
         'purchase_request_quote.id as quote_id',
         'ap_vehicle_brand.id as brand_id',
+        'ap_vehicle_brand.name as brand_name',
         'ap_vehicle_brand.group_id as brand_group_id',
       ])
       ->get();
@@ -972,6 +980,322 @@ class ApDailyDeliveryReportService
     }
 
     return null;
+  }
+
+  /**
+   * Construye reporte por marcas y sedes
+   *
+   * @param int $year
+   * @param int $month
+   * @param Collection $vehicles
+   * @param Collection $invoicedQuoteIds
+   * @return array
+   */
+  protected function buildBrandReport(int $year, int $month, Collection $vehicles, Collection $invoicedQuoteIds): array
+  {
+    // Obtener IDs de tipos de clase
+    $vehicleTypeId = ApCommercialMasters::ofType('CLASS_TYPE')
+      ->where('code', ApCommercialMasters::CLASS_TYPE_VEHICLE_CODE)
+      ->value('id');
+
+    $camionTypeId = ApCommercialMasters::ofType('CLASS_TYPE')
+      ->where('code', ApCommercialMasters::CLASS_TYPE_CAMION_CODE)
+      ->value('id');
+
+    // Obtener asignaciones de sedes de los asesores
+    $advisorSedeAssignments = $this->getAdvisorSedeAssignments($year, $month);
+
+    // Mapear cada vehículo a la sede de su asesor
+    $vehicles = $vehicles->map(function ($v) use ($advisorSedeAssignments) {
+      $v->advisor_sede_id = $advisorSedeAssignments[$v->advisor_id]['sede_id'] ?? null;
+      $v->advisor_sede_name = $advisorSedeAssignments[$v->advisor_id]['sede_name'] ?? 'Sin Sede';
+      return $v;
+    });
+
+    // Separar vehículos y camiones
+    $livianos = $vehicles->filter(fn($v) => $v->type_class_id == $vehicleTypeId);
+    $camiones = $vehicles->filter(fn($v) => $v->type_class_id == $camionTypeId);
+
+    // Obtener todas las sedes disponibles
+    $allSedes = $this->getAllSedesFromAssignments($year, $month);
+
+    $report = [];
+
+    // Totales generales
+    $report[] = $this->buildTotalSection($livianos, $camiones, $invoicedQuoteIds);
+
+    // Reporte por grupos de marcas (Chinas, Tradicionales, Inchcape)
+    $brandGroupSections = $this->buildBrandGroupSections($livianos, $invoicedQuoteIds, $allSedes);
+    foreach ($brandGroupSections as $section) {
+      $report[] = $section;
+    }
+
+    // Reporte de camiones
+    $report[] = $this->buildCamionesSection($camiones, $invoicedQuoteIds, $allSedes);
+
+    return $report;
+  }
+
+  /**
+   * Construye sección de totales generales
+   */
+  protected function buildTotalSection(Collection $livianos, Collection $camiones, Collection $invoicedQuoteIds): array
+  {
+    $livianosCompras = $livianos->whereNotNull('purchase_order_id')->count();
+    $livianosEntregas = $livianos->count();
+    $livianosFacturadas = $livianos->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
+
+    $camionesCompras = $camiones->whereNotNull('purchase_order_id')->count();
+    $camionesEntregas = $camiones->count();
+    $camionesFacturadas = $camiones->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
+
+    return [
+      'title' => 'TOTALES GENERALES',
+      'items' => [
+        [
+          'name' => 'TOTAL AP LIVIANOS',
+          'compras' => $livianosCompras,
+          'entregas' => $livianosEntregas,
+          'facturadas' => $livianosFacturadas,
+          'reporteria_dealer_portal' => null,
+        ],
+        [
+          'name' => 'TOTAL AP CAMIONES',
+          'compras' => $camionesCompras,
+          'entregas' => $camionesEntregas,
+          'facturadas' => $camionesFacturadas,
+          'reporteria_dealer_portal' => null,
+        ],
+        [
+          'name' => 'TOTAL AP',
+          'compras' => $livianosCompras + $camionesCompras,
+          'entregas' => $livianosEntregas + $camionesEntregas,
+          'facturadas' => $livianosFacturadas + $camionesFacturadas,
+          'reporteria_dealer_portal' => null,
+        ],
+      ],
+    ];
+  }
+
+  /**
+   * Construye secciones por grupo de marcas
+   */
+  protected function buildBrandGroupSections(Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes): array
+  {
+    $sections = [];
+
+    // Obtener grupos de marcas ordenados (type es GRUPO_MARCAS, no BRAND_GROUP)
+    $brandGroups = ApCommercialMasters::where('type', 'GRUPO_MARCAS')
+      ->whereIn('description', ['CHINA', 'TRADICIONAL', 'INCHCAPE'])
+      ->orderByRaw("FIELD(description, 'CHINA', 'TRADICIONAL', 'INCHCAPE')")
+      ->get();
+
+    foreach ($brandGroups as $group) {
+      $groupVehicles = $vehicles->where('brand_group_id', $group->id);
+
+      // Siempre construir la sección, aunque esté vacía
+      $section = $this->buildBrandGroupSection($group, $groupVehicles, $invoicedQuoteIds, $allSedes);
+      $sections[] = $section;
+    }
+
+    return $sections;
+  }
+
+  /**
+   * Construye una sección de grupo de marcas con sus sedes y marcas
+   */
+  protected function buildBrandGroupSection($brandGroup, Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes): array
+  {
+    $groupName = $brandGroup->description === 'CHINA' ? 'M. Chinas' :
+                 ($brandGroup->description === 'TRADICIONAL' ? 'M. Trad.' :
+                 ($brandGroup->description === 'INCHCAPE' ? 'M. Inchcape' : $brandGroup->description));
+
+    $items = [];
+
+    // Total del grupo
+    $totalCompras = $vehicles->whereNotNull('purchase_order_id')->count();
+    $totalEntregas = $vehicles->count();
+    $totalFacturadas = $vehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
+
+    $items[] = [
+      'name' => $groupName . ' AP Total.',
+      'level' => 'group',
+      'compras' => $totalCompras,
+      'entregas' => $totalEntregas,
+      'facturadas' => $totalFacturadas,
+      'reporteria_dealer_portal' => null,
+    ];
+
+    // Por cada sede (mostrar TODAS las sedes, aunque tengan 0)
+    foreach ($allSedes as $sedeId => $sedeName) {
+      // Filtrar vehículos de esta sede usando advisor_sede_id
+      $sedeVehicles = $vehicles->filter(fn($v) => $v->advisor_sede_id == $sedeId);
+
+      // Total por sede
+      $sedeCompras = $sedeVehicles->whereNotNull('purchase_order_id')->count();
+      $sedeEntregas = $sedeVehicles->count();
+      $sedeFacturadas = $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
+
+      $items[] = [
+        'name' => $groupName . ' ' . $sedeName . '.',
+        'level' => 'sede',
+        'compras' => $sedeCompras,
+        'entregas' => $sedeEntregas,
+        'facturadas' => $sedeFacturadas,
+        'reporteria_dealer_portal' => null,
+      ];
+
+      // Por cada marca dentro de la sede (solo si hay vehículos)
+      if ($sedeVehicles->isNotEmpty()) {
+        $vehiclesByBrand = $sedeVehicles->groupBy('brand_name');
+
+        foreach ($vehiclesByBrand as $brandName => $brandVehicles) {
+          if (!$brandName) {
+            continue;
+          }
+
+          $brandCompras = $brandVehicles->whereNotNull('purchase_order_id')->count();
+          $brandEntregas = $brandVehicles->count();
+          $brandFacturadas = $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
+
+          $items[] = [
+            'name' => $brandName,
+            'level' => 'brand',
+            'compras' => $brandCompras,
+            'entregas' => $brandEntregas,
+            'facturadas' => $brandFacturadas,
+            'reporteria_dealer_portal' => null,
+          ];
+        }
+      }
+    }
+
+    return [
+      'title' => strtoupper($groupName),
+      'items' => $items,
+    ];
+  }
+
+  /**
+   * Construye sección de camiones
+   */
+  protected function buildCamionesSection(Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes): array
+  {
+    $items = [];
+
+    // Total de camiones
+    $totalCompras = $vehicles->whereNotNull('purchase_order_id')->count();
+    $totalEntregas = $vehicles->count();
+    $totalFacturadas = $vehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
+
+    $items[] = [
+      'name' => 'JAC Camiones AP Total.',
+      'level' => 'group',
+      'compras' => $totalCompras,
+      'entregas' => $totalEntregas,
+      'facturadas' => $totalFacturadas,
+      'reporteria_dealer_portal' => null,
+    ];
+
+    // Por cada sede (mostrar TODAS las sedes, aunque tengan 0)
+    foreach ($allSedes as $sedeId => $sedeName) {
+      // Filtrar vehículos de esta sede usando advisor_sede_id
+      $sedeVehicles = $vehicles->filter(fn($v) => $v->advisor_sede_id == $sedeId);
+
+      // Total por sede
+      $sedeCompras = $sedeVehicles->whereNotNull('purchase_order_id')->count();
+      $sedeEntregas = $sedeVehicles->count();
+      $sedeFacturadas = $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
+
+      $items[] = [
+        'name' => 'JAC Camiones ' . $sedeName . '.',
+        'level' => 'sede',
+        'compras' => $sedeCompras,
+        'entregas' => $sedeEntregas,
+        'facturadas' => $sedeFacturadas,
+        'reporteria_dealer_portal' => null,
+      ];
+
+      // Por marca dentro de la sede (solo si hay vehículos)
+      if ($sedeVehicles->isNotEmpty()) {
+        $vehiclesByBrand = $sedeVehicles->groupBy('brand_name');
+
+        foreach ($vehiclesByBrand as $brandName => $brandVehicles) {
+          if (!$brandName) {
+            continue;
+          }
+
+          $brandCompras = $brandVehicles->whereNotNull('purchase_order_id')->count();
+          $brandEntregas = $brandVehicles->count();
+          $brandFacturadas = $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
+
+          $items[] = [
+            'name' => $brandName,
+            'level' => 'brand',
+            'compras' => $brandCompras,
+            'entregas' => $brandEntregas,
+            'facturadas' => $brandFacturadas,
+            'reporteria_dealer_portal' => null,
+          ];
+        }
+      }
+    }
+
+    return [
+      'title' => 'JAC CAMIONES',
+      'items' => $items,
+    ];
+  }
+
+  /**
+   * Obtiene las asignaciones de sedes de los asesores
+   */
+  protected function getAdvisorSedeAssignments(int $year, int $month): array
+  {
+    $assignments = DB::table('ap_assign_company_branch_period')
+      ->join('config_sede', 'ap_assign_company_branch_period.sede_id', '=', 'config_sede.id')
+      ->where('ap_assign_company_branch_period.year', $year)
+      ->where('ap_assign_company_branch_period.month', $month)
+      ->select([
+        'ap_assign_company_branch_period.worker_id',
+        'config_sede.id as sede_id',
+        'config_sede.abreviatura as sede_name'
+      ])
+      ->get();
+
+    $map = [];
+    foreach ($assignments as $assignment) {
+      $map[$assignment->worker_id] = [
+        'sede_id' => $assignment->sede_id,
+        'sede_name' => $assignment->sede_name,
+      ];
+    }
+
+    return $map;
+  }
+
+  /**
+   * Obtiene todas las sedes de las asignaciones del período
+   */
+  protected function getAllSedesFromAssignments(int $year, int $month): array
+  {
+    $sedes = DB::table('ap_assign_company_branch_period')
+      ->join('config_sede', 'ap_assign_company_branch_period.sede_id', '=', 'config_sede.id')
+      ->where('ap_assign_company_branch_period.year', $year)
+      ->where('ap_assign_company_branch_period.month', $month)
+      ->select([
+        'config_sede.id as sede_id',
+        'config_sede.abreviatura as sede_name'
+      ])
+      ->distinct()
+      ->get();
+
+    $map = [];
+    foreach ($sedes as $sede) {
+      $map[$sede->sede_id] = $sede->sede_name;
+    }
+
+    return $map;
   }
 
 }
