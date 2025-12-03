@@ -14,16 +14,21 @@ class DailyDeliveryReportRequest extends FormRequest
   public function rules(): array
   {
     return [
-      'date' => 'required|date|date_format:Y-m-d',
+      'fecha_inicio' => 'required|date|date_format:Y-m-d',
+      'fecha_fin' => 'required|date|date_format:Y-m-d|after_or_equal:fecha_inicio',
     ];
   }
 
   public function messages(): array
   {
     return [
-      'date.required' => 'La fecha es requerida',
-      'date.date' => 'La fecha debe ser una fecha válida',
-      'date.date_format' => 'La fecha debe tener el formato Y-m-d (ejemplo: 2025-11-29)',
+      'fecha_inicio.required' => 'La fecha de inicio es requerida',
+      'fecha_inicio.date' => 'La fecha de inicio debe ser una fecha válida',
+      'fecha_inicio.date_format' => 'La fecha de inicio debe tener el formato Y-m-d (ejemplo: 2025-11-29)',
+      'fecha_fin.required' => 'La fecha de fin es requerida',
+      'fecha_fin.date' => 'La fecha de fin debe ser una fecha válida',
+      'fecha_fin.date_format' => 'La fecha de fin debe tener el formato Y-m-d (ejemplo: 2025-11-29)',
+      'fecha_fin.after_or_equal' => 'La fecha de fin debe ser posterior o igual a la fecha de inicio',
     ];
   }
 }

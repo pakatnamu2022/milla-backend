@@ -28,8 +28,9 @@ class ApDailyDeliveryReportController extends Controller
   public function index(DailyDeliveryReportRequest $request): JsonResponse
   {
     try {
-      $date = $request->input('date');
-      $report = $this->service->generate($date);
+      $fechaInicio = $request->input('fecha_inicio');
+      $fechaFin = $request->input('fecha_fin');
+      $report = $this->service->generate($fechaInicio, $fechaFin);
 
       return response()->json($report, 200);
     } catch (\Exception $e) {
@@ -49,10 +50,11 @@ class ApDailyDeliveryReportController extends Controller
   public function export(DailyDeliveryReportRequest $request): BinaryFileResponse
   {
     try {
-      $date = $request->input('date');
-      $report = $this->service->generate($date);
+      $fechaInicio = $request->input('fecha_inicio');
+      $fechaFin = $request->input('fecha_fin');
+      $report = $this->service->generate($fechaInicio, $fechaFin);
 
-      $filename = 'Reporte_Entregas_' . str_replace('-', '_', $date) . '.xlsx';
+      $filename = 'Reporte_Entregas_' . str_replace('-', '_', $fechaInicio) . '_a_' . str_replace('-', '_', $fechaFin) . '.xlsx';
 
       return Excel::download(new DailyDeliveryReportExport($report), $filename);
     } catch (\Exception $e) {

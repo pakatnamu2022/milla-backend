@@ -22,17 +22,19 @@ class ApDailyDeliveryReportService
   /**
    * Genera el reporte diario de entregas y facturación
    *
-   * @param string $date Fecha en formato Y-m-d
+   * @param string $fechaInicio Fecha inicio en formato Y-m-d
+   * @param string $fechaFin Fecha fin en formato Y-m-d
    * @return array
    */
-  public function generate(string $date): array
+  public function generate(string $fechaInicio, string $fechaFin): array
   {
-    $carbon = Carbon::parse($date);
-    $year = $carbon->year;
-    $month = $carbon->month;
+    $carbonInicio = Carbon::parse($fechaInicio);
+    $carbonFin = Carbon::parse($fechaFin);
+    $year = $carbonInicio->year;
+    $month = $carbonInicio->month;
 
-    // Paso 1: Obtener vehículos con entrega en el mes
-    $vehiclesWithDelivery = $this->getDeliveredVehicles($year, $month);
+    // Paso 1: Obtener vehículos con entrega en el rango de fechas
+    $vehiclesWithDelivery = $this->getDeliveredVehicles($fechaInicio, $fechaFin);
 
     // Paso 2: Obtener IDs de cotizaciones facturadas
     $invoicedQuoteIds = $this->getInvoicedQuoteIds($vehiclesWithDelivery->pluck('quote_id'));
@@ -47,10 +49,14 @@ class ApDailyDeliveryReportService
     $hierarchy = $this->buildHierarchyTree($year, $month, $vehiclesWithDelivery, $invoicedQuoteIds);
 
     // Paso 6: Construir reporte por marcas y sedes
-    $brandReport = $this->buildBrandReport($year, $month, $vehiclesWithDelivery, $invoicedQuoteIds);
+    $brandReport = $this->buildBrandReport($year, $month, $vehiclesWithDelivery, $invoicedQuoteIds, $fechaInicio, $fechaFin);
+
+    // Paso 7: Construir reporte de avance por sede
+    $avancePorSede = $this->buildAvancePorSede($year, $month, $vehiclesWithDelivery, $invoicedQuoteIds, $fechaInicio, $fechaFin);
 
     return [
-      'date' => $date,
+      'fecha_inicio' => $fechaInicio,
+      'fecha_fin' => $fechaFin,
       'period' => [
         'year' => $year,
         'month' => $month,
@@ -59,17 +65,18 @@ class ApDailyDeliveryReportService
       'advisors' => $advisors,
       'hierarchy' => $hierarchy,
       'brand_report' => $brandReport,
+      'avance_por_sede' => $avancePorSede,
     ];
   }
 
   /**
-   * Obtiene vehículos con entrega realizada en el mes
+   * Obtiene vehículos con entrega realizada en el rango de fechas
    *
-   * @param int $year
-   * @param int $month
+   * @param string $fechaInicio
+   * @param string $fechaFin
    * @return Collection
    */
-  protected function getDeliveredVehicles(int $year, int $month): Collection
+  protected function getDeliveredVehicles(string $fechaInicio, string $fechaFin): Collection
   {
     $vehicles = DB::table('ap_vehicles')
       ->join('ap_vehicle_delivery', 'ap_vehicles.id', '=', 'ap_vehicle_delivery.vehicle_id')
@@ -80,8 +87,7 @@ class ApDailyDeliveryReportService
       ->leftJoin('ap_familia_marca', 'ap_models_vn.family_id', '=', 'ap_familia_marca.id')
       ->leftJoin('ap_vehicle_brand', 'ap_familia_marca.marca_id', '=', 'ap_vehicle_brand.id')
       ->leftJoin('config_sede', 'purchase_request_quote.sede_id', '=', 'config_sede.id')
-      ->whereYear('ap_vehicle_delivery.real_delivery_date', $year)
-      ->whereMonth('ap_vehicle_delivery.real_delivery_date', $month)
+      ->whereBetween('ap_vehicle_delivery.real_delivery_date', [$fechaInicio, $fechaFin])
       ->whereNotNull('ap_vehicle_delivery.real_delivery_date')
       ->whereNull('ap_vehicles.deleted_at')
       ->whereNull('ap_vehicle_delivery.deleted_at')
@@ -101,18 +107,17 @@ class ApDailyDeliveryReportService
         'ap_vehicle_brand.group_id as brand_group_id',
       ])
       ->get();
-//    dd($year, $month, $vehicles);
     return $vehicles;
   }
 
   /**
-   * Obtiene las compras (purchase orders) del mes
+   * Obtiene las compras (purchase orders) en el rango de fechas
    *
-   * @param int $year
-   * @param int $month
+   * @param string $fechaInicio
+   * @param string $fechaFin
    * @return Collection
    */
-  protected function getPurchaseOrders(int $year, int $month): Collection
+  protected function getPurchaseOrders(string $fechaInicio, string $fechaFin): Collection
   {
     $purchases = DB::table('ap_purchase_order')
       ->join('ap_vehicle_movement', 'ap_purchase_order.vehicle_movement_id', '=', 'ap_vehicle_movement.id')
@@ -121,8 +126,7 @@ class ApDailyDeliveryReportService
       ->join('ap_class_article', 'ap_models_vn.class_id', '=', 'ap_class_article.id')
       ->leftJoin('ap_familia_marca', 'ap_models_vn.family_id', '=', 'ap_familia_marca.id')
       ->leftJoin('ap_vehicle_brand', 'ap_familia_marca.marca_id', '=', 'ap_vehicle_brand.id')
-      ->whereYear('ap_purchase_order.emission_date', $year)
-      ->whereMonth('ap_purchase_order.emission_date', $month)
+      ->whereBetween('ap_purchase_order.emission_date', [$fechaInicio, $fechaFin])
       ->where('ap_purchase_order.status', true)
       ->whereNull('ap_purchase_order.deleted_at')
       ->select([
@@ -1022,9 +1026,11 @@ class ApDailyDeliveryReportService
    * @param int $month
    * @param Collection $vehicles
    * @param Collection $invoicedQuoteIds
+   * @param string $fechaInicio
+   * @param string $fechaFin
    * @return array
    */
-  protected function buildBrandReport(int $year, int $month, Collection $vehicles, Collection $invoicedQuoteIds): array
+  protected function buildBrandReport(int $year, int $month, Collection $vehicles, Collection $invoicedQuoteIds, string $fechaInicio, string $fechaFin): array
   {
     // Obtener IDs de tipos de clase
     $vehicleTypeId = ApCommercialMasters::ofType('CLASS_TYPE')
@@ -1035,8 +1041,8 @@ class ApDailyDeliveryReportService
       ->where('code', ApCommercialMasters::CLASS_TYPE_CAMION_CODE)
       ->value('id');
 
-    // Obtener compras del mes
-    $purchaseOrders = $this->getPurchaseOrders($year, $month);
+    // Obtener compras del rango de fechas
+    $purchaseOrders = $this->getPurchaseOrders($fechaInicio, $fechaFin);
 
     // Mapear compras a shops de sus sedes
     $sedeToShopMap = $this->getSedeToShopMap();
@@ -1411,6 +1417,169 @@ class ApDailyDeliveryReportService
     }
 
     return $map;
+  }
+
+  /**
+   * Construye el reporte de Avance por Sede
+   * Estructura: Sede > Marcas
+   * 3 Secciones de columnas:
+   * 1. Objetivo AP Entregas (Sell Out), Resultado Entrega, Cumplimiento (%)
+   * 2. Objetivos Reporte Inchcape (sell out), Reporte Dealer Portal, Cumplimiento (%)
+   * 3. Objetivos Compra Inchcape (Sell In), Avance de Compra, Cumplimiento (%)
+   *
+   * @param int $year
+   * @param int $month
+   * @param Collection $vehicles
+   * @param Collection $invoicedQuoteIds
+   * @param string $fechaInicio
+   * @param string $fechaFin
+   * @return array
+   */
+  protected function buildAvancePorSede(int $year, int $month, Collection $vehicles, Collection $invoicedQuoteIds, string $fechaInicio, string $fechaFin): array
+  {
+    // Obtener compras del período
+    $purchaseOrders = $this->getPurchaseOrders($fechaInicio, $fechaFin);
+
+    // Mapear compras a shops de sus sedes
+    $sedeToShopMap = $this->getSedeToShopMap();
+    $purchaseOrders = $purchaseOrders->map(function ($p) use ($sedeToShopMap) {
+      $p->shop_id = $sedeToShopMap[$p->sede_id] ?? null;
+      return $p;
+    });
+
+    // Mapear vehículos a shops a través de asignaciones de asesores
+    $advisorSedeAssignments = $this->getAdvisorSedeAssignments($year, $month);
+    $vehicles = $vehicles->map(function ($v) use ($advisorSedeAssignments) {
+      $v->advisor_sede_id = $advisorSedeAssignments[$v->advisor_id]['sede_id'] ?? null;
+      $v->advisor_sede_name = $advisorSedeAssignments[$v->advisor_id]['sede_name'] ?? 'Sin Sede';
+      return $v;
+    });
+
+    // Obtener todos los shops activos
+    $allShops = $this->getAllSedesFromAssignments($year, $month);
+
+    // Obtener objetivos sell out y sell in del período
+    $goalsOut = $this->getGoalsForPeriod($year, $month, 'OUT');
+    $goalsIn = $this->getGoalsForPeriod($year, $month, 'IN');
+
+    $report = [];
+
+    // Por cada shop
+    foreach ($allShops as $shopId => $shopName) {
+      $shopNode = [
+        'sede_id' => $shopId,
+        'sede_name' => $shopName,
+        'level' => 'sede',
+        'brands' => [],
+      ];
+
+      // Obtener marcas con objetivos en este shop
+      $brandsWithGoals = $this->getBrandsWithGoalsInShop($shopId, $goalsOut, $goalsIn);
+
+      // Por cada marca con objetivos
+      foreach ($brandsWithGoals as $brandId => $brandName) {
+        // Filtrar vehículos de esta sede y marca
+        $brandVehicles = $vehicles->filter(function ($v) use ($shopId, $brandId) {
+          return $v->advisor_sede_id == $shopId && $v->brand_id == $brandId;
+        });
+
+        // Filtrar compras de esta sede y marca
+        $brandPurchases = $purchaseOrders->filter(function ($p) use ($shopId, $brandId) {
+          return $p->shop_id == $shopId && $p->brand_id == $brandId;
+        });
+
+        // SECCIÓN 1: Sell Out (Entregas)
+        $objetivoApEntregas = $goalsOut->where('shop_id', $shopId)->where('brand_id', $brandId)->sum('goal');
+        $resultadoEntrega = $brandVehicles->count();
+        $cumplimientoEntrega = $objetivoApEntregas > 0 ? round(($resultadoEntrega / $objetivoApEntregas) * 100, 2) : 0;
+
+        // SECCIÓN 2: Reportes (Inchcape = sell out, Dealer Portal pendiente)
+        $objetivosReporteInchcape = $objetivoApEntregas; // Es el mismo sell out
+        $reporteDealerPortal = null; // Pendiente según requerimiento
+        $cumplimientoReporte = $objetivosReporteInchcape > 0 && $reporteDealerPortal !== null
+          ? round(($reporteDealerPortal / $objetivosReporteInchcape) * 100, 2)
+          : null;
+
+        // SECCIÓN 3: Sell In (Compras)
+        $objetivosCompraInchcape = $goalsIn->where('shop_id', $shopId)->where('brand_id', $brandId)->sum('goal');
+        $avanceCompra = $brandPurchases->count();
+        $cumplimientoCompra = $objetivosCompraInchcape > 0 ? round(($avanceCompra / $objetivosCompraInchcape) * 100, 2) : 0;
+
+        $shopNode['brands'][] = [
+          'brand_id' => $brandId,
+          'brand_name' => $brandName,
+          'level' => 'brand',
+
+          // Sección 1: Entregas (Sell Out)
+          'objetivo_ap_entregas' => $objetivoApEntregas,
+          'resultado_entrega' => $resultadoEntrega,
+          'cumplimiento_entrega' => $cumplimientoEntrega,
+
+          // Sección 2: Reportes
+          'objetivos_reporte_inchcape' => $objetivosReporteInchcape,
+          'reporte_dealer_portal' => $reporteDealerPortal,
+          'cumplimiento_reporte' => $cumplimientoReporte,
+
+          // Sección 3: Compras (Sell In)
+          'objetivos_compra_inchcape' => $objetivosCompraInchcape,
+          'avance_compra' => $avanceCompra,
+          'cumplimiento_compra' => $cumplimientoCompra,
+        ];
+      }
+
+      // Solo agregar sede si tiene marcas con objetivos
+      if (!empty($shopNode['brands'])) {
+        $report[] = $shopNode;
+      }
+    }
+
+    return $report;
+  }
+
+  /**
+   * Obtiene los objetivos (sell out o sell in) para un período
+   *
+   * @param int $year
+   * @param int $month
+   * @param string $type 'OUT' o 'IN'
+   * @return Collection
+   */
+  protected function getGoalsForPeriod(int $year, int $month, string $type): Collection
+  {
+    return DB::table('ap_goal_sell_out_in')
+      ->where('year', $year)
+      ->where('month', $month)
+      ->where('type', $type)
+      ->whereNull('deleted_at')
+      ->get();
+  }
+
+  /**
+   * Obtiene las marcas con objetivos (sell out o sell in) en un shop específico
+   *
+   * @param int $shopId
+   * @param Collection $goalsOut
+   * @param Collection $goalsIn
+   * @return array [brand_id => brand_name]
+   */
+  protected function getBrandsWithGoalsInShop(int $shopId, Collection $goalsOut, Collection $goalsIn): array
+  {
+    // Unir objetivos out e in para este shop
+    $allGoals = $goalsOut->where('shop_id', $shopId)
+      ->merge($goalsIn->where('shop_id', $shopId));
+
+    // Obtener IDs únicos de marcas
+    $brandIds = $allGoals->pluck('brand_id')->unique();
+
+    // Obtener nombres de marcas
+    $brands = DB::table('ap_vehicle_brand')
+      ->whereIn('id', $brandIds)
+      ->where('status', 1)
+      ->whereNull('deleted_at')
+      ->pluck('name', 'id')
+      ->toArray();
+
+    return $brands;
   }
 
 }

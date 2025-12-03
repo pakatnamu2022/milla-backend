@@ -14,6 +14,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use App\Exports\AvancePorSedeSheet;
 
 class DailyDeliveryReportExport implements WithMultipleSheets
 {
@@ -31,6 +32,7 @@ class DailyDeliveryReportExport implements WithMultipleSheets
       new DailyDeliveryReportAdvisorsSheet($this->reportData),
       new DailyDeliveryReportHierarchySheet($this->reportData),
       new DailyDeliveryReportBrandsSheet($this->reportData),
+      new AvancePorSedeSheet($this->reportData),
     ];
   }
 }
@@ -81,7 +83,7 @@ class DailyDeliveryReportSummarySheet implements FromCollection, WithHeadings, W
   {
     return [
       ['REPORTE DIARIO DE ENTREGAS Y FACTURACIÓN'],
-      ['Fecha: ' . $this->reportData['date'] . ' - Período: ' . $this->reportData['period']['month'] . '/' . $this->reportData['period']['year']],
+      ['Período: ' . $this->reportData['fecha_inicio'] . ' al ' . $this->reportData['fecha_fin']],
       [],
       ['Categoría', 'Entregas', 'Facturación', 'Reportería Dealer Portal'],
     ];
@@ -185,7 +187,7 @@ class DailyDeliveryReportAdvisorsSheet implements FromCollection, WithHeadings, 
   {
     return [
       ['DESGLOSE POR ASESORES'],
-      ['Fecha: ' . $this->reportData['date']],
+      ['Período: ' . $this->reportData['fecha_inicio'] . ' al ' . $this->reportData['fecha_fin']],
       [],
       ['Asesor', 'Entregas', 'Facturación', 'Reportería Dealer Portal'],
     ];
@@ -295,7 +297,7 @@ class DailyDeliveryReportHierarchySheet implements FromCollection, WithHeadings,
   {
     return [
       ['JERARQUÍA ORGANIZACIONAL - GERENTE > JEFE > ASESOR'],
-      ['Fecha: ' . $this->reportData['date']],
+      ['Período: ' . $this->reportData['fecha_inicio'] . ' al ' . $this->reportData['fecha_fin']],
       [],
       ['Nombre', 'Nivel', 'Entregas', 'Facturación', 'Reportería Dealer Portal'],
     ];
@@ -543,7 +545,7 @@ class DailyDeliveryReportBrandsSheet implements FromCollection, WithHeadings, Wi
   {
     return [
       ['REPORTE POR MARCAS Y SEDES'],
-      ['Fecha: ' . $this->reportData['date']],
+      ['Período: ' . $this->reportData['fecha_inicio'] . ' al ' . $this->reportData['fecha_fin']],
       [],
       ['Descripción', 'Compras', 'Entregas', 'Facturación', 'Reportería Dealer Portal'],
     ];
