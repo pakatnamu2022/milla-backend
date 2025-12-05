@@ -4,13 +4,16 @@ namespace App\Http\Services\gp\gestionhumana\personal;
 
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Services\BaseService;
+use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class WorkerService extends BaseService
 {
@@ -321,5 +324,56 @@ class WorkerService extends BaseService
       DB::rollback();
       throw $e;
     }
+  }
+
+  /**
+   * @param Request $request
+   * @return JsonResponse
+   * @throws Exception
+   */
+  public function myConsultants(Request $request): JsonResponse
+  {
+    $TICS = 11;
+    $data = $request->all();
+    $user_id = auth()->user()->partner_id;
+    $worker = Worker::where('id', $user_id)->first();
+    if (!$worker) {
+      throw new \Exception("Trabajador no encontrado para el usuario autenticado");
+    }
+
+    $position = $worker ? $worker->position : null;
+    if (!$position) {
+      throw new \Exception("El trabajador autenticado no tiene una posición asignada");
+    }
+
+    $area = $position ? $position->area : null;
+    if (!$area) {
+      throw new \Exception("El trabajador autenticado no tiene un área asignada");
+    }
+
+    Log::info("Área del trabajador autenticado: " . $area->name);
+    Log::info("ID del área: " . $area->id);
+    Log::info("ID de TICS: " . $TICS);
+
+    if ($area && $area->id === $TICS) {
+      // Si el área es TICS, obtener todos los trabajadores con cargo en TICS
+      $assignmentsIds = ApAssignmentLeadership::where('month', $data['month'])
+        ->where('year', $data['year'])
+        ->pluck('worker_id');
+    } else {
+      // Si no es TICS, obtener solo los asignados al trabajador autenticado
+      $assignmentsIds = ApAssignmentLeadership::where('boss_id', $worker->id)
+        ->where('month', $data['month'])
+        ->where('year', $data['year'])
+        ->pluck('worker_id');
+    }
+
+    return $this->getFilteredResults(
+      Worker::whereIn('id', $assignmentsIds),
+      $request,
+      Worker::filters,
+      Person::sorts,
+      WorkerResource::class,
+    );
   }
 }
