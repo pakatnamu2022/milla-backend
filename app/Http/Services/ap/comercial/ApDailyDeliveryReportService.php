@@ -1495,10 +1495,10 @@ class ApDailyDeliveryReportService
 
         // SECCIÓN 2: Reportes (Inchcape = sell out, Dealer Portal pendiente)
         $objetivosReporteInchcape = $objetivoApEntregas; // Es el mismo sell out
-        $reporteDealerPortal = null; // Pendiente según requerimiento
-        $cumplimientoReporte = $objetivosReporteInchcape > 0 && $reporteDealerPortal !== null
+        $reporteDealerPortal = 0; // Pendiente según requerimiento
+        $cumplimientoReporte = $objetivosReporteInchcape > 0
           ? round(($reporteDealerPortal / $objetivosReporteInchcape) * 100, 2)
-          : null;
+          : 0;
 
         // SECCIÓN 3: Sell In (Compras)
         $objetivosCompraInchcape = $goalsIn->where('shop_id', $shopId)->where('brand_id', $brandId)->sum('goal');
