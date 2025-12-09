@@ -7,10 +7,12 @@ use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\gp\gestionhumana\personal\WorkerService;
 use App\Http\Utils\Constants;
 use App\Models\ap\comercial\DetailsApprovedAccessoriesQuote;
 use App\Models\ap\comercial\DiscountCoupons;
 use App\Models\ap\comercial\PurchaseRequestQuote;
+use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -18,6 +20,7 @@ use App\Models\ap\postventa\repuestos\ApprovedAccessories;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
@@ -25,15 +28,66 @@ use Throwable;
 
 class PurchaseRequestQuoteService extends BaseService implements BaseServiceInterface
 {
-  public function list(Request $request)
+  /**
+   * @throws Exception
+   */
+  public function list(Request $request): JsonResponse
   {
+    $workerService = new WorkerService();
+    $worker = $workerService->getAuthenticatedWorkerWithArea();
+    $purchaseRequestQuoteQuery = $this->getPurchaseRequestQuoteQuery($worker, $request);
+
     return $this->getFilteredResults(
-      PurchaseRequestQuote::class,
+      $purchaseRequestQuoteQuery,
       $request,
       PurchaseRequestQuote::filters,
       PurchaseRequestQuote::sorts,
       PurchaseRequestQuoteResource::class,
     );
+  }
+
+  /**
+   * Get purchase request quote query based on worker role and assignments
+   * @param mixed $worker
+   * @param Request $request
+   * @return string|\Illuminate\Database\Eloquent\Builder
+   * @throws Exception
+   */
+  private function getPurchaseRequestQuoteQuery($worker, Request $request)
+  {
+    // Si es del área de TICS, ver todo
+    if ($worker->position->area->id === Constants::TICS_AREA_ID) {
+      return PurchaseRequestQuote::class;
+    }
+
+    // Buscar si el trabajador es jefe (tiene consultores asignados en ApAssignmentLeadership)
+    $consultantIds = $this->getAllConsultantIds($worker->id);
+
+    // Si tiene consultores asignados, mostrar las quotes de esos consultores
+    if ($consultantIds->isNotEmpty()) {
+      return PurchaseRequestQuote::query()
+        ->whereHas('opportunity', function ($query) use ($consultantIds) {
+          $query->whereIn('worker_id', $consultantIds);
+        });
+    }
+
+    // Por defecto, mostrar solo las quotes del propio trabajador
+    return PurchaseRequestQuote::query()
+      ->whereHas('opportunity', function ($query) use ($worker) {
+        $query->where('worker_id', $worker->id);
+      });
+  }
+
+  /**
+   * Get all consultant IDs assigned to a boss across all months/years
+   * @param int $bossId
+   * @return \Illuminate\Support\Collection
+   */
+  private function getAllConsultantIds(int $bossId)
+  {
+    return ApAssignmentLeadership::where('boss_id', $bossId)
+      ->distinct()
+      ->pluck('worker_id');
   }
 
   public function find($id)
