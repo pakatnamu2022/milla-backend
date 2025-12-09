@@ -3,7 +3,6 @@
 namespace Database\Seeders\gp\viaticos;
 
 use App\Models\gp\gestionhumana\viaticos\PerDiemCategory;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class PerDiemCategoriesSeeder extends Seeder
@@ -15,14 +14,14 @@ class PerDiemCategoriesSeeder extends Seeder
   {
     $data = [
       [
-        'name' => 'Managers',
-        'description' => 'General Manager, Business Manager, Operations Manager, etc.',
+        'name' => 'Gerentes',
+        'description' => 'Gerente General, Gerente de Área, Jefe de Oficina, Jefe de Proyecto, etc.',
         'order' => 1,
         'active' => true,
       ],
       [
-        'name' => 'Other Employees',
-        'description' => 'Supervisors, Coordinators, Analysts, Assistants, Technicians, etc.',
+        'name' => 'Colaboradores',
+        'description' => 'Empleados, Asistentes, Técnicos, etc.',
         'order' => 2,
         'active' => true,
       ],
