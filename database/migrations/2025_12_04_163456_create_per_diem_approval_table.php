@@ -21,11 +21,12 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('per_diem_approval', function (Blueprint $table) {
+    Schema::create('gh_per_diem_approval', function (Blueprint $table) {
       $table->id();
-      $table->foreignId('per_diem_request_id')->comment('Reference to the per diem request')->constrained('per_diem_request')->cascadeOnDelete();
-      $table->foreignId('approver_id')->comment('Reference to the approver user')->constrained('users');
-      $table->string('approver_type')->comment('Type of approver, e.g., direct_manager, hr_partner, general_management');
+      $table->foreignId('per_diem_request_id')->comment('Reference to the per diem request')->constrained('gh_per_diem_request')->cascadeOnDelete();
+      $table->integer('approver_id')->comment('Reference to the approver');
+      $table->foreign('approver_id')->references('id')->on('rrhh_persona')->cascadeOnDelete();
+      $table->integer('approver_type')->comment('Type of approver, e.g.,0 - direct_manager, 1 - hr_partner, 2 - general_management');
       $table->string('status')->index()->comment('Approval status, e.g., pending, approved, rejected');
       $table->text('comments')->nullable()->comment('Comments from the approver');
       $table->timestamp('approved_at')->nullable()->comment('Timestamp when the approval was made');
@@ -39,6 +40,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('per_diem_approval');
+    Schema::dropIfExists('gh_per_diem_approval');
   }
 };

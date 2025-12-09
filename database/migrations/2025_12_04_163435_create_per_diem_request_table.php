@@ -42,10 +42,10 @@ return new class extends Migration {
       $table->id();
       $table->string('code')->comment('e.g., PDR-2024-0001, auto-generated unique code for the per diem request');
       $table->integer('employee_id')->comment('Reference to the employee requesting the per diem');
-      $table->foreign('employee_id')->references('id')->on('usr_users')->onDelete('cascade');
-      $table->foreignId('company_id')->comment('Reference to the company')->constrained('companies')->onDelete('cascade');
+      $table->foreign('employee_id')->references('id')->on('rrhh_persona')->cascadeOnDelete();
+      $table->foreignId('company_id')->comment('Reference to the company')->constrained('companies')->cascadeOnDelete();
       $table->string('destination')->comment('Destination for the per diem request');
-      $table->foreignId('per_diem_category_id')->comment('Reference to the per diem category')->constrained('gh_per_diem_category')->onDelete('cascade');
+      $table->foreignId('per_diem_category_id')->comment('Reference to the per diem category')->constrained('gh_per_diem_category')->cascadeOnDelete();
       $table->date('start_date')->comment('Start date of the per diem period');
       $table->date('end_date')->comment('End date of the per diem period');
       $table->integer('days_count')->comment('Number of days for the per diem');

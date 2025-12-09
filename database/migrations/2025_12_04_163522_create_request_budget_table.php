@@ -20,10 +20,10 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('request_budget', function (Blueprint $table) {
+    Schema::create('gh_request_budget', function (Blueprint $table) {
       $table->id();
-      $table->foreignId('per_diem_request_id')->comment('Reference to the per diem request')->constrained('per_diem_requests')->cascadeOnDelete();
-      $table->foreignId('expense_type_id')->comment('Reference to the expense type')->constrained('expense_types');
+      $table->foreignId('per_diem_request_id')->comment('Reference to the per diem request')->constrained('gh_per_diem_requests')->cascadeOnDelete();
+      $table->foreignId('expense_type_id')->comment('Reference to the expense type')->constrained('gh_expense_types');
       $table->decimal('daily_amount')->comment('Daily amount allocated for this expense type');
       $table->integer('days')->comment('Number of days for this expense type');
       $table->decimal('total')->comment('Total amount for this expense type (daily_amount * days)');
@@ -37,6 +37,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('request_budget');
+    Schema::dropIfExists('gh_request_budget');
   }
 };

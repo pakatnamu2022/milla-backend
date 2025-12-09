@@ -28,22 +28,23 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('hotel_reservation', function (Blueprint $table) {
+    Schema::create('gh_hotel_reservation', function (Blueprint $table) {
       $table->id();
-      $table->foreignId('per_diem_request_id')->comment('Reference to the per diem request')->constrained('per_diem_requests')->cascadeOnDelete();
-      $table->foreignId('hotel_agreement_id')->comment('Reference to the hotel agreement, if applicable')->nullable()->constrained('hotel_agreements')->nullOnDelete();
+      $table->foreignId('per_diem_request_id')->comment('Reference to the per diem request')->constrained('gh_per_diem_requests')->cascadeOnDelete();
+      $table->foreignId('hotel_agreement_id')->comment('Reference to the hotel agreement, if applicable')->nullable()->constrained('gh_hotel_agreements')->nullOnDelete();
       $table->string('hotel_name')->comment('Name of the hotel where the reservation is made');
       $table->string('address')->comment('Address of the hotel');
       $table->string('phone')->nullable()->comment('Contact phone number of the hotel');
       $table->date('checkin_date')->comment('Check-in date for the hotel reservation');
       $table->date('checkout_date')->comment('Check-out date for the hotel reservation');
       $table->integer('nights_count')->comment('Number of nights for the hotel stay');
-      $table->decimal('total_cost', 10, 2)->comment('Total cost of the hotel reservation');
+      $table->decimal('total_cost', 10)->comment('Total cost of the hotel reservation');
       $table->string('receipt_path')->nullable()->comment('Path to the receipt or invoice for the hotel reservation');
       $table->text('notes')->nullable()->comment('Additional notes regarding the hotel reservation');
       $table->boolean('attended')->nullable()->comment('Indicates if the employee attended the reservation');
-      $table->decimal('penalty', 10, 2)->default(0)->comment('Penalty amount if applicable');
+      $table->decimal('penalty', 10)->default(0)->comment('Penalty amount if applicable');
       $table->timestamps();
+      $table->softDeletes();
     });
   }
 
@@ -52,6 +53,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('hotel_reservation');
+    Schema::dropIfExists('gh_hotel_reservation');
   }
 };

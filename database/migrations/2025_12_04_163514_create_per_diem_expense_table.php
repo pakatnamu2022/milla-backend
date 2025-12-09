@@ -28,23 +28,25 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::create('per_diem_expense', function (Blueprint $table) {
+    Schema::create('gh_per_diem_expense', function (Blueprint $table) {
       $table->id();
-      $table->foreignId('per_diem_request_id')->index()->comment('Reference to the per diem request')->constrained('per_diem_requests')->cascadeOnDelete();
-      $table->foreignId('expense_type_id')->comment('Reference to the expense type')->constrained('expense_types');
+      $table->foreignId('per_diem_request_id')->index()->comment('Reference to the per diem request')->constrained('gh_per_diem_requests')->cascadeOnDelete();
+      $table->foreignId('expense_type_id')->comment('Reference to the expense type')->constrained('gh_expense_types');
       $table->date('expense_date')->index()->comment('Date of the expense incurred');
       $table->string('concept')->comment('Concept or description of the expense');
-      $table->decimal('receipt_amount', 8, 2)->comment('Amount as per the receipt');
-      $table->decimal('company_amount', 8, 2)->comment('Amount covered by the company');
-      $table->decimal('employee_amount', 8, 2)->comment('Amount to be covered by the employee');
+      $table->decimal('receipt_amount')->comment('Amount as per the receipt');
+      $table->decimal('company_amount')->comment('Amount covered by the company');
+      $table->decimal('employee_amount')->comment('Amount to be covered by the employee');
       $table->string('receipt_type')->comment('Type of receipt, e.g., invoice, ticket, no_receipt');
       $table->string('receipt_number')->nullable()->comment('Receipt number, if applicable');
       $table->string('receipt_path')->nullable()->comment('Path to the receipt document');
       $table->text('notes')->nullable()->comment('Additional notes regarding the expense');
       $table->boolean('validated')->default(false)->comment('Indicates if the expense has been validated');
-      $table->foreignId('validated_by')->comment('Reference to the user who validated the expense')->nullable()->constrained('users');
+      $table->integer('validated_by')->comment('Reference to the user who validated the expense')->nullable();
+      $table->foreign('validated_by')->references('id')->on('rrhh_persona')->cascadeOnDelete();
       $table->timestamp('validated_at')->nullable()->comment('Timestamp when the expense was validated');
       $table->timestamps();
+      $table->softDeletes();
     });
   }
 
@@ -53,6 +55,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::dropIfExists('per_diem_expense');
+    Schema::dropIfExists('gh_per_diem_expense');
   }
 };
