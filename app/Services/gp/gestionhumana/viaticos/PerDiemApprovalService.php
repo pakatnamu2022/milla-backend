@@ -16,9 +16,7 @@ class PerDiemApprovalService
      */
     public function approve(int $requestId, int $approverId, ?string $comments = null): PerDiemApproval
     {
-        try {
-            DB::beginTransaction();
-
+        return DB::transaction(function () use ($requestId, $approverId, $comments) {
             $request = PerDiemRequest::findOrFail($requestId);
 
             // Find pending approval for this approver
@@ -37,13 +35,8 @@ class PerDiemApprovalService
             // Update request status based on approval flow
             $this->updateRequestStatus($request);
 
-            DB::commit();
-
             return $approval->fresh(['approver', 'request']);
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -51,9 +44,7 @@ class PerDiemApprovalService
      */
     public function reject(int $requestId, int $approverId, ?string $comments = null): PerDiemApproval
     {
-        try {
-            DB::beginTransaction();
-
+        return DB::transaction(function () use ($requestId, $approverId, $comments) {
             $request = PerDiemRequest::findOrFail($requestId);
 
             // Find pending approval for this approver
@@ -78,13 +69,8 @@ class PerDiemApprovalService
                 ->where('id', '!=', $approval->id)
                 ->update(['status' => 'cancelled']);
 
-            DB::commit();
-
             return $approval->fresh(['approver', 'request']);
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**

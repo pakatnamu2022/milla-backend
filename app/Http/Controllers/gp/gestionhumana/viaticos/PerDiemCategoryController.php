@@ -3,64 +3,41 @@
 namespace App\Http\Controllers\gp\gestionhumana\viaticos;
 
 use App\Http\Controllers\Controller;
-use App\Models\gp\gestionhumana\viaticos\PerDiemCategory;
+use App\Http\Requests\gp\gestionhumana\viaticos\IndexPerDiemCategoryRequest;
+use App\Http\Services\gp\gestionhumana\viaticos\PerDiemCategoryService;
 use Illuminate\Http\Request;
+use Throwable;
 
 class PerDiemCategoryController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+  protected PerDiemCategoryService $service;
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+  public function __construct(PerDiemCategoryService $service)
+  {
+    $this->service = $service;
+  }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
+  /**
+   * Display a listing of all categories
+   */
+  public function index(IndexPerDiemCategoryRequest $request)
+  {
+    try {
+      return $this->service->index($request);
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
     }
+  }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(PerDiemCategory $perDiemCategory)
-    {
-        //
+  /**
+   * Display active categories only
+   */
+  public function active(Request $request)
+  {
+    try {
+      return $this->service->active($request);
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
     }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(PerDiemCategory $perDiemCategory)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, PerDiemCategory $perDiemCategory)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PerDiemCategory $perDiemCategory)
-    {
-        //
-    }
+  }
 }

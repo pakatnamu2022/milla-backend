@@ -75,4 +75,53 @@ class StorePerDiemRequestRequest extends FormRequest
             'budgets.*.total.min' => 'El total debe ser mayor o igual a 0.',
         ];
     }
+
+    /**
+     * Get the validated data with additional computed fields
+     */
+    public function validated($key = null, $default = null)
+    {
+        $data = parent::validated($key, $default);
+
+        // Generate unique code
+        $year = date('Y');
+        $prefix = "PDR-{$year}-";
+
+        $lastRequest = \App\Models\gp\gestionhumana\viaticos\PerDiemRequest::where('code', 'like', $prefix . '%')
+            ->orderBy('code', 'desc')
+            ->first();
+
+        if ($lastRequest) {
+            $lastNumber = (int) substr($lastRequest->code, -4);
+            $newNumber = $lastNumber + 1;
+        } else {
+            $newNumber = 1;
+        }
+
+        $data['code'] = $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
+
+        // Set default status and values
+        $data['status'] = 'draft';
+        $data['paid'] = false;
+        $data['settled'] = false;
+        $data['total_spent'] = 0;
+        $data['balance_to_return'] = 0;
+
+        // Get current policy
+        $currentPolicy = \App\Models\gp\gestionhumana\viaticos\PerDiemPolicy::current()->first();
+        if ($currentPolicy) {
+            $data['per_diem_policy_id'] = $currentPolicy->id;
+        }
+
+        // Calculate total budget from budgets array
+        $totalBudget = 0;
+        if (isset($data['budgets']) && is_array($data['budgets'])) {
+            foreach ($data['budgets'] as $budget) {
+                $totalBudget += $budget['total'];
+            }
+        }
+        $data['total_budget'] = $totalBudget;
+
+        return $data;
+    }
 }

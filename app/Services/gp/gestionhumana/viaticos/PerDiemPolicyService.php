@@ -35,19 +35,8 @@ class PerDiemPolicyService
      */
     public function create(array $data): PerDiemPolicy
     {
-        $policy = PerDiemPolicy::create([
-            'version' => $data['version'],
-            'name' => $data['name'],
-            'description' => $data['description'] ?? null,
-            'start_date' => $data['start_date'],
-            'end_date' => $data['end_date'] ?? null,
-            'is_current' => $data['is_current'] ?? false,
-        ]);
-
-        // If this policy is set as current, deactivate others
-        if ($policy->is_current) {
-            $this->activate($policy->id);
-        }
+        // Create policy
+        $policy = PerDiemPolicy::create($data);
 
         return $policy->fresh();
     }
@@ -59,58 +48,34 @@ class PerDiemPolicyService
     {
         $policy = PerDiemPolicy::findOrFail($id);
 
-        $policy->update([
-            'version' => $data['version'] ?? $policy->version,
-            'name' => $data['name'] ?? $policy->name,
-            'description' => $data['description'] ?? $policy->description,
-            'start_date' => $data['start_date'] ?? $policy->start_date,
-            'end_date' => $data['end_date'] ?? $policy->end_date,
-        ]);
-
-        // If is_current is being updated to true, activate this policy
-        if (isset($data['is_current']) && $data['is_current'] === true) {
-            $this->activate($policy->id);
-        }
+        // Update policy
+        $policy->update($data);
 
         return $policy->fresh();
     }
 
     /**
-     * Activate policy and deactivate others
+     * Activate policy (uses model method)
      */
     public function activate(int $id): PerDiemPolicy
     {
-        try {
-            DB::beginTransaction();
+        $policy = PerDiemPolicy::findOrFail($id);
 
-            // Deactivate all other policies
-            PerDiemPolicy::where('id', '!=', $id)
-                ->update(['is_current' => false]);
+        // Use model method for activation
+        $policy->activate();
 
-            // Activate this policy
-            $policy = PerDiemPolicy::findOrFail($id);
-            $policy->update(['is_current' => true]);
-
-            DB::commit();
-
-            return $policy->fresh();
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        return $policy->fresh();
     }
 
     /**
-     * Close policy with end date
+     * Close policy (uses model method)
      */
     public function close(int $id, ?string $endDate = null): PerDiemPolicy
     {
         $policy = PerDiemPolicy::findOrFail($id);
 
-        $policy->update([
-            'end_date' => $endDate ?? now()->toDateString(),
-            'is_current' => false,
-        ]);
+        // Use model method for closing
+        $policy->close($endDate ?? now()->toDateString());
 
         return $policy->fresh();
     }

@@ -55,4 +55,19 @@ class StorePerDiemExpenseRequest extends FormRequest
             'receipt_number.required_if' => 'El número de comprobante es requerido cuando el tipo es factura o boleta.',
         ];
     }
+
+    /**
+     * Get the validated data with additional computed fields
+     */
+    public function validated($key = null, $default = null)
+    {
+        $data = parent::validated($key, $default);
+
+        // Set default validation fields
+        $data['validated'] = false;
+        $data['validated_by'] = null;
+        $data['validated_at'] = null;
+
+        return $data;
+    }
 }

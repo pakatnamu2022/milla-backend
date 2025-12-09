@@ -51,4 +51,22 @@ class StoreHotelReservationRequest extends FormRequest
             'total_cost.min' => 'El costo total debe ser mayor o igual a 0.',
         ];
     }
+
+    /**
+     * Get the validated data with additional computed fields
+     */
+    public function validated($key = null, $default = null)
+    {
+        $data = parent::validated($key, $default);
+
+        // Calculate nights count from checkin and checkout dates
+        if (isset($data['checkin_date']) && isset($data['checkout_date'])) {
+            $checkinDate = new \DateTime($data['checkin_date']);
+            $checkoutDate = new \DateTime($data['checkout_date']);
+            $interval = $checkinDate->diff($checkoutDate);
+            $data['nights_count'] = $interval->days;
+        }
+
+        return $data;
+    }
 }

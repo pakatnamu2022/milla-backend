@@ -72,57 +72,23 @@ class PerDiemRequestService
      */
     public function create(array $data): PerDiemRequest
     {
-        try {
-            DB::beginTransaction();
-
-            // Generate unique code
-            $code = $this->generateCode();
+        return DB::transaction(function () use ($data) {
+            // Extract budgets from data
+            $budgets = $data['budgets'] ?? [];
+            unset($data['budgets']);
 
             // Create request
-            $request = PerDiemRequest::create([
-                'code' => $code,
-                'employee_id' => $data['employee_id'],
-                'company_id' => $data['company_id'],
-                'destination' => $data['destination'],
-                'per_diem_category_id' => $data['per_diem_category_id'],
-                'start_date' => $data['start_date'],
-                'end_date' => $data['end_date'],
-                'days_count' => $data['days_count'],
-                'purpose' => $data['purpose'],
-                'final_result' => $data['final_result'] ?? '',
-                'cost_center' => $data['cost_center'] ?? null,
-                'status' => 'draft',
-                'total_budget' => 0,
-                'cash_amount' => $data['cash_amount'] ?? 0,
-                'transfer_amount' => $data['transfer_amount'] ?? 0,
-                'notes' => $data['notes'] ?? null,
-            ]);
+            $request = PerDiemRequest::create($data);
 
             // Create budgets
-            $totalBudget = 0;
-            if (isset($data['budgets']) && is_array($data['budgets'])) {
-                foreach ($data['budgets'] as $budget) {
-                    RequestBudget::create([
-                        'per_diem_request_id' => $request->id,
-                        'expense_type_id' => $budget['expense_type_id'],
-                        'daily_amount' => $budget['daily_amount'],
-                        'days' => $budget['days'],
-                        'total' => $budget['total'],
-                    ]);
-                    $totalBudget += $budget['total'];
-                }
+            foreach ($budgets as $budget) {
+                RequestBudget::create(array_merge($budget, [
+                    'per_diem_request_id' => $request->id
+                ]));
             }
 
-            // Update total budget
-            $request->update(['total_budget' => $totalBudget]);
-
-            DB::commit();
-
-            return $request->fresh(['budgets.expenseType', 'employee', 'company']);
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+            return $request->fresh(['budgets.expenseType', 'employee', 'company', 'category', 'policy']);
+        });
     }
 
     /**
@@ -132,59 +98,34 @@ class PerDiemRequestService
     {
         $request = PerDiemRequest::findOrFail($id);
 
+        // Business validation: only draft requests can be modified
         if ($request->status !== 'draft') {
-            throw new Exception('Cannot update request. Only draft requests can be modified.');
+            throw new Exception('No se puede actualizar la solicitud. Solo las solicitudes en borrador pueden ser modificadas.');
         }
 
-        try {
-            DB::beginTransaction();
+        return DB::transaction(function () use ($request, $data) {
+            // Extract budgets if provided
+            $budgets = $data['budgets'] ?? null;
+            unset($data['budgets']);
 
             // Update request
-            $request->update([
-                'employee_id' => $data['employee_id'] ?? $request->employee_id,
-                'company_id' => $data['company_id'] ?? $request->company_id,
-                'destination' => $data['destination'] ?? $request->destination,
-                'per_diem_category_id' => $data['per_diem_category_id'] ?? $request->per_diem_category_id,
-                'start_date' => $data['start_date'] ?? $request->start_date,
-                'end_date' => $data['end_date'] ?? $request->end_date,
-                'days_count' => $data['days_count'] ?? $request->days_count,
-                'purpose' => $data['purpose'] ?? $request->purpose,
-                'final_result' => $data['final_result'] ?? $request->final_result,
-                'cost_center' => $data['cost_center'] ?? $request->cost_center,
-                'cash_amount' => $data['cash_amount'] ?? $request->cash_amount,
-                'transfer_amount' => $data['transfer_amount'] ?? $request->transfer_amount,
-                'notes' => $data['notes'] ?? $request->notes,
-            ]);
+            $request->update($data);
 
             // Update budgets if provided
-            if (isset($data['budgets']) && is_array($data['budgets'])) {
+            if ($budgets !== null && is_array($budgets)) {
                 // Delete existing budgets
                 $request->budgets()->delete();
 
                 // Create new budgets
-                $totalBudget = 0;
-                foreach ($data['budgets'] as $budget) {
-                    RequestBudget::create([
-                        'per_diem_request_id' => $request->id,
-                        'expense_type_id' => $budget['expense_type_id'],
-                        'daily_amount' => $budget['daily_amount'],
-                        'days' => $budget['days'],
-                        'total' => $budget['total'],
-                    ]);
-                    $totalBudget += $budget['total'];
+                foreach ($budgets as $budget) {
+                    RequestBudget::create(array_merge($budget, [
+                        'per_diem_request_id' => $request->id
+                    ]));
                 }
-
-                // Update total budget
-                $request->update(['total_budget' => $totalBudget]);
             }
 
-            DB::commit();
-
-            return $request->fresh(['budgets.expenseType', 'employee', 'company']);
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+            return $request->fresh(['budgets.expenseType', 'employee', 'company', 'category', 'policy']);
+        });
     }
 
     /**
@@ -194,8 +135,9 @@ class PerDiemRequestService
     {
         $request = PerDiemRequest::findOrFail($id);
 
+        // Business validation: only draft requests can be deleted
         if ($request->status !== 'draft') {
-            throw new Exception('Cannot delete request. Only draft requests can be deleted.');
+            throw new Exception('No se puede eliminar la solicitud. Solo las solicitudes en borrador pueden ser eliminadas.');
         }
 
         return $request->delete();
@@ -208,8 +150,9 @@ class PerDiemRequestService
     {
         $request = PerDiemRequest::findOrFail($id);
 
+        // Business validation: only draft requests can be submitted
         if ($request->status !== 'draft') {
-            throw new Exception('Cannot submit request. Only draft requests can be submitted.');
+            throw new Exception('No se puede enviar la solicitud. Solo las solicitudes en borrador pueden ser enviadas.');
         }
 
         $request->update(['status' => 'pending_manager']);
@@ -220,20 +163,16 @@ class PerDiemRequestService
     /**
      * Mark request as paid
      */
-    public function markAsPaid(int $id, array $paymentData): PerDiemRequest
+    public function markAsPaid(int $id, array $data): PerDiemRequest
     {
         $request = PerDiemRequest::findOrFail($id);
 
+        // Business validation: only approved requests can be marked as paid
         if ($request->status !== 'approved') {
-            throw new Exception('Cannot mark as paid. Request must be approved first.');
+            throw new Exception('No se puede marcar como pagado. La solicitud debe estar aprobada primero.');
         }
 
-        $request->update([
-            'paid' => true,
-            'payment_date' => $paymentData['payment_date'] ?? now(),
-            'payment_method' => $paymentData['payment_method'] ?? 'transfer',
-            'status' => 'in_progress',
-        ]);
+        $request->update($data);
 
         return $request->fresh();
     }
@@ -241,15 +180,16 @@ class PerDiemRequestService
     /**
      * Start settlement process
      */
-    public function startSettlement(int $id): PerDiemRequest
+    public function startSettlement(int $id, array $data): PerDiemRequest
     {
         $request = PerDiemRequest::findOrFail($id);
 
+        // Business validation: only in_progress or approved requests can start settlement
         if (!in_array($request->status, ['in_progress', 'approved'])) {
-            throw new Exception('Cannot start settlement. Request must be in progress or approved.');
+            throw new Exception('No se puede iniciar la liquidación. La solicitud debe estar en progreso o aprobada.');
         }
 
-        $request->update(['status' => 'pending_settlement']);
+        $request->update($data);
 
         return $request->fresh();
     }
@@ -257,21 +197,16 @@ class PerDiemRequestService
     /**
      * Complete settlement
      */
-    public function completeSettlement(int $id, array $settlementData): PerDiemRequest
+    public function completeSettlement(int $id, array $data): PerDiemRequest
     {
         $request = PerDiemRequest::findOrFail($id);
 
+        // Business validation: only pending_settlement requests can be completed
         if ($request->status !== 'pending_settlement') {
-            throw new Exception('Cannot complete settlement. Request must be in pending settlement status.');
+            throw new Exception('No se puede completar la liquidación. La solicitud debe estar pendiente de liquidación.');
         }
 
-        $request->update([
-            'settled' => true,
-            'settlement_date' => $settlementData['settlement_date'] ?? now(),
-            'total_spent' => $settlementData['total_spent'] ?? 0,
-            'balance_to_return' => $settlementData['balance_to_return'] ?? 0,
-            'status' => 'settled',
-        ]);
+        $request->update($data);
 
         return $request->fresh();
     }
@@ -301,27 +236,5 @@ class PerDiemRequestService
             ->where('active', true)
             ->with(['expenseType', 'policy'])
             ->get();
-    }
-
-    /**
-     * Generate unique code for per diem request
-     */
-    protected function generateCode(): string
-    {
-        $year = date('Y');
-        $prefix = "PDR-{$year}-";
-
-        $lastRequest = PerDiemRequest::where('code', 'like', $prefix . '%')
-            ->orderBy('code', 'desc')
-            ->first();
-
-        if ($lastRequest) {
-            $lastNumber = (int) substr($lastRequest->code, -4);
-            $newNumber = $lastNumber + 1;
-        } else {
-            $newNumber = 1;
-        }
-
-        return $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
     }
 }

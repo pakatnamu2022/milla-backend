@@ -3,64 +3,52 @@
 namespace App\Http\Controllers\gp\gestionhumana\viaticos;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\gp\gestionhumana\viaticos\IndexHotelAgreementRequest;
+use App\Http\Resources\gp\gestionhumana\viaticos\HotelAgreementResource;
 use App\Models\gp\gestionhumana\viaticos\HotelAgreement;
-use Illuminate\Http\Request;
 
 class HotelAgreementController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of all hotel agreements
      */
-    public function index()
+    public function index(IndexHotelAgreementRequest $request)
     {
-        //
+        try {
+            $agreements = HotelAgreement::with('district')->orderBy('hotel_name')->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => HotelAgreementResource::collection($agreements)
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Display active hotel agreements only
      */
-    public function create()
+    public function active()
     {
-        //
-    }
+        try {
+            $agreements = HotelAgreement::where('active', true)
+                ->with('district')
+                ->orderBy('hotel_name')
+                ->get();
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(HotelAgreement $hotelAgreement)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(HotelAgreement $hotelAgreement)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, HotelAgreement $hotelAgreement)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(HotelAgreement $hotelAgreement)
-    {
-        //
+            return response()->json([
+                'success' => true,
+                'data' => HotelAgreementResource::collection($agreements)
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 }

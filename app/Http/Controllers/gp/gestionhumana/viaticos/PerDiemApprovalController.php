@@ -3,64 +3,86 @@
 namespace App\Http\Controllers\gp\gestionhumana\viaticos;
 
 use App\Http\Controllers\Controller;
-use App\Models\gp\gestionhumana\viaticos\PerDiemApproval;
+use App\Http\Requests\gp\gestionhumana\viaticos\ApprovePerDiemRequestRequest;
+use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemApprovalResource;
+use App\Services\gp\gestionhumana\viaticos\PerDiemApprovalService;
 use Illuminate\Http\Request;
 
 class PerDiemApprovalController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    protected $service;
+
+    public function __construct(PerDiemApprovalService $service)
     {
-        //
+        $this->service = $service;
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Get pending approvals for current user
      */
-    public function create()
+    public function pending()
     {
-        //
+        try {
+            $approverId = auth()->id();
+            $approvals = $this->service->getPendingApprovals($approverId);
+
+            return response()->json([
+                'success' => true,
+                'data' => PerDiemApprovalResource::collection($approvals)
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Approve a per diem request
      */
-    public function store(Request $request)
+    public function approve(ApprovePerDiemRequestRequest $request, int $id)
     {
-        //
+        try {
+            $approverId = auth()->id();
+            $comments = $request->input('comments');
+
+            $approval = $this->service->approve($id, $approverId, $comments);
+
+            return response()->json([
+                'success' => true,
+                'data' => new PerDiemApprovalResource($approval),
+                'message' => 'Solicitud aprobada exitosamente'
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 
     /**
-     * Display the specified resource.
+     * Reject a per diem request
      */
-    public function show(PerDiemApproval $perDiemApproval)
+    public function reject(Request $request, int $id)
     {
-        //
-    }
+        try {
+            $approverId = auth()->id();
+            $comments = $request->input('comments');
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(PerDiemApproval $perDiemApproval)
-    {
-        //
-    }
+            $approval = $this->service->reject($id, $approverId, $comments);
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, PerDiemApproval $perDiemApproval)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PerDiemApproval $perDiemApproval)
-    {
-        //
+            return response()->json([
+                'success' => true,
+                'data' => new PerDiemApprovalResource($approval),
+                'message' => 'Solicitud rechazada exitosamente'
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 }

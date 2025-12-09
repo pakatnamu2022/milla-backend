@@ -10,6 +10,8 @@ class PerDiemCategory extends BaseModel
 {
   use SoftDeletes;
 
+  protected $table = 'gh_per_diem_category';
+
   protected $fillable = [
     'name',
     'description',
@@ -19,6 +21,17 @@ class PerDiemCategory extends BaseModel
 
   protected $casts = [
     'active' => 'boolean',
+  ];
+
+  const filters = [
+    'search' => ['name', 'description'],
+    'active' => '=',
+  ];
+
+  const sorts = [
+    'name',
+    'order',
+    'active',
   ];
 
   /**

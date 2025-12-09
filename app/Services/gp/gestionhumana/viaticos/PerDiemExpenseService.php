@@ -17,24 +17,16 @@ class PerDiemExpenseService
     {
         $request = PerDiemRequest::findOrFail($requestId);
 
-        // Validate that request allows expenses
+        // Business validation: validate that request allows expenses
         if (!in_array($request->status, ['in_progress', 'pending_settlement', 'settled'])) {
-            throw new Exception('Cannot add expenses. Request must be in progress, pending settlement, or settled.');
+            throw new Exception('No se pueden agregar gastos. La solicitud debe estar en progreso, pendiente de liquidación o liquidada.');
         }
 
-        $expense = PerDiemExpense::create([
-            'per_diem_request_id' => $requestId,
-            'expense_type_id' => $data['expense_type_id'],
-            'expense_date' => $data['expense_date'],
-            'concept' => $data['concept'],
-            'receipt_amount' => $data['receipt_amount'],
-            'company_amount' => $data['company_amount'],
-            'employee_amount' => $data['employee_amount'],
-            'receipt_type' => $data['receipt_type'],
-            'receipt_number' => $data['receipt_number'] ?? null,
-            'receipt_path' => $data['receipt_path'] ?? null,
-            'notes' => $data['notes'] ?? null,
-        ]);
+        // Add request id to data
+        $data['per_diem_request_id'] = $requestId;
+
+        // Create expense
+        $expense = PerDiemExpense::create($data);
 
         // Update request total spent
         $this->updateRequestTotalSpent($requestId);
@@ -49,23 +41,13 @@ class PerDiemExpenseService
     {
         $expense = PerDiemExpense::findOrFail($expenseId);
 
-        // Validate that expense can be updated
+        // Business validation: only non-validated expenses can be updated
         if ($expense->validated) {
-            throw new Exception('Cannot update expense. Expense has already been validated.');
+            throw new Exception('No se puede actualizar el gasto. El gasto ya ha sido validado.');
         }
 
-        $expense->update([
-            'expense_type_id' => $data['expense_type_id'] ?? $expense->expense_type_id,
-            'expense_date' => $data['expense_date'] ?? $expense->expense_date,
-            'concept' => $data['concept'] ?? $expense->concept,
-            'receipt_amount' => $data['receipt_amount'] ?? $expense->receipt_amount,
-            'company_amount' => $data['company_amount'] ?? $expense->company_amount,
-            'employee_amount' => $data['employee_amount'] ?? $expense->employee_amount,
-            'receipt_type' => $data['receipt_type'] ?? $expense->receipt_type,
-            'receipt_number' => $data['receipt_number'] ?? $expense->receipt_number,
-            'receipt_path' => $data['receipt_path'] ?? $expense->receipt_path,
-            'notes' => $data['notes'] ?? $expense->notes,
-        ]);
+        // Update expense
+        $expense->update($data);
 
         // Update request total spent
         $this->updateRequestTotalSpent($expense->per_diem_request_id);
@@ -80,9 +62,9 @@ class PerDiemExpenseService
     {
         $expense = PerDiemExpense::findOrFail($expenseId);
 
-        // Validate that expense can be deleted
+        // Business validation: only non-validated expenses can be deleted
         if ($expense->validated) {
-            throw new Exception('Cannot delete expense. Expense has already been validated.');
+            throw new Exception('No se puede eliminar el gasto. El gasto ya ha sido validado.');
         }
 
         $requestId = $expense->per_diem_request_id;
@@ -99,19 +81,17 @@ class PerDiemExpenseService
     /**
      * Validate expense
      */
-    public function validate(int $expenseId, int $validatorId): PerDiemExpense
+    public function validate(int $expenseId, array $data): PerDiemExpense
     {
         $expense = PerDiemExpense::findOrFail($expenseId);
 
+        // Business validation: expense cannot be validated twice
         if ($expense->validated) {
-            throw new Exception('Expense has already been validated.');
+            throw new Exception('El gasto ya ha sido validado.');
         }
 
-        $expense->update([
-            'validated' => true,
-            'validated_by' => $validatorId,
-            'validated_at' => now(),
-        ]);
+        // Update expense
+        $expense->update($data);
 
         return $expense->fresh(['expenseType', 'validator']);
     }

@@ -16,29 +16,16 @@ class HotelReservationService
     {
         $request = PerDiemRequest::findOrFail($requestId);
 
-        // Check if request already has a reservation
+        // Business validation: check if request already has a reservation
         if ($request->hotelReservation()->exists()) {
-            throw new Exception('Request already has a hotel reservation.');
+            throw new Exception('La solicitud ya tiene una reserva de hotel.');
         }
 
-        // Calculate nights count
-        $checkinDate = Carbon::parse($data['checkin_date']);
-        $checkoutDate = Carbon::parse($data['checkout_date']);
-        $nightsCount = $checkinDate->diffInDays($checkoutDate);
+        // Add request id to data
+        $data['per_diem_request_id'] = $requestId;
 
-        $reservation = HotelReservation::create([
-            'per_diem_request_id' => $requestId,
-            'hotel_agreement_id' => $data['hotel_agreement_id'] ?? null,
-            'hotel_name' => $data['hotel_name'],
-            'address' => $data['address'],
-            'phone' => $data['phone'] ?? null,
-            'checkin_date' => $data['checkin_date'],
-            'checkout_date' => $data['checkout_date'],
-            'nights_count' => $nightsCount,
-            'total_cost' => $data['total_cost'],
-            'receipt_path' => $data['receipt_path'] ?? null,
-            'notes' => $data['notes'] ?? null,
-        ]);
+        // Create reservation
+        $reservation = HotelReservation::create($data);
 
         return $reservation->fresh(['hotelAgreement', 'request']);
     }
@@ -50,26 +37,8 @@ class HotelReservationService
     {
         $reservation = HotelReservation::findOrFail($reservationId);
 
-        // Calculate nights count if dates are updated
-        $nightsCount = $reservation->nights_count;
-        if (isset($data['checkin_date']) || isset($data['checkout_date'])) {
-            $checkinDate = Carbon::parse($data['checkin_date'] ?? $reservation->checkin_date);
-            $checkoutDate = Carbon::parse($data['checkout_date'] ?? $reservation->checkout_date);
-            $nightsCount = $checkinDate->diffInDays($checkoutDate);
-        }
-
-        $reservation->update([
-            'hotel_agreement_id' => $data['hotel_agreement_id'] ?? $reservation->hotel_agreement_id,
-            'hotel_name' => $data['hotel_name'] ?? $reservation->hotel_name,
-            'address' => $data['address'] ?? $reservation->address,
-            'phone' => $data['phone'] ?? $reservation->phone,
-            'checkin_date' => $data['checkin_date'] ?? $reservation->checkin_date,
-            'checkout_date' => $data['checkout_date'] ?? $reservation->checkout_date,
-            'nights_count' => $nightsCount,
-            'total_cost' => $data['total_cost'] ?? $reservation->total_cost,
-            'receipt_path' => $data['receipt_path'] ?? $reservation->receipt_path,
-            'notes' => $data['notes'] ?? $reservation->notes,
-        ]);
+        // Update reservation
+        $reservation->update($data);
 
         return $reservation->fresh(['hotelAgreement', 'request']);
     }
@@ -84,36 +53,14 @@ class HotelReservationService
     }
 
     /**
-     * Mark reservation as attended or not attended
+     * Mark reservation as attended
      */
-    public function markAsAttended(int $reservationId, bool $attended, ?float $penaltyAmount = null): HotelReservation
+    public function markAsAttended(int $reservationId, array $data): HotelReservation
     {
         $reservation = HotelReservation::findOrFail($reservationId);
 
-        $updateData = [
-            'attended' => $attended,
-        ];
-
-        // If not attended and penalty amount provided
-        if (!$attended && $penaltyAmount !== null) {
-            $updateData['penalty'] = $penaltyAmount;
-        }
-
-        $reservation->update($updateData);
-
-        return $reservation->fresh(['hotelAgreement', 'request']);
-    }
-
-    /**
-     * Apply penalty to reservation
-     */
-    public function applyPenalty(int $reservationId, float $penaltyAmount): HotelReservation
-    {
-        $reservation = HotelReservation::findOrFail($reservationId);
-
-        $reservation->update([
-            'penalty' => $penaltyAmount,
-        ]);
+        // Update reservation
+        $reservation->update($data);
 
         return $reservation->fresh(['hotelAgreement', 'request']);
     }

@@ -3,64 +3,75 @@
 namespace App\Http\Controllers\gp\gestionhumana\viaticos;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\gp\gestionhumana\viaticos\IndexExpenseTypeRequest;
+use App\Http\Resources\gp\gestionhumana\viaticos\ExpenseTypeResource;
 use App\Models\gp\gestionhumana\viaticos\ExpenseType;
-use Illuminate\Http\Request;
 
 class ExpenseTypeController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of all expense types
      */
-    public function index()
+    public function index(IndexExpenseTypeRequest $request)
     {
-        //
+        try {
+            $expenseTypes = ExpenseType::with('parent')->orderBy('name')->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => ExpenseTypeResource::collection($expenseTypes)
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Display active expense types only
      */
-    public function create()
+    public function active()
     {
-        //
+        try {
+            $expenseTypes = ExpenseType::where('active', true)
+                ->with('parent')
+                ->orderBy('name')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => ExpenseTypeResource::collection($expenseTypes)
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Display parent expense types only
      */
-    public function store(Request $request)
+    public function parents()
     {
-        //
-    }
+        try {
+            $expenseTypes = ExpenseType::whereNull('parent_id')
+                ->where('active', true)
+                ->orderBy('name')
+                ->get();
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(ExpenseType $expenseType)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(ExpenseType $expenseType)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, ExpenseType $expenseType)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(ExpenseType $expenseType)
-    {
-        //
+            return response()->json([
+                'success' => true,
+                'data' => ExpenseTypeResource::collection($expenseTypes)
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 }
