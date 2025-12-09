@@ -1063,4 +1063,53 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('/export', [AuditLogsController::class, 'export']);
     Route::delete('/clean', [AuditLogsController::class, 'clean']);
   });
+
+  // GP - Gestión Humana - Viáticos Routes
+  Route::group(['prefix' => 'gp/gestion-humana/viaticos'], function () {
+    // Per Diem Requests
+    Route::get('per-diem-requests/overdue', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemRequestController::class, 'overdue']);
+    Route::get('per-diem-requests/rates', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemRequestController::class, 'rates']);
+    Route::post('per-diem-requests/{id}/submit', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemRequestController::class, 'submit']);
+    Route::post('per-diem-requests/{id}/mark-paid', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemRequestController::class, 'markAsPaid']);
+    Route::post('per-diem-requests/{id}/start-settlement', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemRequestController::class, 'startSettlement']);
+    Route::post('per-diem-requests/{id}/complete-settlement', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemRequestController::class, 'completeSettlement']);
+    Route::apiResource('per-diem-requests', \App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemRequestController::class);
+
+    // Approvals
+    Route::get('per-diem-approvals/pending', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemApprovalController::class, 'pending']);
+    Route::post('per-diem-requests/{id}/approve', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemApprovalController::class, 'approve']);
+    Route::post('per-diem-requests/{id}/reject', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemApprovalController::class, 'reject']);
+
+    // Expenses
+    Route::get('per-diem-requests/{requestId}/expenses', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemExpenseController::class, 'index']);
+    Route::post('per-diem-requests/{requestId}/expenses', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemExpenseController::class, 'store']);
+    Route::put('per-diem-expenses/{expenseId}', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemExpenseController::class, 'update']);
+    Route::delete('per-diem-expenses/{expenseId}', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemExpenseController::class, 'destroy']);
+    Route::post('per-diem-expenses/{expenseId}/validate', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemExpenseController::class, 'validate']);
+
+    // Hotel Reservations
+    Route::post('per-diem-requests/{requestId}/hotel-reservation', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\HotelReservationController::class, 'store']);
+    Route::put('hotel-reservations/{reservationId}', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\HotelReservationController::class, 'update']);
+    Route::delete('hotel-reservations/{reservationId}', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\HotelReservationController::class, 'destroy']);
+    Route::post('hotel-reservations/{reservationId}/mark-attended', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\HotelReservationController::class, 'markAttended']);
+
+    // Policies
+    Route::get('per-diem-policies/current', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemPolicyController::class, 'current']);
+    Route::post('per-diem-policies/{id}/activate', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemPolicyController::class, 'activate']);
+    Route::post('per-diem-policies/{id}/close', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemPolicyController::class, 'close']);
+    Route::apiResource('per-diem-policies', \App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemPolicyController::class);
+
+    // Categories
+    Route::get('per-diem-categories/active', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemCategoryController::class, 'active']);
+    Route::get('per-diem-categories', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemCategoryController::class, 'index']);
+
+    // Expense Types
+    Route::get('expense-types/active', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\ExpenseTypeController::class, 'active']);
+    Route::get('expense-types/parents', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\ExpenseTypeController::class, 'parents']);
+    Route::get('expense-types', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\ExpenseTypeController::class, 'index']);
+
+    // Hotel Agreements
+    Route::get('hotel-agreements/active', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\HotelAgreementController::class, 'active']);
+    Route::get('hotel-agreements', [\App\Http\Controllers\Api\gp\gestionhumana\viaticos\HotelAgreementController::class, 'index']);
+  });
 });

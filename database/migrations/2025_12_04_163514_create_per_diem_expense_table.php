@@ -30,8 +30,8 @@ return new class extends Migration {
   {
     Schema::create('gh_per_diem_expense', function (Blueprint $table) {
       $table->id();
-      $table->foreignId('per_diem_request_id')->index()->comment('Reference to the per diem request')->constrained('gh_per_diem_requests')->cascadeOnDelete();
-      $table->foreignId('expense_type_id')->comment('Reference to the expense type')->constrained('gh_expense_types');
+      $table->foreignId('per_diem_request_id')->index()->comment('Reference to the per diem request')->constrained('gh_per_diem_request')->cascadeOnDelete();
+      $table->foreignId('expense_type_id')->comment('Reference to the expense type')->constrained('gh_expense_type');
       $table->date('expense_date')->index()->comment('Date of the expense incurred');
       $table->string('concept')->comment('Concept or description of the expense');
       $table->decimal('receipt_amount')->comment('Amount as per the receipt');

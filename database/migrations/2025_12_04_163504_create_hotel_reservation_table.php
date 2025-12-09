@@ -30,8 +30,8 @@ return new class extends Migration {
   {
     Schema::create('gh_hotel_reservation', function (Blueprint $table) {
       $table->id();
-      $table->foreignId('per_diem_request_id')->comment('Reference to the per diem request')->constrained('gh_per_diem_requests')->cascadeOnDelete();
-      $table->foreignId('hotel_agreement_id')->comment('Reference to the hotel agreement, if applicable')->nullable()->constrained('gh_hotel_agreements')->nullOnDelete();
+      $table->foreignId('per_diem_request_id')->comment('Reference to the per diem request')->constrained('gh_per_diem_request')->cascadeOnDelete();
+      $table->foreignId('hotel_agreement_id')->comment('Reference to the hotel agreement, if applicable')->nullable()->constrained('gh_hotel_agreement')->nullOnDelete();
       $table->string('hotel_name')->comment('Name of the hotel where the reservation is made');
       $table->string('address')->comment('Address of the hotel');
       $table->string('phone')->nullable()->comment('Contact phone number of the hotel');
