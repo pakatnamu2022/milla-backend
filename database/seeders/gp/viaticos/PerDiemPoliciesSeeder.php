@@ -12,7 +12,7 @@ class PerDiemPoliciesSeeder extends Seeder
    */
   public function run(): void
   {
-    PerDiemPolicy::create([
+    PerDiemPolicy::firstOrCreate([
       'version' => 'V2-2024',
       'name' => 'Política de Viáticos V2 - 2024',
       'effective_from' => '2024-08-15',

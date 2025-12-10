@@ -49,11 +49,17 @@ class ExpenseTypesSeeder extends Seeder
       $children = $item['children'] ?? [];
       unset($item['children']);
 
-      $expenseType = ExpenseType::create($item);
+      $expenseType = ExpenseType::firstOrCreate(
+        ['code' => $item['code']],
+        $item
+      );
 
       foreach ($children as $child) {
         $child['parent_id'] = $expenseType->id;
-        ExpenseType::create($child);
+        ExpenseType::firstOrCreate(
+          ['code' => $child['code']],
+          $child
+        );
       }
     }
   }

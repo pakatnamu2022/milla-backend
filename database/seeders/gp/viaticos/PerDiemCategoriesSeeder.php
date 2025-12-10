@@ -28,7 +28,9 @@ class PerDiemCategoriesSeeder extends Seeder
     ];
 
     foreach ($data as $item) {
-      PerDiemCategory::create($item);
+      PerDiemCategory::firstOrCreate([
+        'name' => $item['name'],
+      ], $item);
     }
 
   }

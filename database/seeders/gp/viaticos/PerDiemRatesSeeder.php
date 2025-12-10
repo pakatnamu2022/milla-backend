@@ -150,7 +150,7 @@ class PerDiemRatesSeeder extends Seeder
     ];
 
     foreach ($rates as $rate) {
-      PerDiemRate::create([
+      PerDiemRate::firstOrCreate([
         'per_diem_policy_id' => $currentPolicy->id,
         'district_id' => $rate['district']->id,
         'per_diem_category_id' => $rate['category']->id,
