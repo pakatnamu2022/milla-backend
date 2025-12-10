@@ -44,6 +44,7 @@ class Sede extends BaseModel
     'province_id',
     'district_id',
     'status',
+    'has_workshop',
   ];
 
   const filters = [
@@ -54,6 +55,7 @@ class Sede extends BaseModel
     'province_id' => '=',
     'district_id' => '=',
     'status' => '=',
+    'has_workshop' => '=',
   ];
 
   const sorts = [
@@ -63,6 +65,10 @@ class Sede extends BaseModel
     'razon_social',
     'direccion',
     'ciudad',
+  ];
+
+  protected $casts = [
+    'has_workshop' => 'boolean',
   ];
 
   public function setSucAbrevAttribute($value): void

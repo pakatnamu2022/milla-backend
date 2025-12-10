@@ -6,15 +6,10 @@ use App\Http\Requests\StoreRequest;
 
 class StoreVehiclesRequest extends StoreRequest
 {
-
-  /**
-   * Get the validation rules that apply to the request.
-   *
-   * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-   */
   public function rules(): array
   {
     return [
+      'plate' => 'sometimes|nullable|string|max:10',
       'vin' => 'required|string|max:17|min:17|unique:ap_vehicles,vin',
       'year' => 'required|integer|min:1900|max:' . ((int)date('Y') + 2),
       'engine_number' => 'required|string|max:50|unique:ap_vehicles,engine_number',
@@ -23,19 +18,16 @@ class StoreVehiclesRequest extends StoreRequest
       'supplier_order_type_id' => 'sometimes|nullable|integer|exists:ap_commercial_masters,id',
       'engine_type_id' => 'required|integer|exists:ap_commercial_masters,id',
       'ap_vehicle_status_id' => 'sometimes|integer|exists:ap_vehicle_status,id',
-      'sede_id' => 'required|integer|exists:sede,id',
+      'sede_id' => 'required|integer|exists:config_sede,id',
       'warehouse_physical_id' => 'sometimes|nullable|integer|exists:warehouse,id',
+      'type_operation_id' => 'sometimes|nullable|integer|exists:ap_commercial_masters,id',
     ];
   }
 
-  /**
-   * Get custom messages for validator errors.
-   *
-   * @return array
-   */
   public function messages(): array
   {
     return [
+      'plate.max' => 'La placa no debe exceder los 10 caracteres',
       'vin.required' => 'El VIN es requerido',
       'vin.unique' => 'El VIN ya existe en el sistema',
       'vin.min' => 'El VIN debe tener exactamente 17 caracteres',
@@ -54,6 +46,8 @@ class StoreVehiclesRequest extends StoreRequest
       'engine_type_id.exists' => 'El tipo de motor seleccionado no existe',
       'sede_id.required' => 'La sede es requerida',
       'sede_id.exists' => 'La sede seleccionada no existe',
+      'warehouse_physical_id.exists' => 'El almacén seleccionado no existe',
+      'type_operation_id.exists' => 'El tipo de operación seleccionado no existe',
     ];
   }
 }

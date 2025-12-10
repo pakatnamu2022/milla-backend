@@ -52,6 +52,10 @@ class UpdateSedeRequest extends StoreRequest
         'nullable',
         'boolean',
       ],
+      'has_workshop' => [
+        'sometimes',
+        'boolean',
+      ],
     ];
   }
 
@@ -76,6 +80,10 @@ class UpdateSedeRequest extends StoreRequest
 
       'district_id.integer' => 'El ID del distrito debe ser un número entero.',
       'district_id.exists' => 'El ID del distrito no existe.',
+
+      'status.boolean' => 'El estado debe ser verdadero o falso.',
+
+      'has_workshop.boolean' => 'El campo taller debe ser verdadero o falso.',
     ];
   }
 }

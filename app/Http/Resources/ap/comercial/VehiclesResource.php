@@ -36,10 +36,13 @@ class VehiclesResource extends JsonResource
       'warehouse_name' => $this->warehouse?->description ?? null,
       'warehouse_physical_id' => $this->warehouse_physical_id ?? null,
       'warehouse_physical_name' => $this->warehousePhysical?->description ?? null,
-      'sede_name_warehouse_physical' => $this->warehousePhysical?->sede?->abreviatura,
+      'sede_warehouse_id' => $this->warehouse?->sede_id ?? null,
       'sede_name_warehouse' => $this->warehouse?->sede?->abreviatura ?? null,
+      'sede_warehouse_physical_id' => $this->warehousePhysical?->sede_id,
+      'sede_name_warehouse_physical' => $this->warehousePhysical?->sede?->abreviatura,
       'model' => ApModelsVnResource::make($this->model),
       'movements' => VehicleMovementResource::collection($this->vehicleMovements),
+      'type_operation_id' => $this->type_operation_id,
       'owner' => $this->getOwnerData(),
     ];
   }

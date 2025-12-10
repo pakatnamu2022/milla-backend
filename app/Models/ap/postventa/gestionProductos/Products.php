@@ -161,6 +161,21 @@ class Products extends Model
     return $this->cost_price * (1 + ($this->tax_rate / 100));
   }
 
+  // Static Methods
+
+  /**
+   * Generate next correlative for product code
+   * Takes into account deleted products to avoid duplicates
+   */
+  public static function generateNextCorrelative(): int
+  {
+    $lastProduct = self::withTrashed()
+      ->orderBy('id', 'desc')
+      ->first();
+
+    return $lastProduct ? ($lastProduct->id + 1) : 1;
+  }
+
   // Scopes
   public function scopeActive($query)
   {

@@ -47,6 +47,10 @@ class StoreSedeRequest extends StoreRequest
         'integer',
         'exists:district,id',
       ],
+      'has_workshop' => [
+        'sometimes',
+        'boolean',
+      ],
     ];
   }
 
@@ -81,6 +85,8 @@ class StoreSedeRequest extends StoreRequest
       'dyn_code.required' => 'El código DYN es obligatorio.',
       'dyn_code.string' => 'El código DYN debe ser una cadena de texto.',
       'dyn_code.max' => 'El código DYN no debe exceder los 100 caracteres.',
+
+      'has_workshop.boolean' => 'El valor de taller debe ser verdadero o falso.',
     ];
   }
 }

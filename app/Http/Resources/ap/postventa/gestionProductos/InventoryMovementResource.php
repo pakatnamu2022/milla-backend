@@ -14,6 +14,8 @@ class InventoryMovementResource extends JsonResource
       'movement_number' => $this->movement_number,
       'movement_type' => $this->movement_type,
       'movement_date' => $this->movement_date,
+      'is_inbound' => $this->is_inbound, // true si es ingreso, false si no
+      'is_outbound' => $this->is_outbound, // true si es salida, false si no
       'warehouse_origin_id' => $this->warehouse_id,
       'warehouse_code' => $this->warehouse ? $this->warehouse->dyn_code : null,
       'warehouse_origin' => $this->warehouse,
@@ -32,6 +34,10 @@ class InventoryMovementResource extends JsonResource
       'total_items' => $this->total_items,
       'total_quantity' => $this->total_quantity,
       'details' => InventoryMovementDetailResource::collection($this->whenLoaded('details')),
+      // Calculated fields for kardex (only present when using getProductMovementHistory)
+      'quantity_in' => $this->quantity_in ?? null,
+      'quantity_out' => $this->quantity_out ?? null,
+      'balance' => $this->balance ?? null,
       'created_at' => $this->created_at->format('Y-m-d H:i:s'),
       'updated_at' => $this->updated_at->format('Y-m-d H:i:s'),
     ];

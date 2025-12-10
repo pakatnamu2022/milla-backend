@@ -46,6 +46,14 @@ use App\Http\Controllers\ap\postventa\gestionProductos\ProductWarehouseStockCont
 use App\Http\Controllers\ap\postventa\gestionProductos\TransferReceptionController;
 use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
+use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
+use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationDetailsController;
+use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationsController;
+use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
+use App\Http\Controllers\ap\postventa\taller\ApWorkOrderAssignOperatorController;
+use App\Http\Controllers\ap\postventa\taller\ApWorkOrderPartsController;
+use App\Http\Controllers\ap\postventa\taller\WorkOrderController;
+use App\Http\Controllers\ap\postventa\taller\WorkOrderItemController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Dashboard\ap\comercial\DashboardComercialController;
@@ -947,6 +955,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::put('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'updateTransfer']);
       Route::delete('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'destroyTransfer']);
       Route::post('inventoryMovements/{id}/send-to-nubefact', [InventoryMovementController::class, 'sendShippingGuideToNubefact']);
+      Route::get('inventoryMovements/kardex', [InventoryMovementController::class, 'getKardex']);
       Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history', [InventoryMovementController::class, 'getProductMovementHistory']);
       Route::apiResource('inventoryMovements', InventoryMovementController::class)->only([
         'index',
@@ -981,6 +990,81 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'show',
         'store',
         'update',
+        'destroy'
+      ]);
+
+      // Work Orders - Órdenes de Trabajo
+      Route::post('workOrders/{id}/calculate-totals', [WorkOrderController::class, 'calculateTotals']);
+      Route::apiResource('workOrders', WorkOrderController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Work Order Items - Ítems de Órdenes de Trabajo
+      Route::apiResource('workOrderItems', WorkOrderItemController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Work Order Assign Operators - Asignación de Operadores a Órdenes de Trabajo
+      Route::apiResource('workOrderAssignOperators', ApWorkOrderAssignOperatorController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Work Order Parts - Repuestos de Órdenes de Trabajo
+      Route::post('workOrderParts/{id}/confirm-delivery', [ApWorkOrderPartsController::class, 'confirmDelivery']);
+      Route::apiResource('workOrderParts', ApWorkOrderPartsController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Work Order Quotations - Cotizaciones de Órdenes de Trabajo
+      Route::get('orderQuotations/{id}/pdf', [ApOrderQuotationsController::class, 'downloadPDF']);
+      Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Order Quotation Details - Detalles de Cotización (Productos y Mano de Obra)
+      Route::apiResource('orderQuotationDetails', ApOrderQuotationDetailsController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Order Purchase Requests - Solicitudes de Compra de Órdenes
+      Route::apiResource('orderPurchaseRequests', ApOrderPurchaseRequestsController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Vehicle Inspections - Inspecciones Vehiculares
+      Route::get('vehicleInspections/by-work-order/{workOrderId}', [ApVehicleInspectionController::class, 'getByWorkOrder']);
+      Route::apiResource('vehicleInspections', ApVehicleInspectionController::class)->only([
+        'index',
+        'show',
+        'store',
         'destroy'
       ]);
     });
@@ -1037,6 +1121,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('/validate/dni', [DocumentValidationController::class, 'validateDni']);
     Route::post('/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
     Route::post('/validate/license', [DocumentValidationController::class, 'validateLicense']);
+    Route::post('/validate/plate', [DocumentValidationController::class, 'validatePlate']);
     Route::get('/document-types', [DocumentValidationController::class, 'documentTypes']);
     Route::get('/provider-info', [DocumentValidationController::class, 'providerInfo']);
     Route::delete('/cache', [DocumentValidationController::class, 'clearCache']);

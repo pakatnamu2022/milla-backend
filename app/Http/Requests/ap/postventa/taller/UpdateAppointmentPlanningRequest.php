@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateAppointmentPlanningRequest extends StoreRequest
 {
@@ -49,22 +50,24 @@ class UpdateAppointmentPlanningRequest extends StoreRequest
       'type_operation_appointment_id' => [
         'nullable',
         'integer',
-        'exists:ap_post_venta_masters,id,type=TIPO_OPERACION',
+        Rule::exists('ap_post_venta_masters', 'id')
+          ->where('type', 'TIPO_OPERACION'),
       ],
       'type_planning_id' => [
         'nullable',
         'integer',
-        'exists:ap_post_venta_masters,id,type=TIPO_PLANIFICACION',
+        Rule::exists('ap_post_venta_masters', 'id')
+          ->where('type', 'TIPO_PLANIFICACION'),
       ],
       'ap_vehicle_id' => [
         'nullable',
         'integer',
         'exists:ap_vehicles,id',
       ],
-      'advisor_id' => [
+      'sede_id' => [
         'nullable',
         'integer',
-        'exists:rrhh_persona,id',
+        'exists:config_sede,id',
       ],
     ];
   }
@@ -102,8 +105,8 @@ class UpdateAppointmentPlanningRequest extends StoreRequest
       'ap_vehicle_id.integer' => 'El campo vehículo debe ser un entero.',
       'ap_vehicle_id.exists' => 'El vehículo seleccionado no es válido.',
 
-      'advisor_id.integer' => 'El campo asesor debe ser un entero.',
-      'advisor_id.exists' => 'El asesor seleccionado no es válido.',
+      'sede_id.integer' => 'El campo sede debe ser un entero.',
+      'sede_id.exists' => 'La sede seleccionada no es válida.',
     ];
   }
 }

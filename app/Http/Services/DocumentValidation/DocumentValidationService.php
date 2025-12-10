@@ -63,10 +63,10 @@ class DocumentValidationService
       }
     }
 
-    // Get provider for this document type
+    // Obtenemos el proveedor por tipo de documento en este caso todos usan Factiliza sino configurar en service.php (provider_mapping)
     $provider = $this->getProviderForDocumentType($documentType);
 
-    if (!$this->isValidDocumentType($documentType, $provider)) {
+    if (!$this->isValidDocumentType($documentType, $provider)) { // validar si acepta el tipo de doc de ese proveedor
       return $this->formatter->formatError(
         "Document type '{$documentType}' is not supported",
         $documentType,
@@ -95,14 +95,14 @@ class DocumentValidationService
     }
 
     try {
-      // Call the provider
+      // LLamar al proveedor para validar el documento y obtener la respuesta
       $providerResponse = $provider->validateDocument(
         $documentType,
         $documentNumber,
         $additionalParams
       );
 
-      // Format the response
+      // Fomatear la respuesta usando el formateador (StandardResponseFormatter)
       $formattedResponse = $this->formatter->format(
         $providerResponse,
         $documentType,

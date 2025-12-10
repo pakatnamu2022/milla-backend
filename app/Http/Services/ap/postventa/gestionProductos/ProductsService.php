@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 use App\Http\Resources\ap\postventa\gestionProductos\ProductsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use Exception;
@@ -86,6 +87,11 @@ class ProductsService extends BaseService implements BaseServiceInterface
         $data['minimum_stock'] = 0;
       }
 
+      // Generate correlative and append to code
+      $correlative = Products::generateNextCorrelative();
+      $data['dyn_code'] = str_replace('X', '', $data['dyn_code']);
+      $data['dyn_code'] = $data['dyn_code'] . '-' . str_pad($correlative, 6, '0', STR_PAD_LEFT);
+
       $product = Products::create($data);
 
       // NEW: Create warehouse stock records if provided
@@ -130,6 +136,19 @@ class ProductsService extends BaseService implements BaseServiceInterface
     DB::beginTransaction();
     try {
       $product = $this->find($data['id']);
+
+      // If dyn_code is being updated, append the correlative
+      if (isset($data['dyn_code']) && $data['dyn_code'] !== $product->code) {
+        // Remove 'X' placeholders
+        $data['dyn_code'] = str_replace('X', '', $data['dyn_code']);
+        // Remove existing correlative if present
+        $dynCodeWithoutCorrelative = preg_replace('/-\d+$/', '', $data['dyn_code']);
+
+        // Use the product's ID as correlative to maintain uniqueness
+        $correlative = $product->id;
+        $data['dyn_code'] = $dynCodeWithoutCorrelative . '-' . str_pad($correlative, 6, '0', STR_PAD_LEFT);
+      }
+
       $product->update($data);
 
       DB::commit();
@@ -146,9 +165,44 @@ class ProductsService extends BaseService implements BaseServiceInterface
     try {
       $product = $this->find($id);
 
-      // Check if product can be deleted (add business logic here)
-      // For example, check if product has associated orders, inventory movements, etc.
+      // Verificar si el producto tiene movimientos de inventario
+      $movementDetails = InventoryMovementDetail::where('product_id', $id)
+        ->with(['movement'])
+        ->get();
 
+      if ($movementDetails->isNotEmpty()) {
+        $movementCount = $movementDetails->count();
+        throw new Exception(
+          "No se puede eliminar el producto porque tiene {$movementCount} movimiento(s) de inventario asociado(s). " .
+          "Debe eliminar primero todos los movimientos de inventario relacionados con este producto."
+        );
+      }
+
+      // Verificar si el producto tiene stock en algún almacén
+      $warehousesWithStock = ProductWarehouseStock::where('product_id', $id)
+        ->where(function ($query) {
+          $query->where('quantity', '>', 0)
+            ->orWhere('available_quantity', '>', 0);
+        })
+        ->with('warehouse')
+        ->get();
+
+      if ($warehousesWithStock->isNotEmpty()) {
+        // Construir mensaje con los almacenes que tienen stock
+        $warehouseNames = $warehousesWithStock->map(function ($stock) {
+          return $stock->warehouse->name . ' (Stock: ' . $stock->quantity . ', Disponible: ' . $stock->available_quantity . ')';
+        })->implode(', ');
+
+        throw new Exception(
+          'No se puede eliminar el producto porque tiene stock en los siguientes almacenes: ' . $warehouseNames .
+          '. Debe vaciar primero el stock de todos los almacenes.'
+        );
+      }
+
+      // Si no hay stock, eliminar los registros de product_warehouse_stock
+      ProductWarehouseStock::where('product_id', $id)->delete();
+
+      // Eliminar el producto
       $product->delete();
 
       DB::commit();

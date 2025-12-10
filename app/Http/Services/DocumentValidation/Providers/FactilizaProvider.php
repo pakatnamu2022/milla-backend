@@ -44,7 +44,6 @@ class FactilizaProvider implements DocumentProviderInterface
 
       $response = $httpClient->get($fullUrl);
 
-
       if ($response->successful()) {
         return $response->json();
       }
@@ -65,6 +64,7 @@ class FactilizaProvider implements DocumentProviderInterface
       'license' => 'Carnet de Conducir',
       'soat' => 'Soat',
       'ce' => 'Carnet de Extranjería',
+      'plate' => 'Placa Vehicular',
     ];
   }
 
@@ -87,6 +87,7 @@ class FactilizaProvider implements DocumentProviderInterface
       'license' => 'licencia/info',
       'soat' => 'placa/soat',
       'ce' => 'cee/info',
+      'plate' => 'placa/info',
     ];
 
     if (!isset($endpoints[$documentType])) {

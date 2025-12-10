@@ -54,8 +54,8 @@ class InventoryMovement extends Model
   ];
 
   const sorts = [
-    'movement_number',
     'movement_date',
+    'movement_number',
     'total_quantity',
     'created_at',
   ];
@@ -163,8 +163,6 @@ class InventoryMovement extends Model
       self::TYPE_ADJUSTMENT_OUT,
       self::TYPE_TRANSFER_OUT,
       self::TYPE_RETURN_OUT,
-      self::TYPE_LOSS,
-      self::TYPE_DAMAGE,
     ]);
   }
 
@@ -229,8 +227,6 @@ class InventoryMovement extends Model
       self::TYPE_ADJUSTMENT_OUT,
       self::TYPE_TRANSFER_OUT,
       self::TYPE_RETURN_OUT,
-      self::TYPE_LOSS,
-      self::TYPE_DAMAGE,
     ]);
   }
 

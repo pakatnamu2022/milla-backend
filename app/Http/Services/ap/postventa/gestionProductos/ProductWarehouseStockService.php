@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\postventa\gestionProductos;
 
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
+use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -579,16 +580,7 @@ class ProductWarehouseStockService
       throw $e;
     }
   }
-
-  /**
-   * Get warehouse stock with transit information
-   * Returns products with their stock information for a specific warehouse
-   * Includes quantity_in_transit and other stock details
-   *
-   * @param \Illuminate\Http\Request $request Request with filters (warehouse_id required)
-   * @return \Illuminate\Database\Eloquent\Collection|\Illuminate\Contracts\Pagination\LengthAwarePaginator
-   * @throws Exception
-   */
+  
   public function getWarehouseStockWithTransit($request)
   {
     // Warehouse ID is required

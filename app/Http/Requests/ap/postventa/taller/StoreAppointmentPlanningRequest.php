@@ -67,10 +67,10 @@ class StoreAppointmentPlanningRequest extends StoreRequest
         'integer',
         'exists:ap_vehicles,id',
       ],
-      'advisor_id' => [
+      'sede_id' => [
         'required',
         'integer',
-        'exists:rrhh_persona,id',
+        'exists:config_sede,id',
       ],
     ];
   }
@@ -119,9 +119,9 @@ class StoreAppointmentPlanningRequest extends StoreRequest
       'ap_vehicle_id.integer' => 'El campo vehículo debe ser un entero.',
       'ap_vehicle_id.exists' => 'El vehículo seleccionado no es válido.',
 
-      'advisor_id.required' => 'El campo asesor es obligatorio.',
-      'advisor_id.integer' => 'El campo asesor debe ser un entero.',
-      'advisor_id.exists' => 'El asesor seleccionado no es válido.',
+      'sede_id.required' => 'El campo sede es obligatorio.',
+      'sede_id.integer' => 'El campo sede debe ser un entero.',
+      'sede_id.exists' => 'La sede seleccionada no es válida.',
     ];
   }
 

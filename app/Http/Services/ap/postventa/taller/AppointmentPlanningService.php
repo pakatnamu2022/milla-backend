@@ -37,6 +37,7 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
   {
     if (auth()->check()) {
       $data['created_by'] = auth()->user()->id;
+      $data['advisor_id'] = auth()->user()->person?->id;
     }
     $appointmentPlanning = AppointmentPlanning::create($data);
     return new AppointmentPlanningResource($appointmentPlanning);
@@ -50,6 +51,11 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
   public function update(mixed $data)
   {
     $appointmentPlanning = $this->find($data['id']);
+
+    if ($appointmentPlanning->is_taken) {
+      throw new Exception('La cita ya ha sido tomada y no puede ser modificada');
+    }
+
     $appointmentPlanning->update($data);
     return new AppointmentPlanningResource($appointmentPlanning);
   }
@@ -57,6 +63,11 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
   public function destroy($id)
   {
     $appointmentPlanning = $this->find($id);
+
+    if ($appointmentPlanning->is_taken) {
+      throw new Exception('La cita ya ha sido tomada y no puede ser modificada');
+    }
+
     DB::transaction(function () use ($appointmentPlanning) {
       $appointmentPlanning->delete();
     });
@@ -152,11 +163,29 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
     $appointmentPlanning = AppointmentPlanning::with([
       'advisor',
       'vehicle.model.family.brand',
-      'vehicle.color'
+      'vehicle.color',
+      'vehicle.customer.district.province'
     ])->find($id);
 
     if (!$appointmentPlanning) {
       throw new Exception('Planificación de cita no encontrada');
+    }
+
+    $customer = $appointmentPlanning->vehicle->customer ?? null;
+
+    // Preparar datos del cliente
+    $clientDocument = 'N/A';
+    $clientAddress = 'N/A';
+    $clientUbigeo = 'N/A';
+    $clientCity = 'N/A';
+
+    if ($customer) {
+      $clientDocument = $customer->num_doc ?? 'N/A';
+      $clientAddress = $customer->direction ?? 'N/A';
+      $clientUbigeo = $customer->district->ubigeo ?? 'N/A';
+      $clientCity = $customer->district && $customer->district->province
+        ? $customer->district->province->name
+        : 'N/A';
     }
 
     // Preparar datos para la vista
@@ -171,10 +200,10 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
       'full_name_client' => $appointmentPlanning->full_name_client,
       'email_client' => $appointmentPlanning->email_client,
       'phone_client' => $appointmentPlanning->phone_client,
-      'client_document' => 'N/A', // Este campo no existe en el modelo actual
-      'client_address' => 'N/A', // Este campo no existe en el modelo actual
-      'client_ubigeo' => 'N/A', // Este campo no existe en el modelo actual
-      'client_city' => 'N/A', // Este campo no existe en el modelo actual
+      'client_document' => $clientDocument,
+      'client_address' => $clientAddress,
+      'client_ubigeo' => $clientUbigeo,
+      'client_city' => $clientCity,
       'description' => $appointmentPlanning->description,
     ];
 

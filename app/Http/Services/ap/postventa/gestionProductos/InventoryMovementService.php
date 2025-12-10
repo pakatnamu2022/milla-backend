@@ -678,11 +678,12 @@ class InventoryMovementService extends BaseService
   /**
    * Get movement history for a specific product in a warehouse
    * Returns all inventory movements for a product in a specific warehouse
+   * Includes quantity_in, quantity_out, and balance (running balance)
    *
    * @param int $productId Product ID
    * @param int $warehouseId Warehouse ID
    * @param Request $request Request with filters
-   * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+   * @return \Illuminate\Http\JsonResponse
    */
   public function getProductMovementHistory(int $productId, int $warehouseId, Request $request)
   {
@@ -705,9 +706,7 @@ class InventoryMovementService extends BaseService
         'user',
         'reasonInOut',
         'reference'
-      ])
-      ->orderBy('movement_date', 'desc')
-      ->orderBy('created_at', 'desc');
+      ]);
 
     // Apply date range filter if provided
     if ($request->has('date_from')) {
@@ -728,10 +727,223 @@ class InventoryMovementService extends BaseService
       $query->where('status', $request->status);
     }
 
+    // Get all movements ordered chronologically (ASC) to calculate running balance
+    $allMovements = $query->orderBy('movement_date', 'asc')
+      ->orderBy('created_at', 'asc')
+      ->get();
+
+    // Calculate quantity_in, quantity_out, and running balance for each movement
+    $runningBalance = 0;
+
+    // Get current stock to calculate initial balance
+    $currentStock = $this->stockService->getStock($productId, $warehouseId);
+
+    // If we have movements, we need to calculate the initial balance
+    // by subtracting all movements from current stock
+    if ($allMovements->isNotEmpty() && $currentStock) {
+      $totalIn = 0;
+      $totalOut = 0;
+
+      foreach ($allMovements as $movement) {
+        $quantity = $movement->details->first()->quantity ?? 0;
+
+        if ($movement->is_inbound) {
+          $totalIn += $quantity;
+        } else {
+          $totalOut += $quantity;
+        }
+      }
+
+      // Initial balance = current stock - (total in - total out from filtered movements)
+      $runningBalance = $currentStock->quantity - ($totalIn - $totalOut);
+    }
+
+    // Add calculated fields to each movement
+    $movementsWithBalance = $allMovements->map(function ($movement) use (&$runningBalance) {
+      $quantity = $movement->details->first()->quantity ?? 0;
+
+      // Determine if this is an inbound or outbound movement for this warehouse
+      $quantityIn = 0;
+      $quantityOut = 0;
+
+      if ($movement->is_inbound) {
+        $quantityIn = $quantity;
+        $runningBalance += $quantity;
+      } else {
+        $quantityOut = $quantity;
+        $runningBalance -= $quantity;
+      }
+
+      // Add calculated fields to the movement object
+      $movement->quantity_in = $quantityIn;
+      $movement->quantity_out = $quantityOut;
+      $movement->balance = $runningBalance;
+
+      return $movement;
+    });
+
+    // Now reverse the order to show most recent first (DESC)
+    $movementsWithBalance = $movementsWithBalance->reverse()->values();
+
+    // Manual pagination
+    $perPage = $request->get('per_page', 15);
+    $page = $request->get('page', 1);
+    $total = $movementsWithBalance->count();
+    $lastPage = (int)ceil($total / $perPage);
+
+    $paginatedMovements = $movementsWithBalance->slice(($page - 1) * $perPage, $perPage)->values();
+
+    // Transform to resource
+    $resourceCollection = InventoryMovementResource::collection($paginatedMovements);
+
+    // Build pagination response
+    $from = $total > 0 ? (($page - 1) * $perPage) + 1 : null;
+    $to = $total > 0 ? min($from + $perPage - 1, $total) : null;
+
+    $baseUrl = $request->url();
+    $queryParams = $request->query();
+
+    $first = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => 1]));
+    $last = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $lastPage]));
+    $prev = $page > 1 ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page - 1])) : null;
+    $next = $page < $lastPage ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page + 1])) : null;
+
+    return response()->json([
+      'data' => $resourceCollection,
+      'links' => [
+        'first' => $first,
+        'last' => $last,
+        'prev' => $prev,
+        'next' => $next,
+      ],
+      'meta' => [
+        'current_page' => $page,
+        'from' => $from,
+        'last_page' => $lastPage,
+        'path' => $baseUrl,
+        'per_page' => $perPage,
+        'to' => $to,
+        'total' => $total,
+      ]
+    ]);
+  }
+
+  /**
+   * Get kardex of all inventory movements
+   * Returns all inventory movements with optional warehouse filter
+   *
+   * @param Request $request Request with filters (warehouse_id optional)
+   * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+   */
+  public function getKardex(Request $request)
+  {
+    // Base query: get all movements
+    $query = InventoryMovement::query()
+      ->with([
+        'details.product.category',
+        'warehouse',
+        'warehouseDestination',
+        'user',
+        'reasonInOut',
+        'reference'
+      ])
+      ->orderBy('movement_date', 'desc')
+      ->orderBy('created_at', 'desc');
+
+    // Apply warehouse filter if provided (can be origin or destination)
+    if ($request->has('warehouse_id')) {
+      $warehouseId = $request->warehouse_id;
+      $query->where(function ($q) use ($warehouseId) {
+        $q->where('warehouse_id', $warehouseId)
+          ->orWhere('warehouse_destination_id', $warehouseId);
+      });
+    }
+
+    // Apply date range filter if provided
+    if ($request->has('date_from')) {
+      $query->where('movement_date', '>=', $request->date_from);
+    }
+
+    if ($request->has('date_to')) {
+      $query->where('movement_date', '<=', $request->date_to);
+    }
+
+    // Apply movement type filter if provided
+    if ($request->has('movement_type')) {
+      $query->where('movement_type', $request->movement_type);
+    }
+
+    // Apply status filter if provided
+    if ($request->has('status')) {
+      $query->where('status', $request->status);
+    }
+
+    // Apply search filter (by movement number or notes)
+    if ($request->has('search')) {
+      $search = $request->search;
+      $query->where(function ($q) use ($search) {
+        $q->where('movement_number', 'LIKE', "%{$search}%")
+          ->orWhere('notes', 'LIKE', "%{$search}%");
+      });
+    }
+
     // Paginate results
     $perPage = $request->get('per_page', 15);
     $movements = $query->paginate($perPage);
 
     return InventoryMovementResource::collection($movements);
+  }
+
+  public function createWorkOrderPartOutbound($workOrderPart): InventoryMovement
+  {
+    DB::beginTransaction();
+    try {
+      // Validar que hay stock disponible
+      $stock = $this->stockService->getStock($workOrderPart->product_id, $workOrderPart->warehouse_id);
+
+      if (!$stock) {
+        throw new Exception('No se encontró registro de stock para el producto en el almacén especificado');
+      }
+
+      if ($stock->available_quantity < $workOrderPart->quantity_used) {
+        throw new Exception(
+          "Stock insuficiente. Disponible: {$stock->available_quantity}, Requerido: {$workOrderPart->quantity_used}"
+        );
+      }
+
+      // Crear movimiento de inventario de salida
+      $movement = InventoryMovement::create([
+        'movement_number' => InventoryMovement::generateMovementNumber(),
+        'movement_type' => InventoryMovement::TYPE_ADJUSTMENT_OUT,
+        'movement_date' => now(),
+        'warehouse_id' => $workOrderPart->warehouse_id,
+        'reference_type' => get_class($workOrderPart),
+        'reference_id' => $workOrderPart->id,
+        'user_id' => Auth::id(),
+        'status' => InventoryMovement::STATUS_APPROVED,
+        'notes' => "Salida por uso en Orden de Trabajo #{$workOrderPart->workOrder->correlative} - {$workOrderPart->product->name}",
+        'total_items' => 1,
+        'total_quantity' => $workOrderPart->quantity_used,
+      ]);
+
+      // Crear detalle del movimiento
+      InventoryMovementDetail::create([
+        'inventory_movement_id' => $movement->id,
+        'product_id' => $workOrderPart->product_id,
+        'quantity' => $workOrderPart->quantity_used,
+        'unit_cost' => $workOrderPart->unit_cost,
+        'total_cost' => $workOrderPart->quantity_used * $workOrderPart->unit_cost,
+        'notes' => "Repuesto usado en OT #{$workOrderPart->workOrder->correlative}",
+      ]);
+
+      // Actualizar el stock (restar la cantidad usada)
+      $this->stockService->updateStockFromMovement($movement->fresh('details'));
+
+      DB::commit();
+      return $movement;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 }
