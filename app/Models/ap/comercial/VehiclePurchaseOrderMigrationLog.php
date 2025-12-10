@@ -71,6 +71,10 @@ class VehiclePurchaseOrderMigrationLog extends Model
   const STEP_SALE_SHIPPING_GUIDE_DETAIL_REVERSAL = 'sale_shipping_guide_detail_REVERSAL';
   const STEP_SALE_SHIPPING_GUIDE_SERIAL_REVERSAL = 'sale_shipping_guide_serial_REVERSAL';
 
+  // Constantes para los pasos de migración (Asientos Contables)
+  const STEP_ACCOUNTING_ENTRY_HEADER = 'accounting_entry_header';
+  const STEP_ACCOUNTING_ENTRY_DETAIL = 'accounting_entry_detail';
+
   // Constantes para los estados
   const STATUS_PENDING = 'pending';
   const STATUS_IN_PROGRESS = 'in_progress';
@@ -98,6 +102,8 @@ class VehiclePurchaseOrderMigrationLog extends Model
     self::STEP_SALES_DOCUMENT => 'neInTbVenta',
     self::STEP_SALES_DOCUMENT_DETAIL => 'neInTbVentaDt',
     self::STEP_SALES_DOCUMENT_SERIAL => 'neInTbVentaDtS',
+    self::STEP_ACCOUNTING_ENTRY_HEADER => 'neInTbIntegracionAsientoCab',
+    self::STEP_ACCOUNTING_ENTRY_DETAIL => 'neInTbIntegracionAsientoDet',
   ];
 
   /**

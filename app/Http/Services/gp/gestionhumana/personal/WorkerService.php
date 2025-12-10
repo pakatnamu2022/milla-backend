@@ -4,13 +4,18 @@ namespace App\Http\Services\gp\gestionhumana\personal;
 
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Services\BaseService;
+use App\Http\Utils\Constants;
+use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class WorkerService extends BaseService
 {
@@ -321,5 +326,74 @@ class WorkerService extends BaseService
       DB::rollback();
       throw $e;
     }
+  }
+
+  /**
+   * @param Request $request
+   * @return JsonResponse
+   * @throws Exception
+   */
+  public function myConsultants(Request $request): JsonResponse
+  {
+    $worker = $this->getAuthenticatedWorkerWithArea();
+    $assignmentsIds = $this->getConsultantAssignments(
+      $worker,
+      $request->validated('month'),
+      $request->validated('year')
+    );
+
+    return $this->getFilteredResults(
+      Worker::whereIn('id', $assignmentsIds),
+      $request,
+      Worker::filters,
+      Person::sorts,
+      WorkerResource::class,
+    );
+  }
+
+  /**
+   * Get authenticated worker with position and area loaded
+   * @return Worker
+   * @throws Exception
+   */
+  public function getAuthenticatedWorkerWithArea(): Worker
+  {
+    $userId = auth()->user()->partner_id;
+    $worker = Worker::with('position.area')->find($userId);
+
+    if (!$worker) {
+      throw new Exception("Trabajador no encontrado para el usuario autenticado");
+    }
+
+    if (!$worker->position) {
+      throw new Exception("El trabajador autenticado no tiene una posición asignada");
+    }
+
+    if (!$worker->position->area) {
+      throw new Exception("El trabajador autenticado no tiene un área asignada");
+    }
+
+    return $worker;
+  }
+
+  /**
+   * Get consultant assignments based on worker area
+   * @param Worker $worker
+   * @param int $month
+   * @param int $year
+   * @return Collection
+   */
+  public function getConsultantAssignments(Worker $worker, int $month, int $year): Collection
+  {
+    $isTicsArea = $worker->position->area->id === Constants::TICS_AREA_ID;
+
+    $query = ApAssignmentLeadership::where('month', $month)
+      ->where('year', $year);
+
+    if (!$isTicsArea) {
+      $query->where('boss_id', $worker->id);
+    }
+
+    return $query->pluck('worker_id');
   }
 }

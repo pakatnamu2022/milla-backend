@@ -7,12 +7,10 @@ use App\Http\Requests\ap\comercial\AssignVehicleToQuoteRequest;
 use App\Http\Requests\ap\comercial\IndexPurchaseRequestQuoteRequest;
 use App\Http\Requests\ap\comercial\StorePurchaseRequestQuoteRequest;
 use App\Http\Requests\ap\comercial\UpdatePurchaseRequestQuoteRequest;
-use App\Http\Requests\ap\comercial\UpdateVehiclesRequest;
 use App\Http\Services\ap\comercial\PurchaseRequestQuoteService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Throwable;
-use function array_merge;
 
 class PurchaseRequestQuoteController extends Controller
 {
@@ -27,7 +25,7 @@ class PurchaseRequestQuoteController extends Controller
   {
     try {
       return $this->service->list($request);
-    } catch (\Throwable $th) {
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
@@ -36,7 +34,7 @@ class PurchaseRequestQuoteController extends Controller
   {
     try {
       return $this->success($this->service->store($request->all()));
-    } catch (\Throwable $th) {
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
@@ -45,7 +43,7 @@ class PurchaseRequestQuoteController extends Controller
   {
     try {
       return $this->success($this->service->show($id));
-    } catch (\Throwable $th) {
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
@@ -56,7 +54,7 @@ class PurchaseRequestQuoteController extends Controller
       $data = $request->all();
       $data['id'] = $id;
       return $this->success($this->service->update($data));
-    } catch (\Throwable $th) {
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
@@ -84,7 +82,7 @@ class PurchaseRequestQuoteController extends Controller
   {
     try {
       return $this->service->destroy($id);
-    } catch (\Throwable $th) {
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
@@ -101,7 +99,7 @@ class PurchaseRequestQuoteController extends Controller
 
       return $pdf->download($filename);
 
-    } catch (\Throwable $th) {
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }

@@ -15,6 +15,7 @@ use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\maestroGeneral\Sede;
 use Exception;
 use Illuminate\Http\Request;
@@ -23,7 +24,6 @@ use Throwable;
 
 class PurchaseOrderService extends BaseService implements BaseServiceInterface
 {
-  protected int $startNumber = 2;
   protected ExportService $exportService;
 
   public function __construct(
@@ -79,22 +79,45 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
    * Solo genera números correlativos y establece valores por defecto
    * Los valores de la factura (subtotal, igv, total, etc.) vienen del request
    * @param mixed $data
-   * @param $isCreate
+   * @param true $isCreate
    * @return mixed
    * @throws Exception
    */
-  public function enrichData(mixed $data, $isCreate = true)
+  public function enrichData(mixed $data, bool $isCreate = true): mixed
   {
     if ($isCreate) {
       // Generar número de OC correlativo
-      $series = $this->completeSeries(Sede::find($data['sede_id'])->id);
+      $series = AssignSalesSeries::where('sede_id', $data['sede_id'])
+        ->where('type_operation_id', $data['type_operation_id'])
+        ->where('type', AssignSalesSeries::PURCHASE)
+        ->where('status', true)
+        ->whereNull('deleted_at')
+        ->first();
 
-      $number_correlative = $this->nextCorrelativeQueryInteger(PurchaseOrder::where('status', true), 'number_correlative') + $this->startNumber;
-      $number = $this->completeNumber($number_correlative);
+      if (!$series) throw new Exception('No hay una serie asignada para la sede y tipo de operación proporcionados');
+
+      // Construir query con los mismos filtros de la serie
+      $query = PurchaseOrder::where('sede_id', $data['sede_id'])
+        ->where('type_operation_id', $data['type_operation_id'])
+        ->where('status', true)
+        ->whereNull('deleted_at');
+
+      // Verificar si hay datos previos
+      $hasData = $query->exists();
+
+      if (!$hasData) {
+        // No hay datos, usar el correlative_start de la serie
+        $number_correlative = $series->correlative_start;
+      } else {
+        // Ya hay datos, usar nextCorrelativeQueryInteger que retorna max + 1
+        $number_correlative = $this->nextCorrelativeQueryInteger($query, 'number_correlative');
+      }
+
+      $number = $this->completeNumber($number_correlative, 7);
 
       $data['number_correlative'] = $number_correlative;
-      $data['number'] = $series . $number;
-      $data['number_guide'] = $series . $number;
+      $data['number'] = $series->series . $number;
+      $data['number_guide'] = $series->series . $number;
 
       // Estado inicial de migración
       $data['migration_status'] = 'pending';

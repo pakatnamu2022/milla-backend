@@ -18,6 +18,8 @@ class ApAssignBrandConsultantResource extends JsonResource
       'status' => $this->status,
       'brand_id' => $this->brand->id,
       'brand' => $this->brand->name,
+      'group_brand_id' => $this->brand->group->id,
+      'group_brand' => $this->brand->group->description,
 //      'company_branch_id' => $this->companyBranch->id,
 //      'company_branch' => $this->companyBranch->abbreviation,
       'sede_id' => $this->sede->id,

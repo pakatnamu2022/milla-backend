@@ -6,6 +6,7 @@ use App\Http\Resources\ap\comercial\ApReceivingChecklistResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\EmailService;
 use App\Jobs\SyncShippingGuideJob;
+use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\comercial\ApReceivingChecklist;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklist;
@@ -190,8 +191,8 @@ class ApReceivingChecklistService extends BaseService
       ]);
 
       // Despachar el Job síncronamente para debugging
-      SyncShippingGuideJob::dispatchSync($shippingGuide->id);
-      
+      VerifyAndMigrateShippingGuideJob::dispatchSync($shippingGuide->id);
+
       // Get updated records
       $updatedRecords = ApReceivingChecklist::where('shipping_guide_id', $data['shipping_guide_id'])
         ->with('receiving')

@@ -742,4 +742,59 @@ return [
       ],
     ]
   ],
+
+  // Configuración para asientos contables - Cabecera
+  'accounting_entry_header' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbIntegracionAsientoCab',
+      'mapping' => [
+        'Asiento' => fn($data) => $data['Asiento'],
+        'EmpresaId' => fn($data) => $data['EmpresaId'],
+        'LoteId' => fn($data) => $data['LoteId'],
+        'Referencia' => fn($data) => $data['Referencia'],
+        'Fecha' => fn($data) => $data['Fecha'],
+        'MonedaId' => fn($data) => $data['MonedaId'],
+        'TipoTasaId' => fn($data) => $data['TipoTasaId'],
+        'TipoCambio' => fn($data) => $data['TipoCambio'],
+        'Error' => fn($data) => $data['Error'],
+        'Estado' => fn($data) => $data['Estado'],
+        'FechaEstado' => fn($data) => $data['FechaEstado'],
+      ],
+      'optional_mapping' => [],
+      'sync_mode' => 'insert',
+      'unique_key' => 'Asiento',
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false,
+      ],
+    ]
+  ],
+
+  // Configuración para asientos contables - Detalle
+  'accounting_entry_detail' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbIntegracionAsientoDet',
+      'mapping' => [
+        'Asiento' => fn($data) => $data['Asiento'],
+        'Linea' => fn($data) => $data['Linea'],
+        'CuentaNumero' => fn($data) => $data['CuentaNumero'],
+        'Debito' => fn($data) => $data['Debito'],
+        'Credito' => fn($data) => $data['Credito'],
+        'Descripcion' => fn($data) => $data['Descripcion'],
+      ],
+      'optional_mapping' => [],
+      'sync_mode' => 'insert',
+      'unique_key' => ['Asiento', 'Linea'],
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false,
+      ],
+    ]
+  ],
 ];

@@ -247,6 +247,13 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       $query->where('warehouse_physical_id', $request->warehouse_physical_id);
     }
 
+    // family_id
+    if ($request->has('family_id') && $request->family_id) {
+      $query->whereHas('model.family', function ($q) use ($request) {
+        $q->where('id', $request->family_id);
+      });
+    }
+    
     // Verificar si se solicita todos los registros sin paginación
     $all = filter_var($request->get('all', false), FILTER_VALIDATE_BOOLEAN);
 
@@ -260,12 +267,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
     // Función de transformación para incluir costos
     $transformVehicle = function ($vehicle) {
-      // Obtener la primera orden de compra del vehículo (puedes cambiar a last() si necesitas la última)
-      $firstPurchaseOrder = $vehicle->purchaseOrders->first();
-
-      // Obtener el costo facturado (subtotal de la orden de compra)
-      $billedCost = $firstPurchaseOrder?->subtotal ?? 0;
-
       // Obtener transport_cost del modelo (temporal)
       $freightCost = $vehicle->model?->transport_cost ?? 0;
 
@@ -288,7 +289,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'status_color' => $vehicle->vehicleStatus?->color,
         'warehouse_physical_id' => $vehicle->warehouse_physical_id,
         'warehouse_physical' => $vehicle->warehousePhysical?->description,
-        'billed_cost' => $billedCost,
+        'billed_cost' => $vehicle->purchase_price,
         'freight_cost' => $freightCost,
       ];
     };

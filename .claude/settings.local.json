@@ -8,7 +8,13 @@
       "Bash(composer:*)",
       "Bash(php:*)",
       "Bash(rm:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(dir \"C:\\laragon\\www\\milla-backend\\database\\migrations\")",
+      "Bash(findstr:*)",
+      "Bash(dir:*)",
+      "Bash(mysql:*)",
+      "Bash(xargs:*)"
     ],
     "deny": [],
     "ask": []

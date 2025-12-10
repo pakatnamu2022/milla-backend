@@ -312,6 +312,12 @@ class Vehicles extends Model
     return self::isVehiclePaid($this->id);
   }
 
+  public function getPurchasePriceAttribute(): float
+  {
+    $purchaseOrder = $this->purchaseOrder;
+    return $purchaseOrder ? $purchaseOrder->total : 0.0;
+  }
+
   public function electronicDocumentParent(): HasOneThrough
   {
     return $this->HasOneThrough(

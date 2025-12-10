@@ -5,6 +5,7 @@ namespace App\Models\ap\configuracionComercial\vehiculo;
 use App\Models\ap\ApCommercialMasters;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -19,6 +20,7 @@ class ApClassArticle extends Model
     'description',
     'account',
     'type_operation_id',
+    'type_class_id',
     'status',
   ];
 
@@ -50,5 +52,29 @@ class ApClassArticle extends Model
   public function typeOperation(): BelongsTo
   {
     return $this->belongsTo(ApCommercialMasters::class, 'type_operation_id');
+  }
+
+  /**
+   * Relación con los mapeos de cuentas contables
+   */
+  public function accountMappings(): HasMany
+  {
+    return $this->hasMany(ApClassArticleAccountMapping::class, 'ap_class_article_id');
+  }
+
+  /**
+   * Obtiene el mapeo de cuenta para un tipo específico
+   */
+  public function getAccountMapping(string $accountType): ?ApClassArticleAccountMapping
+  {
+    return $this->accountMappings()
+      ->where('account_type', $accountType)
+      ->where('status', true)
+      ->first();
+  }
+
+  public function typeClass()
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'type_class_id');
   }
 }

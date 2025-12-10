@@ -20,6 +20,7 @@ class AssignSalesSeriesResource extends JsonResource
       'sede_id' => $this->sede_id,
       'sede' => $this->sede->abreviatura,
       'status' => $this->status,
+      'type' => $this->type,
     ];
   }
 }

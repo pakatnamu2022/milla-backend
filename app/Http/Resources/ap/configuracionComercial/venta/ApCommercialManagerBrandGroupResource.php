@@ -11,7 +11,11 @@ class ApCommercialManagerBrandGroupResource extends JsonResource
 
   public function toArray(Request $request): array
   {
-    $first = $this->first();
+    $first = $this?->first();
+
+    if (!$first) {
+      return [];
+    }
 
     return [
       'brand_group_id' => $first->brandGroup->id,

@@ -16,6 +16,7 @@ class AssignSalesSeries extends Model
   protected $fillable = [
     'series',
     'correlative_start',
+    'type',
     'type_receipt_id',
     'type_operation_id',
     'sede_id',
@@ -24,6 +25,8 @@ class AssignSalesSeries extends Model
 
   const filters = [
     'search' => ['series', 'typeReceipt.description', 'typeOperation.description', 'sede.abreviatura'],
+    'series' => '=',
+    'type' => '=',
     'type_receipt_id' => '=',
     'type_operation_id' => '=',
     'sede_id' => '=',
@@ -33,12 +36,15 @@ class AssignSalesSeries extends Model
   const sorts = [
     'id',
     'series',
+    'type',
     'correlative_start',
     'type_receipt_id',
     'type_operation_id',
     'sede_id',
   ];
 
+  const string PURCHASE = 'PURCHASE';
+  const string SALE = 'SALE';
   const int FACTURA = 799;
   const int BOLETA = 800;
   const int NOTA_CREDITO = 801;

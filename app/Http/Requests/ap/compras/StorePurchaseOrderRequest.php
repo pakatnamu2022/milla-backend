@@ -3,17 +3,18 @@
 namespace App\Http\Requests\ap\compras;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\maestroGeneral\Warehouse;
 use Illuminate\Validation\Rule;
 
 class StorePurchaseOrderRequest extends StoreRequest
 {
 
-  public function prepareForValidation()
+  public function prepareForValidation(): void
   {
     if (!$this->has('type_operation_id')) {
       $this->merge([
-        'type_operation_id' => 794,
+        'type_operation_id' => ApCommercialMasters::TIPO_OPERACION_COMERCIAL,
       ]);
     }
   }

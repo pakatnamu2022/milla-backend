@@ -6,7 +6,6 @@ use App\Http\Services\DocumentValidation\DocumentValidationService;
 use App\Models\ap\comercial\BusinessPartners;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Log;
 
 class ProcessEstablishments implements ShouldQueue
 {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\gp\gestionhumana\personal;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ap\comercial\IndexConsultantRequest;
 use App\Http\Requests\gp\gestionhumana\personal\IndexWorkerRequest;
 use App\Http\Services\gp\gestionhumana\personal\WorkerService;
 use Illuminate\Http\Request;
@@ -20,6 +21,15 @@ class WorkerController extends Controller
   {
     try {
       return $this->service->list($request);
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function myConsultants(IndexConsultantRequest $request)
+  {
+    try {
+      return $this->service->myConsultants($request);
     } catch (\Throwable $e) {
       return $this->error($e->getMessage());
     }

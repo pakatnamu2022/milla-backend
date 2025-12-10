@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\comercial;
 
+use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -49,6 +50,7 @@ class PurchaseRequestQuoteResource extends JsonResource
       'doc_type_currency_symbol' => $this->docTypeCurrency->symbol ?? null,
       'advisor_name' => $this->opportunity->worker->nombre_completo ?? null,
       'warranty' => $this->warranty,
+      'consultant' => $this->opportunity->worker ? WorkerResource::make($this->opportunity->worker) : null,
       'bonus_discounts' => $this->discountCoupons->map(function ($discount) {
         return [
           'id' => $discount->id,
