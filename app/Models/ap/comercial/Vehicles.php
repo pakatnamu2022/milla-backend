@@ -63,6 +63,7 @@ class Vehicles extends Model
     'warehouse.article_class_id' => '=',
     'is_paid' => 'accessor_bool',
     'customer_id' => '=',
+    'type_operation_id' => '=',
   ];
 
   public static array $sorts = [
@@ -126,6 +127,11 @@ class Vehicles extends Model
   public function customer(): BelongsTo
   {
     return $this->belongsTo(BusinessPartners::class, 'customer_id');
+  }
+
+  public function typeOperation(): BelongsTo
+  {
+    return $this->belongsTo(ApCommercialMasters::class, 'type_operation_id');
   }
 
   /**

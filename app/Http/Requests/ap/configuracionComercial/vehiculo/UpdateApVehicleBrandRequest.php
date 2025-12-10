@@ -25,7 +25,6 @@ class UpdateApVehicleBrandRequest extends StoreRequest
         'max:100',
         Rule::unique('ap_vehicle_brand', 'dyn_code')->whereNull('deleted_at')
           ->whereNull('deleted_at')
-          ->where('type_operation_id', ApCommercialMasters::TIPO_OPERACION_COMERCIAL)
           ->ignore($this->route('vehicleBrand')),
       ],
       'name' => [

@@ -124,8 +124,29 @@ class DocumentValidationController extends Controller
       $validated['use_cache'] ?? true
     );
 
-    //$statusCode = $result['success'] ? 200 : 400;
+    return response()->json($result, Response::HTTP_OK);
+  }
 
+  /**
+   * Validate plate number specifically
+   *
+   * @param Request $request
+   * @return JsonResponse
+   */
+
+  public function validatePlate(Request $request): JsonResponse
+  {
+    $validated = $request->validate([
+      'plate' => 'required|string|max:10',
+      'use_cache' => 'sometimes|boolean',
+    ]);
+
+    $result = $this->documentValidationService->validateDocument(
+      'plate',
+      $validated['plate'],
+      [],
+      $validated['use_cache'] ?? true
+    );
     return response()->json($result, Response::HTTP_OK);
   }
 

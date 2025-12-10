@@ -30,6 +30,7 @@ class WarehouseService extends BaseService implements BaseServiceInterface
   {
     $model = $request->get('model_vn_id');
     $sede = $request->get('sede_id');
+    $is_received = $request->get('is_received', 0);
 
     $modelVn = ApModelsVn::where('id', $model)->first();
     if (!$modelVn) {
@@ -44,7 +45,7 @@ class WarehouseService extends BaseService implements BaseServiceInterface
       ->where('article_class_id', $modelVn->class_id)
       ->where('sede_id', $sede)
       ->where('status', 1)
-      ->where('is_received', 0)
+      ->where('is_received', $is_received)
       ->orderBy('dyn_code', 'asc')
       ->get();
     return WarehouseResource::collection($warehouse);

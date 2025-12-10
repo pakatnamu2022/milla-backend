@@ -116,6 +116,10 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
     if (!$data['type_operation_id']) $data['type_operation_id'] = Constants::TYPE_OPERATION_POSTVENTA_ID;
 
+    if (!isset($data['warehouse_id'])) {
+      $data['warehouse_id'] = $data['warehouse_physical_id'] ?? null;
+    }
+
     return $data;
   }
 
@@ -165,6 +169,10 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         if ($existingEngine) {
           throw new Exception("El número de motor {$data['engine_number']} ya existe en el sistema");
         }
+      }
+
+      if (!isset($data['warehouse_id'])) {
+        $data['warehouse_id'] = $data['warehouse_physical_id'] ?? null;
       }
 
       $vehicle->update($data);

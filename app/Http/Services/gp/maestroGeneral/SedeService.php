@@ -8,6 +8,7 @@ use App\Models\gp\maestroGeneral\Sede;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SedeService extends BaseService
 {
@@ -26,7 +27,15 @@ class SedeService extends BaseService
   {
     $user = $request->user();
     $company = $request->company;
-    $sedes = $user->sedes->where('empresa_id', $company)->whereNotNull('shop_id');
+    $has_workshop = $request->has_workshop;
+    $sedes = $user->sedes->where('empresa_id', $company)
+      ->where('status', 1)
+      ->whereNotNull('shop_id');
+
+    if ($request->has('has_workshop')) {
+      $sedes = $sedes->where('has_workshop', $has_workshop);
+    }
+
     return SedeResource::collection($sedes);
   }
 

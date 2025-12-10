@@ -5,6 +5,7 @@ namespace App\Models\ap\postventa\taller;
 use App\Models\ap\ApPostVentaMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -29,6 +30,8 @@ class AppointmentPlanning extends Model
     'email_client',
     'phone_client',
     'created_by',
+    'is_taken',
+    'sede_id',
   ];
 
   const filters = [
@@ -40,12 +43,18 @@ class AppointmentPlanning extends Model
     'date_appointment' => 'between',
     'delivery_date' => 'between',
     'created_by' => '=',
+    'is_taken' => '=',
+    'sede_id' => '=',
   ];
 
   const sorts = [
     'date_appointment',
     'delivery_date',
     'created_at',
+  ];
+
+  protected $casts = [
+    'is_taken' => 'boolean',
   ];
 
   public function setDescriptionAttribute($value)
@@ -81,5 +90,10 @@ class AppointmentPlanning extends Model
   public function advisor()
   {
     return $this->belongsTo(Worker::class, 'advisor_id');
+  }
+
+  public function sede()
+  {
+    return $this->belongsTo(Sede::class, 'sede_id');
   }
 }

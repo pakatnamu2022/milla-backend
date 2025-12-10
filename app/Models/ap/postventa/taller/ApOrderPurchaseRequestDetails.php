@@ -1,0 +1,52 @@
+<?php
+
+namespace App\Models\ap\postventa\taller;
+
+use App\Models\ap\postventa\gestionProductos\Products;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class ApOrderPurchaseRequestDetails extends Model
+{
+  use softDeletes;
+
+  protected $table = 'ap_order_purchase_request_details';
+
+  protected $fillable = [
+    'order_purchase_request_id',
+    'product_id',
+    'quantity',
+    'notes',
+    'requested_delivery_date',
+  ];
+
+  const filters = [
+    'search' => ['notes'],
+    'order_purchase_request_id' => '=',
+    'product_id' => '=',
+    'requested_delivery_date' => 'between',
+  ];
+
+  const sorts = [
+    'id',
+    'quantity',
+    'requested_delivery_date',
+    'created_at',
+    'updated_at',
+  ];
+
+  protected $casts = [
+    'requested_delivery_date' => 'datetime',
+  ];
+
+  public function orderPurchaseRequest(): BelongsTo
+  {
+    return $this->belongsTo(ApOrderPurchaseRequests::class, 'order_purchase_request_id');
+  }
+
+  public function product(): BelongsTo
+  {
+    return $this->belongsTo(Products::class, 'product_id');
+  }
+}

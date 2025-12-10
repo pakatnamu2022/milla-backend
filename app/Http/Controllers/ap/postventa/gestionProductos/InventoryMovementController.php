@@ -252,4 +252,34 @@ class InventoryMovementController extends Controller
       return $this->error($e->getMessage());
     }
   }
+
+  /**
+   * Get kardex of all inventory movements
+   * Returns all inventory movements with optional warehouse filter
+   *
+   * @param Request $request
+   * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\Resources\Json\AnonymousResourceCollection
+   */
+  public function getKardex(Request $request)
+  {
+    try {
+      $request->validate([
+        'warehouse_id' => 'sometimes|integer|exists:warehouse,id',
+        'per_page' => 'sometimes|integer|min:1|max:100',
+        'date_from' => 'sometimes|date',
+        'date_to' => 'sometimes|date',
+        'movement_type' => 'sometimes|string',
+        'status' => 'sometimes|string',
+        'search' => 'nullable|string',
+      ]);
+
+      $movements = $this->inventoryMovementService->getKardex($request);
+
+      // Return with pagination preserved
+      // Format: { data: [], links: {}, meta: {} }
+      return $movements;
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }

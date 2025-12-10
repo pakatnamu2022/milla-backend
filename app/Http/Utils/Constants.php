@@ -25,5 +25,6 @@ class Constants
   public const int TYPE_OPERATION_COMERCIAL_ID = 794; // Tipo de Operación COMERCIAL
   public const int TYPE_OPERATION_POSTVENTA_ID = 804; // Tipo de Operación POSTVENTA
 
+  public const int VAT_TAX = 18; // IGV
   public const int TICS_AREA_ID = 11;
 }

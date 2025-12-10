@@ -45,4 +45,7 @@ class ApPostVentaMasters extends Model
   {
     $this->attributes['type'] = Str::upper(Str::ascii($value));
   }
+
+  // Add status Order Work
+  const OPENING_WORK_ORDER_ID = 19;
 }

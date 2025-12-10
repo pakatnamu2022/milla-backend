@@ -9,7 +9,7 @@
     return "data:{$mimeType};base64,{$imageData}";
   }
 @endphp
-<!doctype html>
+  <!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -81,7 +81,8 @@
     }
 
     .section-title {
-      background-color: #d0d0d0;
+      background-color: #172e66;
+      color: white;
       font-weight: bold;
       padding: 8px;
       text-align: center;

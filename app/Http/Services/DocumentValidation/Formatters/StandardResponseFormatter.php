@@ -33,6 +33,9 @@ class StandardResponseFormatter implements ResponseFormatterInterface
       'soat', 'ce' => array_merge($baseResponse, [
         'data' => $this->formatMigracionesResponse($providerResponse)
       ]),
+      'plate' => array_merge($baseResponse, [
+        'data' => $this->formatPlateResponse($providerResponse)
+      ]),
       default => array_merge($baseResponse, [
         'data' => $this->formatGenericResponse($providerResponse)
       ]),
@@ -171,6 +174,27 @@ class StandardResponseFormatter implements ResponseFormatterInterface
       'immigration_status' => $data['calidad_migratoria'] ?? null,
       'entry_date' => $data['fecha_ingreso'] ?? null,
       'expiration_date' => $data['fecha_vencimiento'] ?? null,
+    ];
+  }
+
+
+  protected function formatPlateResponse(array $response): ?array
+  {
+    if (!isset($response['message']) || strtolower($response['message']) !== 'exito') {
+      return null;
+    }
+
+    $data = $response['data'] ?? [];
+
+    return [
+      'valid' => true,
+      'plate_number' => $data['placa'] ?? null,
+      'brand' => $data['marca'] ?? null,
+      'model' => $data['modelo'] ?? null,
+      'series' => $data['serie'] ?? null,
+      'color' => $data['color'] ?? null,
+      'engine_number' => $data['motor'] ?? null,
+      'vin' => $data['vin'] ?? null,
     ];
   }
 

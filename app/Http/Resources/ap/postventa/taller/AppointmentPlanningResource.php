@@ -21,9 +21,13 @@ class AppointmentPlanningResource extends JsonResource
       'phone_client' => $this->phone_client,
       'type_operation_appointment_id' => $this->type_operation_appointment_id,
       'type_planning_id' => $this->type_planning_id,
+      'type_planning_name' => $this->typePlanning ? $this->typePlanning->description : null,
       'ap_vehicle_id' => $this->ap_vehicle_id,
       'advisor_id' => $this->advisor_id,
       'plate' => $this->vehicle ? $this->vehicle->plate : null,
+      'sede_id' => $this->sede_id,
+      'sede_name' => $this->sede ? $this->sede->abreviatura : null,
+      'is_taken' => $this->is_taken,
     ];
   }
 }
