@@ -187,4 +187,62 @@ class DashboardComercialController extends Controller
       ],
     ]);
   }
+
+  public function getStatsForSalesManager(Request $request)
+  {
+    $request->validate([
+      'date_from' => 'required|date|date_format:Y-m-d',
+      'date_to' => 'required|date|date_format:Y-m-d|after_or_equal:date_from',
+      'type' => 'required|in:VISITA,LEADS',
+      'boss_id' => 'nullable|integer|exists:rrhh_persona,id',
+    ]);
+
+    $data = $this->dashboardService->getStatsForSalesManager(
+      $request->date_from,
+      $request->date_to,
+      $request->type,
+      $request->boss_id
+    );
+
+    return response()->json([
+      'success' => true,
+      'data' => $data,
+      'period' => [
+        'start_date' => $request->date_from,
+        'end_date' => $request->date_to,
+      ],
+    ]);
+  }
+
+  public function getDetailsForSalesManager(Request $request)
+  {
+    $request->validate([
+      'date_from' => 'required|date|date_format:Y-m-d',
+      'date_to' => 'required|date|date_format:Y-m-d|after_or_equal:date_from',
+      'type' => 'required|in:VISITA,LEADS',
+      'boss_id' => 'nullable|integer|exists:rrhh_persona,id',
+      'per_page' => 'nullable|integer|min:10|max:100',
+      'worker_id' => 'nullable|integer|exists:rrhh_persona,id',
+    ]);
+
+    $data = $this->dashboardService->getDetailsForSalesManager(
+      $request->date_from,
+      $request->date_to,
+      $request->type,
+      $request->boss_id,
+      $request->per_page ?? 50,
+      $request->worker_id
+    );
+
+    return response()->json([
+      'success' => true,
+      'data' => $data['data'],
+      'meta' => $data['meta'],
+      'manager_info' => $data['manager_info'],
+      'period' => [
+        'start_date' => $request->date_from,
+        'end_date' => $request->date_to,
+      ],
+    ]);
+  }
 }

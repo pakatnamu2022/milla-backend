@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\ap\postventa\taller;
 
-use App\Http\Requests\UpdateRequest;
+use App\Http\Requests\StoreRequest;
 use Illuminate\Validation\Rule;
 
-class UpdateWorkOrderItemRequest extends UpdateRequest
+class UpdateWorkOrderItemRequest extends StoreRequest
 {
   public function rules(): array
   {

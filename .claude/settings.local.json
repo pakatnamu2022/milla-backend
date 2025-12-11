@@ -14,7 +14,8 @@
       "Bash(findstr:*)",
       "Bash(dir:*)",
       "Bash(mysql:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

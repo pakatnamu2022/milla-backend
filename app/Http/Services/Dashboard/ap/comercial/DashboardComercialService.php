@@ -4,6 +4,9 @@ namespace App\Http\Services\Dashboard\ap\comercial;
 
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PotentialBuyers;
+use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
+use App\Models\gp\gestionsistema\Person;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class DashboardComercialService
@@ -458,6 +461,123 @@ class DashboardComercialService
     return array_values($result);
   }
 
+  /**
+   * Obtiene estadísticas para jefe de ventas
+   */
+  public function getStatsForSalesManager($dateFrom, $dateTo, $type, $bossId = null)
+  {
+    // Determinar boss_id
+    $bossId = $bossId ?? auth()->user()->partner_id;
+
+    // Obtener asesores asignados
+    $advisorIds = $this->getAssignedAdvisorsForManager($bossId, $dateFrom, $dateTo);
+
+    if (empty($advisorIds)) {
+      return [
+        'manager_info' => $this->getManagerInfo($bossId),
+        'team_totals' => [
+          'total_advisors' => 0,
+          'total_visits' => 0,
+          'not_attended' => 0,
+          'attended' => 0,
+          'discarded' => 0,
+          'attention_percentage' => 0,
+          'by_opportunity_status' => [],
+        ],
+        'by_advisor' => [],
+      ];
+    }
+
+    // Consultar estadísticas agrupadas por asesor
+    $stats = PotentialBuyers::with(['worker'])
+      ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
+      ->where('type', $type)
+      ->whereIn('worker_id', $advisorIds)
+      ->select(
+        'worker_id',
+        'use',
+        DB::raw('count(*) as total'),
+        DB::raw('AVG(CASE
+                WHEN `use` <> ' . PotentialBuyers::CREATED . '
+                THEN TIMESTAMPDIFF(SECOND, created_at, updated_at)
+                ELSE NULL
+            END) as avg_response_seconds')
+      )
+      ->groupBy('worker_id', 'use')
+      ->get();
+
+    // Procesar estadísticas
+    $byAdvisor = $this->processAdvisorStats($stats, $advisorIds, $dateFrom, $dateTo, $type);
+
+    // Calcular totales del equipo
+    $teamTotals = $this->calculateTeamTotals($byAdvisor);
+
+    return [
+      'manager_info' => $this->getManagerInfo($bossId),
+      'team_totals' => $teamTotals,
+      'by_advisor' => $byAdvisor,
+    ];
+  }
+
+  /**
+   * Obtiene listado detallado de leads/visitas para jefe de ventas
+   */
+  public function getDetailsForSalesManager($dateFrom, $dateTo, $type, $bossId = null, $perPage = 50, $workerId = null)
+  {
+    // Determinar boss_id
+    $bossId = $bossId ?? auth()->user()->partner_id;
+
+    // Obtener asesores asignados
+    $advisorIds = $this->getAssignedAdvisorsForManager($bossId, $dateFrom, $dateTo);
+
+    if (empty($advisorIds)) {
+      return [
+        'data' => [],
+        'meta' => [
+          'current_page' => 1,
+          'per_page' => $perPage,
+          'total' => 0,
+          'last_page' => 1,
+        ],
+        'manager_info' => $this->getManagerInfo($bossId),
+      ];
+    }
+
+    // Construir query
+    $query = PotentialBuyers::with([
+      'worker',
+      'sede',
+      'sede.district',
+      'vehicleBrand',
+      'documentType',
+      'opportunity.opportunityStatus',
+    ])
+      ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
+      ->where('type', $type)
+      ->whereIn('worker_id', $advisorIds);
+
+    // Filtro adicional por asesor específico
+    if ($workerId) {
+      $query->where('worker_id', $workerId);
+    }
+
+    $query->orderBy('created_at', 'desc');
+
+    // Paginar
+    $paginated = $query->paginate($perPage);
+
+    return [
+      'data' => $paginated->items(),
+      'meta' => [
+        'current_page' => $paginated->currentPage(),
+        'per_page' => $paginated->perPage(),
+        'total' => $paginated->total(),
+        'last_page' => $paginated->lastPage(),
+      ],
+      'manager_info' => $this->getManagerInfo($bossId),
+    ];
+  }
+
   private function getUseLabel($use)
   {
     switch ($use) {
@@ -484,5 +604,232 @@ class DashboardComercialService
     if ($minutos > 0 || empty($partes)) $partes[] = $minutos . 'm';
 
     return implode(' ', $partes);
+  }
+
+  /**
+   * Genera lista de períodos (año, mes) dentro del rango de fechas
+   */
+  private function generatePeriods($dateFrom, $dateTo)
+  {
+    $periods = [];
+    $start = Carbon::parse($dateFrom);
+    $end = Carbon::parse($dateTo);
+
+    while ($start <= $end) {
+      $periods[] = [
+        'year' => $start->year,
+        'month' => $start->month
+      ];
+      $start->addMonth();
+    }
+
+    return $periods;
+  }
+
+  /**
+   * Obtiene IDs de asesores asignados a un jefe en un rango de fechas
+   */
+  private function getAssignedAdvisorsForManager($bossId, $dateFrom, $dateTo)
+  {
+    $periods = $this->generatePeriods($dateFrom, $dateTo);
+
+    $query = ApAssignmentLeadership::where('boss_id', $bossId)
+      ->where('status', 1);
+
+    $query->where(function ($q) use ($periods) {
+      foreach ($periods as $period) {
+        $q->orWhere(function ($subQuery) use ($period) {
+          $subQuery->where('year', $period['year'])
+            ->where('month', $period['month']);
+        });
+      }
+    });
+
+    $workerIds = $query->distinct()
+      ->pluck('worker_id')
+      ->toArray();
+
+    return $workerIds;
+  }
+
+  /**
+   * Obtiene información del jefe de ventas
+   */
+  private function getManagerInfo($bossId)
+  {
+    $manager = Person::with('position')->find($bossId);
+
+    if (!$manager) {
+      return [
+        'boss_id' => $bossId,
+        'boss_name' => 'Desconocido',
+        'boss_position' => 'N/A'
+      ];
+    }
+
+    return [
+      'boss_id' => $manager->id,
+      'boss_name' => $manager->nombre_completo ?? 'N/A',
+      'boss_position' => $manager->position->nombre_cargo ?? 'N/A'
+    ];
+  }
+
+  /**
+   * Procesa estadísticas agrupadas por asesor
+   */
+  private function processAdvisorStats($stats, $advisorIds, $dateFrom, $dateTo, $type)
+  {
+    $result = [];
+
+    // Cargar información de todos los asesores asignados
+    $workers = Person::whereIn('id', $advisorIds)->get()->keyBy('id');
+
+    // Inicializar estructura para todos los asesores asignados
+    foreach ($advisorIds as $workerId) {
+      $worker = $workers->get($workerId);
+      $result[$workerId] = [
+        'worker_id' => $workerId,
+        'worker_name' => $worker ? $worker->nombre_completo : 'N/A',
+        'total_visits' => 0,
+        'not_attended' => 0,
+        'attended' => 0,
+        'discarded' => 0,
+        'attention_percentage' => 0,
+        'average_response_time' => '-',
+        'total_seconds' => 0,
+        'count_with_time' => 0,
+      ];
+    }
+
+    // Procesar estadísticas
+    foreach ($stats as $stat) {
+      $workerId = $stat->worker_id;
+
+      if (!isset($result[$workerId])) {
+        $result[$workerId] = [
+          'worker_id' => $workerId,
+          'worker_name' => $stat->worker->nombre_completo ?? 'N/A',
+          'total_visits' => 0,
+          'not_attended' => 0,
+          'attended' => 0,
+          'discarded' => 0,
+          'attention_percentage' => 0,
+          'average_response_time' => '-',
+          'total_seconds' => 0,
+          'count_with_time' => 0,
+        ];
+      }
+
+      $result[$workerId]['worker_name'] = $stat->worker->nombre_completo ?? 'N/A';
+      $result[$workerId]['total_visits'] += $stat->total;
+
+      switch ($stat->use) {
+        case PotentialBuyers::CREATED:
+          $result[$workerId]['not_attended'] = $stat->total;
+          break;
+        case PotentialBuyers::USED:
+          $result[$workerId]['attended'] = $stat->total;
+          break;
+        case PotentialBuyers::DISCARTED:
+          $result[$workerId]['discarded'] = $stat->total;
+          break;
+      }
+
+      // Acumular tiempo promedio
+      if ($stat->avg_response_seconds !== null) {
+        $result[$workerId]['total_seconds'] += $stat->avg_response_seconds * $stat->total;
+        $result[$workerId]['count_with_time'] += $stat->total;
+      }
+    }
+
+    // Calcular porcentajes y tiempos promedio finales
+    foreach ($result as &$advisor) {
+      if ($advisor['total_visits'] > 0) {
+        $advisor['attention_percentage'] = round(($advisor['attended'] / $advisor['total_visits']) * 100, 2);
+      }
+
+      if ($advisor['count_with_time'] > 0) {
+        $avgSeconds = $advisor['total_seconds'] / $advisor['count_with_time'];
+        $advisor['average_response_time'] = $this->formatearTiempo($avgSeconds);
+      }
+
+      // Remover campos temporales
+      unset($advisor['total_seconds']);
+      unset($advisor['count_with_time']);
+    }
+
+    // Enriquecer con datos de oportunidades
+    $this->enrichAdvisorWithOpportunityStats($result, $advisorIds, $dateFrom, $dateTo, $type);
+
+    return array_values($result);
+  }
+
+  /**
+   * Enriquece las estadísticas de asesores con datos de oportunidades
+   */
+  private function enrichAdvisorWithOpportunityStats(&$result, $advisorIds, $dateFrom, $dateTo, $type)
+  {
+    $opportunities = Opportunity::with(['opportunityStatus', 'lead'])
+      ->whereHas('lead', function ($query) use ($dateFrom, $dateTo, $type, $advisorIds) {
+        $query->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
+          ->where('type', $type)
+          ->whereIn('worker_id', $advisorIds);
+      })
+      ->get();
+
+    foreach ($result as &$advisor) {
+      $advisorOpportunities = $opportunities->filter(function ($opp) use ($advisor) {
+        return $opp->lead && $opp->lead->worker_id == $advisor['worker_id'];
+      });
+
+      $advisor['by_opportunity_status'] = $advisorOpportunities
+        ->groupBy(function ($opp) {
+          return $opp->opportunityStatus->description ?? 'SIN_ESTADO';
+        })
+        ->map(function ($group) {
+          return $group->count();
+        })
+        ->toArray();
+    }
+  }
+
+  /**
+   * Calcula totales del equipo
+   */
+  private function calculateTeamTotals($byAdvisor)
+  {
+    $totals = [
+      'total_advisors' => count($byAdvisor),
+      'total_visits' => 0,
+      'not_attended' => 0,
+      'attended' => 0,
+      'discarded' => 0,
+      'attention_percentage' => 0,
+      'by_opportunity_status' => [],
+    ];
+
+    foreach ($byAdvisor as $advisor) {
+      $totals['total_visits'] += $advisor['total_visits'];
+      $totals['not_attended'] += $advisor['not_attended'];
+      $totals['attended'] += $advisor['attended'];
+      $totals['discarded'] += $advisor['discarded'];
+
+      // Agregar estados de oportunidad
+      if (isset($advisor['by_opportunity_status'])) {
+        foreach ($advisor['by_opportunity_status'] as $estado => $cantidad) {
+          if (!isset($totals['by_opportunity_status'][$estado])) {
+            $totals['by_opportunity_status'][$estado] = 0;
+          }
+          $totals['by_opportunity_status'][$estado] += $cantidad;
+        }
+      }
+    }
+
+    // Calcular porcentaje de atención del equipo
+    if ($totals['total_visits'] > 0) {
+      $totals['attention_percentage'] = round(($totals['attended'] / $totals['total_visits']) * 100, 2);
+    }
+
+    return $totals;
   }
 }
