@@ -31,6 +31,11 @@ class UpdateAppointmentPlanningRequest extends StoreRequest
         'nullable',
         'date_format:H:i',
       ],
+      'num_doc_client' => [
+        'required',
+        'string',
+        'max:8',
+      ],
       'full_name_client' => [
         'nullable',
         'string',
@@ -60,7 +65,7 @@ class UpdateAppointmentPlanningRequest extends StoreRequest
           ->where('type', 'TIPO_PLANIFICACION'),
       ],
       'ap_vehicle_id' => [
-        'nullable',
+        'required',
         'integer',
         'exists:ap_vehicles,id',
       ],
@@ -85,6 +90,10 @@ class UpdateAppointmentPlanningRequest extends StoreRequest
       'date_appointment.date' => 'El campo fecha de cita debe ser una fecha válida.',
 
       'time_appointment.date_format' => 'El campo hora de cita debe tener el formato HH:MM.',
+
+      'num_doc_client.required' => 'El campo número de documento del cliente es obligatorio.',
+      'num_doc_client.string' => 'El campo número de documento del cliente debe ser una cadena de texto.',
+      'num_doc_client.max' => 'El campo número de documento del cliente no debe exceder los 8 caracteres.',
 
       'full_name_client.string' => 'El campo nombre completo del cliente debe ser una cadena de texto.',
       'full_name_client.max' => 'El campo nombre completo del cliente no debe exceder los 100 caracteres.',

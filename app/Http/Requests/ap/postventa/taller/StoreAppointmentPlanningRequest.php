@@ -34,6 +34,11 @@ class StoreAppointmentPlanningRequest extends StoreRequest
         'required',
         'date_format:H:i',
       ],
+      'num_doc_client' => [
+        'required',
+        'string',
+        'max:8',
+      ],
       'full_name_client' => [
         'required',
         'string',
@@ -93,6 +98,10 @@ class StoreAppointmentPlanningRequest extends StoreRequest
 
       'time_appointment.required' => 'El campo hora de cita es obligatorio.',
       'time_appointment.date_format' => 'El campo hora de cita debe tener el formato HH:MM.',
+
+      'num_doc_client.required' => 'El campo número de documento del cliente es obligatorio.',
+      'num_doc_client.string' => 'El campo número de documento del cliente debe ser una cadena de texto.',
+      'num_doc_client.max' => 'El campo número de documento del cliente no debe exceder los 8 caracteres.',
 
       'full_name_client.required' => 'El campo nombre completo del cliente es obligatorio.',
       'full_name_client.string' => 'El campo nombre completo del cliente debe ser una cadena de texto.',

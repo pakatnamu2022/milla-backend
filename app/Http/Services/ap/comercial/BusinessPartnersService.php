@@ -220,7 +220,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
    */
   public function getData(mixed $data): mixed
   {
-    if (isset($data['type_person_id']) && $data['type_person_id'] == Constants::TYPE_PERSON_NATURAL_ID && $data['type'] != 'PROVEEDOR') {
+    if (isset($data['type_person_id']) && $data['type_person_id'] == Constants::TYPE_PERSON_NATURAL_ID && $data['type'] != 'PROVEEDOR' && isset($data['origin_id'])) {
       if (empty($data['birth_date'])) {
         throw new Exception('La fecha de nacimiento es requerida para personas naturales');
       }
