@@ -24,6 +24,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\TextUI\Configuration\Constant;
 use Throwable;
 
 class PurchaseRequestQuoteService extends BaseService implements BaseServiceInterface
@@ -58,6 +59,10 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     // Si es del área de TICS, ver todo
     if ($worker->position->area->id === Constants::TICS_AREA_ID) {
       return PurchaseRequestQuote::class;
+    }
+
+    if ($worker->position->hierarchicalCategory->id === Constants::SALE_COORDINATOR_CATEGORY_ID) {
+      return PurchaseRequestQuote::where('sede_id', $worker->sede_id);
     }
 
     // Buscar si el trabajador es jefe (tiene consultores asignados en ApAssignmentLeadership)
