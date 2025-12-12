@@ -3,64 +3,52 @@
 namespace App\Http\Controllers\gp\gestionhumana\viaticos;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemCategoryResource;
 use App\Models\gp\gestionhumana\viaticos\PerDiemCategory;
-use Illuminate\Http\Request;
+use Exception;
+use Illuminate\Http\JsonResponse;
 
 class PerDiemCategoryController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+  /**
+   * Get all categories
+   */
+  public function index(): JsonResponse
+  {
+    try {
+      $categories = PerDiemCategory::all();
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
+      return response()->json([
+        'success' => true,
+        'data' => PerDiemCategoryResource::collection($categories),
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al obtener categorías',
+        'error' => $e->getMessage(),
+      ], 500);
     }
+  }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
+  /**
+   * Get only active categories
+   */
+  public function active(): JsonResponse
+  {
+    try {
+      $categories = PerDiemCategory::where('active', true)->get();
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(PerDiemCategory $perDiemCategory)
-    {
-        //
+      return response()->json([
+        'success' => true,
+        'data' => PerDiemCategoryResource::collection($categories),
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al obtener categorías activas',
+        'error' => $e->getMessage(),
+      ], 500);
     }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(PerDiemCategory $perDiemCategory)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, PerDiemCategory $perDiemCategory)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PerDiemCategory $perDiemCategory)
-    {
-        //
-    }
+  }
 }

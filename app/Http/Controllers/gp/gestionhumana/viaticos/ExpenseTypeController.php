@@ -3,64 +3,79 @@
 namespace App\Http\Controllers\gp\gestionhumana\viaticos;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\gp\gestionhumana\viaticos\ExpenseTypeResource;
 use App\Models\gp\gestionhumana\viaticos\ExpenseType;
-use Illuminate\Http\Request;
+use Exception;
+use Illuminate\Http\JsonResponse;
 
 class ExpenseTypeController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+  /**
+   * Get all expense types
+   */
+  public function index(): JsonResponse
+  {
+    try {
+      $expenseTypes = ExpenseType::with('parent')->withCount('children')->get();
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
+      return response()->json([
+        'success' => true,
+        'data' => ExpenseTypeResource::collection($expenseTypes),
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al obtener tipos de gasto',
+        'error' => $e->getMessage(),
+      ], 500);
     }
+  }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
+  /**
+   * Get only active expense types
+   */
+  public function active(): JsonResponse
+  {
+    try {
+      $expenseTypes = ExpenseType::where('active', true)
+        ->with('parent')
+        ->withCount('children')
+        ->get();
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(ExpenseType $expenseType)
-    {
-        //
+      return response()->json([
+        'success' => true,
+        'data' => ExpenseTypeResource::collection($expenseTypes),
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al obtener tipos de gasto activos',
+        'error' => $e->getMessage(),
+      ], 500);
     }
+  }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(ExpenseType $expenseType)
-    {
-        //
-    }
+  /**
+   * Get only parent expense types (no parent_id)
+   */
+  public function parents(): JsonResponse
+  {
+    try {
+      $expenseTypes = ExpenseType::whereNull('parent_id')
+        ->where('active', true)
+        ->withCount('children')
+        ->get();
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, ExpenseType $expenseType)
-    {
-        //
+      return response()->json([
+        'success' => true,
+        'data' => ExpenseTypeResource::collection($expenseTypes),
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al obtener tipos de gasto padre',
+        'error' => $e->getMessage(),
+      ], 500);
     }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(ExpenseType $expenseType)
-    {
-        //
-    }
+  }
 }

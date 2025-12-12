@@ -4,63 +4,63 @@ namespace App\Http\Controllers\gp\gestionhumana\viaticos;
 
 use App\Http\Controllers\Controller;
 use App\Models\gp\gestionhumana\viaticos\HotelAgreement;
+use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class HotelAgreementController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+  /**
+   * Get all hotel agreements (can filter by city)
+   */
+  public function index(Request $request): JsonResponse
+  {
+    try {
+      $query = HotelAgreement::query();
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+      if ($request->has('city')) {
+        $query->where('city', 'like', '%' . $request->input('city') . '%');
+      }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
+      $agreements = $query->orderBy('hotel_name')->get();
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(HotelAgreement $hotelAgreement)
-    {
-        //
+      return response()->json([
+        'success' => true,
+        'data' => $agreements,
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al obtener convenios de hotel',
+        'error' => $e->getMessage(),
+      ], 500);
     }
+  }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(HotelAgreement $hotelAgreement)
-    {
-        //
-    }
+  /**
+   * Get only active hotel agreements
+   */
+  public function active(Request $request): JsonResponse
+  {
+    try {
+      $query = HotelAgreement::where('active', true);
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, HotelAgreement $hotelAgreement)
-    {
-        //
-    }
+      if ($request->has('city')) {
+        $query->where('city', 'like', '%' . $request->input('city') . '%');
+      }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(HotelAgreement $hotelAgreement)
-    {
-        //
+      $agreements = $query->orderBy('hotel_name')->get();
+
+      return response()->json([
+        'success' => true,
+        'data' => $agreements,
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al obtener convenios activos de hotel',
+        'error' => $e->getMessage(),
+      ], 500);
     }
+  }
 }

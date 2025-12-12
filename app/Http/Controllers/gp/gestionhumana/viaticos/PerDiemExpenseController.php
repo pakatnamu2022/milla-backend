@@ -3,64 +3,132 @@
 namespace App\Http\Controllers\gp\gestionhumana\viaticos;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\gp\gestionhumana\viaticos\StorePerDiemExpenseRequest;
+use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemExpenseResource;
 use App\Models\gp\gestionhumana\viaticos\PerDiemExpense;
+use App\Services\gp\gestionhumana\viaticos\PerDiemExpenseService;
+use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PerDiemExpenseController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+  protected PerDiemExpenseService $service;
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+  public function __construct(PerDiemExpenseService $service)
+  {
+    $this->service = $service;
+  }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
+  /**
+   * Get expenses for a per diem request
+   */
+  public function index(string $requestId): JsonResponse
+  {
+    try {
+      $expenses = PerDiemExpense::where('per_diem_request_id', $requestId)
+        ->with(['expenseType', 'validator'])
+        ->orderBy('expense_date', 'desc')
+        ->get();
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(PerDiemExpense $perDiemExpense)
-    {
-        //
+      return response()->json([
+        'success' => true,
+        'data' => PerDiemExpenseResource::collection($expenses),
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al obtener gastos',
+        'error' => $e->getMessage(),
+      ], 500);
     }
+  }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(PerDiemExpense $perDiemExpense)
-    {
-        //
-    }
+  /**
+   * Store a new expense
+   */
+  public function store(StorePerDiemExpenseRequest $request, string $requestId): JsonResponse
+  {
+    try {
+      $expense = $this->service->create((int)$requestId, $request->validated());
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, PerDiemExpense $perDiemExpense)
-    {
-        //
+      return response()->json([
+        'success' => true,
+        'message' => 'Gasto creado exitosamente',
+        'data' => new PerDiemExpenseResource($expense),
+      ], 201);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al crear gasto',
+        'error' => $e->getMessage(),
+      ], 500);
     }
+  }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PerDiemExpense $perDiemExpense)
-    {
-        //
+  /**
+   * Update an expense
+   */
+  public function update(StorePerDiemExpenseRequest $request, string $expenseId): JsonResponse
+  {
+    try {
+      $expense = $this->service->update((int)$expenseId, $request->validated());
+
+      return response()->json([
+        'success' => true,
+        'message' => 'Gasto actualizado exitosamente',
+        'data' => new PerDiemExpenseResource($expense),
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al actualizar gasto',
+        'error' => $e->getMessage(),
+      ], 500);
     }
+  }
+
+  /**
+   * Delete an expense
+   */
+  public function destroy(string $expenseId): JsonResponse
+  {
+    try {
+      $this->service->delete((int)$expenseId);
+
+      return response()->json([
+        'success' => true,
+        'message' => 'Gasto eliminado exitosamente',
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al eliminar gasto',
+        'error' => $e->getMessage(),
+      ], 500);
+    }
+  }
+
+  /**
+   * Validate an expense
+   */
+  public function validateExpense(Request $request, string $expenseId): JsonResponse
+  {
+    try {
+      $validatorId = $request->input('validator_id') ?? auth()->id();
+      $expense = $this->service->validateExpense((int)$expenseId, (int)$validatorId);
+
+      return response()->json([
+        'success' => true,
+        'message' => 'Gasto validado exitosamente',
+        'data' => new PerDiemExpenseResource($expense),
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al validar gasto',
+        'error' => $e->getMessage(),
+      ], 500);
+    }
+  }
 }
