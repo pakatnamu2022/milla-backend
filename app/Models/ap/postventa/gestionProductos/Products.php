@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\postventa\gestionProductos;
 
+use App\Models\ap\ApPostVentaMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\ap\maestroGeneral\UnitMeasurement;
@@ -102,7 +103,7 @@ class Products extends Model
   // Relationships
   public function category()
   {
-    return $this->belongsTo(ProductCategory::class, 'product_category_id');
+    return $this->belongsTo(ApPostVentaMasters::class, 'product_category_id');
   }
 
   public function brand()

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ap\ApCommercialMastersController;
 use App\Http\Controllers\ap\ApPostVentaMastersController;
+use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
@@ -13,7 +14,6 @@ use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\ShippingGuidesController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
 use App\Http\Controllers\ap\comercial\VehiclesController;
-use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\compras\PurchaseOrderController;
 use App\Http\Controllers\ap\compras\PurchaseReceptionController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
@@ -42,16 +42,14 @@ use App\Http\Controllers\ap\maestroGeneral\UnitMeasurementController;
 use App\Http\Controllers\ap\maestroGeneral\UserSeriesAssignmentController;
 use App\Http\Controllers\ap\maestroGeneral\WarehouseController;
 use App\Http\Controllers\ap\postventa\gestionProductos\InventoryMovementController;
-use App\Http\Controllers\ap\postventa\gestionProductos\ProductCategoryController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductsController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductWarehouseStockController;
 use App\Http\Controllers\ap\postventa\gestionProductos\TransferReceptionController;
 use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
-use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
-use App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemExpenseController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationDetailsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationsController;
+use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
 use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderAssignOperatorController;
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderPartsController;
@@ -89,6 +87,7 @@ use App\Http\Controllers\gp\gestionhumana\viaticos\HotelAgreementController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\HotelReservationController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemApprovalController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemCategoryController;
+use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemExpenseController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemPolicyController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRequestController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
@@ -929,21 +928,11 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/by-advisor', [DashboardComercialController::class, 'getTotalsByAdvisor']);
         Route::get('/by-user', [DashboardComercialController::class, 'getTotalsByUser']);
         Route::get('/by-campaign', [DashboardComercialController::class, 'getTotalsByCampaign']);
-        Route::get('/for-sales-manager-stats', [DashboardComercialController::class, 'getStatsForSalesManager']);
-        Route::get('/for-sales-manager-details', [DashboardComercialController::class, 'getDetailsForSalesManager']);
       });
     });
 
     //      POST-VENTA
     Route::group(['prefix' => 'postVenta'], function () {
-      Route::apiResource('productCategory', ProductCategoryController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
       // Products - Gestión de Productos
       Route::get('products/low-stock', [ProductsController::class, 'lowStock']);
       Route::get('products/featured', [ProductsController::class, 'featured']);
@@ -1180,7 +1169,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('per-diem-requests/{requestId}/expenses', [PerDiemExpenseController::class, 'store']);
     Route::put('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'update']);
     Route::delete('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'destroy']);
-    Route::post('per-diem-expenses/{expenseId}/is-valid', [PerDiemExpenseController::class, 'isValid']);
+    Route::post('per-diem-expenses/{expenseId}/validate', [PerDiemExpenseController::class, 'validate']);
 
     // Hotel Reservations
     Route::post('per-diem-requests/{requestId}/hotel-reservation', [HotelReservationController::class, 'store']);

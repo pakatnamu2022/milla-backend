@@ -38,6 +38,7 @@ class UpdateVehiclesRequest extends StoreRequest
       'ap_vehicle_status_id' => 'sometimes|integer|exists:ap_vehicle_status,id',
       'sede_id' => 'sometimes|required|integer|exists:config_sede,id',
       'warehouse_physical_id' => 'sometimes|nullable|integer|exists:warehouse,id',
+      'customer_id' => 'sometimes|nullable|integer|exists:business_partners,id',
     ];
   }
 
@@ -68,6 +69,8 @@ class UpdateVehiclesRequest extends StoreRequest
       'engine_type_id.exists' => 'El tipo de motor seleccionado no existe',
       'sede_id.required' => 'La sede es requerida',
       'sede_id.exists' => 'La sede seleccionada no existe',
+      'warehouse_physical_id.exists' => 'El almacén seleccionado no existe',
+      'customer_id.exists' => 'El cliente seleccionado no existe',
     ];
   }
 }

@@ -64,12 +64,7 @@ class StoreBusinessPartnersRequest extends StoreRequest
       'company_status' => 'nullable|string|max:100',
       'company_condition' => 'nullable|string|max:100',
       'driving_license_category' => 'nullable|string|max:50',
-      'origin_id' => [
-        Rule::when($this->type == 'CLIENTE',
-          ['required', 'integer', 'exists:ap_commercial_masters,id'],
-          ['nullable', 'integer', 'exists:ap_commercial_masters,id']
-        )
-      ],
+      'origin_id' => 'sometimes|integer|exists:ap_commercial_masters,id',
       'tax_class_type_id' => [
         Rule::when($this->type == 'CLIENTE',
           ['required', 'integer', 'exists:tax_class_types,id'],
@@ -85,15 +80,10 @@ class StoreBusinessPartnersRequest extends StoreRequest
       'type_person_id' => 'required|integer|exists:ap_commercial_masters,id',
       'district_id' => 'required|integer|exists:district,id',
       'document_type_id' => 'required|integer|exists:ap_commercial_masters,id',
-      'person_segment_id' => 'required|integer|exists:ap_commercial_masters,id',
+      'person_segment_id' => 'sometimes|integer|exists:ap_commercial_masters,id',
       'marital_status_id' => 'nullable|integer|exists:ap_commercial_masters,id',
       'gender_id' => 'nullable|integer|exists:ap_commercial_masters,id',
-      'activity_economic_id' => [
-        Rule::when($this->type == 'CLIENTE',
-          ['required', 'integer', 'exists:ap_commercial_masters,id'],
-          ['nullable', 'integer', 'exists:ap_commercial_masters,id']
-        )
-      ],
+      'activity_economic_id' => 'sometimes|integer|exists:ap_commercial_masters,id',
       'company_id' => 'required|integer|exists:companies,id',
       'type' => 'required|string|in:CLIENTE,PROVEEDOR,AMBOS',
     ];
