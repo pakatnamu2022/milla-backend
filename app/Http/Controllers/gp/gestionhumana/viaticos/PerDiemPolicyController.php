@@ -3,195 +3,170 @@
 namespace App\Http\Controllers\gp\gestionhumana\viaticos;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\gp\gestionhumana\viaticos\IndexPerDiemPolicyRequest;
-use App\Http\Requests\gp\gestionhumana\viaticos\StorePerDiemPolicyRequest;
-use App\Http\Requests\gp\gestionhumana\viaticos\UpdatePerDiemPolicyRequest;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemPolicyResource;
-use App\Models\gp\gestionhumana\viaticos\PerDiemPolicy;
 use App\Services\gp\gestionhumana\viaticos\PerDiemPolicyService;
+use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PerDiemPolicyController extends Controller
 {
-    protected $service;
+  protected PerDiemPolicyService $service;
 
-    public function __construct(PerDiemPolicyService $service)
-    {
-        $this->service = $service;
+  public function __construct(PerDiemPolicyService $service)
+  {
+    $this->service = $service;
+  }
+
+  /**
+   * Get all policies
+   */
+  public function index(): JsonResponse
+  {
+    try {
+      $policies = $this->service->getAll();
+
+      return response()->json([
+        'success' => true,
+        'data' => PerDiemPolicyResource::collection($policies),
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al obtener políticas',
+        'error' => $e->getMessage(),
+      ], 500);
     }
+  }
 
-    /**
-     * Display a listing of policies
-     */
-    public function index(IndexPerDiemPolicyRequest $request)
-    {
-        try {
-            $policies = $this->service->getAll();
+  /**
+   * Get current active policy
+   */
+  public function current(): JsonResponse
+  {
+    try {
+      $policy = $this->service->getCurrent();
 
-            return response()->json([
-                'success' => true,
-                'data' => PerDiemPolicyResource::collection($policies)
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
-        }
+      return response()->json([
+        'success' => true,
+        'data' => $policy ? new PerDiemPolicyResource($policy) : null,
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al obtener política actual',
+        'error' => $e->getMessage(),
+      ], 500);
     }
+  }
 
-    /**
-     * Store a newly created policy
-     */
-    public function store(StorePerDiemPolicyRequest $request)
-    {
-        try {
-            $data = $request->validated();
-            $policy = $this->service->create($data);
+  /**
+   * Create new policy
+   */
+  public function store(Request $request): JsonResponse
+  {
+    try {
+      $validated = $request->validate([
+        'version' => 'required|string|max:50',
+        'name' => 'required|string|max:255',
+        'description' => 'nullable|string',
+        'start_date' => 'required|date',
+        'end_date' => 'nullable|date|after:start_date',
+        'is_current' => 'nullable|boolean',
+      ]);
 
-            return response()->json([
-                'success' => true,
-                'data' => new PerDiemPolicyResource($policy),
-                'message' => 'Política creada exitosamente'
-            ], 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
-        }
+      $policy = $this->service->create($validated);
+
+      return response()->json([
+        'success' => true,
+        'message' => 'Política creada exitosamente',
+        'data' => new PerDiemPolicyResource($policy),
+      ], 201);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al crear política',
+        'error' => $e->getMessage(),
+      ], 500);
     }
+  }
 
-    /**
-     * Display the specified policy
-     */
-    public function show(int $id)
-    {
-        try {
-            $policy = PerDiemPolicy::with(['perDiemRates.expenseType', 'perDiemRates.category', 'perDiemRates.district'])
-                ->findOrFail($id);
+  /**
+   * Update policy
+   */
+  public function update(Request $request, string $id): JsonResponse
+  {
+    try {
+      $validated = $request->validate([
+        'version' => 'nullable|string|max:50',
+        'name' => 'nullable|string|max:255',
+        'description' => 'nullable|string',
+        'start_date' => 'nullable|date',
+        'end_date' => 'nullable|date',
+        'is_current' => 'nullable|boolean',
+      ]);
 
-            return response()->json([
-                'success' => true,
-                'data' => new PerDiemPolicyResource($policy)
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
-        }
+      $policy = $this->service->update((int)$id, $validated);
+
+      return response()->json([
+        'success' => true,
+        'message' => 'Política actualizada exitosamente',
+        'data' => new PerDiemPolicyResource($policy),
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al actualizar política',
+        'error' => $e->getMessage(),
+      ], 500);
     }
+  }
 
-    /**
-     * Update the specified policy
-     */
-    public function update(UpdatePerDiemPolicyRequest $request, int $id)
-    {
-        try {
-            $data = $request->validated();
-            $policy = $this->service->update($id, $data);
+  /**
+   * Activate policy
+   */
+  public function activate(string $id): JsonResponse
+  {
+    try {
+      $policy = $this->service->activate((int)$id);
 
-            return response()->json([
-                'success' => true,
-                'data' => new PerDiemPolicyResource($policy),
-                'message' => 'Política actualizada exitosamente'
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
-        }
+      return response()->json([
+        'success' => true,
+        'message' => 'Política activada exitosamente',
+        'data' => new PerDiemPolicyResource($policy),
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al activar política',
+        'error' => $e->getMessage(),
+      ], 500);
     }
+  }
 
-    /**
-     * Remove the specified policy
-     */
-    public function destroy(int $id)
-    {
-        try {
-            PerDiemPolicy::findOrFail($id)->delete();
+  /**
+   * Close policy
+   */
+  public function close(Request $request, string $id): JsonResponse
+  {
+    try {
+      $validated = $request->validate([
+        'end_date' => 'nullable|date',
+      ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Política eliminada exitosamente'
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
-        }
+      $policy = $this->service->close((int)$id, $validated['end_date'] ?? null);
+
+      return response()->json([
+        'success' => true,
+        'message' => 'Política cerrada exitosamente',
+        'data' => new PerDiemPolicyResource($policy),
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al cerrar política',
+        'error' => $e->getMessage(),
+      ], 500);
     }
-
-    /**
-     * Get current active policy
-     */
-    public function current()
-    {
-        try {
-            $policy = $this->service->getCurrent();
-
-            if (!$policy) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No hay una política activa'
-                ], 404);
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => new PerDiemPolicyResource($policy)
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
-        }
-    }
-
-    /**
-     * Activate a policy
-     */
-    public function activate(int $id)
-    {
-        try {
-            $policy = $this->service->activate($id);
-
-            return response()->json([
-                'success' => true,
-                'data' => new PerDiemPolicyResource($policy),
-                'message' => 'Política activada exitosamente'
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
-        }
-    }
-
-    /**
-     * Close a policy
-     */
-    public function close(int $id, Request $request)
-    {
-        try {
-            $endDate = $request->input('end_date');
-            $policy = $this->service->close($id, $endDate);
-
-            return response()->json([
-                'success' => true,
-                'data' => new PerDiemPolicyResource($policy),
-                'message' => 'Política cerrada exitosamente'
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
-        }
-    }
+  }
 }

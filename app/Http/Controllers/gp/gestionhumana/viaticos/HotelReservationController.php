@@ -4,107 +4,114 @@ namespace App\Http\Controllers\gp\gestionhumana\viaticos;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\viaticos\StoreHotelReservationRequest;
-use App\Http\Requests\gp\gestionhumana\viaticos\UpdateHotelReservationRequest;
 use App\Http\Resources\gp\gestionhumana\viaticos\HotelReservationResource;
 use App\Services\gp\gestionhumana\viaticos\HotelReservationService;
+use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class HotelReservationController extends Controller
 {
-    protected $service;
+  protected HotelReservationService $service;
 
-    public function __construct(HotelReservationService $service)
-    {
-        $this->service = $service;
+  public function __construct(HotelReservationService $service)
+  {
+    $this->service = $service;
+  }
+
+  /**
+   * Create hotel reservation for a per diem request
+   */
+  public function store(StoreHotelReservationRequest $request, string $requestId): JsonResponse
+  {
+    try {
+      $reservation = $this->service->create((int)$requestId, $request->validated());
+
+      return response()->json([
+        'success' => true,
+        'message' => 'Reserva de hotel creada exitosamente',
+        'data' => new HotelReservationResource($reservation),
+      ], 201);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al crear reserva de hotel',
+        'error' => $e->getMessage(),
+      ], 500);
     }
+  }
 
-    /**
-     * Store a newly created hotel reservation
-     */
-    public function store(int $requestId, StoreHotelReservationRequest $request)
-    {
-        try {
-            $data = $request->validated();
-            $reservation = $this->service->create($requestId, $data);
+  /**
+   * Update hotel reservation
+   */
+  public function update(StoreHotelReservationRequest $request, string $reservationId): JsonResponse
+  {
+    try {
+      $reservation = $this->service->update((int)$reservationId, $request->validated());
 
-            return response()->json([
-                'success' => true,
-                'data' => new HotelReservationResource($reservation),
-                'message' => 'Reserva de hotel creada exitosamente'
-            ], 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
-        }
+      return response()->json([
+        'success' => true,
+        'message' => 'Reserva de hotel actualizada exitosamente',
+        'data' => new HotelReservationResource($reservation),
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al actualizar reserva de hotel',
+        'error' => $e->getMessage(),
+      ], 500);
     }
+  }
 
-    /**
-     * Update the specified hotel reservation
-     */
-    public function update(int $reservationId, UpdateHotelReservationRequest $request)
-    {
-        try {
-            $data = $request->validated();
-            $reservation = $this->service->update($reservationId, $data);
+  /**
+   * Delete hotel reservation
+   */
+  public function destroy(string $reservationId): JsonResponse
+  {
+    try {
+      $this->service->delete((int)$reservationId);
 
-            return response()->json([
-                'success' => true,
-                'data' => new HotelReservationResource($reservation),
-                'message' => 'Reserva de hotel actualizada exitosamente'
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
-        }
+      return response()->json([
+        'success' => true,
+        'message' => 'Reserva de hotel eliminada exitosamente',
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al eliminar reserva de hotel',
+        'error' => $e->getMessage(),
+      ], 500);
     }
+  }
 
-    /**
-     * Remove the specified hotel reservation
-     */
-    public function destroy(int $reservationId)
-    {
-        try {
-            $this->service->delete($reservationId);
+  /**
+   * Mark reservation as attended/not attended
+   */
+  public function markAttended(Request $request, string $reservationId): JsonResponse
+  {
+    try {
+      $validated = $request->validate([
+        'attended' => 'required|boolean',
+        'penalty_amount' => 'nullable|numeric|min:0',
+      ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Reserva de hotel eliminada exitosamente'
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
-        }
+      $reservation = $this->service->markAsAttended(
+        (int)$reservationId,
+        $validated['attended'],
+        $validated['penalty_amount'] ?? null
+      );
+
+      return response()->json([
+        'success' => true,
+        'message' => 'Estado de asistencia actualizado exitosamente',
+        'data' => new HotelReservationResource($reservation),
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al actualizar estado de asistencia',
+        'error' => $e->getMessage(),
+      ], 500);
     }
-
-    /**
-     * Mark reservation as attended
-     */
-    public function markAttended(int $reservationId, Request $request)
-    {
-        try {
-            $data = [
-                'attended' => $request->input('attended', true),
-                'penalty' => $request->input('penalty')
-            ];
-
-            $reservation = $this->service->markAsAttended($reservationId, $data);
-
-            return response()->json([
-                'success' => true,
-                'data' => new HotelReservationResource($reservation),
-                'message' => 'Reserva actualizada exitosamente'
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
-        }
-    }
+  }
 }
