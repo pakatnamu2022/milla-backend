@@ -56,8 +56,10 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
    */
   private function getPurchaseRequestQuoteQuery($worker, Request $request)
   {
+    $user = $request->user();
+//    throw new Exception($user->role->id);
     // Si es del área de TICS, ver todo
-    if ($worker->position->area->id === Constants::TICS_AREA_ID) {
+    if ($user->role->id === Constants::TICS_ROL_ID) {
       return PurchaseRequestQuote::class;
     }
 
