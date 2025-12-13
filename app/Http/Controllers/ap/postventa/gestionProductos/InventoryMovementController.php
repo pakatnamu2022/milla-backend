@@ -9,6 +9,7 @@ use App\Http\Requests\ap\postventa\gestionProductos\StoreTransferInventoryReques
 use App\Http\Requests\ap\postventa\gestionProductos\UpdateInventoryMovementRequest;
 use App\Http\Requests\ap\postventa\gestionProductos\UpdateTransferInventoryRequest;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
+use App\Models\ap\comercial\ShippingGuides;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -98,6 +99,7 @@ class InventoryMovementController extends Controller
           'movement_date',
           'notes',
           'reason_in_out_id',
+          'item_type',
           // Shipping guide data
           'driver_name',
           'driver_doc',
@@ -182,45 +184,6 @@ class InventoryMovementController extends Controller
 
       return $this->success([
         'message' => 'Transferencia eliminada correctamente. El stock ha sido revertido.'
-      ]);
-    } catch (Exception $e) {
-      return $this->error($e->getMessage());
-    }
-  }
-
-  /**
-   * Send shipping guide to Nubefact/SUNAT
-   * After this, the transfer cannot be edited
-   *
-   * @param int $id Movement ID
-   * @return JsonResponse
-   */
-  public function sendShippingGuideToNubefact(int $id): JsonResponse
-  {
-    try {
-      $movement = $this->inventoryMovementService->find($id);
-
-      // Validate movement has shipping guide (using polymorphic relation)
-      if (!$movement->reference_id || $movement->reference_type !== 'App\\Models\\ap\\comercial\\ShippingGuides') {
-        return $this->error('Este movimiento no tiene una guía de remisión asociada', 400);
-      }
-
-      $shippingGuide = $movement->reference;
-
-      // Validate guide is not already sent
-      if ($shippingGuide->is_sunat_registered) {
-        return $this->error('La guía de remisión ya fue enviada a SUNAT', 400);
-      }
-
-      // TODO: Call Nubefact service to send the guide
-      // For now, just mark as sent (implement Nubefact integration later)
-      $shippingGuide->markAsSent();
-
-      return $this->success([
-        'message' => 'Guía de remisión enviada a SUNAT exitosamente. La transferencia ya no puede ser editada.',
-        'shipping_guide' => $shippingGuide->fresh(),
-        'can_edit' => false,
-        'can_receive' => true, // Now can be received at destination
       ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());

@@ -64,7 +64,7 @@ class StorePurchaseOrderRequest extends StoreRequest
 
       // Relaciones
       'sede_id' => ['required', 'integer', Rule::exists('config_sede', 'id')->where('status', 1)->whereNull('deleted_at')],
-      'supplier_order_type_id' => ['required', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'TIPO_PEDIDO_PROVEEDOR')->where('status', 1)->whereNull('deleted_at')],
+      'supplier_order_type_id' => ['sometimes', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'TIPO_PEDIDO_PROVEEDOR')->where('status', 1)->whereNull('deleted_at')],
       'supplier_id' => ['required', 'integer', Rule::exists('business_partners', 'id')->where('status_ap', 1)->whereNull('deleted_at')],
       'currency_id' => ['required', 'integer', Rule::exists('type_currency', 'id')->where('status', 1)->whereNull('deleted_at')],
       'warehouse_id' => ['required', 'integer', Rule::exists('warehouse', 'id')->where('type', Warehouse::REAL)->where('status', 1)->whereNull('deleted_at')],

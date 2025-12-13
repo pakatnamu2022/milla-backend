@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\compras;
 
+use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\BaseModel;
 use App\Models\User;
@@ -30,6 +31,8 @@ class PurchaseReception extends BaseModel
     'reviewed_at',
     'total_items',
     'total_quantity',
+    'freight_cost',
+    'carrier_id',
   ];
 
   protected $casts = [
@@ -104,6 +107,11 @@ class PurchaseReception extends BaseModel
   public function reviewedByUser(): BelongsTo
   {
     return $this->belongsTo(User::class, 'reviewed_by');
+  }
+
+  public function carrier(): BelongsTo
+  {
+    return $this->belongsTo(BusinessPartners::class, 'carrier_id');
   }
 
   public function details(): HasMany

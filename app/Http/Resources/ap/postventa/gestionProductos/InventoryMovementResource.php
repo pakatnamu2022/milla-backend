@@ -13,6 +13,7 @@ class InventoryMovementResource extends JsonResource
       'id' => $this->id,
       'movement_number' => $this->movement_number,
       'movement_type' => $this->movement_type,
+      'item_type' => $this->item_type ?? 'PRODUCTO', // PRODUCTO or SERVICIO
       'movement_date' => $this->movement_date,
       'is_inbound' => $this->is_inbound, // true si es ingreso, false si no
       'is_outbound' => $this->is_outbound, // true si es salida, false si no

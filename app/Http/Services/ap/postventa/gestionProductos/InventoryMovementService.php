@@ -278,21 +278,30 @@ class InventoryMovementService extends BaseService
         throw new Exception('Debe proporcionar al menos un producto');
       }
 
-      // Validate stock availability in origin warehouse
-      foreach ($details as $detail) {
-        $stock = $this->stockService->getStock($detail['product_id'], $transferData['warehouse_origin_id']);
+      // Validate stock availability in origin warehouse (only for PRODUCTO type)
+      $itemType = $transferData['item_type'] ?? 'PRODUCTO';
 
-        if (!$stock) {
-          throw new Exception(
-            "No se encontró registro de stock para el producto ID {$detail['product_id']} en el almacén de origen"
-          );
-        }
+      if ($itemType === 'PRODUCTO') {
+        foreach ($details as $detail) {
+          // Skip validation if it's a service (description instead of product_id)
+          if (!isset($detail['product_id'])) {
+            continue;
+          }
 
-        if ($stock->available_quantity < $detail['quantity']) {
-          throw new Exception(
-            "Stock insuficiente para producto ID {$detail['product_id']} en almacén de origen. " .
-            "Stock disponible: {$stock->available_quantity}, Cantidad solicitada: {$detail['quantity']}"
-          );
+          $stock = $this->stockService->getStock($detail['product_id'], $transferData['warehouse_origin_id']);
+
+          if (!$stock) {
+            throw new Exception(
+              "No se encontró registro de stock para el producto ID {$detail['product_id']} en el almacén de origen"
+            );
+          }
+
+          if ($stock->available_quantity < $detail['quantity']) {
+            throw new Exception(
+              "Stock insuficiente para producto ID {$detail['product_id']} en almacén de origen. " .
+              "Stock disponible: {$stock->available_quantity}, Cantidad solicitada: {$detail['quantity']}"
+            );
+          }
         }
       }
 
@@ -368,6 +377,7 @@ class InventoryMovementService extends BaseService
       $movementOut = InventoryMovement::create([
         'movement_number' => InventoryMovement::generateMovementNumber(),
         'movement_type' => InventoryMovement::TYPE_TRANSFER_OUT,
+        'item_type' => $itemType,
         'movement_date' => $transferData['movement_date'] ?? now(),
         'warehouse_id' => $transferData['warehouse_origin_id'],
         'warehouse_destination_id' => $transferData['warehouse_destination_id'],
@@ -386,15 +396,24 @@ class InventoryMovementService extends BaseService
       $totalQuantity = 0;
 
       foreach ($details as $detail) {
+        // For SERVICIO type, use description in notes and set product_id to null
+        $productId = isset($detail['product_id']) ? $detail['product_id'] : null;
+        $notes = $detail['notes'] ?? null;
+
+        // If it's a service (has description), put description in notes
+        if ($itemType === 'SERVICIO' && isset($detail['description'])) {
+          $notes = $detail['description'];
+        }
+
         InventoryMovementDetail::create([
           'inventory_movement_id' => $movementOut->id,
-          'product_id' => $detail['product_id'],
+          'product_id' => $productId,
           'quantity' => $detail['quantity'],
           'unit_cost' => $detail['unit_cost'] ?? 0,
           'total_cost' => $detail['quantity'] * ($detail['unit_cost'] ?? 0),
           'batch_number' => $detail['batch_number'] ?? null,
           'expiration_date' => $detail['expiration_date'] ?? null,
-          'notes' => $detail['notes'] ?? null,
+          'notes' => $notes,
         ]);
 
         $totalItems++;
@@ -408,7 +427,10 @@ class InventoryMovementService extends BaseService
       ]);
 
       // Update stock: quantity → quantity_in_transit (not available anymore)
-      $this->stockService->moveStockToInTransit($movementOut->fresh('details'));
+      // Only update stock for PRODUCTO type, not for SERVICIO
+      if ($itemType === 'PRODUCTO') {
+        $this->stockService->moveStockToInTransit($movementOut->fresh('details'));
+      }
 
       DB::commit();
       return [
@@ -574,29 +596,32 @@ class InventoryMovementService extends BaseService
       $movement->load('details');
 
       // Reverse stock: move from in_transit back to available quantity
-      foreach ($movement->details as $detail) {
-        $stock = $this->stockService->getStock($detail->product_id, $movement->warehouse_id);
+      // Only reverse stock for PRODUCTO type, not for SERVICIO
+      if ($movement->item_type === 'PRODUCTO') {
+        foreach ($movement->details as $detail) {
+          $stock = $this->stockService->getStock($detail->product_id, $movement->warehouse_id);
 
-        if (!$stock) {
-          throw new Exception(
-            "No se encontró registro de stock para el producto ID {$detail->product_id} en el almacén de origen"
-          );
+          if (!$stock) {
+            throw new Exception(
+              "No se encontró registro de stock para el producto ID {$detail->product_id} en el almacén de origen"
+            );
+          }
+
+          // Validate that we have enough in_transit quantity
+          if ($stock->quantity_in_transit < $detail->quantity) {
+            throw new Exception(
+              "Cantidad en tránsito insuficiente para producto ID {$detail->product_id}. " .
+              "En tránsito: {$stock->quantity_in_transit}, Cantidad a revertir: {$detail->quantity}"
+            );
+          }
+
+          // Move stock back from in_transit to available
+          $stock->update([
+            'quantity_in_transit' => $stock->quantity_in_transit - $detail->quantity,
+            'quantity' => $stock->quantity + $detail->quantity,
+            'available_quantity' => $stock->available_quantity + $detail->quantity,
+          ]);
         }
-
-        // Validate that we have enough in_transit quantity
-        if ($stock->quantity_in_transit < $detail->quantity) {
-          throw new Exception(
-            "Cantidad en tránsito insuficiente para producto ID {$detail->product_id}. " .
-            "En tránsito: {$stock->quantity_in_transit}, Cantidad a revertir: {$detail->quantity}"
-          );
-        }
-
-        // Move stock back from in_transit to available
-        $stock->update([
-          'quantity_in_transit' => $stock->quantity_in_transit - $detail->quantity,
-          'quantity' => $stock->quantity + $detail->quantity,
-          'available_quantity' => $stock->available_quantity + $detail->quantity,
-        ]);
       }
 
       // Delete shipping guide
@@ -727,7 +752,7 @@ class InventoryMovementService extends BaseService
       $query->where('status', $request->status);
     }
 
-    // Get all movements ordered chronologically (ASC) to calculate running balance
+    // Get all movements ordered chronologically (ASC) to show oldest first and balance at the end
     $allMovements = $query->orderBy('movement_date', 'asc')
       ->orderBy('created_at', 'asc')
       ->get();
@@ -781,9 +806,6 @@ class InventoryMovementService extends BaseService
 
       return $movement;
     });
-
-    // Now reverse the order to show most recent first (DESC)
-    $movementsWithBalance = $movementsWithBalance->reverse()->values();
 
     // Manual pagination
     $perPage = $request->get('per_page', 15);
