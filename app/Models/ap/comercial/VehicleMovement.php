@@ -5,6 +5,7 @@ namespace App\Models\ap\comercial;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\BaseModel;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -90,5 +91,10 @@ class VehicleMovement extends BaseModel
   public function shippingGuides(): HasMany
   {
     return $this->hasMany(ShippingGuides::class, 'vehicle_movement_id');
+  }
+
+  public function createdByUser(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'created_by');
   }
 }

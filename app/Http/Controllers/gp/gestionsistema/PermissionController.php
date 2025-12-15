@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionsistema\IndexPermissionRequest;
 use App\Http\Requests\gp\gestionsistema\StoreBulkPermissionRequest;
 use App\Http\Requests\gp\gestionsistema\StoreMultiplePermissionRoleRequest;
+use App\Http\Requests\gp\gestionsistema\StorePermissionRequest;
 use App\Http\Services\gp\gestionsistema\PermissionService;
 use Illuminate\Http\Request;
 
@@ -25,6 +26,19 @@ class PermissionController extends Controller
   {
     try {
       return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Crear un permiso individual
+   */
+  public function store(StorePermissionRequest $request)
+  {
+    try {
+      $permission = $this->service->store($request->validated());
+      return $this->success($permission, 'Permiso creado exitosamente');
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

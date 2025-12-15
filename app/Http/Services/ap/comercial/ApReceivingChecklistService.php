@@ -269,8 +269,15 @@ class ApReceivingChecklistService extends BaseService
         ];
       })->toArray();
 
+      $coordinator = $vehicle->purchaseOrder->vehicleMovement->createdByUser->person->email2 ?? $vehicle->purchaseOrder->vehicleMovement->createdByUser->person->email1 ?? null;
+      $consultant = $vehicle->purchaseRequestQuote?->opportunity->worker->email2 ?? $vehicle->purchaseRequestQuote?->opportunity->worker->email1 ?? null;
+
+      $emailsTo = [$coordinator, $consultant];
+      $emailsCC = ['wsuclupef@automotorespakatnamu.com', 'dordinolac@grupopakatnamu.com', 'hvaldiviezos@automotorespakatnamu.com', 'kquesquenm@automotorespakatnamu.com'];
+
       $emailService->queue([
-        'to' => 'wsuclupef2001@gmail.com', // TODO: Obtener correo del asesor del cliente
+        'to' => array_filter($emailsTo),
+        'cc' => $emailsCC,
         'subject' => 'Notificación de Recepción de Vehículo - ' . ($vehicle->vin ?? 'VIN no disponible'),
         'template' => 'emails.vehicle-reception',
         'data' => [

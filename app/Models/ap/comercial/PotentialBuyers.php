@@ -49,7 +49,6 @@ class PotentialBuyers extends Model
     'sede_id' => '=',
     'vehicle_brand_id' => '=',
     'document_type_id' => '=',
-    'registration_date' => 'between',
     'created_at' => 'date_btw',
     'type' => '=',
     'income_sector_id' => '=',
@@ -57,6 +56,7 @@ class PotentialBuyers extends Model
     'worker_id' => '=',
     'status_num_doc' => '=',
     'use' => '=',
+    'registration_date' => 'date_between',
   ];
 
   const CREATED = 0;

@@ -173,6 +173,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     // PERMISSIONS
     Route::get('permission', [PermissionController::class, 'index'])->name('permission.index');
+    Route::post('permission', [PermissionController::class, 'store'])->name('permission.store');
     Route::get('permission/available-actions', [PermissionController::class, 'getAvailableActions'])->name('permission.available-actions');
     Route::get('permission/{id}/get-by-role', [PermissionController::class, 'getByRole'])->name('permission.getByRole');
     Route::post('permission/bulk-sync', [PermissionController::class, 'bulkSync'])->name('permission.bulk-sync');

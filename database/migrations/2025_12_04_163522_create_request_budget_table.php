@@ -5,6 +5,10 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
+
+  /**
+   * TODO: PENDIENTE DE ELIMINAR LA TABLA GH_REQUEST_BUDGET Y USAR LA TABLA GH_PER_DIEM_RATE PARA OBTENER LOS MONTOS POR TIPO DE GASTO
+   */
   /**
    * Run the migrations.
    * *request_budgets** (Budget breakdown by expense type)

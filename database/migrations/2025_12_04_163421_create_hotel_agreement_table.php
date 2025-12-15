@@ -27,7 +27,7 @@ return new class extends Migration {
   {
     Schema::create('gh_hotel_agreement', function (Blueprint $table) {
       $table->id();
-      $table->string('city')->index()->comment('City where the hotel agreement is applicable');
+      $table->string('city')->index()->comment('City where the hotel agreement is applicable'); // TODO: district with foreign
       $table->text('name')->comment('Name of the hotel');
       $table->decimal('corporate_rate')->comment('Corporate rate agreed upon with the hotel');
       $table->text('features')->nullable()->comment('Features and amenities included in the agreement, by comma separation');

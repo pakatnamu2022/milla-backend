@@ -180,6 +180,59 @@ class PermissionService extends BaseService
   }
 
   /**
+   * Crear un permiso individual
+   *
+   * @param array $data ['code', 'name', 'description', 'module', 'vista_id', 'policy_method', 'is_active']
+   * @return PermissionResource
+   */
+  public function store(array $data): PermissionResource
+  {
+    DB::beginTransaction();
+    try {
+      // Validar que no exista un permiso con el mismo código (incluyendo soft-deleted)
+      $existingPermission = Permission::withTrashed()->where('code', $data['code'])->first();
+
+      if ($existingPermission) {
+        // Si existe y está eliminado, restaurarlo y actualizarlo
+        if ($existingPermission->trashed()) {
+          $existingPermission->restore();
+          $existingPermission->update([
+            'name' => $data['name'],
+            'description' => $data['description'] ?? null,
+            'module' => $data['module'],
+            'vista_id' => $data['vista_id'] ?? null,
+            'policy_method' => $data['policy_method'],
+            'is_active' => $data['is_active'] ?? true,
+          ]);
+
+          DB::commit();
+          return new PermissionResource($existingPermission->fresh());
+        }
+
+        // Si existe y está activo, lanzar error
+        throw new Exception("Ya existe un permiso con el código '{$data['code']}'");
+      }
+
+      // Crear el nuevo permiso
+      $permission = Permission::create([
+        'code' => $data['code'],
+        'name' => $data['name'],
+        'description' => $data['description'] ?? null,
+        'module' => $data['module'],
+        'vista_id' => $data['vista_id'] ?? null,
+        'policy_method' => $data['policy_method'],
+        'is_active' => $data['is_active'] ?? true,
+      ]);
+
+      DB::commit();
+      return new PermissionResource($permission);
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw new Exception("Error al crear permiso: " . $e->getMessage());
+    }
+  }
+
+  /**
    * Sincronizar permisos de un módulo (crea nuevos, mantiene existentes, elimina los que no vienen)
    *
    * @param array $data ['module', 'module_name', 'actions', 'vista_id', 'is_active']

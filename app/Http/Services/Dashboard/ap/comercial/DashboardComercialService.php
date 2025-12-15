@@ -2,11 +2,14 @@
 
 namespace App\Http\Services\Dashboard\ap\comercial;
 
+use App\Http\Resources\ap\comercial\PotentialBuyersResource;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PotentialBuyers;
 use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
 use App\Models\gp\gestionsistema\Person;
 use Carbon\Carbon;
+use Exception;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 
 class DashboardComercialService
@@ -520,9 +523,16 @@ class DashboardComercialService
   }
 
   /**
-   * Obtiene listado detallado de leads/visitas para jefe de ventas
+   * @param $dateFrom
+   * @param $dateTo
+   * @param $type
+   * @param $bossId
+   * @param $perPage
+   * @param $workerId
+   * @return AnonymousResourceCollection
+   * @throws Exception
    */
-  public function getDetailsForSalesManager($dateFrom, $dateTo, $type, $bossId = null, $perPage = 50, $workerId = null)
+  public function getDetailsForSalesManager($dateFrom, $dateTo, $type = null, $bossId = null, $perPage = 50, $workerId = null)
   {
     // Determinar boss_id
     $bossId = $bossId ?? auth()->user()->partner_id;
@@ -531,19 +541,9 @@ class DashboardComercialService
     $advisorIds = $this->getAssignedAdvisorsForManager($bossId, $dateFrom, $dateTo);
 
     if (empty($advisorIds)) {
-      return [
-        'data' => [],
-        'meta' => [
-          'current_page' => 1,
-          'per_page' => $perPage,
-          'total' => 0,
-          'last_page' => 1,
-        ],
-        'manager_info' => $this->getManagerInfo($bossId),
-      ];
+      throw new Exception("No hay asesores asignados para el jefe de ventas con ID {$bossId} en el período especificado.");
     }
 
-    // Construir query
     $query = PotentialBuyers::with([
       'worker',
       'sede',
@@ -556,7 +556,6 @@ class DashboardComercialService
       ->where('type', $type)
       ->whereIn('worker_id', $advisorIds);
 
-    // Filtro adicional por asesor específico
     if ($workerId) {
       $query->where('worker_id', $workerId);
     }
@@ -566,16 +565,7 @@ class DashboardComercialService
     // Paginar
     $paginated = $query->paginate($perPage);
 
-    return [
-      'data' => $paginated->items(),
-      'meta' => [
-        'current_page' => $paginated->currentPage(),
-        'per_page' => $paginated->perPage(),
-        'total' => $paginated->total(),
-        'last_page' => $paginated->lastPage(),
-      ],
-      'manager_info' => $this->getManagerInfo($bossId),
-    ];
+    return PotentialBuyersResource::collection($paginated);
   }
 
   private function getUseLabel($use)
