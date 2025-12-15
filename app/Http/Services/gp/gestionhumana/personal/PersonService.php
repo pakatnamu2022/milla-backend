@@ -2,11 +2,13 @@
 
 namespace App\Http\Services\gp\gestionhumana\personal;
 
-use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPeriodResource;
 use App\Http\Resources\gp\gestionhumana\personal\PersonResource;
 use App\Http\Resources\PersonBirthdayResource;
 use App\Http\Services\BaseService;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationPeriod;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
+use App\Http\Utils\Helpers;
+use App\Models\gp\gestionhumana\personal\WorkerSignature;
+use App\Models\gp\gestionsistema\DigitalFile;
 use App\Models\gp\gestionsistema\Person;
 use Exception;
 use Illuminate\Http\Request;
@@ -14,23 +16,34 @@ use Illuminate\Support\Facades\DB;
 
 class PersonService extends BaseService
 {
-    public function list(Request $request)
-    {
-        return $this->getFilteredResults(
-            Person::where('status_deleted', 1),
-            $request,
-            Person::filters,
-            Person::sorts,
-            PersonResource::class,
-        );
-    }
+  protected DigitalFileService $digitalFileService;
 
-    public function listBirthdays(Request $request)
-    {
-        $query = Person::query()
-            ->working()
-            ->select('*')
-            ->selectRaw("
+  private const FILE_PATHS = [
+    'worker_signature' => '/gp/gestionhumana/personal/firmas/',
+  ];
+
+  public function __construct(DigitalFileService $digitalFileService)
+  {
+    $this->digitalFileService = $digitalFileService;
+  }
+
+  public function list(Request $request)
+  {
+    return $this->getFilteredResults(
+      Person::where('status_deleted', 1),
+      $request,
+      Person::filters,
+      Person::sorts,
+      PersonResource::class,
+    );
+  }
+
+  public function listBirthdays(Request $request)
+  {
+    $query = Person::query()
+      ->working()
+      ->select('*')
+      ->selectRaw("
             DATEDIFF(
                 DATE_ADD(
                     fecha_nacimiento,
@@ -40,51 +53,116 @@ class PersonService extends BaseService
                 CURDATE()
             ) as days_to_birthday
         ")
-            ->orderBy('days_to_birthday');
+      ->orderBy('days_to_birthday');
 
-        return $this->getFilteredResults(
-            $query,
-            $request,
-            Person::filters,
-            Person::sorts,
-            PersonBirthdayResource::class
-        );
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      Person::filters,
+      Person::sorts,
+      PersonBirthdayResource::class
+    );
+  }
+
+
+  public function find($id)
+  {
+    $person = Person::where('id', $id)->first();
+    if (!$person) {
+      throw new Exception('Persona no encontrada');
     }
+    return $person;
+  }
 
+  public function store(array $data)
+  {
+    $person = Person::create($data);
+    return new PersonResource($person);
+  }
 
-    public function find($id)
-    {
-        $evaluationCompetence = EvaluationPeriod::where('id', $id)->first();
-        if (!$evaluationCompetence) {
-            throw new Exception('Periodo no encontrado');
+  public function show($id)
+  {
+    return new PersonResource($this->find($id));
+  }
+
+  public function update($data)
+  {
+    try {
+      DB::beginTransaction();
+
+      // Buscar la persona
+      $person = Person::find($data['id']);
+      if (!$person) {
+        throw new Exception('Persona no encontrada');
+      }
+
+      // Extraer firma en base64 del array
+      $workerSignature = $data['worker_signature'] ?? null;
+      unset($data['worker_signature']);
+
+      // Actualizar datos de la persona
+      $person->update($data);
+
+      // Procesar y guardar firma si existe
+      if ($workerSignature) {
+        $this->processWorkerSignature($person, $workerSignature);
+      }
+
+      DB::commit();
+
+      return new PersonResource($person);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  public function destroy($id)
+  {
+    $person = $this->find($id);
+    DB::transaction(function () use ($person) {
+      $person->delete();
+    });
+    return response()->json(['message' => 'Periodo eliminado correctamente']);
+  }
+
+  /**
+   * Procesa una firma de trabajador en base64 y la guarda en Digital Ocean
+   */
+  private function processWorkerSignature($person, string $base64Signature): void
+  {
+    // Convertir base64 a UploadedFile
+    $signatureFile = Helpers::base64ToUploadedFile($base64Signature, "worker_{$person->id}_signature.png");
+
+    // Determinar la ruta
+    $path = self::FILE_PATHS['worker_signature'];
+    $model = 'worker_signature';
+
+    // Subir archivo usando DigitalFileService
+    $digitalFile = $this->digitalFileService->store($signatureFile, $path, 'public', $model);
+
+    // Buscar si ya existe una firma para este trabajador
+    $workerSignature = WorkerSignature::where('worker_id', $person->id)->first();
+
+    if ($workerSignature) {
+      // Si existe, eliminar la firma anterior de Digital Ocean
+      if ($workerSignature->signature_url) {
+        $oldDigitalFile = DigitalFile::where('url', $workerSignature->signature_url)->first();
+        if ($oldDigitalFile) {
+          $this->digitalFileService->destroy($oldDigitalFile->id);
         }
-        return $evaluationCompetence;
-    }
+      }
 
-    public function store(array $data)
-    {
-        $evaluationMetric = EvaluationPeriod::create($data);
-        return new EvaluationPeriodResource($evaluationMetric);
+      // Actualizar con la nueva URL
+      $workerSignature->signature_url = $digitalFile->url;
+      $workerSignature->save();
+    } else {
+      // Crear nuevo registro de firma
+      WorkerSignature::create([
+        'worker_id' => $person->id,
+        'signature_url' => $digitalFile->url,
+        'company_id' => $person->sede->empresa_id ?? null,
+      ]);
     }
-
-    public function show($id)
-    {
-        return new EvaluationPeriodResource($this->find($id));
-    }
-
-    public function update($data)
-    {
-        $evaluationCompetence = $this->find($data['id']);
-        $evaluationCompetence->update($data);
-        return new EvaluationPeriodResource($evaluationCompetence);
-    }
-
-    public function destroy($id)
-    {
-        $evaluationCompetence = $this->find($id);
-        DB::transaction(function () use ($evaluationCompetence) {
-            $evaluationCompetence->delete();
-        });
-        return response()->json(['message' => 'Periodo eliminado correctamente']);
-    }
+  }
 }

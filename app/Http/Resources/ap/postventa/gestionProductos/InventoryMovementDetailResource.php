@@ -20,7 +20,6 @@ class InventoryMovementDetailResource extends JsonResource
       'batch_number' => $this->batch_number,
       'expiration_date' => $this->expiration_date,
       'notes' => $this->notes, // Contains description for SERVICIO type
-      'description' => $this->notes, // Alias for frontend (same as notes)
     ];
   }
 }

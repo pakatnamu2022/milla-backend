@@ -229,7 +229,7 @@ class InventoryMovementService extends BaseService
       }
 
       // Validate if movement has shipping guide sent to SUNAT (for transfers)
-      if ($adjustmentInventory->reference_type === 'App\\Models\\ap\\comercial\\ShippingGuides' && $adjustmentInventory->reference_id) {
+      if ($adjustmentInventory->reference_type === ShippingGuides::class && $adjustmentInventory->reference_id) {
         $shippingGuide = $adjustmentInventory->reference;
         if ($shippingGuide && $shippingGuide->is_sunat_registered) {
           throw new Exception('No se puede editar una transferencia cuya guía de remisión ya fue enviada a SUNAT');
@@ -264,6 +264,16 @@ class InventoryMovementService extends BaseService
   {
     DB::beginTransaction();
     try {
+      if ((int)$transferData['transfer_modality_id'] === SunatConcepts::TYPE_TRANSPORTATION_PUBLICO) {
+        if ($transferData['transport_company_id'] === null) {
+          throw new Exception('Modalidad de "TRASPORTE PUBLICO" el proveedor de transporte es obligatorio (RUC)');
+        }
+      } else {
+        if ($transferData['driver_doc'] === null) {
+          throw new Exception('Modalidad de "TRANSPORTE PRIVADO" el dni del conductor, licencia, placa y nombres deben ser obligatorios');
+        }
+      }
+
       // Validate warehouses
       if (!isset($transferData['warehouse_origin_id']) || !isset($transferData['warehouse_destination_id'])) {
         throw new Exception('Debe especificar almacén de origen y destino');
@@ -396,14 +406,9 @@ class InventoryMovementService extends BaseService
       $totalQuantity = 0;
 
       foreach ($details as $detail) {
-        // For SERVICIO type, use description in notes and set product_id to null
+        // For SERVICIO type, product_id may not be set
         $productId = isset($detail['product_id']) ? $detail['product_id'] : null;
         $notes = $detail['notes'] ?? null;
-
-        // If it's a service (has description), put description in notes
-        if ($itemType === 'SERVICIO' && isset($detail['description'])) {
-          $notes = $detail['description'];
-        }
 
         InventoryMovementDetail::create([
           'inventory_movement_id' => $movementOut->id,
@@ -458,6 +463,16 @@ class InventoryMovementService extends BaseService
     try {
       // Find movement
       $movement = $this->find($movementId);
+
+      if ((int)$transferData['transfer_modality_id'] === SunatConcepts::TYPE_TRANSPORTATION_PUBLICO) {
+        if ($transferData['transport_company_id'] === null) {
+          throw new Exception('Modalidad de transporte publico el proveedor de transporte es obligatorio');
+        }
+      } else {
+        if ($transferData['driver_doc'] === null) {
+          throw new Exception('Modalidad de transporte privado el dni del conductor, licencia, placa y nombres deben ser obligatorios');
+        }
+      }
 
       // Validate movement type
       if ($movement->movement_type !== InventoryMovement::TYPE_TRANSFER_OUT) {

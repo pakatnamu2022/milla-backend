@@ -14,16 +14,9 @@ class Constants
 
   public const int WORKER_ACTIVE = 22;
 
-  public const int TYPE_PERSON_NATURAL_ID = 704; // Persona Natural
-
-  public const int TYPE_PERSON_JURIDICA_ID = 705; // Persona Juridica
-
   public const int TYPE_DOCUMENT_RUC_ID = 810; // RUC
 
   public const int TYPE_DOCUMENT_DNI_ID = 809; // DNI
-
-  public const int TYPE_OPERATION_COMERCIAL_ID = 794; // Tipo de Operación COMERCIAL
-  public const int TYPE_OPERATION_POSTVENTA_ID = 804; // Tipo de Operación POSTVENTA
 
   public const int VAT_TAX = 18; // IGV
   public const int TICS_AREA_ID = 11;

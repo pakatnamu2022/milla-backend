@@ -41,6 +41,7 @@ class ApVehicleInspection extends Model
     'tool_kit',
     'jack_and_lever',
     'general_observations',
+    'customer_signature_url',
     'inspected_by',
   ];
 

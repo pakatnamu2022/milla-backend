@@ -19,8 +19,7 @@ class StoreTransferInventoryRequest extends StoreRequest
 
       // Detalles de productos o servicios
       'details' => 'required|array|min:1',
-      'details.*.product_id' => 'nullable|integer|exists:products,id|required_without:details.*.description',
-      'details.*.description' => 'nullable|string|max:500|required_without:details.*.product_id',
+      'details.*.product_id' => 'nullable|integer|exists:products,id',
       'details.*.quantity' => 'required|numeric|min:0.01',
       'details.*.unit_cost' => 'nullable|numeric|min:0',
       'details.*.batch_number' => 'nullable|string|max:255',
@@ -61,10 +60,7 @@ class StoreTransferInventoryRequest extends StoreRequest
       'details.required' => 'Debe proporcionar al menos un producto o servicio',
       'details.array' => 'Los detalles deben ser un array',
       'details.min' => 'Debe proporcionar al menos un producto o servicio',
-      'details.*.product_id.required_without' => 'Debe proporcionar un producto o una descripción',
       'details.*.product_id.exists' => 'El producto no existe',
-      'details.*.description.required_without' => 'Debe proporcionar una descripción o un producto',
-      'details.*.description.max' => 'La descripción no puede exceder 500 caracteres',
       'details.*.quantity.required' => 'La cantidad es requerida',
       'details.*.quantity.numeric' => 'La cantidad debe ser numérica',
       'details.*.quantity.min' => 'La cantidad debe ser mayor a 0',

@@ -2,16 +2,14 @@
 
 namespace App\Models\gp\gestionsistema;
 
-use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonResultResource;
 use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\maestroGeneral\Sede;
+use Illuminate\Database\Eloquent\Builder;
 
 class Person extends BaseModel
 {
 //    use LogsActivity;
-
   protected $table = "rrhh_persona";
   protected $primaryKey = 'id';
 
@@ -24,13 +22,25 @@ class Person extends BaseModel
   const filters = [
     'search' => ['nombre_completo', 'vat'],
     'vat' => 'like',
+    'sede.empresa_id' => '=',
     'nombre_completo' => 'like',
+    'cargo_id' => 'in',
+    'status_id' => '=',
+    'sede_id' => '=',
+    'sede.departamento' => '=',
   ];
 
   const sorts = [
-    'vat',
     'nombre_completo',
   ];
+
+  protected static function booted()
+  {
+    static::addGlobalScope('working', function (Builder $builder) {
+      $builder->where('status_deleted', 1)
+        ->where('b_empleado', 1);
+    });
+  }
 
   public function scopeWorking($query)
   {

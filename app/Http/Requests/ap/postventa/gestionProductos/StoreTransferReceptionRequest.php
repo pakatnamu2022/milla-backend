@@ -20,7 +20,7 @@ class StoreTransferReceptionRequest extends StoreRequest
 
       // Reception details
       'details' => 'required|array|min:1',
-      'details.*.product_id' => 'required|integer|exists:products,id',
+      'details.*.product_id' => 'nullable|integer|exists:products,id', // Nullable for SERVICIO type
       'details.*.quantity_sent' => 'required|numeric|min:0',
       'details.*.quantity_received' => 'required|numeric|min:0',
       'details.*.observed_quantity' => 'nullable|numeric|min:0',
@@ -40,10 +40,9 @@ class StoreTransferReceptionRequest extends StoreRequest
       'reception_date.date' => 'La fecha de recepción debe ser una fecha válida',
       'notes.string' => 'Las notas deben ser texto',
       'notes.max' => 'Las notas no pueden exceder 1000 caracteres',
-      'details.required' => 'Debe proporcionar al menos un producto',
+      'details.required' => 'Debe proporcionar al menos un item',
       'details.array' => 'Los detalles deben ser un array',
-      'details.min' => 'Debe proporcionar al menos un producto',
-      'details.*.product_id.required' => 'El producto es requerido',
+      'details.min' => 'Debe proporcionar al menos un item',
       'details.*.product_id.exists' => 'El producto no existe',
       'details.*.quantity_sent.required' => 'La cantidad enviada es requerida',
       'details.*.quantity_sent.numeric' => 'La cantidad enviada debe ser numérica',

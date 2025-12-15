@@ -17,7 +17,7 @@ class TransferReceptionDetailResource extends JsonResource
     return [
       'id' => $this->id,
       'transfer_reception_id' => $this->transfer_reception_id,
-      'product_id' => $this->product_id,
+      'product_id' => $this->product_id, // null for SERVICIO type
       'quantity_sent' => $this->quantity_sent,
       'quantity_received' => $this->quantity_received,
       'observed_quantity' => $this->observed_quantity,
@@ -28,6 +28,10 @@ class TransferReceptionDetailResource extends JsonResource
 
       // Relationships
       'product' => $this->whenLoaded('product', function () {
+        // Return null if product_id is null (SERVICIO type)
+        if (!$this->product_id || !$this->product) {
+          return null;
+        }
         return [
           'id' => $this->product->id,
           'code' => $this->product->code,

@@ -5,6 +5,7 @@ namespace App\Models\ap\postventa\gestionProductos;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class InventoryMovementDetail extends Model
 {
@@ -29,6 +30,11 @@ class InventoryMovementDetail extends Model
     'total_cost' => 'decimal:2',
     'expiration_date' => 'date',
   ];
+
+  public function setNotesAttribute($value)
+  {
+    $this->attributes['notes'] = Str::upper(Str::ascii($value));
+  }
 
   // Relationships
   public function movement(): BelongsTo
