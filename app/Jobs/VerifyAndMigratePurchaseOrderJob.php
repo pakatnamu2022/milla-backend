@@ -160,14 +160,19 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       try {
         Log::info('Iniciando sincronización del proveedor: ' . $supplier->num_doc);
         $supplierLog->markAsInProgress();
+        Log::info('Datos del proveedor a sincronizar: ' . json_encode($supplier->toArray()));
         $syncService->sync('business_partners_ap_supplier', $supplier->toArray());
+        Log::info('Sincronización del proveedor completada: ' . $supplier->num_doc);
         $supplierLog->updateProcesoEstado(0);
 
         Log::info('Iniciando sincronización de la dirección del proveedor: ' . $supplier->num_doc);
 
         $supplierAddressLog->markAsInProgress();
+        Log::info('Datos de la dirección del proveedor a sincronizar: ' . json_encode($supplier->toArray()));
         $syncService->sync('business_partners_directions_ap_supplier', $supplier->toArray());
+        Log::info('Sincronización de la dirección del proveedor completada: ' . $supplier->num_doc);
         $supplierAddressLog->updateProcesoEstado(0);
+        Log::info('Proveedor y dirección sincronizados correctamente');
 
       } catch (\Exception $e) {
         Log::error('Error al sincronizar proveedor: ' . $e->getMessage());
