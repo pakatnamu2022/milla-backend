@@ -34,6 +34,7 @@ class DatabaseSyncService
 
       try {
         $result = $this->syncToDatabase($connectionName, $syncConfig, $data, $action);
+        Log::info("Sincronización exitosa a {$connectionName} para la entidad {$entity} con acción {$action}");
         $results[$connectionName] = [
           'success' => true,
           'result' => $result,
@@ -43,6 +44,8 @@ class DatabaseSyncService
           'success' => false,
           'error' => $e->getMessage(),
         ];
+
+        Log::error("Error sincronizando a {$connectionName} para la entidad {$entity} con acción {$action}: {$e->getMessage()}");
 
         // Log del error pero no detiene el proceso principal
 //        Log::error("Error sincronizando a {$connectionName}: {$e->getMessage()}", [

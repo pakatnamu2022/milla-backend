@@ -29,7 +29,7 @@ class WorkerService extends BaseService
     );
   }
 
-  public function find(int $id)
+  public function find(string $id)
   {
     $worker = Worker::find($id);
     if (!$worker) {
@@ -38,7 +38,7 @@ class WorkerService extends BaseService
     return $worker;
   }
 
-  public function show(int $id)
+  public function show(string $id)
   {
     $worker = $this->find($id);
     return new WorkerResource($worker);
