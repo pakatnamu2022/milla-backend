@@ -9,12 +9,11 @@ use Illuminate\Support\Facades\Log;
 class DatabaseSyncService
 {
   /**
-   * Sincroniza datos a múltiples bases de datos externas
-   *
-   * @param string $entity Nombre de la entidad (ej: 'business_partners')
-   * @param array $data Datos a sincronizar
-   * @param string $action Acción realizada: 'create', 'update', 'delete'
-   * @return array Resultados de la sincronización
+   * Sincroniza datos a múltiples bases de datos según la configuración
+   * @param string $entity
+   * @param array $data
+   * @param string $action
+   * @return array
    * @throws Exception
    */
   public function sync(string $entity, array $data, string $action = 'create'): array
@@ -32,28 +31,12 @@ class DatabaseSyncService
         continue;
       }
 
-      try {
-        $result = $this->syncToDatabase($connectionName, $syncConfig, $data, $action);
-        Log::info("Sincronización exitosa a {$connectionName} para la entidad {$entity} con acción {$action}");
-        $results[$connectionName] = [
-          'success' => true,
-          'result' => $result,
-        ];
-      } catch (Exception $e) {
-        $results[$connectionName] = [
-          'success' => false,
-          'error' => $e->getMessage(),
-        ];
-
-        Log::error("Error sincronizando a {$connectionName} para la entidad {$entity} con acción {$action}: {$e->getMessage()}");
-
-        // Log del error pero no detiene el proceso principal
-//        Log::error("Error sincronizando a {$connectionName}: {$e->getMessage()}", [
-//          'entity' => $entity,
-//          'action' => $action,
-//          'data' => $data,
-//        ]);
-      }
+      $result = $this->syncToDatabase($connectionName, $syncConfig, $data, $action);
+      Log::info("Sincronización exitosa a {$connectionName} para la entidad {$entity} con acción {$action}");
+      $results[$connectionName] = [
+        'success' => true,
+        'result' => $result,
+      ];
     }
 
     return $results;

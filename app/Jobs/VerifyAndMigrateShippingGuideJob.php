@@ -1275,8 +1275,8 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       $data = [
         'EmpresaId' => Company::AP_DYNAMICS,
         'TransferenciaId' => $transferId,
-        'FechaEmision' => $shippingGuide->received_date->format('Y-m-d'),
-        'FechaContable' => $shippingGuide->received_date->format('Y-m-d'),
+        'FechaEmision' => $shippingGuide->received_date?->format('Y-m-d') ?? throw new Exception("La fecha de recepción no está definida."),
+        'FechaContable' => $shippingGuide->received_date->format('Y-m-d') ?? throw new Exception("La fecha de recepción no está definida."),
         'Procesar' => 1,
         'ProcesoEstado' => 0,
         'ProcesoError' => '',
