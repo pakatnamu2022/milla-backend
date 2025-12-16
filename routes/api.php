@@ -917,6 +917,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/by-advisor', [DashboardComercialController::class, 'getTotalsByAdvisor']);
         Route::get('/by-user', [DashboardComercialController::class, 'getTotalsByUser']);
         Route::get('/by-campaign', [DashboardComercialController::class, 'getTotalsByCampaign']);
+        Route::get('/for-sales-manager-stats', [DashboardComercialController::class, 'getStatsForSalesManager']);
+        Route::get('/for-sales-manager-details', [DashboardComercialController::class, 'getDetailsForSalesManager']);
       });
     });
 
@@ -963,7 +965,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Transfer Receptions - Recepciones de Transferencias
       Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
-        'ind ex',
+        'index',
         'show',
         'store',
         'destroy'
