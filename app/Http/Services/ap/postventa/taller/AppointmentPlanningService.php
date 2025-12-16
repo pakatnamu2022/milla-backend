@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\AppointmentPlanningResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\postventa\taller\AppointmentPlanning;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
@@ -39,6 +40,16 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
       $data['created_by'] = auth()->user()->id;
       $data['advisor_id'] = auth()->user()->person?->id;
     }
+    $vehicle = isset($data['ap_vehicle_id']) ? Vehicles::find($data['ap_vehicle_id']) : null;
+    
+    if ($vehicle === null) {
+      throw new Exception('Vehículo no encontrado');
+    }
+
+    if ($vehicle) {
+      $data['owner_id'] = $vehicle->customer_id;
+    }
+
     $appointmentPlanning = AppointmentPlanning::create($data);
     return new AppointmentPlanningResource($appointmentPlanning);
   }
@@ -54,6 +65,16 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
 
     if ($appointmentPlanning->is_taken) {
       throw new Exception('La cita ya ha sido tomada y no puede ser modificada');
+    }
+
+    $vehicle = isset($data['ap_vehicle_id']) ? Vehicles::find($data['ap_vehicle_id']) : null;
+
+    if ($vehicle === null) {
+      throw new Exception('Vehículo no encontrado');
+    }
+
+    if ($vehicle) {
+      $data['owner_id'] = $vehicle->customer_id;
     }
 
     $appointmentPlanning->update($data);
@@ -78,9 +99,14 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
   {
     $startDate = $request->input('start_date');
     $endDate = $request->input('end_date');
+    $advisor_id = auth()->user()->person->id ?? null;
 
     if (!$startDate || !$endDate) {
       throw new Exception('Se requieren start_date y end_date');
+    }
+
+    if ($advisor_id === null) {
+      throw new Exception('Asesor no autenticado');
     }
 
     // Configuración de horario de trabajo
@@ -92,6 +118,7 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
 
     // Obtener todas las citas con date_appointment en el rango de fechas
     $appointmentSlots = AppointmentPlanning::whereBetween('date_appointment', [$startDate, $endDate])
+      ->where('advisor_id', $advisor_id)
       ->whereNull('deleted_at')
       ->get()
       ->mapWithKeys(function ($item) {
@@ -103,6 +130,7 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
 
     // Obtener todas las citas con delivery_date en el rango de fechas
     $deliverySlots = AppointmentPlanning::whereBetween('delivery_date', [$startDate, $endDate])
+      ->where('advisor_id', $advisor_id)
       ->whereNull('deleted_at')
       ->get()
       ->mapWithKeys(function ($item) {

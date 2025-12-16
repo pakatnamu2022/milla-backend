@@ -60,6 +60,11 @@ class ApOrderQuotations extends Model
     });
   }
 
+  public function setObservationsAttribute($value)
+  {
+    $this->attributes['observations'] = strtoupper($value);
+  }
+
   public function vehicle(): BelongsTo
   {
     return $this->belongsTo(Vehicles::class, 'vehicle_id');

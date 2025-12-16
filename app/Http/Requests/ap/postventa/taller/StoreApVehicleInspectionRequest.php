@@ -39,6 +39,7 @@ class StoreApVehicleInspectionRequest extends StoreRequest
       'tool_kit' => 'nullable|boolean',
       'jack_and_lever' => 'nullable|boolean',
       'general_observations' => 'nullable|string',
+      'customer_signature' => 'required|string|regex:/^data:image\/[a-z+]+;base64,/',
 
       // Damages array
       'damages' => 'nullable|array',
@@ -60,6 +61,8 @@ class StoreApVehicleInspectionRequest extends StoreRequest
       'work_order_id.exists' => 'La orden de trabajo no existe',
       'inspection_date.required' => 'La fecha de inspección es requerida',
       'inspection_date.date' => 'La fecha de inspección no es una fecha válida',
+      'customer_signature.required' => 'La firma del cliente es requerido',
+      'customer_signature.regex' => 'La firma del cliente debe ser una imagen en formato base64 válido',
       'mileage.numeric' => 'El kilometraje debe ser un número',
       'mileage.min' => 'El kilometraje no puede ser negativo',
       'fuel_level.string' => 'El nivel de combustible debe ser una cadena de texto',

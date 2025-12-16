@@ -3,6 +3,7 @@
 namespace App\Models\ap\postventa\taller;
 
 use App\Models\ap\ApPostVentaMasters;
+use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
@@ -32,10 +33,12 @@ class AppointmentPlanning extends Model
     'created_by',
     'is_taken',
     'sede_id',
+    'num_doc_client',
+    'owner_id',
   ];
 
   const filters = [
-    'search' => ['full_name_client', 'email_client', 'phone_client', 'description', 'vehicle.plate'],
+    'search' => ['full_name_client', 'email_client', 'phone_client', 'description', 'vehicle.plate', 'num_doc_client'],
     'type_operation_appointment_id' => '=',
     'type_planning_id' => '=',
     'ap_vehicle_id' => '=',
@@ -45,6 +48,7 @@ class AppointmentPlanning extends Model
     'created_by' => '=',
     'is_taken' => '=',
     'sede_id' => '=',
+    'num_doc_client' => '=',
   ];
 
   const sorts = [
@@ -95,5 +99,10 @@ class AppointmentPlanning extends Model
   public function sede()
   {
     return $this->belongsTo(Sede::class, 'sede_id');
+  }
+
+  public function owner()
+  {
+    return $this->belongsTo(BusinessPartners::class, 'owner_id');
   }
 }

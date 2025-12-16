@@ -21,6 +21,7 @@ class StoreVehiclesRequest extends StoreRequest
       'sede_id' => 'required|integer|exists:config_sede,id',
       'warehouse_physical_id' => 'sometimes|nullable|integer|exists:warehouse,id',
       'type_operation_id' => 'sometimes|nullable|integer|exists:ap_commercial_masters,id',
+      'customer_id' => 'sometimes|nullable|integer|exists:business_partners,id',
     ];
   }
 
@@ -48,6 +49,7 @@ class StoreVehiclesRequest extends StoreRequest
       'sede_id.exists' => 'La sede seleccionada no existe',
       'warehouse_physical_id.exists' => 'El almacén seleccionado no existe',
       'type_operation_id.exists' => 'El tipo de operación seleccionado no existe',
+      'customer_id.exists' => 'El cliente seleccionado no existe',
     ];
   }
 }

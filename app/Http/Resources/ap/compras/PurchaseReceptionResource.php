@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\compras;
 
+use App\Http\Resources\ap\comercial\BusinessPartnersResource;
 use App\Http\Resources\ap\maestroGeneral\WarehouseResource;
 use App\Http\Resources\gp\gestionsistema\UserResource;
 use Illuminate\Http\Request;
@@ -15,6 +16,7 @@ class PurchaseReceptionResource extends JsonResource
       'id' => $this->id,
       'reception_number' => $this->reception_number,
       'reception_date' => $this->reception_date,
+      'freight_cost' => $this->freight_cost,
       'shipping_guide_number' => $this->shipping_guide_number,
       'reception_type' => $this->reception_type,
       'notes' => $this->notes ?? "",
@@ -29,6 +31,7 @@ class PurchaseReceptionResource extends JsonResource
       // Relationships
       'purchase_order' => new PurchaseOrderResource($this->purchaseOrder),
       'warehouse' => new WarehouseResource($this->warehouse),
+      'carrier' => BusinessPartnersResource::make($this->carrier),
       'details' => PurchaseReceptionDetailResource::collection($this->details->load('product')),
     ];
   }

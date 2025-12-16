@@ -31,6 +31,7 @@ class TransferReception extends Model
     'reviewed_at',
     'total_items',
     'total_quantity',
+    'item_type',
   ];
 
   protected $casts = [

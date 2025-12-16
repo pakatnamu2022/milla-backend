@@ -44,6 +44,7 @@ class VehiclesResource extends JsonResource
       'movements' => VehicleMovementResource::collection($this->vehicleMovements),
       'type_operation_id' => $this->type_operation_id,
       'owner' => BusinessPartnersResource::make($this->customer),
+      'owner_name' => $this->customer?->full_name,
     ];
   }
 }

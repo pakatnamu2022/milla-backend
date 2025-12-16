@@ -229,7 +229,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       'engine_type_id' => $data['engine_type_id'],
       'sede_id' => $data['sede_id'],
       'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
-      'type_operation_id' => Constants::TYPE_OPERATION_COMERCIAL_ID,
+      'type_operation_id' => ApCommercialMasters::TIPO_OPERACION_COMERCIAL,
     ];
 
     $vehicle = $vehicleService->store($vehicleData);

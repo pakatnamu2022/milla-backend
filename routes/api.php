@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ap\ApCommercialMastersController;
 use App\Http\Controllers\ap\ApPostVentaMastersController;
+use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
@@ -13,7 +14,6 @@ use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\ShippingGuidesController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
 use App\Http\Controllers\ap\comercial\VehiclesController;
-use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\compras\PurchaseOrderController;
 use App\Http\Controllers\ap\compras\PurchaseReceptionController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
@@ -42,16 +42,14 @@ use App\Http\Controllers\ap\maestroGeneral\UnitMeasurementController;
 use App\Http\Controllers\ap\maestroGeneral\UserSeriesAssignmentController;
 use App\Http\Controllers\ap\maestroGeneral\WarehouseController;
 use App\Http\Controllers\ap\postventa\gestionProductos\InventoryMovementController;
-use App\Http\Controllers\ap\postventa\gestionProductos\ProductCategoryController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductsController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductWarehouseStockController;
 use App\Http\Controllers\ap\postventa\gestionProductos\TransferReceptionController;
 use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
-use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
-use App\Http\Controllers\Api\gp\gestionhumana\viaticos\PerDiemExpenseController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationDetailsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationsController;
+use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
 use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderAssignOperatorController;
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderPartsController;
@@ -89,6 +87,7 @@ use App\Http\Controllers\gp\gestionhumana\viaticos\HotelAgreementController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\HotelReservationController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemApprovalController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemCategoryController;
+use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemExpenseController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemPolicyController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRequestController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
@@ -138,7 +137,29 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
   //    SYSTEM
   Route::group(['prefix' => 'configuration'], function () {
-    //        ROLES
+    //        USERS
+    Route::get('user/{user}/complete', [UserController::class, 'showComplete'])->name('user.showComplete');
+    Route::apiResource('user', UserController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
+
+    //        USER-SEDE ASSIGNMENT
+    Route::post('user-sede/store-many', [UserSedeController::class, 'storeMany'])->name('user-sede.store-many');
+    Route::get('user-sede/user/{userId}/sedes', [UserSedeController::class, 'getSedesByUser'])->name('user-sede.sedes-by-user');
+    Route::get('user-sede/sede/{sedeId}/users', [UserSedeController::class, 'getUsersBySede'])->name('user-sede.users-by-sede');
+    Route::apiResource('user-sede', UserSedeController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
+
+    // ROLES
     Route::apiResource('role', RoleController::class)->only([
       'index',
       'show',
@@ -179,41 +200,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('permission/bulk-sync', [PermissionController::class, 'bulkSync'])->name('permission.bulk-sync');
     Route::post('permission/save-permissions-to-role', [PermissionController::class, 'saveToRole'])->name('permission.savePermissionsToRole');
     Route::delete('permission/remove-permission-from-role', [PermissionController::class, 'removeFromRole'])->name('permission.removePermissionFromRole');
-  });
-
-  Route::group(['prefix' => 'configuration'], function () {
-    //        USERS
-    Route::get('user/{user}/complete', [UserController::class, 'showComplete'])->name('user.showComplete');
-    Route::apiResource('user', UserController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    //        USER-SEDE ASSIGNMENT
-    Route::post('user-sede/store-many', [UserSedeController::class, 'storeMany'])->name('user-sede.store-many');
-    Route::get('user-sede/user/{userId}/sedes', [UserSedeController::class, 'getSedesByUser'])->name('user-sede.sedes-by-user');
-    Route::get('user-sede/sede/{sedeId}/users', [UserSedeController::class, 'getUsersBySede'])->name('user-sede.users-by-sede');
-    Route::apiResource('user-sede', UserSedeController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-  });
-
-  Route::group(['prefix' => 'person'], function () {
-    Route::get('/birthdays', [PersonController::class, 'birthdays'])->name('person.birthdays');
-    Route::apiResource('/', PersonController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
   });
 
   Route::group(['prefix' => 'gp'], function () {
@@ -274,7 +260,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::group(['prefix' => 'gh'], function () {
       //    PERSONAL MAIN
       Route::group(['prefix' => 'personal'], function () {
-        //        PERSON
+        //PERSON
+        Route::get('person/birthdays', [PersonController::class, 'birthdays'])->name('person.birthdays');
         Route::apiResource('person', PersonController::class)->only([
           'index',
           'show',
@@ -930,21 +917,11 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/by-advisor', [DashboardComercialController::class, 'getTotalsByAdvisor']);
         Route::get('/by-user', [DashboardComercialController::class, 'getTotalsByUser']);
         Route::get('/by-campaign', [DashboardComercialController::class, 'getTotalsByCampaign']);
-        Route::get('/for-sales-manager-stats', [DashboardComercialController::class, 'getStatsForSalesManager']);
-        Route::get('/for-sales-manager-details', [DashboardComercialController::class, 'getDetailsForSalesManager']);
       });
     });
 
     //      POST-VENTA
     Route::group(['prefix' => 'postVenta'], function () {
-      Route::apiResource('productCategory', ProductCategoryController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
       // Products - Gestión de Productos
       Route::get('products/low-stock', [ProductsController::class, 'lowStock']);
       Route::get('products/featured', [ProductsController::class, 'featured']);
@@ -972,7 +949,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('inventoryMovements/transfers', [InventoryMovementController::class, 'createTransfer']);
       Route::put('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'updateTransfer']);
       Route::delete('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'destroyTransfer']);
-      Route::post('inventoryMovements/{id}/send-to-nubefact', [InventoryMovementController::class, 'sendShippingGuideToNubefact']);
       Route::get('inventoryMovements/kardex', [InventoryMovementController::class, 'getKardex']);
       Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history', [InventoryMovementController::class, 'getProductMovementHistory']);
       Route::apiResource('inventoryMovements', InventoryMovementController::class)->only([
@@ -987,7 +963,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Transfer Receptions - Recepciones de Transferencias
       Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
-        'index',
+        'ind ex',
         'show',
         'store',
         'destroy'
@@ -1079,6 +1055,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Vehicle Inspections - Inspecciones Vehiculares
       Route::get('vehicleInspections/by-work-order/{workOrderId}', [ApVehicleInspectionController::class, 'getByWorkOrder']);
+      Route::get('vehicleInspections/{id}/reception-report', [ApVehicleInspectionController::class, 'generateReceptionReport']);
       Route::apiResource('vehicleInspections', ApVehicleInspectionController::class)->only([
         'index',
         'show',
@@ -1181,7 +1158,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('per-diem-requests/{requestId}/expenses', [PerDiemExpenseController::class, 'store']);
     Route::put('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'update']);
     Route::delete('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'destroy']);
-    Route::post('per-diem-expenses/{expenseId}/is-valid', [PerDiemExpenseController::class, 'isValid']);
+    Route::post('per-diem-expenses/{expenseId}/validate', [PerDiemExpenseController::class, 'validate']);
 
     // Hotel Reservations
     Route::post('per-diem-requests/{requestId}/hotel-reservation', [HotelReservationController::class, 'store']);
