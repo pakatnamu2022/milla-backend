@@ -142,4 +142,29 @@ class Helpers
 
     return $trimmedImage;
   }
+
+  /**
+   * Convierte una URL de imagen externa a formato base64
+   * @param string $url
+   * @return string|null
+   */
+  public static function convertUrlToBase64($url)
+  {
+    // Obtener el contenido de la imagen desde la URL
+    $imageContent = @file_get_contents($url);
+
+    if ($imageContent === false) {
+      return null;
+    }
+
+    // Detectar el tipo MIME de la imagen
+    $finfo = new \finfo(FILEINFO_MIME_TYPE);
+    $mimeType = $finfo->buffer($imageContent);
+
+    // Convertir a base64
+    $base64 = base64_encode($imageContent);
+
+    // Retornar en formato data URL
+    return "data:{$mimeType};base64,{$base64}";
+  }
 }

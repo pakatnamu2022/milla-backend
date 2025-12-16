@@ -265,17 +265,21 @@ class ApVehicleInspectionService extends BaseService
     $vehicle = $workOrder->vehicle;
     $customer = $vehicle->customer;
     $advisor = $workOrder->advisor; // Worker extiende de Person directamente
-    $inspectorUser = $inspection->inspectionBy;
-    $inspectorPerson = $inspectorUser ? $inspectorUser->person : null;
 
     // Obtener firma del asesor desde WorkerSignature
-    // El asesor es Worker que extiende de Person
+    // El asesor es Worker que extiende de Person directamente
     $advisorSignature = null;
     if ($advisor) {
       $workerSignature = WorkerSignature::where('worker_id', $advisor->id)->first();
-      if ($workerSignature) {
-        $advisorSignature = $workerSignature->signature_url;
+      if ($workerSignature && $workerSignature->signature_url) {
+        $advisorSignature = Helpers::convertUrlToBase64($workerSignature->signature_url);
       }
+    }
+
+    // Convertir firma del cliente a base64 si existe
+    $customerSignature = null;
+    if ($inspection->customer_signature_url) {
+      $customerSignature = Helpers::convertUrlToBase64($inspection->customer_signature_url);
     }
 
     // Preparar lista de checks del inventario
@@ -311,13 +315,13 @@ class ApVehicleInspectionService extends BaseService
       'vehicle' => $vehicle,
       'customer' => $customer,
       'advisor' => $advisor, // Worker ya es Person directamente
-      'advisorPhone' => $advisor ? $advisor->phone : '',
+      'advisorPhone' => $advisor ? $advisor->cel_personal : '',
       'sede' => $workOrder->sede,
       'status' => $workOrder->status,
       'items' => $workOrder->items,
       'damages' => $inspection->damages,
       'inventoryChecks' => $inventoryChecks,
-      'customerSignature' => $inspection->customer_signature_url,
+      'customerSignature' => $customerSignature,
       'advisorSignature' => $advisorSignature,
       'appointmentNumber' => $workOrder->appointmentPlanning ? $workOrder->appointmentPlanning->correlative : 'N/A',
     ];

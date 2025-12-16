@@ -30,11 +30,6 @@ class StoreWorkOrderRequest extends StoreRequest
         'string',
         'max:50',
       ],
-      'advisor_id' => [
-        'required',
-        'integer',
-        'exists:rrhh_persona,id',
-      ],
       'sede_id' => [
         'required',
         'integer',
@@ -134,10 +129,6 @@ class StoreWorkOrderRequest extends StoreRequest
 
       'vehicle_vin.string' => 'El VIN debe ser una cadena de texto.',
       'vehicle_vin.max' => 'El VIN no debe exceder los 50 caracteres.',
-
-      'advisor_id.required' => 'El asesor es obligatorio.',
-      'advisor_id.integer' => 'El asesor debe ser un entero.',
-      'advisor_id.exists' => 'El asesor seleccionado no es válido.',
 
       'sede_id.required' => 'La sede es obligatoria.',
       'sede_id.integer' => 'La sede debe ser un entero.',

@@ -56,7 +56,7 @@ class StoreApVehicleBrandRequest extends StoreRequest
         'exists:ap_commercial_masters,id',
       ],
       'type_class_id' => [
-        'required',
+        'nullable',
         'integer',
         Rule::exists('ap_commercial_masters', 'id')
           ->where('type', 'CLASS_TYPE')
