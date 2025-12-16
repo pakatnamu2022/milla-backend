@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
+use App\Models\ap\ApPostVentaMasters;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
+use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 
 class ImportProducts extends Command
 {
@@ -93,10 +96,40 @@ class ImportProducts extends Command
             continue;
           }
 
+          // Construir dyn_code basado en category.code, brand.dyn_code y classArticle.id
+          $dynCodeParts = [];
+
+          // Obtener category code
+          if (!empty($productData['product_category_id'])) {
+            $category = ApPostVentaMasters::find($productData['product_category_id']);
+            if ($category && !empty($category->code)) {
+              $dynCodeParts[] = $category->code;
+            }
+          }
+
+          // Obtener brand dyn_code
+          if (!empty($productData['brand_id'])) {
+            $brand = ApVehicleBrand::find($productData['brand_id']);
+            if ($brand && !empty($brand->dyn_code)) {
+              $dynCodeParts[] = $brand->dyn_code;
+            }
+          }
+
+          // Obtener classArticle id
+          if (!empty($productData['ap_class_article_id'])) {
+            $classArticle = ApClassArticle::find($productData['ap_class_article_id']);
+            if ($classArticle) {
+              $dynCodeParts[] = $classArticle->id;
+            }
+          }
+
+          // Si no hay partes para el dyn_code, usar el código del producto
+          $dynCode = !empty($dynCodeParts) ? implode('-', $dynCodeParts) : $productData['code'];
+
           // Preparar datos con valores por defecto
           $dataToStore = [
             'code' => $productData['code'],
-            'dyn_code' => $productData['code'], // El código se usará como base para dyn_code
+            'dyn_code' => $dynCode . 'X', // Se agregará la X para que el servicio lo reemplace por el correlativo
             'nubefac_code' => $productData['code'], // Se usará el mismo código
             'name' => $productData['name'],
             'description' => $productData['description'] ?? null,

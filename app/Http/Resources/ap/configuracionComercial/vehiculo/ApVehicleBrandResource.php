@@ -22,6 +22,7 @@ class ApVehicleBrandResource extends JsonResource
       'group_id' => $this->group_id,
       'group' => $this->group->description,
       'sede_id' => $this->group->sede_id,
+      'type_class_id' => $this->type_class_id,
     ];
   }
 }

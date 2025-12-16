@@ -75,14 +75,12 @@ class ApVehicleInspection extends Model
   const filters = [
     'search' => ['general_observations'],
     'work_order_id' => '=',
-    'mileage' => 'between',
     'fuel_level' => 'between',
     'inspected_by' => '=',
   ];
 
   const sorts = [
     'id',
-    'mileage',
     'fuel_level',
     'created_at',
   ];
