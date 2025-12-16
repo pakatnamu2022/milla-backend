@@ -159,16 +159,19 @@
       display: inline-block;
       width: 10px;
       height: 10px;
-      border: 1px solid #000;
+      border: 1.5px solid #000;
       margin-right: 5px;
       text-align: center;
-      line-height: 10px;
-      font-size: 8px;
+      line-height: 8px;
+      font-size: 10px;
+      font-weight: bold;
       vertical-align: middle;
+      background-color: white;
     }
 
     .checkbox.checked::before {
-      content: "✓";
+      content: "X";
+      color: #000;
     }
 
     .vehicle-state-container {
@@ -270,16 +273,19 @@
 
     .signature-box {
       border-top: 2px solid #000;
-      margin-top: 60px;
+      margin-top: 0px;
       padding-top: 5px;
       font-size: 9px;
       font-weight: bold;
     }
 
     .signature-img {
-      max-width: 150px;
-      max-height: 50px;
-      margin-bottom: 5px;
+      max-width: 200px;
+      max-height: 80px;
+      margin-bottom: 0px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
     }
 
     .text-center {
@@ -324,7 +330,7 @@
     <td class="label-cell">Tipo OT:</td>
     <td>{{ $status ? $status->description : 'N/A' }}</td>
     <td class="label-cell">Sucursal:</td>
-    <td>{{ $sede ? $sede->description : 'N/A' }}</td>
+    <td>{{ $sede ? $sede->abreviatura : 'N/A' }}</td>
   </tr>
   <tr>
     <td class="label-cell">Asesor:</td>
@@ -390,23 +396,23 @@
 <table class="data-table">
   <tr>
     <td class="label-cell">Cliente:</td>
-    <td colspan="3">{{ $customer ? $customer->business_name : 'N/A' }}</td>
+    <td colspan="3">{{ $customer ? $customer->full_name : 'N/A' }}</td>
   </tr>
   <tr>
     <td class="label-cell">DNI/RUC:</td>
-    <td>{{ $customer ? $customer->document_number : 'N/A' }}</td>
+    <td>{{ $customer ? $customer->num_doc : 'N/A' }}</td>
     <td class="label-cell">Teléfono:</td>
     <td>{{ $customer ? $customer->phone : 'N/A' }}</td>
   </tr>
   <tr>
     <td class="label-cell">Dirección:</td>
-    <td colspan="3">{{ $customer ? $customer->address : 'N/A' }}</td>
+    <td colspan="3">{{ $customer ? $customer->direction : 'N/A' }}</td>
   </tr>
   <tr>
     <td class="label-cell">E-mail:</td>
     <td>{{ $customer ? $customer->email : 'N/A' }}</td>
     <td class="label-cell">Celular:</td>
-    <td>{{ $customer ? $customer->cellphone : 'N/A' }}</td>
+    <td>{{ $customer ? $customer->phone : 'N/A' }}</td>
   </tr>
 </table>
 
@@ -538,14 +544,30 @@
 <!-- Sección: Información Importante -->
 <div class="section-title">INFORMACIÓN IMPORTANTE</div>
 <div class="important-section">
-  <div class="important-title">CONSIDERACIONES IMPORTANTES:</div>
+  <div class="important-title">ESTIMADO CLIENTE:</div>
   <div style="font-size: 8px; line-height: 1.4;">
     <ol style="margin-left: 15px;">
-      <li>EL CLIENTE DEBE VERIFICAR QUE TODOS LOS ITEMS DE TRABAJO ESTÉN CORRECTAMENTE REGISTRADOS.</li>
-      <li>LA EMPRESA NO SE HACE RESPONSABLE POR OBJETOS DE VALOR DEJADOS EN EL VEHÍCULO.</li>
-      <li>EL HORARIO DE ATENCIÓN ES DE LUNES A VIERNES DE 8:00 AM A 6:00 PM Y SÁBADOS DE 8:00 AM A 1:00 PM.</li>
-      <li>EL CLIENTE DEBE RECOGER EL VEHÍCULO EN LA FECHA Y HORA PROGRAMADA.</li>
-      <li>CUALQUIER TRABAJO ADICIONAL DEBE SER AUTORIZADO POR EL CLIENTE.</li>
+      <li>SÍRVASE CONSERVAR ESTE COMPROBANTE Y PRESENTARLO AL RETIRAR SU VEHÍCULO, EL CUAL SOLO SERÁ ENTREGADO A LA
+        PRESENTACIÓN DE ESTE DOCUMENTO.
+      </li>
+      <li>PERMANENCIA DEL VEHÍCULO: CUANDO EL CLIENTE NO CUMPLA LA OBLIGACIÓN ASUMIDA POR LOS TRABAJOS REALIZADOS, EL
+        VEHÍCULO PERMANECERÁ EN EL CENTRO DE SERVICIO HASTA QUE REALICE EL PAGO CORRESPONDIENTE.
+      </li>
+      <li>CRÉDITO: EN CASO LA FACTURACIÓN SEA A CRÉDITO, SE DEBERÁ PRESENTAR LA DOCUMENTACIÓN SOLICITADA POR EL
+        DEPARTAMENTO DE CRÉDITOS Y COBRANZAS PARA PODER RETIRAR LA UNIDAD.
+      </li>
+      <li>PAGOS: TODA REPARACIÓN SE CANCELARÁ EN CAJA ANTES DE LA ENTREGA DEL VEHÍCULO. EN EL CASO DE NO RETIRARLO EN
+        LOS DOS (2) DÍAS ÚTILES SIGUIENTES, CONTADOS A PARTIR DE LA FECHA DE HABER RECIBIDO EL AVISO DE RECOJO O DEL
+        PRESUPUESTO SIN AUTORIZACIÓN DEL TRABAJO, SE COBRARÁ (S/. 15.00) NUEVOS SOLES DIARIOS POR CONCEPTO DE GUARDERÍA.
+      </li>
+      <li>SEGURIDAD: TODA UNIDAD QUE SE ENCUENTRE EN EL CENTRO DE SERVICIO ESTÁ ASEGURADA ANTE CUALQUIER INCIDENCIA QUE
+        PUEDA OCURRIR DENTRO DE LAS INSTALACIONES DE LA EMPRESA O FUERA DE ELLA DURANTE LA PRUEBA EN RUTA.
+      </li>
+      <li>EN CASO EL VEHÍCULO CUENTE CON LÁMINAS POLARIZADAS, NO SE PODRÁ REALIZAR LA PRUEBA EN RUTA, SALVO QUE LA
+        PERSONA AUTORIZADA EN EL PERMISO ESTÉ PRESENTE DENTRO DE LA PRUEBA. SE LE INFORMA QUE, A LA FIRMA DEL
+        INVENTARIO, USTED AUTORIZA LA PRUEBA DE MANEJO DEL VEHÍCULO SI FUERA NECESARIO, COMO PARTE DEL CONTROL DE
+        CALIDAD DEL SERVICIO.
+      </li>
     </ol>
   </div>
 </div>
@@ -569,7 +591,7 @@
         @endif
         <div class="signature-box">
           FIRMA DEL CLIENTE<br>
-          {{ $customer ? $customer->business_name : 'N/A' }}
+          {{ $customer ? $customer->full_name : 'N/A' }}
         </div>
       </td>
     </tr>

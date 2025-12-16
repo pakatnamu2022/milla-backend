@@ -68,6 +68,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Set created_by
       if (auth()->check()) {
         $data['created_by'] = auth()->user()->id;
+        $data['advisor_id'] = auth()->user()->person->id;
       }
 
       // Set is_taken

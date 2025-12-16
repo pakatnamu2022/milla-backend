@@ -41,12 +41,6 @@ class UpdateWorkOrderRequest extends StoreRequest
         Rule::exists('ap_post_venta_masters', 'id')
           ->where('type', 'WORK_ORDER_STATUS'),
       ],
-      'advisor_id' => [
-        'sometimes',
-        'required',
-        'integer',
-        'exists:rrhh_persona,id',
-      ],
       'sede_id' => [
         'sometimes',
         'required',
@@ -176,10 +170,6 @@ class UpdateWorkOrderRequest extends StoreRequest
       'status_id.required' => 'El estado es obligatorio.',
       'status_id.integer' => 'El estado debe ser un entero.',
       'status_id.exists' => 'El estado seleccionado no es válido.',
-
-      'advisor_id.required' => 'El asesor es obligatorio.',
-      'advisor_id.integer' => 'El asesor debe ser un entero.',
-      'advisor_id.exists' => 'El asesor seleccionado no es válido.',
 
       'sede_id.required' => 'La sede es obligatoria.',
       'sede_id.integer' => 'La sede debe ser un entero.',
