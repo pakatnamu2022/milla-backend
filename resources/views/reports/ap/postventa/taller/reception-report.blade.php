@@ -9,7 +9,7 @@
     return "data:{$mimeType};base64,{$imageData}";
   }
 @endphp
-<!doctype html>
+  <!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -111,23 +111,35 @@
       vertical-align: middle;
     }
 
-    .inventory-grid {
-      display: table;
+    .vehicle-inspection-container {
       width: 100%;
-      border: 1px solid #000;
       margin-bottom: 10px;
+      display: table;
     }
 
-    .inventory-row {
-      display: table-row;
+    .inventory-column {
+      display: table-cell;
+      width: 50%;
+      vertical-align: top;
+      padding-right: 10px;
+    }
+
+    .vehicle-image-column {
+      display: table-cell;
+      width: 50%;
+      vertical-align: top;
+      padding-left: 10px;
+    }
+
+    .inventory-list {
+      border: 1px solid #000;
+      padding: 8px;
+      font-size: 8px;
     }
 
     .inventory-item {
-      display: table-cell;
-      width: 33.33%;
-      padding: 4px;
-      border: 1px solid #000;
-      font-size: 8px;
+      margin-bottom: 4px;
+      line-height: 1.3;
     }
 
     .checkbox {
@@ -139,6 +151,7 @@
       text-align: center;
       line-height: 10px;
       font-size: 8px;
+      vertical-align: middle;
     }
 
     .checkbox.checked::before {
@@ -146,28 +159,54 @@
     }
 
     .vehicle-state-container {
+      width: 100%;
+      max-width: 250px;
+      margin: 0 auto;
+      border: 1px solid #000;
+      padding: 15px;
+      background-color: #f9f9f9;
+      page-break-inside: avoid;
+      overflow: hidden;
+    }
+
+    .vehicle-image-wrapper {
       position: relative;
       width: 100%;
-      margin-bottom: 10px;
+      display: block;
+      line-height: 0;
     }
 
     .vehicle-state-container img {
       width: 100%;
       height: auto;
+      display: block;
+      vertical-align: top;
     }
 
     .damage-marker {
       position: absolute;
-      width: 15px;
-      height: 15px;
+      width: 18px;
+      height: 18px;
       background-color: red;
       border: 2px solid black;
       border-radius: 50%;
-      font-size: 8px;
+      font-size: 9px;
       color: white;
       text-align: center;
-      line-height: 11px;
+      line-height: 14px;
       font-weight: bold;
+      margin-left: -9px;
+      margin-top: -9px;
+      z-index: 10;
+    }
+
+    .no-damages-text {
+      text-align: center;
+      color: #666;
+      font-size: 10px;
+      padding: 15px;
+      font-style: italic;
+      position: relative;
     }
 
     .damages-list {
@@ -383,33 +422,43 @@
   </tbody>
 </table>
 
-<!-- Sección: Inventario del Vehículo -->
-<div class="section-title">INVENTARIO DEL VEHÍCULO</div>
-<div class="inventory-grid">
-  @foreach(array_chunk($inventoryChecks, 3, true) as $chunk)
-    <div class="inventory-row">
-      @foreach($chunk as $key => $label)
+<!-- Sección: Inspección del Vehículo (Inventario + Estado) -->
+<div class="section-title">INSPECCIÓN DEL VEHÍCULO</div>
+<div class="vehicle-inspection-container">
+  <!-- Columna Izquierda: Inventario -->
+  <div class="inventory-column">
+    <div style="font-weight: bold; margin-bottom: 5px; font-size: 9px;">INVENTARIO:</div>
+    <div class="inventory-list">
+      @foreach($inventoryChecks as $key => $label)
         <div class="inventory-item">
           <span class="checkbox {{ $inspection->{$key} ? 'checked' : '' }}"></span>
           {{ $label }}
         </div>
       @endforeach
-      @for($i = count($chunk); $i < 3; $i++)
-        <div class="inventory-item">&nbsp;</div>
-      @endfor
     </div>
-  @endforeach
-</div>
+  </div>
 
-<!-- Sección: Estado del Vehículo -->
-<div class="section-title">ESTADO DEL VEHÍCULO</div>
-<div class="vehicle-state-container">
-  <img src="{{ getBase64Image('images/ap/body_car.png') }}" alt="Estado del Vehículo">
-  @foreach($damages as $index => $damage)
-    <div class="damage-marker" style="left: {{ $damage->x_coordinate }}%; top: {{ $damage->y_coordinate }}%;">
-      {{ $index + 1 }}
+  <!-- Columna Derecha: Estado del Vehículo -->
+  <div class="vehicle-image-column">
+    <div style="font-weight: bold; margin-bottom: 5px; font-size: 9px; text-align: center;">ESTADO DEL VEHÍCULO:</div>
+    <div class="vehicle-state-container">
+      <div class="vehicle-image-wrapper">
+        <img src="{{ getBase64Image('images/ap/body_car.png') }}" alt="Estado del Vehículo">
+        @if($damages->count() > 0)
+          @foreach($damages as $index => $damage)
+            <div class="damage-marker" style="left: {{ $damage->x_coordinate }}%; top: {{ $damage->y_coordinate }}%;">
+              {{ $index + 1 }}
+            </div>
+          @endforeach
+        @endif
+      </div>
+      @if($damages->count() == 0)
+        <div class="no-damages-text">
+          ✓ VEHÍCULO SIN DAÑOS REPORTADOS
+        </div>
+      @endif
     </div>
-  @endforeach
+  </div>
 </div>
 
 @if($damages->count() > 0)
