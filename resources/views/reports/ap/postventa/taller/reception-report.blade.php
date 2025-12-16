@@ -9,7 +9,7 @@
     return "data:{$mimeType};base64,{$imageData}";
   }
 @endphp
-<!doctype html>
+  <!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -111,63 +111,118 @@
       vertical-align: middle;
     }
 
-    .inventory-grid {
-      display: table;
+    .vehicle-inspection-container {
       width: 100%;
-      border: 1px solid #000;
       margin-bottom: 10px;
+      display: table;
     }
 
-    .inventory-row {
-      display: table-row;
+    .inventory-column {
+      display: table-cell;
+      width: 60%;
+      vertical-align: top;
+      padding-right: 10px;
+    }
+
+    .vehicle-image-column {
+      display: table-cell;
+      width: 40%;
+      vertical-align: top;
+      padding-left: 10px;
+    }
+
+    .inventory-list {
+      border: 1px solid #000;
+      padding: 8px;
+      font-size: 8px;
+      min-height: 270px;
+    }
+
+    .inventory-list table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .inventory-list td {
+      width: 50%;
+      padding: 2px;
+      border: none;
+      vertical-align: top;
     }
 
     .inventory-item {
-      display: table-cell;
-      width: 33.33%;
-      padding: 4px;
-      border: 1px solid #000;
-      font-size: 8px;
+      margin-bottom: 2px;
+      line-height: 1.3;
     }
 
     .checkbox {
       display: inline-block;
       width: 10px;
       height: 10px;
-      border: 1px solid #000;
+      border: 1.5px solid #000;
       margin-right: 5px;
       text-align: center;
-      line-height: 10px;
-      font-size: 8px;
+      line-height: 8px;
+      font-size: 10px;
+      font-weight: bold;
+      vertical-align: middle;
+      background-color: white;
     }
 
     .checkbox.checked::before {
-      content: "✓";
+      content: "X";
+      color: #000;
     }
 
     .vehicle-state-container {
+      width: 100%;
+      max-width: 180px;
+      margin: 0 auto;
+      border: 1px solid #000;
+      padding: 10px;
+      background-color: #f9f9f9;
+      page-break-inside: avoid;
+    }
+
+    .vehicle-image-wrapper {
       position: relative;
       width: 100%;
-      margin-bottom: 10px;
+      height: 270px;
+      display: block;
     }
 
     .vehicle-state-container img {
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
-      height: auto;
+      height: 100%;
+      object-fit: contain;
     }
 
     .damage-marker {
       position: absolute;
-      width: 15px;
-      height: 15px;
-      background-color: red;
-      border: 2px solid black;
+      width: 14px;
+      height: 14px;
+      background-color: #ff0000;
+      border: 2px solid #000;
       border-radius: 50%;
       font-size: 8px;
       color: white;
       text-align: center;
-      line-height: 11px;
+      line-height: 10px;
       font-weight: bold;
+      transform: translate(-50%, -50%);
+      z-index: 999;
+    }
+
+    .no-damages-text {
+      text-align: center;
+      color: #666;
+      font-size: 10px;
+      padding: 15px;
+      font-style: italic;
+      position: relative;
     }
 
     .damages-list {
@@ -218,16 +273,19 @@
 
     .signature-box {
       border-top: 2px solid #000;
-      margin-top: 60px;
+      margin-top: 0px;
       padding-top: 5px;
       font-size: 9px;
       font-weight: bold;
     }
 
     .signature-img {
-      max-width: 150px;
-      max-height: 50px;
-      margin-bottom: 5px;
+      max-width: 200px;
+      max-height: 80px;
+      margin-bottom: 0px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
     }
 
     .text-center {
@@ -272,7 +330,7 @@
     <td class="label-cell">Tipo OT:</td>
     <td>{{ $status ? $status->description : 'N/A' }}</td>
     <td class="label-cell">Sucursal:</td>
-    <td>{{ $sede ? $sede->description : 'N/A' }}</td>
+    <td>{{ $sede ? $sede->abreviatura : 'N/A' }}</td>
   </tr>
   <tr>
     <td class="label-cell">Asesor:</td>
@@ -338,23 +396,23 @@
 <table class="data-table">
   <tr>
     <td class="label-cell">Cliente:</td>
-    <td colspan="3">{{ $customer ? $customer->business_name : 'N/A' }}</td>
+    <td colspan="3">{{ $customer ? $customer->full_name : 'N/A' }}</td>
   </tr>
   <tr>
     <td class="label-cell">DNI/RUC:</td>
-    <td>{{ $customer ? $customer->document_number : 'N/A' }}</td>
+    <td>{{ $customer ? $customer->num_doc : 'N/A' }}</td>
     <td class="label-cell">Teléfono:</td>
     <td>{{ $customer ? $customer->phone : 'N/A' }}</td>
   </tr>
   <tr>
     <td class="label-cell">Dirección:</td>
-    <td colspan="3">{{ $customer ? $customer->address : 'N/A' }}</td>
+    <td colspan="3">{{ $customer ? $customer->direction : 'N/A' }}</td>
   </tr>
   <tr>
     <td class="label-cell">E-mail:</td>
     <td>{{ $customer ? $customer->email : 'N/A' }}</td>
     <td class="label-cell">Celular:</td>
-    <td>{{ $customer ? $customer->cellphone : 'N/A' }}</td>
+    <td>{{ $customer ? $customer->phone : 'N/A' }}</td>
   </tr>
 </table>
 
@@ -383,33 +441,73 @@
   </tbody>
 </table>
 
-<!-- Sección: Inventario del Vehículo -->
-<div class="section-title">INVENTARIO DEL VEHÍCULO</div>
-<div class="inventory-grid">
-  @foreach(array_chunk($inventoryChecks, 3, true) as $chunk)
-    <div class="inventory-row">
-      @foreach($chunk as $key => $label)
-        <div class="inventory-item">
-          <span class="checkbox {{ $inspection->{$key} ? 'checked' : '' }}"></span>
-          {{ $label }}
-        </div>
-      @endforeach
-      @for($i = count($chunk); $i < 3; $i++)
-        <div class="inventory-item">&nbsp;</div>
-      @endfor
+<!-- Sección: Inspección del Vehículo (Inventario + Estado) -->
+<div class="section-title">INSPECCIÓN DEL VEHÍCULO</div>
+<div class="vehicle-inspection-container">
+  <!-- Columna Izquierda: Inventario -->
+  <div class="inventory-column">
+    <div style="font-weight: bold; margin-bottom: 5px; font-size: 9px;">INVENTARIO:</div>
+    <div class="inventory-list">
+      <table>
+        @php
+          $inventoryItems = [];
+          foreach($inventoryChecks as $key => $label) {
+            $inventoryItems[] = [
+              'key' => $key,
+              'label' => $label,
+              'checked' => $inspection->{$key}
+            ];
+          }
+          $halfCount = ceil(count($inventoryItems) / 2);
+          $leftColumn = array_slice($inventoryItems, 0, $halfCount);
+          $rightColumn = array_slice($inventoryItems, $halfCount);
+          $maxRows = max(count($leftColumn), count($rightColumn));
+        @endphp
+        @for($i = 0; $i < $maxRows; $i++)
+          <tr>
+            <td>
+              @if(isset($leftColumn[$i]))
+                <div class="inventory-item">
+                  <span class="checkbox {{ $leftColumn[$i]['checked'] ? 'checked' : '' }}"></span>
+                  {{ $leftColumn[$i]['label'] }}
+                </div>
+              @endif
+            </td>
+            <td>
+              @if(isset($rightColumn[$i]))
+                <div class="inventory-item">
+                  <span class="checkbox {{ $rightColumn[$i]['checked'] ? 'checked' : '' }}"></span>
+                  {{ $rightColumn[$i]['label'] }}
+                </div>
+              @endif
+            </td>
+          </tr>
+        @endfor
+      </table>
     </div>
-  @endforeach
-</div>
+  </div>
 
-<!-- Sección: Estado del Vehículo -->
-<div class="section-title">ESTADO DEL VEHÍCULO</div>
-<div class="vehicle-state-container">
-  <img src="{{ getBase64Image('images/ap/body_car.png') }}" alt="Estado del Vehículo">
-  @foreach($damages as $index => $damage)
-    <div class="damage-marker" style="left: {{ $damage->x_coordinate }}%; top: {{ $damage->y_coordinate }}%;">
-      {{ $index + 1 }}
+  <!-- Columna Derecha: Estado del Vehículo -->
+  <div class="vehicle-image-column">
+    <div style="font-weight: bold; margin-bottom: 5px; font-size: 9px; text-align: center;">ESTADO DEL VEHÍCULO:</div>
+    <div class="vehicle-state-container">
+      <div class="vehicle-image-wrapper">
+        <img src="{{ getBase64Image('images/ap/body_car.png') }}" alt="Estado del Vehículo">
+        @if($damages->count() > 0)
+          @foreach($damages as $index => $damage)
+            <div class="damage-marker" style="left: {{ $damage->x_coordinate }}%; top: {{ $damage->y_coordinate }}%;">
+              {{ $index + 1 }}
+            </div>
+          @endforeach
+        @endif
+      </div>
+      @if($damages->count() == 0)
+        <div class="no-damages-text">
+          ✓ VEHÍCULO SIN DAÑOS REPORTADOS
+        </div>
+      @endif
     </div>
-  @endforeach
+  </div>
 </div>
 
 @if($damages->count() > 0)
@@ -446,14 +544,30 @@
 <!-- Sección: Información Importante -->
 <div class="section-title">INFORMACIÓN IMPORTANTE</div>
 <div class="important-section">
-  <div class="important-title">CONSIDERACIONES IMPORTANTES:</div>
+  <div class="important-title">ESTIMADO CLIENTE:</div>
   <div style="font-size: 8px; line-height: 1.4;">
     <ol style="margin-left: 15px;">
-      <li>EL CLIENTE DEBE VERIFICAR QUE TODOS LOS ITEMS DE TRABAJO ESTÉN CORRECTAMENTE REGISTRADOS.</li>
-      <li>LA EMPRESA NO SE HACE RESPONSABLE POR OBJETOS DE VALOR DEJADOS EN EL VEHÍCULO.</li>
-      <li>EL HORARIO DE ATENCIÓN ES DE LUNES A VIERNES DE 8:00 AM A 6:00 PM Y SÁBADOS DE 8:00 AM A 1:00 PM.</li>
-      <li>EL CLIENTE DEBE RECOGER EL VEHÍCULO EN LA FECHA Y HORA PROGRAMADA.</li>
-      <li>CUALQUIER TRABAJO ADICIONAL DEBE SER AUTORIZADO POR EL CLIENTE.</li>
+      <li>SÍRVASE CONSERVAR ESTE COMPROBANTE Y PRESENTARLO AL RETIRAR SU VEHÍCULO, EL CUAL SOLO SERÁ ENTREGADO A LA
+        PRESENTACIÓN DE ESTE DOCUMENTO.
+      </li>
+      <li>PERMANENCIA DEL VEHÍCULO: CUANDO EL CLIENTE NO CUMPLA LA OBLIGACIÓN ASUMIDA POR LOS TRABAJOS REALIZADOS, EL
+        VEHÍCULO PERMANECERÁ EN EL CENTRO DE SERVICIO HASTA QUE REALICE EL PAGO CORRESPONDIENTE.
+      </li>
+      <li>CRÉDITO: EN CASO LA FACTURACIÓN SEA A CRÉDITO, SE DEBERÁ PRESENTAR LA DOCUMENTACIÓN SOLICITADA POR EL
+        DEPARTAMENTO DE CRÉDITOS Y COBRANZAS PARA PODER RETIRAR LA UNIDAD.
+      </li>
+      <li>PAGOS: TODA REPARACIÓN SE CANCELARÁ EN CAJA ANTES DE LA ENTREGA DEL VEHÍCULO. EN EL CASO DE NO RETIRARLO EN
+        LOS DOS (2) DÍAS ÚTILES SIGUIENTES, CONTADOS A PARTIR DE LA FECHA DE HABER RECIBIDO EL AVISO DE RECOJO O DEL
+        PRESUPUESTO SIN AUTORIZACIÓN DEL TRABAJO, SE COBRARÁ (S/. 15.00) NUEVOS SOLES DIARIOS POR CONCEPTO DE GUARDERÍA.
+      </li>
+      <li>SEGURIDAD: TODA UNIDAD QUE SE ENCUENTRE EN EL CENTRO DE SERVICIO ESTÁ ASEGURADA ANTE CUALQUIER INCIDENCIA QUE
+        PUEDA OCURRIR DENTRO DE LAS INSTALACIONES DE LA EMPRESA O FUERA DE ELLA DURANTE LA PRUEBA EN RUTA.
+      </li>
+      <li>EN CASO EL VEHÍCULO CUENTE CON LÁMINAS POLARIZADAS, NO SE PODRÁ REALIZAR LA PRUEBA EN RUTA, SALVO QUE LA
+        PERSONA AUTORIZADA EN EL PERMISO ESTÉ PRESENTE DENTRO DE LA PRUEBA. SE LE INFORMA QUE, A LA FIRMA DEL
+        INVENTARIO, USTED AUTORIZA LA PRUEBA DE MANEJO DEL VEHÍCULO SI FUERA NECESARIO, COMO PARTE DEL CONTROL DE
+        CALIDAD DEL SERVICIO.
+      </li>
     </ol>
   </div>
 </div>
@@ -477,7 +591,7 @@
         @endif
         <div class="signature-box">
           FIRMA DEL CLIENTE<br>
-          {{ $customer ? $customer->business_name : 'N/A' }}
+          {{ $customer ? $customer->full_name : 'N/A' }}
         </div>
       </td>
     </tr>
