@@ -119,14 +119,14 @@
 
     .inventory-column {
       display: table-cell;
-      width: 50%;
+      width: 60%;
       vertical-align: top;
       padding-right: 10px;
     }
 
     .vehicle-image-column {
       display: table-cell;
-      width: 50%;
+      width: 40%;
       vertical-align: top;
       padding-left: 10px;
     }
@@ -135,10 +135,23 @@
       border: 1px solid #000;
       padding: 8px;
       font-size: 8px;
+      min-height: 270px;
+    }
+
+    .inventory-list table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .inventory-list td {
+      width: 50%;
+      padding: 2px;
+      border: none;
+      vertical-align: top;
     }
 
     .inventory-item {
-      margin-bottom: 4px;
+      margin-bottom: 2px;
       line-height: 1.3;
     }
 
@@ -429,12 +442,42 @@
   <div class="inventory-column">
     <div style="font-weight: bold; margin-bottom: 5px; font-size: 9px;">INVENTARIO:</div>
     <div class="inventory-list">
-      @foreach($inventoryChecks as $key => $label)
-        <div class="inventory-item">
-          <span class="checkbox {{ $inspection->{$key} ? 'checked' : '' }}"></span>
-          {{ $label }}
-        </div>
-      @endforeach
+      <table>
+        @php
+          $inventoryItems = [];
+          foreach($inventoryChecks as $key => $label) {
+            $inventoryItems[] = [
+              'key' => $key,
+              'label' => $label,
+              'checked' => $inspection->{$key}
+            ];
+          }
+          $halfCount = ceil(count($inventoryItems) / 2);
+          $leftColumn = array_slice($inventoryItems, 0, $halfCount);
+          $rightColumn = array_slice($inventoryItems, $halfCount);
+          $maxRows = max(count($leftColumn), count($rightColumn));
+        @endphp
+        @for($i = 0; $i < $maxRows; $i++)
+          <tr>
+            <td>
+              @if(isset($leftColumn[$i]))
+                <div class="inventory-item">
+                  <span class="checkbox {{ $leftColumn[$i]['checked'] ? 'checked' : '' }}"></span>
+                  {{ $leftColumn[$i]['label'] }}
+                </div>
+              @endif
+            </td>
+            <td>
+              @if(isset($rightColumn[$i]))
+                <div class="inventory-item">
+                  <span class="checkbox {{ $rightColumn[$i]['checked'] ? 'checked' : '' }}"></span>
+                  {{ $rightColumn[$i]['label'] }}
+                </div>
+              @endif
+            </td>
+          </tr>
+        @endfor
+      </table>
     </div>
   </div>
 
