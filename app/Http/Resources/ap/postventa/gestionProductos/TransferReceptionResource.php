@@ -21,6 +21,7 @@ class TransferReceptionResource extends JsonResource
       'shipping_guide_id' => $this->shipping_guide_id,
       'warehouse_id' => $this->warehouse_id,
       'reception_date' => $this->reception_date,
+      'item_type' => $this->item_type ?? 'PRODUCTO', // PRODUCTO or SERVICIO
       'status' => $this->status,
       'notes' => $this->notes,
       'received_by' => $this->received_by,

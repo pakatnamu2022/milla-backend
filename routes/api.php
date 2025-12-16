@@ -137,7 +137,29 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
   //    SYSTEM
   Route::group(['prefix' => 'configuration'], function () {
-    //        ROLES
+    //        USERS
+    Route::get('user/{user}/complete', [UserController::class, 'showComplete'])->name('user.showComplete');
+    Route::apiResource('user', UserController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
+
+    //        USER-SEDE ASSIGNMENT
+    Route::post('user-sede/store-many', [UserSedeController::class, 'storeMany'])->name('user-sede.store-many');
+    Route::get('user-sede/user/{userId}/sedes', [UserSedeController::class, 'getSedesByUser'])->name('user-sede.sedes-by-user');
+    Route::get('user-sede/sede/{sedeId}/users', [UserSedeController::class, 'getUsersBySede'])->name('user-sede.users-by-sede');
+    Route::apiResource('user-sede', UserSedeController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
+
+    // ROLES
     Route::apiResource('role', RoleController::class)->only([
       'index',
       'show',
@@ -177,41 +199,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('permission/bulk-sync', [PermissionController::class, 'bulkSync'])->name('permission.bulk-sync');
     Route::post('permission/save-permissions-to-role', [PermissionController::class, 'saveToRole'])->name('permission.savePermissionsToRole');
     Route::delete('permission/remove-permission-from-role', [PermissionController::class, 'removeFromRole'])->name('permission.removePermissionFromRole');
-  });
-
-  Route::group(['prefix' => 'configuration'], function () {
-    //        USERS
-    Route::get('user/{user}/complete', [UserController::class, 'showComplete'])->name('user.showComplete');
-    Route::apiResource('user', UserController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    //        USER-SEDE ASSIGNMENT
-    Route::post('user-sede/store-many', [UserSedeController::class, 'storeMany'])->name('user-sede.store-many');
-    Route::get('user-sede/user/{userId}/sedes', [UserSedeController::class, 'getSedesByUser'])->name('user-sede.sedes-by-user');
-    Route::get('user-sede/sede/{sedeId}/users', [UserSedeController::class, 'getUsersBySede'])->name('user-sede.users-by-sede');
-    Route::apiResource('user-sede', UserSedeController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-  });
-
-  Route::group(['prefix' => 'person'], function () {
-    Route::get('/birthdays', [PersonController::class, 'birthdays'])->name('person.birthdays');
-    Route::apiResource('/', PersonController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
   });
 
   Route::group(['prefix' => 'gp'], function () {
@@ -272,7 +259,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::group(['prefix' => 'gh'], function () {
       //    PERSONAL MAIN
       Route::group(['prefix' => 'personal'], function () {
-        //        PERSON
+        //PERSON
+        Route::get('person/birthdays', [PersonController::class, 'birthdays'])->name('person.birthdays');
         Route::apiResource('person', PersonController::class)->only([
           'index',
           'show',
@@ -960,7 +948,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('inventoryMovements/transfers', [InventoryMovementController::class, 'createTransfer']);
       Route::put('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'updateTransfer']);
       Route::delete('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'destroyTransfer']);
-      Route::post('inventoryMovements/{id}/send-to-nubefact', [InventoryMovementController::class, 'sendShippingGuideToNubefact']);
       Route::get('inventoryMovements/kardex', [InventoryMovementController::class, 'getKardex']);
       Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history', [InventoryMovementController::class, 'getProductMovementHistory']);
       Route::apiResource('inventoryMovements', InventoryMovementController::class)->only([
@@ -975,7 +962,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Transfer Receptions - Recepciones de Transferencias
       Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
-        'index',
+        'ind ex',
         'show',
         'store',
         'destroy'
@@ -1067,6 +1054,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Vehicle Inspections - Inspecciones Vehiculares
       Route::get('vehicleInspections/by-work-order/{workOrderId}', [ApVehicleInspectionController::class, 'getByWorkOrder']);
+      Route::get('vehicleInspections/{id}/reception-report', [ApVehicleInspectionController::class, 'generateReceptionReport']);
       Route::apiResource('vehicleInspections', ApVehicleInspectionController::class)->only([
         'index',
         'show',

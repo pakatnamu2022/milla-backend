@@ -39,6 +39,8 @@ class ApCommercialMasters extends Model
 //  OPERATION TYPE
   const int TIPO_OPERACION_COMERCIAL = 794;
   const int TIPO_OPERACION_POSTVENTA = 804;
+  const int TYPE_PERSON_NATURAL_ID = 704; // Persona Natural
+  const int TYPE_PERSON_JURIDICA_ID = 705; // Persona Juridica
 
   // CLASS TYPE (para clasificación de marcas y clases de artículos)
   // Estos valores se obtienen dinámicamente de la BD, aquí solo como referencia

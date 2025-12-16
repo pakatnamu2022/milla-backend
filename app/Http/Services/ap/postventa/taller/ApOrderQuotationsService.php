@@ -6,6 +6,7 @@ use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Utils\Constants;
+use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -45,6 +46,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   public function store(mixed $data)
   {
     return DB::transaction(function () use ($data) {
+      $vehicle = Vehicles::find($data['vehicle_id']);
+
+      if ($vehicle->customer_id === null) {
+        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
+      }
+
       if (auth()->check()) {
         $data['created_by'] = auth()->user()->id;
       }
@@ -80,6 +87,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   {
     return DB::transaction(function () use ($data) {
       $quotation = $this->find($data['id']);
+      $vehicle = Vehicles::find($data['vehicle_id']);
+
+      if ($vehicle->customer_id === null) {
+        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
+      }
+
       $quotation->update($data);
 
       $quotation->load([
@@ -171,9 +184,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
     // Datos del asesor
     if ($quotation->createdBy) {
-      $data['advisor_name'] = $quotation->createdBy->nombre_completo ?? 'N/A';
-      $data['advisor_phone'] = $quotation->createdBy->phone ?? 'N/A';
-      $data['advisor_email'] = $quotation->createdBy->email ?? 'N/A';
+      $data['advisor_name'] = $quotation->createdBy->person->nombre_completo ?? 'N/A';
+      $data['advisor_phone'] = $quotation->createdBy->person->cel_personal ?? 'N/A';
+      $data['advisor_email'] = $quotation->createdBy->person->email ?? 'N/A';
     } else {
       $data['advisor_name'] = 'N/A';
       $data['advisor_phone'] = 'N/A';
@@ -191,7 +204,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         ? $vehicle->model->family->brand->name
         : 'N/A';
       $data['vehicle_color'] = $vehicle->color ? $vehicle->color->description : 'N/A';
-      $data['vehicle_year'] = $vehicle->year ?? 'N/A';
+      $data['vehicle_km'] = 0;
     } else {
       $data['vehicle_plate'] = 'N/A';
       $data['vehicle_vin'] = 'N/A';
@@ -199,13 +212,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $data['vehicle_model'] = 'N/A';
       $data['vehicle_brand'] = 'N/A';
       $data['vehicle_color'] = 'N/A';
-      $data['vehicle_year'] = 'N/A';
+      $data['vehicle_km'] = 'N/A';
     }
 
     // Detalles de la cotización
     $data['details'] = $quotation->details->map(function ($detail) {
       return [
-        'code' => $detail->product ? $detail->product->code : 'N/A',
+        'code' => $detail->product ? $detail->product->code : '-',
         'description' => $detail->description,
         'observations' => $detail->observations ?? '',
         'quantity' => $detail->quantity,

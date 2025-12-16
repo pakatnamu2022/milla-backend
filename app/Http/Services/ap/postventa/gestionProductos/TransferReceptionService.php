@@ -29,8 +29,8 @@ class TransferReceptionService extends BaseService
     return $this->getFilteredResults(
       TransferReception::class,
       $request,
-      ['status', 'warehouse_id', 'reception_date'],
-      ['reception_date' => 'desc', 'created_at' => 'desc'],
+      TransferReception::filters,
+      TransferReception::sorts,
       TransferReceptionResource::class,
     );
   }
@@ -68,6 +68,9 @@ class TransferReceptionService extends BaseService
       // Get the shipping guide associated with the TRANSFER_OUT
       $shippingGuide = $transferOutMovement->reference;
 
+      // Get item_type from transfer movement
+      $itemType = $transferOutMovement->item_type ?? 'PRODUCTO';
+
       // Generate reception number
       $receptionNumber = TransferReception::generateReceptionNumber();
 
@@ -78,6 +81,7 @@ class TransferReceptionService extends BaseService
         'shipping_guide_id' => $shippingGuide->id,
         'warehouse_id' => $data['warehouse_id'],
         'reception_date' => $data['reception_date'],
+        'item_type' => $itemType,
         'status' => TransferReception::STATUS_PENDING,
         'notes' => $data['notes'] ?? "Recepción de transferencia {$transferOutMovement->movement_number}",
         'received_by' => Auth::id(),
@@ -90,9 +94,12 @@ class TransferReceptionService extends BaseService
       $totalQuantity = 0;
 
       foreach ($data['details'] as $detail) {
+        // For SERVICIO type, product_id can be null
+        $productId = isset($detail['product_id']) ? $detail['product_id'] : null;
+
         TransferReceptionDetail::create([
           'transfer_reception_id' => $reception->id,
-          'product_id' => $detail['product_id'],
+          'product_id' => $productId,
           'quantity_sent' => $detail['quantity_sent'],
           'quantity_received' => $detail['quantity_received'],
           'observed_quantity' => $detail['observed_quantity'] ?? 0,
@@ -114,6 +121,7 @@ class TransferReceptionService extends BaseService
       $transferInMovement = InventoryMovement::create([
         'movement_number' => InventoryMovement::generateMovementNumber(),
         'movement_type' => InventoryMovement::TYPE_TRANSFER_IN,
+        'item_type' => $itemType,
         'movement_date' => $data['reception_date'],
         'warehouse_id' => $data['warehouse_id'], // Destination warehouse
         'warehouse_destination_id' => null,
@@ -133,9 +141,12 @@ class TransferReceptionService extends BaseService
 
       foreach ($data['details'] as $detail) {
         if ($detail['quantity_received'] > 0) {
+          // For SERVICIO type, product_id can be null
+          $productId = isset($detail['product_id']) ? $detail['product_id'] : null;
+
           InventoryMovementDetail::create([
             'inventory_movement_id' => $transferInMovement->id,
-            'product_id' => $detail['product_id'],
+            'product_id' => $productId,
             'quantity' => $detail['quantity_received'],
             'unit_cost' => 0, // Cost is tracked at origin warehouse
             'total_cost' => 0,
@@ -155,30 +166,37 @@ class TransferReceptionService extends BaseService
         'total_quantity' => $totalQuantityIn,
       ]);
 
-      // Update stock: Move from in_transit to actual quantity
-      foreach ($data['details'] as $detail) {
-        if ($detail['quantity_received'] > 0) {
-          $this->stockService->moveFromInTransitToDestination(
-            $detail['product_id'],
-            $transferOutMovement->warehouse_id, // Origin warehouse
-            $data['warehouse_id'], // Destination warehouse
-            $detail['quantity_received']
-          );
-        }
+      // Update stock: Move from in_transit to actual quantity (only for PRODUCTO type)
+      if ($itemType === 'PRODUCTO') {
+        foreach ($data['details'] as $detail) {
+          // Skip if product_id is null (service items)
+          if (!isset($detail['product_id'])) {
+            continue;
+          }
 
-        // Handle observed quantities (damaged/missing items)
-        // Remove from in_transit but don't add to destination quantity
-        $observedQty = $detail['observed_quantity'] ?? 0;
-        if ($observedQty > 0) {
-          // Just remove from in_transit (stock is lost/damaged)
-          $originStock = $this->stockService->getStock(
-            $detail['product_id'],
-            $transferOutMovement->warehouse_id
-          );
+          if ($detail['quantity_received'] > 0) {
+            $this->stockService->moveFromInTransitToDestination(
+              $detail['product_id'],
+              $transferOutMovement->warehouse_id, // Origin warehouse
+              $data['warehouse_id'], // Destination warehouse
+              $detail['quantity_received']
+            );
+          }
 
-          if ($originStock && $originStock->quantity_in_transit >= $observedQty) {
-            $originStock->quantity_in_transit -= $observedQty;
-            $originStock->save();
+          // Handle observed quantities (damaged/missing items)
+          // Remove from in_transit but don't add to destination quantity
+          $observedQty = $detail['observed_quantity'] ?? 0;
+          if ($observedQty > 0) {
+            // Just remove from in_transit (stock is lost/damaged)
+            $originStock = $this->stockService->getStock(
+              $detail['product_id'],
+              $transferOutMovement->warehouse_id
+            );
+
+            if ($originStock && $originStock->quantity_in_transit >= $observedQty) {
+              $originStock->quantity_in_transit -= $observedQty;
+              $originStock->save();
+            }
           }
         }
       }
@@ -223,43 +241,50 @@ class TransferReceptionService extends BaseService
           ->first();
 
         if ($transferInMovement) {
-          // Revert stock changes manually
+          // Revert stock changes manually (only for PRODUCTO type)
           // 1. Remove stock from destination warehouse (that was added by TRANSFER_IN)
           // 2. Add stock back to in_transit in origin warehouse (to restore TRANSFER_OUT state)
 
-          foreach ($reception->details as $detail) {
-            // Remove stock from destination warehouse (where it was received)
-            if ($detail->quantity_received > 0) {
-              $this->stockService->removeStock(
-                $detail->product_id,
-                $reception->warehouse_id,
-                $detail->quantity_received
-              );
-
-              // Add back to in_transit in origin warehouse
-              $originStock = $this->stockService->getStock(
-                $detail->product_id,
-                $transferOutMovement->warehouse_id
-              );
-
-              if ($originStock) {
-                $originStock->quantity_in_transit += $detail->quantity_received;
-                $originStock->save();
+          if ($reception->item_type === 'PRODUCTO') {
+            foreach ($reception->details as $detail) {
+              // Skip if product_id is null (service items)
+              if (!$detail->product_id) {
+                continue;
               }
-            }
 
-            // Handle observed quantities (damaged/missing items)
-            // Add them back to in_transit as they were lost during reception
-            $observedQty = $detail->observed_quantity ?? 0;
-            if ($observedQty > 0) {
-              $originStock = $this->stockService->getStock(
-                $detail->product_id,
-                $transferOutMovement->warehouse_id
-              );
+              // Remove stock from destination warehouse (where it was received)
+              if ($detail->quantity_received > 0) {
+                $this->stockService->removeStock(
+                  $detail->product_id,
+                  $reception->warehouse_id,
+                  $detail->quantity_received
+                );
 
-              if ($originStock) {
-                $originStock->quantity_in_transit += $observedQty;
-                $originStock->save();
+                // Add back to in_transit in origin warehouse
+                $originStock = $this->stockService->getStock(
+                  $detail->product_id,
+                  $transferOutMovement->warehouse_id
+                );
+
+                if ($originStock) {
+                  $originStock->quantity_in_transit += $detail->quantity_received;
+                  $originStock->save();
+                }
+              }
+
+              // Handle observed quantities (damaged/missing items)
+              // Add them back to in_transit as they were lost during reception
+              $observedQty = $detail->observed_quantity ?? 0;
+              if ($observedQty > 0) {
+                $originStock = $this->stockService->getStock(
+                  $detail->product_id,
+                  $transferOutMovement->warehouse_id
+                );
+
+                if ($originStock) {
+                  $originStock->quantity_in_transit += $observedQty;
+                  $originStock->save();
+                }
               }
             }
           }

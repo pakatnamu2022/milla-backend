@@ -113,4 +113,19 @@ class ApVehicleInspectionController extends Controller
       ], 500);
     }
   }
+
+  /**
+   * Generate reception report PDF.
+   */
+  public function generateReceptionReport($id)
+  {
+    try {
+      return $this->service->generateReceptionReport($id);
+    } catch (Exception $e) {
+      return response()->json([
+        'message' => 'Error al generar el reporte de recepción',
+        'error' => $e->getMessage()
+      ], 500);
+    }
+  }
 }

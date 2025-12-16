@@ -9,6 +9,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionhumana\personal\WorkerService;
 use App\Http\Utils\Constants;
+use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\DetailsApprovedAccessoriesQuote;
 use App\Models\ap\comercial\DiscountCoupons;
 use App\Models\ap\comercial\PurchaseRequestQuote;
@@ -292,7 +293,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $purchaseRequestQuote = $this->find($data['id']);
     $dataResource = new PurchaseRequestQuoteResource($purchaseRequestQuote);
     $dataArray = $dataResource->resolve();
-    $isPersonJuridica = $purchaseRequestQuote->opportunity->client->type_person_id === Constants::TYPE_PERSON_JURIDICA_ID;
+    $isPersonJuridica = $purchaseRequestQuote->opportunity->client->type_person_id === ApCommercialMasters::TYPE_PERSON_JURIDICA_ID;
     // Agregar datos adicionales directamente al array
     $dataArray['num_doc_client'] = $purchaseRequestQuote->opportunity->client->num_doc ?? null;
     $dataArray['birth_date'] = ($isPersonJuridica) ? '- / - / -' : ($purchaseRequestQuote->opportunity->client->birth_date ?? '- / - / -');

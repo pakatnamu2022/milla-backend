@@ -34,6 +34,7 @@ class InventoryMovement extends Model
     'reason_in_out_id',
     'created_at',
     'updated_at',
+    'item_type'
   ];
 
   protected $casts = [

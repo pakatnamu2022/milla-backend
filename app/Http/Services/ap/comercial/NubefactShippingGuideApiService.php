@@ -394,6 +394,12 @@ class NubefactShippingGuideApiService
       ->first();
 
     if ($inventoryMovement && $inventoryMovement->details->isNotEmpty()) {
+      // Check if it's a SERVICE type movement
+      if ($inventoryMovement->item_type === 'SERVICIO') {
+        return $this->buildServiceItems($inventoryMovement->details);
+      }
+
+      // Otherwise, build normal product items
       return $this->buildProductItems($inventoryMovement->details);
     }
 
@@ -443,6 +449,28 @@ class NubefactShippingGuideApiService
         'unidad_de_medida' => $product->unitMeasurement->code_nubefact ?? 'NIU',
         'codigo' => $product->code ?? 'PROD',
         'descripcion' => strtoupper($product->name ?? 'PRODUCTO'),
+        'cantidad' => (string) $detail->quantity,
+      ];
+    }
+
+    return $items;
+  }
+
+  /**
+   * Construye items para servicios (descripciones sin productos)
+   */
+  protected function buildServiceItems($details): array
+  {
+    $items = [];
+
+    foreach ($details as $detail) {
+      // For services, use notes as description
+      $description = $detail->notes ?? 'SERVICIO';
+
+      $items[] = [
+        'unidad_de_medida' => 'NIU',
+        'codigo' => '001',
+        'descripcion' => strtoupper($description),
         'cantidad' => (string) $detail->quantity,
       ];
     }

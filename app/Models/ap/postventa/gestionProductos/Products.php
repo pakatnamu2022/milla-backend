@@ -92,12 +92,12 @@ class Products extends Model
 
   public function setNameAttribute($value)
   {
-    $this->attributes['name'] = Str::upper(Str::ascii($value));
+    $this->attributes['name'] = Str::upper($value);
   }
 
   public function setDescriptionAttribute($value)
   {
-    $this->attributes['description'] = $value ? Str::upper(Str::ascii($value)) : null;
+    $this->attributes['description'] = $value ? Str::upper($value) : null;
   }
 
   // Relationships

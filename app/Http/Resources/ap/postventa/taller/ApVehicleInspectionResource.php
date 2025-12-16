@@ -47,6 +47,7 @@ class ApVehicleInspectionResource extends JsonResource
       'general_observations' => $this->general_observations,
       'inspected_by' => $this->inspected_by,
       'inspected_by_name' => $this->inspectionBy ? $this->inspectionBy->name : null,
+      'customer_signature_url' => $this->customer_signature_url,
       // Relationships
       'damages' => ApVehicleInspectionDamagesResource::collection($this->whenLoaded('damages')),
       'work_order' => $this->whenLoaded('workOrder'),
