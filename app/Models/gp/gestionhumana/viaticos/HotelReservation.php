@@ -10,6 +10,8 @@ class HotelReservation extends BaseModel
 {
   use SoftDeletes;
 
+  protected $table = 'gh_hotel_reservation';
+
   protected $fillable = [
     'per_diem_request_id',
     'hotel_agreement_id',

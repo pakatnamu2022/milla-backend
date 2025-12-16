@@ -16,13 +16,11 @@ class PerDiemCategoriesSeeder extends Seeder
       [
         'name' => 'Gerentes',
         'description' => 'Gerente General, Gerente de Área, Jefe de Oficina, Jefe de Proyecto, etc.',
-        'order' => 1,
         'active' => true,
       ],
       [
         'name' => 'Colaboradores',
         'description' => 'Empleados, Asistentes, Técnicos, etc.',
-        'order' => 2,
         'active' => true,
       ],
     ];

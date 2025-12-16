@@ -14,6 +14,8 @@ class PerDiemRequest extends BaseModel
 {
   use SoftDeletes;
 
+  protected $table = 'gh_per_diem_request';
+
   protected $fillable = [
     'code',
     'per_diem_policy_id',
