@@ -160,44 +160,44 @@
 
     .vehicle-state-container {
       width: 100%;
-      max-width: 250px;
+      max-width: 180px;
       margin: 0 auto;
       border: 1px solid #000;
-      padding: 15px;
+      padding: 10px;
       background-color: #f9f9f9;
       page-break-inside: avoid;
-      overflow: hidden;
     }
 
     .vehicle-image-wrapper {
       position: relative;
       width: 100%;
+      height: 270px;
       display: block;
-      line-height: 0;
     }
 
     .vehicle-state-container img {
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
-      height: auto;
-      display: block;
-      vertical-align: top;
+      height: 100%;
+      object-fit: contain;
     }
 
     .damage-marker {
       position: absolute;
-      width: 18px;
-      height: 18px;
-      background-color: red;
-      border: 2px solid black;
+      width: 14px;
+      height: 14px;
+      background-color: #ff0000;
+      border: 2px solid #000;
       border-radius: 50%;
-      font-size: 9px;
+      font-size: 8px;
       color: white;
       text-align: center;
-      line-height: 14px;
+      line-height: 10px;
       font-weight: bold;
-      margin-left: -9px;
-      margin-top: -9px;
-      z-index: 10;
+      transform: translate(-50%, -50%);
+      z-index: 999;
     }
 
     .no-damages-text {
