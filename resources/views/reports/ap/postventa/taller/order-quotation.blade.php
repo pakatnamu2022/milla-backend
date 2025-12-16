@@ -9,7 +9,7 @@
     return "data:{$mimeType};base64,{$imageData}";
   }
 @endphp
-<!doctype html>
+  <!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -115,7 +115,8 @@
     }
 
     .section-header {
-      background-color: #d9d9d9;
+      background-color: #172e66;
+      color: white;
       font-weight: bold;
       font-size: 10px;
       padding: 5px;
@@ -135,7 +136,8 @@
     }
 
     table.details-table th {
-      background-color: #d9d9d9;
+      background-color: #172e66;
+      color: white;
       font-weight: bold;
       font-size: 9px;
       padding: 5px 3px;
@@ -214,6 +216,60 @@
 
     .important-content li {
       margin-bottom: 3px;
+    }
+
+    .cards-section {
+      margin-top: 15px;
+      margin-bottom: 15px;
+    }
+
+    .section-title {
+      font-weight: bold;
+      font-size: 11px;
+      margin-bottom: 10px;
+      text-align: center;
+      text-decoration: underline;
+    }
+
+    .cards-container {
+      display: table;
+      width: 100%;
+      table-layout: fixed;
+    }
+
+    .card {
+      display: table-cell;
+      width: 25%;
+      padding: 8px;
+      border: 1px solid #000;
+      vertical-align: top;
+      font-size: 8px;
+    }
+
+    .card-header {
+      font-weight: bold;
+      font-size: 9px;
+      margin-bottom: 5px;
+      text-align: center;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 3px;
+    }
+
+    .card-content {
+      line-height: 1.4;
+    }
+
+    .card-content div {
+      margin-bottom: 3px;
+    }
+
+    .card-content-header {
+      text-align: center;
+      font-weight: bold
+    }
+
+    .card-label {
+      font-weight: bold;
     }
   </style>
 </head>
@@ -308,23 +364,27 @@
     <td class="label-cell">Nº Motor:</td>
     <td>{{ $quotation['vehicle_engine'] }}</td>
   </tr>
+  <tr>
+    <td class="label-cell">Kilometraje:</td>
+    <td colspan="3">{{ $quotation['vehicle_km'] }}</td>
+  </tr>
 </table>
 
 <!-- Sección 3: Detalle de la Cotización -->
 <table class="details-table">
   <thead>
-    <tr>
-      <th style="width: 10%;">Cód./Ref.</th>
-      <th style="width: 35%;">Descripción</th>
-      <th style="width: 15%;">Observ.</th>
-      <th style="width: 10%;">Tpo./Cant.</th>
-      <th style="width: 12%;">P.Hora/PVP</th>
-      <th style="width: 8%;">Dto.</th>
-      <th style="width: 10%;">Imp.Neto</th>
-    </tr>
+  <tr>
+    <th style="width: 10%;">Cód./Ref.</th>
+    <th style="width: 35%;">Descripción</th>
+    <th style="width: 15%;">Observ.</th>
+    <th style="width: 10%;">Tpo./Cant.</th>
+    <th style="width: 12%;">P.Hora/PVP</th>
+    <th style="width: 8%;">Dto.</th>
+    <th style="width: 10%;">Imp.Neto</th>
+  </tr>
   </thead>
   <tbody>
-    @foreach($quotation['details'] as $detail)
+  @foreach($quotation['details'] as $detail)
     <tr>
       <td class="text-center">{{ $detail['code'] }}</td>
       <td class="text-left">{{ $detail['description'] }}</td>
@@ -334,7 +394,7 @@
       <td class="text-right">{{ number_format($detail['discount'], 2) }}</td>
       <td class="text-right">{{ number_format($detail['total_amount'], 2) }}</td>
     </tr>
-    @endforeach
+  @endforeach
   </tbody>
 </table>
 
@@ -373,14 +433,160 @@
   <div class="important-title">IMPORTANTE</div>
   <div class="important-content">
     <ol>
-      <li>Los precios mostrados son en soles e incluyen IGV.</li>
-      <li>Aquellos repuestos que sean necesarios cambiar y no estén detallados en la presente propuesta serán cotizados e informados previamente al cliente antes de su cambio.</li>
-      <li>La presente propuesta tiene una validez de {{ $quotation['validity_days'] ?? 'N/A' }} días desde la fecha de emisión.</li>
-      <li>Los trabajos adicionales que se requieran realizar serán informados y presupuestados antes de su ejecución.</li>
-      <li>El plazo de entrega está sujeto a la disponibilidad de repuestos en stock.</li>
+      <li>LOS PRECIOS MOSTRADOS SON EN SOLES E INCLUYEN IGV.</li>
+      <li>AQUELLOS REPUESTOS QUE SEAN MATERIA DE IMPORTACIÓN, SERÁN ENTREGADOS EN PLAZO MÍNIMO DE 90 A 120 DÍAS
+        NATURALES (SUJETO A STOCK DE FÁBRICA). EL CUAL SE EMPIEZA A COMPUTAR DESDE EL DÍA SIGUIENTE DE APROBADO Y
+        ABONADO (100%) POR DEL CLIENTE.
+      </li>
+      <li>AQUELLOS REPUESTOS QUE SE ENCUENTREN EN STOCK Y SEA NECESARIO OBTENER DEL ALMACÉN LIMA, SERÁN ENTREGADOS EN
+        PLAZO MÍNIMO DE 04 DÍAS NATURALES, EL CUAL SE EMPIEZA A COMPUTAR DESDE EL DÍA SIGUIENTE DE APROBADO Y PAGADO
+        (50% O 100%) POR EL CLIENTE.
+      </li>
+      <li>
+        STOCK DISPONIBLE DE REPUESTOS PUEDE VARIAR SEGÚN EL TIEMPO DE CONFIRMACIÓN DE COMPRA DE LOS MISMOS.
+      </li>
+      <li>UNA VEZ APROBADO Y GENERADO EL PEDIDO, NO SE ACEPTAN CAMBIOS NI DEVOLUCIONES.</li>
+      <li>EL CLIENTE FIRMA EN SEÑAL DE CONFORMIDAD CON LO COTIZADO Y ASUME LA ACEPTACIÓN DE LAS OBSERVACIONES ACERCA DE
+        DISPONIBILIDAD Y PENALIDADES. SE PRECISA QUE EN EL SIGUIENTE CASO QUE EL RECIBA EL REPUESTO SOLICITADO EN
+        ALMACENES DE API (STOCK) Y EN ALMACENES LIMA, E INCURRA EN ALGUNA DEVOLUCIÓN QUE PUEDA GENERAR TRÁMITES
+        ADMINISTRATIVOS ADICIONALES, EL CLIENTE FIRMANTE ACEPTA LA CANCELACIÓN DE MÍNIMO S/25.00 O EL 15% DEL VALOR
+        TOTAL.
+      </li>
+      <li>
+        COTIZACIÓN VÁLIDA PARA 04 DÍAS NATURALES.
+      </li>
     </ol>
   </div>
 </div>
 
+<!-- Sección CUENTA AP -->
+<div class="cards-section">
+  <div class="section-title">CUENTAS AP</div>
+  <div class="cards-container">
+    <div class="card">
+      <div class="card-header">CHICLAYO</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 305-2041106-0-39</div>
+        <div><span class="card-label">CCI:</span> 002-305-002041106039-13</div>
+        <div><span class="card-label">DÓLARES:</span> 305-2032097-1-49</div>
+        <div><span class="card-label">CCI:</span> 002-305-002032097149-10</div>
+        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
+        <div><span class="card-label">SOLES:</span> 0011-0279-0100020589</div>
+        <div><span class="card-label">CCI:</span> 011279000100020589­76</div>
+        <div><span class="card-label">DÓLARES:</span> 0011-0279-0100020597</div>
+        <div><span class="card-label">CCI:</span> 011279000100020597­79</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">PIURA</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 475-2660047-0-39</div>
+        <div><span class="card-label">CCI:</span> 002-475-002660047039-22</div>
+        <div><span class="card-label">DÓLARES:</span> 475-2573597-1-16</div>
+        <div><span class="card-label">CCI:</span> 002-475-002573597116-27</div>
+        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
+        <div><span class="card-label">SOLES:</span> 0011-0267-0100130672</div>
+        <div><span class="card-label">CCI:</span> 011267000100130672­27</div>
+        <div><span class="card-label">DÓLARES:</span> 0011-0267-0100130680</div>
+        <div><span class="card-label">CCI:</span> 011267000100130680­20</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">CAJAMARCA</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 245-2661107-0-14</div>
+        <div><span class="card-label">CCI:</span> 002-245-002661107014-90</div>
+        <div><span class="card-label">DÓLARES:</span> 245-2663485-1-44</div>
+        <div><span class="card-label">CCI:</span> 002-245-002663485144-93</div>
+        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
+        <div><span class="card-label">SOLES:</span> 0011-0277-0100080793</div>
+        <div><span class="card-label">CCI:</span> 011277000100080793­11</div>
+        <div><span class="card-label">DÓLARES:</span> 0011-0277-0100080807</div>
+        <div><span class="card-label">CCI:</span> 011277 000100080807­19</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">JAÉN</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 395-5394658-0-80</div>
+        <div><span class="card-label">CCI:</span> 002-395-005394558080-20</div>
+        <div><span class="card-label">DÓLARES:</span> 395-2415578-1-84</div>
+        <div><span class="card-label">CCI:</span> 002-395-002415578184-22</div>
+        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
+        <div><span class="card-label">SOLES:</span> 0011-0409-0100005801</div>
+        <div><span class="card-label">CCI:</span> 011409000100005801­04</div>
+        <div><span class="card-label">DÓLARES:</span> 0011-0409-0100005828</div>
+        <div><span class="card-label">CCI:</span> 011409000100005828­07</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sección UBÍCANOS EN -->
+<div class="cards-section">
+  <div class="section-title">UBÍCANOS EN</div>
+  <div class="cards-container">
+    <div class="card">
+      <div class="card-header">CHICLAYO</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span></div>
+        <div>CAR. PANAMERICANA NORTE #1006 - CHICLAYO - LAMBAYEQUE (COSTADO DEL COLEGIO SANTO TORIBIO DE MOGROVEJO,
+          CRUCE CON AV. LEGUÍA)
+        </div>
+        <div><span class="card-label">CITAS TALLER:</span> 944 296 593</div>
+        <div><span class="card-label">REPUESTOS:</span> 943 856 726</div>
+        <div><span class="card-label">Horario:</span></div>
+        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 6:00 PM
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">PIURA</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span></div>
+        <div>AV. SÁNCHEZ CERRO MZA. 248 LOTE. 2 DPTO. B Z.I. INDUSTRIAL I – PIURA (COSTADO DE LA FERRETERÍA "MARTÍN")
+        </div>
+        <div><span class="card-label">CITAS TALLER:</span> 932 049 710</div>
+        <div><span class="card-label">REPUESTOS:</span> 950 122 002</div>
+        <div><span class="card-label">Horario:</span></div>
+        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 6:00 PM
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">CAJAMARCA</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span></div>
+        <div>MZA. B LOTE. 19 OTR. EL BOSQUE III ETAPA – CAJAMARCA (FRENTE A LA EX UGEL)
+        </div>
+        <div><span class="card-label">CITAS TALLER:</span> 950 118 892</div>
+        <div><span class="card-label">REPUESTOS:</span> 950 118 181</div>
+        <div><span class="card-label">Horario:</span></div>
+        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 6:00 PM
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">JAÉN</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span></div>
+        <div>AV. PAKAMUROS #2485 INT. B (CARRETERA SAN IGNACIO - LINDEROS) CAJAMARCA – JAÉN</div>
+        <div><span class="card-label">CITAS TALLER:</span> 944 296 503</div>
+        <div><span class="card-label">REPUESTOS:</span> 982 940 771</div>
+        <div><span class="card-label">Horario:</span></div>
+        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 6:00 PM
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>

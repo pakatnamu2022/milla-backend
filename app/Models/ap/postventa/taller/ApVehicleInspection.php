@@ -4,6 +4,7 @@ namespace App\Models\ap\postventa\taller;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ApVehicleInspection extends Model
@@ -112,7 +113,7 @@ class ApVehicleInspection extends Model
     return $this->belongsTo(ApWorkOrder::class, 'work_order_id');
   }
 
-  public function inspectionBy()
+  public function inspectionBy(): BelongsTo
   {
     return $this->belongsTo(User::class, 'inspected_by');
   }

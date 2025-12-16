@@ -8,6 +8,7 @@ use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Utils\Helpers;
 use App\Models\ap\postventa\taller\ApVehicleInspection;
 use App\Models\ap\postventa\taller\ApVehicleInspectionDamages;
+use App\Models\gp\gestionhumana\personal\WorkerSignature;
 use App\Models\gp\gestionsistema\DigitalFile;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -239,5 +240,92 @@ class ApVehicleInspectionService extends BaseService
     // Actualizar la inspección con la URL
     $inspection->{$fieldName} = $digitalFile->url;
     $inspection->save();
+  }
+
+  /**
+   * Genera el reporte de recepción en PDF
+   */
+  public function generateReceptionReport($id)
+  {
+    // Obtener la inspección con todas las relaciones necesarias
+    $inspection = ApVehicleInspection::with([
+      'damages',
+      'workOrder.vehicle.model.family.brand',
+      'workOrder.vehicle.color',
+      'workOrder.vehicle.customer',
+      'workOrder.advisor', // Worker extiende de Person, no tiene relación person
+      'workOrder.sede',
+      'workOrder.status',
+      'workOrder.items.typePlanning',
+      'workOrder.appointmentPlanning',
+      'inspectionBy.person' // User sí tiene relación person
+    ])->findOrFail($id);
+
+    $workOrder = $inspection->workOrder;
+    $vehicle = $workOrder->vehicle;
+    $customer = $vehicle->customer;
+    $advisor = $workOrder->advisor; // Worker extiende de Person directamente
+    $inspectorUser = $inspection->inspectionBy;
+    $inspectorPerson = $inspectorUser ? $inspectorUser->person : null;
+
+    // Obtener firma del asesor desde WorkerSignature
+    // El asesor es Worker que extiende de Person
+    $advisorSignature = null;
+    if ($advisor) {
+      $workerSignature = WorkerSignature::where('worker_id', $advisor->id)->first();
+      if ($workerSignature) {
+        $advisorSignature = $workerSignature->signature_url;
+      }
+    }
+
+    // Preparar lista de checks del inventario
+    $inventoryChecks = [
+      'dirty_unit' => 'UNIDAD SUCIA',
+      'unit_ok' => 'UNIDAD OK',
+      'title_deed' => 'TARJETA DE PROPIEDAD',
+      'soat' => 'SOAT',
+      'moon_permits' => 'PERMISOS LUNETA',
+      'service_card' => 'TARJETA DE SERVICIO',
+      'owner_manual' => 'MANUAL DEL PROPIETARIO',
+      'key_ring' => 'LLAVERO',
+      'wheel_lock' => 'SEGURO DE RUEDA',
+      'safe_glasses' => 'GAFAS DE SEGURIDAD',
+      'radio_mask' => 'MÁSCARA DE RADIO',
+      'lighter' => 'ENCENDEDOR',
+      'floors' => 'PISOS',
+      'seat_cover' => 'CUBRE ASIENTOS',
+      'quills' => 'PLUMILLAS',
+      'antenna' => 'ANTENA',
+      'glasses_wheel' => 'VASOS RUEDA',
+      'emblems' => 'EMBLEMAS',
+      'spare_tire' => 'LLANTA DE REPUESTO',
+      'fluid_caps' => 'TAPAS DE FLUIDOS',
+      'tool_kit' => 'KIT DE HERRAMIENTAS',
+      'jack_and_lever' => 'GATO Y PALANCA',
+    ];
+
+    // Preparar datos para la vista
+    $data = [
+      'inspection' => $inspection,
+      'workOrder' => $workOrder,
+      'vehicle' => $vehicle,
+      'customer' => $customer,
+      'advisor' => $advisor, // Worker ya es Person directamente
+      'advisorPhone' => $advisor ? $advisor->phone : '',
+      'sede' => $workOrder->sede,
+      'status' => $workOrder->status,
+      'items' => $workOrder->items,
+      'damages' => $inspection->damages,
+      'inventoryChecks' => $inventoryChecks,
+      'customerSignature' => $inspection->customer_signature_url,
+      'advisorSignature' => $advisorSignature,
+      'appointmentNumber' => $workOrder->appointmentPlanning ? $workOrder->appointmentPlanning->correlative : 'N/A',
+    ];
+
+    // Generar PDF
+    $pdf = \PDF::loadView('reports.ap.postventa.taller.reception-report', $data);
+    $pdf->setPaper('a4', 'portrait');
+
+    return $pdf->stream("reporte-recepcion-{$workOrder->correlative}.pdf");
   }
 }
