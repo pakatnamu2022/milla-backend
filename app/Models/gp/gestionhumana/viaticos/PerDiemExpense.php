@@ -11,6 +11,8 @@ class PerDiemExpense extends BaseModel
 {
   use SoftDeletes;
 
+  protected $table = 'gh_per_diem_expense';
+
   protected $fillable = [
     'per_diem_request_id',
     'expense_type_id',

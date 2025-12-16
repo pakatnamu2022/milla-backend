@@ -10,79 +10,79 @@ use Illuminate\Http\Request;
 
 class PerDiemApprovalController extends Controller
 {
-    protected $service;
+  protected $service;
 
-    public function __construct(PerDiemApprovalService $service)
-    {
-        $this->service = $service;
+  public function __construct(PerDiemApprovalService $service)
+  {
+    $this->service = $service;
+  }
+
+  /**
+   * Get pending approvals for current user
+   */
+  public function pending()
+  {
+    try {
+      $approverId = auth()->id();
+      $approvals = $this->service->getPendingApprovals($approverId);
+
+      return response()->json([
+        'success' => true,
+        'data' => PerDiemApprovalResource::collection($approvals)
+      ], 200);
+    } catch (\Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => $e->getMessage()
+      ], 400);
     }
+  }
 
-    /**
-     * Get pending approvals for current user
-     */
-    public function pending()
-    {
-        try {
-            $approverId = auth()->id();
-            $approvals = $this->service->getPendingApprovals($approverId);
+  /**
+   * Approve a per diem request
+   */
+  public function approve(ApprovePerDiemRequestRequest $request, int $id)
+  {
+    try {
+      $approverId = auth()->id();
+      $comments = $request->input('comments');
 
-            return response()->json([
-                'success' => true,
-                'data' => PerDiemApprovalResource::collection($approvals)
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
-        }
+      $approval = $this->service->approve($id, $approverId, $comments);
+
+      return response()->json([
+        'success' => true,
+        'data' => new PerDiemApprovalResource($approval),
+        'message' => 'Solicitud aprobada exitosamente'
+      ], 200);
+    } catch (\Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => $e->getMessage()
+      ], 400);
     }
+  }
 
-    /**
-     * Approve a per diem request
-     */
-    public function approve(ApprovePerDiemRequestRequest $request, int $id)
-    {
-        try {
-            $approverId = auth()->id();
-            $comments = $request->input('comments');
+  /**
+   * Reject a per diem request
+   */
+  public function reject(Request $request, int $id)
+  {
+    try {
+      $approverId = auth()->id();
+      $comments = $request->input('comments');
 
-            $approval = $this->service->approve($id, $approverId, $comments);
+      $approval = $this->service->reject($id, $approverId, $comments);
 
-            return response()->json([
-                'success' => true,
-                'data' => new PerDiemApprovalResource($approval),
-                'message' => 'Solicitud aprobada exitosamente'
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
-        }
+      return response()->json([
+        'success' => true,
+        'data' => new PerDiemApprovalResource($approval),
+        'message' => 'Solicitud rechazada exitosamente'
+      ], 200);
+    } catch (\Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => $e->getMessage()
+      ], 400);
     }
-
-    /**
-     * Reject a per diem request
-     */
-    public function reject(Request $request, int $id)
-    {
-        try {
-            $approverId = auth()->id();
-            $comments = $request->input('comments');
-
-            $approval = $this->service->reject($id, $approverId, $comments);
-
-            return response()->json([
-                'success' => true,
-                'data' => new PerDiemApprovalResource($approval),
-                'message' => 'Solicitud rechazada exitosamente'
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
-        }
-    }
+  }
 }
