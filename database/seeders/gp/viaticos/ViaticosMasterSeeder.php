@@ -13,6 +13,7 @@ class ViaticosMasterSeeder extends Seeder
    * Este seeder orquesta todos los seeders del módulo de viáticos
    * Primero trunca todas las tablas (en orden inverso respetando foreign keys)
    * Luego ejecuta todos los seeders en el orden correcto
+   * php artisan db:seed --class=Database\Seeders\gp\viaticos\ViaticosMasterSeeder
    */
   public function run(): void
   {
