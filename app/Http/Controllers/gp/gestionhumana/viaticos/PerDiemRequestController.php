@@ -38,6 +38,23 @@ class PerDiemRequestController extends Controller
   }
 
   /**
+   * Display per diem requests for the logged-in user
+   */
+  public function myRequests(IndexPerDiemRequestRequest $request)
+  {
+    try {
+      $partnerId = auth()->user()->partner_id;
+
+      // Merge the employee_id filter with existing request filters
+      $request->merge(['employee_id' => $partnerId]);
+
+      return $this->service->list($request);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Store a newly created per diem request
    */
   public function store(StorePerDiemRequestRequest $request)
