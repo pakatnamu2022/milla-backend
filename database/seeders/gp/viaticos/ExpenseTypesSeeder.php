@@ -5,6 +5,9 @@ namespace Database\Seeders\gp\viaticos;
 use App\Models\gp\gestionhumana\viaticos\ExpenseType;
 use Illuminate\Database\Seeder;
 
+/**
+ * php artisan db:seed --class=Database\Seeders\gp\viaticos\ExpenseTypesSeeder
+ */
 class ExpenseTypesSeeder extends Seeder
 {
   /**
