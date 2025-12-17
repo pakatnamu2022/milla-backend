@@ -56,6 +56,30 @@ class PerDiemRequest extends BaseModel
     'settled' => 'boolean',
   ];
 
+  const filters = [
+    'search' => ['code', 'destination', 'purpose'],
+    'status' => '=',
+    'employee_id' => '=',
+    'company_id' => '=',
+    'per_diem_category_id' => '=',
+    'per_diem_policy_id' => '=',
+    'start_date' => 'date_between',
+    'end_date' => 'date_between',
+    'paid' => '=',
+    'settled' => '=',
+  ];
+
+  const sorts = [
+    'code',
+    'status',
+    'start_date',
+    'end_date',
+    'total_budget',
+    'employee_id',
+    'company_id',
+    'created_at',
+  ];
+
   /**
    * Get the policy this request belongs to
    */

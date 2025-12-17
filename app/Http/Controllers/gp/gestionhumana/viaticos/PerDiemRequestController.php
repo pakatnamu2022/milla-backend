@@ -12,7 +12,7 @@ use App\Http\Requests\gp\gestionhumana\viaticos\CompleteSettlementPerDiemRequest
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRequestResource;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRequestCollection;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRateResource;
-use App\Services\gp\gestionhumana\viaticos\PerDiemRequestService;
+use App\Http\Services\gp\gestionhumana\viaticos\PerDiemRequestService;
 
 class PerDiemRequestController extends Controller
 {
@@ -29,13 +29,7 @@ class PerDiemRequestController extends Controller
   public function index(IndexPerDiemRequestRequest $request)
   {
     try {
-      $filters = $request->validated();
-      $requests = $this->service->getAll($filters);
-
-      return response()->json([
-        'success' => true,
-        'data' => new PerDiemRequestCollection($requests)
-      ], 200);
+      return $this->service->list($request);
     } catch (\Exception $e) {
       return response()->json([
         'success' => false,
@@ -51,11 +45,11 @@ class PerDiemRequestController extends Controller
   {
     try {
       $data = $request->validated();
-      $perDiemRequest = $this->service->create($data);
+      $perDiemRequest = $this->service->store($data);
 
       return response()->json([
         'success' => true,
-        'data' => new PerDiemRequestResource($perDiemRequest),
+        'data' => $perDiemRequest,
         'message' => 'Solicitud de viático creada exitosamente'
       ], 201);
     } catch (\Exception $e) {
@@ -72,24 +66,17 @@ class PerDiemRequestController extends Controller
   public function show(int $id)
   {
     try {
-      $request = $this->service->getById($id);
-
-      if (!$request) {
-        return response()->json([
-          'success' => false,
-          'message' => 'Solicitud de viático no encontrada'
-        ], 404);
-      }
+      $request = $this->service->show($id);
 
       return response()->json([
         'success' => true,
-        'data' => new PerDiemRequestResource($request)
+        'data' => $request
       ], 200);
     } catch (\Exception $e) {
       return response()->json([
         'success' => false,
         'message' => $e->getMessage()
-      ], 400);
+      ], 404);
     }
   }
 
@@ -100,11 +87,12 @@ class PerDiemRequestController extends Controller
   {
     try {
       $data = $request->validated();
-      $perDiemRequest = $this->service->update($id, $data);
+      $data['id'] = $id;
+      $perDiemRequest = $this->service->update($data);
 
       return response()->json([
         'success' => true,
-        'data' => new PerDiemRequestResource($perDiemRequest),
+        'data' => $perDiemRequest,
         'message' => 'Solicitud de viático actualizada exitosamente'
       ], 200);
     } catch (\Exception $e) {
@@ -121,12 +109,7 @@ class PerDiemRequestController extends Controller
   public function destroy(int $id)
   {
     try {
-      $this->service->delete($id);
-
-      return response()->json([
-        'success' => true,
-        'message' => 'Solicitud de viático eliminada exitosamente'
-      ], 200);
+      return $this->service->destroy($id);
     } catch (\Exception $e) {
       return response()->json([
         'success' => false,
