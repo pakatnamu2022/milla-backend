@@ -15,6 +15,8 @@ class UpdateHotelAgreementRequest extends StoreRequest
       'corporate_rate' => ['sometimes', 'required', 'numeric', 'min:0'],
       'features' => ['nullable', 'string'],
       'includes_breakfast' => ['sometimes', 'required', 'boolean'],
+      'includes_lunch' => ['nullable', 'boolean'],
+      'includes_dinner' => ['nullable', 'boolean'],
       'includes_parking' => ['sometimes', 'required', 'boolean'],
       'contact' => ['nullable', 'string', 'max:255'],
       'address' => ['nullable', 'string', 'max:500'],
