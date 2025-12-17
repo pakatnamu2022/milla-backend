@@ -32,6 +32,23 @@ class PerDiemPolicy extends BaseModel
     'is_current' => 'boolean',
   ];
 
+  const filters = [
+    'search' => ['version', 'name', 'notes'],
+    'is_current' => '=',
+    'effective_from' => 'between',
+    'effective_to' => 'between',
+    'created_by' => '=',
+  ];
+
+  const sorts = [
+    'version',
+    'name',
+    'effective_from',
+    'effective_to',
+    'is_current',
+    'created_at',
+  ];
+
   /**
    * Get all per diem rates for this policy
    */
