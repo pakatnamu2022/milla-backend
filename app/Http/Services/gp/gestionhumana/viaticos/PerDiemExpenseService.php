@@ -2,43 +2,73 @@
 
 namespace App\Http\Services\gp\gestionhumana\viaticos;
 
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Models\gp\gestionhumana\viaticos\PerDiemExpense;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
+use App\Models\gp\gestionsistema\DigitalFile;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Exception;
 
 class PerDiemExpenseService
 {
+  protected DigitalFileService $digitalFileService;
+
+  // Configuración de rutas para archivos
+  private const FILE_PATHS = [
+    'receipt_file' => '/gh/viaticos/gastos/',
+  ];
+
+  public function __construct(DigitalFileService $digitalFileService)
+  {
+    $this->digitalFileService = $digitalFileService;
+  }
   /**
    * Create new expense for a request
    */
   public function create(int $requestId, array $data): PerDiemExpense
   {
-    $request = PerDiemRequest::findOrFail($requestId);
+    try {
+      DB::beginTransaction();
 
-    // Validate that request allows expenses
-    if (!in_array($request->status, ['in_progress', 'pending_settlement', 'settled'])) {
-      throw new Exception('Cannot add expenses. Request must be in progress, pending settlement, or settled.');
+      $request = PerDiemRequest::findOrFail($requestId);
+
+      // Validate that request allows expenses
+      if (!in_array($request->status, ['in_progress', 'pending_settlement', 'settled'])) {
+        throw new Exception('Cannot add expenses. Request must be in progress, pending settlement, or settled.');
+      }
+
+      // Extraer archivo del array de datos
+      $files = $this->extractFiles($data);
+
+      $expense = PerDiemExpense::create([
+        'per_diem_request_id' => $requestId,
+        'expense_type_id' => $data['expense_type_id'],
+        'expense_date' => $data['expense_date'],
+        'concept' => $data['concept'],
+        'receipt_amount' => $data['receipt_amount'],
+        'company_amount' => $data['company_amount'],
+        'employee_amount' => $data['employee_amount'],
+        'receipt_type' => $data['receipt_type'],
+        'receipt_number' => $data['receipt_number'] ?? null,
+        'notes' => $data['notes'] ?? null,
+      ]);
+
+      // Subir archivo y actualizar URL
+      if (!empty($files)) {
+        $this->uploadAndAttachFiles($expense, $files);
+      }
+
+      // Update request total spent
+      $this->updateRequestTotalSpent($requestId);
+
+      DB::commit();
+      return $expense->fresh(['expenseType', 'request']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
     }
-
-    $expense = PerDiemExpense::create([
-      'per_diem_request_id' => $requestId,
-      'expense_type_id' => $data['expense_type_id'],
-      'expense_date' => $data['expense_date'],
-      'concept' => $data['concept'],
-      'receipt_amount' => $data['receipt_amount'],
-      'company_amount' => $data['company_amount'],
-      'employee_amount' => $data['employee_amount'],
-      'receipt_type' => $data['receipt_type'],
-      'receipt_number' => $data['receipt_number'] ?? null,
-      'receipt_path' => $data['receipt_path'] ?? null,
-      'notes' => $data['notes'] ?? null,
-    ]);
-
-    // Update request total spent
-    $this->updateRequestTotalSpent($requestId);
-
-    return $expense->fresh(['expenseType', 'request']);
   }
 
   /**
@@ -46,30 +76,49 @@ class PerDiemExpenseService
    */
   public function update(int $expenseId, array $data): PerDiemExpense
   {
-    $expense = PerDiemExpense::findOrFail($expenseId);
+    try {
+      DB::beginTransaction();
 
-    // Validate that expense can be updated
-    if ($expense->validated) {
-      throw new Exception('Cannot update expense. Expense has already been validated.');
+      $expense = PerDiemExpense::findOrFail($expenseId);
+
+      // Validate that expense can be updated
+      if ($expense->validated) {
+        throw new Exception('Cannot update expense. Expense has already been validated.');
+      }
+
+      // Extraer archivo del array de datos
+      $files = $this->extractFiles($data);
+
+      $expense->update([
+        'expense_type_id' => $data['expense_type_id'] ?? $expense->expense_type_id,
+        'expense_date' => $data['expense_date'] ?? $expense->expense_date,
+        'concept' => $data['concept'] ?? $expense->concept,
+        'receipt_amount' => $data['receipt_amount'] ?? $expense->receipt_amount,
+        'company_amount' => $data['company_amount'] ?? $expense->company_amount,
+        'employee_amount' => $data['employee_amount'] ?? $expense->employee_amount,
+        'receipt_type' => $data['receipt_type'] ?? $expense->receipt_type,
+        'receipt_number' => $data['receipt_number'] ?? $expense->receipt_number,
+        'notes' => $data['notes'] ?? $expense->notes,
+      ]);
+
+      // Si hay nuevo archivo, subirlo y actualizar URL
+      if (!empty($files)) {
+        // Eliminar archivo anterior si existe
+        $this->deleteAttachedFiles($expense);
+
+        // Subir nuevo archivo
+        $this->uploadAndAttachFiles($expense, $files);
+      }
+
+      // Update request total spent
+      $this->updateRequestTotalSpent($expense->per_diem_request_id);
+
+      DB::commit();
+      return $expense->fresh(['expenseType', 'request']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
     }
-
-    $expense->update([
-      'expense_type_id' => $data['expense_type_id'] ?? $expense->expense_type_id,
-      'expense_date' => $data['expense_date'] ?? $expense->expense_date,
-      'concept' => $data['concept'] ?? $expense->concept,
-      'receipt_amount' => $data['receipt_amount'] ?? $expense->receipt_amount,
-      'company_amount' => $data['company_amount'] ?? $expense->company_amount,
-      'employee_amount' => $data['employee_amount'] ?? $expense->employee_amount,
-      'receipt_type' => $data['receipt_type'] ?? $expense->receipt_type,
-      'receipt_number' => $data['receipt_number'] ?? $expense->receipt_number,
-      'receipt_path' => $data['receipt_path'] ?? $expense->receipt_path,
-      'notes' => $data['notes'] ?? $expense->notes,
-    ]);
-
-    // Update request total spent
-    $this->updateRequestTotalSpent($expense->per_diem_request_id);
-
-    return $expense->fresh(['expenseType', 'request']);
   }
 
   /**
@@ -77,22 +126,34 @@ class PerDiemExpenseService
    */
   public function delete(int $expenseId): bool
   {
-    $expense = PerDiemExpense::findOrFail($expenseId);
+    try {
+      DB::beginTransaction();
 
-    // Validate that expense can be deleted
-    if ($expense->validated) {
-      throw new Exception('Cannot delete expense. Expense has already been validated.');
+      $expense = PerDiemExpense::findOrFail($expenseId);
+
+      // Validate that expense can be deleted
+      if ($expense->validated) {
+        throw new Exception('Cannot delete expense. Expense has already been validated.');
+      }
+
+      $requestId = $expense->per_diem_request_id;
+
+      // Eliminar archivos asociados si existen
+      $this->deleteAttachedFiles($expense);
+
+      $deleted = $expense->delete();
+
+      if ($deleted) {
+        // Update request total spent
+        $this->updateRequestTotalSpent($requestId);
+      }
+
+      DB::commit();
+      return $deleted;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
     }
-
-    $requestId = $expense->per_diem_request_id;
-    $deleted = $expense->delete();
-
-    if ($deleted) {
-      // Update request total spent
-      $this->updateRequestTotalSpent($requestId);
-    }
-
-    return $deleted;
   }
 
   /**
@@ -159,5 +220,56 @@ class PerDiemExpenseService
       'total_spent' => $totalSpent,
       'balance_to_return' => $balanceToReturn,
     ]);
+  }
+
+  /**
+   * Extrae los archivos del array de datos
+   */
+  private function extractFiles(array &$data): array
+  {
+    $files = [];
+
+    foreach (array_keys(self::FILE_PATHS) as $field) {
+      if (isset($data[$field]) && $data[$field] instanceof UploadedFile) {
+        $files[$field] = $data[$field];
+        unset($data[$field]); // Remover del array para no guardarlo en la BD
+      }
+    }
+
+    return $files;
+  }
+
+  /**
+   * Sube archivos y actualiza el modelo con las URLs
+   */
+  private function uploadAndAttachFiles(PerDiemExpense $expense, array $files): void
+  {
+    foreach ($files as $field => $file) {
+      $path = self::FILE_PATHS[$field];
+      $model = $expense->getTable();
+
+      // Subir archivo usando DigitalFileService
+      $digitalFile = $this->digitalFileService->store($file, $path, 'public', $model);
+
+      // Actualizar el campo del expense con la URL
+      $expense->receipt_path = $digitalFile->url;
+    }
+
+    $expense->save();
+  }
+
+  /**
+   * Elimina archivos asociados al modelo
+   */
+  private function deleteAttachedFiles(PerDiemExpense $expense): void
+  {
+    if ($expense->receipt_path) {
+      // Buscar el archivo digital asociado y eliminarlo
+      $digitalFile = DigitalFile::where('url', $expense->receipt_path)->first();
+
+      if ($digitalFile) {
+        $this->digitalFileService->destroy($digitalFile->id);
+      }
+    }
   }
 }

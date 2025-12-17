@@ -17,7 +17,7 @@ class StorePerDiemExpenseRequest extends StoreRequest
       'employee_amount' => ['required', 'numeric', 'min:0'],
       'receipt_type' => ['required', 'string', 'in:invoice,ticket,no_receipt'],
       'receipt_number' => ['required_if:receipt_type,invoice,ticket', 'nullable', 'string', 'max:255'],
-      'receipt_path' => ['nullable', 'string', 'max:500'],
+      'receipt_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
       'notes' => ['nullable', 'string'],
     ];
   }

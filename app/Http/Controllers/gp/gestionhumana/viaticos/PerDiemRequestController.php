@@ -78,12 +78,7 @@ class PerDiemRequestController extends Controller
   public function show(int $id)
   {
     try {
-      $request = $this->service->show($id);
-
-      return response()->json([
-        'success' => true,
-        'data' => $request
-      ], 200);
+      return $this->success($this->service->show($id));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
