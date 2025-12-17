@@ -47,7 +47,7 @@ class PerDiemExpenseController extends Controller
   public function store(int $requestId, StorePerDiemExpenseRequest $request)
   {
     try {
-      $data = $request->validated();
+      $data = $request->all();
       $expense = $this->service->create($requestId, $data);
 
       return response()->json([
@@ -66,7 +66,7 @@ class PerDiemExpenseController extends Controller
   public function update(int $expenseId, UpdatePerDiemExpenseRequest $request)
   {
     try {
-      $data = $request->validated();
+      $data = $request->all();
       $expense = $this->service->update($expenseId, $data);
 
       return response()->json([
@@ -102,8 +102,8 @@ class PerDiemExpenseController extends Controller
   public function isValid(int $expenseId, ValidatePerDiemExpenseRequest $request)
   {
     try {
-      $data = $request->validated();
-      $expense = $this->service->validateExpense($expenseId, $data);
+      $validatorId = auth()->id();
+      $expense = $this->service->validateExpense($expenseId, $validatorId);
 
       return response()->json([
         'success' => true,

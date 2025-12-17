@@ -56,6 +56,7 @@ class PerDiemRequestResource extends JsonResource
         'total' => $this->expenses_total ?? 0,
       ]),
       'expenses' => $this->expenses ? PerDiemExpenseResource::collection($this->expenses) : null,
+      'budgets' => $this->budgets ? RequestBudgetResource::collection($this->budgets) : null,
     ];
   }
 }
