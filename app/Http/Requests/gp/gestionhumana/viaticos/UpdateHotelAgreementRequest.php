@@ -19,7 +19,7 @@ class UpdateHotelAgreementRequest extends StoreRequest
       'contact' => ['nullable', 'string', 'max:255'],
       'address' => ['nullable', 'string', 'max:500'],
       'website' => ['nullable', 'url', 'max:255'],
-      'active' => ['sometimes', 'required', 'boolean'],
+      'active' => ['sometimes', 'boolean'],
     ];
   }
 

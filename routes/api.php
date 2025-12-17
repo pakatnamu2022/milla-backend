@@ -1194,6 +1194,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     // Hotel Agreements
     Route::get('hotel-agreements/active', [HotelAgreementController::class, 'active']);
-    Route::get('hotel-agreements', [HotelAgreementController::class, 'index']);
+    Route::apiResource('hotel-agreements', HotelAgreementController::class);
   });
 });

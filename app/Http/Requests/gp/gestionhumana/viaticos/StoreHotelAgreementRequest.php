@@ -19,7 +19,6 @@ class StoreHotelAgreementRequest extends StoreRequest
       'contact' => ['nullable', 'string', 'max:255'],
       'address' => ['nullable', 'string', 'max:500'],
       'website' => ['nullable', 'url', 'max:255'],
-      'active' => ['required', 'boolean'],
     ];
   }
 
@@ -41,8 +40,6 @@ class StoreHotelAgreementRequest extends StoreRequest
       'address.max' => 'La dirección no debe exceder 500 caracteres.',
       'website.url' => 'El sitio web debe ser una URL válida.',
       'website.max' => 'El sitio web no debe exceder 255 caracteres.',
-      'active.required' => 'El estado es requerido.',
-      'active.boolean' => 'El estado debe ser verdadero o falso.',
     ];
   }
 
@@ -58,7 +55,6 @@ class StoreHotelAgreementRequest extends StoreRequest
       'contact' => 'Contacto',
       'address' => 'Dirección',
       'website' => 'Sitio web',
-      'active' => 'Estado',
     ];
   }
 }
