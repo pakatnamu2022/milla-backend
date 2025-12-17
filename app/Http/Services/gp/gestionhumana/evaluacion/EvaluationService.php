@@ -16,7 +16,7 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Position;
 use Exception;
 use Illuminate\Http\Request;
@@ -109,7 +109,7 @@ class EvaluationService extends BaseService
       ->get()
       ->pluck('person_id')
       ->toArray();
-    $persons = Person::whereIn('id', $personsInCycle)->get();
+    $persons = Worker::whereIn('id', $personsInCycle)->get();
     return WorkerResource::collection($persons);
   }
 
@@ -122,7 +122,7 @@ class EvaluationService extends BaseService
       ->get()
       ->pluck('person_id')
       ->toArray();
-    $positionsIds = Person::whereIn('id', $personsInCycle)->select('cargo_id')->distinct()->get()->pluck('cargo_id')->toArray();
+    $positionsIds = Worker::whereIn('id', $personsInCycle)->select('cargo_id')->distinct()->get()->pluck('cargo_id')->toArray();
     $positions = Position::whereIn('id', $positionsIds)->get();
     return PositionResource::collection($positions);
   }
@@ -217,7 +217,7 @@ class EvaluationService extends BaseService
       $totalCompetenciasCreadas = 0;
 
       foreach ($personasResultado as $personaResultado) {
-        $persona = Person::find($personaResultado->person_id);
+        $persona = Worker::find($personaResultado->person_id);
 
         if (!$persona) {
           continue;
@@ -365,7 +365,7 @@ class EvaluationService extends BaseService
    */
   private function crearDetalleCompetencia($evaluacionId, $persona, $competenciaData, $evaluadorId, $tipoEvaluador)
   {
-    $evaluador = Person::find($evaluadorId);
+    $evaluador = Worker::find($evaluadorId);
 
     if (!$evaluador || !$competenciaData) {
       return;
@@ -422,7 +422,7 @@ class EvaluationService extends BaseService
    */
   private function tieneSubordinados($personaId)
   {
-    return Person::where('jefe_id', $personaId)
+    return Worker::where('jefe_id', $personaId)
       ->where('status_deleted', 1)
       ->where('status_id', 22) // Activo según tu constante WORKER_ACTIVE
       ->exists();
@@ -433,7 +433,7 @@ class EvaluationService extends BaseService
    */
   private function obtenerSubordinados($personaId)
   {
-    return Person::where('jefe_id', $personaId)
+    return Worker::where('jefe_id', $personaId)
       ->where('status_deleted', 1)
       ->where('status_id', 22)
       ->get();
@@ -452,7 +452,7 @@ class EvaluationService extends BaseService
 
     $mateIds = $parEvaluators->pluck('mate_id')->toArray();
 
-    return Person::whereIn('id', $mateIds)
+    return Worker::whereIn('id', $mateIds)
       ->where('status_deleted', 1)
       ->where('status_id', 22)
       ->get();
@@ -467,7 +467,7 @@ class EvaluationService extends BaseService
       return collect();
     }
 
-    return Person::where('jefe_id', $persona->jefe_id)
+    return Worker::where('jefe_id', $persona->jefe_id)
       ->where('id', '!=', $persona->id)
       ->where('status_deleted', 1)
       ->where('status_id', 22)
@@ -593,7 +593,7 @@ class EvaluationService extends BaseService
         ->whereIn('person_id', $personsToRemove)
         ->delete();
 
-      EvaluationPerson::where('evaluation_id', $evaluation->id)
+      EvaluationWorker::where('evaluation_id', $evaluation->id)
         ->whereIn('person_id', $personsToRemove)
         ->delete();
 
@@ -711,7 +711,7 @@ class EvaluationService extends BaseService
     $competencesCreated = 0;
 
     foreach ($personIds as $personId) {
-      $persona = Person::find($personId);
+      $persona = Worker::find($personId);
       if (!$persona) continue;
 
       if ($evaluation->typeEvaluation == self::EVALUACION_180) {
@@ -740,7 +740,7 @@ class EvaluationService extends BaseService
 
       if ($exists) continue;
 
-      $person = Person::find($personId);
+      $person = Worker::find($personId);
       if (!$person || !$person->position || !$person->position->hierarchicalCategory) continue;
 
       // Verificar fecha de inicio vs fecha de corte
@@ -805,12 +805,12 @@ class EvaluationService extends BaseService
 
     foreach ($cycleDetails as $detail) {
       // Verificar si ya existe este person_cycle_detail para esta evaluación
-      $exists = EvaluationPerson::where('evaluation_id', $evaluation->id)
+      $exists = EvaluationWorker::where('evaluation_id', $evaluation->id)
         ->where('person_cycle_detail_id', $detail->id)
         ->exists();
 
       if (!$exists) {
-        EvaluationPerson::create([
+        EvaluationWorker::create([
           'person_id' => $detail->person_id,
           'chief_id' => $detail->chief_id,
           'chief' => $detail->chief,

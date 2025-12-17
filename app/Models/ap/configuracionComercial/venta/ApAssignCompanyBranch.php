@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\configuracionComercial\venta;
 
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -38,7 +38,7 @@ class ApAssignCompanyBranch extends Model
 
   public function worker(): BelongsTo
   {
-    return $this->belongsTo(Person::class, 'worker_id');
+    return $this->belongsTo(Worker::class, 'worker_id');
   }
 
   public function sede(): BelongsTo

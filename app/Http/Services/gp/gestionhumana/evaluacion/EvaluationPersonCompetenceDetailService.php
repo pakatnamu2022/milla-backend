@@ -11,7 +11,6 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\personal\Worker;
-use App\Models\gp\gestionsistema\Person;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -233,7 +232,7 @@ class EvaluationPersonCompetenceDetailService extends BaseService
   private function calculate360CompetencesResult($competences, $personId)
   {
     // Obtener la persona y su categoría jerárquica
-    $person = Person::with('position.hierarchicalCategory')->find($personId);
+    $person = Worker::with('position.hierarchicalCategory')->find($personId);
 
     if (!$person || !$person->position || !$person->position->hierarchicalCategory) {
       // Si no hay categoría, usar pesos por defecto
@@ -291,7 +290,7 @@ class EvaluationPersonCompetenceDetailService extends BaseService
    */
   public function calculateObjectivesResult($evaluationId, $personId)
   {
-    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluationId)
+    $evaluationPersons = EvaluationWorker::where('evaluation_id', $evaluationId)
       ->where('person_id', $personId)
       ->with('personCycleDetail')
       ->get();
@@ -384,7 +383,7 @@ class EvaluationPersonCompetenceDetailService extends BaseService
       $totalCompetenciasCreadas = 0;
 
       foreach ($personasResultado as $personaResultado) {
-        $persona = Person::find($personaResultado->person_id);
+        $persona = Worker::find($personaResultado->person_id);
 
         if (!$persona) {
           continue;
@@ -531,7 +530,7 @@ class EvaluationPersonCompetenceDetailService extends BaseService
    */
   private function crearDetalleCompetencia($evaluacionId, $persona, $competenciaData, $evaluadorId, $tipoEvaluador)
   {
-    $evaluador = Person::find($evaluadorId);
+    $evaluador = Worker::find($evaluadorId);
 
     if (!$evaluador || !$competenciaData) {
       return;
@@ -587,7 +586,7 @@ class EvaluationPersonCompetenceDetailService extends BaseService
    */
   private function tieneSubordinados($personaId)
   {
-    return Person::where('jefe_id', $personaId)
+    return Worker::where('jefe_id', $personaId)
       ->where('status_deleted', 1)
       ->where('status_id', 22) // Activo según tu constante WORKER_ACTIVE
       ->exists();
@@ -598,7 +597,7 @@ class EvaluationPersonCompetenceDetailService extends BaseService
    */
   private function obtenerSubordinados($personaId)
   {
-    return Person::where('jefe_id', $personaId)
+    return Worker::where('jefe_id', $personaId)
       ->where('status_deleted', 1)
       ->where('status_id', 22)
       ->get();
@@ -613,7 +612,7 @@ class EvaluationPersonCompetenceDetailService extends BaseService
       return collect();
     }
 
-    return Person::where('jefe_id', $persona->jefe_id)
+    return Worker::where('jefe_id', $persona->jefe_id)
       ->where('id', '!=', $persona->id)
       ->where('status_deleted', 1)
       ->where('status_id', 22)

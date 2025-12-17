@@ -4,7 +4,7 @@ namespace App\Models\gp\gestionhumana\evaluacion;
 
 use App\Http\Traits\Reportable;
 use App\Models\BaseModel;
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Exception;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Log;
@@ -83,7 +83,7 @@ class EvaluationPersonResult extends BaseModel
 
   public function person()
   {
-    return $this->belongsTo(Person::class, 'person_id');
+    return $this->belongsTo(Worker::class, 'person_id');
   }
 
   public function evaluation()
@@ -93,7 +93,7 @@ class EvaluationPersonResult extends BaseModel
 
   public function details()
   {
-    return $this->hasMany(EvaluationPerson::class, 'evaluation_id', 'evaluation_id')
+    return $this->hasMany(EvaluationWorker::class, 'evaluation_id', 'evaluation_id')
       ->where('person_id', $this->person_id)->whereNull('deleted_at');
   }
 

@@ -6,7 +6,7 @@ use App\Http\Resources\ap\comercial\PotentialBuyersResource;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PotentialBuyers;
 use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -647,7 +647,7 @@ class DashboardComercialService
    */
   private function getManagerInfo($bossId)
   {
-    $manager = Person::with('position')->find($bossId);
+    $manager = Worker::with('position')->find($bossId);
 
     if (!$manager) {
       return [
@@ -672,7 +672,7 @@ class DashboardComercialService
     $result = [];
 
     // Cargar información de todos los asesores asignados
-    $workers = Person::whereIn('id', $advisorIds)->get()->keyBy('id');
+    $workers = Worker::whereIn('id', $advisorIds)->get()->keyBy('id');
 
     // Inicializar estructura para todos los asesores asignados
     foreach ($advisorIds as $workerId) {

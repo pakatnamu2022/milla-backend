@@ -8749,7 +8749,7 @@ class ObjectiveSeeder extends Seeder
     EvaluationPersonDashboard::query()->truncate();
     EvaluationDashboard::query()->truncate();
     EvaluationPersonDetail::query()->truncate();
-    EvaluationPerson::query()->truncate();
+    EvaluationWorker::query()->truncate();
     EvaluationPersonResult::query()->truncate();
     EvaluationPersonCycleDetail::query()->truncate();
     EvaluationCategoryObjectiveDetail::query()->truncate();

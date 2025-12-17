@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\gp\gestionhumana\evaluacion\EvaluationParEvaluator;
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -18,7 +18,7 @@ class EvaluationParEvaluatorSeeder extends Seeder
         EvaluationParEvaluator::truncate();
 
         // Obtener todos los workers activos (status_id = 22)
-        $workers = Person::where('status_id', 22)
+        $workers = Worker::where('status_id', 22)
             ->where('status_deleted', 1)
             ->where('b_empleado', 1)
             ->pluck('id')
