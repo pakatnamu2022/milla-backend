@@ -11,7 +11,7 @@ class UpdatePerDiemCategoryRequest extends StoreRequest
     {
         return [
             'name' => [
-                'required',
+                'nullable',
                 'string',
                 'max:255',
               Rule::unique('gh_per_diem_category', 'name')
