@@ -2,7 +2,6 @@
 
 namespace App\Http\Services\gp\gestionhumana\viaticos;
 
-use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRateResource;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRequestResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
@@ -11,7 +10,6 @@ use App\Models\gp\gestionhumana\viaticos\PerDiemRate;
 use App\Models\gp\gestionhumana\viaticos\PerDiemPolicy;
 use App\Models\gp\gestionhumana\viaticos\PerDiemApproval;
 use App\Models\gp\gestionhumana\viaticos\RequestBudget;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
