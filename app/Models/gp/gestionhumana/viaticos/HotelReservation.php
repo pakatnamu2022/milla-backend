@@ -36,6 +36,22 @@ class HotelReservation extends BaseModel
     'attended' => 'boolean',
   ];
 
+  const filters = [
+    'per_diem_request_id' => '=',
+    'hotel_agreement_id' => '=',
+    'attended' => '=',
+    'checkin_date' => 'date_between',
+    'checkout_date' => 'date_between',
+  ];
+
+  const sorts = [
+    'checkin_date',
+    'checkout_date',
+    'total_cost',
+    'attended',
+    'created_at',
+  ];
+
   /**
    * Get the per diem request this reservation belongs to
    */

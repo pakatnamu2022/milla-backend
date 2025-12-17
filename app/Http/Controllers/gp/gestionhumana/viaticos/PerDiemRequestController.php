@@ -16,7 +16,7 @@ use App\Http\Services\gp\gestionhumana\viaticos\PerDiemRequestService;
 
 class PerDiemRequestController extends Controller
 {
-  protected $service;
+  protected PerDiemRequestService $service;
 
   public function __construct(PerDiemRequestService $service)
   {

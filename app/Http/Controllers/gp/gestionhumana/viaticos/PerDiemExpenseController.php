@@ -8,12 +8,12 @@ use App\Http\Requests\gp\gestionhumana\viaticos\StorePerDiemExpenseRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\UpdatePerDiemExpenseRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\ValidatePerDiemExpenseRequest;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemExpenseResource;
-use App\Services\gp\gestionhumana\viaticos\PerDiemExpenseService;
+use App\Http\Services\gp\gestionhumana\viaticos\PerDiemExpenseService;
 use App\Models\gp\gestionhumana\viaticos\PerDiemExpense;
 
 class PerDiemExpenseController extends Controller
 {
-  protected $service;
+  protected PerDiemExpenseService $service;
 
   public function __construct(PerDiemExpenseService $service)
   {
