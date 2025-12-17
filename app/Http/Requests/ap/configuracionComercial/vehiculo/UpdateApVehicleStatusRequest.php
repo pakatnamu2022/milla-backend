@@ -3,7 +3,6 @@
 namespace App\Http\Requests\ap\configuracionComercial\vehiculo;
 
 use App\Http\Requests\StoreRequest;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateApVehicleStatusRequest extends StoreRequest
