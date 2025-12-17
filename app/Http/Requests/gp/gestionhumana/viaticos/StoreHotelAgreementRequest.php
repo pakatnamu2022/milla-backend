@@ -18,6 +18,8 @@ class StoreHotelAgreementRequest extends StoreRequest
       'includes_parking' => ['required', 'boolean'],
       'contact' => ['nullable', 'string', 'max:255'],
       'address' => ['nullable', 'string', 'max:500'],
+      'phone' => ['nullable', 'string', 'max:50'],
+      'email' => ['nullable', 'email', 'max:255'],
       'website' => ['nullable', 'url', 'max:255'],
     ];
   }
