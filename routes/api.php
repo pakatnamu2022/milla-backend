@@ -1169,7 +1169,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('hotel-reservations/{reservationId}/mark-attended', [HotelReservationController::class, 'markAttended']);
 
     // Policies
-    Route::apiResource('perDiemPolicyController', PerDiemPolicyController::class)->only([
+    Route::apiResource('perDiemPolicy', PerDiemPolicyController::class)->only([
       'index',
       'show',
       'store',
@@ -1178,8 +1178,13 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     ]);
 
     // Categories
-    Route::get('per-diem-categories/active', [PerDiemCategoryController::class, 'active']);
-    Route::get('per-diem-categories', [PerDiemCategoryController::class, 'index']);
+    Route::apiResource('perDiemCategory', PerDiemCategoryController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
 
     // Expense Types
     Route::get('expense-types/active', [ExpenseTypeController::class, 'active']);

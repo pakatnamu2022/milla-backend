@@ -6,10 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\viaticos\IndexPerDiemPolicyRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\StorePerDiemPolicyRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\UpdatePerDiemPolicyRequest;
-use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemPolicyResource;
 use App\Http\Services\gp\gestionhumana\viaticos\PerDiemPolicyService;
-use App\Models\gp\gestionhumana\viaticos\PerDiemPolicy;
-use Illuminate\Http\Request;
 
 class PerDiemPolicyController extends Controller
 {

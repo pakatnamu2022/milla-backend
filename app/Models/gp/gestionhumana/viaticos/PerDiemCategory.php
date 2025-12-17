@@ -16,7 +16,6 @@ class PerDiemCategory extends BaseModel
     'name',
     'description',
     'active',
-    'order',
   ];
 
   protected $casts = [
@@ -30,7 +29,6 @@ class PerDiemCategory extends BaseModel
 
   const sorts = [
     'name',
-    'order',
     'active',
   ];
 
@@ -48,13 +46,5 @@ class PerDiemCategory extends BaseModel
   public function perDiemRequests(): HasMany
   {
     return $this->hasMany(PerDiemRequest::class);
-  }
-
-  /**
-   * Scope to filter active categories ordered by order field
-   */
-  public function scopeActive($query)
-  {
-    return $query->where('active', true)->orderBy('order');
   }
 }
