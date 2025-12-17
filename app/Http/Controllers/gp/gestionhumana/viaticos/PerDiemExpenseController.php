@@ -103,7 +103,7 @@ class PerDiemExpenseController extends Controller
   {
     try {
       $data = $request->validated();
-      $expense = $this->service->validate($expenseId, $data);
+      $expense = $this->service->validateExpense($expenseId, $data);
 
       return response()->json([
         'success' => true,
