@@ -42,7 +42,7 @@ class HotelReservationSeeder extends Seeder
       $attended = rand(1, 10) <= 7;
 
       // 10% de los no attended tiene penalty
-      $penalty = null;
+      $penalty = 0;
       if (!$attended && rand(1, 10) === 1) {
         $penalty = $corporateRate * 0.5; // 50% del costo por noche como penalidad
       }

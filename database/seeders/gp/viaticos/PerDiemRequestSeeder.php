@@ -2,11 +2,11 @@
 
 namespace Database\Seeders\gp\viaticos;
 
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionhumana\viaticos\PerDiemPolicy;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
 use App\Models\gp\gestionhumana\viaticos\PerDiemCategory;
 use App\Models\gp\gestionsistema\Company;
-use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 
@@ -22,7 +22,7 @@ class PerDiemRequestSeeder extends Seeder
     $colaboradores = PerDiemCategory::where('name', 'Colaboradores')->first();
 
     $company = Company::first();
-    $users = User::limit(10)->get();
+    $users = Worker::limit(10)->get();
 
     if (!$currentPolicy || $users->isEmpty() || !$company) {
       return;
