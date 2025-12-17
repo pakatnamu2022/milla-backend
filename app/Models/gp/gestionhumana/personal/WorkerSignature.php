@@ -3,7 +3,7 @@
 namespace App\Models\gp\gestionhumana\personal;
 
 use App\Models\gp\gestionsistema\Company;
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,7 +23,7 @@ class WorkerSignature extends Model
 
   public function worker(): BelongsTo
   {
-    return $this->belongsTo(Person::class, 'worker_id');
+    return $this->belongsTo(Worker::class, 'worker_id');
   }
 
   public function company(): BelongsTo

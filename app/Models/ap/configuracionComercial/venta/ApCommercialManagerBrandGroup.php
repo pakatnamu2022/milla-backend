@@ -3,7 +3,7 @@
 namespace App\Models\ap\configuracionComercial\venta;
 
 use App\Models\ap\ApCommercialMasters;
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -38,7 +38,7 @@ class ApCommercialManagerBrandGroup extends Model
 
   public function commercialManager()
   {
-    return $this->belongsTo(Person::class, 'commercial_manager_id');
+    return $this->belongsTo(Worker::class, 'commercial_manager_id');
   }
 
   public function brandGroup()

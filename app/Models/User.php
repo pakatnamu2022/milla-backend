@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Role;
 use App\Models\gp\gestionsistema\UserRole;
 use App\Models\gp\maestroGeneral\Sede;
@@ -59,7 +59,7 @@ class User extends Authenticatable
 
   public function person()
   {
-    return $this->hasOne(Person::class, 'id', 'partner_id');
+    return $this->hasOne(Worker::class, 'id', 'partner_id');
   }
 
   public function role()

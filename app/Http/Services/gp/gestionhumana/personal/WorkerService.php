@@ -3,12 +3,12 @@
 namespace App\Http\Services\gp\gestionhumana\personal;
 
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
+use App\Http\Resources\PersonBirthdayResource;
 use App\Http\Services\BaseService;
 use App\Http\Utils\Constants;
 use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
 use App\Models\gp\gestionhumana\personal\Worker;
-use App\Models\gp\gestionsistema\Person;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -24,7 +24,7 @@ class WorkerService extends BaseService
       Worker::class,
       $request,
       Worker::filters,
-      Person::sorts,
+      Worker::sorts,
       WorkerResource::class,
     );
   }
@@ -42,6 +42,32 @@ class WorkerService extends BaseService
   {
     $worker = $this->find($id);
     return new WorkerResource($worker);
+  }
+
+  public function listBirthdays(Request $request)
+  {
+    $query = Worker::query()
+      ->working()
+      ->select('*')
+      ->selectRaw("
+            DATEDIFF(
+                DATE_ADD(
+                    fecha_nacimiento,
+                    INTERVAL (YEAR(CURDATE()) - YEAR(fecha_nacimiento)) +
+                    (DATE_FORMAT(fecha_nacimiento, '%m-%d') < DATE_FORMAT(CURDATE(), '%m-%d')) YEAR
+                ),
+                CURDATE()
+            ) as days_to_birthday
+        ")
+      ->orderBy('days_to_birthday');
+
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      Worker::filters,
+      Worker::sorts,
+      PersonBirthdayResource::class
+    );
   }
 
   public function revalidate()
@@ -345,7 +371,7 @@ class WorkerService extends BaseService
       Worker::whereIn('id', $assignmentsIds),
       $request,
       Worker::filters,
-      Person::sorts,
+      Worker::sorts,
       WorkerResource::class,
     );
   }

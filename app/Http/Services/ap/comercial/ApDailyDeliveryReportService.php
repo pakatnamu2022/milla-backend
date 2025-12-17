@@ -3,17 +3,13 @@
 namespace App\Http\Services\ap\comercial;
 
 use App\Models\ap\ApCommercialMasters;
-use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
 use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
 use App\Models\ap\configuracionComercial\venta\ApCommercialManagerBrandGroup;
-use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
-use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Carbon\Carbon;
-use Exception;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -235,7 +231,7 @@ class ApDailyDeliveryReportService
         return $invoicedQuoteIds->contains($vehicle->quote_id);
       })->count();
 
-      $advisor = Person::find($advisorId);
+      $advisor = Worker::find($advisorId);
 
       $advisorStats[] = [
         'id' => $advisorId,
@@ -406,7 +402,7 @@ class ApDailyDeliveryReportService
       $managerId = $managerAssignment->commercial_manager_id;
       $brandGroupId = $managerAssignment->brand_group_id;
 
-      $manager = Person::find($managerId);
+      $manager = Worker::find($managerId);
       if (!$manager) {
         continue;
       }
@@ -425,7 +421,7 @@ class ApDailyDeliveryReportService
 
       // Encontrar jefes que manejan este grupo de marcas
       foreach ($allBossIds as $jefeId) {
-        $jefe = Person::find($jefeId);
+        $jefe = Worker::find($jefeId);
         if (!$jefe) {
           continue;
         }
@@ -496,7 +492,7 @@ class ApDailyDeliveryReportService
     $tree = [];
 
     foreach ($topBossIds as $bossId) {
-      $boss = Person::find($bossId);
+      $boss = Worker::find($bossId);
       if (!$boss) {
         continue;
       }
@@ -523,7 +519,7 @@ class ApDailyDeliveryReportService
             continue;
           }
 
-          $worker = Person::find($workerId);
+          $worker = Worker::find($workerId);
           if (!$worker) {
             continue;
           }
@@ -629,7 +625,7 @@ class ApDailyDeliveryReportService
    */
   protected function buildJefeNode(int $jefeId, int $brandGroupId, Collection $bossToWorkers, array $advisorBrandGroups, array $advisorCounts): ?array
   {
-    $jefe = Person::find($jefeId);
+    $jefe = Worker::find($jefeId);
     if (!$jefe) {
       return null;
     }
@@ -655,7 +651,7 @@ class ApDailyDeliveryReportService
 
       // Solo incluir asesores que tienen marcas de este grupo
       if (in_array($brandGroupId, $workerGroups)) {
-        $asesor = Person::find($workerId);
+        $asesor = Worker::find($workerId);
         if (!$asesor) {
           continue;
         }
@@ -712,7 +708,7 @@ class ApDailyDeliveryReportService
    */
   protected function buildGerenteNodeMultiGroup(int $managerId, array $brandGroupIds, string $brandGroupNames, Collection $bossToWorkers, array $advisorBrandGroups, array $advisorBrands, array $advisorCounts, string $className, int $vehicleTypeId, Collection $allVehicles, Collection $invoicedQuoteIds, ?int $camionesJefeId = null): ?array
   {
-    $manager = Person::find($managerId);
+    $manager = Worker::find($managerId);
 
     if (!$manager) {
       return null;
@@ -767,7 +763,7 @@ class ApDailyDeliveryReportService
   protected function buildGerenteNode($managerAssignment, int $brandGroupId, Collection $bossToWorkers, array $advisorBrandGroups, array $advisorCounts, string $className, int $vehicleTypeId, Collection $allVehicles, Collection $invoicedQuoteIds, ?int $camionesJefeId = null): ?array
   {
     $managerId = $managerAssignment->commercial_manager_id;
-    $manager = Person::find($managerId);
+    $manager = Worker::find($managerId);
 
     if (!$manager) {
       return null;
@@ -820,7 +816,7 @@ class ApDailyDeliveryReportService
    */
   protected function buildJefeNodeForMultipleGroups(int $jefeId, array $brandGroupIds, Collection $bossToWorkers, array $advisorBrandGroups, array $advisorBrands, array $advisorCounts): ?array
   {
-    $jefe = Person::find($jefeId);
+    $jefe = Worker::find($jefeId);
     if (!$jefe) {
       return null;
     }
@@ -848,7 +844,7 @@ class ApDailyDeliveryReportService
       // Incluir asesores que tienen marcas de CUALQUIERA de estos grupos O que no tienen marcas asignadas
       $hasAnyGroup = !empty(array_intersect($brandGroupIds, $workerGroups));
       if ($hasAnyGroup || empty($workerGroups)) {
-        $asesor = Person::find($workerId);
+        $asesor = Worker::find($workerId);
         if (!$asesor) {
           continue;
         }
@@ -879,7 +875,7 @@ class ApDailyDeliveryReportService
    */
   protected function buildJefeNodeForGroup(int $jefeId, int $brandGroupId, Collection $bossToWorkers, array $advisorBrandGroups, array $advisorCounts): ?array
   {
-    $jefe = Person::find($jefeId);
+    $jefe = Worker::find($jefeId);
     if (!$jefe) {
       return null;
     }
@@ -905,7 +901,7 @@ class ApDailyDeliveryReportService
 
       // Incluir asesores que tienen marcas de este grupo O que no tienen marcas asignadas
       if (in_array($brandGroupId, $workerGroups) || empty($workerGroups)) {
-        $asesor = Person::find($workerId);
+        $asesor = Worker::find($workerId);
         if (!$asesor) {
           continue;
         }
@@ -966,7 +962,7 @@ class ApDailyDeliveryReportService
     }
 
     foreach ($topBossIds as $bossId) {
-      $boss = Person::find($bossId);
+      $boss = Worker::find($bossId);
       if (!$boss) {
         continue;
       }
@@ -988,7 +984,7 @@ class ApDailyDeliveryReportService
         foreach ($workers as $assignment) {
           $workerId = $assignment->worker_id;
 
-          $worker = Person::find($workerId);
+          $worker = Worker::find($workerId);
           if (!$worker) {
             continue;
           }

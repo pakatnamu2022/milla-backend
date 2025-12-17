@@ -4,7 +4,7 @@ namespace App\Models\ap\comercial;
 
 use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApFamilies;
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -69,7 +69,7 @@ class Opportunity extends Model
 
   public function worker(): BelongsTo
   {
-    return $this->belongsTo(Person::class, 'worker_id');
+    return $this->belongsTo(Worker::class, 'worker_id');
   }
 
   public function client(): BelongsTo

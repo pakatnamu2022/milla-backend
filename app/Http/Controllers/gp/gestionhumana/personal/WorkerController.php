@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\IndexConsultantRequest;
 use App\Http\Requests\gp\gestionhumana\personal\IndexWorkerRequest;
 use App\Http\Services\gp\gestionhumana\personal\WorkerService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class WorkerController extends Controller
@@ -45,8 +46,21 @@ class WorkerController extends Controller
   }
 
   /**
+   * @param Request $request
+   * @return JsonResponse
+   */
+  public function birthdays(Request $request)
+  {
+    try {
+      return $this->service->listBirthdays($request);
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Revalidate workers data.
-   * @return \Illuminate\Http\JsonResponse
+   * @return JsonResponse
    */
   public function revalidate()
   {

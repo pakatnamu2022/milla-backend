@@ -4,7 +4,7 @@ namespace App\Models\gp\gestionhumana\evaluacion;
 
 use App\Http\Utils\Constants;
 use App\Models\BaseModel;
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Position;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
@@ -94,7 +94,7 @@ class HierarchicalCategory extends BaseModel
   public function workers()
   {
     return $this->hasManyThrough(
-      Person::class,
+      Worker::class,
       HierarchicalCategoryDetail::class,
       'hierarchical_category_id',
       'cargo_id',

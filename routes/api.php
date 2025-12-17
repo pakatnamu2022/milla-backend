@@ -80,7 +80,6 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonDetailContr
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonResultController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailController;
-use App\Http\Controllers\gp\gestionhumana\personal\PersonController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\ExpenseTypeController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\HotelAgreementController;
@@ -262,14 +261,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       //    PERSONAL MAIN
       Route::group(['prefix' => 'personal'], function () {
         //PERSON
-        Route::get('person/birthdays', [PersonController::class, 'birthdays'])->name('person.birthdays');
-        Route::apiResource('person', PersonController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+        Route::get('worker/birthdays', [WorkerController::class, 'birthdays'])->name('person.birthdays');
 
         //    WORKER
         Route::get('worker-without-categories-and-objectives', [WorkerController::class, 'getWorkersWithoutCategoriesAndObjectives']);

@@ -4,7 +4,7 @@ namespace App\Models\gp\gestionhumana\evaluacion;
 
 use App\Models\BaseModel;
 use App\Models\gp\gestionsistema\Area;
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -70,12 +70,12 @@ class EvaluationPersonCycleDetail extends BaseModel
 
   public function person()
   {
-    return $this->belongsTo(Person::class, 'person_id');
+    return $this->belongsTo(Worker::class, 'person_id');
   }
 
   public function chief()
   {
-    return $this->belongsTo(Person::class, 'chief_id');
+    return $this->belongsTo(Worker::class, 'chief_id');
   }
 
   public function position()

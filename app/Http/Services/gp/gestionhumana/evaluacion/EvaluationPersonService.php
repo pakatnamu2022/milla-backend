@@ -27,10 +27,10 @@ class EvaluationPersonService extends BaseService
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      EvaluationPerson::class,
+      EvaluationWorker::class,
       $request,
-      EvaluationPerson::filters,
-      EvaluationPerson::sorts,
+      EvaluationWorker::filters,
+      EvaluationWorker::sorts,
       EvaluationPersonResource::class,
     );
   }
@@ -45,7 +45,7 @@ class EvaluationPersonService extends BaseService
 
   public function find($id)
   {
-    $evaluationPerson = EvaluationPerson::where('id', $id)->first();
+    $evaluationPerson = EvaluationWorker::where('id', $id)->first();
     if (!$evaluationPerson) {
       throw new Exception('Evaluación de persona no encontrada');
     }
@@ -57,7 +57,7 @@ class EvaluationPersonService extends BaseService
     DB::beginTransaction();
     try {
       $data = $this->enrichData($data);
-      $evaluationPerson = EvaluationPerson::create($data);
+      $evaluationPerson = EvaluationWorker::create($data);
 
       // Recalcular resultados después de crear
       $this->recalculatePersonResults($evaluationPerson->evaluation_id, $evaluationPerson->person_id);
@@ -76,8 +76,8 @@ class EvaluationPersonService extends BaseService
     $cycle = EvaluationCycle::findOrFail($evaluation->cycle_id);
     $details = EvaluationPersonCycleDetail::where('cycle_id', $cycle->id)->get();
 
-    $ids = EvaluationPerson::where('evaluation_id', $evaluation->id)->pluck('id');
-    EvaluationPerson::destroy($ids);
+    $ids = EvaluationWorker::where('evaluation_id', $evaluation->id)->pluck('id');
+    EvaluationWorker::destroy($ids);
 
     DB::transaction(function () use ($details, $evaluation) {
       foreach ($details as $detail) {
@@ -91,7 +91,7 @@ class EvaluationPersonService extends BaseService
           'compliance' => 0,
           'qualification' => 0,
         ];
-        EvaluationPerson::create($data);
+        EvaluationWorker::create($data);
       }
     });
   }
@@ -209,7 +209,7 @@ class EvaluationPersonService extends BaseService
    */
   public function calculateObjectivesResult($evaluationId, $personId)
   {
-    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluationId)
+    $evaluationPersons = EvaluationWorker::where('evaluation_id', $evaluationId)
       ->where('person_id', $personId)
       ->with('personCycleDetail')
       ->get();
@@ -287,7 +287,7 @@ class EvaluationPersonService extends BaseService
       'competencias_completadas' => EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
         ->where('result', '>', 0)
         ->count(),
-      'objetivos_completados' => EvaluationPerson::where('evaluation_id', $evaluationId)
+      'objetivos_completados' => EvaluationWorker::where('evaluation_id', $evaluationId)
         ->where('result', '>', 0)
         ->count(),
     ];
@@ -304,7 +304,7 @@ class EvaluationPersonService extends BaseService
     $evaluation = Evaluation::findOrFail($evaluationId);
 
     // Obtener todas las personas de esta evaluación agrupadas por person_id
-    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluationId)
+    $evaluationPersons = EvaluationWorker::where('evaluation_id', $evaluationId)
       ->with('personCycleDetail')
       ->get()
       ->groupBy('person_id');
@@ -401,7 +401,7 @@ class EvaluationPersonService extends BaseService
   {
     $evaluation = Evaluation::findOrFail($evaluationId);
 
-    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluationId)
+    $evaluationPersons = EvaluationWorker::where('evaluation_id', $evaluationId)
       ->with('personCycleDetail')
       ->get();
 

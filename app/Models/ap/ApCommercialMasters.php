@@ -3,7 +3,7 @@
 namespace App\Models\ap;
 
 use App\Models\ap\comercial\Opportunity;
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -70,7 +70,7 @@ class ApCommercialMasters extends Model
 
   public function commercialManagers()
   {
-    return $this->belongsToMany(Person::class, 'ap_commercial_manager_brand_group', 'brand_group_id', 'commercial_manager_id')
+    return $this->belongsToMany(Worker::class, 'ap_commercial_manager_brand_group', 'brand_group_id', 'commercial_manager_id')
       ->withTimestamps();
   }
 

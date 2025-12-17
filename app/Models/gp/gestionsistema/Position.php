@@ -86,7 +86,7 @@ class Position extends BaseModel
 
   public function persons()
   {
-    return $this->hasMany(Person::class, 'cargo_id')
+    return $this->hasMany(Worker::class, 'cargo_id')
       ->where('status_deleted', 1)
       ->where('b_empleado', 1)
       ->where('status_id', 22);
