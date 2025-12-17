@@ -10,6 +10,7 @@ use App\Http\Requests\gp\gestionhumana\viaticos\ValidatePerDiemExpenseRequest;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemExpenseResource;
 use App\Http\Services\gp\gestionhumana\viaticos\PerDiemExpenseService;
 use App\Models\gp\gestionhumana\viaticos\PerDiemExpense;
+use Exception;
 
 class PerDiemExpenseController extends Controller
 {
@@ -35,11 +36,8 @@ class PerDiemExpenseController extends Controller
         'success' => true,
         'data' => PerDiemExpenseResource::collection($expenses)
       ], 200);
-    } catch (\Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 400);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
     }
   }
 
@@ -57,11 +55,8 @@ class PerDiemExpenseController extends Controller
         'data' => new PerDiemExpenseResource($expense),
         'message' => 'Gasto creado exitosamente'
       ], 201);
-    } catch (\Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 400);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
     }
   }
 
@@ -79,11 +74,8 @@ class PerDiemExpenseController extends Controller
         'data' => new PerDiemExpenseResource($expense),
         'message' => 'Gasto actualizado exitosamente'
       ], 200);
-    } catch (\Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 400);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
     }
   }
 
@@ -99,11 +91,8 @@ class PerDiemExpenseController extends Controller
         'success' => true,
         'message' => 'Gasto eliminado exitosamente'
       ], 200);
-    } catch (\Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 400);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
     }
   }
 
@@ -121,11 +110,8 @@ class PerDiemExpenseController extends Controller
         'data' => new PerDiemExpenseResource($expense),
         'message' => 'Gasto validado exitosamente'
       ], 200);
-    } catch (\Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 400);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
     }
   }
 }
