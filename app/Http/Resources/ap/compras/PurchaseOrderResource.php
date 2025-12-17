@@ -43,8 +43,8 @@ class PurchaseOrderResource extends JsonResource
 
       'currency' => $this->currency->name,
       'currency_code' => $this->currency->code,
-      'warehouse' => $this->warehouse->description,
-      'article_class' => $this->warehouse->articleClass,
+      'warehouse' => $this->warehouse->description ?? null,
+      'article_class' => $this->warehouse->articleClass ?? null,
       'payment_terms' => $this->payment_terms ?? '',
 
       // Vehículo (si existe)
@@ -68,6 +68,7 @@ class PurchaseOrderResource extends JsonResource
       'credit_note_dynamics' => $this->credit_note_dynamics,
       'vehicleMovement' => VehicleMovementResource::make($this->vehicleMovement),
       'has_receptions' => $this->hasActiveReceptions(),
+      'notes' => $this->notes,
 
       // Fechas
       'migrated_at' => $this->migrated_at?->format('Y-m-d H:i:s'),

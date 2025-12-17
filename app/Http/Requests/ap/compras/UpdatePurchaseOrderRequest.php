@@ -39,6 +39,8 @@ class UpdatePurchaseOrderRequest extends StoreRequest
 
       'payment_terms' => ['sometimes', 'nullable', 'string', 'max:255'],
 
+      'notes' => ['nullable', 'string', 'max:1000'],
+
       // Items de la Orden de Compra (opcional, si se envía se reemplazan todos)
       'items' => ['sometimes', 'array', 'min:1'],
       'items.*.unit_measurement_id' => ['sometimes', 'integer', Rule::exists('unit_measurement', 'id')->where('status', 1)->whereNull('deleted_at')],
