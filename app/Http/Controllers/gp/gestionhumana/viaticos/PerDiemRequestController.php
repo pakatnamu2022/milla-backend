@@ -12,7 +12,6 @@ use App\Http\Requests\gp\gestionhumana\viaticos\StartSettlementPerDiemRequestReq
 use App\Http\Requests\gp\gestionhumana\viaticos\CompleteSettlementPerDiemRequestRequest;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRateResource;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRequestResource;
-use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRequestCollection;
 use App\Http\Services\gp\gestionhumana\viaticos\PerDiemRequestService;
 use Exception;
 

@@ -139,6 +139,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::group(['prefix' => 'configuration'], function () {
     //        USERS
     Route::get('user/{user}/complete', [UserController::class, 'showComplete'])->name('user.showComplete');
+    Route::get('user/my-companies', [UserController::class, 'getMyCompanies'])->name('user.my-companies');
     Route::apiResource('user', UserController::class)->only([
       'index',
       'show',

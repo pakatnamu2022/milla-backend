@@ -67,6 +67,11 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         throw new Exception('No hay una política de viáticos activa');
       }
 
+      // Set created_by
+      if (auth()->check()) {
+        $data['employee_id'] = auth()->user()->person->id;
+      }
+
       // Generate unique code
       $perDiemRequest = new PerDiemRequest();
       $code = $perDiemRequest->generateCode();
@@ -82,7 +87,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'per_diem_policy_id' => $currentPolicy->id,
         'employee_id' => $data['employee_id'] ?? Auth::id(),
         'company_id' => $data['company_id'],
-        'destination' => $data['destination'],
+        'district_id' => $data['district_id'],
         'per_diem_category_id' => $data['per_diem_category_id'],
         'start_date' => $data['start_date'],
         'end_date' => $data['end_date'],

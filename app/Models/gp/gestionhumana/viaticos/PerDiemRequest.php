@@ -5,7 +5,7 @@ namespace App\Models\gp\gestionhumana\viaticos;
 use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Company;
-use App\Models\User;
+use App\Models\gp\gestionsistema\District;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -22,7 +22,7 @@ class PerDiemRequest extends BaseModel
     'per_diem_policy_id',
     'employee_id',
     'company_id',
-    'destination',
+    'district_id',
     'per_diem_category_id',
     'start_date',
     'end_date',
@@ -58,10 +58,11 @@ class PerDiemRequest extends BaseModel
   ];
 
   const filters = [
-    'search' => ['code', 'destination', 'purpose'],
+    'search' => ['code', 'purpose'],
     'status' => '=',
     'employee_id' => '=',
     'company_id' => '=',
+    'district_id' => '=',
     'per_diem_category_id' => '=',
     'per_diem_policy_id' => '=',
     'start_date' => 'date_between',
@@ -103,6 +104,14 @@ class PerDiemRequest extends BaseModel
   public function company(): BelongsTo
   {
     return $this->belongsTo(Company::class, 'company_id');
+  }
+
+  /**
+   * Get the district this request is for
+   */
+  public function district(): BelongsTo
+  {
+    return $this->belongsTo(District::class, 'district_id');
   }
 
   /**

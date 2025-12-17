@@ -11,11 +11,10 @@ class UpdatePerDiemRequestRequest extends StoreRequest
     return [
       'employee_id' => ['nullable', 'integer', 'exists:rrhh_persona,id'],
       'company_id' => ['nullable', 'integer', 'exists:companies,id'],
-      'destination' => ['nullable', 'string', 'max:255'],
+      'district_id' => ['nullable', 'integer', 'exists:district,id'],
       'per_diem_category_id' => ['nullable', 'integer', 'exists:gh_per_diem_category,id'],
       'start_date' => ['nullable', 'date'],
       'end_date' => ['nullable', 'date', 'after:start_date'],
-      'days_count' => ['nullable', 'integer', 'min:1'],
       'purpose' => ['nullable', 'string'],
       'final_result' => ['nullable', 'string'],
       'cost_center' => ['nullable', 'string', 'max:255'],
@@ -38,9 +37,9 @@ class UpdatePerDiemRequestRequest extends StoreRequest
     return [
       'employee_id.exists' => 'El empleado seleccionado no existe.',
       'company_id.exists' => 'La empresa seleccionada no existe.',
+      'district_id.exists' => 'El distrito seleccionado no existe.',
       'per_diem_category_id.exists' => 'La categoría seleccionada no existe.',
       'end_date.after' => 'La fecha de fin debe ser posterior a la fecha de inicio.',
-      'days_count.min' => 'El número de días debe ser al menos 1.',
       'cash_amount.min' => 'El monto en efectivo debe ser mayor o igual a 0.',
       'transfer_amount.min' => 'El monto por transferencia debe ser mayor o igual a 0.',
       'budgets.*.expense_type_id.required_with' => 'El tipo de gasto es requerido.',
