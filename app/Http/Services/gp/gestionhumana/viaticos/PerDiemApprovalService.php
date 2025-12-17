@@ -6,6 +6,7 @@ use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemApprovalResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\gp\gestionhumana\viaticos\PerDiemApproval;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Exception;
@@ -52,7 +53,7 @@ class PerDiemApprovalService extends BaseService implements BaseServiceInterface
   public function store(mixed $data)
   {
     $approval = PerDiemApproval::create($data);
-    return new PerDiemApprovalResource($approval->load(['request', 'approver']));
+    return new PerDiemApprovalResource($approval);
   }
 
   /**
@@ -62,7 +63,7 @@ class PerDiemApprovalService extends BaseService implements BaseServiceInterface
   {
     $approval = $this->find($data['id']);
     $approval->update($data);
-    return new PerDiemApprovalResource($approval->fresh(['request', 'approver']));
+    return new PerDiemApprovalResource($approval);
   }
 
   /**
@@ -80,13 +81,21 @@ class PerDiemApprovalService extends BaseService implements BaseServiceInterface
   /**
    * Get pending approvals for a specific approver
    */
-  public function getPendingApprovals(int $approverId)
+  public function getPendingApprovals(int $approverId): JsonResponse
   {
-    return PerDiemApproval::with(['request.employee', 'request.company', 'request.category', 'request.budgets.expenseType', 'approver'])
-      ->where('approver_id', $approverId)
-      ->where('status', 'pending')
-      ->orderBy('created_at', 'desc')
-      ->get();
+    $request = new Request([
+      'approver_id' => $approverId,
+      'status' => PerDiemApproval::PENDING,
+      'all' => 'true',
+    ]);
+
+    return $this->getFilteredResults(
+      PerDiemApproval::class,
+      $request,
+      PerDiemApproval::filters,
+      PerDiemApproval::sorts,
+      PerDiemApprovalResource::class,
+    );
   }
 
   /**

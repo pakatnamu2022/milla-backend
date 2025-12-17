@@ -40,6 +40,10 @@ class PerDiemApproval extends BaseModel
     'created_at',
   ];
 
+  const PENDING = 'pending';
+  const APPROVED = 'approved';
+  const REJECTED = 'rejected';
+  
   /**
    * Get the per diem request this approval belongs to
    */

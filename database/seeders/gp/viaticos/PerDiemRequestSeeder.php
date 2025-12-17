@@ -359,6 +359,7 @@ class PerDiemRequestSeeder extends Seeder
         ['code' => $requestData['code']],
         array_merge($defaults, $requestData, [
           'company_id' => $company->id,
+          'per_diem_policy_id' => $currentPolicy->id,
           'final_result' => '',
         ])
       );

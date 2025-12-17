@@ -4,8 +4,8 @@ namespace App\Http\Controllers\gp\gestionhumana\viaticos;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\viaticos\ApprovePerDiemRequestRequest;
-use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemApprovalResource;
 use App\Http\Services\gp\gestionhumana\viaticos\PerDiemApprovalService;
+use Exception;
 use Illuminate\Http\Request;
 
 class PerDiemApprovalController extends Controller
@@ -23,18 +23,10 @@ class PerDiemApprovalController extends Controller
   public function pending()
   {
     try {
-      $approverId = auth()->id();
-      $approvals = $this->service->getPendingApprovals($approverId);
-
-      return response()->json([
-        'success' => true,
-        'data' => PerDiemApprovalResource::collection($approvals)
-      ], 200);
-    } catch (\Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 400);
+      $approverId = auth()->user()->partner_id;
+      return $this->service->getPendingApprovals($approverId);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
     }
   }
 
@@ -46,19 +38,9 @@ class PerDiemApprovalController extends Controller
     try {
       $approverId = auth()->id();
       $comments = $request->input('comments');
-
-      $approval = $this->service->approve($id, $approverId, $comments);
-
-      return response()->json([
-        'success' => true,
-        'data' => new PerDiemApprovalResource($approval),
-        'message' => 'Solicitud aprobada exitosamente'
-      ], 200);
-    } catch (\Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 400);
+      return $this->success($this->service->approve($id, $approverId, $comments));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
     }
   }
 
@@ -70,19 +52,9 @@ class PerDiemApprovalController extends Controller
     try {
       $approverId = auth()->id();
       $comments = $request->input('comments');
-
-      $approval = $this->service->reject($id, $approverId, $comments);
-
-      return response()->json([
-        'success' => true,
-        'data' => new PerDiemApprovalResource($approval),
-        'message' => 'Solicitud rechazada exitosamente'
-      ], 200);
-    } catch (\Exception $e) {
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 400);
+      return $this->success($this->service->reject($id, $approverId, $comments));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
     }
   }
 }

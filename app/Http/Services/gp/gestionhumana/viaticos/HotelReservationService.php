@@ -53,42 +53,11 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
    */
   public function store(mixed $data)
   {
-    $reservation = HotelReservation::create($data);
-    return new HotelReservationResource($reservation->load(['request', 'hotelAgreement']));
-  }
-
-  /**
-   * Update a hotel reservation
-   */
-  public function update(mixed $data)
-  {
-    $reservation = $this->find($data['id']);
-    $reservation->update($data);
-    return new HotelReservationResource($reservation->fresh(['request', 'hotelAgreement']));
-  }
-
-  /**
-   * Delete a hotel reservation
-   */
-  public function destroy($id)
-  {
-    $reservation = $this->find($id);
-    DB::transaction(function () use ($reservation) {
-      $reservation->delete();
-    });
-    return response()->json(['message' => 'Reserva de hotel eliminada correctamente']);
-  }
-
-  /**
-   * Create a new hotel reservation for a per diem request
-   */
-  public function create(int $requestId, array $data): HotelReservation
-  {
     try {
       DB::beginTransaction();
 
       // Validate that the request exists
-      $perDiemRequest = PerDiemRequest::findOrFail($requestId);
+      $perDiemRequest = PerDiemRequest::findOrFail($data['per_diem_request_id']);
 
       // Check if request already has a reservation
       if ($perDiemRequest->hotelReservation()->exists()) {
@@ -102,7 +71,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
 
       // Prepare reservation data
       $reservationData = [
-        'per_diem_request_id' => $requestId,
+        'per_diem_request_id' => $data['per_diem_request_id'],
         'hotel_agreement_id' => $data['hotel_agreement_id'] ?? null,
         'hotel_name' => $data['hotel_name'],
         'address' => $data['address'] ?? null,
@@ -119,7 +88,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
       $reservation = HotelReservation::create($reservationData);
 
       DB::commit();
-      return $reservation->fresh(['request', 'hotelAgreement']);
+      return new HotelReservationResource($reservation->fresh(['request', 'hotelAgreement']));
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -129,12 +98,12 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
   /**
    * Update a hotel reservation
    */
-  public function updateReservation(int $reservationId, array $data): HotelReservation
+  public function update(mixed $data)
   {
     try {
       DB::beginTransaction();
 
-      $reservation = $this->find($reservationId);
+      $reservation = $this->find($data['id']);
 
       // Only allow updates if not attended or if explicitly allowed
       if ($reservation->attended && !isset($data['force_update'])) {
@@ -152,7 +121,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
       $reservation->update($data);
 
       DB::commit();
-      return $reservation->fresh(['request', 'hotelAgreement']);
+      return new HotelReservationResource($reservation->fresh(['request', 'hotelAgreement']));
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -162,26 +131,20 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
   /**
    * Delete a hotel reservation
    */
-  public function delete(int $reservationId): bool
+  public function destroy($id)
   {
-    try {
-      DB::beginTransaction();
+    $reservation = $this->find($id);
 
-      $reservation = $this->find($reservationId);
-
-      // Only allow deletion if not attended
-      if ($reservation->attended) {
-        throw new Exception('No se puede eliminar una reserva que ya fue atendida');
-      }
-
-      $reservation->delete();
-
-      DB::commit();
-      return true;
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
+    // Only allow deletion if not attended
+    if ($reservation->attended) {
+      throw new Exception('No se puede eliminar una reserva que ya fue atendida');
     }
+
+    DB::transaction(function () use ($reservation) {
+      $reservation->delete();
+    });
+
+    return response()->json(['message' => 'Reserva de hotel eliminada correctamente']);
   }
 
   /**

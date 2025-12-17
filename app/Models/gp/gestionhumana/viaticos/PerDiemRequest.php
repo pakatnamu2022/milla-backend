@@ -3,6 +3,7 @@
 namespace App\Models\gp\gestionhumana\viaticos;
 
 use App\Models\BaseModel;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -93,7 +94,7 @@ class PerDiemRequest extends BaseModel
    */
   public function employee(): BelongsTo
   {
-    return $this->belongsTo(User::class, 'employee_id');
+    return $this->belongsTo(Worker::class, 'employee_id');
   }
 
   /**
@@ -101,7 +102,7 @@ class PerDiemRequest extends BaseModel
    */
   public function company(): BelongsTo
   {
-    return $this->belongsTo(Company::class);
+    return $this->belongsTo(Company::class, 'company_id');
   }
 
   /**

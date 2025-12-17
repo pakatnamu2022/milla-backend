@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\gp\gestionhumana\viaticos;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\gp\gestionhumana\viaticos\IndexHotelReservationRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\StoreHotelReservationRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\UpdateHotelReservationRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\MarkAttendedHotelReservationRequest;
@@ -20,16 +21,29 @@ class HotelReservationController extends Controller
   }
 
   /**
+   * Display a listing of hotel reservations
+   */
+  public function index(IndexHotelReservationRequest $request)
+  {
+    try {
+      return $this->service->list($request);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
    * Store a newly created hotel reservation
    */
   public function store(int $requestId, StoreHotelReservationRequest $request)
   {
     try {
       $data = $request->validated();
-      $reservation = $this->service->create($requestId, $data);
+      $data['per_diem_request_id'] = $requestId;
+      $reservation = $this->service->store($data);
 
       return $this->success([
-        'data' => new HotelReservationResource($reservation),
+        'data' => $reservation,
         'message' => 'Reserva de hotel creada exitosamente'
       ]);
     } catch (Throwable $th) {
@@ -44,10 +58,11 @@ class HotelReservationController extends Controller
   {
     try {
       $data = $request->validated();
-      $reservation = $this->service->update($reservationId, $data);
+      $data['id'] = $reservationId;
+      $reservation = $this->service->update($data);
 
       return $this->success([
-        'data' => new HotelReservationResource($reservation),
+        'data' => $reservation,
         'message' => 'Reserva de hotel actualizada exitosamente'
       ]);
     } catch (Throwable $th) {
@@ -61,11 +76,7 @@ class HotelReservationController extends Controller
   public function destroy(int $reservationId)
   {
     try {
-      $this->service->delete($reservationId);
-
-      return $this->success([
-        'message' => 'Reserva de hotel eliminada exitosamente'
-      ]);
+      return $this->service->destroy($reservationId);
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
