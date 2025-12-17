@@ -25,7 +25,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      PerDiemRequest::with(['employee', 'company', 'category', 'policy', 'budgets.expenseType']),
+      PerDiemRequest::class,
       $request,
       PerDiemRequest::filters,
       PerDiemRequest::sorts,
@@ -50,16 +50,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
    */
   public function show($id)
   {
-    return new PerDiemRequestResource($this->find($id)->load([
-      'employee',
-      'company',
-      'category',
-      'policy',
-      'budgets.expenseType',
-      'approvals.approver',
-      'hotelReservation',
-      'expenses'
-    ]));
+    return new PerDiemRequestResource($this->find($id));
   }
 
   /**

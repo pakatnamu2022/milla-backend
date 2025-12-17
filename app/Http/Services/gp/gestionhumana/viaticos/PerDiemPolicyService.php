@@ -15,32 +15,33 @@ use Exception;
 
 class PerDiemPolicyService extends BaseService implements BaseServiceInterface
 {
-    protected DigitalFileService $digitalFileService;
+  protected DigitalFileService $digitalFileService;
 
-    // Configuración de rutas para archivos
-    private const FILE_PATHS = [
-        'document' => '/gh/viaticos/politicas/',
-    ];
+  // Configuración de rutas para archivos
+  private const FILE_PATHS = [
+    'document' => '/gh/viaticos/politicas/',
+  ];
 
-    public function __construct(DigitalFileService $digitalFileService)
-    {
-        $this->digitalFileService = $digitalFileService;
-    }
-    public function list(Request $request)
-    {
-        return $this->getFilteredResults(
-            PerDiemPolicy::query(),
-            $request,
-            PerDiemPolicy::filters ?? ['search' => ['name'], 'is_current' => '='],
-            PerDiemPolicy::sorts ?? ['effective_from', 'name'],
-            PerDiemPolicyResource::class,
-        );
-    }
+  public function __construct(DigitalFileService $digitalFileService)
+  {
+    $this->digitalFileService = $digitalFileService;
+  }
 
-    public function show(int $id): ?PerDiemPolicy
-    {
-        return PerDiemPolicy::find($id);
-    }
+  public function list(Request $request)
+  {
+    return $this->getFilteredResults(
+      PerDiemPolicy::query(),
+      $request,
+      PerDiemPolicy::filters ?? ['search' => ['name'], 'is_current' => '='],
+      PerDiemPolicy::sorts ?? ['effective_from', 'name'],
+      PerDiemPolicyResource::class,
+    );
+  }
+
+  public function show(int $id)
+  {
+    return new PerDiemPolicyResource($this->find($id));
+  }
 
   public function find($id)
   {
@@ -51,134 +52,134 @@ class PerDiemPolicyService extends BaseService implements BaseServiceInterface
     return $perDiemCategory;
   }
 
-    public function store(mixed $data): PerDiemPolicy
-    {
-        try {
-            DB::beginTransaction();
+  public function store(mixed $data): PerDiemPolicy
+  {
+    try {
+      DB::beginTransaction();
 
-            // Extraer archivo del array de datos
-            $files = $this->extractFiles($data);
+      // Extraer archivo del array de datos
+      $files = $this->extractFiles($data);
 
-            // Asignar created_by si no está presente
-            if (!isset($data['created_by'])) {
-                $data['created_by'] = auth()->id();
-            }
+      // Asignar created_by si no está presente
+      if (!isset($data['created_by'])) {
+        $data['created_by'] = auth()->id();
+      }
 
-            // Crear la política sin el archivo
-            $policy = PerDiemPolicy::create($data);
+      // Crear la política sin el archivo
+      $policy = PerDiemPolicy::create($data);
 
-            // Subir archivo y actualizar URL
-            if (!empty($files)) {
-                $this->uploadAndAttachFiles($policy, $files);
-            }
+      // Subir archivo y actualizar URL
+      if (!empty($files)) {
+        $this->uploadAndAttachFiles($policy, $files);
+      }
 
-            DB::commit();
-            return $policy;
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+      DB::commit();
+      return $policy;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  public function update(mixed $data): PerDiemPolicy
+  {
+    try {
+      DB::beginTransaction();
+
+      $policy = $this->find($data['id']);
+
+      // Extraer archivo del array de datos
+      $files = $this->extractFiles($data);
+
+      // Actualizar datos de la política
+      $policy->update($data);
+
+      // Si hay nuevo archivo, subirlo y actualizar URL
+      if (!empty($files)) {
+        // Eliminar archivo anterior si existe
+        $this->deleteAttachedFiles($policy);
+
+        // Subir nuevo archivo
+        $this->uploadAndAttachFiles($policy, $files);
+      }
+
+      DB::commit();
+      return $policy->fresh();
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  public function destroy(int $id): bool
+  {
+    $policy = PerDiemPolicy::findOrFail($id);
+
+    if ($policy->is_current) {
+      throw new Exception('No se puede eliminar la política activa.');
     }
 
-    public function update(mixed $data): PerDiemPolicy
-    {
-        try {
-            DB::beginTransaction();
-
-            $policy = $this->find($data['id']);
-
-            // Extraer archivo del array de datos
-            $files = $this->extractFiles($data);
-
-            // Actualizar datos de la política
-            $policy->update($data);
-
-            // Si hay nuevo archivo, subirlo y actualizar URL
-            if (!empty($files)) {
-                // Eliminar archivo anterior si existe
-                $this->deleteAttachedFiles($policy);
-
-                // Subir nuevo archivo
-                $this->uploadAndAttachFiles($policy, $files);
-            }
-
-            DB::commit();
-            return $policy->fresh();
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+    if ($policy->perDiemRequests()->exists()) {
+      throw new Exception('No se puede eliminar la política porque tiene solicitudes asociadas.');
     }
 
-    public function destroy(int $id): bool
-    {
-        $policy = PerDiemPolicy::findOrFail($id);
+    return DB::transaction(function () use ($policy) {
+      // Eliminar archivos asociados si existen
+      $this->deleteAttachedFiles($policy);
 
-        if ($policy->is_current) {
-            throw new Exception('No se puede eliminar la política activa.');
-        }
+      // Eliminar la política
+      return $policy->delete();
+    });
+  }
 
-        if ($policy->perDiemRequests()->exists()) {
-            throw new Exception('No se puede eliminar la política porque tiene solicitudes asociadas.');
-        }
+  /**
+   * Extrae los archivos del array de datos
+   */
+  private function extractFiles(array &$data): array
+  {
+    $files = [];
 
-        return DB::transaction(function () use ($policy) {
-            // Eliminar archivos asociados si existen
-            $this->deleteAttachedFiles($policy);
-
-            // Eliminar la política
-            return $policy->delete();
-        });
+    foreach (array_keys(self::FILE_PATHS) as $field) {
+      if (isset($data[$field]) && $data[$field] instanceof UploadedFile) {
+        $files[$field] = $data[$field];
+        unset($data[$field]); // Remover del array para no guardarlo en la BD
+      }
     }
 
-    /**
-     * Extrae los archivos del array de datos
-     */
-    private function extractFiles(array &$data): array
-    {
-        $files = [];
+    return $files;
+  }
 
-        foreach (array_keys(self::FILE_PATHS) as $field) {
-            if (isset($data[$field]) && $data[$field] instanceof UploadedFile) {
-                $files[$field] = $data[$field];
-                unset($data[$field]); // Remover del array para no guardarlo en la BD
-            }
-        }
+  /**
+   * Sube archivos y actualiza el modelo con las URLs
+   */
+  private function uploadAndAttachFiles(PerDiemPolicy $policy, array $files): void
+  {
+    foreach ($files as $field => $file) {
+      $path = self::FILE_PATHS[$field];
+      $model = $policy->getTable();
 
-        return $files;
+      // Subir archivo usando DigitalFileService
+      $digitalFile = $this->digitalFileService->store($file, $path, 'public', $model);
+
+      // Actualizar el campo del policy con la URL
+      $policy->document_path = $digitalFile->url;
     }
 
-    /**
-     * Sube archivos y actualiza el modelo con las URLs
-     */
-    private function uploadAndAttachFiles(PerDiemPolicy $policy, array $files): void
-    {
-        foreach ($files as $field => $file) {
-            $path = self::FILE_PATHS[$field];
-            $model = $policy->getTable();
+    $policy->save();
+  }
 
-            // Subir archivo usando DigitalFileService
-            $digitalFile = $this->digitalFileService->store($file, $path, 'public', $model);
+  /**
+   * Elimina archivos asociados al modelo
+   */
+  private function deleteAttachedFiles(PerDiemPolicy $policy): void
+  {
+    if ($policy->document_path) {
+      // Buscar el archivo digital asociado y eliminarlo
+      $digitalFile = DigitalFile::where('url', $policy->document_path)->first();
 
-            // Actualizar el campo del policy con la URL
-            $policy->document_path = $digitalFile->url;
-        }
-
-        $policy->save();
+      if ($digitalFile) {
+        $this->digitalFileService->destroy($digitalFile->id);
+      }
     }
-
-    /**
-     * Elimina archivos asociados al modelo
-     */
-    private function deleteAttachedFiles(PerDiemPolicy $policy): void
-    {
-        if ($policy->document_path) {
-            // Buscar el archivo digital asociado y eliminarlo
-            $digitalFile = DigitalFile::where('url', $policy->document_path)->first();
-
-            if ($digitalFile) {
-                $this->digitalFileService->destroy($digitalFile->id);
-            }
-        }
-    }
+  }
 }
