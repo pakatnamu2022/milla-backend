@@ -15,7 +15,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class WorkerService extends BaseService
 {
@@ -30,16 +29,16 @@ class WorkerService extends BaseService
     );
   }
 
-  public function find(int $id)
+  public function find(string $id)
   {
     $worker = Worker::find($id);
     if (!$worker) {
-      throw new \Exception("Trabajador no encontrado");
+      throw new Exception("Trabajador no encontrado");
     }
     return $worker;
   }
 
-  public function show(int $id)
+  public function show(string $id)
   {
     $worker = $this->find($id);
     return new WorkerResource($worker);

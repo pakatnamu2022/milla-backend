@@ -1275,8 +1275,8 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       $data = [
         'EmpresaId' => Company::AP_DYNAMICS,
         'TransferenciaId' => $transferId,
-        'FechaEmision' => $shippingGuide->received_date->format('Y-m-d'),
-        'FechaContable' => $shippingGuide->received_date->format('Y-m-d'),
+        'FechaEmision' => $shippingGuide->issue_date?->format('Y-m-d') ?? throw new Exception("La fecha de emisión es obligatoria."),
+        'FechaContable' => $shippingGuide->issue_date->format('Y-m-d') ?? throw new Exception("La fecha contable es obligatoria."),
         'Procesar' => 1,
         'ProcesoEstado' => 0,
         'ProcesoError' => '',

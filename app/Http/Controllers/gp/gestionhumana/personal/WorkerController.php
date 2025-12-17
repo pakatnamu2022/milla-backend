@@ -35,7 +35,7 @@ class WorkerController extends Controller
     }
   }
 
-  public function show(int $id)
+  public function show(string $id)
   {
     try {
       return $this->success($this->service->show($id));

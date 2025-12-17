@@ -30,6 +30,11 @@ class ApFamilies extends Model
     'description',
   ];
 
+  public function models()
+  {
+    return $this->hasMany(ApModelsVn::class, 'family_id');
+  }
+
   public function brand()
   {
     return $this->belongsTo(ApVehicleBrand::class, 'brand_id');

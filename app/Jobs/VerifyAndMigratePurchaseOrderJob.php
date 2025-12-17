@@ -14,6 +14,7 @@ use App\Models\gp\gestionsistema\Company;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
 {
@@ -108,9 +109,13 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
   {
     $supplier = $purchaseOrder->supplier;
 
+    Log::info('Verificando proveedor para OC: ' . $purchaseOrder->number);
+
     if (!$supplier) {
       return;
     }
+
+    Log::info('Proveedor encontrado: ' . $supplier->num_doc);
 
     // Obtener o crear log para el proveedor
     $supplierLog = $this->getOrCreateLog(
@@ -120,6 +125,8 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       $supplier->num_doc
     );
 
+    Log::info('Log de proveedor obtenido: ' . $supplierLog->id);
+
     $supplierAddressLog = $this->getOrCreateLog(
       $purchaseOrder->id,
       VehiclePurchaseOrderMigrationLog::STEP_SUPPLIER_ADDRESS,
@@ -127,11 +134,16 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       $supplier->num_doc
     );
 
+    Log::info('Log de dirección de proveedor obtenido: ' . $supplierAddressLog->id);
+
     // Si ya está completado, no hacer nada
     if ($supplierLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED &&
       $supplierAddressLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+      Log::info('Proveedor y dirección ya están completados en el log');
       return;
     }
+
+    Log::info('Verificando existencia del proveedor en la BD intermedia');
 
     // Verificar en la BD intermedia
     $existingSupplier = DB::connection('dbtp')
@@ -140,26 +152,41 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       ->where('NumeroDocumento', $supplier->num_doc)
       ->first();
 
+    Log::info('Existencia del proveedor: ' . ($existingSupplier ? 'Sí' : 'No'));
+
     if (!$existingSupplier) {
+      Log::info('Proveedor no existe en la BD intermedia, intentando sincronizar');
       // No existe, intentar sincronizar
       try {
+        Log::info('Iniciando sincronización del proveedor: ' . $supplier->num_doc);
         $supplierLog->markAsInProgress();
-        $syncService->sync('business_partners_ap_supplier', $supplier->toArray(), 'create');
+        Log::info('Datos del proveedor a sincronizar: ' . json_encode($supplier->toArray()));
+        $syncService->sync('business_partners_ap_supplier', $supplier->toArray());
+        Log::info('Sincronización del proveedor completada: ' . $supplier->num_doc);
         $supplierLog->updateProcesoEstado(0);
 
+        Log::info('Iniciando sincronización de la dirección del proveedor: ' . $supplier->num_doc);
+
         $supplierAddressLog->markAsInProgress();
-        $syncService->sync('business_partners_directions_ap_supplier', $supplier->toArray(), 'create');
+        Log::info('Datos de la dirección del proveedor a sincronizar: ' . json_encode($supplier->toArray()));
+        $syncService->sync('business_partners_directions_ap_supplier', $supplier->toArray());
+        Log::info('Sincronización de la dirección del proveedor completada: ' . $supplier->num_doc);
         $supplierAddressLog->updateProcesoEstado(0);
+        Log::info('Proveedor y dirección sincronizados correctamente');
 
       } catch (\Exception $e) {
+        Log::error('Error al sincronizar proveedor: ' . $e->getMessage());
         $supplierLog->markAsFailed("Error al sincronizar proveedor: {$e->getMessage()}");
       }
     } else {
+      Log::info('Proveedor ya existe en la BD intermedia, actualizando estado del log');
       // Existe, actualizar el estado del log
       $supplierLog->updateProcesoEstado(
         $existingSupplier->ProcesoEstado ?? 0,
         $existingSupplier->ProcesoError ?? null
       );
+
+      Log::info('Verificando existencia de la dirección del proveedor en la BD intermedia');
 
       // Verificar dirección
       $existingAddress = DB::connection('dbtp')
@@ -167,6 +194,8 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         ->where('EmpresaId', Company::AP_DYNAMICS)
         ->where('Proveedor', $supplier->num_doc)
         ->first();
+
+      Log::info('Existencia de la dirección del proveedor: ' . ($existingAddress ? 'Sí' : 'No'));
 
       if ($existingAddress) {
         $supplierAddressLog->updateProcesoEstado(
