@@ -10,6 +10,8 @@ class RequestBudget extends BaseModel
 {
   use SoftDeletes;
 
+  protected $table = 'gh_request_budget';
+
   protected $fillable = [
     'per_diem_request_id',
     'expense_type_id',
@@ -21,6 +23,18 @@ class RequestBudget extends BaseModel
   protected $casts = [
     'daily_amount' => 'decimal:2',
     'total' => 'decimal:2',
+  ];
+
+  const filters = [
+    'per_diem_request_id' => '=',
+    'expense_type_id' => '=',
+  ];
+
+  const sorts = [
+    'expense_type_id',
+    'total',
+    'daily_amount',
+    'days',
   ];
 
   /**

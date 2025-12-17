@@ -18,8 +18,8 @@ class PerDiemRatesSeeder extends Seeder
   public function run()
   {
     $currentPolicy = PerDiemPolicy::current()->first();
-    $managers = PerDiemCategory::where('name', 'Managers')->first();
-    $others = PerDiemCategory::where('name', 'Other Employees')->first();
+    $managers = PerDiemCategory::where('name', 'Gerentes')->first();
+    $others = PerDiemCategory::where('name', 'Colaboradores')->first();
 
     $meals = ExpenseType::where('code', 'meals')->first();
     $accommodation = ExpenseType::where('code', 'accommodation')->first();

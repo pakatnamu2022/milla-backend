@@ -10,14 +10,19 @@ class HotelAgreement extends BaseModel
 {
   use SoftDeletes;
 
+  protected $table = 'gh_hotel_agreement';
+
   protected $fillable = [
     'city',
     'name',
     'corporate_rate',
     'features',
     'includes_breakfast',
+    'includes_lunch',
+    'includes_dinner',
     'includes_parking',
-    'contact',
+    'email',
+    'phone',
     'address',
     'website',
     'active',
@@ -26,8 +31,27 @@ class HotelAgreement extends BaseModel
   protected $casts = [
     'corporate_rate' => 'decimal:2',
     'includes_breakfast' => 'boolean',
+    'includes_lunch' => 'boolean',
+    'includes_dinner' => 'boolean',
     'includes_parking' => 'boolean',
     'active' => 'boolean',
+  ];
+
+  const filters = [
+    'search' => ['name', 'city', 'email', 'phone'],
+    'city' => '=',
+    'active' => '=',
+    'includes_breakfast' => '=',
+    'includes_lunch' => '=',
+    'includes_dinner' => '=',
+    'includes_parking' => '=',
+  ];
+
+  const sorts = [
+    'name',
+    'city',
+    'corporate_rate',
+    'active',
   ];
 
   /**

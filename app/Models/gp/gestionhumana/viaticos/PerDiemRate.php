@@ -12,6 +12,8 @@ class PerDiemRate extends BaseModel
 {
   use SoftDeletes;
 
+  protected $table = 'gh_per_diem_rate';
+
   protected $fillable = [
     'per_diem_policy_id',
     'district_id',
@@ -24,6 +26,21 @@ class PerDiemRate extends BaseModel
   protected $casts = [
     'daily_amount' => 'decimal:2',
     'active' => 'boolean',
+  ];
+
+  const filters = [
+    'per_diem_policy_id' => '=',
+    'district_id' => '=',
+    'per_diem_category_id' => '=',
+    'expense_type_id' => '=',
+    'active' => '=',
+  ];
+
+  const sorts = [
+    'daily_amount',
+    'district_id',
+    'per_diem_category_id',
+    'active',
   ];
 
   /**

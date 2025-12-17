@@ -11,6 +11,8 @@ class ExpenseType extends BaseModel
 {
   use SoftDeletes;
 
+  protected $table = 'gh_expense_type';
+
   protected $fillable = [
     'parent_id',
     'code',
@@ -24,6 +26,20 @@ class ExpenseType extends BaseModel
   protected $casts = [
     'requires_receipt' => 'boolean',
     'active' => 'boolean',
+  ];
+
+  const filters = [
+    'search' => ['name', 'description', 'code'],
+    'active' => '=',
+    'parent_id' => '=',
+    'requires_receipt' => '=',
+  ];
+
+  const sorts = [
+    'name',
+    'code',
+    'order',
+    'active',
   ];
 
   /**

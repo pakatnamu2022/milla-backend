@@ -11,6 +11,8 @@ class PerDiemApproval extends BaseModel
 {
   use SoftDeletes;
 
+  protected $table = 'gh_per_diem_approval';
+
   protected $fillable = [
     'per_diem_request_id',
     'approver_id',
