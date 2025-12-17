@@ -26,6 +26,20 @@ class PerDiemApproval extends BaseModel
     'approved_at' => 'datetime',
   ];
 
+  const filters = [
+    'per_diem_request_id' => '=',
+    'approver_id' => '=',
+    'approver_type' => '=',
+    'status' => '=',
+  ];
+
+  const sorts = [
+    'status',
+    'approver_type',
+    'approved_at',
+    'created_at',
+  ];
+
   /**
    * Get the per diem request this approval belongs to
    */

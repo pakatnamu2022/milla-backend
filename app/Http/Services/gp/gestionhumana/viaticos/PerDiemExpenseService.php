@@ -5,7 +5,6 @@ namespace App\Http\Services\gp\gestionhumana\viaticos;
 use App\Models\gp\gestionhumana\viaticos\PerDiemExpense;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\DB;
 use Exception;
 
 class PerDiemExpenseService

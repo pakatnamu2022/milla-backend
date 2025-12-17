@@ -5,12 +5,12 @@ namespace App\Http\Controllers\gp\gestionhumana\viaticos;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\viaticos\ApprovePerDiemRequestRequest;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemApprovalResource;
-use App\Services\gp\gestionhumana\viaticos\PerDiemApprovalService;
+use App\Http\Services\gp\gestionhumana\viaticos\PerDiemApprovalService;
 use Illuminate\Http\Request;
 
 class PerDiemApprovalController extends Controller
 {
-  protected $service;
+  protected PerDiemApprovalService $service;
 
   public function __construct(PerDiemApprovalService $service)
   {
