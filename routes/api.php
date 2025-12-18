@@ -3,6 +3,7 @@
 use App\Http\Controllers\ap\ApCommercialMastersController;
 use App\Http\Controllers\ap\ApPostVentaMastersController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
+use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
@@ -893,6 +894,16 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('vehiclesDelivery/{id}/query-from-nubefact', [ApVehicleDeliveryController::class, 'queryFromNubefact']);
       Route::post('vehiclesDelivery/{id}/send-to-dynamic', [ApVehicleDeliveryController::class, 'sendToDynamic']);
       Route::apiResource('vehiclesDelivery', ApVehicleDeliveryController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Exhibition Vehicles
+      Route::get('exhibitionVehicles/export', [ApExhibitionVehiclesController::class, 'export']);
+      Route::apiResource('exhibitionVehicles', ApExhibitionVehiclesController::class)->only([
         'index',
         'show',
         'store',
