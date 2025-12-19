@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\VehiclesResource;
+use App\Http\Resources\ap\compras\PurchaseOrderResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
@@ -496,7 +497,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
     return response()->json([
       'vehicle' => VehiclesResource::make($vehicle),
-      'purchase_order' => new \App\Http\Resources\ap\compras\PurchaseOrderResource($purchaseOrder),
+      'purchase_order' => new PurchaseOrderResource($purchaseOrder),
     ]);
   }
 }

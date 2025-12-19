@@ -886,8 +886,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Daily Delivery Report
       Route::get('reports/daily-delivery', [ApDailyDeliveryReportController::class, 'index']);
       Route::get('reports/daily-delivery/export', [ApDailyDeliveryReportController::class, 'export']);
-//      Route::get('vehicles/{id}/pending-anticipos', [VehiclesController::class, 'getPendingAnticipos']);
-//      Route::post('vehicles/{id}/regularize-anticipos', [VehiclesController::class, 'regularizeAnticipos']);
 
       // Vehicles Delivery
       Route::post('vehiclesDelivery/{id}/generate-shipping-guide', [ApVehicleDeliveryController::class, 'generateShippingGuide']);
