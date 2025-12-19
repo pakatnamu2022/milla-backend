@@ -24,7 +24,7 @@ class WorkOrderResource extends JsonResource
       ] : null,
       'vehicle_plate' => $this->vehicle_plate,
       'vehicle_vin' => $this->vehicle_vin,
-      'mileage' => $this->vehicleInspection ? $this->vehicleInspection->mileage : null,
+      'mileage' => $this->vehicleInspection->mileage ?? null,
       'status_id' => $this->status_id,
       'status_name' => $this->status ? $this->status->description : null,
       'advisor_id' => $this->advisor_id,

@@ -24,6 +24,7 @@ class ApWorkOrderPlanning extends Model
     'actual_end_datetime',
     'status',
     'type',
+    'group_number',
     'worker_id',
     'work_order_id',
   ];
