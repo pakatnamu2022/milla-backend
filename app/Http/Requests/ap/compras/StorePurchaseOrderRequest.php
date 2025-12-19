@@ -77,6 +77,8 @@ class StorePurchaseOrderRequest extends StoreRequest
 
       'payment_terms' => ['nullable', 'string', 'max:100'],
 
+      'notes' => ['nullable', 'string', 'max:1000'],
+
       // Items de la Orden de Compra
       'items' => ['required', 'array', 'min:1'],
       'items.*.unit_measurement_id' => ['nullable', 'integer', Rule::exists('unit_measurement', 'id')->where('status', 1)->whereNull('deleted_at')],

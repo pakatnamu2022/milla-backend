@@ -44,6 +44,8 @@ class WorkOrderResource extends JsonResource
       'tax_amount' => (float)$this->tax_amount,
       'final_amount' => (float)$this->final_amount,
       'is_invoiced' => (bool)$this->is_invoiced,
+      'is_guarantee' => (bool)$this->is_guarantee,
+      'is_recall' => (bool)$this->is_recall,
       'created_by' => $this->created_by,
       'creator_name' => $this->creator ? $this->creator->name : null,
       'is_inspection_completed' => !!$this->vehicleInspection,

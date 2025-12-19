@@ -42,6 +42,8 @@ class ApWorkOrder extends Model
     'tax_amount',
     'final_amount',
     'is_invoiced',
+    'is_guarantee',
+    'is_recall',
     'created_by',
   ];
 
@@ -51,6 +53,8 @@ class ApWorkOrder extends Model
     'actual_delivery_date' => 'datetime',
     'diagnosis_date' => 'datetime',
     'is_invoiced' => 'boolean',
+    'is_guarantee' => 'boolean',
+    'is_recall' => 'boolean',
     'total_labor_cost' => 'decimal:2',
     'total_parts_cost' => 'decimal:2',
     'subtotal' => 'decimal:2',
@@ -154,6 +158,11 @@ class ApWorkOrder extends Model
   public function items(): HasMany
   {
     return $this->hasMany(ApWorkOrderItem::class, 'work_order_id');
+  }
+
+  public function plannings(): HasMany
+  {
+    return $this->hasMany(ApWorkOrderPlanning::class, 'work_order_id');
   }
 
   public function vehicleInspection(): HasOne

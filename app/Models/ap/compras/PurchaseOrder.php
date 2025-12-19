@@ -54,6 +54,7 @@ class PurchaseOrder extends BaseModel
     'type_operation_id',
     'migrated_at',
     'payment_terms',
+    'notes',
   ];
 
   protected $casts = [

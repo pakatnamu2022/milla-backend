@@ -145,6 +145,15 @@ class ImportProducts extends Command
             'status' => 'ACTIVE',
             'current_stock' => 0,
             'minimum_stock' => 0,
+            // Configuración de almacén por defecto
+            'warehouses' => [
+              [
+                'warehouse_id' => 164,
+                'initial_quantity' => 0,
+                'minimum_stock' => 1,
+                'maximum_stock' => 10,
+              ]
+            ],
           ];
 
           // Llamar al servicio para guardar el producto
