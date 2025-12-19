@@ -160,4 +160,19 @@ class VehiclesController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Get the purchase order associated with a vehicle
+   *
+   * @param int $id
+   * @return JsonResponse
+   */
+  public function getPurchaseOrder(int $id): JsonResponse
+  {
+    try {
+      return $this->service->getPurchaseOrder($id);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

@@ -17,6 +17,7 @@ class ApBank extends BaseModel
 
   protected $fillable = [
     'code',
+    'description',
     'account_number',
     'cci',
     'bank_id',
