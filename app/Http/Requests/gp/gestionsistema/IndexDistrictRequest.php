@@ -9,7 +9,7 @@ class IndexDistrictRequest extends IndexRequest
   public function rules(): array
   {
     return [
-      //
+      'all' => 'string|in:true,false',
     ];
   }
 }
