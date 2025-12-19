@@ -55,6 +55,8 @@ use App\Http\Controllers\ap\postventa\taller\ApWorkOrderAssignOperatorController
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderPartsController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderItemController;
+use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningController;
+use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningSessionController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Dashboard\ap\comercial\DashboardComercialController;
@@ -1057,6 +1059,22 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'store',
         'destroy'
       ]);
+
+      // Work Order Planning - Planificación de Órdenes de Trabajo
+      Route::apiResource('workOrderPlanning', WorkOrderPlanningController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Work Order Planning Sessions - Sesiones de Trabajo (Acciones rápidas)
+      Route::post('workOrderPlanning/{id}/start', [WorkOrderPlanningSessionController::class, 'start']);
+      Route::post('workOrderPlanning/{id}/pause', [WorkOrderPlanningSessionController::class, 'pause']);
+      Route::post('workOrderPlanning/{id}/complete', [WorkOrderPlanningSessionController::class, 'complete']);
+      Route::get('workOrderPlanning/{id}/status', [WorkOrderPlanningSessionController::class, 'status']);
+      Route::get('workOrderPlanning/{id}/sessions', [WorkOrderPlanningSessionController::class, 'sessions']);
     });
 
     //      FACTURACIÓN ELECTRÓNICA

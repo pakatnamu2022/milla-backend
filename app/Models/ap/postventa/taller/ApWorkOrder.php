@@ -160,6 +160,11 @@ class ApWorkOrder extends Model
     return $this->hasMany(ApWorkOrderItem::class, 'work_order_id');
   }
 
+  public function plannings(): HasMany
+  {
+    return $this->hasMany(ApWorkOrderPlanning::class, 'work_order_id');
+  }
+
   public function vehicleInspection(): HasOne
   {
     return $this->hasOne(ApVehicleInspection::class, 'work_order_id');
