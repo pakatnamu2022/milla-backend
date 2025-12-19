@@ -3,6 +3,7 @@
 use App\Http\Controllers\ap\ApCommercialMastersController;
 use App\Http\Controllers\ap\ApPostVentaMastersController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
+use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
@@ -80,7 +81,6 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonDetailContr
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonResultController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailController;
-use App\Http\Controllers\gp\gestionhumana\personal\PersonController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\ExpenseTypeController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\HotelAgreementController;
@@ -262,14 +262,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       //    PERSONAL MAIN
       Route::group(['prefix' => 'personal'], function () {
         //PERSON
-        Route::get('person/birthdays', [PersonController::class, 'birthdays'])->name('person.birthdays');
-        Route::apiResource('person', PersonController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+        Route::get('worker/birthdays', [WorkerController::class, 'birthdays'])->name('person.birthdays');
 
         //    WORKER
         Route::get('worker-without-categories-and-objectives', [WorkerController::class, 'getWorkersWithoutCategoriesAndObjectives']);
@@ -882,6 +875,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('vehicles/costs', [VehiclesController::class, 'getCostsData']);
       Route::get('vehicles/{id}/invoices', [VehiclesController::class, 'getInvoices']);
       Route::get('vehicles/{id}/client-debt-info', [VehiclesController::class, 'getVehicleClientDebtInfo']);
+      Route::get('vehicles/{id}/purchase-order', [VehiclesController::class, 'getPurchaseOrder']);
       Route::apiResource('vehicles', VehiclesController::class)->only([
         'index',
         'show',
@@ -902,6 +896,16 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('vehiclesDelivery/{id}/query-from-nubefact', [ApVehicleDeliveryController::class, 'queryFromNubefact']);
       Route::post('vehiclesDelivery/{id}/send-to-dynamic', [ApVehicleDeliveryController::class, 'sendToDynamic']);
       Route::apiResource('vehiclesDelivery', ApVehicleDeliveryController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Exhibition Vehicles
+      Route::get('exhibitionVehicles/export', [ApExhibitionVehiclesController::class, 'export']);
+      Route::apiResource('exhibitionVehicles', ApExhibitionVehiclesController::class)->only([
         'index',
         'show',
         'store',

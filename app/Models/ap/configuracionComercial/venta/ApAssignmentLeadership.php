@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\configuracionComercial\venta;
 
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -38,11 +38,11 @@ class ApAssignmentLeadership extends Model
   
   public function boss()
   {
-    return $this->belongsTo(Person::class, 'boss_id');
+    return $this->belongsTo(Worker::class, 'boss_id');
   }
 
   public function worker()
   {
-    return $this->belongsTo(Person::class, 'worker_id');
+    return $this->belongsTo(Worker::class, 'worker_id');
   }
 }

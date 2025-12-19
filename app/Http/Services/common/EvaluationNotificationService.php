@@ -4,7 +4,7 @@ namespace App\Http\Services\common;
 
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Http\Services\common\EmailService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -61,7 +61,7 @@ class EvaluationNotificationService
     $leadersWithPending = $this->getLeadersWithPendingEvaluations($evaluation);
 
     foreach ($leadersWithPending as $leaderId => $pendingData) {
-      $leader = Person::find($leaderId);
+      $leader = Worker::find($leaderId);
 
       if (!$leader || !$leader->email) {
         continue;
@@ -92,7 +92,7 @@ class EvaluationNotificationService
    */
   private function getLeadersWithPendingEvaluations(Evaluation $evaluation): array
   {
-    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluation->id)
+    $evaluationPersons = EvaluationWorker::where('evaluation_id', $evaluation->id)
       ->with(['person'])
       ->get();
 
@@ -265,7 +265,7 @@ class EvaluationNotificationService
       }
 
       foreach ($leaders as $leaderId => $leaderData) {
-        $leader = Person::find($leaderId);
+        $leader = Worker::find($leaderId);
 
         if (!$leader || !$leader->email) {
           continue;
@@ -307,7 +307,7 @@ class EvaluationNotificationService
    */
   private function getLeadersForEvaluation(Evaluation $evaluation): array
   {
-    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluation->id)
+    $evaluationPersons = EvaluationWorker::where('evaluation_id', $evaluation->id)
       ->with(['person', 'person.position', 'person.area'])
       ->get();
 
@@ -449,7 +449,7 @@ class EvaluationNotificationService
       }
 
       foreach ($leaders as $leaderId => $leaderData) {
-        $leader = Person::find($leaderId);
+        $leader = Worker::find($leaderId);
 
         if (!$leader || !$leader->email) {
           continue;
@@ -492,7 +492,7 @@ class EvaluationNotificationService
    */
   private function calculateTeamSummary(Evaluation $evaluation, int $leaderId): array
   {
-    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluation->id)
+    $evaluationPersons = EvaluationWorker::where('evaluation_id', $evaluation->id)
       ->where('chief_id', $leaderId)
       ->with('person')
       ->get();

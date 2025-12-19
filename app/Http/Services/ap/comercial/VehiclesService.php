@@ -463,4 +463,40 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'notas_debito' => $notasDebito,
     ]);
   }
+
+  /**
+   * Obtiene la orden de compra asociada a un vehículo
+   * @param int $vehicleId
+   * @return \Illuminate\Http\JsonResponse
+   * @throws Exception
+   */
+  public function getPurchaseOrder(int $vehicleId)
+  {
+    $vehicle = $this->find($vehicleId);
+
+    // Obtener la orden de compra con sus relaciones
+    $purchaseOrder = $vehicle->purchaseOrder()
+      ->with([
+        'supplier',
+        'currency',
+        'warehouse',
+        'warehouse.articleClass',
+        'supplierOrderType',
+        'sede',
+        'items',
+        'items.product',
+        'items.unitMeasurement',
+        'vehicleMovement',
+      ])
+      ->first();
+
+    if (!$purchaseOrder) {
+      throw new Exception('Este vehículo no tiene una orden de compra asociada');
+    }
+
+    return response()->json([
+      'vehicle' => VehiclesResource::make($vehicle),
+      'purchase_order' => new \App\Http\Resources\ap\compras\PurchaseOrderResource($purchaseOrder),
+    ]);
+  }
 }

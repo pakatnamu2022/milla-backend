@@ -3,6 +3,8 @@
 namespace App\Http\Requests\ap\comercial;
 
 use App\Http\Requests\IndexRequest;
+use App\Models\ap\comercial\PotentialBuyers;
+use Illuminate\Validation\Rule;
 
 class IndexPotentialBuyersRequest extends IndexRequest
 {
@@ -17,7 +19,11 @@ class IndexPotentialBuyersRequest extends IndexRequest
       'per_page' => 'nullable|integer|min:1|max:100',
       'all' => 'nullable|in:true,false',
       'page' => 'nullable|integer|min:1',
-      'sort' => 'nullable|string|in:id,registration_date,full_name,num_doc,sede_id,vehicle_brand_id',
+      'sort' => [
+        'nullable',
+        'string',
+        Rule::in(PotentialBuyers::sorts)
+      ]
     ];
   }
 }

@@ -199,6 +199,11 @@ class Vehicles extends Model
     return $this->belongsTo(ApVehicleDelivery::class, 'id', 'vehicle_id');
   }
 
+  public function exhibitionVehicle(): HasOne
+  {
+    return $this->hasOne(ApExhibitionVehicles::class, 'vehicle_id');
+  }
+
   /**
    * Obtiene todos los documentos electrónicos (facturas, boletas, etc.) a través de los movimientos del vehículo
    * Un vehículo puede tener múltiples movimientos y cada movimiento puede tener documentos electrónicos

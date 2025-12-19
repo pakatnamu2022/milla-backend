@@ -30,14 +30,9 @@ class ApDailyDeliveryReportController extends Controller
     try {
       $fechaInicio = $request->input('fecha_inicio');
       $fechaFin = $request->input('fecha_fin');
-      $report = $this->service->generate($fechaInicio, $fechaFin);
-
-      return response()->json($report, 200);
+      return $this->success($this->service->generate($fechaInicio, $fechaFin));
     } catch (\Exception $e) {
-      return response()->json([
-        'message' => 'Error al generar el reporte',
-        'error' => $e->getMessage(),
-      ], 500);
+      return $this->error($e->getMessage());
     }
   }
 

@@ -13,7 +13,7 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Position;
 use Exception;
 use Illuminate\Http\Request;
@@ -63,7 +63,7 @@ class EvaluationCycleService extends BaseService implements BaseServiceInterface
       ->get()
       ->pluck('person_id')
       ->toArray();
-    $persons = Person::whereIn('id', $personsInCycle)->get();
+    $persons = Worker::whereIn('id', $personsInCycle)->get();
     return WorkerResource::collection($persons);
   }
 

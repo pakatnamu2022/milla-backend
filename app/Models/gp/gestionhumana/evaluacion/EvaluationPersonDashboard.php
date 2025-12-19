@@ -2,7 +2,7 @@
 
 namespace App\Models\gp\gestionhumana\evaluacion;
 
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Database\Eloquent\Model;
 
 class EvaluationPersonDashboard extends Model
@@ -56,7 +56,7 @@ class EvaluationPersonDashboard extends Model
 
   public function person()
   {
-    return $this->belongsTo(Person::class, 'person_id');
+    return $this->belongsTo(Worker::class, 'person_id');
   }
 
   public function resetStats()

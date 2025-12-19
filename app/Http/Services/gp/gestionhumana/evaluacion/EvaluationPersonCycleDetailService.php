@@ -10,7 +10,7 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -59,7 +59,7 @@ class EvaluationPersonCycleDetailService extends BaseService
     $lastCycle = EvaluationCycle::where('id', $cycleId)->orderBy('id', 'desc')->first();
     $category = HierarchicalCategory::find($categoryId);
     $positions = $category->children()->pluck('position_id')->toArray();
-    $persons = Person::whereIn('cargo_id', $positions)
+    $persons = Worker::whereIn('cargo_id', $positions)
       ->where('fecha_inicio', '<=', $lastCycle->cut_off_date) // activos en la fecha de corte
       ->where('status_deleted', 1)
       ->where('status_id', 22)
@@ -73,7 +73,7 @@ class EvaluationPersonCycleDetailService extends BaseService
 
       if (!$exists) {
         $evaluatorId = $person->supervisor_id ?? $person->jefe_id;
-        $chief = Person::find($evaluatorId);
+        $chief = Worker::find($evaluatorId);
         $objectives = $category->objectives()->get();
 
         foreach ($objectives as $objective) {
@@ -189,7 +189,7 @@ class EvaluationPersonCycleDetailService extends BaseService
       $removedCount = 0;
 
       foreach ($existingPersonDetails->groupBy('person_id') as $personId => $personDetails) {
-        $person = Person::find($personId);
+        $person = Worker::find($personId);
 
         if (!$person) {
           // Persona no existe: eliminar todos sus detalles
@@ -305,7 +305,7 @@ class EvaluationPersonCycleDetailService extends BaseService
    */
   private function createPersonObjectiveDetail($person, $cycle, $category, $objective, $allObjectives)
   {
-    $chief = Person::find($person->supervisor_id ?? $person->jefe_id);
+    $chief = Worker::find($person->supervisor_id ?? $person->jefe_id);
 
     if (!$chief) {
       throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $category->name . ' no tiene un evaluador asignado.');
@@ -377,7 +377,7 @@ class EvaluationPersonCycleDetailService extends BaseService
    */
   private function updatePersonBasicInfo($detail, $person, $category)
   {
-    $chief = Person::find($person->supervisor_id ?? $person->jefe_id);
+    $chief = Worker::find($person->supervisor_id ?? $person->jefe_id);
     if (!$chief) {
       throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $category->name . ' no tiene un evaluador asignado.');
     }

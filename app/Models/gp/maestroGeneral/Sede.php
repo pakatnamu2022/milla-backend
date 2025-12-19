@@ -8,7 +8,7 @@ use App\Models\gp\gestionsistema\Area;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\gestionsistema\Department;
 use App\Models\gp\gestionsistema\District;
-use App\Models\gp\gestionsistema\Person;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Province;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -109,7 +109,7 @@ class Sede extends BaseModel
 
   public function workers(): BelongsToMany
   {
-    return $this->belongsToMany(Person::class, 'ap_assign_company_branch_period', 'sede_id', 'worker_id')
+    return $this->belongsToMany(Worker::class, 'ap_assign_company_branch_period', 'sede_id', 'worker_id')
       ->withTimestamps();
   }
 
