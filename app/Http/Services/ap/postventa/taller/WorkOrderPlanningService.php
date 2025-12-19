@@ -39,6 +39,9 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
 
   public function store(mixed $data)
   {
+    // Establecer valor por defecto para type si no se envía
+    $data['type'] = $data['type'] ?? 'internal';
+
     // Si no se proporciona planned_end_datetime pero sí estimated_hours, calcularlo
     if (!isset($data['planned_end_datetime']) && isset($data['estimated_hours'])) {
       $startDatetime = $data['planned_start_datetime'];

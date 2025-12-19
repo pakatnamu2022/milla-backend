@@ -34,6 +34,10 @@ class StoreWorkOrderPlanningRequest extends StoreRequest
         'required',
         'date',
       ],
+      'type' => [
+        'nullable',
+        'in:internal,external',
+      ],
     ];
   }
 
@@ -55,6 +59,8 @@ class StoreWorkOrderPlanningRequest extends StoreRequest
 
       'planned_start_datetime.required' => 'La fecha y hora de inicio planificada es obligatoria.',
       'planned_start_datetime.date' => 'La fecha de inicio planificada debe ser una fecha válida.',
+
+      'type.in' => 'El tipo de planificación debe ser interno o externo.',
     ];
   }
 }
