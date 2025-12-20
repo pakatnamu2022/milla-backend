@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\ap\postventa\taller;
 
-use App\Http\Requests\UpdateRequest;
+use App\Http\Requests\StoreRequest;
 
-class UpdateWorkOrderPlanningRequest extends UpdateRequest
+class UpdateWorkOrderPlanningRequest extends StoreRequest
 {
   public function rules(): array
   {
@@ -35,6 +35,15 @@ class UpdateWorkOrderPlanningRequest extends UpdateRequest
         'sometimes',
         'in:planned,in_progress,completed,canceled',
       ],
+      'type' => [
+        'nullable',
+        'in:internal,external',
+      ],
+      'group_number' => [
+        'required',
+        'integer',
+        'min:1',
+      ],
     ];
   }
 
@@ -48,6 +57,10 @@ class UpdateWorkOrderPlanningRequest extends UpdateRequest
       'planned_end_datetime.date' => 'La fecha de fin planificada debe ser una fecha válida.',
       'planned_end_datetime.after' => 'La fecha de fin debe ser posterior a la fecha de inicio.',
       'status.in' => 'El estado debe ser: planned, in_progress, completed o canceled.',
+      'type.in' => 'El tipo debe ser: internal o external.',
+      'group_number.required' => 'El número de grupo es obligatorio.',
+      'group_number.integer' => 'El número de grupo debe ser un entero.',
+      'group_number.min' => 'El número de grupo debe ser al menos 1.',
     ];
   }
 }

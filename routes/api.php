@@ -1073,6 +1073,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Work Order Planning - Planificación de Órdenes de Trabajo
+      // Consolidado por grupo (debe ir antes del apiResource para evitar conflictos)
+      Route::get('workOrderPlanning/consolidated/{workOrderId}', [WorkOrderPlanningController::class, 'consolidated']);
+
       Route::apiResource('workOrderPlanning', WorkOrderPlanningController::class)->only([
         'index',
         'show',

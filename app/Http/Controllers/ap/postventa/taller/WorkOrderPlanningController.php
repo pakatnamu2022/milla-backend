@@ -63,4 +63,13 @@ class WorkOrderPlanningController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function consolidated($workOrderId)
+  {
+    try {
+      return $this->success($this->service->consolidated($workOrderId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

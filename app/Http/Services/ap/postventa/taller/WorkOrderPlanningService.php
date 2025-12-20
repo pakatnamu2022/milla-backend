@@ -76,4 +76,86 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     $planning->delete();
     return response()->json(['message' => 'Planificación eliminada correctamente']);
   }
+
+  public function consolidated($workOrderId)
+  {
+    // Obtener todos los registros de planificación para la orden de trabajo
+    $plannings = ApWorkOrderPlanning::with(['worker'])
+      ->where('work_order_id', $workOrderId)
+      ->get();
+
+    if ($plannings->isEmpty()) {
+      return [];
+    }
+
+    // Agrupar por group_number y description
+    $grouped = $plannings->groupBy(function ($item) {
+      return $item->group_number . '|' . $item->description;
+    });
+
+    $consolidated = [];
+
+    foreach ($grouped as $key => $items) {
+      [$groupNumber, $description] = explode('|', $key);
+
+      // Calcular totales
+      $totalEstimatedHours = $items->sum('estimated_hours');
+      $totalActualHours = $items->sum('actual_hours');
+
+      // Calcular porcentaje de progreso
+      $progressPercentage = $totalEstimatedHours > 0
+        ? round(($totalActualHours / $totalEstimatedHours) * 100, 2)
+        : 0;
+
+      // Determinar estado general del grupo
+      $statuses = $items->pluck('status')->unique();
+      $groupStatus = $this->determineGroupStatus($statuses);
+
+      // Obtener información de trabajadores
+      $workers = $items->map(function ($item) {
+        return [
+          'worker_id' => $item->worker_id,
+          'worker_name' => $item->worker ? $item->worker->nombre_completo : 'N/A',
+          'estimated_hours' => $item->estimated_hours,
+          'actual_hours' => $item->actual_hours,
+          'status' => $item->status,
+          'planned_start_datetime' => $item->planned_start_datetime,
+          'planned_end_datetime' => $item->planned_end_datetime,
+          'actual_start_datetime' => $item->actual_start_datetime,
+          'actual_end_datetime' => $item->actual_end_datetime,
+        ];
+      })->values();
+
+      $consolidated[] = [
+        'group_number' => $groupNumber,
+        'description' => $description,
+        'total_estimated_hours' => round($totalEstimatedHours, 2),
+        'total_actual_hours' => round($totalActualHours, 2),
+        'remaining_hours' => round($totalEstimatedHours - $totalActualHours, 2),
+        'progress_percentage' => $progressPercentage,
+        'status' => $groupStatus,
+        'workers_count' => $items->count(),
+        'workers' => $workers,
+      ];
+    }
+
+    return $consolidated;
+  }
+
+  private function determineGroupStatus($statuses)
+  {
+    if ($statuses->contains('in_progress')) {
+      return 'in_progress';
+    }
+
+    if ($statuses->every(fn($status) => $status === 'completed')) {
+      return 'completed';
+    }
+
+    if ($statuses->contains('paused')) {
+      return 'paused';
+    }
+
+    return 'pending';
+  }
 }
