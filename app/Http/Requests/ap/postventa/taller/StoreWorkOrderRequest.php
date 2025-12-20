@@ -99,6 +99,16 @@ class StoreWorkOrderRequest extends StoreRequest
         'nullable',
         'boolean',
       ],
+      'description_recall' => [
+        'nullable',
+        'string',
+        'max:500',
+      ],
+      'type_recall' => [
+        'nullable',
+        'string',
+        'max:50',
+      ],
 
       // Items
       'items' => [

@@ -44,6 +44,8 @@ class ApWorkOrder extends Model
     'is_invoiced',
     'is_guarantee',
     'is_recall',
+    'description_recall',
+    'type_recall',
     'created_by',
   ];
 
