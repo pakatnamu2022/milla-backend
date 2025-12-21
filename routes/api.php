@@ -1169,9 +1169,11 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::group(['prefix' => 'gp/gestion-humana/viaticos'], function () {
     // Per Diem Requests
     Route::get('per-diem-requests/my-requests', [PerDiemRequestController::class, 'myRequests']);
+    Route::get('per-diem-requests/pending-approvals', [PerDiemRequestController::class, 'pendingApprovals']);
     Route::get('per-diem-requests/overdue', [PerDiemRequestController::class, 'overdue']);
     Route::get('per-diem-requests/rates', [PerDiemRequestController::class, 'rates']);
     Route::post('per-diem-requests/{id}/submit', [PerDiemRequestController::class, 'submit']);
+    Route::post('per-diem-requests/{id}/review', [PerDiemRequestController::class, 'review']);
     Route::post('per-diem-requests/{id}/mark-paid', [PerDiemRequestController::class, 'markAsPaid']);
     Route::post('per-diem-requests/{id}/start-settlement', [PerDiemRequestController::class, 'startSettlement']);
     Route::post('per-diem-requests/{id}/complete-settlement', [PerDiemRequestController::class, 'completeSettlement']);

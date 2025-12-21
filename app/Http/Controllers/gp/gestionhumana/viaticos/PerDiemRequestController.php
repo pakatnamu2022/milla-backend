@@ -7,6 +7,7 @@ use App\Http\Requests\gp\gestionhumana\viaticos\IndexPerDiemRatesRequestRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\IndexPerDiemRequestRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\StorePerDiemRequestRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\UpdatePerDiemRequestRequest;
+use App\Http\Requests\gp\gestionhumana\viaticos\ReviewPerDiemRequestRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\MarkPaidPerDiemRequestRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\StartSettlementPerDiemRequestRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\CompleteSettlementPerDiemRequestRequest;
@@ -48,6 +49,18 @@ class PerDiemRequestController extends Controller
       $request->merge(['employee_id' => $partnerId]);
 
       return $this->service->list($request);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Display pending approval requests for the logged-in user (as approver/manager)
+   */
+  public function pendingApprovals()
+  {
+    try {
+      return $this->service->getPendingApprovals();
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
@@ -208,6 +221,28 @@ class PerDiemRequestController extends Controller
       return $this->success([
         'data' => new PerDiemRequestResource($perDiemRequest),
         'message' => 'Liquidación completada exitosamente'
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Review (approve or reject) per diem request
+   */
+  public function review(ReviewPerDiemRequestRequest $request, int $id)
+  {
+    try {
+      $data = $request->validated();
+      $approval = $this->service->review($id, $data);
+
+      $message = $data['status'] === 'approved'
+        ? 'Solicitud aprobada exitosamente'
+        : 'Solicitud rechazada exitosamente';
+
+      return $this->success([
+        'data' => $approval,
+        'message' => $message
       ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());

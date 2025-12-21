@@ -3,6 +3,7 @@
 namespace App\Models\gp\gestionhumana\viaticos;
 
 use App\Models\BaseModel;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -16,7 +17,6 @@ class PerDiemApproval extends BaseModel
   protected $fillable = [
     'per_diem_request_id',
     'approver_id',
-    'approver_type',
     'status',
     'comments',
     'approved_at',
@@ -29,13 +29,11 @@ class PerDiemApproval extends BaseModel
   const filters = [
     'per_diem_request_id' => '=',
     'approver_id' => '=',
-    'approver_type' => '=',
     'status' => '=',
   ];
 
   const sorts = [
     'status',
-    'approver_type',
     'approved_at',
     'created_at',
   ];
@@ -43,7 +41,7 @@ class PerDiemApproval extends BaseModel
   const PENDING = 'pending';
   const APPROVED = 'approved';
   const REJECTED = 'rejected';
-  
+
   /**
    * Get the per diem request this approval belongs to
    */
@@ -57,7 +55,7 @@ class PerDiemApproval extends BaseModel
    */
   public function approver(): BelongsTo
   {
-    return $this->belongsTo(User::class, 'approver_id');
+    return $this->belongsTo(Worker::class, 'approver_id');
   }
 
   /**
@@ -74,13 +72,5 @@ class PerDiemApproval extends BaseModel
   public function scopeByApprover($query, int $approverId)
   {
     return $query->where('approver_id', $approverId);
-  }
-
-  /**
-   * Scope to filter approvals by type
-   */
-  public function scopeByType($query, string $type)
-  {
-    return $query->where('approver_type', $type);
   }
 }

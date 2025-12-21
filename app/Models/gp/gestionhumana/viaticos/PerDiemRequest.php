@@ -22,13 +22,13 @@ class PerDiemRequest extends BaseModel
     'per_diem_policy_id',
     'employee_id',
     'company_id',
+    'company_service_id',
     'district_id',
     'per_diem_category_id',
     'start_date',
     'end_date',
     'days_count',
     'purpose',
-    'cost_center',
     'status',
     'total_budget',
     'cash_amount',
@@ -41,6 +41,7 @@ class PerDiemRequest extends BaseModel
     'total_spent',
     'balance_to_return',
     'notes',
+    'final_result',
   ];
 
   protected $casts = [
@@ -62,6 +63,7 @@ class PerDiemRequest extends BaseModel
     'status' => '=',
     'employee_id' => '=',
     'company_id' => '=',
+    'company_service_id' => '=',
     'district_id' => '=',
     'per_diem_category_id' => '=',
     'per_diem_policy_id' => '=',
@@ -79,6 +81,8 @@ class PerDiemRequest extends BaseModel
     'total_budget',
     'employee_id',
     'company_id',
+    'company_service_id',
+    'district_id',
     'created_at',
   ];
 
@@ -104,6 +108,11 @@ class PerDiemRequest extends BaseModel
   public function company(): BelongsTo
   {
     return $this->belongsTo(Company::class, 'company_id');
+  }
+
+  public function companyService(): BelongsTo
+  {
+    return $this->belongsTo(Company::class, 'company_service_id');
   }
 
   /**
