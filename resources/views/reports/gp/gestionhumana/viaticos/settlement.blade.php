@@ -306,7 +306,48 @@
 <!-- Firmas -->
 @php
   $boss = $request['employee']['boss'] ?? null;
-  $approvedApproval = collect($request['approvals'] ?? [])->firstWhere('status', 'approved');
+
+  // Buscar el approval aprobado
+  $approverName = null;
+  $approverPosition = null;
+
+  if (isset($request['approvals'])) {
+    $approvals = $request['approvals'];
+
+    // Debug: ver qué tipo de dato es
+    // dd(['approvals' => $approvals, 'type' => gettype($approvals)]);
+
+    // Convertir a array si es necesario
+    if (is_object($approvals)) {
+      $approvals = json_decode(json_encode($approvals), true);
+    }
+
+    if (is_array($approvals) || is_iterable($approvals)) {
+      foreach ($approvals as $approval) {
+        // Convertir a array si es objeto
+        if (is_object($approval)) {
+          $approval = json_decode(json_encode($approval), true);
+        }
+
+        $status = $approval['status'] ?? null;
+
+        if ($status === 'approved') {
+          $approverData = $approval['approver'] ?? null;
+
+          if ($approverData) {
+            // Convertir a array si es objeto
+            if (is_object($approverData)) {
+              $approverData = json_decode(json_encode($approverData), true);
+            }
+
+            $approverName = $approverData['full_name'] ?? null;
+            $approverPosition = $approverData['position']['name'] ?? null;
+            break;
+          }
+        }
+      }
+    }
+  }
 @endphp
 <table class="signature-section">
   <tr>
@@ -320,7 +361,7 @@
       <div class="dotted-line"></div>
       <div class="label" style="margin-top: 5px;">Responsable</div>
       @if($boss)
-        <div style="margin-top: 3px;">{{ $boss['full_name'] }}</div>
+        <div style="margin-top: 3px;">{{ $boss['full_name'] ?? '' }}</div>
         <div style="margin-top: 3px;">{{ $boss['position']['name'] ?? '' }}</div>
       @else
         <div style="margin-top: 3px;">_______________________</div>
@@ -330,9 +371,9 @@
     <td class="signature-box" style="width: 34%;">
       <div class="dotted-line"></div>
       <div class="label" style="margin-top: 5px;">Autorizado por</div>
-      @if($approvedApproval)
-        <div style="margin-top: 3px;">{{ $approvedApproval['approver']['full_name'] ?? '' }}</div>
-        <div style="margin-top: 3px;">{{ $approvedApproval['approver']['position']['name'] ?? '' }}</div>
+      @if($approverName)
+        <div style="margin-top: 3px;">{{ $approverName }}</div>
+        <div style="margin-top: 3px;">{{ $approverPosition ?? '' }}</div>
       @else
         <div style="margin-top: 3px;">_______________________</div>
         <div style="margin-top: 3px;">Cargo: _________________</div>
