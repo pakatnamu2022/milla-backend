@@ -28,17 +28,6 @@
       padding: 30px;
     }
 
-    .header {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    .company-name {
-      font-size: 14px;
-      font-weight: bold;
-      margin-bottom: 5px;
-    }
-
     .title {
       background-color: #e0e0e0;
       padding: 8px;
@@ -126,11 +115,6 @@
 </head>
 <body>
 
-<!-- Encabezado -->
-<div class="header">
-  <div class="company-name">{{ $request['company']['name'] ?? 'NOMBRE DE LA EMPRESA' }}</div>
-</div>
-
 <!-- Título -->
 <div class="title">LIQUIDACIÓN DE GASTOS</div>
 
@@ -148,6 +132,10 @@
   <tr>
     <td class="label">Cargo del empleado:</td>
     <td colspan="5">{{ $request['employee']['position']['name'] ?? '' }}</td>
+  </tr>
+  <tr>
+    <td class="label">Empresa de servicio:</td>
+    <td colspan="5">{{ $request['company_service']['name'] ?? '' }}</td>
   </tr>
   <tr>
     <td class="label">Lugar de destino:</td>

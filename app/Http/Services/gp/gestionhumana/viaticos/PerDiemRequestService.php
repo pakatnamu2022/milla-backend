@@ -433,6 +433,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       'employee.boss.position',
       'employee.position.area',
       'company',
+      'companyService',
       'district',
       'category',
       'policy',
