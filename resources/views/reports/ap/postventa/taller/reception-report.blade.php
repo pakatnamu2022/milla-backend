@@ -295,6 +295,58 @@
     .text-right {
       text-align: right;
     }
+
+    .guarantee-recall-container {
+      display: table;
+      width: 100%;
+      margin-bottom: 5px;
+    }
+
+    .guarantee-recall-box {
+      display: table-cell;
+      width: 50%;
+      padding: 0 5px;
+    }
+
+    .status-box {
+      border: 2px solid #172e66;
+      padding: 8px;
+      background-color: #f9f9f9;
+    }
+
+    .status-box-title {
+      font-weight: bold;
+      font-size: 9px;
+      text-align: center;
+      margin-bottom: 5px;
+      color: #172e66;
+    }
+
+    .status-options {
+      display: table;
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .status-option {
+      display: table-cell;
+      width: 50%;
+      text-align: center;
+      padding: 5px;
+      border: 1.5px solid #000;
+      font-size: 9px;
+      font-weight: bold;
+    }
+
+    .status-option.checked {
+      background-color: #d0d0d0;
+    }
+
+    .status-option.checked::after {
+      content: " X";
+      color: #000;
+      font-size: 11px;
+    }
   </style>
 </head>
 <body>
@@ -319,6 +371,29 @@
 
 <!-- Sección: Información de la Orden de Trabajo -->
 <div class="section-title">INFORMACIÓN DE LA ORDEN DE TRABAJO</div>
+
+<!-- Cuadros de Garantía y Recall -->
+<div class="guarantee-recall-container">
+  <div class="guarantee-recall-box">
+    <div class="status-box">
+      <div class="status-box-title">VEHÍCULO EN GARANTÍA</div>
+      <div class="status-options">
+        <div class="status-option {{ $isGuarantee ? 'checked' : '' }}">SI</div>
+        <div class="status-option {{ !$isGuarantee ? 'checked' : '' }}">NO</div>
+      </div>
+    </div>
+  </div>
+  <div class="guarantee-recall-box">
+    <div class="status-box">
+      <div class="status-box-title">VEHÍCULO EN RECALL</div>
+      <div class="status-options">
+        <div class="status-option {{ $isRecall ? 'checked' : '' }}">SI</div>
+        <div class="status-option {{ !$isRecall ? 'checked' : '' }}">NO</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <table class="data-table">
   <tr>
     <td class="label-cell">Número OT:</td>

@@ -56,6 +56,8 @@ use App\Http\Controllers\ap\postventa\taller\ApWorkOrderAssignOperatorController
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderPartsController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderItemController;
+use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningController;
+use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningSessionController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Dashboard\ap\comercial\DashboardComercialController;
@@ -139,6 +141,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::group(['prefix' => 'configuration'], function () {
     //        USERS
     Route::get('user/{user}/complete', [UserController::class, 'showComplete'])->name('user.showComplete');
+    Route::get('user/my-companies', [UserController::class, 'getMyCompanies'])->name('user.my-companies');
     Route::apiResource('user', UserController::class)->only([
       'index',
       'show',
@@ -1066,6 +1069,25 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'store',
         'destroy'
       ]);
+
+      // Work Order Planning - Planificación de Órdenes de Trabajo
+      // Consolidado por grupo (debe ir antes del apiResource para evitar conflictos)
+      Route::get('workOrderPlanning/consolidated/{workOrderId}', [WorkOrderPlanningController::class, 'consolidated']);
+
+      Route::apiResource('workOrderPlanning', WorkOrderPlanningController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Work Order Planning Sessions - Sesiones de Trabajo (Acciones rápidas)
+      Route::post('workOrderPlanning/{id}/start', [WorkOrderPlanningSessionController::class, 'start']);
+      Route::post('workOrderPlanning/{id}/pause', [WorkOrderPlanningSessionController::class, 'pause']);
+      Route::post('workOrderPlanning/{id}/complete', [WorkOrderPlanningSessionController::class, 'complete']);
+      Route::get('workOrderPlanning/{id}/status', [WorkOrderPlanningSessionController::class, 'status']);
+      Route::get('workOrderPlanning/{id}/sessions', [WorkOrderPlanningSessionController::class, 'sessions']);
     });
 
     //      FACTURACIÓN ELECTRÓNICA
@@ -1145,9 +1167,11 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::group(['prefix' => 'gp/gestion-humana/viaticos'], function () {
     // Per Diem Requests
     Route::get('per-diem-requests/my-requests', [PerDiemRequestController::class, 'myRequests']);
+    Route::get('per-diem-requests/pending-approvals', [PerDiemRequestController::class, 'pendingApprovals']);
     Route::get('per-diem-requests/overdue', [PerDiemRequestController::class, 'overdue']);
     Route::get('per-diem-requests/rates', [PerDiemRequestController::class, 'rates']);
     Route::post('per-diem-requests/{id}/submit', [PerDiemRequestController::class, 'submit']);
+    Route::post('per-diem-requests/{id}/review', [PerDiemRequestController::class, 'review']);
     Route::post('per-diem-requests/{id}/mark-paid', [PerDiemRequestController::class, 'markAsPaid']);
     Route::post('per-diem-requests/{id}/start-settlement', [PerDiemRequestController::class, 'startSettlement']);
     Route::post('per-diem-requests/{id}/complete-settlement', [PerDiemRequestController::class, 'completeSettlement']);

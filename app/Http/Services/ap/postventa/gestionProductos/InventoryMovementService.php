@@ -68,7 +68,7 @@ class InventoryMovementService extends BaseService
         'reference_id' => $reception->id,
         'user_id' => Auth::id(),
         'status' => InventoryMovement::STATUS_APPROVED,
-        'notes' => "Ingreso por recepción {$reception->reception_number} de OC {$reception->purchaseOrder->number}",
+        'notes' => "Ingreso por recepción {$reception->reception_number} de {$reception->purchaseOrder->number}",
         'total_items' => 0,
         'total_quantity' => 0,
       ]);
@@ -92,7 +92,7 @@ class InventoryMovementService extends BaseService
             'batch_number' => $detail->batch_number,
             'expiration_date' => $detail->expiration_date,
             'notes' => $detail->reception_type === 'ORDERED'
-              ? "Item de OC - {$detail->product->name}"
+              ? "Item de - {$detail->product->name}"
               : "{$detail->reception_type} - {$detail->product->name}",
           ]);
 

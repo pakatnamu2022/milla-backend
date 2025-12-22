@@ -73,4 +73,13 @@ class UserController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function getMyCompanies()
+  {
+    try {
+      return response()->json($this->service->getMyCompanies());
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

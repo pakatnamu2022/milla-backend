@@ -18,8 +18,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
+    $query = ApWorkOrder::with('items');
     return $this->getFilteredResults(
-      ApWorkOrder::class,
+      $query,
       $request,
       ApWorkOrder::filters,
       ApWorkOrder::sorts,

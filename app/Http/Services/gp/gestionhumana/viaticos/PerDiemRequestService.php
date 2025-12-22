@@ -5,14 +5,13 @@ namespace App\Http\Services\gp\gestionhumana\viaticos;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRequestResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRate;
 use App\Models\gp\gestionhumana\viaticos\PerDiemPolicy;
 use App\Models\gp\gestionhumana\viaticos\PerDiemApproval;
-use App\Models\gp\gestionhumana\viaticos\RequestBudget;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Exception;
@@ -67,6 +66,21 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         throw new Exception('No hay una política de viáticos activa');
       }
 
+      // Set employee_id from authenticated user
+      if (auth()->check()) {
+        $data['employee_id'] = auth()->user()->person->id;
+      }
+
+      // Get employee's position (cargo) to obtain per_diem_category_id
+      $employee = Worker::find($data['employee_id']);
+      if (!$employee || !$employee->position) {
+        throw new Exception('El empleado no tiene un cargo asignado');
+      }
+
+      if (!$employee->position->per_diem_category_id) {
+        throw new Exception('El cargo del empleado no tiene una categoría de viático asignada');
+      }
+
       // Generate unique code
       $perDiemRequest = new PerDiemRequest();
       $code = $perDiemRequest->generateCode();
@@ -80,46 +94,32 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $requestData = [
         'code' => $code,
         'per_diem_policy_id' => $currentPolicy->id,
-        'employee_id' => $data['employee_id'] ?? Auth::id(),
+        'employee_id' => $data['employee_id'],
         'company_id' => $data['company_id'],
-        'destination' => $data['destination'],
-        'per_diem_category_id' => $data['per_diem_category_id'],
+        'company_service_id' => $data['company_service_id'],
+        'district_id' => $data['district_id'],
+        'per_diem_category_id' => $employee->position->per_diem_category_id,
         'start_date' => $data['start_date'],
         'end_date' => $data['end_date'],
         'days_count' => $daysCount,
         'purpose' => $data['purpose'],
-        'cost_center' => $data['cost_center'] ?? null,
-        'status' => 'draft',
+        'status' => 'pending',
         'notes' => $data['notes'] ?? null,
+        'cash_amount' => 0,
+        'transfer_amount' => 0,
+        'total_budget' => 0,
+        'paid' => false,
+        'settled' => false,
+        'total_spent' => 0,
+        'balance_to_return' => 0,
+        'final_result' => "0",
       ];
 
       // Create the request
       $request = PerDiemRequest::create($requestData);
 
-      // Create budget items if provided
-      if (isset($data['budgets']) && is_array($data['budgets'])) {
-        $totalBudget = 0;
-
-        foreach ($data['budgets'] as $budget) {
-          $budgetTotal = $budget['daily_amount'] * $budget['days'];
-
-          RequestBudget::create([
-            'per_diem_request_id' => $request->id,
-            'expense_type_id' => $budget['expense_type_id'],
-            'daily_amount' => $budget['daily_amount'],
-            'days' => $budget['days'],
-            'total' => $budgetTotal,
-          ]);
-
-          $totalBudget += $budgetTotal;
-        }
-
-        // Update total budget
-        $request->update(['total_budget' => $totalBudget]);
-      }
-
       DB::commit();
-      return new PerDiemRequestResource($request->fresh(['employee', 'company', 'category', 'policy', 'budgets.expenseType']));
+      return new PerDiemRequestResource($request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category']));
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -136,9 +136,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       $request = $this->find($data['id']);
 
-      // Only allow updates if status is draft or rejected
-      if (!in_array($request->status, ['draft', 'rejected'])) {
-        throw new Exception('Solo se pueden actualizar solicitudes en estado borrador o rechazadas');
+      // Only allow updates if status is pending or rejected
+      if (!in_array($request->status, ['pending', 'rejected'])) {
+        throw new Exception('Solo se pueden actualizar solicitudes en estado pendiente o rechazadas');
       }
 
       // Calculate days count if dates are updated
@@ -151,33 +151,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       // Update the request
       $request->update($data);
 
-      // Update budget items if provided
-      if (isset($data['budgets']) && is_array($data['budgets'])) {
-        // Delete existing budgets
-        $request->budgets()->delete();
-
-        $totalBudget = 0;
-
-        foreach ($data['budgets'] as $budget) {
-          $budgetTotal = $budget['daily_amount'] * $budget['days'];
-
-          RequestBudget::create([
-            'per_diem_request_id' => $request->id,
-            'expense_type_id' => $budget['expense_type_id'],
-            'daily_amount' => $budget['daily_amount'],
-            'days' => $budget['days'],
-            'total' => $budgetTotal,
-          ]);
-
-          $totalBudget += $budgetTotal;
-        }
-
-        // Update total budget
-        $request->update(['total_budget' => $totalBudget]);
-      }
-
       DB::commit();
-      return new PerDiemRequestResource($request->fresh(['employee', 'company', 'category', 'policy', 'budgets.expenseType']));
+      return new PerDiemRequestResource($request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category']));
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -191,14 +166,13 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   {
     $request = $this->find($id);
 
-    // Only allow deletion if status is draft
-    if ($request->status !== 'draft') {
-      throw new Exception('Solo se pueden eliminar solicitudes en estado borrador');
+    // Only allow deletion if status is pending
+    if ($request->status !== 'pending') {
+      throw new Exception('Solo se pueden eliminar solicitudes en estado pendiente');
     }
 
     DB::transaction(function () use ($request) {
       // Delete related records
-      $request->budgets()->delete();
       $request->approvals()->delete();
 
       // Delete the request
@@ -225,6 +199,28 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   }
 
   /**
+   * Get pending approval requests for the authenticated user (as approver)
+   */
+  public function getPendingApprovals()
+  {
+    $approverId = auth()->user()->person->id;
+
+    // Get all per diem requests where the user has a pending approval
+    $requests = PerDiemRequest::where('status', PerDiemApproval::PENDING)
+      ->with([
+        'employee',
+        'company',
+        'companyService',
+        'district',
+        'policy',
+      ])
+      ->orderBy('created_at', 'desc')
+      ->get();
+
+    return PerDiemRequestResource::collection($requests);
+  }
+
+  /**
    * Get rates for a specific destination and category
    */
   public function getRatesForDestination(int $districtId, int $categoryId): Collection
@@ -243,29 +239,88 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $request = $this->find($id);
 
       // Validate status
-      if (!in_array($request->status, ['draft', 'rejected'])) {
-        throw new Exception('Solo se pueden enviar solicitudes en estado borrador o rechazadas');
+      if (!in_array($request->status, ['pending', 'rejected'])) {
+        throw new Exception('Solo se pueden enviar solicitudes en estado pendiente o rechazadas');
       }
 
-      // Validate that request has budgets
-      if ($request->budgets()->count() === 0) {
-        throw new Exception('La solicitud debe tener al menos un presupuesto');
+      // Create approval record for the employee's manager
+      if ($request->employee->manager_id) {
+        // Check if approval already exists
+        $existingApproval = PerDiemApproval::where('per_diem_request_id', $request->id)
+          ->where('approver_id', $request->employee->manager_id)
+          ->first();
+
+        if (!$existingApproval) {
+          PerDiemApproval::create([
+            'per_diem_request_id' => $request->id,
+            'approver_id' => $request->employee->manager_id,
+            'status' => PerDiemApproval::PENDING,
+          ]);
+        }
       }
-
-      // Update status
-      $request->update(['status' => 'pending_approval']);
-
-      // Create approval records (this can be customized based on approval workflow)
-      // For now, we'll create a basic approval record
-      PerDiemApproval::create([
-        'per_diem_request_id' => $request->id,
-        'approver_id' => $request->employee->manager_id ?? null, // Assuming employee has manager_id
-        'approver_type' => 'manager',
-        'status' => 'pending',
-      ]);
 
       DB::commit();
-      return $request->fresh(['employee', 'company', 'category', 'policy', 'budgets.expenseType', 'approvals.approver']);
+      return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category', 'approvals.approver']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Review (approve or reject) a per diem request
+   */
+  public function review(int $id, array $data): PerDiemApproval
+  {
+    try {
+      DB::beginTransaction();
+
+      $request = $this->find($id);
+      $approverId = auth()->user()->person->id ?? $data['approver_id'];
+
+      // Find the approval record for this approver
+      $approval = $request->approvals()
+        ->where('approver_id', $approverId)
+        ->where('status', PerDiemApproval::PENDING)
+        ->first();
+
+      if (!$approval) {
+        // If no approval exists, create one
+        $approval = PerDiemApproval::create([
+          'per_diem_request_id' => $request->id,
+          'approver_id' => $approverId,
+          'status' => $data['status'],
+          'comments' => $data['comments'] ?? null,
+          'approved_at' => now(),
+        ]);
+      } else {
+        // Update the existing approval
+        $approval->update([
+          'status' => $data['status'],
+          'comments' => $data['comments'] ?? null,
+          'approved_at' => now(),
+        ]);
+      }
+
+      // Update request status based on approval decision
+      if ($data['status'] === PerDiemApproval::REJECTED) {
+        // If rejected by any approver, immediately deny the request
+        $request->update(['status' => 'rejected']);
+      } elseif ($data['status'] === PerDiemApproval::APPROVED) {
+        // Check if all approvals are approved
+        $allApproved = $request->approvals()
+          ->where('status', '!=', PerDiemApproval::APPROVED)
+          ->count() === 0;
+
+        if ($allApproved) {
+          // All approvers approved, update request status to approved
+          $request->update(['status' => 'approved']);
+        }
+        // If not all approved yet, keep status as pending
+      }
+
+      DB::commit();
+      return $approval->fresh(['approver', 'request']);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -294,11 +349,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'payment_method' => $data['payment_method'] ?? null,
         'cash_amount' => $data['cash_amount'] ?? 0,
         'transfer_amount' => $data['transfer_amount'] ?? 0,
-        'status' => 'paid',
       ]);
 
       DB::commit();
-      return $request->fresh(['employee', 'company', 'category', 'policy', 'budgets.expenseType']);
+      return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category']);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -315,18 +369,16 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       $request = $this->find($id);
 
-      // Validate status
-      if (!in_array($request->status, ['paid', 'in_progress'])) {
-        throw new Exception('Solo se puede iniciar liquidación de solicitudes pagadas o en progreso');
+      // Validate status - must be approved and paid
+      if ($request->status !== 'approved' || !$request->paid) {
+        throw new Exception('Solo se puede iniciar liquidación de solicitudes aprobadas y pagadas');
       }
 
-      // Update status
-      $request->update([
-        'status' => 'pending_settlement',
-      ]);
+      // Don't change status, just mark settlement as started
+      // Status remains 'approved'
 
       DB::commit();
-      return $request->fresh(['employee', 'company', 'category', 'policy', 'budgets.expenseType']);
+      return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category']);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -343,9 +395,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       $request = $this->find($id);
 
-      // Validate status
-      if ($request->status !== 'pending_settlement') {
-        throw new Exception('Solo se puede completar la liquidación de solicitudes en estado pendiente de liquidación');
+      // Validate status - must be approved
+      if ($request->status !== 'approved') {
+        throw new Exception('Solo se puede completar la liquidación de solicitudes aprobadas');
       }
 
       // Calculate balance to return
@@ -358,11 +410,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'settlement_date' => $data['settlement_date'] ?? now(),
         'total_spent' => $totalSpent,
         'balance_to_return' => $balanceToReturn > 0 ? $balanceToReturn : 0,
-        'status' => 'settled',
       ]);
 
       DB::commit();
-      return $request->fresh(['employee', 'company', 'category', 'policy', 'budgets.expenseType', 'expenses']);
+      return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category', 'expenses']);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;

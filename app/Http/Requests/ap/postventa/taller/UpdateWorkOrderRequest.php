@@ -121,6 +121,15 @@ class UpdateWorkOrderRequest extends StoreRequest
         'nullable',
         'boolean',
       ],
+      'is_guarantee' => [
+        'nullable',
+        'boolean',
+      ],
+      'is_recall' => [
+        'nullable',
+        'boolean',
+      ],
+      
       // Items
       'items' => [
         'sometimes',

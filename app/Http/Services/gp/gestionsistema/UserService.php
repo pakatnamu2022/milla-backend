@@ -2,9 +2,12 @@
 
 namespace App\Http\Services\gp\gestionsistema;
 
+use App\Http\Resources\gp\gestionsistema\CompanyResource;
 use App\Http\Resources\gp\gestionsistema\UserCompleteResource;
 use App\Http\Resources\gp\gestionsistema\UserResource;
 use App\Http\Services\BaseService;
+use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\gestionsistema\Company;
 use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
@@ -94,5 +97,36 @@ class UserService extends BaseService
       ->groupBy('companies.abbreviation')
       ->orderByDesc('total')
       ->get();
+  }
+
+  public function getMyCompanies()
+  {
+    $user = auth()->user();
+
+    // Verificar que el usuario tenga una persona relacionada con VAT
+    if (!$user->person || !$user->person->vat) {
+      return CompanyResource::collection(collect());
+    }
+
+    $vat = $user->person->vat;
+
+    // Buscar todos los workers con el mismo VAT y status_id = 22 (ACTIVO)
+    $workers = Worker::where('vat', $vat)
+      ->where('status_id', 22)
+      ->where('status_deleted', 1)
+      ->with('sede')
+      ->get();
+
+    // Obtener empresa_id únicos desde las sedes de los workers
+    $companyIds = $workers
+      ->pluck('sede.empresa_id')
+      ->unique()
+      ->filter();
+
+    // Obtener empresas únicas
+    $companies = Company::whereIn('id', $companyIds)
+      ->get();
+
+    return CompanyResource::collection($companies);
   }
 }

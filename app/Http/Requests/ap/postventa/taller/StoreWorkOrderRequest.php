@@ -91,6 +91,25 @@ class StoreWorkOrderRequest extends StoreRequest
         'nullable',
         'boolean',
       ],
+      'is_guarantee' => [
+        'nullable',
+        'boolean',
+      ],
+      'is_recall' => [
+        'nullable',
+        'boolean',
+      ],
+      'description_recall' => [
+        'nullable',
+        'string',
+        'max:500',
+      ],
+      'type_recall' => [
+        'nullable',
+        'string',
+        'max:50',
+      ],
+
       // Items
       'items' => [
         'nullable',
@@ -168,6 +187,8 @@ class StoreWorkOrderRequest extends StoreRequest
       'final_amount.min' => 'El monto final no puede ser negativo.',
 
       'is_invoiced.boolean' => 'El campo facturado debe ser verdadero o falso.',
+      'is_guarantee.boolean' => 'El campo garantía debe ser verdadero o falso.',
+      'is_recall.boolean' => 'El campo recall debe ser verdadero o falso.',
 
       // Items
       'items.array' => 'Los ítems deben ser un arreglo.',
