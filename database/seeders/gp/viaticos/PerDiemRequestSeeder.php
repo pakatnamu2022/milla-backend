@@ -21,10 +21,13 @@ class PerDiemRequestSeeder extends Seeder
     $gerentes = PerDiemCategory::where('name', 'Gerentes')->first();
     $colaboradores = PerDiemCategory::where('name', 'Colaboradores')->first();
 
-    $company = Company::first();
-    $users = Worker::limit(10)->get();
+    // Cargar usuarios con sus relaciones de sede
+    $users = Worker::with('sede')->limit(10)->get();
 
-    if (!$currentPolicy || $users->isEmpty() || !$company) {
+    // Obtener todas las compañías disponibles
+    $companies = Company::all();
+
+    if (!$currentPolicy || $users->isEmpty() || $companies->isEmpty()) {
       return;
     }
 
@@ -340,6 +343,17 @@ class PerDiemRequestSeeder extends Seeder
     ];
 
     foreach ($requests as $index => $requestData) {
+      // Obtener el empleado para esta solicitud
+      $employee = $users->where('id', $requestData['employee_id'])->first();
+
+      // Obtener company_id del empleado según su sede
+      $companyId = $employee && $employee->sede ? $employee->sede->empresa_id : $companies->first()->id;
+
+      // company_service_id: por defecto 3, pero puede ser aleatorio
+      $companyServiceId = 3; // Por defecto
+      // Opcionalmente puedes hacerlo aleatorio descomentando la siguiente línea:
+      // $companyServiceId = $companies->random()->id;
+
       // Asegurar que todos los campos requeridos tengan valor
       $defaults = [
         'cash_amount' => 0,
@@ -357,7 +371,8 @@ class PerDiemRequestSeeder extends Seeder
       PerDiemRequest::firstOrCreate(
         ['code' => $requestData['code']],
         array_merge($defaults, $requestData, [
-          'company_id' => $company->id,
+          'company_id' => $companyId,
+          'company_service_id' => $companyServiceId,
           'per_diem_policy_id' => $currentPolicy->id,
           'final_result' => '',
         ])

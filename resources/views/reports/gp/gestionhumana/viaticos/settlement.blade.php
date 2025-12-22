@@ -173,7 +173,10 @@
   </tr>
 
   @php
-    $conceptGroups = $expensesWithReceipts->groupBy('expense_type.name');
+    // Agrupar gastos por tipo usando una función
+    $conceptGroups = $expensesWithReceipts->groupBy(function($expense) {
+      return $expense['expense_type']['name'] ?? 'Sin categoría';
+    });
   @endphp
 
   @if($conceptGroups->count() > 0)
@@ -231,7 +234,10 @@
   </tr>
 
   @php
-    $conceptGroupsNoReceipt = $expensesWithoutReceipts->groupBy('expense_type.name');
+    // Agrupar gastos sin comprobante por tipo usando una función
+    $conceptGroupsNoReceipt = $expensesWithoutReceipts->groupBy(function($expense) {
+      return $expense['expense_type']['name'] ?? 'Sin categoría';
+    });
   @endphp
 
   @if($conceptGroupsNoReceipt->count() > 0)
