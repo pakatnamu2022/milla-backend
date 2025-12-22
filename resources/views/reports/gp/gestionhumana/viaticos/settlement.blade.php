@@ -9,7 +9,7 @@
     return "data:{$mimeType};base64,{$imageData}";
   }
 @endphp
-<!doctype html>
+  <!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -169,7 +169,7 @@
   </tr>
   <tr>
     <td class="label">Importe otorgado:</td>
-    <td colspan="5" class="highlight">S/. {{ number_format($request['total_budget'] ?? 0, 2) }}</td>
+    <td colspan="5">S/. {{ number_format($request['total_budget'] ?? 0, 2) }}</td>
   </tr>
 </table>
 
@@ -286,7 +286,7 @@
   </tr>
   <tr>
     <td class="label" style="width: 70%;">Importe otorgado para viáticos:</td>
-    <td class="text-right highlight">S/. {{ number_format($request['total_budget'] ?? 0, 2) }}</td>
+    <td class="text-right">S/. {{ number_format($request['total_budget'] ?? 0, 2) }}</td>
   </tr>
   <tr>
     <td class="label">Total general de gastos:</td>
@@ -299,11 +299,15 @@
 </table>
 
 <!-- Nota Importante -->
-<div class="note">
-  Importes referenciales, los documentos originales deben ser enviados adjuntando la transferencia realizada por Tesorería
-</div>
+{{--<div class="note">--}}
+{{--  Importes referenciales, los documentos originales deben ser enviados adjuntando la transferencia realizada por Tesorería--}}
+{{--</div>--}}
 
 <!-- Firmas -->
+@php
+  $boss = $request['employee']['boss'] ?? null;
+  $approvedApproval = collect($request['approvals'] ?? [])->firstWhere('status', 'approved');
+@endphp
 <table class="signature-section">
   <tr>
     <td class="signature-box" style="width: 33%;">
@@ -315,14 +319,24 @@
     <td class="signature-box" style="width: 33%;">
       <div class="dotted-line"></div>
       <div class="label" style="margin-top: 5px;">Responsable</div>
-      <div style="margin-top: 3px;">_______________________</div>
-      <div style="margin-top: 3px;">Cargo: _________________</div>
+      @if($boss)
+        <div style="margin-top: 3px;">{{ $boss['full_name'] }}</div>
+        <div style="margin-top: 3px;">{{ $boss['position']['name'] ?? '' }}</div>
+      @else
+        <div style="margin-top: 3px;">_______________________</div>
+        <div style="margin-top: 3px;">Cargo: _________________</div>
+      @endif
     </td>
     <td class="signature-box" style="width: 34%;">
       <div class="dotted-line"></div>
       <div class="label" style="margin-top: 5px;">Autorizado por</div>
-      <div style="margin-top: 3px;">_______________________</div>
-      <div style="margin-top: 3px;">Cargo: _________________</div>
+      @if($approvedApproval)
+        <div style="margin-top: 3px;">{{ $approvedApproval['approver']['full_name'] ?? '' }}</div>
+        <div style="margin-top: 3px;">{{ $approvedApproval['approver']['position']['name'] ?? '' }}</div>
+      @else
+        <div style="margin-top: 3px;">_______________________</div>
+        <div style="margin-top: 3px;">Cargo: _________________</div>
+      @endif
     </td>
   </tr>
 </table>

@@ -48,10 +48,17 @@ class PerDiemRequestResource extends JsonResource
         'full_name' => $this->employee->nombre_completo,
         'position' => $this->employee->position ? [
           'id' => $this->employee->position->id,
-          'name' => $this->employee->position->descripcion,
+          'name' => $this->employee->position->name,
           'area' => $this->employee->position->area ? [
             'id' => $this->employee->position->area->id,
-            'name' => $this->employee->position->area->descripcion,
+            'name' => $this->employee->position->area->name,
+          ] : null,
+        ] : null,
+        'boss' => $this->employee->boss ? [
+          'id' => $this->employee->boss->id,
+          'full_name' => $this->employee->boss->nombre_completo,
+          'position' => $this->employee->boss->position ? [
+            'name' => $this->employee->boss->position->name,
           ] : null,
         ] : null,
       ] : null,

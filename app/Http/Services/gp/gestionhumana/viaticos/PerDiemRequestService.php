@@ -427,6 +427,19 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   public function generateSettlementPDF($id)
   {
     $perDiemRequest = $this->find($id);
+
+    // Load all necessary relationships
+    $perDiemRequest->load([
+      'employee.boss.position',
+      'employee.position.area',
+      'company',
+      'district',
+      'category',
+      'policy',
+      'approvals.approver.position',
+      'expenses.expenseType',
+    ]);
+
     $dataResource = new PerDiemRequestResource($perDiemRequest);
     $dataArray = $dataResource->resolve();
 
@@ -444,7 +457,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $totalWithoutReceipts = $expensesWithoutReceipts->sum('company_amount');
     $totalGeneral = $totalWithReceipts + $totalWithoutReceipts;
     $saldo = ($dataArray['total_budget'] ?? 0) - $totalGeneral;
-
+    
     $pdf = PDF::loadView('reports.gp.gestionhumana.viaticos.settlement', [
       'request' => $dataArray,
       'expensesWithReceipts' => $expensesWithReceipts,
