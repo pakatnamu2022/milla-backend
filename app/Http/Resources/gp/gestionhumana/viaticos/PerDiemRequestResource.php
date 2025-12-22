@@ -29,7 +29,6 @@ class PerDiemRequestResource extends JsonResource
       'days_count' => $this->days_count,
       'purpose' => $this->purpose,
       'final_result' => $this->final_result,
-      'destination' => $this->district?->name,
       'total_budget' => (float)$this->total_budget,
       'cash_amount' => (float)$this->cash_amount,
       'transfer_amount' => (float)$this->transfer_amount,
@@ -44,8 +43,27 @@ class PerDiemRequestResource extends JsonResource
       'days_without_settlement' => $daysWithoutSettlement,
 
       // Relations
-      'employee' => $this->employee?->nombre_completo,
-      'company' => $this->company?->name,
+      'employee' => $this->employee ? [
+        'id' => $this->employee->id,
+        'full_name' => $this->employee->nombre_completo,
+        'position' => $this->employee->position ? [
+          'id' => $this->employee->position->id,
+          'name' => $this->employee->position->descripcion,
+          'area' => $this->employee->position->area ? [
+            'id' => $this->employee->position->area->id,
+            'name' => $this->employee->position->area->descripcion,
+          ] : null,
+        ] : null,
+      ] : null,
+      'company' => $this->company ? [
+        'id' => $this->company->id,
+        'name' => $this->company->name,
+      ] : null,
+      'district' => $this->district ? [
+        'id' => $this->district->id,
+        'name' => $this->district->name,
+        'zone' => $this->district->zone ?? 'Nacional',
+      ] : null,
       'category' => $this->category ? new PerDiemCategoryResource($this->category) : null,
       'policy' => $this->policy?->name,
       'approvals' => $this->approvals ? PerDiemApprovalResource::collection($this->approvals) : null,

@@ -54,9 +54,9 @@ class PerDiemExpenseService extends BaseService
 
       // Validate that request allows expenses
       if (!in_array($request->status, ['in_progress', 'pending_settlement', 'settled'])) {
-        throw new Exception('Cannot add expenses. Request must be in progress, pending settlement, or settled.');
+        throw new Exception('No se pueden agregar gastos a una solicitud en el estado actual. Asegúrese de que la solicitud esté en progreso o en liquidación.');
       }
-
+      
       // Extraer archivo del array de datos
       $files = $this->extractFiles($data);
 

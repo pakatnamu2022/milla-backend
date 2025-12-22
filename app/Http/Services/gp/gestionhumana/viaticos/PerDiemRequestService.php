@@ -10,6 +10,7 @@ use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRate;
 use App\Models\gp\gestionhumana\viaticos\PerDiemPolicy;
 use App\Models\gp\gestionhumana\viaticos\PerDiemApproval;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
@@ -309,8 +310,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       } elseif ($data['status'] === PerDiemApproval::APPROVED) {
         // Check if all approvals are approved
         $allApproved = $request->approvals()
-          ->where('status', '!=', PerDiemApproval::APPROVED)
-          ->count() === 0;
+            ->where('status', '!=', PerDiemApproval::APPROVED)
+            ->count() === 0;
 
         if ($allApproved) {
           // All approvers approved, update request status to approved
@@ -418,5 +419,51 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       DB::rollBack();
       throw $e;
     }
+  }
+
+  /**
+   * Generate settlement report PDF
+   */
+  public function generateSettlementPDF($id)
+  {
+    $perDiemRequest = $this->find($id);
+    $dataResource = new PerDiemRequestResource($perDiemRequest);
+    $dataArray = $dataResource->resolve();
+
+    // Agrupar gastos por tipo
+    $expensesWithReceipts = collect($dataArray['expenses'] ?? [])->filter(function ($expense) {
+      return $expense['receipt_type'] !== 'no_receipt';
+    });
+
+    $expensesWithoutReceipts = collect($dataArray['expenses'] ?? [])->filter(function ($expense) {
+      return $expense['receipt_type'] === 'no_receipt';
+    });
+
+    // Calcular totales
+    $totalWithReceipts = $expensesWithReceipts->sum('company_amount');
+    $totalWithoutReceipts = $expensesWithoutReceipts->sum('company_amount');
+    $totalGeneral = $totalWithReceipts + $totalWithoutReceipts;
+    $saldo = ($dataArray['total_budget'] ?? 0) - $totalGeneral;
+
+    $pdf = PDF::loadView('reports.gp.gestionhumana.viaticos.settlement', [
+      'request' => $dataArray,
+      'expensesWithReceipts' => $expensesWithReceipts,
+      'expensesWithoutReceipts' => $expensesWithoutReceipts,
+      'totalWithReceipts' => $totalWithReceipts,
+      'totalWithoutReceipts' => $totalWithoutReceipts,
+      'totalGeneral' => $totalGeneral,
+      'saldo' => $saldo,
+    ]);
+
+    $pdf->setOptions([
+      'defaultFont' => 'Arial',
+      'isHtml5ParserEnabled' => true,
+      'isRemoteEnabled' => false,
+      'dpi' => 96,
+    ]);
+
+    $pdf->setPaper('A4', 'portrait');
+
+    return $pdf;
   }
 }
