@@ -39,7 +39,7 @@ class HotelAgreement extends BaseModel
 
   const filters = [
     'search' => ['name', 'city', 'email', 'phone'],
-    'city' => '=',
+    'city' => 'like',
     'active' => '=',
     'includes_breakfast' => '=',
     'includes_lunch' => '=',

@@ -277,17 +277,17 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         throw new Exception('Solo se pueden enviar solicitudes en estado pendiente o rechazadas');
       }
 
-      // Create approval record for the employee's manager
-      if ($request->employee->manager_id) {
+      // Create approval record for the employee's boss
+      if ($request->employee->jefe_id) {
         // Check if approval already exists
         $existingApproval = PerDiemApproval::where('per_diem_request_id', $request->id)
-          ->where('approver_id', $request->employee->manager_id)
+          ->where('approver_id', $request->employee->jefe_id)
           ->first();
 
         if (!$existingApproval) {
           PerDiemApproval::create([
             'per_diem_request_id' => $request->id,
-            'approver_id' => $request->employee->manager_id,
+            'approver_id' => $request->employee->jefe_id,
             'status' => PerDiemApproval::PENDING,
           ]);
         }

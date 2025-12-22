@@ -28,6 +28,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
   {
     $this->digitalFileService = $digitalFileService;
   }
+
   /**
    * Get all hotel reservations with filters and pagination
    */
@@ -281,7 +282,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
   /**
    * Sube archivos y actualiza el modelo con las URLs
    */
-  private function uploadAndAttachFiles(HotelReservation $reservation, array $files): void
+  private function uploadAndAttachFiles(HotelReservation $reservation, $files): void
   {
     foreach ($files as $field => $file) {
       $path = self::FILE_PATHS[$field];
