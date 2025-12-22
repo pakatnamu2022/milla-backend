@@ -332,4 +332,42 @@ class PerDiemExpenseService extends BaseService
       }
     }
   }
+
+  /**
+   * Get remaining budget for a specific expense type on a specific date
+   */
+  public function getRemainingBudget(int $requestId, int $expenseTypeId, string $date): array
+  {
+    // Get the per diem request
+    $request = PerDiemRequest::findOrFail($requestId);
+
+    // Get the budget for this expense type
+    $budget = $request->budgets()
+      ->where('expense_type_id', $expenseTypeId)
+      ->first();
+
+    if (!$budget) {
+      throw new Exception('No se encontró presupuesto para este tipo de gasto en la solicitud.');
+    }
+
+    // Calculate total spent for this expense type on this date (excluding rejected expenses)
+    $totalSpentOnDate = PerDiemExpense::where('per_diem_request_id', $requestId)
+      ->where('expense_type_id', $expenseTypeId)
+      ->whereDate('expense_date', $date)
+      ->where('rejected', false)
+      ->sum('company_amount');
+
+    // Calculate remaining budget for the day
+    $remainingBudget = $budget->daily_amount - $totalSpentOnDate;
+
+    return [
+      'per_diem_request_id' => $requestId,
+      'expense_type_id' => $expenseTypeId,
+      'date' => $date,
+      'daily_amount' => $budget->daily_amount,
+      'total_spent_on_date' => $totalSpentOnDate,
+      'remaining_budget' => max(0, $remainingBudget), // Never return negative
+      'is_over_budget' => $remainingBudget < 0,
+    ];
+  }
 }

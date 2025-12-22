@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\gp\gestionhumana\viaticos;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\gp\gestionhumana\viaticos\GetRemainingBudgetRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\IndexPerDiemExpenseRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\RejectPerDiemExpenseRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\StorePerDiemExpenseRequest;
@@ -114,6 +115,26 @@ class PerDiemExpenseController extends Controller
         'success' => true,
         'data' => new PerDiemExpenseResource($expense),
         'message' => 'Gasto rechazado exitosamente'
+      ], 200);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Get remaining budget for a specific expense type on a specific date
+   */
+  public function getRemainingBudget(int $requestId, GetRemainingBudgetRequest $request)
+  {
+    try {
+      $expenseTypeId = $request->input('expense_type_id');
+      $date = $request->input('date');
+
+      $result = $this->service->getRemainingBudget($requestId, $expenseTypeId, $date);
+
+      return response()->json([
+        'success' => true,
+        'data' => $result
       ], 200);
     } catch (Exception $e) {
       return $this->error($e->getMessage());

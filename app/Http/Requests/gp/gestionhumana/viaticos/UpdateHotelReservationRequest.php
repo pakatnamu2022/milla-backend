@@ -16,7 +16,7 @@ class UpdateHotelReservationRequest extends StoreRequest
       'checkin_date' => ['sometimes', 'required', 'date'],
       'checkout_date' => ['sometimes', 'required', 'date', 'after:checkin_date'],
       'total_cost' => ['sometimes', 'required', 'numeric', 'min:0'],
-      'receipt_path' => ['sometimes', 'nullable', 'string', 'max:500'],
+      'receipt_file' => ['sometimes', 'nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
       'notes' => ['sometimes', 'nullable', 'string'],
       'force_update' => ['sometimes', 'boolean'],
     ];

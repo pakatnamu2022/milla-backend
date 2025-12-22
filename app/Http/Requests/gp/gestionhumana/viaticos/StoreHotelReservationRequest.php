@@ -16,7 +16,7 @@ class StoreHotelReservationRequest extends StoreRequest
       'checkin_date' => ['required', 'date'],
       'checkout_date' => ['required', 'date', 'after:checkin_date'],
       'total_cost' => ['required', 'numeric', 'min:0'],
-      'receipt_path' => ['nullable', 'string', 'max:500'],
+      'receipt_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
       'notes' => ['nullable', 'string'],
     ];
   }
