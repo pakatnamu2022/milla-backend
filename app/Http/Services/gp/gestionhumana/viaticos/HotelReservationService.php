@@ -5,15 +5,30 @@ namespace App\Http\Services\gp\gestionhumana\viaticos;
 use App\Http\Resources\gp\gestionhumana\viaticos\HotelReservationResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Models\gp\gestionhumana\viaticos\HotelReservation;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
+use App\Models\gp\gestionsistema\DigitalFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Carbon\Carbon;
 use Exception;
 
 class HotelReservationService extends BaseService implements BaseServiceInterface
 {
+  protected DigitalFileService $digitalFileService;
+
+  // Configuración de rutas para archivos
+  private const FILE_PATHS = [
+    'receipt_file' => '/gh/viaticos/reservaciones/',
+  ];
+
+  public function __construct(DigitalFileService $digitalFileService)
+  {
+    $this->digitalFileService = $digitalFileService;
+  }
+
   /**
    * Get all hotel reservations with filters and pagination
    */
@@ -64,6 +79,9 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         throw new Exception('La solicitud ya tiene una reserva de hotel asociada');
       }
 
+      // Extraer archivo del array de datos
+      $files = $this->extractFiles($data);
+
       // Calculate nights count
       $checkinDate = Carbon::parse($data['checkin_date']);
       $checkoutDate = Carbon::parse($data['checkout_date']);
@@ -86,6 +104,11 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
 
       // Create the reservation
       $reservation = HotelReservation::create($reservationData);
+
+      // Subir archivo y actualizar URL
+      if (!empty($files)) {
+        $this->uploadAndAttachFiles($reservation, $files);
+      }
 
       DB::commit();
       return new HotelReservationResource($reservation->fresh(['request', 'hotelAgreement']));
@@ -110,6 +133,9 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         throw new Exception('No se puede actualizar una reserva que ya fue atendida');
       }
 
+      // Extraer archivo del array de datos
+      $files = $this->extractFiles($data);
+
       // Calculate nights count if dates are updated
       if (isset($data['checkin_date']) || isset($data['checkout_date'])) {
         $checkinDate = Carbon::parse($data['checkin_date'] ?? $reservation->checkin_date);
@@ -119,6 +145,15 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
 
       // Update the reservation
       $reservation->update($data);
+
+      // Si hay nuevo archivo, subirlo y actualizar URL
+      if (!empty($files)) {
+        // Eliminar archivo anterior si existe
+        $this->deleteAttachedFiles($reservation);
+
+        // Subir nuevo archivo
+        $this->uploadAndAttachFiles($reservation, $files);
+      }
 
       DB::commit();
       return new HotelReservationResource($reservation->fresh(['request', 'hotelAgreement']));
@@ -141,6 +176,9 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
     }
 
     DB::transaction(function () use ($reservation) {
+      // Eliminar archivos asociados si existen
+      $this->deleteAttachedFiles($reservation);
+
       $reservation->delete();
     });
 
@@ -162,16 +200,27 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         throw new Exception('Esta reserva ya fue marcada como atendida');
       }
 
+      // Extraer archivo del array de datos
+      $files = $this->extractFiles($data);
+
       // Update attendance information
       $updateData = [
         'attended' => true,
         'total_cost' => $data['total_cost'] ?? $reservation->total_cost,
         'penalty' => $data['penalty'] ?? 0,
-        'receipt_path' => $data['receipt_path'] ?? null,
         'notes' => $data['notes'] ?? $reservation->notes,
       ];
 
       $reservation->update($updateData);
+
+      // Si hay archivo, subirlo y actualizar URL
+      if (!empty($files)) {
+        // Eliminar archivo anterior si existe
+        $this->deleteAttachedFiles($reservation);
+
+        // Subir nuevo archivo
+        $this->uploadAndAttachFiles($reservation, $files);
+      }
 
       DB::commit();
       return $reservation->fresh(['request', 'hotelAgreement']);
@@ -211,5 +260,56 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
       ->whereBetween('checkin_date', [$startDate, $endDate])
       ->orderBy('checkin_date', 'asc')
       ->get();
+  }
+
+  /**
+   * Extrae los archivos del array de datos
+   */
+  private function extractFiles(array &$data): array
+  {
+    $files = [];
+
+    foreach (array_keys(self::FILE_PATHS) as $field) {
+      if (isset($data[$field]) && $data[$field] instanceof UploadedFile) {
+        $files[$field] = $data[$field];
+        unset($data[$field]); // Remover del array para no guardarlo en la BD
+      }
+    }
+
+    return $files;
+  }
+
+  /**
+   * Sube archivos y actualiza el modelo con las URLs
+   */
+  private function uploadAndAttachFiles(HotelReservation $reservation, $files): void
+  {
+    foreach ($files as $field => $file) {
+      $path = self::FILE_PATHS[$field];
+      $model = $reservation->getTable();
+
+      // Subir archivo usando DigitalFileService
+      $digitalFile = $this->digitalFileService->store($file, $path, 'public', $model);
+
+      // Actualizar el campo del reservation con la URL
+      $reservation->receipt_path = $digitalFile->url;
+    }
+
+    $reservation->save();
+  }
+
+  /**
+   * Elimina archivos asociados al modelo
+   */
+  private function deleteAttachedFiles(HotelReservation $reservation): void
+  {
+    if ($reservation->receipt_path) {
+      // Buscar el archivo digital asociado y eliminarlo
+      $digitalFile = DigitalFile::where('url', $reservation->receipt_path)->first();
+
+      if ($digitalFile) {
+        $this->digitalFileService->destroy($digitalFile->id);
+      }
+    }
   }
 }

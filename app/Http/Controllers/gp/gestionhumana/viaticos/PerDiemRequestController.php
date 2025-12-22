@@ -14,6 +14,7 @@ use App\Http\Requests\gp\gestionhumana\viaticos\CompleteSettlementPerDiemRequest
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRateResource;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRequestResource;
 use App\Http\Services\gp\gestionhumana\viaticos\PerDiemRequestService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 
 class PerDiemRequestController extends Controller
@@ -244,6 +245,20 @@ class PerDiemRequestController extends Controller
         'data' => $approval,
         'message' => $message
       ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Generate settlement report PDF
+   */
+  public function settlementPDF($id)
+  {
+    try {
+      $pdf = $this->service->generateSettlementPDF($id);
+      $filename = "liquidacion-gastos-{$id}.pdf";
+      return $pdf->download($filename);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

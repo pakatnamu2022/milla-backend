@@ -9,7 +9,7 @@ class IndexHotelAgreementRequest extends IndexRequest
   public function rules(): array
   {
     return [
-      //
+      "all" => "sometimes|string|in:true,false",
     ];
   }
 }

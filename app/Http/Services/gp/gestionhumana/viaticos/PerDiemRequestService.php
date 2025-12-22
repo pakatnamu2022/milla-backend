@@ -10,6 +10,7 @@ use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRate;
 use App\Models\gp\gestionhumana\viaticos\PerDiemPolicy;
 use App\Models\gp\gestionhumana\viaticos\PerDiemApproval;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
@@ -118,8 +119,41 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       // Create the request
       $request = PerDiemRequest::create($requestData);
 
+      // Get rates for the destination and category from current policy
+      $rates = PerDiemRate::getCurrentRatesByDistrict(
+        $data['district_id'],
+        $employee->position->per_diem_category_id
+      );
+
+      // Create RequestBudget for each expense type rate
+      $totalBudget = 0;
+      foreach ($rates as $rate) {
+        $budgetTotal = $rate->daily_amount * $daysCount;
+
+        $request->budgets()->create([
+          'expense_type_id' => $rate->expense_type_id,
+          'daily_amount' => $rate->daily_amount,
+          'days' => $daysCount,
+          'total' => $budgetTotal,
+        ]);
+
+        $totalBudget += $budgetTotal;
+      }
+
+      // Update total budget
+      $request->update(['total_budget' => $totalBudget]);
+
+      // Create approval for employee's boss
+      if ($employee->jefe_id) {
+        PerDiemApproval::create([
+          'per_diem_request_id' => $request->id,
+          'approver_id' => $employee->jefe_id,
+          'status' => PerDiemApproval::PENDING,
+        ]);
+      }
+
       DB::commit();
-      return new PerDiemRequestResource($request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category']));
+      return new PerDiemRequestResource($request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category', 'budgets.expenseType', 'approvals.approver']));
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -243,17 +277,17 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         throw new Exception('Solo se pueden enviar solicitudes en estado pendiente o rechazadas');
       }
 
-      // Create approval record for the employee's manager
-      if ($request->employee->manager_id) {
+      // Create approval record for the employee's boss
+      if ($request->employee->jefe_id) {
         // Check if approval already exists
         $existingApproval = PerDiemApproval::where('per_diem_request_id', $request->id)
-          ->where('approver_id', $request->employee->manager_id)
+          ->where('approver_id', $request->employee->jefe_id)
           ->first();
 
         if (!$existingApproval) {
           PerDiemApproval::create([
             'per_diem_request_id' => $request->id,
-            'approver_id' => $request->employee->manager_id,
+            'approver_id' => $request->employee->jefe_id,
             'status' => PerDiemApproval::PENDING,
           ]);
         }
@@ -309,8 +343,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       } elseif ($data['status'] === PerDiemApproval::APPROVED) {
         // Check if all approvals are approved
         $allApproved = $request->approvals()
-          ->where('status', '!=', PerDiemApproval::APPROVED)
-          ->count() === 0;
+            ->where('status', '!=', PerDiemApproval::APPROVED)
+            ->count() === 0;
 
         if ($allApproved) {
           // All approvers approved, update request status to approved
@@ -418,5 +452,65 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       DB::rollBack();
       throw $e;
     }
+  }
+
+  /**
+   * Generate settlement report PDF
+   */
+  public function generateSettlementPDF($id)
+  {
+    $perDiemRequest = $this->find($id);
+
+    // Load all necessary relationships
+    $perDiemRequest->load([
+      'employee.boss.position',
+      'employee.position.area',
+      'company',
+      'companyService',
+      'district',
+      'category',
+      'policy',
+      'approvals.approver.position',
+      'expenses.expenseType',
+    ]);
+
+    $dataResource = new PerDiemRequestResource($perDiemRequest);
+    $dataArray = $dataResource->resolve();
+
+    // Agrupar gastos por tipo
+    $expensesWithReceipts = collect($dataArray['expenses'] ?? [])->filter(function ($expense) {
+      return $expense['receipt_type'] !== 'no_receipt';
+    });
+
+    $expensesWithoutReceipts = collect($dataArray['expenses'] ?? [])->filter(function ($expense) {
+      return $expense['receipt_type'] === 'no_receipt';
+    });
+
+    // Calcular totales
+    $totalWithReceipts = $expensesWithReceipts->sum('company_amount');
+    $totalWithoutReceipts = $expensesWithoutReceipts->sum('company_amount');
+    $totalGeneral = $totalWithReceipts + $totalWithoutReceipts;
+    $saldo = ($dataArray['total_budget'] ?? 0) - $totalGeneral;
+    
+    $pdf = PDF::loadView('reports.gp.gestionhumana.viaticos.settlement', [
+      'request' => $dataArray,
+      'expensesWithReceipts' => $expensesWithReceipts,
+      'expensesWithoutReceipts' => $expensesWithoutReceipts,
+      'totalWithReceipts' => $totalWithReceipts,
+      'totalWithoutReceipts' => $totalWithoutReceipts,
+      'totalGeneral' => $totalGeneral,
+      'saldo' => $saldo,
+    ]);
+
+    $pdf->setOptions([
+      'defaultFont' => 'Arial',
+      'isHtml5ParserEnabled' => true,
+      'isRemoteEnabled' => false,
+      'dpi' => 96,
+    ]);
+
+    $pdf->setPaper('A4', 'portrait');
+
+    return $pdf;
   }
 }

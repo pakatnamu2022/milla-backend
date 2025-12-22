@@ -890,8 +890,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Daily Delivery Report
       Route::get('reports/daily-delivery', [ApDailyDeliveryReportController::class, 'index']);
       Route::get('reports/daily-delivery/export', [ApDailyDeliveryReportController::class, 'export']);
-//      Route::get('vehicles/{id}/pending-anticipos', [VehiclesController::class, 'getPendingAnticipos']);
-//      Route::post('vehicles/{id}/regularize-anticipos', [VehiclesController::class, 'regularizeAnticipos']);
 
       // Vehicles Delivery
       Route::post('vehiclesDelivery/{id}/generate-shipping-guide', [ApVehicleDeliveryController::class, 'generateShippingGuide']);
@@ -1178,6 +1176,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('per-diem-requests/{id}/mark-paid', [PerDiemRequestController::class, 'markAsPaid']);
     Route::post('per-diem-requests/{id}/start-settlement', [PerDiemRequestController::class, 'startSettlement']);
     Route::post('per-diem-requests/{id}/complete-settlement', [PerDiemRequestController::class, 'completeSettlement']);
+    Route::get('per-diem-requests/{id}/settlement-pdf', [PerDiemRequestController::class, 'settlementPDF']);
     Route::apiResource('per-diem-requests', PerDiemRequestController::class)->only([
       'index',
       'show',
@@ -1196,7 +1195,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('per-diem-requests/{requestId}/expenses', [PerDiemExpenseController::class, 'store']);
     Route::put('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'update']);
     Route::delete('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'destroy']);
-    Route::post('per-diem-expenses/{expenseId}/validate', [PerDiemExpenseController::class, 'validate']);
+    Route::post('per-diem-expenses/{expenseId}/validate', [PerDiemExpenseController::class, 'isValid']);
+    Route::post('per-diem-expenses/{expenseId}/reject', [PerDiemExpenseController::class, 'reject']);
+    Route::get('per-diem-requests/{requestId}/remaining-budget', [PerDiemExpenseController::class, 'getRemainingBudget']);
 
     // Hotel Reservations
     Route::post('per-diem-requests/{requestId}/hotel-reservation', [HotelReservationController::class, 'store']);

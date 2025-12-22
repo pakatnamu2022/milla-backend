@@ -152,7 +152,7 @@ class PerDiemRequest extends BaseModel
    */
   public function hotelReservation(): HasOne
   {
-    return $this->hasOne(HotelReservation::class);
+    return $this->hasOne(HotelReservation::class, 'per_diem_request_id');
   }
 
   /**

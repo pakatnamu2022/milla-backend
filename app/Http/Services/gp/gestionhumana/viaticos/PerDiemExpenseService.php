@@ -2,16 +2,20 @@
 
 namespace App\Http\Services\gp\gestionhumana\viaticos;
 
+use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemExpenseResource;
+use App\Http\Services\BaseService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Models\gp\gestionhumana\viaticos\PerDiemExpense;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
 use App\Models\gp\gestionsistema\DigitalFile;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Exception;
 
-class PerDiemExpenseService
+class PerDiemExpenseService extends BaseService
 {
   protected DigitalFileService $digitalFileService;
 
@@ -24,6 +28,20 @@ class PerDiemExpenseService
   {
     $this->digitalFileService = $digitalFileService;
   }
+
+  /**
+   * Get expenses by request
+   */
+  public function getByRequest(int $requestId, Request $request): JsonResponse
+  {
+    return $this->getFilteredResults(
+      PerDiemExpense::where('per_diem_request_id', $requestId),
+      $request,
+      [],
+      [],
+      PerDiemExpenseResource::class);
+  }
+
   /**
    * Create new expense for a request
    */
@@ -36,9 +54,9 @@ class PerDiemExpenseService
 
       // Validate that request allows expenses
       if (!in_array($request->status, ['in_progress', 'pending_settlement', 'settled'])) {
-        throw new Exception('Cannot add expenses. Request must be in progress, pending settlement, or settled.');
+        throw new Exception('No se pueden agregar gastos a una solicitud en el estado actual. Asegúrese de que la solicitud esté en progreso o en liquidación.');
       }
-
+      
       // Extraer archivo del array de datos
       $files = $this->extractFiles($data);
 
@@ -167,6 +185,10 @@ class PerDiemExpenseService
       throw new Exception('Expense has already been validated.');
     }
 
+    if ($expense->rejected) {
+      throw new Exception('Cannot validate a rejected expense.');
+    }
+
     $expense->update([
       'validated' => true,
       'validated_by' => $validatorId,
@@ -174,6 +196,42 @@ class PerDiemExpenseService
     ]);
 
     return $expense->fresh(['expenseType', 'validator']);
+  }
+
+  /**
+   * Reject expense
+   */
+  public function rejectExpense(int $expenseId, int $rejectorId, string $rejectionReason): PerDiemExpense
+  {
+    try {
+      DB::beginTransaction();
+
+      $expense = PerDiemExpense::findOrFail($expenseId);
+
+      if ($expense->validated) {
+        throw new Exception('Cannot reject a validated expense.');
+      }
+
+      if ($expense->rejected) {
+        throw new Exception('Expense has already been rejected.');
+      }
+
+      $expense->update([
+        'rejected' => true,
+        'rejected_by' => $rejectorId,
+        'rejected_at' => now(),
+        'rejection_reason' => $rejectionReason,
+      ]);
+
+      // Update request total spent since this expense is now rejected
+      $this->updateRequestTotalSpent($expense->per_diem_request_id);
+
+      DB::commit();
+      return $expense->fresh(['expenseType', 'rejector']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 
   /**
@@ -211,7 +269,9 @@ class PerDiemExpenseService
   {
     $request = PerDiemRequest::findOrFail($requestId);
 
+    // Only sum expenses that are not rejected
     $totalSpent = PerDiemExpense::where('per_diem_request_id', $requestId)
+      ->where('rejected', false)
       ->sum('company_amount');
 
     $balanceToReturn = max(0, $request->total_budget - $totalSpent);
@@ -271,5 +331,43 @@ class PerDiemExpenseService
         $this->digitalFileService->destroy($digitalFile->id);
       }
     }
+  }
+
+  /**
+   * Get remaining budget for a specific expense type on a specific date
+   */
+  public function getRemainingBudget(int $requestId, int $expenseTypeId, string $date): array
+  {
+    // Get the per diem request
+    $request = PerDiemRequest::findOrFail($requestId);
+
+    // Get the budget for this expense type
+    $budget = $request->budgets()
+      ->where('expense_type_id', $expenseTypeId)
+      ->first();
+
+    if (!$budget) {
+      throw new Exception('No se encontró presupuesto para este tipo de gasto en la solicitud.');
+    }
+
+    // Calculate total spent for this expense type on this date (excluding rejected expenses)
+    $totalSpentOnDate = PerDiemExpense::where('per_diem_request_id', $requestId)
+      ->where('expense_type_id', $expenseTypeId)
+      ->whereDate('expense_date', $date)
+      ->where('rejected', false)
+      ->sum('company_amount');
+
+    // Calculate remaining budget for the day
+    $remainingBudget = $budget->daily_amount - $totalSpentOnDate;
+
+    return [
+      'per_diem_request_id' => $requestId,
+      'expense_type_id' => $expenseTypeId,
+      'date' => $date,
+      'daily_amount' => $budget->daily_amount,
+      'total_spent_on_date' => $totalSpentOnDate,
+      'remaining_budget' => max(0, $remainingBudget), // Never return negative
+      'is_over_budget' => $remainingBudget < 0,
+    ];
   }
 }

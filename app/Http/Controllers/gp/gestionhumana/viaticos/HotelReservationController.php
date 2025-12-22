@@ -9,6 +9,7 @@ use App\Http\Requests\gp\gestionhumana\viaticos\UpdateHotelReservationRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\MarkAttendedHotelReservationRequest;
 use App\Http\Resources\gp\gestionhumana\viaticos\HotelReservationResource;
 use App\Http\Services\gp\gestionhumana\viaticos\HotelReservationService;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class HotelReservationController extends Controller
@@ -38,7 +39,7 @@ class HotelReservationController extends Controller
   public function store(int $requestId, StoreHotelReservationRequest $request)
   {
     try {
-      $data = $request->validated();
+      $data = $request->all();
       $data['per_diem_request_id'] = $requestId;
       $reservation = $this->service->store($data);
 
@@ -47,6 +48,7 @@ class HotelReservationController extends Controller
         'message' => 'Reserva de hotel creada exitosamente'
       ]);
     } catch (Throwable $th) {
+      Log::error($th);
       return $this->error($th->getMessage());
     }
   }
@@ -57,7 +59,7 @@ class HotelReservationController extends Controller
   public function update(int $reservationId, UpdateHotelReservationRequest $request)
   {
     try {
-      $data = $request->validated();
+      $data = $request->all();
       $data['id'] = $reservationId;
       $reservation = $this->service->update($data);
 
@@ -88,7 +90,7 @@ class HotelReservationController extends Controller
   public function markAttended(int $reservationId, MarkAttendedHotelReservationRequest $request)
   {
     try {
-      $data = $request->validated();
+      $data = $request->all();
       $reservation = $this->service->markAsAttended($reservationId, $data);
 
       return $this->success([

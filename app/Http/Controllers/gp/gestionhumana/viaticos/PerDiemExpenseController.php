@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\gp\gestionhumana\viaticos;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\gp\gestionhumana\viaticos\GetRemainingBudgetRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\IndexPerDiemExpenseRequest;
+use App\Http\Requests\gp\gestionhumana\viaticos\RejectPerDiemExpenseRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\StorePerDiemExpenseRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\UpdatePerDiemExpenseRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\ValidatePerDiemExpenseRequest;
@@ -48,13 +50,7 @@ class PerDiemExpenseController extends Controller
   {
     try {
       $data = $request->all();
-      $expense = $this->service->create($requestId, $data);
-
-      return response()->json([
-        'success' => true,
-        'data' => new PerDiemExpenseResource($expense),
-        'message' => 'Gasto creado exitosamente'
-      ], 201);
+      return $this->success($this->service->create($requestId, $data));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
@@ -67,13 +63,7 @@ class PerDiemExpenseController extends Controller
   {
     try {
       $data = $request->all();
-      $expense = $this->service->update($expenseId, $data);
-
-      return response()->json([
-        'success' => true,
-        'data' => new PerDiemExpenseResource($expense),
-        'message' => 'Gasto actualizado exitosamente'
-      ], 200);
+      return $this->success($this->service->update($expenseId, $data));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
@@ -85,12 +75,7 @@ class PerDiemExpenseController extends Controller
   public function destroy(int $expenseId)
   {
     try {
-      $this->service->delete($expenseId);
-
-      return response()->json([
-        'success' => true,
-        'message' => 'Gasto eliminado exitosamente'
-      ], 200);
+      return $this->success($this->service->delete($expenseId));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
@@ -109,6 +94,47 @@ class PerDiemExpenseController extends Controller
         'success' => true,
         'data' => new PerDiemExpenseResource($expense),
         'message' => 'Gasto validado exitosamente'
+      ], 200);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Reject an expense
+   */
+  public function reject(int $expenseId, RejectPerDiemExpenseRequest $request)
+  {
+    try {
+      $rejectorId = auth()->user()->partner_id;
+      $rejectionReason = $request->input('rejection_reason');
+
+      $expense = $this->service->rejectExpense($expenseId, $rejectorId, $rejectionReason);
+
+      return response()->json([
+        'success' => true,
+        'data' => new PerDiemExpenseResource($expense),
+        'message' => 'Gasto rechazado exitosamente'
+      ], 200);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Get remaining budget for a specific expense type on a specific date
+   */
+  public function getRemainingBudget(int $requestId, GetRemainingBudgetRequest $request)
+  {
+    try {
+      $expenseTypeId = $request->input('expense_type_id');
+      $date = $request->input('date');
+
+      $result = $this->service->getRemainingBudget($requestId, $expenseTypeId, $date);
+
+      return response()->json([
+        'success' => true,
+        'data' => $result
       ], 200);
     } catch (Exception $e) {
       return $this->error($e->getMessage());

@@ -4,6 +4,7 @@ namespace App\Models\gp\gestionhumana\viaticos;
 
 use App\Models\BaseModel;
 use App\Models\User;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -28,6 +29,10 @@ class PerDiemExpense extends BaseModel
     'validated',
     'validated_by',
     'validated_at',
+    'rejected',
+    'rejected_by',
+    'rejected_at',
+    'rejection_reason',
   ];
 
   protected $casts = [
@@ -37,6 +42,8 @@ class PerDiemExpense extends BaseModel
     'employee_amount' => 'decimal:2',
     'validated' => 'boolean',
     'validated_at' => 'datetime',
+    'rejected' => 'boolean',
+    'rejected_at' => 'datetime',
   ];
 
   /**
@@ -61,6 +68,14 @@ class PerDiemExpense extends BaseModel
   public function validator(): BelongsTo
   {
     return $this->belongsTo(User::class, 'validated_by');
+  }
+
+  /**
+   * Get the worker who rejected this expense
+   */
+  public function rejector(): BelongsTo
+  {
+    return $this->belongsTo(Worker::class, 'rejected_by');
   }
 
   /**

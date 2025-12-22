@@ -32,7 +32,13 @@ class PerDiemApprovalResource extends JsonResource
       'id' => $this->id,
       'per_diem_request_id' => $this->per_diem_request_id,
       'approver_id' => $this->approver_id,
-      'approver' => $this->approver ? $this->approver->nombre_completo : null,
+      'approver' => $this->approver ? [
+        'id' => $this->approver->id,
+        'full_name' => $this->approver->nombre_completo,
+        'position' => $this->approver->position ? [
+          'name' => $this->approver->position->name,
+        ] : null,
+      ] : null,
       'status' => $this->status,
       'comments' => $this->comments,
       'approved_at' => $this->approved_at,

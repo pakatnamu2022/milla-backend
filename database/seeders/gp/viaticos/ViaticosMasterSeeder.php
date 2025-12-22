@@ -53,6 +53,8 @@ class ViaticosMasterSeeder extends Seeder
     // Reactivar foreign key checks
     DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
+//    dd();
+
     $this->command->info('');
     $this->command->info('📊 Ejecutando seeders en orden...');
     $this->command->info('');

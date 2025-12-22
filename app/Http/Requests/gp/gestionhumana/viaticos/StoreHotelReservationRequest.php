@@ -12,11 +12,11 @@ class StoreHotelReservationRequest extends StoreRequest
       'hotel_agreement_id' => ['nullable', 'integer', 'exists:gh_hotel_agreement,id'],
       'hotel_name' => ['required', 'string', 'max:255'],
       'address' => ['required', 'string', 'max:500'],
-      'phone' => ['nullable', 'string', 'max:50'],
+      'phone' => ['required', 'string', 'max:50'],
       'checkin_date' => ['required', 'date'],
       'checkout_date' => ['required', 'date', 'after:checkin_date'],
       'total_cost' => ['required', 'numeric', 'min:0'],
-      'receipt_path' => ['nullable', 'string', 'max:500'],
+      'receipt_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
       'notes' => ['nullable', 'string'],
     ];
   }
