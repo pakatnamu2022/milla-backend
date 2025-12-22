@@ -37,11 +37,7 @@ class PerDiemRateController extends Controller
   public function store(StorePerDiemRateRequest $request)
   {
     try {
-      $rate = $this->service->store($request->validated());
-      return $this->success([
-        'data' => new PerDiemRateResource($rate),
-        'message' => 'Tarifa de viático creada exitosamente'
-      ]);
+      return $this->success($this->service->store($request->validated()));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -53,11 +49,7 @@ class PerDiemRateController extends Controller
   public function show(int $id)
   {
     try {
-      $rate = $this->service->show($id);
-      if (!$rate) {
-        return $this->error('Tarifa de viático no encontrada');
-      }
-      return $this->success(new PerDiemRateResource($rate));
+      return $this->success($this->service->show($id));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -69,11 +61,7 @@ class PerDiemRateController extends Controller
   public function update(UpdatePerDiemRateRequest $request, int $id)
   {
     try {
-      $rate = $this->service->update($id, $request->validated());
-      return $this->success([
-        'data' => new PerDiemRateResource($rate),
-        'message' => 'Tarifa de viático actualizada exitosamente'
-      ]);
+      return $this->success($this->service->update($id, $request->validated()));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -85,8 +73,7 @@ class PerDiemRateController extends Controller
   public function destroy(int $id)
   {
     try {
-      $this->service->destroy($id);
-      return $this->success(['message' => 'Tarifa de viático eliminada exitosamente']);
+      return $this->success($this->service->destroy($id));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }

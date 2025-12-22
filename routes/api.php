@@ -1193,7 +1193,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('per-diem-requests/{requestId}/expenses', [PerDiemExpenseController::class, 'store']);
     Route::put('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'update']);
     Route::delete('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'destroy']);
-    Route::post('per-diem-expenses/{expenseId}/validate', [PerDiemExpenseController::class, 'validate']);
+    Route::post('per-diem-expenses/{expenseId}/validate', [PerDiemExpenseController::class, 'isValid']);
+    Route::post('per-diem-expenses/{expenseId}/reject', [PerDiemExpenseController::class, 'reject']);
 
     // Hotel Reservations
     Route::post('per-diem-requests/{requestId}/hotel-reservation', [HotelReservationController::class, 'store']);
