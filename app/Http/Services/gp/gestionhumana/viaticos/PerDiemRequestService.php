@@ -119,8 +119,41 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       // Create the request
       $request = PerDiemRequest::create($requestData);
 
+      // Get rates for the destination and category from current policy
+      $rates = PerDiemRate::getCurrentRatesByDistrict(
+        $data['district_id'],
+        $employee->position->per_diem_category_id
+      );
+
+      // Create RequestBudget for each expense type rate
+      $totalBudget = 0;
+      foreach ($rates as $rate) {
+        $budgetTotal = $rate->daily_amount * $daysCount;
+
+        $request->budgets()->create([
+          'expense_type_id' => $rate->expense_type_id,
+          'daily_amount' => $rate->daily_amount,
+          'days' => $daysCount,
+          'total' => $budgetTotal,
+        ]);
+
+        $totalBudget += $budgetTotal;
+      }
+
+      // Update total budget
+      $request->update(['total_budget' => $totalBudget]);
+
+      // Create approval for employee's boss
+      if ($employee->jefe_id) {
+        PerDiemApproval::create([
+          'per_diem_request_id' => $request->id,
+          'approver_id' => $employee->jefe_id,
+          'status' => PerDiemApproval::PENDING,
+        ]);
+      }
+
       DB::commit();
-      return new PerDiemRequestResource($request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category']));
+      return new PerDiemRequestResource($request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category', 'budgets.expenseType', 'approvals.approver']));
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
