@@ -42,10 +42,8 @@ class PerDiemRatesSeeder extends Seeder
     $piura = $getDistrict('Piura', 'Piura', 'Piura');
     $chiclayo = $getDistrict('Chiclayo', 'Chiclayo', 'Lambayeque');
     $cajamarca = $getDistrict('Cajamarca', 'Cajamarca', 'Cajamarca');
+    $tumbes = $getDistrict('Tumbes', 'Tumbes', 'Tumbes');
     $jaen = $getDistrict('Jaen', 'Jaen', 'Cajamarca');
-    $trujillo = $getDistrict('Trujillo', 'Trujillo', 'La Libertad');
-    $chimbote = $getDistrict('Chimbote', 'Santa', 'Ancash');
-    $pacasmayo = $getDistrict('Pacasmayo', 'Pacasmayo', 'La Libertad');
 
     $rates = [
       // LIMA - SAN MIGUEL
@@ -118,35 +116,15 @@ class PerDiemRatesSeeder extends Seeder
       ['district' => $jaen, 'category' => $others, 'type' => $accommodation, 'amount' => 90],
       ['district' => $jaen, 'category' => $others, 'type' => $localTransport, 'amount' => 40],
 
-      // TRUJILLO
+      // TUMBES
       // Managers
-      ['district' => $trujillo, 'category' => $managers, 'type' => $meals, 'amount' => 70],
-      ['district' => $trujillo, 'category' => $managers, 'type' => $accommodation, 'amount' => 150],
-      ['district' => $trujillo, 'category' => $managers, 'type' => $localTransport, 'amount' => 40],
+      ['district' => $tumbes, 'category' => $managers, 'type' => $meals, 'amount' => 70],
+      ['district' => $tumbes, 'category' => $managers, 'type' => $accommodation, 'amount' => 130],
+      ['district' => $tumbes, 'category' => $managers, 'type' => $localTransport, 'amount' => 40],
       // Other Employees
-      ['district' => $trujillo, 'category' => $others, 'type' => $meals, 'amount' => 70],
-      ['district' => $trujillo, 'category' => $others, 'type' => $accommodation, 'amount' => 110],
-      ['district' => $trujillo, 'category' => $others, 'type' => $localTransport, 'amount' => 40],
-
-      // CHIMBOTE
-      // Managers
-      ['district' => $chimbote, 'category' => $managers, 'type' => $meals, 'amount' => 70],
-      ['district' => $chimbote, 'category' => $managers, 'type' => $accommodation, 'amount' => 130],
-      ['district' => $chimbote, 'category' => $managers, 'type' => $localTransport, 'amount' => 40],
-      // Other Employees
-      ['district' => $chimbote, 'category' => $others, 'type' => $meals, 'amount' => 70],
-      ['district' => $chimbote, 'category' => $others, 'type' => $accommodation, 'amount' => 90],
-      ['district' => $chimbote, 'category' => $others, 'type' => $localTransport, 'amount' => 40],
-
-      // PACASMAYO
-      // Managers
-      ['district' => $pacasmayo, 'category' => $managers, 'type' => $meals, 'amount' => 70],
-      ['district' => $pacasmayo, 'category' => $managers, 'type' => $accommodation, 'amount' => 140],
-      ['district' => $pacasmayo, 'category' => $managers, 'type' => $localTransport, 'amount' => 40],
-      // Other Employees
-      ['district' => $pacasmayo, 'category' => $others, 'type' => $meals, 'amount' => 70],
-      ['district' => $pacasmayo, 'category' => $others, 'type' => $accommodation, 'amount' => 140],
-      ['district' => $pacasmayo, 'category' => $others, 'type' => $localTransport, 'amount' => 40],
+      ['district' => $tumbes, 'category' => $others, 'type' => $meals, 'amount' => 70],
+      ['district' => $tumbes, 'category' => $others, 'type' => $accommodation, 'amount' => 90],
+      ['district' => $tumbes, 'category' => $others, 'type' => $localTransport, 'amount' => 40],
     ];
 
     foreach ($rates as $rate) {
