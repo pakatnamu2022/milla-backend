@@ -35,7 +35,6 @@ class PerDiemApprovalSeeder extends Seeder
           // Solo aprobación de manager pendiente | 0 - direct manager
           $approvals[] = [
             'approver_id' => $manager->id,
-            'approver_type' => 0,
             'status' => 'pending',
             'comments' => null,
             'approved_at' => null,
@@ -46,14 +45,12 @@ class PerDiemApprovalSeeder extends Seeder
           // Manager aprobado, HR pendiente | 1 - hr_partner
           $approvals[] = [
             'approver_id' => $manager->id,
-            'approver_type' => 0,
             'status' => 'approved',
             'comments' => 'Aprobado. Procede con autorización de RRHH.',
             'approved_at' => Carbon::now()->subDays(2),
           ];
           $approvals[] = [
             'approver_id' => $hr->id,
-            'approver_type' => 1,
             'status' => 'pending',
             'comments' => null,
             'approved_at' => null,
@@ -64,21 +61,18 @@ class PerDiemApprovalSeeder extends Seeder
           // Manager y HR aprobados, General pendiente | 2 - general_manager
           $approvals[] = [
             'approver_id' => $manager->id,
-            'approver_type' => 0,
             'status' => 'approved',
             'comments' => 'Aprobado por área.',
             'approved_at' => Carbon::now()->subDays(4),
           ];
           $approvals[] = [
             'approver_id' => $hr->id,
-            'approver_type' => 1,
             'status' => 'approved',
             'comments' => 'Verificado. Presupuesto disponible.',
             'approved_at' => Carbon::now()->subDays(3),
           ];
           $approvals[] = [
             'approver_id' => $general->id,
-            'approver_type' => 2,
             'status' => 'pending',
             'comments' => null,
             'approved_at' => null,
@@ -91,21 +85,18 @@ class PerDiemApprovalSeeder extends Seeder
           // Todos los niveles aprobados
           $approvals[] = [
             'approver_id' => $manager->id,
-            'approver_type' => 0,
             'status' => 'approved',
             'comments' => 'Aprobado. Viaje justificado.',
             'approved_at' => Carbon::now()->subDays(7),
           ];
           $approvals[] = [
             'approver_id' => $hr->id,
-            'approver_type' => 1,
             'status' => 'approved',
             'comments' => 'Conforme. Presupuesto disponible.',
             'approved_at' => Carbon::now()->subDays(6),
           ];
           $approvals[] = [
             'approver_id' => $general->id,
-            'approver_type' => 2,
             'status' => 'approved',
             'comments' => 'Autorizado.',
             'approved_at' => Carbon::now()->subDays(5),
@@ -116,7 +107,6 @@ class PerDiemApprovalSeeder extends Seeder
           // Al menos una rechazada (rechazamos en el nivel de manager)
           $approvals[] = [
             'approver_id' => $manager->id,
-            'approver_type' => 0,
             'status' => 'rejected',
             'comments' => 'Rechazado. Viaje no justificado o duplicado.',
             'approved_at' => Carbon::now()->subDays(2),
@@ -129,7 +119,6 @@ class PerDiemApprovalSeeder extends Seeder
         PerDiemApproval::firstOrCreate(
           [
             'per_diem_request_id' => $request->id,
-            'approver_type' => $approvalData['approver_type'],
           ],
           $approvalData
         );

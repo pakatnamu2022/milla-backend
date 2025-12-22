@@ -7,7 +7,6 @@ use App\Models\gp\gestionhumana\viaticos\PerDiemCategory;
 use App\Models\gp\gestionhumana\viaticos\PerDiemPolicy;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRate;
 use App\Models\gp\gestionsistema\District;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class PerDiemRatesSeeder extends Seeder
