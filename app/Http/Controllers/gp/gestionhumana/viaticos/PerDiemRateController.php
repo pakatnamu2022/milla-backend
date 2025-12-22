@@ -38,7 +38,7 @@ class PerDiemRateController extends Controller
   {
     try {
       return $this->success($this->service->store($request->validated()));
-    } catch (Throwable $th) {
+    } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
@@ -50,7 +50,7 @@ class PerDiemRateController extends Controller
   {
     try {
       return $this->success($this->service->show($id));
-    } catch (Throwable $th) {
+    } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
@@ -61,8 +61,10 @@ class PerDiemRateController extends Controller
   public function update(UpdatePerDiemRateRequest $request, int $id)
   {
     try {
-      return $this->success($this->service->update($id, $request->validated()));
-    } catch (Throwable $th) {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->update($data));
+    } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
@@ -70,11 +72,11 @@ class PerDiemRateController extends Controller
   /**
    * Remove the specified per diem rate
    */
-  public function destroy(int $id)
+  public function destroy($id)
   {
     try {
-      return $this->success($this->service->destroy($id));
-    } catch (Throwable $th) {
+      return $this->service->destroy($id);
+    } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
   }

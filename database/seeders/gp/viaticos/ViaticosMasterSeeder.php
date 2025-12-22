@@ -23,6 +23,9 @@ class ViaticosMasterSeeder extends Seeder
     DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
     // Truncar tablas en orden inverso (respetando foreign keys)
+    DB::table('gh_per_diem_category')->truncate();
+    $this->command->info('   ✓ gh_per_diem_category');
+
     DB::table('gh_per_diem_expense')->truncate();
     $this->command->info('   ✓ gh_per_diem_expense');
 
@@ -58,6 +61,7 @@ class ViaticosMasterSeeder extends Seeder
 
     // Ejecutar seeders en orden (respetando dependencias)
     $seeders = [
+      PerDiemCategorySeeder::class,
       PerDiemCategoriesSeeder::class,
       ExpenseTypesSeeder::class,
       PerDiemPolicySeeder::class,
