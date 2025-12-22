@@ -91,6 +91,7 @@ use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemApprovalController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemCategoryController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemExpenseController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemPolicyController;
+use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRateController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRequestController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\AreaController;
@@ -1214,6 +1215,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     // Categories
     Route::apiResource('perDiemCategory', PerDiemCategoryController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
+
+    // Rates
+    Route::apiResource('PerDiemRate', PerDiemRateController::class)->only([
       'index',
       'show',
       'store',

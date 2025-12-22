@@ -10,11 +10,10 @@ class StorePerDiemRateRequest extends StoreRequest
   {
     return [
       'per_diem_policy_id' => ['required', 'integer', 'exists:gh_per_diem_policy,id'],
-      'district_id' => ['required', 'integer', 'exists:gs_district,id'],
-      'per_diem_category_id' => ['required', 'integer', 'exists:gh_per_diem_category,id'],
+      'district_id' => ['required', 'integer', 'exists:district,id'],
       'expense_type_id' => ['required', 'integer', 'exists:gh_expense_type,id'],
+      'per_diem_category_id' => ['required', 'integer', 'exists:gh_per_diem_category,id'],
       'daily_amount' => ['required', 'numeric', 'min:0'],
-      'active' => ['required', 'boolean'],
     ];
   }
 
@@ -32,20 +31,6 @@ class StorePerDiemRateRequest extends StoreRequest
       'daily_amount.required' => 'El monto diario es requerido.',
       'daily_amount.numeric' => 'El monto diario debe ser un número.',
       'daily_amount.min' => 'El monto diario debe ser mayor o igual a 0.',
-      'active.required' => 'El estado es requerido.',
-      'active.boolean' => 'El estado debe ser verdadero o falso.',
-    ];
-  }
-
-  public function attributes(): array
-  {
-    return [
-      'per_diem_policy_id' => 'Política de viáticos',
-      'district_id' => 'Distrito',
-      'per_diem_category_id' => 'Categoría',
-      'expense_type_id' => 'Tipo de gasto',
-      'daily_amount' => 'Monto diario',
-      'active' => 'Estado',
     ];
   }
 }
