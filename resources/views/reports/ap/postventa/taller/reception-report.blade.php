@@ -302,10 +302,47 @@
       margin-bottom: 5px;
     }
 
-    .guarantee-recall-box {
+    .recall-box {
       display: table-cell;
       width: 50%;
-      padding: 0 5px;
+      padding-right: 5px;
+      vertical-align: top;
+    }
+
+    .guarantee-box {
+      display: table-cell;
+      width: 50%;
+      padding-left: 5px;
+      vertical-align: top;
+    }
+
+    .recall-info-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8px;
+      margin-top: 5px;
+    }
+
+    .recall-info-table th {
+      background-color: #172e66;
+      color: white;
+      font-weight: bold;
+      padding: 5px;
+      text-align: left;
+      border: 1px solid #000;
+      font-size: 9px;
+    }
+
+    .recall-info-table td {
+      padding: 5px;
+      border: 1px solid #000;
+      vertical-align: top;
+    }
+
+    .recall-info-table .label-cell {
+      font-weight: bold;
+      width: 30%;
+      background-color: #f0f0f0;
     }
 
     .status-box {
@@ -372,23 +409,26 @@
 <!-- Sección: Información de la Orden de Trabajo -->
 <div class="section-title">INFORMACIÓN DE LA ORDEN DE TRABAJO</div>
 
-<!-- Cuadros de Garantía y Recall -->
+<!-- Cuadros de Estado: Recall y Garantía -->
 <div class="guarantee-recall-container">
-  <div class="guarantee-recall-box">
-    <div class="status-box">
-      <div class="status-box-title">VEHÍCULO EN GARANTÍA</div>
-      <div class="status-options">
-        <div class="status-option {{ $isGuarantee ? 'checked' : '' }}">SI</div>
-        <div class="status-option {{ !$isGuarantee ? 'checked' : '' }}">NO</div>
-      </div>
-    </div>
-  </div>
-  <div class="guarantee-recall-box">
+  <!-- Lado Izquierdo: Estado de Recall -->
+  <div class="recall-box">
     <div class="status-box">
       <div class="status-box-title">VEHÍCULO EN RECALL</div>
       <div class="status-options">
         <div class="status-option {{ $isRecall ? 'checked' : '' }}">SI</div>
         <div class="status-option {{ !$isRecall ? 'checked' : '' }}">NO</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lado Derecho: Estado de Garantía -->
+  <div class="guarantee-box">
+    <div class="status-box">
+      <div class="status-box-title">VEHÍCULO EN GARANTÍA</div>
+      <div class="status-options">
+        <div class="status-option {{ $isGuarantee ? 'checked' : '' }}">SI</div>
+        <div class="status-option {{ !$isGuarantee ? 'checked' : '' }}">NO</div>
       </div>
     </div>
   </div>
@@ -429,6 +469,16 @@
     <td class="label-cell">Número de Cita:</td>
     <td colspan="3">{{ $appointmentNumber }}</td>
   </tr>
+  @if($isRecall && ($typeRecall || $descriptionRecall))
+    <tr>
+      <td class="label-cell">Tipo de Recall:</td>
+      <td colspan="3">{{ $typeRecall ?: 'N/A' }}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">Descripción de Recall:</td>
+      <td colspan="3">{{ $descriptionRecall ?: 'N/A' }}</td>
+    </tr>
+  @endif
 </table>
 
 <!-- Sección: Información del Vehículo -->
