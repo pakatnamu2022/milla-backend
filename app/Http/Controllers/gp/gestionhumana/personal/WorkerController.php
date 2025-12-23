@@ -115,4 +115,19 @@ class WorkerController extends Controller
       return $this->error($e->getMessage());
     }
   }
+
+  public function update(Request $request, $id)
+  {
+    try {
+      $data = $request->all();
+      $data['id'] = $id;
+
+      return $this->service->update($data);
+    } catch (\Exception $e) {
+      return response()->json([
+        'message' => 'Error al actualizar persona',
+        'error' => $e->getMessage()
+      ], 500);
+    }
+  }
 }
