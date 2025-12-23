@@ -109,6 +109,13 @@ return [
       'icon' => 'Users',
       'policy_method' => 'viewAdvisors',
     ],
+
+    'viewBranches' => [
+      'label' => 'Ver por Sedes',
+      'description' => 'Permite visualizar la lista por sedes',
+      'icon' => 'Building',
+      'policy_method' => 'viewBranches',
+    ],
   ],
 
   /*
