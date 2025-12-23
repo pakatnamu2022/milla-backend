@@ -16,6 +16,8 @@ class UpdatePerDiemRequestRequest extends StoreRequest
       'end_date' => ['nullable', 'date', 'after:start_date'],
       'purpose' => ['nullable', 'string', 'max:500'],
       'notes' => ['nullable', 'string', 'max:500'],
+      'with_active' => ['nullable', 'boolean'],
+      'with_request' => ['nullable', 'boolean'],
     ];
   }
 
@@ -31,6 +33,8 @@ class UpdatePerDiemRequestRequest extends StoreRequest
       'end_date.after' => 'La fecha de fin debe ser posterior a la fecha de inicio.',
       'purpose.max' => 'El propósito no puede tener más de 500 caracteres.',
       'notes.max' => 'Las notas no pueden tener más de 500 caracteres.',
+      'with_active.boolean' => 'El campo de viajar con activo debe ser verdadero o falso.',
+      'with_request.boolean' => 'El campo de solicitar presupuesto debe ser verdadero o falso.',
     ];
   }
 

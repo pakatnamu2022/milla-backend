@@ -114,6 +114,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'total_spent' => 0,
         'balance_to_return' => 0,
         'final_result' => "0",
+        'with_active' => $data['with_active'] ?? false,
+        'with_request' => $data['with_request'] ?? false,
       ];
 
       // Create the request
@@ -491,7 +493,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $totalWithoutReceipts = $expensesWithoutReceipts->sum('company_amount');
     $totalGeneral = $totalWithReceipts + $totalWithoutReceipts;
     $saldo = ($dataArray['total_budget'] ?? 0) - $totalGeneral;
-    
+
     $pdf = PDF::loadView('reports.gp.gestionhumana.viaticos.settlement', [
       'request' => $dataArray,
       'expensesWithReceipts' => $expensesWithReceipts,

@@ -63,13 +63,4 @@ class ApWorkOrderPartsController extends Controller
       return $this->error($th->getMessage());
     }
   }
-
-  public function confirmDelivery($id)
-  {
-    try {
-      return $this->success($this->service->confirmDeliveryPart($id));
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
 }

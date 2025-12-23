@@ -27,16 +27,14 @@ class ApWorkOrderParts extends Model
     'subtotal',
     'tax_amount',
     'total_amount',
-    'registered_by',
-    'is_delivered'
+    'registered_by'
   ];
 
   const filters = [
     'work_order_id' => '=',
     'product_id' => '=',
     'warehouse_id' => '=',
-    'group_number' => '=',
-    'is_delivered' => '=',
+    'group_number' => '='
   ];
 
   const sorts = [

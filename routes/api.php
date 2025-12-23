@@ -1024,7 +1024,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Work Order Parts - Repuestos de Órdenes de Trabajo
-      Route::post('workOrderParts/{id}/confirm-delivery', [ApWorkOrderPartsController::class, 'confirmDelivery']);
       Route::apiResource('workOrderParts', ApWorkOrderPartsController::class)->only([
         'index',
         'show',
