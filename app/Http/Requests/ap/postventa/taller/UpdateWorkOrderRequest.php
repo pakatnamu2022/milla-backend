@@ -129,7 +129,19 @@ class UpdateWorkOrderRequest extends StoreRequest
         'nullable',
         'boolean',
       ],
-      
+      'description_recall' => [
+        'sometimes',
+        'nullable',
+        'string',
+        'max:500',
+      ],
+      'type_recall' => [
+        'sometimes',
+        'nullable',
+        'string',
+        'max:100',
+      ],
+
       // Items
       'items' => [
         'sometimes',
@@ -219,6 +231,12 @@ class UpdateWorkOrderRequest extends StoreRequest
       'final_amount.min' => 'El monto final no puede ser negativo.',
 
       'is_invoiced.boolean' => 'El campo facturado debe ser verdadero o falso.',
+      'is_guarantee.boolean' => 'El campo garantía debe ser verdadero o falso.',
+      'is_recall.boolean' => 'El campo recall debe ser verdadero o falso.',
+      'description_recall.string' => 'La descripción del recall debe ser una cadena de texto.',
+      'description_recall.max' => 'La descripción del recall no debe exceder los 500 caracteres.',
+      'type_recall.string' => 'El tipo de recall debe ser una cadena de texto.',
+      'type_recall.max' => 'El tipo de recall no debe exceder los 100 caracteres.',
 
       // Items
       'items.array' => 'Los ítems deben ser un arreglo.',
