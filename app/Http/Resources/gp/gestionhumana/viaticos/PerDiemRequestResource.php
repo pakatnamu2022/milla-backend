@@ -41,6 +41,8 @@ class PerDiemRequestResource extends JsonResource
       'balance_to_return' => (float)$this->balance_to_return,
       'notes' => $this->notes,
       'days_without_settlement' => $daysWithoutSettlement,
+      'with_active' => $this->with_active,
+      'with_request' => $this->with_request,
 
       // Relations
       'employee' => $this->employee ? [
