@@ -50,7 +50,11 @@ class PerDiemExpenseController extends Controller
   {
     try {
       $data = $request->all();
-      return $this->success($this->service->create($requestId, $data));
+      $file = $request->file('receipt_file');
+      if ($file) {
+        $data['receipt_file'] = $file;
+      }
+      return $this->success($this->service->create($requestId, $data, $file));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

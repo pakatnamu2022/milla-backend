@@ -45,7 +45,7 @@ class PerDiemExpenseService extends BaseService
   /**
    * Create new expense for a request
    */
-  public function create(int $requestId, array $data): PerDiemExpense
+  public function create(int $requestId, array $data, $file): PerDiemExpense
   {
     try {
       DB::beginTransaction();
@@ -56,9 +56,6 @@ class PerDiemExpenseService extends BaseService
       if (!in_array($request->status, ['in_progress', 'pending_settlement', 'settled'])) {
         throw new Exception('No se pueden agregar gastos a una solicitud en el estado actual. Asegúrese de que la solicitud esté en progreso o en liquidación.');
       }
-      
-      // Extraer archivo del array de datos
-      $files = $this->extractFiles($data);
 
       $expense = PerDiemExpense::create([
         'per_diem_request_id' => $requestId,
@@ -74,8 +71,8 @@ class PerDiemExpenseService extends BaseService
       ]);
 
       // Subir archivo y actualizar URL
-      if (!empty($files)) {
-        $this->uploadAndAttachFiles($expense, $files);
+      if (!empty($file)) {
+        $this->uploadAndAttachFiles($expense, $file);
       }
 
       // Update request total spent
@@ -302,18 +299,16 @@ class PerDiemExpenseService extends BaseService
   /**
    * Sube archivos y actualiza el modelo con las URLs
    */
-  private function uploadAndAttachFiles(PerDiemExpense $expense, array $files): void
+  private function uploadAndAttachFiles(PerDiemExpense $expense, $file): void
   {
-    foreach ($files as $field => $file) {
-      $path = self::FILE_PATHS[$field];
-      $model = $expense->getTable();
+    $path = self::FILE_PATHS["receipt_file"];
+    $model = $expense->getTable();
 
-      // Subir archivo usando DigitalFileService
-      $digitalFile = $this->digitalFileService->store($file, $path, 'public', $model);
+    // Subir archivo usando DigitalFileService
+    $digitalFile = $this->digitalFileService->store($file, $path, 'public', $model);
 
-      // Actualizar el campo del expense con la URL
-      $expense->receipt_path = $digitalFile->url;
-    }
+    // Actualizar el campo del expense con la URL
+    $expense->receipt_path = $digitalFile->url;
 
     $expense->save();
   }

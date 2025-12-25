@@ -43,14 +43,10 @@ class ViewSeeder extends Seeder
             'ruta' => '-', 'icon' => 'TicketsPlane', 'company_id' => $GP, 'idPadre' => $VERSION_2,],
           ['descripcion' => 'Convenios Hoteles', 'submodule' => false, 'route' => 'convenios-hoteles', 'slug' => 'convenios-hoteles',
             'ruta' => '-', 'icon' => 'TicketsPlane', 'company_id' => $GP, 'idPadre' => $VERSION_2,],
-//          ['descripcion' => 'Reservaciones Hoteles', 'submodule' => false, 'route' => 'reservaciones-hoteles', 'slug' => 'reservaciones-hoteles',
-//            'ruta' => '-', 'icon' => 'TicketsPlane', 'company_id' => $GP, 'idPadre' => $VERSION_2,],
         ]
       ],
       ['descripcion' => 'Maestros', 'submodule' => false, 'route' => 'maestros', 'parent_id' => $GH, 'slug' => 'viaticos',
         'ruta' => '-', 'icon' => 'TicketsPlane', 'company_id' => $GP, 'idPadre' => $VERSION_2],
-      ['descripcion' => 'Maestros', 'submodule' => false, 'route' => 'maestros', 'parent_id' => $GH, 'slug' => 'viaticos',
-        'ruta' => '-', 'icon' => 'TicketsPlane', 'company_id' => $GP, 'idPadre' => $VERSION_2]
 
     ];
 
