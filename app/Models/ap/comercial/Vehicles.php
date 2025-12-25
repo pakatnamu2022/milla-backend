@@ -397,8 +397,8 @@ class Vehicles extends Model
       'formatter' => null,
     ],
     'purchaseOrder.supplierOrderType.description' => [
-      'label' => 'FECHA COMPRA',
-      'formatter' => 'date',
+      'label' => 'TIPO ORDEN COMPRA',
+      'formatter' => null,
     ],
 //    DATES
     'purchaseOrder.emission_date' => [
