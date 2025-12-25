@@ -55,6 +55,7 @@ use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderAssignOperatorController;
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderPartsController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderController;
+use App\Http\Controllers\ap\postventa\taller\WorkOrderLabourController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderItemController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningSessionController;
@@ -1024,8 +1025,16 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Work Order Parts - Repuestos de Órdenes de Trabajo
-      Route::post('workOrderParts/{id}/confirm-delivery', [ApWorkOrderPartsController::class, 'confirmDelivery']);
       Route::apiResource('workOrderParts', ApWorkOrderPartsController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Work Order Labour - Mano de Obra de Órdenes de Trabajo
+      Route::apiResource('workOrderLabour', WorkOrderLabourController::class)->only([
         'index',
         'show',
         'store',

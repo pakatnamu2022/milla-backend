@@ -42,6 +42,8 @@ class PerDiemRequest extends BaseModel
     'balance_to_return',
     'notes',
     'final_result',
+    'with_active',
+    'with_request'
   ];
 
   protected $casts = [
@@ -56,6 +58,8 @@ class PerDiemRequest extends BaseModel
     'balance_to_return' => 'decimal:2',
     'paid' => 'boolean',
     'settled' => 'boolean',
+    'with_active' => 'boolean',
+    'with_request' => 'boolean',
   ];
 
   const filters = [
@@ -71,6 +75,8 @@ class PerDiemRequest extends BaseModel
     'end_date' => 'date_between',
     'paid' => '=',
     'settled' => '=',
+    'with_active' => '=',
+    'with_request' => '=',
   ];
 
   const sorts = [

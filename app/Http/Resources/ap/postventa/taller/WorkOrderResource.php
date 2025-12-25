@@ -46,6 +46,8 @@ class WorkOrderResource extends JsonResource
       'is_invoiced' => (bool)$this->is_invoiced,
       'is_guarantee' => (bool)$this->is_guarantee,
       'is_recall' => (bool)$this->is_recall,
+      'description_recall' => $this->description_recall,
+      'type_recall' => $this->type_recall,
       'created_by' => $this->created_by,
       'creator_name' => $this->creator ? $this->creator->name : null,
       'is_inspection_completed' => !!$this->vehicleInspection,

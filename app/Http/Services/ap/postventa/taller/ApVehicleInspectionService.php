@@ -326,6 +326,8 @@ class ApVehicleInspectionService extends BaseService
       'appointmentNumber' => $workOrder->appointmentPlanning ? $workOrder->appointmentPlanning->correlative : 'N/A',
       'isGuarantee' => $workOrder->is_guarantee ?? false,
       'isRecall' => $workOrder->is_recall ?? false,
+      'descriptionRecall' => $workOrder->description_recall ?? '',
+      'typeRecall' => $workOrder->type_recall ?? '',
     ];
 
     // Generar PDF

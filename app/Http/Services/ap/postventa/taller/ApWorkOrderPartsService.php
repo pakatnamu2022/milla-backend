@@ -119,6 +119,10 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       // Create work order part
       $workOrderPart = ApWorkOrderParts::create($data);
 
+      // Crear movimiento de inventario de salida (descarga de stock directamente)
+      $inventoryMovementService = new InventoryMovementService();
+      $inventoryMovementService->createWorkOrderPartOutbound($workOrderPart);
+
       return new ApWorkOrderPartsResource($workOrderPart->load([
         'workOrder',
         'product',
@@ -153,46 +157,25 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
   public function destroy($id)
   {
-    $workOrderPart = $this->find($id);
-
-    if ($workOrderPart->is_delivered) {
-      throw new Exception('No se puede eliminar un repuesto que ya ha sido entregado');
-    }
-
-    DB::transaction(function () use ($workOrderPart) {
-      $workOrderPart->delete();
-    });
-
-    return response()->json(['message' => 'Repuesto eliminado correctamente']);
-  }
-
-  /**
-   * Confirmar la entrega de un repuesto y generar el movimiento de inventario de salida
-   */
-  public function confirmDeliveryPart($id)
-  {
     return DB::transaction(function () use ($id) {
-      // 1. Buscar el repuesto
       $workOrderPart = $this->find($id);
 
-      // 2. Validar que no haya sido entregado previamente
-      if ($workOrderPart->is_delivered) {
-        throw new Exception('Este repuesto ya fue entregado anteriormente');
+      // Buscar el movimiento de inventario asociado a este repuesto
+      $inventoryMovement = \App\Models\ap\postventa\gestionProductos\InventoryMovement::where('reference_type', get_class($workOrderPart))
+        ->where('reference_id', $workOrderPart->id)
+        ->first();
+
+      // Si existe el movimiento, revertir el stock antes de eliminar
+      if ($inventoryMovement) {
+        $inventoryMovementService = new InventoryMovementService();
+        $inventoryMovementService->reverseStockFromMovement($inventoryMovement->id);
       }
 
-      // 3. Crear movimiento de inventario de salida (centralizado)
-      $inventoryMovementService = new InventoryMovementService();
-      $inventoryMovementService->createWorkOrderPartOutbound($workOrderPart);
+      // Eliminar el repuesto
+      $workOrderPart->delete();
 
-      // 4. Marcar el repuesto como entregado
-      $workOrderPart->update(['is_delivered' => true]);
-
-      // 5. Recargar relaciones y retornar
-      return new ApWorkOrderPartsResource($workOrderPart->load([
-        'workOrder',
-        'product',
-        'warehouse'
-      ]));
+      return response()->json(['message' => 'Repuesto eliminado correctamente y stock devuelto al almacén']);
     });
   }
+
 }

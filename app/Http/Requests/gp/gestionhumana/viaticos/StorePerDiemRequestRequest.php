@@ -16,6 +16,8 @@ class StorePerDiemRequestRequest extends StoreRequest
       'end_date' => ['required', 'date', 'after:start_date'],
       'purpose' => ['required', 'string', 'max:500'],
       'notes' => ['nullable', 'string', 'max:500'],
+      'with_active' => ['required', 'boolean'],
+      'with_request' => ['required', 'boolean'],
     ];
   }
 
@@ -39,6 +41,10 @@ class StorePerDiemRequestRequest extends StoreRequest
       'purpose.required' => 'El propósito es requerido.',
       'purpose.max' => 'El propósito no puede tener más de 500 caracteres.',
       'notes.max' => 'Las notas no pueden tener más de 500 caracteres.',
+      'with_active.required' => 'El campo de viajar con activo es requerido.',
+      'with_active.boolean' => 'El campo de viajar con activo debe ser verdadero o falso.',
+      'with_request.required' => 'El campo de solicitar presupuesto es requerido.',
+      'with_request.boolean' => 'El campo de solicitar presupuesto debe ser verdadero o falso.',
     ];
   }
 

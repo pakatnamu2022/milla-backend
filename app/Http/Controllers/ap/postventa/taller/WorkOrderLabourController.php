@@ -3,21 +3,21 @@
 namespace App\Http\Controllers\ap\postventa\taller;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\ap\postventa\taller\IndexApWorkOrderPartsRequest;
-use App\Http\Requests\ap\postventa\taller\StoreApWorkOrderPartsRequest;
-use App\Http\Requests\ap\postventa\taller\UpdateApWorkOrderPartsRequest;
-use App\Http\Services\ap\postventa\taller\ApWorkOrderPartsService;
+use App\Http\Requests\ap\postventa\taller\IndexWorkOrderLabourRequest;
+use App\Http\Requests\ap\postventa\taller\StoreWorkOrderLabourRequest;
+use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderLabourRequest;
+use App\Http\Services\ap\postventa\taller\WorkOrderLabourService;
 
-class ApWorkOrderPartsController extends Controller
+class WorkOrderLabourController extends Controller
 {
-  protected ApWorkOrderPartsService $service;
+  protected WorkOrderLabourService $service;
 
-  public function __construct(ApWorkOrderPartsService $service)
+  public function __construct(WorkOrderLabourService $service)
   {
     $this->service = $service;
   }
 
-  public function index(IndexApWorkOrderPartsRequest $request)
+  public function index(IndexWorkOrderLabourRequest $request)
   {
     try {
       return $this->service->list($request);
@@ -26,10 +26,10 @@ class ApWorkOrderPartsController extends Controller
     }
   }
 
-  public function store(StoreApWorkOrderPartsRequest $request)
+  public function store(StoreWorkOrderLabourRequest $request)
   {
     try {
-      return $this->success($this->service->store($request->all()));
+      return $this->success($this->service->store($request->validated()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -44,10 +44,10 @@ class ApWorkOrderPartsController extends Controller
     }
   }
 
-  public function update(UpdateApWorkOrderPartsRequest $request, $id)
+  public function update(UpdateWorkOrderLabourRequest $request, $id)
   {
     try {
-      $data = $request->all();
+      $data = $request->validated();
       $data['id'] = $id;
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {

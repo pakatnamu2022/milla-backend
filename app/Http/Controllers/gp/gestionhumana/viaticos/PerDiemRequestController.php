@@ -73,14 +73,7 @@ class PerDiemRequestController extends Controller
   public function store(StorePerDiemRequestRequest $request)
   {
     try {
-      $data = $request->validated();
-      $perDiemRequest = $this->service->store($data);
-
-      return response()->json([
-        'success' => true,
-        'data' => $perDiemRequest,
-        'message' => 'Solicitud de viático creada exitosamente'
-      ], 201);
+      return $this->success($this->service->store($request->validated()));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
@@ -93,8 +86,8 @@ class PerDiemRequestController extends Controller
   {
     try {
       return $this->success($this->service->show($id));
-    } catch (Exception $e) {
-      return $this->error($e->getMessage());
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
   }
 
@@ -106,15 +99,9 @@ class PerDiemRequestController extends Controller
     try {
       $data = $request->validated();
       $data['id'] = $id;
-      $perDiemRequest = $this->service->update($data);
-
-      return response()->json([
-        'success' => true,
-        'data' => $perDiemRequest,
-        'message' => 'Solicitud de viático actualizada exitosamente'
-      ], 200);
-    } catch (Exception $e) {
-      return $this->error($e->getMessage());
+      return $this->success($this->service->update($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
   }
 
