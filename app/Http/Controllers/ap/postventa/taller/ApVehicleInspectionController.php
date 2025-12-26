@@ -5,7 +5,6 @@ namespace App\Http\Controllers\ap\postventa\taller;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\postventa\taller\IndexApVehicleInspectionRequest;
 use App\Http\Requests\ap\postventa\taller\StoreApVehicleInspectionRequest;
-use App\Http\Requests\ap\postventa\taller\UpdateApVehicleInspectionRequest;
 use App\Http\Services\ap\postventa\taller\ApVehicleInspectionService;
 use Exception;
 
