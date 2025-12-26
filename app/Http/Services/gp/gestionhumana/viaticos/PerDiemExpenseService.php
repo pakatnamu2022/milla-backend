@@ -5,8 +5,10 @@ namespace App\Http\Services\gp\gestionhumana\viaticos;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemExpenseResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
+use App\Models\gp\gestionhumana\viaticos\ExpenseType;
 use App\Models\gp\gestionhumana\viaticos\PerDiemExpense;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
+use App\Models\gp\gestionhumana\viaticos\RequestBudget;
 use App\Models\gp\gestionsistema\DigitalFile;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
@@ -14,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Exception;
+use Throwable;
 
 class PerDiemExpenseService extends BaseService
 {
@@ -44,38 +47,60 @@ class PerDiemExpenseService extends BaseService
 
   /**
    * Create new expense for a request
+   * @throws Throwable
    */
-  public function create(int $requestId, array $data): PerDiemExpense
+  public function store(int $requestId, array $data, $file): PerDiemExpense
   {
     try {
       DB::beginTransaction();
 
       $request = PerDiemRequest::findOrFail($requestId);
 
-      // Validate that request allows expenses
       if (!in_array($request->status, ['in_progress', 'pending_settlement', 'settled'])) {
         throw new Exception('No se pueden agregar gastos a una solicitud en el estado actual. Asegúrese de que la solicitud esté en progreso o en liquidación.');
       }
-      
-      // Extraer archivo del array de datos
-      $files = $this->extractFiles($data);
+
+      $budget = RequestBudget::where('expense_type_id', $data['expense_type_id'])
+        ->where('per_diem_request_id', $requestId)
+        ->firstOrFail();
+
+      // Skip budget validation for TRANSPORTATION (no limit)
+      if ($data['expense_type_id'] === ExpenseType::TRANSPORTATION_ID) {
+        $companyAmount = $data['receipt_amount'];
+        $employeeAmount = 0;
+      } else {
+        $expensesByType = PerDiemExpense::where('per_diem_request_id', $requestId)
+          ->where('expense_type_id', $data['expense_type_id'])
+          ->whereDate('expense_date', $data['expense_date'])
+          ->where('rejected', false)
+          ->sum('company_amount');
+
+        $available = $budget->daily_amount - $expensesByType;
+
+        if ($data['receipt_amount'] > $available) {
+          $companyAmount = $available;
+          $employeeAmount = $data['receipt_amount'] - $available;
+        } else {
+          $companyAmount = $data['receipt_amount'];
+          $employeeAmount = 0;
+        }
+      }
 
       $expense = PerDiemExpense::create([
         'per_diem_request_id' => $requestId,
         'expense_type_id' => $data['expense_type_id'],
         'expense_date' => $data['expense_date'],
-        'concept' => $data['concept'],
         'receipt_amount' => $data['receipt_amount'],
-        'company_amount' => $data['company_amount'],
-        'employee_amount' => $data['employee_amount'],
-        'receipt_type' => $data['receipt_type'],
+        'company_amount' => $companyAmount,
+        'employee_amount' => $employeeAmount,
+        'receipt_type' => $data['receipt_type'] ?? null,
         'receipt_number' => $data['receipt_number'] ?? null,
         'notes' => $data['notes'] ?? null,
       ]);
 
       // Subir archivo y actualizar URL
-      if (!empty($files)) {
-        $this->uploadAndAttachFiles($expense, $files);
+      if (!empty($file)) {
+        $this->uploadAndAttachFiles($expense, $file);
       }
 
       // Update request total spent
@@ -83,7 +108,7 @@ class PerDiemExpenseService extends BaseService
 
       DB::commit();
       return $expense->fresh(['expenseType', 'request']);
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
       DB::rollBack();
       throw $e;
     }
@@ -302,18 +327,16 @@ class PerDiemExpenseService extends BaseService
   /**
    * Sube archivos y actualiza el modelo con las URLs
    */
-  private function uploadAndAttachFiles(PerDiemExpense $expense, array $files): void
+  private function uploadAndAttachFiles(PerDiemExpense $expense, $file): void
   {
-    foreach ($files as $field => $file) {
-      $path = self::FILE_PATHS[$field];
-      $model = $expense->getTable();
+    $path = self::FILE_PATHS["receipt_file"];
+    $model = $expense->getTable();
 
-      // Subir archivo usando DigitalFileService
-      $digitalFile = $this->digitalFileService->store($file, $path, 'public', $model);
+    // Subir archivo usando DigitalFileService
+    $digitalFile = $this->digitalFileService->store($file, $path, 'public', $model);
 
-      // Actualizar el campo del expense con la URL
-      $expense->receipt_path = $digitalFile->url;
-    }
+    // Actualizar el campo del expense con la URL
+    $expense->receipt_path = $digitalFile->url;
 
     $expense->save();
   }

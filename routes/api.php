@@ -1186,6 +1186,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('per-diem-requests/{id}/start-settlement', [PerDiemRequestController::class, 'startSettlement']);
     Route::post('per-diem-requests/{id}/complete-settlement', [PerDiemRequestController::class, 'completeSettlement']);
     Route::get('per-diem-requests/{id}/settlement-pdf', [PerDiemRequestController::class, 'settlementPDF']);
+    Route::get('per-diem-requests/{id}/expenses-pdf', [PerDiemRequestController::class, 'exportExpensesPDF']);
+    Route::post('per-diem-requests/{id}/confirm', [PerDiemRequestController::class, 'confirm']);
+    Route::get('per-diem-requests/{id}/available-budgets', [PerDiemRequestController::class, 'availableBudgets']);
+    Route::get('per-diem-requests/{id}/available-expense-types', [PerDiemRequestController::class, 'availableExpenseTypes']);
     Route::apiResource('per-diem-requests', PerDiemRequestController::class)->only([
       'index',
       'show',

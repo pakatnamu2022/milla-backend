@@ -11,10 +11,7 @@ class StorePerDiemExpenseRequest extends StoreRequest
     return [
       'expense_type_id' => ['required', 'integer', 'exists:gh_expense_type,id'],
       'expense_date' => ['required', 'date'],
-      'concept' => ['required', 'string', 'max:255'],
       'receipt_amount' => ['required', 'numeric', 'min:0'],
-      'company_amount' => ['required', 'numeric', 'min:0'],
-      'employee_amount' => ['required', 'numeric', 'min:0'],
       'receipt_type' => ['required', 'string', 'in:invoice,ticket,no_receipt'],
       'receipt_number' => ['required_if:receipt_type,invoice,ticket', 'nullable', 'string', 'max:255'],
       'receipt_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
@@ -27,19 +24,19 @@ class StorePerDiemExpenseRequest extends StoreRequest
    *
    * @return array<string, string>
    */
-  public function messages(): array
+  public function attributes()
   {
     return [
-      'expense_type_id.required' => 'El tipo de gasto es requerido.',
-      'expense_type_id.exists' => 'El tipo de gasto seleccionado no existe.',
-      'expense_date.required' => 'La fecha del gasto es requerida.',
-      'concept.required' => 'El concepto del gasto es requerido.',
-      'receipt_amount.required' => 'El monto del recibo es requerido.',
-      'company_amount.required' => 'El monto de la empresa es requerido.',
-      'employee_amount.required' => 'El monto del empleado es requerido.',
-      'receipt_type.required' => 'El tipo de comprobante es requerido.',
-      'receipt_type.in' => 'El tipo de comprobante debe ser: factura, boleta o sin comprobante.',
-      'receipt_number.required_if' => 'El número de comprobante es requerido cuando el tipo es factura o boleta.',
+      'expense_type_id' => 'tipo de gasto',
+      'expense_date' => 'fecha del gasto',
+      'concept' => 'concepto',
+      'receipt_amount' => 'monto del comprobante',
+      'company_amount' => 'monto a cargo de la empresa',
+      'employee_amount' => 'monto a cargo del colaborador',
+      'receipt_type' => 'tipo de comprobante',
+      'receipt_number' => 'número de comprobante',
+      'receipt_file' => 'archivo del comprobante',
+      'notes' => 'observaciones',
     ];
   }
 

@@ -7,6 +7,7 @@ use App\Http\Services\BaseService;
 use App\Models\gp\gestionsistema\DigitalFile;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use function auth;
 use function basename;
@@ -91,7 +92,7 @@ class DigitalFileService extends BaseService
   }
 
 
-  public function uploadImage(\Illuminate\Http\UploadedFile $file, string $fileName, string $visibility = 'public')
+  public function uploadImage(UploadedFile $file, string $fileName, string $visibility = 'public')
   {
     // guarda el archivo en el Space
     Storage::disk('s3')->put(
