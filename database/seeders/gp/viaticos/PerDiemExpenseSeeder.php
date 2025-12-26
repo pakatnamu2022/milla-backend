@@ -120,7 +120,6 @@ class PerDiemExpenseSeeder extends Seeder
           'per_diem_request_id' => $request->id,
           'expense_type_id' => $expenseType->id,
           'expense_date' => $expenseDate,
-          'concept' => $concept,
           'receipt_amount' => $receiptAmount,
           'company_amount' => $companyAmount,
           'employee_amount' => $employeeAmount,

@@ -29,7 +29,7 @@ class ExpenseTypeResource extends JsonResource
       'active' => (bool)$this->active,
       'order' => $this->order,
 
-      // Relations
+      // RelationsN
       'parent' => $this->parent ? [
         'id' => $this->parent->id,
         'code' => $this->parent->code,
