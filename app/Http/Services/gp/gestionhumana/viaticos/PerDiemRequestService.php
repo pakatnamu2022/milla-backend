@@ -8,6 +8,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
+use App\Http\Utils\Constants;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionhumana\viaticos\ExpenseType;
 use App\Models\gp\gestionhumana\viaticos\HotelReservation;
@@ -41,6 +42,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $this->digitalFileService = $digitalFileService;
     $this->emailService = $emailService;
   }
+
   /**
    * Get all per diem requests with filters and pagination
    */
@@ -1188,7 +1190,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       // Send email to employee
       $this->emailService->send([
-        'to' => 'hvaldiviezos@automotorespakatnamu.com', // For testing
+        'to' => [
+          $request->employee->email ?? null,
+          'hvaldiviezos@automotorespakatnamu.com'
+        ], // For testing
         'subject' => 'Solicitud de Viáticos Creada - ' . $request->code,
         'template' => 'emails.per-diem-request-created-employee',
         'data' => $employeeEmailData,
@@ -1209,7 +1214,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         ];
 
         $this->emailService->send([
-          'to' => 'hvaldiviezos@automotorespakatnamu.com', // For testing
+          'to' => [
+            $request->employee->boss->email ?? null,
+            'hvaldiviezos@automotorespakatnamu.com'
+          ], // For testing
           'subject' => 'Nueva Solicitud de Viáticos Pendiente de Aprobación - ' . $request->code,
           'template' => 'emails.per-diem-request-created-boss',
           'data' => $bossEmailData,
@@ -1237,7 +1245,11 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       ];
 
       $this->emailService->send([
-        'to' => 'hvaldiviezos@automotorespakatnamu.com', // For testing
+        'to' => [
+          $request->employee->email,
+          'hvaldiviezos@automotorespakatnamu.com',
+          'ngonzalesd@automotorespakatnamu.com'
+        ], // For testing
         'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
         'template' => 'emails.per-diem-request-approved',
         'data' => $emailData,
@@ -1263,7 +1275,12 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       ];
 
       $this->emailService->send([
-        'to' => 'hvaldiviezos@automotorespakatnamu.com', // For testing
+        'to' => [
+          'hvaldiviezos@automotorespakatnamu.com',
+          $request->employee->email,
+          $request->employee->boss->email ?? null,
+          'griojasf@automotorespakatnamu.com'
+        ], // For testing
         'subject' => 'Liquidación de Viáticos - ' . $request->code,
         'template' => 'emails.per-diem-request-settlement',
         'data' => $emailData,
@@ -1288,7 +1305,12 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       ];
 
       $this->emailService->send([
-        'to' => 'hvaldiviezos@automotorespakatnamu.com', // For testing
+        'to' => [
+          'hvaldiviezos@automotorespakatnamu.com',
+          $request->employee->email,
+          $request->employee->boss->email ?? null,
+          'griojasf@automotorespakatnamu.com'
+        ], // For testing
         'subject' => 'Liquidación de Viáticos Completada - ' . $request->code,
         'template' => 'emails.per-diem-request-settled',
         'data' => $emailData,
