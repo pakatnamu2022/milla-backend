@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\gp\gestionhumana\viaticos;
 
+use App\Http\Resources\gp\gestionhumana\viaticos\ExpenseTypeResource;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRequestResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
@@ -511,58 +512,23 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
    * Returns expense types that have budgets assigned to the request
    *
    * @param int $id Per diem request ID
-   * @return array
+   * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
    * @throws Exception
    */
-  public function getAvailableExpenseTypes(int $id): array
+  public function getAvailableExpenseTypes(int $id)
   {
     $request = $this->find($id);
 
-    // Get all budgets with their expense types
-    $budgets = $request->budgets()
-      ->with('expenseType')
+    // Get all expense types from budgets
+    $expenseTypeIds = $request->budgets()->pluck('expense_type_id')->unique();
+
+    // Get expense types with parent relation
+    $expenseTypes = ExpenseType::whereIn('id', $expenseTypeIds)
+      ->with('parent')
+      ->orderBy('order')
       ->get();
 
-    $expenseTypes = [];
-
-    foreach ($budgets as $budget) {
-      // Calculate total spent for this expense type (excluding rejected expenses)
-      $totalSpent = PerDiemExpense::where('per_diem_request_id', $request->id)
-        ->where('expense_type_id', $budget->expense_type_id)
-        ->where('rejected', false)
-        ->sum('company_amount');
-
-      $available = max(0, $budget->total - $totalSpent);
-
-      $expenseTypes[] = [
-        'id' => $budget->expenseType->id,
-        'code' => $budget->expenseType->code,
-        'name' => $budget->expenseType->name,
-        'parent_id' => $budget->expenseType->parent_id,
-        'requires_receipt' => $budget->expenseType->requires_receipt,
-        'order' => $budget->expenseType->order,
-        'budget' => [
-          'daily_amount' => (float)$budget->daily_amount,
-          'days' => $budget->days,
-          'total' => (float)$budget->total,
-          'spent' => (float)$totalSpent,
-          'available' => (float)$available,
-          'has_limit' => $budget->expense_type_id !== ExpenseType::TRANSPORTATION_ID,
-        ],
-      ];
-    }
-
-    // Sort by order
-    usort($expenseTypes, function ($a, $b) {
-      return $a['order'] <=> $b['order'];
-    });
-
-    return [
-      'per_diem_request_id' => $request->id,
-      'per_diem_request_code' => $request->code,
-      'status' => $request->status,
-      'expense_types' => $expenseTypes,
-    ];
+    return ExpenseTypeResource::collection($expenseTypes);
   }
 
   /**
