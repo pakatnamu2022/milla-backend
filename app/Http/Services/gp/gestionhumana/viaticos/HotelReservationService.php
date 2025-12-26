@@ -6,7 +6,9 @@ use App\Http\Resources\gp\gestionhumana\viaticos\HotelReservationResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
+use App\Models\gp\gestionhumana\viaticos\ExpenseType;
 use App\Models\gp\gestionhumana\viaticos\HotelReservation;
+use App\Models\gp\gestionhumana\viaticos\PerDiemExpense;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
 use App\Models\gp\gestionsistema\DigitalFile;
 use Illuminate\Support\Facades\DB;
@@ -222,6 +224,9 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         $this->uploadAndAttachFiles($reservation, $files);
       }
 
+      // Create company expense for accommodation
+      $this->createCompanyExpenseForReservation($reservation);
+
       DB::commit();
       return $reservation->fresh(['request', 'hotelAgreement']);
     } catch (Exception $e) {
@@ -310,6 +315,47 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
       if ($digitalFile) {
         $this->digitalFileService->destroy($digitalFile->id);
       }
+    }
+  }
+
+  /**
+   * Create a company expense for the hotel reservation
+   */
+  private function createCompanyExpenseForReservation(HotelReservation $reservation): void
+  {
+    // Check if expense already exists for this reservation
+    $existingExpense = PerDiemExpense::where('per_diem_request_id', $reservation->per_diem_request_id)
+      ->where('expense_type_id', ExpenseType::ACCOMMODATION_ID)
+      ->where('is_company_expense', true)
+      ->first();
+
+    if ($existingExpense) {
+      // Update existing expense
+      $existingExpense->update([
+        'receipt_amount' => $reservation->total_cost,
+        'company_amount' => $reservation->total_cost,
+        'employee_amount' => 0,
+        'expense_date' => $reservation->checkin_date,
+        'receipt_path' => $reservation->receipt_path,
+        'notes' => "Reserva de hotel: {$reservation->hotel_name} ({$reservation->nights_count} noches)",
+      ]);
+    } else {
+      // Create new company expense
+      PerDiemExpense::create([
+        'per_diem_request_id' => $reservation->per_diem_request_id,
+        'expense_type_id' => ExpenseType::ACCOMMODATION_ID,
+        'expense_date' => $reservation->checkin_date,
+        'receipt_amount' => $reservation->total_cost,
+        'company_amount' => $reservation->total_cost,
+        'employee_amount' => 0,
+        'receipt_type' => 'factura',
+        'receipt_path' => $reservation->receipt_path,
+        'notes' => "Reserva de hotel: {$reservation->hotel_name} ({$reservation->nights_count} noches)",
+        'is_company_expense' => true,
+        'validated' => true,
+        'validated_by' => auth()->id(),
+        'validated_at' => now(),
+      ]);
     }
   }
 }

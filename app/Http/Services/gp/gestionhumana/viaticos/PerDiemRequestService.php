@@ -6,6 +6,7 @@ use App\Http\Resources\gp\gestionhumana\viaticos\ExpenseTypeResource;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRequestResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\EmailService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionhumana\viaticos\ExpenseType;
@@ -26,14 +27,18 @@ use Exception;
 
 class PerDiemRequestService extends BaseService implements BaseServiceInterface
 {
+  protected EmailService $emailService;
+
+
   protected DigitalFileService $digitalFileService;
 
   // Configuración de ruta para vouchers de depósito
   private const DEPOSIT_VOUCHER_PATH = '/gp/gestionhumana/viaticos/vouchers/';
 
-  public function __construct(DigitalFileService $digitalFileService)
+  public function __construct(DigitalFileService $digitalFileService, EmailService $emailService)
   {
     $this->digitalFileService = $digitalFileService;
+    $this->emailService = $emailService;
   }
   /**
    * Get all per diem requests with filters and pagination
@@ -157,6 +162,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'status' => PerDiemApproval::PENDING,
         ]);
       }
+
+      // Send email notifications
+      $this->sendPerDiemRequestCreatedEmails($request->fresh(['employee.boss', 'district']));
 
       DB::commit();
       return new PerDiemRequestResource($request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category', 'budgets.expenseType', 'approvals.approver']));
@@ -355,6 +363,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         if ($allApproved) {
           // All approvers approved, update request status to approved
           $request->update(['status' => 'approved']);
+
+          // Send approval email to employee
+          $this->sendPerDiemRequestApprovedEmail($request->fresh(['employee', 'district']));
         }
         // If not all approved yet, keep status as pending
       }
@@ -417,6 +428,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       // Don't change status, just mark settlement as started
       // Status remains 'approved'
 
+      // Send settlement email to employee
+      $this->sendPerDiemRequestSettlementEmail($request->fresh(['employee', 'district']));
+
       DB::commit();
       return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category']);
     } catch (Exception $e) {
@@ -451,6 +465,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'total_spent' => $totalSpent,
         'balance_to_return' => $balanceToReturn > 0 ? $balanceToReturn : 0,
       ]);
+
+      // Send settlement completed email to employee
+      $this->sendPerDiemRequestSettledEmail($request->fresh(['employee', 'district']));
 
       DB::commit();
       return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category', 'expenses']);
@@ -1013,6 +1030,135 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
+    }
+  }
+
+  /**
+   * Send email notifications when a per diem request is created
+   */
+  private function sendPerDiemRequestCreatedEmails(PerDiemRequest $request): void
+  {
+    try {
+      // Email data for employee
+      $employeeEmailData = [
+        'employee_name' => $request->employee->nombre_completo,
+        'request_code' => $request->code,
+        'destination' => $request->district->nombre ?? 'N/A',
+        'start_date' => $request->start_date->format('d/m/Y'),
+        'end_date' => $request->end_date->format('d/m/Y'),
+        'days_count' => $request->days_count,
+        'purpose' => $request->purpose,
+      ];
+
+      // Send email to employee
+      $this->emailService->send([
+        'to' => 'hvaldiviezos@automotorespakatnamu.com', // For testing
+        'subject' => 'Solicitud de Viáticos Creada - ' . $request->code,
+        'template' => 'emails.per-diem-request-created-employee',
+        'data' => $employeeEmailData,
+      ]);
+
+      // Send email to boss if exists
+      if ($request->employee->jefe_id && $request->employee->boss) {
+        $bossEmailData = [
+          'boss_name' => $request->employee->boss->nombre_completo,
+          'employee_name' => $request->employee->nombre_completo,
+          'request_code' => $request->code,
+          'destination' => $request->district->nombre ?? 'N/A',
+          'start_date' => $request->start_date->format('d/m/Y'),
+          'end_date' => $request->end_date->format('d/m/Y'),
+          'days_count' => $request->days_count,
+          'total_budget' => $request->total_budget,
+          'purpose' => $request->purpose,
+        ];
+
+        $this->emailService->send([
+          'to' => 'hvaldiviezos@automotorespakatnamu.com', // For testing
+          'subject' => 'Nueva Solicitud de Viáticos Pendiente de Aprobación - ' . $request->code,
+          'template' => 'emails.per-diem-request-created-boss',
+          'data' => $bossEmailData,
+        ]);
+      }
+    } catch (Exception $e) {
+      // Log error but don't fail the transaction
+      \Log::error('Error sending per diem request created emails: ' . $e->getMessage());
+    }
+  }
+
+  /**
+   * Send email notification when a per diem request is approved
+   */
+  private function sendPerDiemRequestApprovedEmail(PerDiemRequest $request): void
+  {
+    try {
+      $emailData = [
+        'employee_name' => $request->employee->nombre_completo,
+        'request_code' => $request->code,
+        'destination' => $request->district->nombre ?? 'N/A',
+        'start_date' => $request->start_date->format('d/m/Y'),
+        'end_date' => $request->end_date->format('d/m/Y'),
+        'total_budget' => $request->total_budget,
+      ];
+
+      $this->emailService->send([
+        'to' => 'hvaldiviezos@automotorespakatnamu.com', // For testing
+        'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
+        'template' => 'emails.per-diem-request-approved',
+        'data' => $emailData,
+      ]);
+    } catch (Exception $e) {
+      \Log::error('Error sending per diem request approved email: ' . $e->getMessage());
+    }
+  }
+
+  /**
+   * Send email notification when settlement process starts
+   */
+  private function sendPerDiemRequestSettlementEmail(PerDiemRequest $request): void
+  {
+    try {
+      $emailData = [
+        'employee_name' => $request->employee->nombre_completo,
+        'request_code' => $request->code,
+        'destination' => $request->district->nombre ?? 'N/A',
+        'start_date' => $request->start_date->format('d/m/Y'),
+        'end_date' => $request->end_date->format('d/m/Y'),
+        'total_budget' => $request->total_budget,
+      ];
+
+      $this->emailService->send([
+        'to' => 'hvaldiviezos@automotorespakatnamu.com', // For testing
+        'subject' => 'Liquidación de Viáticos - ' . $request->code,
+        'template' => 'emails.per-diem-request-settlement',
+        'data' => $emailData,
+      ]);
+    } catch (Exception $e) {
+      \Log::error('Error sending per diem request settlement email: ' . $e->getMessage());
+    }
+  }
+
+  /**
+   * Send email notification when settlement is completed
+   */
+  private function sendPerDiemRequestSettledEmail(PerDiemRequest $request): void
+  {
+    try {
+      $emailData = [
+        'employee_name' => $request->employee->nombre_completo,
+        'request_code' => $request->code,
+        'total_budget' => $request->total_budget,
+        'total_spent' => $request->total_spent,
+        'balance_to_return' => $request->balance_to_return,
+      ];
+
+      $this->emailService->send([
+        'to' => 'hvaldiviezos@automotorespakatnamu.com', // For testing
+        'subject' => 'Liquidación de Viáticos Completada - ' . $request->code,
+        'template' => 'emails.per-diem-request-settled',
+        'data' => $emailData,
+      ]);
+    } catch (Exception $e) {
+      \Log::error('Error sending per diem request settled email: ' . $e->getMessage());
     }
   }
 }
