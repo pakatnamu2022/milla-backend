@@ -7,6 +7,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Models\gp\gestionhumana\viaticos\PerDiemExpense;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
+use App\Models\gp\gestionhumana\viaticos\RequestBudget;
 use App\Models\gp\gestionsistema\DigitalFile;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
@@ -14,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Exception;
+use Throwable;
 
 class PerDiemExpenseService extends BaseService
 {
@@ -44,28 +46,47 @@ class PerDiemExpenseService extends BaseService
 
   /**
    * Create new expense for a request
+   * @throws Throwable
    */
-  public function create(int $requestId, array $data, $file): PerDiemExpense
+  public function store(int $requestId, array $data, $file): PerDiemExpense
   {
     try {
       DB::beginTransaction();
 
       $request = PerDiemRequest::findOrFail($requestId);
 
-      // Validate that request allows expenses
       if (!in_array($request->status, ['in_progress', 'pending_settlement', 'settled'])) {
         throw new Exception('No se pueden agregar gastos a una solicitud en el estado actual. Asegúrese de que la solicitud esté en progreso o en liquidación.');
+      }
+
+      $budget = RequestBudget::where('expense_type_id', $data['expense_type_id'])
+        ->where('per_diem_request_id', $requestId)
+        ->firstOrFail();
+
+      $expensesByType = PerDiemExpense::where('per_diem_request_id', $requestId)
+        ->where('expense_type_id', $data['expense_type_id'])
+        ->whereDate('expense_date', $data['expense_date'])
+        ->where('rejected', false)
+        ->sum('company_amount');
+
+      $available = $budget->daily_amount - $expensesByType;
+
+      if ($data['receipt_amount'] > $available) {
+        $companyAmount = $available;
+        $employeeAmount = $data['receipt_amount'] - $available;
+      } else {
+        $companyAmount = $data['receipt_amount'];
+        $employeeAmount = 0;
       }
 
       $expense = PerDiemExpense::create([
         'per_diem_request_id' => $requestId,
         'expense_type_id' => $data['expense_type_id'],
         'expense_date' => $data['expense_date'],
-        'concept' => $data['concept'],
         'receipt_amount' => $data['receipt_amount'],
-        'company_amount' => $data['company_amount'],
-        'employee_amount' => $data['employee_amount'],
-        'receipt_type' => $data['receipt_type'],
+        'company_amount' => $companyAmount,
+        'employee_amount' => $employeeAmount,
+        'receipt_type' => $data['receipt_type'] ?? null,
         'receipt_number' => $data['receipt_number'] ?? null,
         'notes' => $data['notes'] ?? null,
       ]);
@@ -80,7 +101,7 @@ class PerDiemExpenseService extends BaseService
 
       DB::commit();
       return $expense->fresh(['expenseType', 'request']);
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
       DB::rollBack();
       throw $e;
     }

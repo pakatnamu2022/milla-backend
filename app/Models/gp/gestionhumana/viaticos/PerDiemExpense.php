@@ -18,7 +18,6 @@ class PerDiemExpense extends BaseModel
     'per_diem_request_id',
     'expense_type_id',
     'expense_date',
-    'concept',
     'receipt_amount',
     'company_amount',
     'employee_amount',
