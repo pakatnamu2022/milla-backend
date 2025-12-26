@@ -43,7 +43,8 @@ class PerDiemRequest extends BaseModel
     'notes',
     'final_result',
     'with_active',
-    'with_request'
+    'with_request',
+    'deposit_voucher_url'
   ];
 
   protected $casts = [
