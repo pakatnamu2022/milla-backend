@@ -1094,7 +1094,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'serie' => $serie,
         'correlative' => $correlative,
         'period' => $period,
-        'sede_id' => $perDiemRequest->company->sede_id ?? null,
+        'sede_id' => $perDiemRequest->employee->sede_id ?? null,
       ]);
 
       // Update all mobility expenses with the payroll ID

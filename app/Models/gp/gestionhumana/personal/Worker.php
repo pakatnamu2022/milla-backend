@@ -20,7 +20,8 @@ class Worker extends BaseModel
   protected $fillable = [
     'id',
     'vat',
-    'nombre_completo'
+    'nombre_completo',
+    'sede_id'
   ];
 
   const filters = [
