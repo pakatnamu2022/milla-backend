@@ -139,8 +139,8 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     $hasInternalWork = $workerPlannings->where('type', 'internal')->count() > 0;
     if (!$hasInternalWork) {
       throw new Exception(
-        'No se puede asignar un trabajo de tipo "external" si el trabajador no tiene ' .
-        'al menos 1 trabajo de tipo "internal" registrado para este día.'
+        'No se puede asignar un trabajo excepcional si el trabajador no tiene ' .
+        'al menos 1 trabajo registrado para este día.'
       );
     }
 
@@ -148,7 +148,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     $hasExternalWork = $workerPlannings->where('type', 'external')->count() > 0;
     if ($hasExternalWork) {
       throw new Exception(
-        'El trabajador ya tiene un trabajo de tipo "external" asignado para este día. ' .
+        'El trabajador ya tiene un trabajo excepcional asignado para este día. ' .
         'Solo se permite 1 trabajo externo por día.'
       );
     }
@@ -198,7 +198,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     // Validar que el horario esté dentro de los rangos permitidos
     if (!$isInMorningShift && !$isInAfternoonShift) {
       throw new Exception(
-        "Los trabajos de tipo 'internal' deben estar dentro de los horarios permitidos: " .
+        "Los trabajos deben estar dentro de los horarios permitidos: " .
         "Mañana (08:00 - 13:00) o Tarde (14:24 - 18:00). " .
         "El horario asignado ({$startTime} - {$endTime}) está fuera de estos rangos."
       );
