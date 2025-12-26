@@ -16,6 +16,7 @@ use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRate;
 use App\Models\gp\gestionhumana\viaticos\PerDiemPolicy;
 use App\Models\gp\gestionhumana\viaticos\PerDiemApproval;
+use App\Models\gp\gestionhumana\viaticos\MobilityPayroll;
 use App\Models\gp\gestionsistema\DigitalFile;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\UploadedFile;
@@ -903,17 +904,20 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
     // Gastos de alimentación
     $alimentacion = $allExpenses->filter(function ($expense) {
-      return $expense['expense_type']['id'] === ExpenseType::MEALS_ID;
+      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
+      return $typeId === ExpenseType::MEALS_ID;
     });
 
     // Gastos de hospedaje
     $hospedaje = $allExpenses->filter(function ($expense) {
-      return $expense['expense_type']['id'] === ExpenseType::ACCOMMODATION_ID;
+      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
+      return $typeId === ExpenseType::ACCOMMODATION_ID;
     });
 
     // Gastos de movilidad (transporte local + transporte)
     $movilidad = $allExpenses->filter(function ($expense) {
-      return in_array($expense['expense_type']['id'], [
+      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
+      return in_array($typeId, [
         ExpenseType::LOCAL_TRANSPORT_ID,
         ExpenseType::TRANSPORTATION_ID
       ]);
@@ -921,17 +925,21 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
     // Gastos sin comprobante
     $sinComprobante = $allExpenses->filter(function ($expense) {
-      return $expense['receipt_type'] === 'no_receipt';
+      return isset($expense['receipt_type']) && $expense['receipt_type'] === 'no_receipt';
     });
 
     // Otros gastos (los que no están en las categorías anteriores)
     $otros = $allExpenses->filter(function ($expense) {
-      return !in_array($expense['expense_type']['id'], [
+      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
+      $isMainCategory = in_array($typeId, [
         ExpenseType::MEALS_ID,
         ExpenseType::ACCOMMODATION_ID,
         ExpenseType::LOCAL_TRANSPORT_ID,
         ExpenseType::TRANSPORTATION_ID
-      ]) && $expense['receipt_type'] !== 'no_receipt';
+      ]);
+      $isNoReceipt = isset($expense['receipt_type']) && $expense['receipt_type'] === 'no_receipt';
+
+      return $typeId !== null && !$isMainCategory && !$isNoReceipt;
     });
 
     // Calcular totales por categoría
@@ -1031,6 +1039,134 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       DB::rollBack();
       throw $e;
     }
+  }
+
+  /**
+   * Generate mobility payroll for a per diem request
+   * Creates a payroll record and links all mobility expenses to it
+   */
+  public function generateMobilityPayroll(int $id)
+  {
+    try {
+      DB::beginTransaction();
+
+      // Get the per diem request with necessary relationships
+      $perDiemRequest = $this->find($id);
+      $perDiemRequest->load(['employee', 'company', 'expenses.expenseType']);
+
+      // Get mobility expenses only
+      $mobilityExpenses = $perDiemRequest->expenses->filter(function ($expense) {
+        return in_array($expense->expense_type_id, [
+          ExpenseType::LOCAL_TRANSPORT_ID,
+          ExpenseType::TRANSPORTATION_ID
+        ]);
+      });
+
+      // Validate that there are mobility expenses
+      if ($mobilityExpenses->isEmpty()) {
+        throw new Exception('No hay gastos de movilidad en esta solicitud');
+      }
+
+      // Get employee data
+      $employee = $perDiemRequest->employee;
+      if (!$employee) {
+        throw new Exception('No se encontró el empleado asociado a la solicitud');
+      }
+
+      // Extract period from expense dates (format: mes/año)
+      $firstExpenseDate = $mobilityExpenses->min('expense_date');
+      $period = Carbon::parse($firstExpenseDate)->format('m/Y');
+
+      // Get serie based on company (you can adjust this logic as needed)
+      $serie = 'MOV-' . ($perDiemRequest->company->id ?? '001');
+
+      // Generate next correlative for this serie and period
+      $correlative = MobilityPayroll::getNextCorrelative($serie, $period);
+
+      // Create mobility payroll record
+      $mobilityPayroll = MobilityPayroll::create([
+        'worker_id' => $employee->id,
+        'num_doc' => $employee->num_documento ?? '',
+        'company_name' => $perDiemRequest->company->nombre ?? '',
+        'address' => $perDiemRequest->company->direccion ?? '',
+        'serie' => $serie,
+        'correlative' => $correlative,
+        'period' => $period,
+        'sede_id' => $perDiemRequest->company->sede_id ?? null,
+      ]);
+
+      // Update all mobility expenses with the payroll ID
+      foreach ($mobilityExpenses as $expense) {
+        $expense->mobility_payroll_id = $mobilityPayroll->id;
+        $expense->save();
+      }
+
+      DB::commit();
+
+      // Load relationships for response
+      $mobilityPayroll->load(['worker', 'sede', 'expenses.expenseType']);
+
+      return [
+        'mobility_payroll' => $mobilityPayroll,
+        'expenses_count' => $mobilityExpenses->count(),
+        'total_amount' => $mobilityExpenses->sum('receipt_amount'),
+        'message' => 'Planilla de movilidad generada exitosamente'
+      ];
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Generate mobility payroll PDF report
+   * Creates a PDF with mobility payroll header and expense details
+   */
+  public function generateMobilityPayrollPDF(int $id)
+  {
+    $perDiemRequest = $this->find($id);
+    $perDiemRequest->load(['employee', 'company', 'expenses.expenseType']);
+
+    // Get mobility expenses with mobility_payroll_id
+    $mobilityExpenses = $perDiemRequest->expenses->filter(function ($expense) {
+      return !is_null($expense->mobility_payroll_id);
+    });
+
+    // Validate that there are mobility expenses with payroll
+    if ($mobilityExpenses->isEmpty()) {
+      throw new Exception('No hay gastos de movilidad con planilla generada');
+    }
+
+    // Get the mobility payroll ID (should be the same for all expenses)
+    $mobilityPayrollId = $mobilityExpenses->first()->mobility_payroll_id;
+
+    // Load the mobility payroll header
+    $mobilityPayroll = MobilityPayroll::with(['worker', 'sede'])->find($mobilityPayrollId);
+
+    if (!$mobilityPayroll) {
+      throw new Exception('No se encontró la planilla de movilidad');
+    }
+
+    // Calculate total
+    $totalAmount = $mobilityExpenses->sum('receipt_amount');
+
+    $pdf = PDF::loadView('reports.gp.gestionhumana.viaticos.mobility-payroll', [
+      'mobilityPayroll' => $mobilityPayroll,
+      'expenses' => $mobilityExpenses,
+      'totalAmount' => $totalAmount,
+      'perDiemRequest' => $perDiemRequest,
+    ]);
+
+    $pdf->setOptions([
+      'defaultFont' => 'Arial',
+      'isHtml5ParserEnabled' => true,
+      'isRemoteEnabled' => false,
+      'dpi' => 96,
+    ]);
+
+    $pdf->setPaper('A4', 'portrait');
+
+    return $pdf;
   }
 
   /**

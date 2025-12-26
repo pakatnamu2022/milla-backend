@@ -33,6 +33,7 @@ class PerDiemExpense extends BaseModel
     'rejected_by',
     'rejected_at',
     'rejection_reason',
+    'mobility_payroll_id',
   ];
 
   protected $casts = [
@@ -77,6 +78,14 @@ class PerDiemExpense extends BaseModel
   public function rejector(): BelongsTo
   {
     return $this->belongsTo(Worker::class, 'rejected_by');
+  }
+
+  /**
+   * Get the mobility payroll this expense belongs to
+   */
+  public function mobilityPayroll(): BelongsTo
+  {
+    return $this->belongsTo(MobilityPayroll::class, 'mobility_payroll_id');
   }
 
   /**

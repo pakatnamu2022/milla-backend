@@ -135,19 +135,19 @@
 <div class="info-section">
   <div class="info-row">
     <span class="info-label">Nombre:</span>
-    <span>{{ $request['employee']['name'] ?? '' }}</span>
+    <span>{{ $request['employee']['name'] ?? 'N/A' }}</span>
   </div>
   <div class="info-row">
     <span class="info-label">Motivo del Viaje:</span>
-    <span>{{ $request['purpose'] ?? '' }}</span>
+    <span>{{ $request['purpose'] ?? 'N/A' }}</span>
   </div>
   <div class="info-row">
     <span class="info-label">Destino:</span>
-    <span>{{ $request['district']['name'] ?? '' }}</span>
+    <span>{{ $request['district']['name'] ?? 'N/A' }}</span>
   </div>
   <div class="info-row">
     <span class="info-label">Periodo:</span>
-    <span>{{ date('d/m/Y', strtotime($request['start_date'])) }} - {{ date('d/m/Y', strtotime($request['end_date'])) }}</span>
+    <span>{{ isset($request['start_date']) ? date('d/m/Y', strtotime($request['start_date'])) : 'N/A' }} - {{ isset($request['end_date']) ? date('d/m/Y', strtotime($request['end_date'])) : 'N/A' }}</span>
   </div>
   <div class="info-row">
     <span class="info-label">Moneda:</span>
@@ -175,11 +175,12 @@
     </tr>
     @foreach($alimentacion as $expense)
       <tr>
-        <td class="text-center">{{ date('d/m/Y', strtotime($expense['expense_date'])) }}</td>
+        <td
+          class="text-center">{{ isset($expense['expense_date']) ? date('d/m/Y', strtotime($expense['expense_date'])) : '-' }}</td>
         <td class="text-center">{{ $expense['receipt_number'] ?? 'S/N' }}</td>
-        <td>{{ $expense['supplier_name'] ?? '-' }}</td>
-        <td>{{ $expense['description'] ?? '-' }}</td>
-        <td class="text-right">S/ {{ number_format($expense['company_amount'], 2) }}</td>
+        <td>{{ $expense['notes'] ?? '-' }}</td>
+        <td>{{ $expense['concept'] ?? '-' }}</td>
+        <td class="text-right">S/ {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
       </tr>
     @endforeach
     <tr class="total-row">
@@ -195,11 +196,12 @@
     </tr>
     @foreach($hospedaje as $expense)
       <tr>
-        <td class="text-center">{{ date('d/m/Y', strtotime($expense['expense_date'])) }}</td>
+        <td
+          class="text-center">{{ isset($expense['expense_date']) ? date('d/m/Y', strtotime($expense['expense_date'])) : '-' }}</td>
         <td class="text-center">{{ $expense['receipt_number'] ?? 'S/N' }}</td>
-        <td>{{ $expense['supplier_name'] ?? '-' }}</td>
-        <td>{{ $expense['description'] ?? '-' }}</td>
-        <td class="text-right">S/ {{ number_format($expense['company_amount'], 2) }}</td>
+        <td>{{ $expense['notes'] ?? '-' }}</td>
+        <td>{{ $expense['concept'] ?? '-' }}</td>
+        <td class="text-right">S/ {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
       </tr>
     @endforeach
     <tr class="total-row">
@@ -215,11 +217,12 @@
     </tr>
     @foreach($movilidad as $expense)
       <tr>
-        <td class="text-center">{{ date('d/m/Y', strtotime($expense['expense_date'])) }}</td>
+        <td
+          class="text-center">{{ isset($expense['expense_date']) ? date('d/m/Y', strtotime($expense['expense_date'])) : '-' }}</td>
         <td class="text-center">{{ $expense['receipt_number'] ?? 'S/N' }}</td>
-        <td>{{ $expense['supplier_name'] ?? '-' }}</td>
-        <td>{{ $expense['description'] ?? '-' }}</td>
-        <td class="text-right">S/ {{ number_format($expense['company_amount'], 2) }}</td>
+        <td>{{ $expense['notes'] ?? '-' }}</td>
+        <td>{{ $expense['concept'] ?? '-' }}</td>
+        <td class="text-right">S/ {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
       </tr>
     @endforeach
     <tr class="total-row">
@@ -235,11 +238,12 @@
     </tr>
     @foreach($otros as $expense)
       <tr>
-        <td class="text-center">{{ date('d/m/Y', strtotime($expense['expense_date'])) }}</td>
+        <td
+          class="text-center">{{ isset($expense['expense_date']) ? date('d/m/Y', strtotime($expense['expense_date'])) : '-' }}</td>
         <td class="text-center">{{ $expense['receipt_number'] ?? 'S/N' }}</td>
-        <td>{{ $expense['supplier_name'] ?? '-' }}</td>
-        <td>{{ $expense['description'] ?? '-' }}</td>
-        <td class="text-right">S/ {{ number_format($expense['company_amount'], 2) }}</td>
+        <td>{{ $expense['notes'] ?? '-' }}</td>
+        <td>{{ $expense['concept'] ?? '-' }}</td>
+        <td class="text-right">S/ {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
       </tr>
     @endforeach
     <tr class="total-row">
@@ -248,25 +252,25 @@
     </tr>
   @endif
 
-  @if(count($sinComprobante) > 0)
-    <!-- Gastos sin Comprobante Category -->
-    <tr>
-      <td colspan="5" class="category-header">GASTOS SIN COMPROBANTE</td>
-    </tr>
-    @foreach($sinComprobante as $expense)
-      <tr>
-        <td class="text-center">{{ date('d/m/Y', strtotime($expense['expense_date'])) }}</td>
-        <td class="text-center">S/C</td>
-        <td>{{ $expense['supplier_name'] ?? '-' }}</td>
-        <td>{{ $expense['description'] ?? '-' }}</td>
-        <td class="text-right">S/ {{ number_format($expense['company_amount'], 2) }}</td>
-      </tr>
-    @endforeach
-    <tr class="total-row">
-      <td colspan="4" class="text-right">TOTAL SIN COMPROBANTE:</td>
-      <td class="text-right">S/ {{ number_format($totalSinComprobante, 2) }}</td>
-    </tr>
-  @endif
+  {{--  @if(count($sinComprobante) > 0)--}}
+  {{--    <!-- Gastos sin Comprobante Category -->--}}
+  {{--    <tr>--}}
+  {{--      <td colspan="5" class="category-header">GASTOS SIN COMPROBANTE</td>--}}
+  {{--    </tr>--}}
+  {{--    @foreach($sinComprobante as $expense)--}}
+  {{--      <tr>--}}
+  {{--        <td class="text-center">{{ isset($expense['expense_date']) ? date('d/m/Y', strtotime($expense['expense_date'])) : '-' }}</td>--}}
+  {{--        <td class="text-center">S/C</td>--}}
+  {{--        <td>{{ $expense['notes'] ?? '-' }}</td>--}}
+  {{--        <td>{{ $expense['concept'] ?? '-' }}</td>--}}
+  {{--        <td class="text-right">S/ {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>--}}
+  {{--      </tr>--}}
+  {{--    @endforeach--}}
+  {{--    <tr class="total-row">--}}
+  {{--      <td colspan="4" class="text-right">TOTAL SIN COMPROBANTE:</td>--}}
+  {{--      <td class="text-right">S/ {{ number_format($totalSinComprobante, 2) }}</td>--}}
+  {{--    </tr>--}}
+  {{--  @endif--}}
 
   <!-- Total General -->
   <tr class="total-row">

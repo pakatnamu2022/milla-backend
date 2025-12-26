@@ -1192,6 +1192,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('per-diem-requests/{id}/available-budgets', [PerDiemRequestController::class, 'availableBudgets']);
     Route::get('per-diem-requests/{id}/available-expense-types', [PerDiemRequestController::class, 'availableExpenseTypes']);
     Route::post('per-diem-requests/{id}/agregar-deposito', [PerDiemRequestController::class, 'agregarDeposito']);
+    Route::post('per-diem-requests/{id}/generate-mobility-payroll', [PerDiemRequestController::class, 'generateMobilityPayroll']);
+    Route::get('per-diem-requests/{id}/mobility-payroll-pdf', [PerDiemRequestController::class, 'mobilityPayrollPDF']);
     Route::apiResource('per-diem-requests', PerDiemRequestController::class)->only([
       'index',
       'show',

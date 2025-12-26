@@ -16,6 +16,7 @@ class PerDiemExpenseResource extends JsonResource
   {
     return [
       'id' => $this->id,
+      'expense_type_id' => $this->expense_type_id,
       'expense_date' => $this->expense_date,
       'concept' => $this->concept,
       'receipt_amount' => (float)$this->receipt_amount,
@@ -32,7 +33,7 @@ class PerDiemExpenseResource extends JsonResource
       'rejection_reason' => $this->rejection_reason,
 
       // Relations
-      'expense_type' => new ExpenseTypeResource($this->expenseType),
+      'expense_type' => $this->expenseType ? new ExpenseTypeResource($this->expenseType) : null,
       'validated_by' => $this->validator?->name ?? $this->validator?->fullname ?? null,
       'rejected_by' => $this->rejector?->nombre_completo ?? null,
     ];

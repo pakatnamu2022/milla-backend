@@ -353,4 +353,32 @@ class PerDiemRequestController extends Controller
       return $this->error($e->getMessage());
     }
   }
+
+  /**
+   * Generate mobility payroll for a per diem request
+   */
+  public function generateMobilityPayroll(int $id)
+  {
+    try {
+      $result = $this->service->generateMobilityPayroll($id);
+
+      return $this->success($result);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Generate mobility payroll PDF report
+   */
+  public function mobilityPayrollPDF($id)
+  {
+    try {
+      $pdf = $this->service->generateMobilityPayrollPDF($id);
+      $filename = "planilla-movilidad-{$id}.pdf";
+      return $pdf->download($filename);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }
