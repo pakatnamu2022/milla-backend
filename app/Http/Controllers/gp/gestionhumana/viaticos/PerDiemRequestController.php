@@ -266,6 +266,20 @@ class PerDiemRequestController extends Controller
   }
 
   /**
+   * Generate expense detail PDF report
+   */
+  public function expenseDetailPDF($id)
+  {
+    try {
+      $pdf = $this->service->generateExpenseDetailPDF($id);
+      $filename = "detalle-gastos-viaje-{$id}.pdf";
+      return $pdf->download($filename);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Confirm a per diem request
    * Transitions from 'approved' to 'in_progress' and regenerates budgets
    */
