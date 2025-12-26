@@ -35,11 +35,12 @@ class PerDiemExpenseService extends BaseService
 
   /**
    * Get expenses by request
+   * Only returns user expenses (not company expenses)
    */
   public function getByRequest(int $requestId, Request $request): JsonResponse
   {
     return $this->getFilteredResults(
-      PerDiemExpense::where('per_diem_request_id', $requestId),
+      PerDiemExpense::where('per_diem_request_id', $requestId)->userExpenses(),
       $request,
       [],
       [],
@@ -121,6 +122,7 @@ class PerDiemExpenseService extends BaseService
         'receipt_type' => $data['receipt_type'] ?? null,
         'receipt_number' => $data['receipt_number'] ?? null,
         'notes' => $data['notes'] ?? null,
+        'is_company_expense' => false,
       ]);
 
       // Subir archivo y actualizar URL
