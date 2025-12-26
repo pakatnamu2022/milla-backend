@@ -543,6 +543,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   /**
    * Get available expense types for a per diem request
    * Returns expense types that have budgets assigned to the request
+   * Also includes TRANSPORTATION if less than 2 transportation expenses exist
    *
    * @param int $id Per diem request ID
    * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
@@ -553,7 +554,19 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $request = $this->find($id);
 
     // Get all expense types from budgets
-    $expenseTypeIds = $request->budgets()->pluck('expense_type_id')->unique();
+    $expenseTypeIds = $request->budgets()->pluck('expense_type_id')->unique()->toArray();
+
+    // Check if TRANSPORTATION should be available
+    // Count existing transportation expenses (excluding rejected ones)
+    $transportationExpensesCount = PerDiemExpense::where('per_diem_request_id', $id)
+      ->where('expense_type_id', ExpenseType::TRANSPORTATION_ID)
+      ->where('rejected', false)
+      ->count();
+
+    // Add TRANSPORTATION to available types if less than 2 expenses exist
+    if ($transportationExpensesCount < 2 && !in_array(ExpenseType::TRANSPORTATION_ID, $expenseTypeIds)) {
+      $expenseTypeIds[] = ExpenseType::TRANSPORTATION_ID;
+    }
 
     // Get expense types with parent relation
     $expenseTypes = ExpenseType::whereIn('id', $expenseTypeIds)
