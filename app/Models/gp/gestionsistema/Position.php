@@ -5,6 +5,7 @@ namespace App\Models\gp\gestionsistema;
 use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategoryDetail;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Support\Str;
 
 class Position extends BaseModel
