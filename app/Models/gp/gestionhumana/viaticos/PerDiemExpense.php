@@ -25,6 +25,7 @@ class PerDiemExpense extends BaseModel
     'receipt_number',
     'receipt_path',
     'notes',
+    'is_company_expense',
     'validated',
     'validated_by',
     'validated_at',
@@ -39,6 +40,7 @@ class PerDiemExpense extends BaseModel
     'receipt_amount' => 'decimal:2',
     'company_amount' => 'decimal:2',
     'employee_amount' => 'decimal:2',
+    'is_company_expense' => 'boolean',
     'validated' => 'boolean',
     'validated_at' => 'datetime',
     'rejected' => 'boolean',
@@ -99,6 +101,22 @@ class PerDiemExpense extends BaseModel
   public function scopeValidated($query)
   {
     return $query->where('validated', true);
+  }
+
+  /**
+   * Scope to filter user expenses (not company expenses)
+   */
+  public function scopeUserExpenses($query)
+  {
+    return $query->where('is_company_expense', false);
+  }
+
+  /**
+   * Scope to filter company expenses
+   */
+  public function scopeCompanyExpenses($query)
+  {
+    return $query->where('is_company_expense', true);
   }
 
   /**
