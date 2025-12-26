@@ -64,6 +64,19 @@ class Position extends BaseModel
     'tipo_onboarding_id' => 'asc',
   ];
 
+  protected static function boot()
+  {
+    parent::boot();
+    static::saved(function ($model) {
+      if (Str::contains($model->name, 'GERENTE')) {
+        $model->hierarchical_category_id = 1;
+      } else {
+        $model->hierarchical_category_id = 2;
+      }
+    });
+  }
+
+
   public function setNameAttribute($value)
   {
     $this->attributes['name'] = Str::upper($value);
