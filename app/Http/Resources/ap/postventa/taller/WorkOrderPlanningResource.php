@@ -22,6 +22,7 @@ class WorkOrderPlanningResource extends JsonResource
       'planned_end_datetime' => $this->planned_end_datetime?->format('Y-m-d H:i:s'),
       'actual_start_datetime' => $this->actual_start_datetime?->format('Y-m-d H:i:s'),
       'actual_end_datetime' => $this->actual_end_datetime?->format('Y-m-d H:i:s'),
+      'type' => $this->type,
       'status' => $this->status,
       'has_active_session' => (bool)$this->activeSession(),
       'sessions_count' => $this->sessions ? $this->sessions->count() : 0,

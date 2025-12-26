@@ -6,6 +6,7 @@ use App\Http\Resources\gp\gestionhumana\viaticos\ExpenseTypeResource;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRequestResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionhumana\viaticos\ExpenseType;
 use App\Models\gp\gestionhumana\viaticos\HotelReservation;
@@ -14,7 +15,9 @@ use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRate;
 use App\Models\gp\gestionhumana\viaticos\PerDiemPolicy;
 use App\Models\gp\gestionhumana\viaticos\PerDiemApproval;
+use App\Models\gp\gestionsistema\DigitalFile;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
@@ -23,6 +26,15 @@ use Exception;
 
 class PerDiemRequestService extends BaseService implements BaseServiceInterface
 {
+  protected DigitalFileService $digitalFileService;
+
+  // Configuración de ruta para vouchers de depósito
+  private const DEPOSIT_VOUCHER_PATH = '/gp/gestionhumana/viaticos/vouchers/';
+
+  public function __construct(DigitalFileService $digitalFileService)
+  {
+    $this->digitalFileService = $digitalFileService;
+  }
   /**
    * Get all per diem requests with filters and pagination
    */
@@ -886,5 +898,63 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $pdf->setPaper('A4', 'portrait');
 
     return $pdf;
+  }
+
+  /**
+   * Upload deposit voucher for a per diem request
+   * This is used when with_request is true to upload proof of deposit
+   *
+   * @param int $id Per diem request ID
+   * @param UploadedFile $voucherFile The voucher file (photo or document)
+   * @return PerDiemRequestResource
+   * @throws Exception
+   */
+  public function agregarDeposito(int $id, UploadedFile $voucherFile): PerDiemRequestResource
+  {
+    try {
+      DB::beginTransaction();
+
+      $request = $this->find($id);
+
+      // Validate that the request has with_request enabled
+      if (!$request->with_request) {
+        throw new Exception('Esta solicitud no requiere voucher de depósito (with_request es false)');
+      }
+
+      // Delete old voucher if exists
+      if ($request->deposit_voucher_url) {
+        $oldDigitalFile = DigitalFile::where('url', $request->deposit_voucher_url)->first();
+
+        if ($oldDigitalFile) {
+          $this->digitalFileService->destroy($oldDigitalFile->id);
+        }
+      }
+
+      // Upload new voucher using DigitalFileService
+      $path = self::DEPOSIT_VOUCHER_PATH;
+      $model = $request->getTable();
+
+      $digitalFile = $this->digitalFileService->store($voucherFile, $path, 'public', $model);
+
+      // Update request with voucher URL
+      $request->deposit_voucher_url = $digitalFile->url;
+      $request->save();
+
+      DB::commit();
+
+      return new PerDiemRequestResource(
+        $request->fresh([
+          'employee',
+          'company',
+          'companyService',
+          'district',
+          'policy',
+          'category'
+        ])
+      );
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 }

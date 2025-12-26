@@ -42,17 +42,8 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     // Establecer valor por defecto para type si no se envía
     $data['type'] = $data['type'] ?? 'internal';
 
-    // Si no se proporciona planned_end_datetime pero sí estimated_hours, calcularlo
-    if (!isset($data['planned_end_datetime']) && isset($data['estimated_hours'])) {
-      $startDatetime = $data['planned_start_datetime'];
-      $estimatedHours = floatval($data['estimated_hours']);
-
-      // Convertir horas a minutos para mayor precisión
-      $minutes = $estimatedHours * 60;
-
-      // Calcular la fecha/hora de fin sumando las horas estimadas
-      $data['planned_end_datetime'] = Carbon::parse($startDatetime)->addMinutes($minutes);
-    }
+    // Calcular planned_end_datetime si es necesario
+    $data = $this->calculatePlannedEndDatetime($data);
 
     // Ejecutar validaciones antes de crear
     $this->validateWorkerSchedule($data);
@@ -62,9 +53,23 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
   }
 
   /**
+   * Calcula el planned_end_datetime basado en estimated_hours y planned_start_datetime
+   */
+  private function calculatePlannedEndDatetime(array $data): array
+  {
+    if (!isset($data['planned_end_datetime']) && isset($data['estimated_hours']) && isset($data['planned_start_datetime'])) {
+      $estimatedHours = floatval($data['estimated_hours']);
+      $minutes = $estimatedHours * 60;
+      $data['planned_end_datetime'] = Carbon::parse($data['planned_start_datetime'])->addMinutes($minutes);
+    }
+
+    return $data;
+  }
+
+  /**
    * Valida el horario del trabajador según las reglas de negocio
    */
-  private function validateWorkerSchedule(array $data): void
+  private function validateWorkerSchedule(array $data, ?int $excludeId = null): void
   {
     $workerId = $data['worker_id'];
     $type = $data['type'];
@@ -75,13 +80,19 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     $currentDate = $plannedStart->format('Y-m-d');
 
     // Obtener todos los trabajos del trabajador para ese día
-    $workerPlannings = ApWorkOrderPlanning::where('worker_id', $workerId)
+    $query = ApWorkOrderPlanning::where('worker_id', $workerId)
       ->whereDate('planned_start_datetime', $currentDate)
-      ->orderBy('planned_end_datetime', 'desc')
-      ->get();
+      ->orderBy('planned_end_datetime', 'desc');
+
+    // Excluir el ID actual si se está editando
+    if ($excludeId !== null) {
+      $query->where('id', '!=', $excludeId);
+    }
+
+    $workerPlannings = $query->get();
 
     // 1. Validar solapamiento de horarios
-    $this->validateNoOverlap($workerPlannings, $plannedStart, $plannedEnd);
+    $this->validateNoOverlap($workerPlannings, $plannedStart, $plannedEnd, $type);
 
     // 2. Validaciones específicas según el tipo
     if ($type === 'external') {
@@ -93,11 +104,14 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
   }
 
   /**
-   * Valida que no haya solapamiento de horarios
+   * Valida que no haya solapamiento de horarios entre trabajos del mismo tipo
    */
-  private function validateNoOverlap($existingPlannings, Carbon $plannedStart, Carbon $plannedEnd): void
+  private function validateNoOverlap($existingPlannings, Carbon $plannedStart, Carbon $plannedEnd, string $type): void
   {
-    foreach ($existingPlannings as $existing) {
+    // Filtrar solo los trabajos del mismo tipo
+    $samePlannings = $existingPlannings->where('type', $type);
+
+    foreach ($samePlannings as $existing) {
       $existingStart = Carbon::parse($existing->planned_start_datetime);
       $existingEnd = Carbon::parse($existing->planned_end_datetime);
 
@@ -110,7 +124,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         throw new Exception(
           "El horario asignado ({$plannedStart->format('H:i')} - {$plannedEnd->format('H:i')}) " .
           "se solapa con un trabajo existente ({$existingStart->format('H:i')} - {$existingEnd->format('H:i')}). " .
-          "No se pueden asignar horarios duplicados o solapados para el mismo trabajador."
+          "No se pueden asignar horarios duplicados o solapados para el mismo trabajador en el mismo tipo de trabajo."
         );
       }
     }
@@ -125,8 +139,8 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     $hasInternalWork = $workerPlannings->where('type', 'internal')->count() > 0;
     if (!$hasInternalWork) {
       throw new Exception(
-        'No se puede asignar un trabajo de tipo "external" si el trabajador no tiene ' .
-        'al menos 1 trabajo de tipo "internal" registrado para este día.'
+        'No se puede asignar un trabajo excepcional si el trabajador no tiene ' .
+        'al menos 1 trabajo registrado para este día.'
       );
     }
 
@@ -134,7 +148,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     $hasExternalWork = $workerPlannings->where('type', 'external')->count() > 0;
     if ($hasExternalWork) {
       throw new Exception(
-        'El trabajador ya tiene un trabajo de tipo "external" asignado para este día. ' .
+        'El trabajador ya tiene un trabajo excepcional asignado para este día. ' .
         'Solo se permite 1 trabajo externo por día.'
       );
     }
@@ -184,7 +198,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     // Validar que el horario esté dentro de los rangos permitidos
     if (!$isInMorningShift && !$isInAfternoonShift) {
       throw new Exception(
-        "Los trabajos de tipo 'internal' deben estar dentro de los horarios permitidos: " .
+        "Los trabajos deben estar dentro de los horarios permitidos: " .
         "Mañana (08:00 - 13:00) o Tarde (14:24 - 18:00). " .
         "El horario asignado ({$startTime} - {$endTime}) está fuera de estos rangos."
       );
@@ -207,7 +221,35 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
   public function update(mixed $data)
   {
     $planning = $this->find($data['id']);
-    $planning->update($data);
+
+    // Preparar datos para validación mergeando con datos existentes
+    $validationData = [
+      'worker_id' => $planning->worker_id,
+      'type' => $planning->type,
+      'estimated_hours' => $data['estimated_hours'] ?? $planning->estimated_hours,
+      'planned_start_datetime' => $data['planned_start_datetime'] ?? $planning->planned_start_datetime,
+    ];
+
+    // Calcular planned_end_datetime si se modificó estimated_hours o planned_start_datetime
+    $validationData = $this->calculatePlannedEndDatetime($validationData);
+
+    // Validar antes de actualizar (excluyendo el ID actual)
+    $this->validateWorkerSchedule($validationData, $planning->id);
+
+    // Preparar datos finales para actualización
+    $updateData = [];
+    if (isset($data['estimated_hours'])) {
+      $updateData['estimated_hours'] = $data['estimated_hours'];
+    }
+    if (isset($data['planned_start_datetime'])) {
+      $updateData['planned_start_datetime'] = $data['planned_start_datetime'];
+    }
+    // Actualizar planned_end_datetime si se calculó
+    if (isset($validationData['planned_end_datetime'])) {
+      $updateData['planned_end_datetime'] = $validationData['planned_end_datetime'];
+    }
+
+    $planning->update($updateData);
     return new WorkOrderPlanningResource($planning->fresh(['worker', 'workOrder', 'sessions']));
   }
 

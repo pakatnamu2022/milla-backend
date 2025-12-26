@@ -14,8 +14,8 @@ use App\Http\Requests\gp\gestionhumana\viaticos\CompleteSettlementPerDiemRequest
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRateResource;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRequestResource;
 use App\Http\Services\gp\gestionhumana\viaticos\PerDiemRequestService;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
+use Illuminate\Http\Request;
 
 class PerDiemRequestController extends Controller
 {
@@ -306,6 +306,35 @@ class PerDiemRequestController extends Controller
       $expenseTypes = $this->service->getAvailableExpenseTypes($id);
 
       return $this->success($expenseTypes);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Upload deposit voucher for a per diem request
+   */
+  public function agregarDeposito(int $id, Request $request)
+  {
+    try {
+      // Validate that a file was uploaded
+      if (!$request->hasFile('voucher')) {
+        return $this->error('No se ha proporcionado ningún archivo de voucher');
+      }
+
+      $voucherFile = $request->file('voucher');
+
+      // Validate file type (images and PDFs)
+      $request->validate([
+        'voucher' => 'required|file|mimes:jpeg,jpg,png,pdf|max:10240' // Max 10MB
+      ]);
+
+      $perDiemRequest = $this->service->agregarDeposito($id, $voucherFile);
+
+      return $this->success([
+        'data' => $perDiemRequest,
+        'message' => 'Voucher de depósito agregado exitosamente'
+      ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
