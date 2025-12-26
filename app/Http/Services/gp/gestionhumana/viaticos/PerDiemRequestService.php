@@ -8,6 +8,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionhumana\viaticos\ExpenseType;
+use App\Models\gp\gestionhumana\viaticos\HotelReservation;
 use App\Models\gp\gestionhumana\viaticos\PerDiemExpense;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRate;
@@ -683,7 +684,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           break;
 
         case ExpenseType::ACCOMMODATION_ID:
-          $totalBudget += $this->generateAccommodationBudget($request, $rate, $daysCount);
+          // No budget generated - depends on GH
           break;
 
         case ExpenseType::LOCAL_TRANSPORT_ID:
@@ -693,8 +694,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           break;
 
         case ExpenseType::TRANSPORTATION_ID:
-          $this->generateTransportationBudget($request);
-          // Note: Does not add to total budget (0 or null)
+          // No budget generated - depends on agency
           break;
       }
     }
@@ -704,7 +704,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
   /**
    * Generate budgets for meals (breakfast, lunch, dinner)
-   * Distributes MEALS amount evenly across three meals: 33.33%, 33.33%, 33.34%
+   * Distributes MEALS amount across three meals: 30%, 40%, 30%
    * Omits meals included in hotel agreement
    *
    * @param PerDiemRequest $request
@@ -722,9 +722,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   {
     $totalMealsDaily = $mealsRate->daily_amount; // e.g., $70
 
-    // Calculate split: 33.33%, 33.33%, 33.34%
-    $breakfastDaily = round($totalMealsDaily * 0.3333, 2);
-    $lunchDaily = round($totalMealsDaily * 0.3333, 2);
+    // Calculate split: 30%, 40%, 30% (rounded to integers)
+    $breakfastDaily = floor($totalMealsDaily * 0.30);
+    $lunchDaily = floor($totalMealsDaily * 0.40);
     $dinnerDaily = $totalMealsDaily - $breakfastDaily - $lunchDaily; // Ensures total = 100%
 
     $totalMealBudget = 0;
@@ -775,28 +775,19 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
   /**
    * Generate budget for accommodation
+   * Creates a budget entry with total = 0 for tracking purposes (depends on GH)
    *
    * @param PerDiemRequest $request
-   * @param PerDiemRate $rate
-   * @param int $daysCount
-   * @return float Total accommodation budget
+   * @return void
    */
-  private function generateAccommodationBudget(
-    PerDiemRequest $request,
-    PerDiemRate    $rate,
-    int            $daysCount
-  ): float
+  private function generateAccommodationBudget(PerDiemRequest $request): void
   {
-    $total = $rate->daily_amount * $daysCount;
-
     $request->budgets()->create([
       'expense_type_id' => ExpenseType::ACCOMMODATION_ID,
-      'daily_amount' => $rate->daily_amount,
-      'days' => $daysCount,
-      'total' => $total,
+      'daily_amount' => 0,
+      'days' => 0,
+      'total' => 0,
     ]);
-
-    return $total;
   }
 
   /**
