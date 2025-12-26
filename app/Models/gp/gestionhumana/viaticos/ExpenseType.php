@@ -42,6 +42,21 @@ class ExpenseType extends BaseModel
     'active',
   ];
 
+  const string ACCOMMODATION = "ACCOMMODATION";
+  const string TRANSPORTATION = "TRANSPORTATION";
+  const string MEALS = "MEALS";
+  const string BREAKFAST = "BREAKFAST";
+  const string LUNCH = "LUNCH";
+  const string DINNER = "DINNER";
+  const string LOCAL_TRANSPORT = "LOCAL_TRANSPORT";
+  const int ACCOMMODATION_ID = 1;
+  const int TRANSPORTATION_ID = 2;
+  const int MEALS_ID = 3;
+  const int BREAKFAST_ID = 4;
+  const int LUNCH_ID = 5;
+  const int DINNER_ID = 6;
+  const int LOCAL_TRANSPORT_ID = 7;
+
   /**
    * Get the parent expense type (self-referencing)
    */

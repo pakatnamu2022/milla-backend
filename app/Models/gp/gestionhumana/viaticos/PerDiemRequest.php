@@ -166,7 +166,7 @@ class PerDiemRequest extends BaseModel
    */
   public function expenses(): HasMany
   {
-    return $this->hasMany(PerDiemExpense::class);
+    return $this->hasMany(PerDiemExpense::class)->orderBy('expense_date', 'desc');
   }
 
   /**
