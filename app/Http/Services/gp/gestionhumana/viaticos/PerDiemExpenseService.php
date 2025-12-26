@@ -17,6 +17,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Exception;
 use Throwable;
+use function in_array;
 
 class PerDiemExpenseService extends BaseService
 {
@@ -60,9 +61,15 @@ class PerDiemExpenseService extends BaseService
         throw new Exception('No se pueden agregar gastos a una solicitud en el estado actual. Asegúrese de que la solicitud esté en progreso o en liquidación.');
       }
 
-      $budget = RequestBudget::where('expense_type_id', $data['expense_type_id'])
-        ->where('per_diem_request_id', $requestId)
-        ->firstOrFail();
+      if (in_array($data['expense_type_id'], [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
+        $budget = RequestBudget::where('expense_type_id', ExpenseType::MEALS_ID)
+          ->where('per_diem_request_id', $requestId)
+          ->firstOrFail();
+      } else {
+        $budget = RequestBudget::where('expense_type_id', $data['expense_type_id'])
+          ->where('per_diem_request_id', $requestId)
+          ->firstOrFail();
+      }
 
       // Skip budget validation for TRANSPORTATION (no limit)
       if ($data['expense_type_id'] === ExpenseType::TRANSPORTATION_ID) {
