@@ -37,6 +37,7 @@ class Position extends BaseModel
     'created_at',
     'updated_at',
     'status_deleted', // 1 activo, 0 eliminado
+    'per_diem_category_id'
   ];
 
   const filters = [
@@ -63,6 +64,19 @@ class Position extends BaseModel
     'banda_salarial_max' => 'asc',
     'tipo_onboarding_id' => 'asc',
   ];
+
+  protected static function boot()
+  {
+    parent::boot();
+    static::saving(function ($model) {
+      if (Str::contains($model->name, 'GERENTE')) {
+        $model->per_diem_category_id = 1;
+      } else {
+        $model->per_diem_category_id = 2;
+      }
+    });
+  }
+
 
   public function setNameAttribute($value)
   {

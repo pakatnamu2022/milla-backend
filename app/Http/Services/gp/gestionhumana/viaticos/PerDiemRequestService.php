@@ -144,7 +144,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       );
 
       // Generate initial budgets (without hotel consideration)
-      $totalBudget = $this->generateBudgets($request, $rates, null);
+      $totalBudget = $this->generateBudgets($request, $rates);
 
       // Update total budget
       $request->update(['total_budget' => $totalBudget]);
@@ -495,7 +495,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $hotelReservation = $request->hotelReservation()->with('hotelAgreement')->first();
 
       // Regenerate budgets with hotel consideration
-      $totalBudget = $this->generateBudgets($request, $rates, $hotelReservation);
+      $totalBudget = $this->generateBudgets($request, $rates);
 
       // Update total budget
       $request->update(['total_budget' => $totalBudget]);
@@ -682,7 +682,6 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   private function generateBudgets(
     PerDiemRequest $request,
     Collection     $rates,
-                   $hotelReservation = null
   ): float
   {
     $totalBudget = 0;
@@ -692,7 +691,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     foreach ($rates as $rate) {
       switch ($rate->expense_type_id) {
         case ExpenseType::MEALS_ID:
-          $totalBudget += $this->generateMealBudgets($request, $rate, $daysCount, $hotelReservation);
+          $totalBudget += $this->generateMealBudgets($request, $rate, $daysCount);
           break;
 
         case ExpenseType::ACCOMMODATION_ID:
@@ -729,58 +728,18 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     PerDiemRequest $request,
     PerDiemRate    $mealsRate,
     int            $daysCount,
-                   $hotelReservation = null
   ): float
   {
-    $totalMealsDaily = $mealsRate->daily_amount; // e.g., $70
-
-    // Calculate split: 30%, 40%, 30% (rounded to integers)
-    $breakfastDaily = floor($totalMealsDaily * 0.30);
-    $lunchDaily = floor($totalMealsDaily * 0.40);
-    $dinnerDaily = $totalMealsDaily - $breakfastDaily - $lunchDaily; // Ensures total = 100%
-
-    $totalMealBudget = 0;
-
-    // Check hotel meal inclusions
-    $includesBreakfast = $hotelReservation?->hotelAgreement?->includes_breakfast ?? false;
-    $includesLunch = $hotelReservation?->hotelAgreement?->includes_lunch ?? false;
-    $includesDinner = $hotelReservation?->hotelAgreement?->includes_dinner ?? false;
-
+    $totalMealsDaily = $mealsRate->daily_amount;
     // Create breakfast budget if not included in hotel
-    if (!$includesBreakfast) {
-      $breakfastTotal = $breakfastDaily * $daysCount;
-      $request->budgets()->create([
-        'expense_type_id' => ExpenseType::BREAKFAST_ID,
-        'daily_amount' => $breakfastDaily,
-        'days' => $daysCount,
-        'total' => $breakfastTotal,
-      ]);
-      $totalMealBudget += $breakfastTotal;
-    }
 
-    // Create lunch budget if not included in hotel
-    if (!$includesLunch) {
-      $lunchTotal = $lunchDaily * $daysCount;
-      $request->budgets()->create([
-        'expense_type_id' => ExpenseType::LUNCH_ID,
-        'daily_amount' => $lunchDaily,
-        'days' => $daysCount,
-        'total' => $lunchTotal,
-      ]);
-      $totalMealBudget += $lunchTotal;
-    }
-
-    // Create dinner budget if not included in hotel
-    if (!$includesDinner) {
-      $dinnerTotal = $dinnerDaily * $daysCount;
-      $request->budgets()->create([
-        'expense_type_id' => ExpenseType::DINNER_ID,
-        'daily_amount' => $dinnerDaily,
-        'days' => $daysCount,
-        'total' => $dinnerTotal,
-      ]);
-      $totalMealBudget += $dinnerTotal;
-    }
+    $totalMealBudget = $totalMealsDaily * $daysCount;
+    $request->budgets()->create([
+      'expense_type_id' => ExpenseType::MEALS_ID,
+      'daily_amount' => $totalMealsDaily,
+      'days' => $daysCount,
+      'total' => $totalMealBudget,
+    ]);
 
     return $totalMealBudget;
   }
