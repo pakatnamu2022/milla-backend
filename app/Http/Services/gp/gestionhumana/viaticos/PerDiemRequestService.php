@@ -6,6 +6,8 @@ use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRequestResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\gestionhumana\viaticos\ExpenseType;
+use App\Models\gp\gestionhumana\viaticos\PerDiemExpense;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRate;
 use App\Models\gp\gestionhumana\viaticos\PerDiemPolicy;
@@ -127,20 +129,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         $employee->position->per_diem_category_id
       );
 
-      // Create RequestBudget for each expense type rate
-      $totalBudget = 0;
-      foreach ($rates as $rate) {
-        $budgetTotal = $rate->daily_amount * $daysCount;
-
-        $request->budgets()->create([
-          'expense_type_id' => $rate->expense_type_id,
-          'daily_amount' => $rate->daily_amount,
-          'days' => $daysCount,
-          'total' => $budgetTotal,
-        ]);
-
-        $totalBudget += $budgetTotal;
-      }
+      // Generate initial budgets (without hotel consideration)
+      $totalBudget = $this->generateBudgets($request, $rates, null);
 
       // Update total budget
       $request->update(['total_budget' => $totalBudget]);
@@ -457,6 +447,192 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   }
 
   /**
+   * Confirm a per diem request and recalculate budgets
+   *
+   * @param int $id Per diem request ID
+   * @return PerDiemRequestResource
+   * @throws Exception
+   */
+  public function confirm(int $id): PerDiemRequestResource
+  {
+    try {
+      DB::beginTransaction();
+
+      $request = $this->find($id);
+
+      // Validate status is 'approved'
+      if ($request->status !== 'approved') {
+        throw new Exception('Solo se pueden confirmar solicitudes aprobadas');
+      }
+
+      // Change status to 'in_progress'
+      $request->update(['status' => 'in_progress']);
+
+      // Delete existing budgets
+      $request->budgets()->delete();
+
+      // Get rates again
+      $rates = PerDiemRate::getCurrentRatesByDistrict(
+        $request->district_id,
+        $request->per_diem_category_id
+      );
+
+      // Load hotel reservation if exists
+      $hotelReservation = $request->hotelReservation()->with('hotelAgreement')->first();
+
+      // Regenerate budgets with hotel consideration
+      $totalBudget = $this->generateBudgets($request, $rates, $hotelReservation);
+
+      // Update total budget
+      $request->update(['total_budget' => $totalBudget]);
+
+      DB::commit();
+
+      return new PerDiemRequestResource(
+        $request->fresh([
+          'employee',
+          'company',
+          'companyService',
+          'district',
+          'policy',
+          'category',
+          'budgets.expenseType',
+          'hotelReservation.hotelAgreement'
+        ])
+      );
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Get available expense types for a per diem request
+   * Returns expense types that have budgets assigned to the request
+   *
+   * @param int $id Per diem request ID
+   * @return array
+   * @throws Exception
+   */
+  public function getAvailableExpenseTypes(int $id): array
+  {
+    $request = $this->find($id);
+
+    // Get all budgets with their expense types
+    $budgets = $request->budgets()
+      ->with('expenseType')
+      ->get();
+
+    $expenseTypes = [];
+
+    foreach ($budgets as $budget) {
+      // Calculate total spent for this expense type (excluding rejected expenses)
+      $totalSpent = PerDiemExpense::where('per_diem_request_id', $request->id)
+        ->where('expense_type_id', $budget->expense_type_id)
+        ->where('rejected', false)
+        ->sum('company_amount');
+
+      $available = max(0, $budget->total - $totalSpent);
+
+      $expenseTypes[] = [
+        'id' => $budget->expenseType->id,
+        'code' => $budget->expenseType->code,
+        'name' => $budget->expenseType->name,
+        'parent_id' => $budget->expenseType->parent_id,
+        'requires_receipt' => $budget->expenseType->requires_receipt,
+        'order' => $budget->expenseType->order,
+        'budget' => [
+          'daily_amount' => (float)$budget->daily_amount,
+          'days' => $budget->days,
+          'total' => (float)$budget->total,
+          'spent' => (float)$totalSpent,
+          'available' => (float)$available,
+          'has_limit' => $budget->expense_type_id !== ExpenseType::TRANSPORTATION_ID,
+        ],
+      ];
+    }
+
+    // Sort by order
+    usort($expenseTypes, function ($a, $b) {
+      return $a['order'] <=> $b['order'];
+    });
+
+    return [
+      'per_diem_request_id' => $request->id,
+      'per_diem_request_code' => $request->code,
+      'status' => $request->status,
+      'expense_types' => $expenseTypes,
+    ];
+  }
+
+  /**
+   * Get available budgets for a per diem request
+   * Shows budget, spent, and available amounts for each expense type
+   * Excludes TRANSPORTATION from response
+   *
+   * @param int $id Per diem request ID
+   * @return array
+   * @throws Exception
+   */
+  public function getAvailableBudgets(int $id): array
+  {
+    $request = $this->find($id);
+
+    // Get all budgets except TRANSPORTATION
+    $budgets = $request->budgets()
+      ->with('expenseType')
+      ->where('expense_type_id', '!=', ExpenseType::TRANSPORTATION_ID)
+      ->get();
+
+    $budgetData = [];
+
+    foreach ($budgets as $budget) {
+      // Calculate total spent for this expense type (excluding rejected expenses)
+      $totalSpent = PerDiemExpense::where('per_diem_request_id', $request->id)
+        ->where('expense_type_id', $budget->expense_type_id)
+        ->where('rejected', false)
+        ->sum('company_amount');
+
+      $available = max(0, $budget->total - $totalSpent);
+
+      $budgetData[] = [
+        'expense_type_id' => $budget->expense_type_id,
+        'expense_type_name' => $budget->expenseType->name,
+        'expense_type_code' => $budget->expenseType->code,
+        'daily_amount' => (float)$budget->daily_amount,
+        'days' => $budget->days,
+        'total_budget' => (float)$budget->total,
+        'amount_spent' => (float)$totalSpent,
+        'amount_available' => (float)$available,
+        'is_over_budget' => $totalSpent > $budget->total,
+        'percentage_spent' => $budget->total > 0
+          ? round(($totalSpent / $budget->total) * 100, 2)
+          : 0,
+      ];
+    }
+
+    // Calculate overall totals
+    $overallTotalBudget = collect($budgetData)->sum('total_budget');
+    $overallTotalSpent = collect($budgetData)->sum('amount_spent');
+    $overallAvailable = collect($budgetData)->sum('amount_available');
+
+    return [
+      'per_diem_request_id' => $request->id,
+      'per_diem_request_code' => $request->code,
+      'status' => $request->status,
+      'budgets' => $budgetData,
+      'summary' => [
+        'total_budget' => (float)$overallTotalBudget,
+        'total_spent' => (float)$overallTotalSpent,
+        'total_available' => (float)$overallAvailable,
+        'percentage_spent' => $overallTotalBudget > 0
+          ? round(($overallTotalSpent / $overallTotalBudget) * 100, 2)
+          : 0,
+      ]
+    ];
+  }
+
+  /**
    * Generate settlement report PDF
    */
   public function generateSettlementPDF($id)
@@ -508,6 +684,245 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       'defaultFont' => 'Arial',
       'isHtml5ParserEnabled' => true,
       'isRemoteEnabled' => false,
+      'dpi' => 96,
+    ]);
+
+    $pdf->setPaper('A4', 'portrait');
+
+    return $pdf;
+  }
+
+  /**
+   * Generate budgets for a per diem request
+   *
+   * @param PerDiemRequest $request The per diem request
+   * @param Collection $rates Collection of PerDiemRate objects for the district/category
+   * @param HotelReservation|null $hotelReservation Optional hotel reservation to consider meal inclusions
+   * @return float Total budget amount
+   */
+  private function generateBudgets(
+    PerDiemRequest $request,
+    Collection     $rates,
+                   $hotelReservation = null
+  ): float
+  {
+    $totalBudget = 0;
+    $daysCount = $request->days_count;
+    $withActive = $request->with_active;
+
+    foreach ($rates as $rate) {
+      switch ($rate->expense_type_id) {
+        case ExpenseType::MEALS_ID:
+          $totalBudget += $this->generateMealBudgets($request, $rate, $daysCount, $hotelReservation);
+          break;
+
+        case ExpenseType::ACCOMMODATION_ID:
+          $totalBudget += $this->generateAccommodationBudget($request, $rate, $daysCount);
+          break;
+
+        case ExpenseType::LOCAL_TRANSPORT_ID:
+          if (!$withActive) {
+            $totalBudget += $this->generateLocalTransportBudget($request, $rate, $daysCount);
+          }
+          break;
+
+        case ExpenseType::TRANSPORTATION_ID:
+          $this->generateTransportationBudget($request);
+          // Note: Does not add to total budget (0 or null)
+          break;
+      }
+    }
+
+    return $totalBudget;
+  }
+
+  /**
+   * Generate budgets for meals (breakfast, lunch, dinner)
+   * Distributes MEALS amount evenly across three meals: 33.33%, 33.33%, 33.34%
+   * Omits meals included in hotel agreement
+   *
+   * @param PerDiemRequest $request
+   * @param PerDiemRate $mealsRate The parent MEALS rate
+   * @param int $daysCount
+   * @param HotelReservation|null $hotelReservation
+   * @return float Total meal budget added
+   */
+  private function generateMealBudgets(
+    PerDiemRequest $request,
+    PerDiemRate    $mealsRate,
+    int            $daysCount,
+                   $hotelReservation = null
+  ): float
+  {
+    $totalMealsDaily = $mealsRate->daily_amount; // e.g., $70
+
+    // Calculate split: 33.33%, 33.33%, 33.34%
+    $breakfastDaily = round($totalMealsDaily * 0.3333, 2);
+    $lunchDaily = round($totalMealsDaily * 0.3333, 2);
+    $dinnerDaily = $totalMealsDaily - $breakfastDaily - $lunchDaily; // Ensures total = 100%
+
+    $totalMealBudget = 0;
+
+    // Check hotel meal inclusions
+    $includesBreakfast = $hotelReservation?->hotelAgreement?->includes_breakfast ?? false;
+    $includesLunch = $hotelReservation?->hotelAgreement?->includes_lunch ?? false;
+    $includesDinner = $hotelReservation?->hotelAgreement?->includes_dinner ?? false;
+
+    // Create breakfast budget if not included in hotel
+    if (!$includesBreakfast) {
+      $breakfastTotal = $breakfastDaily * $daysCount;
+      $request->budgets()->create([
+        'expense_type_id' => ExpenseType::BREAKFAST_ID,
+        'daily_amount' => $breakfastDaily,
+        'days' => $daysCount,
+        'total' => $breakfastTotal,
+      ]);
+      $totalMealBudget += $breakfastTotal;
+    }
+
+    // Create lunch budget if not included in hotel
+    if (!$includesLunch) {
+      $lunchTotal = $lunchDaily * $daysCount;
+      $request->budgets()->create([
+        'expense_type_id' => ExpenseType::LUNCH_ID,
+        'daily_amount' => $lunchDaily,
+        'days' => $daysCount,
+        'total' => $lunchTotal,
+      ]);
+      $totalMealBudget += $lunchTotal;
+    }
+
+    // Create dinner budget if not included in hotel
+    if (!$includesDinner) {
+      $dinnerTotal = $dinnerDaily * $daysCount;
+      $request->budgets()->create([
+        'expense_type_id' => ExpenseType::DINNER_ID,
+        'daily_amount' => $dinnerDaily,
+        'days' => $daysCount,
+        'total' => $dinnerTotal,
+      ]);
+      $totalMealBudget += $dinnerTotal;
+    }
+
+    return $totalMealBudget;
+  }
+
+  /**
+   * Generate budget for accommodation
+   *
+   * @param PerDiemRequest $request
+   * @param PerDiemRate $rate
+   * @param int $daysCount
+   * @return float Total accommodation budget
+   */
+  private function generateAccommodationBudget(
+    PerDiemRequest $request,
+    PerDiemRate    $rate,
+    int            $daysCount
+  ): float
+  {
+    $total = $rate->daily_amount * $daysCount;
+
+    $request->budgets()->create([
+      'expense_type_id' => ExpenseType::ACCOMMODATION_ID,
+      'daily_amount' => $rate->daily_amount,
+      'days' => $daysCount,
+      'total' => $total,
+    ]);
+
+    return $total;
+  }
+
+  /**
+   * Generate budget for local transport
+   *
+   * @param PerDiemRequest $request
+   * @param PerDiemRate $rate
+   * @param int $daysCount
+   * @return float Total local transport budget
+   */
+  private function generateLocalTransportBudget(
+    PerDiemRequest $request,
+    PerDiemRate    $rate,
+    int            $daysCount
+  ): float
+  {
+    $total = $rate->daily_amount * $daysCount;
+
+    $request->budgets()->create([
+      'expense_type_id' => ExpenseType::LOCAL_TRANSPORT_ID,
+      'daily_amount' => $rate->daily_amount,
+      'days' => $daysCount,
+      'total' => $total,
+    ]);
+
+    return $total;
+  }
+
+  /**
+   * Generate budget for transportation (pasajes)
+   * Creates a budget entry with total = 0 for tracking purposes
+   *
+   * @param PerDiemRequest $request
+   * @return void
+   */
+  private function generateTransportationBudget(PerDiemRequest $request): void
+  {
+    $request->budgets()->create([
+      'expense_type_id' => ExpenseType::TRANSPORTATION_ID,
+      'daily_amount' => 0,
+      'days' => 0,
+      'total' => 0,
+    ]);
+  }
+
+  /**
+   * Generate approved expenses export PDF with attachments
+   */
+  public function generateExpensesPDF($id)
+  {
+    $perDiemRequest = $this->find($id);
+
+    // Load all necessary relationships
+    $perDiemRequest->load([
+      'employee.boss.position',
+      'employee.position.area',
+      'company',
+      'companyService',
+      'district',
+      'category',
+      'policy',
+      'approvals.approver.position',
+      'expenses.expenseType',
+    ]);
+
+    $dataResource = new PerDiemRequestResource($perDiemRequest);
+    $dataArray = $dataResource->resolve();
+
+    // Filtrar solo gastos aprobados (validated = true)
+    $approvedExpenses = collect($dataArray['expenses'] ?? [])->filter(function ($expense) {
+      return $expense['validated'] === true;
+    });
+
+    // Calcular totales
+    $totalApproved = $approvedExpenses->sum('company_amount');
+
+    // Filtrar gastos que tienen archivos adjuntos
+    $expensesWithAttachments = $approvedExpenses->filter(function ($expense) {
+      return !empty($expense['receipt_path']);
+    });
+
+    $pdf = PDF::loadView('reports.gp.gestionhumana.viaticos.expenses-export', [
+      'request' => $dataArray,
+      'approvedExpenses' => $approvedExpenses,
+      'totalApproved' => $totalApproved,
+      'expensesWithAttachments' => $expensesWithAttachments,
+    ]);
+
+    $pdf->setOptions([
+      'defaultFont' => 'Arial',
+      'isHtml5ParserEnabled' => true,
+      'isRemoteEnabled' => true,
       'dpi' => 96,
     ]);
 

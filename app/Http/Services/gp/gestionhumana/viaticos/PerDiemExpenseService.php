@@ -5,6 +5,7 @@ namespace App\Http\Services\gp\gestionhumana\viaticos;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemExpenseResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
+use App\Models\gp\gestionhumana\viaticos\ExpenseType;
 use App\Models\gp\gestionhumana\viaticos\PerDiemExpense;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
 use App\Models\gp\gestionhumana\viaticos\RequestBudget;
@@ -63,20 +64,26 @@ class PerDiemExpenseService extends BaseService
         ->where('per_diem_request_id', $requestId)
         ->firstOrFail();
 
-      $expensesByType = PerDiemExpense::where('per_diem_request_id', $requestId)
-        ->where('expense_type_id', $data['expense_type_id'])
-        ->whereDate('expense_date', $data['expense_date'])
-        ->where('rejected', false)
-        ->sum('company_amount');
-
-      $available = $budget->daily_amount - $expensesByType;
-
-      if ($data['receipt_amount'] > $available) {
-        $companyAmount = $available;
-        $employeeAmount = $data['receipt_amount'] - $available;
-      } else {
+      // Skip budget validation for TRANSPORTATION (no limit)
+      if ($data['expense_type_id'] === ExpenseType::TRANSPORTATION_ID) {
         $companyAmount = $data['receipt_amount'];
         $employeeAmount = 0;
+      } else {
+        $expensesByType = PerDiemExpense::where('per_diem_request_id', $requestId)
+          ->where('expense_type_id', $data['expense_type_id'])
+          ->whereDate('expense_date', $data['expense_date'])
+          ->where('rejected', false)
+          ->sum('company_amount');
+
+        $available = $budget->daily_amount - $expensesByType;
+
+        if ($data['receipt_amount'] > $available) {
+          $companyAmount = $available;
+          $employeeAmount = $data['receipt_amount'] - $available;
+        } else {
+          $companyAmount = $data['receipt_amount'];
+          $employeeAmount = 0;
+        }
       }
 
       $expense = PerDiemExpense::create([

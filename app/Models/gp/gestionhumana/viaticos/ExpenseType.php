@@ -43,18 +43,18 @@ class ExpenseType extends BaseModel
   ];
 
   const string ACCOMMODATION = "ACCOMMODATION";
-  const int ACCOMMODATION_ID = 1;
   const string TRANSPORTATION = "TRANSPORTATION";
-  const int TRANSPORTATION_ID = 2;
   const string MEALS = "MEALS";
-  const int MEALS_ID = 3;
   const string BREAKFAST = "BREAKFAST";
-  const int BREAKFAST_ID = 4;
   const string LUNCH = "LUNCH";
-  const int LUNCH_ID = 5;
   const string DINNER = "DINNER";
-  const int DINNER_ID = 6;
   const string LOCAL_TRANSPORT = "LOCAL_TRANSPORT";
+  const int ACCOMMODATION_ID = 1;
+  const int TRANSPORTATION_ID = 2;
+  const int MEALS_ID = 3;
+  const int BREAKFAST_ID = 4;
+  const int LUNCH_ID = 5;
+  const int DINNER_ID = 6;
   const int LOCAL_TRANSPORT_ID = 7;
 
   /**

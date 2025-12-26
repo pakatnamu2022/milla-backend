@@ -250,4 +250,64 @@ class PerDiemRequestController extends Controller
       return $this->error($e->getMessage());
     }
   }
+
+  /**
+   * Export approved expenses with attachments to PDF
+   */
+  public function exportExpensesPDF($id)
+  {
+    try {
+      $pdf = $this->service->generateExpensesPDF($id);
+      $filename = "gastos-aprobados-{$id}.pdf";
+      return $pdf->download($filename);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Confirm a per diem request
+   * Transitions from 'approved' to 'in_progress' and regenerates budgets
+   */
+  public function confirm(int $id)
+  {
+    try {
+      $perDiemRequest = $this->service->confirm($id);
+
+      return $this->success([
+        'data' => $perDiemRequest,
+        'message' => 'Solicitud confirmada exitosamente. Los presupuestos han sido recalculados.'
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Get available budgets for a per diem request
+   */
+  public function availableBudgets(int $id)
+  {
+    try {
+      $budgets = $this->service->getAvailableBudgets($id);
+
+      return $this->success($budgets);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Get available expense types for a per diem request
+   */
+  public function availableExpenseTypes(int $id)
+  {
+    try {
+      $expenseTypes = $this->service->getAvailableExpenseTypes($id);
+
+      return $this->success($expenseTypes);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }
