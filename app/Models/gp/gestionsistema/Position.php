@@ -67,7 +67,7 @@ class Position extends BaseModel
   protected static function boot()
   {
     parent::boot();
-    static::saved(function ($model) {
+    static::saving(function ($model) {
       if (Str::contains($model->name, 'GERENTE')) {
         $model->hierarchical_category_id = 1;
       } else {
