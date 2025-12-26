@@ -37,6 +37,7 @@ class Position extends BaseModel
     'created_at',
     'updated_at',
     'status_deleted', // 1 activo, 0 eliminado
+    'per_diem_category_id'
   ];
 
   const filters = [
@@ -69,9 +70,9 @@ class Position extends BaseModel
     parent::boot();
     static::saving(function ($model) {
       if (Str::contains($model->name, 'GERENTE')) {
-        $model->hierarchical_category_id = 1;
+        $model->per_diem_category_id = 1;
       } else {
-        $model->hierarchical_category_id = 2;
+        $model->per_diem_category_id = 2;
       }
     });
   }
