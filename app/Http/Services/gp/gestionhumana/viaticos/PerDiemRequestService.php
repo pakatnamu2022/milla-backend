@@ -30,8 +30,6 @@ use Exception;
 class PerDiemRequestService extends BaseService implements BaseServiceInterface
 {
   protected EmailService $emailService;
-
-
   protected DigitalFileService $digitalFileService;
 
   // Configuración de ruta para vouchers de depósito
@@ -94,6 +92,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       // Set employee_id from authenticated user
       if (auth()->check()) {
         $data['employee_id'] = auth()->user()->person->id;
+        $data['authorizer_id'] = auth()->user()->person->jefe_id;
       }
 
       // Get employee's position (cargo) to obtain per_diem_category_id
@@ -140,6 +139,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'final_result' => "0",
         'with_active' => $data['with_active'] ?? false,
         'with_request' => $data['with_request'] ?? false,
+        'authorizer_id' => $data['authorizer_id'] ?? null,
       ];
 
       // Create the request
@@ -167,7 +167,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       }
 
       // Send email notifications
-      $this->sendPerDiemRequestCreatedEmails($request->fresh(['employee.boss', 'district']));
+      //$this->sendPerDiemRequestCreatedEmails($request->fresh(['employee.boss', 'district']));
 
       DB::commit();
       return new PerDiemRequestResource($request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category', 'budgets.expenseType', 'approvals.approver']));
@@ -258,6 +258,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
     // Get all per diem requests where the user has a pending approval
     $requests = PerDiemRequest::where('status', PerDiemApproval::PENDING)
+      ->where('authorizer_id', $approverId)
       ->with([
         'employee',
         'company',
@@ -1082,15 +1083,18 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       // Get serie based on company (you can adjust this logic as needed)
       $serie = 'MOV-' . ($perDiemRequest->company->id ?? '001');
 
-      // Generate next correlative for this serie and period
-      $correlative = MobilityPayroll::getNextCorrelative($serie, $period);
+      // Get sede_id from employee
+      $sedeId = $perDiemRequest->employee->sede_id ?? null;
+
+      // Generate next correlative for this serie, period and sede_id
+      $correlative = MobilityPayroll::getNextCorrelative($serie, $period, $sedeId);
 
       // Create mobility payroll record
       $mobilityPayroll = MobilityPayroll::create([
         'worker_id' => $employee->id,
-        'num_doc' => $employee->num_documento ?? '',
-        'company_name' => $perDiemRequest->company->nombre ?? '',
-        'address' => $perDiemRequest->company->direccion ?? '',
+        'num_doc' => $perDiemRequest->companyService->num_doc ?? '',
+        'company_name' => $perDiemRequest->companyService->name ?? '',
+        'address' => $perDiemRequest->companyService->address ?? '',
         'serie' => $serie,
         'correlative' => $correlative,
         'period' => $period,
@@ -1102,6 +1106,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         $expense->mobility_payroll_id = $mobilityPayroll->id;
         $expense->save();
       }
+
+      // Mark the per diem request as having mobility payroll generated
+      $perDiemRequest->update(['mobility_payroll_generated' => true]);
 
       DB::commit();
 

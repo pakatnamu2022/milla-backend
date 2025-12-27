@@ -31,20 +31,26 @@
       margin-bottom: 20px;
     }
 
-    .header-row {
-      display: flex;
-      margin-bottom: 5px;
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
     }
 
-    .header-label {
+    .header-table td {
+      border: 1px solid #000;
+      padding: 5px 8px;
+      font-size: 9px;
+    }
+
+    .header-table .label {
       font-weight: bold;
-      width: 30%;
-      display: inline-block;
+      background-color: #f0f0f0;
+      width: 20%;
     }
 
-    .header-value {
-      width: 70%;
-      display: inline-block;
+    .header-table .value {
+      width: 30%;
     }
 
     table {
@@ -110,38 +116,34 @@
 
 <!-- Header Information -->
 <div class="header-section">
-  <div class="header-row">
-    <span class="header-label">DOCUMENTO:</span>
-    <span class="header-value">{{ $mobilityPayroll->serie }}-{{ $mobilityPayroll->correlative }}</span>
-  </div>
-  <div class="header-row">
-    <span class="header-label">PERÍODO:</span>
-    <span class="header-value">{{ $mobilityPayroll->period }}</span>
-  </div>
-  <div class="header-row">
-    <span class="header-label">TRABAJADOR:</span>
-    <span class="header-value">{{ $mobilityPayroll->worker->nombre_completo ?? 'N/A' }}</span>
-  </div>
-  <div class="header-row">
-    <span class="header-label">DOCUMENTO:</span>
-    <span class="header-value">{{ $mobilityPayroll->num_doc }}</span>
-  </div>
-  <div class="header-row">
-    <span class="header-label">EMPRESA:</span>
-    <span class="header-value">{{ $mobilityPayroll->company_name }}</span>
-  </div>
-  @if($mobilityPayroll->address)
-  <div class="header-row">
-    <span class="header-label">DIRECCIÓN:</span>
-    <span class="header-value">{{ $mobilityPayroll->address }}</span>
-  </div>
-  @endif
-  @if($mobilityPayroll->sede)
-  <div class="header-row">
-    <span class="header-label">SEDE:</span>
-    <span class="header-value">{{ $mobilityPayroll->sede->nombre ?? 'N/A' }}</span>
-  </div>
-  @endif
+  <table class="header-table">
+    <tr>
+      <td class="label">DOCUMENTO:</td>
+      <td class="value">{{ $mobilityPayroll->serie }}-{{ $mobilityPayroll->correlative }}</td>
+      <td class="label">PERÍODO:</td>
+      <td class="value">{{ $mobilityPayroll->period }}</td>
+    </tr>
+    <tr>
+      <td class="label">TRABAJADOR:</td>
+      <td class="value" colspan="3">{{ $mobilityPayroll->worker->nombre_completo ?? 'N/A' }}</td>
+    </tr>
+    <tr>
+      <td class="label">DNI/RUC:</td>
+      <td class="value">{{ $mobilityPayroll->num_doc }}</td>
+      <td class="label">SEDE:</td>
+      <td class="value">{{ $mobilityPayroll->sede->abreviatura ?? 'N/A' }}</td>
+    </tr>
+    <tr>
+      <td class="label">EMPRESA:</td>
+      <td class="value" colspan="3">{{ $mobilityPayroll->company_name }}</td>
+    </tr>
+    @if($mobilityPayroll->address)
+    <tr>
+      <td class="label">DIRECCIÓN:</td>
+      <td class="value" colspan="3">{{ $mobilityPayroll->address }}</td>
+    </tr>
+    @endif
+  </table>
 </div>
 
 <!-- Expense Details Table -->

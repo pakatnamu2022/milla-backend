@@ -51,13 +51,19 @@ class MobilityPayroll extends BaseModel
   }
 
   /**
-   * Generate next correlative number for a given serie and period
+   * Generate next correlative number for a given serie, period and sede_id
    */
-  public static function getNextCorrelative(string $serie, string $period): string
+  public static function getNextCorrelative(string $serie, string $period, ?int $sedeId = null): string
   {
-    $lastPayroll = self::where('serie', $serie)
-      ->where('period', $period)
-      ->orderBy('correlative', 'desc')
+    $query = self::where('serie', $serie)
+      ->where('period', $period);
+
+    // Filter by sede_id if provided
+    if (!is_null($sedeId)) {
+      $query->where('sede_id', $sedeId);
+    }
+
+    $lastPayroll = $query->orderBy('correlative', 'desc')
       ->first();
 
     if (!$lastPayroll) {

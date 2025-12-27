@@ -15,6 +15,7 @@ class Company extends BaseModel
     'abbreviation',
     'description',
     'businessName',
+    'num_doc',
     'email',
     'logo',
     'website',

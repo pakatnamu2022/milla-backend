@@ -44,6 +44,7 @@ class PerDiemRequestResource extends JsonResource
       'with_active' => (bool)$this->with_active,
       'with_request' => (bool)$this->with_request,
       'deposit_voucher_url' => $this->deposit_voucher_url,
+      'mobility_payroll_generated' => (bool)$this->mobility_payroll_generated,
 
       // Relations
       'employee' => $this->employee ? [

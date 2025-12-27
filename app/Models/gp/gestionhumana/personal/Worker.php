@@ -21,7 +21,8 @@ class Worker extends BaseModel
     'id',
     'vat',
     'nombre_completo',
-    'sede_id'
+    'sede_id',
+    'jefe_id',
   ];
 
   const filters = [

@@ -44,7 +44,9 @@ class PerDiemRequest extends BaseModel
     'final_result',
     'with_active',
     'with_request',
-    'deposit_voucher_url'
+    'deposit_voucher_url',
+    'authorizer_id',
+    'mobility_payroll_generated',
   ];
 
   protected $casts = [
@@ -61,12 +63,14 @@ class PerDiemRequest extends BaseModel
     'settled' => 'boolean',
     'with_active' => 'boolean',
     'with_request' => 'boolean',
+    'mobility_payroll_generated' => 'boolean',
   ];
 
   const filters = [
-    'search' => ['code', 'purpose'],
+    'search' => ['code', 'purpose', 'employee.nombre_completo'],
     'status' => '=',
     'employee_id' => '=',
+    'authorizer_id' => '=',
     'company_id' => '=',
     'company_service_id' => '=',
     'district_id' => '=',
@@ -93,6 +97,16 @@ class PerDiemRequest extends BaseModel
     'created_at',
   ];
 
+  public function SetPurposeAttribute($value)
+  {
+    return $this->attributes['purpose'] = strtoupper($value);
+  }
+
+  public function SetNotesAttribute($value)
+  {
+    return $this->attributes['notes'] = strtoupper($value);
+  }
+
   /**
    * Get the policy this request belongs to
    */
@@ -107,6 +121,11 @@ class PerDiemRequest extends BaseModel
   public function employee(): BelongsTo
   {
     return $this->belongsTo(Worker::class, 'employee_id');
+  }
+
+  public function authorizer(): BelongsTo
+  {
+    return $this->belongsTo(Worker::class, 'authorizer_id');
   }
 
   /**
