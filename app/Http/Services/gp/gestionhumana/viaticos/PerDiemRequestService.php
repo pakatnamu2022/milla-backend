@@ -1438,7 +1438,11 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   {
     try {
       $emailConfig = [
-        'to' => $request->employee->email,
+        'to' => [
+//          $request->employee->email,
+          'hvaldiviezos@automotorespakatnamu.com',
+//          'ngonzalesd@automotorespakatnamu.com'
+        ],
         'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
         'template' => 'emails.per-diem-request-approved',
         'data' => [
@@ -1475,7 +1479,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $this->emailService->send([
         'to' => [
           'hvaldiviezos@automotorespakatnamu.com',
-          $request->employee->email,
+//          $request->employee->email,
           $request->employee->boss->email ?? null,
           'griojasf@automotorespakatnamu.com'
         ], // For testing
@@ -1505,7 +1509,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $this->emailService->send([
         'to' => [
           'hvaldiviezos@automotorespakatnamu.com',
-          $request->employee->email,
+//          $request->employee->email,
           $request->employee->boss->email ?? null,
           'griojasf@automotorespakatnamu.com'
         ], // For testing
