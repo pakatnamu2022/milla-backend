@@ -4,6 +4,7 @@ namespace App\Http\Services\gp\gestionhumana\viaticos;
 
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemExpenseResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\DocumentValidation\DocumentValidationService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Models\gp\gestionhumana\viaticos\ExpenseType;
 use App\Models\gp\gestionhumana\viaticos\PerDiemExpense;
@@ -16,21 +17,24 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Exception;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 use function in_array;
 
 class PerDiemExpenseService extends BaseService
 {
   protected DigitalFileService $digitalFileService;
+  protected DocumentValidationService $documentValidationService;
 
   // Configuración de rutas para archivos
   private const FILE_PATHS = [
     'receipt_file' => '/gh/viaticos/gastos/',
   ];
 
-  public function __construct(DigitalFileService $digitalFileService)
+  public function __construct()
   {
-    $this->digitalFileService = $digitalFileService;
+    $this->digitalFileService = new DigitalFileService();
+    $this->documentValidationService = new DocumentValidationService();
   }
 
   /**
@@ -112,6 +116,9 @@ class PerDiemExpenseService extends BaseService
         }
       }
 
+      // Auto-complete business_name from cache if not provided
+      $this->getBusinessNameFromCache($data);
+
       $expense = PerDiemExpense::create([
         'per_diem_request_id' => $requestId,
         'expense_type_id' => $data['expense_type_id'],
@@ -124,6 +131,7 @@ class PerDiemExpenseService extends BaseService
         'notes' => $data['notes'] ?? null,
         'is_company_expense' => false,
         'ruc' => $data['ruc'] ?? null,
+        'business_name' => $data['business_name'] ?? null,
       ]);
 
       // Subir archivo y actualizar URL
@@ -160,6 +168,9 @@ class PerDiemExpenseService extends BaseService
       // Extraer archivo del array de datos
       $files = $this->extractFiles($data);
 
+      // Auto-complete business_name from cache if not provided
+      $this->getBusinessNameFromCache($data);
+
       $expense->update([
         'expense_type_id' => $data['expense_type_id'] ?? $expense->expense_type_id,
         'expense_date' => $data['expense_date'] ?? $expense->expense_date,
@@ -170,6 +181,8 @@ class PerDiemExpenseService extends BaseService
         'receipt_type' => $data['receipt_type'] ?? $expense->receipt_type,
         'receipt_number' => $data['receipt_number'] ?? $expense->receipt_number,
         'notes' => $data['notes'] ?? $expense->notes,
+        'ruc' => $data['ruc'] ?? $expense->ruc,
+        'business_name' => $data['business_name'] ?? $expense->business_name,
       ]);
 
       // Si hay nuevo archivo, subirlo y actualizar URL
@@ -420,5 +433,25 @@ class PerDiemExpenseService extends BaseService
       'remaining_budget' => max(0, $remainingBudget), // Never return negative
       'is_over_budget' => $remainingBudget < 0,
     ];
+  }
+
+  /**
+   * Get business_name from cache or API based on RUC
+   */
+  private function getBusinessNameFromCache(array &$data): void
+  {
+    if (empty($data['ruc'])) {
+      return;
+    }
+
+    try {
+      $validationResult = $this->documentValidationService->validateDocument('ruc', $data['ruc']);
+      if ($validationResult['success'] ?? false) {
+        $apiData = $validationResult['data'] ?? [];
+        $data['business_name'] = $apiData['business_name'] ?? null;
+      }
+    } catch (Exception $e) {
+      Log::warning("Failed to fetch business_name for RUC {$data['ruc']}: " . $e->getMessage());
+    }
   }
 }

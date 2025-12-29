@@ -11,6 +11,7 @@ use App\Http\Requests\gp\gestionhumana\viaticos\ReviewPerDiemRequestRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\MarkPaidPerDiemRequestRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\StartSettlementPerDiemRequestRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\CompleteSettlementPerDiemRequestRequest;
+use App\Http\Requests\gp\gestionhumana\viaticos\CancelPerDiemRequestRequest;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRateResource;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRequestResource;
 use App\Http\Services\gp\gestionhumana\viaticos\PerDiemRequestService;
@@ -112,6 +113,24 @@ class PerDiemRequestController extends Controller
   {
     try {
       return $this->service->destroy($id);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Cancel a per diem request
+   */
+  public function cancel(CancelPerDiemRequestRequest $request, int $id)
+  {
+    try {
+      $data = $request->validated();
+      $perDiemRequest = $this->service->cancel($id, $data);
+
+      return $this->success([
+        'data' => new PerDiemRequestResource($perDiemRequest),
+        'message' => 'Solicitud cancelada exitosamente'
+      ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

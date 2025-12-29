@@ -234,6 +234,42 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   }
 
   /**
+   * Cancel a per diem request
+   */
+  public function cancel(int $id, array $data): PerDiemRequest
+  {
+    try {
+      DB::beginTransaction();
+
+      $request = $this->find($id);
+
+      // Validate that the request can be cancelled
+      if (in_array($request->status, ['settled', 'cancelled'])) {
+        throw new Exception('No se puede cancelar una solicitud que ya está liquidada o cancelada');
+      }
+
+      // Check if there is a hotel reservation associated
+      if ($request->hotelReservation()->exists()) {
+        throw new Exception('No se puede cancelar la solicitud porque tiene una reserva de hotel asociada');
+      }
+
+      // Update request status to cancelled
+      $request->update([
+        'status' => 'cancelled',
+        'notes' => isset($data['cancellation_reason'])
+          ? ($request->notes ? $request->notes . "\n\nMotivo de cancelación: " . strtoupper($data['cancellation_reason']) : "MOTIVO DE CANCELACIÓN: " . strtoupper($data['cancellation_reason']))
+          : $request->notes
+      ]);
+
+      DB::commit();
+      return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
    * Get overdue settlement requests
    */
   public function getOverdueSettlements()

@@ -28,6 +28,7 @@ class PerDiemExpense extends BaseModel
     'notes',
     'is_company_expense',
     'ruc',
+    'business_name',
     'validated',
     'validated_by',
     'validated_at',
