@@ -112,6 +112,9 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         $this->uploadAndAttachFiles($reservation, $files);
       }
 
+      // Create company expense for accommodation
+      $this->createCompanyExpenseForReservation($reservation);
+
       DB::commit();
       return new HotelReservationResource($reservation->fresh(['request', 'hotelAgreement']));
     } catch (Exception $e) {
@@ -324,10 +327,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
   private function createCompanyExpenseForReservation(HotelReservation $reservation): void
   {
     // Check if expense already exists for this reservation
-    $existingExpense = PerDiemExpense::where('per_diem_request_id', $reservation->per_diem_request_id)
-      ->where('expense_type_id', ExpenseType::ACCOMMODATION_ID)
-      ->where('is_company_expense', true)
-      ->first();
+    $existingExpense = PerDiemExpense::where('hotel_reservation_id', $reservation->id)->first();
 
     if ($existingExpense) {
       // Update existing expense
@@ -343,6 +343,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
       // Create new company expense
       PerDiemExpense::create([
         'per_diem_request_id' => $reservation->per_diem_request_id,
+        'hotel_reservation_id' => $reservation->id,
         'expense_type_id' => ExpenseType::ACCOMMODATION_ID,
         'expense_date' => $reservation->checkin_date,
         'receipt_amount' => $reservation->total_cost,

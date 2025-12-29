@@ -16,6 +16,7 @@ class StorePerDiemExpenseRequest extends StoreRequest
       'receipt_number' => ['required_if:receipt_type,invoice,ticket', 'nullable', 'string', 'max:255'],
       'receipt_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
       'notes' => ['nullable', 'string'],
+      'ruc' => ['nullable', 'required_if:receipt_type,invoice', 'string', 'max:20'],
     ];
   }
 
@@ -37,6 +38,7 @@ class StorePerDiemExpenseRequest extends StoreRequest
       'receipt_number' => 'número de comprobante',
       'receipt_file' => 'archivo del comprobante',
       'notes' => 'observaciones',
+      'ruc' => 'RUC',
     ];
   }
 

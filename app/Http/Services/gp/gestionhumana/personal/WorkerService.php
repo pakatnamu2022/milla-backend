@@ -28,9 +28,9 @@ class WorkerService extends BaseService
     'worker_signature' => '/gp/gestionhumana/personal/firmas/',
   ];
 
-  public function __construct(DigitalFileService $digitalFileService)
+  public function __construct()
   {
-    $this->digitalFileService = $digitalFileService;
+    $this->digitalFileService = new DigitalFileService();
   }
 
   public function list(Request $request)

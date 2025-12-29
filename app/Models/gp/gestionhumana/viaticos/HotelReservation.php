@@ -4,6 +4,7 @@ namespace App\Models\gp\gestionhumana\viaticos;
 
 use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class HotelReservation extends BaseModel
@@ -66,6 +67,14 @@ class HotelReservation extends BaseModel
   public function hotelAgreement(): BelongsTo
   {
     return $this->belongsTo(HotelAgreement::class);
+  }
+
+  /**
+   * Get the company expense associated with this reservation
+   */
+  public function companyExpense(): HasOne
+  {
+    return $this->hasOne(PerDiemExpense::class, 'hotel_reservation_id');
   }
 
   /**
