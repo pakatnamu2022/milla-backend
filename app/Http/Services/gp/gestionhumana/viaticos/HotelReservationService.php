@@ -9,6 +9,7 @@ use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Models\gp\gestionhumana\viaticos\ExpenseType;
 use App\Models\gp\gestionhumana\viaticos\HotelReservation;
 use App\Models\gp\gestionhumana\viaticos\PerDiemExpense;
+use App\Models\gp\gestionhumana\viaticos\PerDiemRate;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
 use App\Models\gp\gestionsistema\DigitalFile;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +23,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
   protected DigitalFileService $digitalFileService;
 
   // Configuración de rutas para archivos
-  private const FILE_PATHS = [
+  private const array FILE_PATHS = [
     'receipt_file' => '/gh/viaticos/reservaciones/',
   ];
 
@@ -47,6 +48,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
 
   /**
    * Find a hotel reservation by ID (internal method)
+   * @throws Exception
    */
   public function find($id)
   {
