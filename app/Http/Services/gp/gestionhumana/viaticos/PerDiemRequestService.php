@@ -1355,7 +1355,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'to' => [
           $request->employee->email,
           'hvaldiviezos@automotorespakatnamu.com',
-          'ngonzalesd@automotorespakatnamu.com'
+//          'ngonzalesd@automotorespakatnamu.com'
         ], // For testing
         'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
         'template' => 'emails.per-diem-request-approved',
