@@ -20,9 +20,7 @@ class CompleteSettlementPerDiemRequestRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'settlement_date' => ['required', 'date'],
-            'total_spent' => ['required', 'numeric', 'min:0'],
-            'balance_to_return' => ['required', 'numeric', 'min:0'],
+            'comments' => ['nullable', 'string', 'max:1000'],
         ];
     }
 
@@ -32,28 +30,8 @@ class CompleteSettlementPerDiemRequestRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'settlement_date.required' => 'La fecha de liquidación es requerida.',
-            'settlement_date.date' => 'La fecha de liquidación debe ser una fecha válida.',
-            'total_spent.required' => 'El total gastado es requerido.',
-            'total_spent.numeric' => 'El total gastado debe ser un número.',
-            'total_spent.min' => 'El total gastado debe ser mayor o igual a 0.',
-            'balance_to_return.required' => 'El saldo a devolver es requerido.',
-            'balance_to_return.numeric' => 'El saldo a devolver debe ser un número.',
-            'balance_to_return.min' => 'El saldo a devolver debe ser mayor o igual a 0.',
+            'comments.string' => 'Los comentarios deben ser texto.',
+            'comments.max' => 'Los comentarios no pueden exceder 1000 caracteres.',
         ];
-    }
-
-    /**
-     * Get the validated data with additional computed fields
-     */
-    public function validated($key = null, $default = null)
-    {
-        $data = parent::validated($key, $default);
-
-        // Set settled status and update request status
-        $data['settled'] = true;
-        $data['status'] = 'settled';
-
-        return $data;
     }
 }

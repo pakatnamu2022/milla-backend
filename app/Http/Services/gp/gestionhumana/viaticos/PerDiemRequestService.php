@@ -531,6 +531,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
   /**
    * Complete settlement
+   * Automatically calculates total spent and balance to return from expenses
    */
   public function completeSettlement(int $id, array $data): PerDiemRequest
   {
@@ -549,18 +550,29 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         throw new Exception('La solicitud debe estar pagada para completar la liquidación cuando tiene with_request habilitado');
       }
 
+      // Calculate total spent from all non-rejected expenses (company_amount)
+      $totalSpent = $request->expenses()
+        ->where('rejected', false)
+        ->sum('company_amount');
+
       // Calculate balance to return
-      $totalSpent = $data['total_spent'] ?? $request->expenses()->sum('amount');
       $balanceToReturn = $request->total_budget - $totalSpent;
 
       // Update settlement information
       $request->update([
         'settled' => true,
         'settlement_status' => 'submitted',
-        'settlement_date' => $data['settlement_date'] ?? now(),
+        'settlement_date' => now(),
         'total_spent' => $totalSpent,
         'balance_to_return' => $balanceToReturn > 0 ? $balanceToReturn : 0,
       ]);
+
+      // Add comments to notes if provided
+      if (!empty($data['comments'])) {
+        $currentNotes = $request->notes ?? '';
+        $newNotes = $currentNotes ? $currentNotes . "\n\nCOMENTARIOS DE LIQUIDACIÓN: " . strtoupper($data['comments']) : "COMENTARIOS DE LIQUIDACIÓN: " . strtoupper($data['comments']);
+        $request->update(['notes' => $newNotes]);
+      }
 
       // Send settlement completed email to employee
       $this->sendPerDiemRequestSettledEmail($request->fresh(['employee', 'district']));
