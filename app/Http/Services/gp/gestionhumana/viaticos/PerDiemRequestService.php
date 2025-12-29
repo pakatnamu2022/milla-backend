@@ -545,11 +545,6 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         throw new Exception('Solo se puede completar la liquidación de solicitudes aprobadas o en progreso');
       }
 
-      // Validate paid only if with_request is true
-      if ($request->with_request && !$request->paid) {
-        throw new Exception('La solicitud debe estar pagada para completar la liquidación cuando tiene with_request habilitado');
-      }
-
       // Calculate total spent from all non-rejected expenses (company_amount)
       $totalSpent = $request->expenses()
         ->where('rejected', false)
