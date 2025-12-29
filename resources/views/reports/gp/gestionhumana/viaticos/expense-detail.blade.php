@@ -1,9 +1,20 @@
+@php
+  function getBase64Image($path) {
+    $fullPath = public_path($path);
+    if (!file_exists($fullPath)) {
+      return '';
+    }
+    $imageData = base64_encode(file_get_contents($fullPath));
+    $mimeType = mime_content_type($fullPath);
+    return "data:{$mimeType};base64,{$imageData}";
+  }
+@endphp
 <!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Detalle de Gastos de Viaje</title>
+  <title>Detalle de Gastos del Personal</title>
   <style>
     * {
       margin: 0;
@@ -14,50 +25,23 @@
     body {
       font-family: Arial, sans-serif;
       font-size: 10px;
-      padding: 20px;
-    }
-
-    .header {
-      text-align: left;
-      margin-bottom: 5px;
-    }
-
-    .company-name {
-      font-weight: bold;
-      font-size: 10px;
-      margin-bottom: 3px;
+      padding: 30px;
     }
 
     .title {
       background-color: #e0e0e0;
       padding: 8px;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: bold;
       text-align: center;
-      margin-bottom: 10px;
+      margin-bottom: 15px;
       border: 1px solid #000;
-    }
-
-    .info-section {
-      margin-bottom: 10px;
-      font-size: 9px;
-    }
-
-    .info-row {
-      margin-bottom: 3px;
-      display: flex;
-    }
-
-    .info-label {
-      font-weight: bold;
-      width: 100px;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 10px;
-      font-size: 9px;
+      margin-bottom: 15px;
     }
 
     table, th, td {
@@ -65,7 +49,7 @@
     }
 
     td, th {
-      padding: 4px 6px;
+      padding: 5px 8px;
       vertical-align: top;
     }
 
@@ -73,15 +57,27 @@
       background-color: #e0e0e0;
       font-weight: bold;
       text-align: center;
-      font-size: 8px;
     }
 
-    .category-header {
+    .label {
+      font-weight: bold;
+      font-size: 9px;
+    }
+
+    .section-title {
       background-color: #d0d0d0;
       font-weight: bold;
-      padding: 4px;
+      padding: 6px;
+      text-align: center;
+      font-size: 11px;
+    }
+
+    .subsection-title {
+      background-color: #e8e8e8;
+      font-weight: bold;
+      padding: 5px;
       text-align: left;
-      font-size: 9px;
+      font-size: 10px;
     }
 
     .text-center {
@@ -92,218 +88,277 @@
       text-align: right;
     }
 
-    .total-row {
-      font-weight: bold;
-      background-color: #f0f0f0;
+    .dotted-line {
+      border-bottom: 1px dotted #000;
+      min-height: 18px;
+      display: inline-block;
+      width: 100%;
     }
 
-    .footer-section {
-      margin-top: 15px;
-      font-size: 10px;
+    .signature-section {
+      margin-top: 30px;
     }
 
-    .footer-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 5px 0;
-      border-bottom: 1px solid #000;
-    }
-
-    .footer-label {
-      font-weight: bold;
-    }
-
-    .footer-value {
-      font-weight: bold;
-      text-align: right;
+    .signature-box {
+      min-height: 60px;
+      text-align: center;
+      vertical-align: bottom;
+      padding-top: 40px;
     }
   </style>
 </head>
 <body>
 
-<!-- Header -->
-<div class="header">
-  <div class="company-name">Empresa: {{ $request['company']['name'] ?? 'GRUPO PAKATNAMU SAC' }}</div>
-</div>
+<!-- Título -->
+<div class="title">DETALLE DE GASTOS DEL PERSONAL</div>
 
-<!-- Title -->
-<div class="title">
-  DETALLE DE GASTOS DE VIAJE
-</div>
-
-<!-- Info Section -->
-<div class="info-section">
-  <div class="info-row">
-    <span class="info-label">Nombre:</span>
-    <span>{{ $request['employee']['name'] ?? 'N/A' }}</span>
-  </div>
-  <div class="info-row">
-    <span class="info-label">Motivo del Viaje:</span>
-    <span>{{ $request['purpose'] ?? 'N/A' }}</span>
-  </div>
-  <div class="info-row">
-    <span class="info-label">Destino:</span>
-    <span>{{ $request['district']['name'] ?? 'N/A' }}</span>
-  </div>
-  <div class="info-row">
-    <span class="info-label">Periodo:</span>
-    <span>{{ isset($request['start_date']) ? date('d/m/Y', strtotime($request['start_date'])) : 'N/A' }} - {{ isset($request['end_date']) ? date('d/m/Y', strtotime($request['end_date'])) : 'N/A' }}</span>
-  </div>
-  <div class="info-row">
-    <span class="info-label">Moneda:</span>
-    <span>Soles</span>
-  </div>
-</div>
-
-<!-- Expenses Table -->
+<!-- Datos Generales -->
 <table>
-  <thead>
   <tr>
-    <th style="width: 12%;">FECHA</th>
-    <th style="width: 15%;">N° COMPROBANTE</th>
-    <th style="width: 28%;">RAZÓN SOCIAL</th>
-    <th style="width: 30%;">DETALLE</th>
-    <th style="width: 15%;">MONTO</th>
+    <th colspan="6" class="section-title">DATOS GENERALES</th>
   </tr>
-  </thead>
-  <tbody>
-
-  @if(count($alimentacion) > 0)
-    <!-- Alimentación Category -->
-    <tr>
-      <td colspan="5" class="category-header">ALIMENTACIÓN</td>
-    </tr>
-    @foreach($alimentacion as $expense)
-      <tr>
-        <td
-          class="text-center">{{ isset($expense['expense_date']) ? date('d/m/Y', strtotime($expense['expense_date'])) : '-' }}</td>
-        <td class="text-center">{{ $expense['receipt_number'] ?? 'S/N' }}</td>
-        <td>{{ $expense['notes'] ?? '-' }}</td>
-        <td>{{ $expense['concept'] ?? '-' }}</td>
-        <td class="text-right">S/ {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
-      </tr>
-    @endforeach
-    <tr class="total-row">
-      <td colspan="4" class="text-right">TOTAL ALIMENTACIÓN:</td>
-      <td class="text-right">S/ {{ number_format($totalAlimentacion, 2) }}</td>
-    </tr>
-  @endif
-
-  @if(count($hospedaje) > 0)
-    <!-- Hospedaje Category -->
-    <tr>
-      <td colspan="5" class="category-header">HOSPEDAJE</td>
-    </tr>
-    @foreach($hospedaje as $expense)
-      <tr>
-        <td
-          class="text-center">{{ isset($expense['expense_date']) ? date('d/m/Y', strtotime($expense['expense_date'])) : '-' }}</td>
-        <td class="text-center">{{ $expense['receipt_number'] ?? 'S/N' }}</td>
-        <td>{{ $expense['notes'] ?? '-' }}</td>
-        <td>{{ $expense['concept'] ?? '-' }}</td>
-        <td class="text-right">S/ {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
-      </tr>
-    @endforeach
-    <tr class="total-row">
-      <td colspan="4" class="text-right">TOTAL HOSPEDAJE:</td>
-      <td class="text-right">S/ {{ number_format($totalHospedaje, 2) }}</td>
-    </tr>
-  @endif
-
-  @if(count($movilidad) > 0)
-    <!-- Movilidad Category -->
-    <tr>
-      <td colspan="5" class="category-header">MOVILIDAD</td>
-    </tr>
-    @foreach($movilidad as $expense)
-      <tr>
-        <td
-          class="text-center">{{ isset($expense['expense_date']) ? date('d/m/Y', strtotime($expense['expense_date'])) : '-' }}</td>
-        <td class="text-center">{{ $expense['receipt_number'] ?? 'S/N' }}</td>
-        <td>{{ $expense['notes'] ?? '-' }}</td>
-        <td>{{ $expense['concept'] ?? '-' }}</td>
-        <td class="text-right">S/ {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
-      </tr>
-    @endforeach
-    <tr class="total-row">
-      <td colspan="4" class="text-right">TOTAL MOVILIDAD:</td>
-      <td class="text-right">S/ {{ number_format($totalMovilidad, 2) }}</td>
-    </tr>
-  @endif
-
-  @if(count($otros) > 0)
-    <!-- Otros Category -->
-    <tr>
-      <td colspan="5" class="category-header">OTROS</td>
-    </tr>
-    @foreach($otros as $expense)
-      <tr>
-        <td
-          class="text-center">{{ isset($expense['expense_date']) ? date('d/m/Y', strtotime($expense['expense_date'])) : '-' }}</td>
-        <td class="text-center">{{ $expense['receipt_number'] ?? 'S/N' }}</td>
-        <td>{{ $expense['notes'] ?? '-' }}</td>
-        <td>{{ $expense['concept'] ?? '-' }}</td>
-        <td class="text-right">S/ {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
-      </tr>
-    @endforeach
-    <tr class="total-row">
-      <td colspan="4" class="text-right">TOTAL OTROS:</td>
-      <td class="text-right">S/ {{ number_format($totalOtros, 2) }}</td>
-    </tr>
-  @endif
-
-  {{--  @if(count($sinComprobante) > 0)--}}
-  {{--    <!-- Gastos sin Comprobante Category -->--}}
-  {{--    <tr>--}}
-  {{--      <td colspan="5" class="category-header">GASTOS SIN COMPROBANTE</td>--}}
-  {{--    </tr>--}}
-  {{--    @foreach($sinComprobante as $expense)--}}
-  {{--      <tr>--}}
-  {{--        <td class="text-center">{{ isset($expense['expense_date']) ? date('d/m/Y', strtotime($expense['expense_date'])) : '-' }}</td>--}}
-  {{--        <td class="text-center">S/C</td>--}}
-  {{--        <td>{{ $expense['notes'] ?? '-' }}</td>--}}
-  {{--        <td>{{ $expense['concept'] ?? '-' }}</td>--}}
-  {{--        <td class="text-right">S/ {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>--}}
-  {{--      </tr>--}}
-  {{--    @endforeach--}}
-  {{--    <tr class="total-row">--}}
-  {{--      <td colspan="4" class="text-right">TOTAL SIN COMPROBANTE:</td>--}}
-  {{--      <td class="text-right">S/ {{ number_format($totalSinComprobante, 2) }}</td>--}}
-  {{--    </tr>--}}
-  {{--  @endif--}}
-
-  <!-- Total General -->
-  <tr class="total-row">
-    <td colspan="4" class="text-right" style="font-size: 10px;">TOTAL:</td>
-    <td class="text-right" style="font-size: 10px;">S/ {{ number_format($totalGeneral, 2) }}</td>
+  <tr>
+    <td class="label" style="width: 20%;">Nombre del empleado:</td>
+    <td colspan="3">{{ $request['employee']['full_name'] ?? '' }}</td>
+    <td class="label" style="width: 15%;">Área:</td>
+    <td>{{ $request['employee']['position']['area']['name'] ?? '' }}</td>
   </tr>
-
-  </tbody>
+  <tr>
+    <td class="label">Cargo del empleado:</td>
+    <td colspan="5">{{ $request['employee']['position']['name'] ?? '' }}</td>
+  </tr>
+  <tr>
+    <td class="label">Empresa de servicio:</td>
+    <td colspan="5">{{ $request['company_service']['name'] ?? '' }}</td>
+  </tr>
+  <tr>
+    <td class="label">Lugar de destino:</td>
+    <td colspan="3">{{ $request['district']['name'] ?? '' }}</td>
+    <td class="label">Zona:</td>
+    <td>{{ ($request['district']['zone'] ?? 'Nacional') }}</td>
+  </tr>
+  <tr>
+    <td class="label">Objetivo del viaje:</td>
+    <td colspan="5">{{ $request['purpose'] ?? '' }}</td>
+  </tr>
+  <tr>
+    <td class="label">Fecha de inicio:</td>
+    <td>{{ \Carbon\Carbon::parse($request['start_date'])->format('d/m/Y') }}</td>
+    <td class="label" style="width: 15%;">Fecha fin:</td>
+    <td>{{ \Carbon\Carbon::parse($request['end_date'])->format('d/m/Y') }}</td>
+    <td class="label">Moneda:</td>
+    <td>S/. - Nuevos Soles</td>
+  </tr>
+  <tr>
+    <td class="label">Importe otorgado:</td>
+    <td colspan="5">S/. {{ number_format($importeOtorgado ?? 0, 2) }}</td>
+  </tr>
 </table>
 
-<!-- Footer Section -->
-<div class="footer-section">
-  <div class="footer-row">
-    <span class="footer-label">IMPORTE OTORGADO PARA VIÁTICOS - CAJA</span>
-    <span class="footer-value">S/ {{ number_format($importeOtorgado, 2) }}</span>
-  </div>
-  <div class="footer-row">
-    <span class="footer-label">TOTAL GENERAL DE GASTOS</span>
-    <span class="footer-value">S/ {{ number_format($totalGeneral, 2) }}</span>
-  </div>
-  <div class="footer-row">
-    <span class="footer-label">MONTO A DEVOLVER Y/O REEMBOLSO DE GASTOS</span>
-    <span class="footer-value">
+<!-- GASTOS DEL COLABORADOR -->
+@if(count($alimentacion) > 0 || count($hospedaje) > 0 || count($movilidad) > 0 || count($otros) > 0)
+  <table>
+    <tr>
+      <th colspan="5" class="section-title">GASTOS DEL COLABORADOR</th>
+    </tr>
+    <tr>
+      <th style="width: 12%;">FECHA</th>
+      <th style="width: 15%;">N° COMPROBANTE</th>
+      <th style="width: 28%;">RAZÓN SOCIAL</th>
+      <th style="width: 30%;">DETALLE</th>
+      <th style="width: 15%;">MONTO</th>
+    </tr>
+
+    @if(count($alimentacion) > 0)
+      <!-- Alimentación -->
+      <tr>
+        <td colspan="5" class="subsection-title">ALIMENTACIÓN</td>
+      </tr>
+      @foreach($alimentacion as $expense)
+        <tr>
+          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
+          <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
+          <td>{{ $expense['business_name'] ?? '-' }}</td>
+          <td>{{ $expense['notes'] ?? '-' }}</td>
+          <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
+        </tr>
+      @endforeach
+      <tr style="background-color: #f0f0f0;">
+        <td colspan="4" class="text-right label">TOTAL ALIMENTACIÓN:</td>
+        <td class="text-right label">S/. {{ number_format($totalAlimentacion, 2) }}</td>
+      </tr>
+    @endif
+
+    @if(count($hospedaje) > 0)
+      <!-- Hospedaje -->
+      <tr>
+        <td colspan="5" class="subsection-title">HOSPEDAJE</td>
+      </tr>
+      @foreach($hospedaje as $expense)
+        <tr>
+          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
+          <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
+          <td>{{ $expense['business_name'] ?? '-' }}</td>
+          <td>{{ $expense['notes'] ?? '-' }}</td>
+          <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
+        </tr>
+      @endforeach
+      <tr style="background-color: #f0f0f0;">
+        <td colspan="4" class="text-right label">TOTAL HOSPEDAJE:</td>
+        <td class="text-right label">S/. {{ number_format($totalHospedaje, 2) }}</td>
+      </tr>
+    @endif
+
+    @if(count($movilidad) > 0)
+      <!-- Movilidad -->
+      <tr>
+        <td colspan="5" class="subsection-title">MOVILIDAD</td>
+      </tr>
+      @foreach($movilidad as $expense)
+        <tr>
+          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
+          <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
+          <td>{{ $expense['business_name'] ?? '-' }}</td>
+          <td>{{ $expense['notes'] ?? '-' }}</td>
+          <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
+        </tr>
+      @endforeach
+      <tr style="background-color: #f0f0f0;">
+        <td colspan="4" class="text-right label">TOTAL MOVILIDAD:</td>
+        <td class="text-right label">S/. {{ number_format($totalMovilidad, 2) }}</td>
+      </tr>
+    @endif
+
+    @if(count($otros) > 0)
+      <!-- Otros Gastos -->
+      <tr>
+        <td colspan="5" class="subsection-title">OTROS GASTOS</td>
+      </tr>
+      @foreach($otros as $expense)
+        <tr>
+          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
+          <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
+          <td>{{ $expense['business_name'] ?? '-' }}</td>
+          <td>{{ $expense['notes'] ?? '-' }}</td>
+          <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
+        </tr>
+      @endforeach
+      <tr style="background-color: #f0f0f0;">
+        <td colspan="4" class="text-right label">TOTAL OTROS GASTOS:</td>
+        <td class="text-right label">S/. {{ number_format($totalOtros, 2) }}</td>
+      </tr>
+    @endif
+
+    <!-- Total General -->
+    <tr style="background-color: #d0d0d0;">
+      <td colspan="4" class="text-right label" style="font-size: 11px;">TOTAL GENERAL DE GASTOS:</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalGeneral, 2) }}</td>
+    </tr>
+  </table>
+@endif
+
+<!-- Resumen -->
+<table>
+  <tr>
+    <th colspan="2" class="section-title">RESUMEN</th>
+  </tr>
+  <tr>
+    <td class="label" style="width: 70%;">Importe otorgado para viáticos:</td>
+    <td class="text-right">S/. {{ number_format($importeOtorgado ?? 0, 2) }}</td>
+  </tr>
+  <tr>
+    <td class="label">Total de gastos del personal:</td>
+    <td class="text-right">S/. {{ number_format($totalGeneral, 2) }}</td>
+  </tr>
+  <tr>
+    <td class="label">Monto a devolver y/o reembolso de gastos:</td>
+    <td class="text-right label">
       @if($montoDevolver > 0)
-        S/ {{ number_format($montoDevolver, 2) }} (A DEVOLVER)
+        S/. {{ number_format($montoDevolver, 2) }} (A DEVOLVER)
       @elseif($montoDevolver < 0)
-        S/ {{ number_format(abs($montoDevolver), 2) }} (A REEMBOLSAR)
+        S/. {{ number_format(abs($montoDevolver), 2) }} (A REEMBOLSAR)
       @else
-        S/ 0.00
+        S/. 0.00
       @endif
-    </span>
-  </div>
-</div>
+    </td>
+  </tr>
+</table>
+
+<!-- Firmas -->
+@php
+  $boss = $request['employee']['boss'] ?? null;
+
+  // Buscar el approval aprobado
+  $approverName = null;
+  $approverPosition = null;
+
+  if (isset($request['approvals'])) {
+    $approvals = $request['approvals'];
+
+    // Convertir a array si es necesario
+    if (is_object($approvals)) {
+      $approvals = json_decode(json_encode($approvals), true);
+    }
+
+    if (is_array($approvals) || is_iterable($approvals)) {
+      foreach ($approvals as $approval) {
+        // Convertir a array si es objeto
+        if (is_object($approval)) {
+          $approval = json_decode(json_encode($approval), true);
+        }
+
+        $status = $approval['status'] ?? null;
+
+        if ($status === 'approved') {
+          $approverData = $approval['approver'] ?? null;
+
+          if ($approverData) {
+            // Convertir a array si es objeto
+            if (is_object($approverData)) {
+              $approverData = json_decode(json_encode($approverData), true);
+            }
+
+            $approverName = $approverData['full_name'] ?? null;
+            $approverPosition = $approverData['position']['name'] ?? null;
+            break;
+          }
+        }
+      }
+    }
+  }
+@endphp
+<table class="signature-section">
+  <tr>
+    <td class="signature-box" style="width: 33%;">
+      <div class="dotted-line"></div>
+      <div class="label" style="margin-top: 5px;">Firma del Empleado</div>
+      <div style="margin-top: 3px;">{{ $request['employee']['full_name'] ?? '' }}</div>
+      <div style="margin-top: 3px;">{{ $request['employee']['position']['name'] ?? '' }}</div>
+    </td>
+    <td class="signature-box" style="width: 33%;">
+      <div class="dotted-line"></div>
+      <div class="label" style="margin-top: 5px;">Responsable</div>
+      @if($boss)
+        <div style="margin-top: 3px;">{{ $boss['full_name'] ?? '' }}</div>
+        <div style="margin-top: 3px;">{{ $boss['position']['name'] ?? '' }}</div>
+      @else
+        <div style="margin-top: 3px;">_______________________</div>
+        <div style="margin-top: 3px;">Cargo: _________________</div>
+      @endif
+    </td>
+    <td class="signature-box" style="width: 34%;">
+      <div class="dotted-line"></div>
+      <div class="label" style="margin-top: 5px;">Autorizado por</div>
+      @if($approverName)
+        <div style="margin-top: 3px;">{{ $approverName }}</div>
+        <div style="margin-top: 3px;">{{ $approverPosition ?? '' }}</div>
+      @else
+        <div style="margin-top: 3px;">_______________________</div>
+        <div style="margin-top: 3px;">Cargo: _________________</div>
+      @endif
+    </td>
+  </tr>
+</table>
 
 </body>
 </html>

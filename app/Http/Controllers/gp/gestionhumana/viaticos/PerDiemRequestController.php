@@ -308,12 +308,12 @@ class PerDiemRequestController extends Controller
   }
 
   /**
-   * Generate settlement report PDF
+   * Generate expenseTotal report PDF
    */
-  public function settlementPDF($id)
+  public function expenseTotalPDF($id)
   {
     try {
-      $pdf = $this->service->generateSettlementPDF($id);
+      $pdf = $this->service->generateexpenseTotalPDF($id);
       $filename = "liquidacion-gastos-{$id}.pdf";
       return $pdf->download($filename);
     } catch (Exception $e) {
@@ -322,27 +322,13 @@ class PerDiemRequestController extends Controller
   }
 
   /**
-   * Export approved expenses with attachments to PDF
-   */
-  public function exportExpensesPDF($id)
-  {
-    try {
-      $pdf = $this->service->generateExpensesPDF($id);
-      $filename = "gastos-aprobados-{$id}.pdf";
-      return $pdf->download($filename);
-    } catch (Exception $e) {
-      return $this->error($e->getMessage());
-    }
-  }
-
-  /**
-   * Generate expense detail PDF report
+   * Generate expense detail report PDF (only employee expenses)
    */
   public function expenseDetailPDF($id)
   {
     try {
       $pdf = $this->service->generateExpenseDetailPDF($id);
-      $filename = "detalle-gastos-viaje-{$id}.pdf";
+      $filename = "detalle-gastos-personal-{$id}.pdf";
       return $pdf->download($filename);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
