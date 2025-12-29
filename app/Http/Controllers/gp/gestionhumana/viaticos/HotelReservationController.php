@@ -41,12 +41,7 @@ class HotelReservationController extends Controller
     try {
       $data = $request->all();
       $data['per_diem_request_id'] = $requestId;
-      $reservation = $this->service->store($data);
-
-      return $this->success([
-        'data' => $reservation,
-        'message' => 'Reserva de hotel creada exitosamente'
-      ]);
+      return $this->success($this->service->store($data));
     } catch (Throwable $th) {
       Log::error($th);
       return $this->error($th->getMessage());
@@ -61,12 +56,7 @@ class HotelReservationController extends Controller
     try {
       $data = $request->all();
       $data['id'] = $reservationId;
-      $reservation = $this->service->update($data);
-
-      return $this->success([
-        'data' => $reservation,
-        'message' => 'Reserva de hotel actualizada exitosamente'
-      ]);
+      return $this->success($this->service->update($data));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }

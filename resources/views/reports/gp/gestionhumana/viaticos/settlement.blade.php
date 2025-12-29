@@ -9,7 +9,7 @@
     return "data:{$mimeType};base64,{$imageData}";
   }
 @endphp
-  <!doctype html>
+<!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -72,17 +72,20 @@
       font-size: 11px;
     }
 
+    .subsection-title {
+      background-color: #e8e8e8;
+      font-weight: bold;
+      padding: 5px;
+      text-align: left;
+      font-size: 10px;
+    }
+
     .text-center {
       text-align: center;
     }
 
     .text-right {
       text-align: right;
-    }
-
-    .highlight {
-      background-color: #ffff00;
-      padding: 3px;
     }
 
     .dotted-line {
@@ -101,15 +104,6 @@
       text-align: center;
       vertical-align: bottom;
       padding-top: 40px;
-    }
-
-    .note {
-      background-color: #ffff00;
-      padding: 8px;
-      margin-top: 15px;
-      border: 1px solid #000;
-      font-size: 9px;
-      font-weight: bold;
     }
   </style>
 </head>
@@ -161,115 +155,215 @@
   </tr>
 </table>
 
-<!-- Liquidación de Gastos - Viáticos con Comprobantes -->
-<table>
-  <tr>
-    <th colspan="3" class="section-title">LIQUIDACIÓN DE GASTOS - VIÁTICOS CON COMPROBANTES</th>
-  </tr>
-  <tr>
-    <th style="width: 50%;">Concepto de Gastos</th>
-    <th style="width: 20%;">TOTAL</th>
-    <th style="width: 30%;">Observaciones</th>
-  </tr>
+<!-- GASTOS ASUMIDOS POR LA EMPRESA -->
+@if(count($empresaAlimentacion) > 0 || count($empresaHospedaje) > 0 || count($empresaMovilidad) > 0 || count($empresaOtros) > 0)
+  <table>
+    <tr>
+      <th colspan="5" class="section-title">GASTOS ASUMIDOS POR LA EMPRESA</th>
+    </tr>
+    <tr>
+      <th style="width: 12%;">FECHA</th>
+      <th style="width: 15%;">N° COMPROBANTE</th>
+      <th style="width: 28%;">RAZÓN SOCIAL</th>
+      <th style="width: 30%;">DETALLE</th>
+      <th style="width: 15%;">MONTO</th>
+    </tr>
 
-  @php
-    // Agrupar gastos por tipo usando una función
-    $conceptGroups = $expensesWithReceipts->groupBy(function($expense) {
-      return $expense['expense_type']['name'] ?? 'Sin categoría';
-    });
-  @endphp
-
-  @if($conceptGroups->count() > 0)
-    @foreach($conceptGroups as $conceptName => $expenses)
+    @if(count($empresaAlimentacion) > 0)
+      <!-- Alimentación de Empresa -->
       <tr>
-        <td>{{ $conceptName }}</td>
-        <td class="text-right">S/. {{ number_format($expenses->sum('company_amount'), 2) }}</td>
-        <td>{{ $expenses->pluck('notes')->filter()->implode(', ') }}</td>
+        <td colspan="5" class="subsection-title">ALIMENTACIÓN</td>
       </tr>
-    @endforeach
-  @else
-    <tr>
-      <td>Alojamiento</td>
-      <td class="text-right">S/. 0.00</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>Alimentación</td>
-      <td class="text-right">S/. 0.00</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>Boletos de viaje</td>
-      <td class="text-right">S/. 0.00</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>Transporte personal</td>
-      <td class="text-right">S/. 0.00</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>Otros gastos</td>
-      <td class="text-right">S/. 0.00</td>
-      <td></td>
-    </tr>
-  @endif
+      @foreach($empresaAlimentacion as $expense)
+        <tr>
+          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
+          <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
+          <td>{{ $expense['business_name'] ?? '-' }}</td>
+          <td>{{ $expense['notes'] ?? '-' }}</td>
+          <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
+        </tr>
+      @endforeach
+      <tr style="background-color: #f0f0f0;">
+        <td colspan="4" class="text-right label">TOTAL ALIMENTACIÓN:</td>
+        <td class="text-right label">S/. {{ number_format($totalEmpresaAlimentacion, 2) }}</td>
+      </tr>
+    @endif
 
-  <tr>
-    <td class="label text-right">SUB-TOTAL CON COMPROBANTES:</td>
-    <td class="text-right label">S/. {{ number_format($totalWithReceipts, 2) }}</td>
-    <td></td>
-  </tr>
-</table>
-
-<!-- Gastos Sin Comprobantes -->
-<table>
-  <tr>
-    <th colspan="3" class="section-title">GASTOS SIN COMPROBANTES</th>
-  </tr>
-  <tr>
-    <th style="width: 50%;">Concepto de Gastos</th>
-    <th style="width: 20%;">TOTAL</th>
-    <th style="width: 30%;">Observaciones</th>
-  </tr>
-
-  @php
-    // Agrupar gastos sin comprobante por tipo usando una función
-    $conceptGroupsNoReceipt = $expensesWithoutReceipts->groupBy(function($expense) {
-      return $expense['expense_type']['name'] ?? 'Sin categoría';
-    });
-  @endphp
-
-  @if($conceptGroupsNoReceipt->count() > 0)
-    @foreach($conceptGroupsNoReceipt as $conceptName => $expenses)
+    @if(count($empresaHospedaje) > 0)
+      <!-- Hospedaje de Empresa -->
       <tr>
-        <td>{{ $conceptName }}</td>
-        <td class="text-right">S/. {{ number_format($expenses->sum('company_amount'), 2) }}</td>
-        <td>{{ $expenses->pluck('notes')->filter()->implode(', ') }}</td>
+        <td colspan="5" class="subsection-title">HOSPEDAJE</td>
       </tr>
-    @endforeach
-  @else
-    <tr>
-      <td>Peaje</td>
-      <td class="text-right">S/. 0.00</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>Gasolina</td>
-      <td class="text-right">S/. 0.00</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>Planilla movilidad</td>
-      <td class="text-right">S/. 0.00</td>
-      <td></td>
-    </tr>
-  @endif
+      @foreach($empresaHospedaje as $expense)
+        <tr>
+          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
+          <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
+          <td>{{ $expense['business_name'] ?? '-' }}</td>
+          <td>{{ $expense['notes'] ?? '-' }}</td>
+          <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
+        </tr>
+      @endforeach
+      <tr style="background-color: #f0f0f0;">
+        <td colspan="4" class="text-right label">TOTAL HOSPEDAJE:</td>
+        <td class="text-right label">S/. {{ number_format($totalEmpresaHospedaje, 2) }}</td>
+      </tr>
+    @endif
 
-  <tr>
-    <td class="label text-right">SUB-TOTAL SIN COMPROBANTES:</td>
-    <td class="text-right label">S/. {{ number_format($totalWithoutReceipts, 2) }}</td>
-    <td></td>
+    @if(count($empresaMovilidad) > 0)
+      <!-- Movilidad de Empresa -->
+      <tr>
+        <td colspan="5" class="subsection-title">MOVILIDAD</td>
+      </tr>
+      @foreach($empresaMovilidad as $expense)
+        <tr>
+          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
+          <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
+          <td>{{ $expense['business_name'] ?? '-' }}</td>
+          <td>{{ $expense['notes'] ?? '-' }}</td>
+          <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
+        </tr>
+      @endforeach
+      <tr style="background-color: #f0f0f0;">
+        <td colspan="4" class="text-right label">TOTAL MOVILIDAD:</td>
+        <td class="text-right label">S/. {{ number_format($totalEmpresaMovilidad, 2) }}</td>
+      </tr>
+    @endif
+
+    @if(count($empresaOtros) > 0)
+      <!-- Otros Gastos de Empresa -->
+      <tr>
+        <td colspan="5" class="subsection-title">OTROS GASTOS</td>
+      </tr>
+      @foreach($empresaOtros as $expense)
+        <tr>
+          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
+          <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
+          <td>{{ $expense['business_name'] ?? '-' }}</td>
+          <td>{{ $expense['notes'] ?? '-' }}</td>
+          <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
+        </tr>
+      @endforeach
+      <tr style="background-color: #f0f0f0;">
+        <td colspan="4" class="text-right label">TOTAL OTROS GASTOS:</td>
+        <td class="text-right label">S/. {{ number_format($totalEmpresaOtros, 2) }}</td>
+      </tr>
+    @endif
+
+    <!-- Total Empresa -->
+    <tr style="background-color: #d0d0d0;">
+      <td colspan="4" class="text-right label" style="font-size: 11px;">TOTAL ASUMIDO POR LA EMPRESA:</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalEmpresa, 2) }}</td>
+    </tr>
+  </table>
+@endif
+
+<!-- GASTOS ASUMIDOS POR EL COLABORADOR -->
+@if(count($colaboradorAlimentacion) > 0 || count($colaboradorHospedaje) > 0 || count($colaboradorMovilidad) > 0 || count($colaboradorOtros) > 0)
+  <table>
+    <tr>
+      <th colspan="5" class="section-title">GASTOS ASUMIDOS POR EL COLABORADOR</th>
+    </tr>
+    <tr>
+      <th style="width: 12%;">FECHA</th>
+      <th style="width: 15%;">N° COMPROBANTE</th>
+      <th style="width: 28%;">RAZÓN SOCIAL</th>
+      <th style="width: 30%;">DETALLE</th>
+      <th style="width: 15%;">MONTO</th>
+    </tr>
+
+    @if(count($colaboradorAlimentacion) > 0)
+      <!-- Alimentación del Colaborador -->
+      <tr>
+        <td colspan="5" class="subsection-title">ALIMENTACIÓN</td>
+      </tr>
+      @foreach($colaboradorAlimentacion as $expense)
+        <tr>
+          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
+          <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
+          <td>{{ $expense['business_name'] ?? '-' }}</td>
+          <td>{{ $expense['notes'] ?? '-' }}</td>
+          <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
+        </tr>
+      @endforeach
+      <tr style="background-color: #f0f0f0;">
+        <td colspan="4" class="text-right label">TOTAL ALIMENTACIÓN:</td>
+        <td class="text-right label">S/. {{ number_format($totalColaboradorAlimentacion, 2) }}</td>
+      </tr>
+    @endif
+
+    @if(count($colaboradorHospedaje) > 0)
+      <!-- Hospedaje del Colaborador -->
+      <tr>
+        <td colspan="5" class="subsection-title">HOSPEDAJE</td>
+      </tr>
+      @foreach($colaboradorHospedaje as $expense)
+        <tr>
+          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
+          <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
+          <td>{{ $expense['business_name'] ?? '-' }}</td>
+          <td>{{ $expense['notes'] ?? '-' }}</td>
+          <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
+        </tr>
+      @endforeach
+      <tr style="background-color: #f0f0f0;">
+        <td colspan="4" class="text-right label">TOTAL HOSPEDAJE:</td>
+        <td class="text-right label">S/. {{ number_format($totalColaboradorHospedaje, 2) }}</td>
+      </tr>
+    @endif
+
+    @if(count($colaboradorMovilidad) > 0)
+      <!-- Movilidad del Colaborador -->
+      <tr>
+        <td colspan="5" class="subsection-title">MOVILIDAD</td>
+      </tr>
+      @foreach($colaboradorMovilidad as $expense)
+        <tr>
+          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
+          <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
+          <td>{{ $expense['business_name'] ?? '-' }}</td>
+          <td>{{ $expense['notes'] ?? '-' }}</td>
+          <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
+        </tr>
+      @endforeach
+      <tr style="background-color: #f0f0f0;">
+        <td colspan="4" class="text-right label">TOTAL MOVILIDAD:</td>
+        <td class="text-right label">S/. {{ number_format($totalColaboradorMovilidad, 2) }}</td>
+      </tr>
+    @endif
+
+    @if(count($colaboradorOtros) > 0)
+      <!-- Otros Gastos del Colaborador -->
+      <tr>
+        <td colspan="5" class="subsection-title">OTROS GASTOS</td>
+      </tr>
+      @foreach($colaboradorOtros as $expense)
+        <tr>
+          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
+          <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
+          <td>{{ $expense['business_name'] ?? '-' }}</td>
+          <td>{{ $expense['notes'] ?? '-' }}</td>
+          <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
+        </tr>
+      @endforeach
+      <tr style="background-color: #f0f0f0;">
+        <td colspan="4" class="text-right label">TOTAL OTROS GASTOS:</td>
+        <td class="text-right label">S/. {{ number_format($totalColaboradorOtros, 2) }}</td>
+      </tr>
+    @endif
+
+    <!-- Total Colaborador -->
+    <tr style="background-color: #d0d0d0;">
+      <td colspan="4" class="text-right label" style="font-size: 11px;">TOTAL ASUMIDO POR EL COLABORADOR:</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalColaborador, 2) }}</td>
+    </tr>
+  </table>
+@endif
+
+<!-- Total General -->
+<table>
+  <tr style="background-color: #e0e0e0;">
+    <td class="text-right label" style="width: 85%; font-size: 12px;">TOTAL GENERAL DE GASTOS:</td>
+    <td class="text-right label" style="font-size: 12px;">S/. {{ number_format($totalGeneral, 2) }}</td>
   </tr>
 </table>
 
@@ -280,22 +374,25 @@
   </tr>
   <tr>
     <td class="label" style="width: 70%;">Importe otorgado para viáticos:</td>
-    <td class="text-right">S/. {{ number_format($request['total_budget'] ?? 0, 2) }}</td>
+    <td class="text-right">S/. {{ number_format($importeOtorgado ?? 0, 2) }}</td>
   </tr>
   <tr>
     <td class="label">Total general de gastos:</td>
     <td class="text-right">S/. {{ number_format($totalGeneral, 2) }}</td>
   </tr>
   <tr>
-    <td class="label">Saldo {{ $saldo >= 0 ? '(a favor de la empresa)' : '(a favor del empleado)' }}:</td>
-    <td class="text-right label">S/. {{ number_format(abs($saldo), 2) }}</td>
+    <td class="label">Monto a devolver y/o reembolso de gastos:</td>
+    <td class="text-right label">
+      @if($montoDevolver > 0)
+        S/. {{ number_format($montoDevolver, 2) }} (A DEVOLVER)
+      @elseif($montoDevolver < 0)
+        S/. {{ number_format(abs($montoDevolver), 2) }} (A REEMBOLSAR)
+      @else
+        S/. 0.00
+      @endif
+    </td>
   </tr>
 </table>
-
-<!-- Nota Importante -->
-{{--<div class="note">--}}
-{{--  Importes referenciales, los documentos originales deben ser enviados adjuntando la transferencia realizada por Tesorería--}}
-{{--</div>--}}
 
 <!-- Firmas -->
 @php
@@ -307,9 +404,6 @@
 
   if (isset($request['approvals'])) {
     $approvals = $request['approvals'];
-
-    // Debug: ver qué tipo de dato es
-    // dd(['approvals' => $approvals, 'type' => gettype($approvals)]);
 
     // Convertir a array si es necesario
     if (is_object($approvals)) {
