@@ -66,6 +66,9 @@ class PerDiemExpenseService extends BaseService
         throw new Exception('No se pueden agregar gastos a una solicitud en el estado actual. Asegúrese de que la solicitud esté en progreso o en liquidación.');
       }
 
+      // Cast expense_type_id to int to ensure proper comparison
+      $data['expense_type_id'] = (int) $data['expense_type_id'];
+
       // Validate meals expenses based on hotel reservation
       if (in_array($data['expense_type_id'], [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
         $hotelReservation = $request->hotelReservation()->with('hotelAgreement')->first();
@@ -196,6 +199,11 @@ class PerDiemExpenseService extends BaseService
       // Validate that expense can be updated
       if ($expense->validated) {
         throw new Exception('Cannot update expense. Expense has already been validated.');
+      }
+
+      // Cast expense_type_id to int if present to ensure proper comparison
+      if (isset($data['expense_type_id'])) {
+        $data['expense_type_id'] = (int) $data['expense_type_id'];
       }
 
       // Validate meals expenses based on hotel reservation (if expense_type_id is being changed)
@@ -465,6 +473,9 @@ class PerDiemExpenseService extends BaseService
   {
     // Get the per diem request
     $request = PerDiemRequest::findOrFail($requestId);
+
+    // Cast expense_type_id to int to ensure proper comparison
+    $expenseTypeId = (int) $expenseTypeId;
 
     // TRANSPORTATION (Pasajes) doesn't have budget limits
     if ($expenseTypeId === ExpenseType::TRANSPORTATION_ID) {
