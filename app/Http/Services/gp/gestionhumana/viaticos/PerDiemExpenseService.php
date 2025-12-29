@@ -94,11 +94,19 @@ class PerDiemExpenseService extends BaseService
       if (in_array($data['expense_type_id'], [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
         $budget = RequestBudget::where('expense_type_id', ExpenseType::MEALS_ID)
           ->where('per_diem_request_id', $requestId)
-          ->firstOrFail();
-      } else {
+          ->first();
+
+        if (!$budget) {
+          throw new Exception('No se encontró presupuesto para alimentación en esta solicitud. Asegúrese de que la solicitud esté confirmada y tenga presupuestos asignados.');
+        }
+      } else if ($data['expense_type_id'] !== ExpenseType::TRANSPORTATION_ID) {
         $budget = RequestBudget::where('expense_type_id', $data['expense_type_id'])
           ->where('per_diem_request_id', $requestId)
-          ->firstOrFail();
+          ->first();
+
+        if (!$budget) {
+          throw new Exception('No se encontró presupuesto para este tipo de gasto en esta solicitud. Asegúrese de que la solicitud esté confirmada y tenga presupuestos asignados.');
+        }
       }
 
       if (in_array($data['expense_type_id'], [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
