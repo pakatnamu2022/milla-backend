@@ -123,6 +123,7 @@ class PerDiemExpenseService extends BaseService
         'receipt_number' => $data['receipt_number'] ?? null,
         'notes' => $data['notes'] ?? null,
         'is_company_expense' => false,
+        'ruc' => $data['ruc'] ?? null,
       ]);
 
       // Subir archivo y actualizar URL
