@@ -36,6 +36,7 @@ class PerDiemRequestResource extends JsonResource
       'payment_date' => $this->payment_date,
       'payment_method' => $this->payment_method,
       'settled' => (bool)$this->settled,
+      'settlement_status' => $this->settlement_status,
       'settlement_date' => $this->settlement_date,
       'total_spent' => (float)$this->total_spent,
       'balance_to_return' => (float)$this->balance_to_return,
