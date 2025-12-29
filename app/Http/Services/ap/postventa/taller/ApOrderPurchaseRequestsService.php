@@ -7,6 +7,8 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequests;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use App\Models\ap\postventa\gestionProductos\Products;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -56,6 +58,11 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       $details = $data['details'] ?? [];
       unset($data['details']);
 
+      // Validate that all products exist in the warehouse
+      if (!empty($details) && isset($data['warehouse_id'])) {
+        $this->validateProductsInWarehouse($details, $data['warehouse_id']);
+      }
+
       // Create purchase request
       $purchaseRequest = ApOrderPurchaseRequests::create($data);
 
@@ -89,6 +96,14 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       // Extract details from data
       $details = $data['details'] ?? null;
       unset($data['details']);
+
+      // Validate that all products exist in the warehouse if details are being updated
+      if ($details !== null && isset($data['warehouse_id'])) {
+        $this->validateProductsInWarehouse($details, $data['warehouse_id']);
+      } elseif ($details !== null) {
+        // If warehouse_id is not in data, use the current warehouse_id
+        $this->validateProductsInWarehouse($details, $purchaseRequest->warehouse_id);
+      }
 
       // Update purchase request
       $purchaseRequest->update($data);
@@ -133,6 +148,40 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
   }
 
   /**
+   * Validate that all products exist in the specified warehouse
+   *
+   * @param array $details Array of product details
+   * @param int $warehouseId Warehouse ID
+   * @throws Exception if any product is not registered in the warehouse
+   */
+  private function validateProductsInWarehouse(array $details, int $warehouseId): void
+  {
+    foreach ($details as $detail) {
+      $productId = $detail['product_id'] ?? null;
+
+      if (!$productId) {
+        continue;
+      }
+
+      // Check if product exists in warehouse stock (regardless of quantity)
+      $productStock = ProductWarehouseStock::where('product_id', $productId)
+        ->where('warehouse_id', $warehouseId)
+        ->first();
+
+      if (!$productStock) {
+        // Get product name for better error message
+        $product = Products::find($productId);
+        $productName = $product ? $product->name : "ID: {$productId}";
+
+        throw new Exception(
+          "El producto '{$productName}' no está registrado en este almacén. " .
+          "Por favor, registre el producto en el almacén antes de crear la solicitud de compra."
+        );
+      }
+    }
+  }
+
+  /**
    * Generate unique request number
    * Format: PR-YYYYMMDD-XXXX
    */
@@ -148,7 +197,7 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
     if ($lastRequest) {
       // Extract sequence number and increment
-      $lastSequence = (int) substr($lastRequest->request_number, -4);
+      $lastSequence = (int)substr($lastRequest->request_number, -4);
       $newSequence = $lastSequence + 1;
     } else {
       $newSequence = 1;

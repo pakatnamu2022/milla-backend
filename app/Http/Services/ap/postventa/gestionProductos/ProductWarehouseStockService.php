@@ -647,11 +647,20 @@ class ProductWarehouseStockService
     }
 
     // Order by
-    $sortBy = $request->get('sort_by', 'created_at');
-    $sortDirection = $request->get('sort_direction', 'desc');
+    // Check if specific stock ordering is requested
+    if ($request->has('order_by_stock')) {
+      $orderByStock = strtolower($request->order_by_stock);
+      if (in_array($orderByStock, ['asc', 'desc'])) {
+        $query->orderBy('quantity', $orderByStock);
+      }
+    } else {
+      // Default ordering behavior
+      $sortBy = $request->get('sort_by', 'created_at');
+      $sortDirection = $request->get('sort_direction', 'desc');
 
-    if (in_array($sortBy, ProductWarehouseStock::sorts)) {
-      $query->orderBy($sortBy, $sortDirection);
+      if (in_array($sortBy, ProductWarehouseStock::sorts)) {
+        $query->orderBy($sortBy, $sortDirection);
+      }
     }
 
     // Check if all=true to return all results without pagination

@@ -346,6 +346,10 @@ class StoreElectronicDocumentRequest extends StoreRequest
     return [
       'sunat_concept_document_type_id.required' => 'El tipo de documento es obligatorio',
       'sunat_concept_document_type_id.exists' => 'El tipo de documento seleccionado no es válido',
+      'sunat_concept_transaction_type_id.required' => 'El tipo de operación es obligatorio',
+      'sunat_concept_transaction_type_id.exists' => 'El tipo de operación seleccionado no es válido',
+      'series.required' => 'La serie es obligatoria',
+      'series.exists' => 'La serie seleccionada no es válida o no está asignada al usuario',
       'serie.required' => 'La serie es obligatoria',
       'serie.size' => 'La serie debe tener exactamente 4 caracteres',
       'cliente_numero_de_documento.required' => 'El número de documento del cliente es obligatorio',
