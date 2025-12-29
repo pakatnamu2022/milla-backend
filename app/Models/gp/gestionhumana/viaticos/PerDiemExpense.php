@@ -16,6 +16,7 @@ class PerDiemExpense extends BaseModel
 
   protected $fillable = [
     'per_diem_request_id',
+    'hotel_reservation_id',
     'expense_type_id',
     'expense_date',
     'receipt_amount',
@@ -72,6 +73,14 @@ class PerDiemExpense extends BaseModel
   public function request(): BelongsTo
   {
     return $this->belongsTo(PerDiemRequest::class, 'per_diem_request_id');
+  }
+
+  /**
+   * Get the hotel reservation this expense is associated with
+   */
+  public function hotelReservation(): BelongsTo
+  {
+    return $this->belongsTo(HotelReservation::class, 'hotel_reservation_id');
   }
 
   /**
