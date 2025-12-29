@@ -503,13 +503,18 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       $request = $this->find($id);
 
-      // Validate status - must be approved and paid
-      if ($request->status !== 'approved' || !$request->paid) {
-        throw new Exception('Solo se puede iniciar liquidación de solicitudes aprobadas y pagadas');
+      // Validate status - must be in progress or approved
+      if (!in_array($request->status, ['approved', 'in_progress'])) {
+        throw new Exception('Solo se puede iniciar liquidación de solicitudes aprobadas o en progreso');
+      }
+
+      // Validate paid only if with_request is true
+      if ($request->with_request && !$request->paid) {
+        throw new Exception('La solicitud debe estar pagada para iniciar la liquidación cuando tiene with_request habilitado');
       }
 
       // Don't change status, just mark settlement as started
-      // Status remains 'approved'
+      // Status remains as is ('approved' or 'in_progress')
 
       // Send settlement email to employee
       $this->sendPerDiemRequestSettlementEmail($request->fresh(['employee', 'district']));
@@ -532,9 +537,14 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       $request = $this->find($id);
 
-      // Validate status - must be approved
-      if ($request->status !== 'approved') {
-        throw new Exception('Solo se puede completar la liquidación de solicitudes aprobadas');
+      // Validate status - must be approved or in progress
+      if (!in_array($request->status, ['approved', 'in_progress'])) {
+        throw new Exception('Solo se puede completar la liquidación de solicitudes aprobadas o en progreso');
+      }
+
+      // Validate paid only if with_request is true
+      if ($request->with_request && !$request->paid) {
+        throw new Exception('La solicitud debe estar pagada para completar la liquidación cuando tiene with_request habilitado');
       }
 
       // Calculate balance to return
@@ -1249,6 +1259,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       // Update request with voucher URL
       $request->deposit_voucher_url = $digitalFile->url;
+      $request->paid = true;
       $request->save();
 
       DB::commit();
