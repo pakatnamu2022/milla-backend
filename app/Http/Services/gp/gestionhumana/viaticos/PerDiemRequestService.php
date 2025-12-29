@@ -605,8 +605,59 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $expenseTypeIds[] = ExpenseType::TRANSPORTATION_ID;
     }
 
+    // Replace parent expense types with their children (leaf nodes only)
+    $finalExpenseTypeIds = [];
+    foreach ($expenseTypeIds as $expenseTypeId) {
+      $expenseType = ExpenseType::with('children')->find($expenseTypeId);
+
+      if ($expenseType) {
+        // If the expense type has children, add the children instead of the parent
+        if ($expenseType->children->isNotEmpty()) {
+          $childrenIds = $expenseType->children->pluck('id')->toArray();
+          $finalExpenseTypeIds = array_merge($finalExpenseTypeIds, $childrenIds);
+        } else {
+          // If no children, add the expense type itself (it's already a leaf node)
+          $finalExpenseTypeIds[] = $expenseTypeId;
+        }
+      }
+    }
+
+    // Remove duplicates
+    $finalExpenseTypeIds = array_unique($finalExpenseTypeIds);
+
+    // Handle meals based on hotel reservation
+    $hasMealTypes = !empty(array_intersect($finalExpenseTypeIds, [
+      ExpenseType::BREAKFAST_ID,
+      ExpenseType::LUNCH_ID,
+      ExpenseType::DINNER_ID
+    ]));
+
+    if ($hasMealTypes) {
+      $hotelReservation = $request->hotelReservation()->with('hotelAgreement')->first();
+
+      // If no hotel reservation but meal types exist, throw exception
+      if (!$hotelReservation) {
+        throw new Exception('No se pueden obtener tipos de gasto de comidas porque la solicitud no tiene una reserva de hotel registrada.');
+      }
+
+      // If hotel exists with agreement, remove meals that are included
+      if ($hotelReservation->hotelAgreement) {
+        $agreement = $hotelReservation->hotelAgreement;
+
+        if ($agreement->includes_breakfast) {
+          $finalExpenseTypeIds = array_diff($finalExpenseTypeIds, [ExpenseType::BREAKFAST_ID]);
+        }
+        if ($agreement->includes_lunch) {
+          $finalExpenseTypeIds = array_diff($finalExpenseTypeIds, [ExpenseType::LUNCH_ID]);
+        }
+        if ($agreement->includes_dinner) {
+          $finalExpenseTypeIds = array_diff($finalExpenseTypeIds, [ExpenseType::DINNER_ID]);
+        }
+      }
+    }
+
     // Get expense types with parent relation
-    $expenseTypes = ExpenseType::whereIn('id', $expenseTypeIds)
+    $expenseTypes = ExpenseType::whereIn('id', $finalExpenseTypeIds)
       ->with('parent')
       ->orderBy('order')
       ->get();
