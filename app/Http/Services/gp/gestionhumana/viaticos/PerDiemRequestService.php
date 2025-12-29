@@ -682,7 +682,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Generate settlement report PDF
+   * Generate settlement report PDF with detailed expense breakdown
+   * Shows all expenses grouped by categories: alimentación, hospedaje, movilidad, otros, sin comprobante
    */
   public function generateSettlementPDF($id)
   {
@@ -704,29 +705,123 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $dataResource = new PerDiemRequestResource($perDiemRequest);
     $dataArray = $dataResource->resolve();
 
-    // Agrupar gastos por tipo
-    $expensesWithReceipts = collect($dataArray['expenses'] ?? [])->filter(function ($expense) {
-      return $expense['receipt_type'] !== 'no_receipt';
+    // Agrupar gastos por categorías detalladas
+    $allExpenses = collect($dataArray['expenses'] ?? []);
+
+    // Separar gastos por quien los asume (empresa vs colaborador)
+    $gastosEmpresa = $allExpenses->filter(function ($expense) {
+      return isset($expense['is_company_expense']) && $expense['is_company_expense'] === true;
     });
 
-    $expensesWithoutReceipts = collect($dataArray['expenses'] ?? [])->filter(function ($expense) {
-      return $expense['receipt_type'] === 'no_receipt';
+    $gastosColaborador = $allExpenses->filter(function ($expense) {
+      return !isset($expense['is_company_expense']) || $expense['is_company_expense'] === false;
     });
 
-    // Calcular totales
-    $totalWithReceipts = $expensesWithReceipts->sum('company_amount');
-    $totalWithoutReceipts = $expensesWithoutReceipts->sum('company_amount');
-    $totalGeneral = $totalWithReceipts + $totalWithoutReceipts;
-    $saldo = ($dataArray['total_budget'] ?? 0) - $totalGeneral;
+    // GASTOS ASUMIDOS POR LA EMPRESA - Por categoría
+    $empresaAlimentacion = $gastosEmpresa->filter(function ($expense) {
+      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
+      return $typeId === ExpenseType::MEALS_ID;
+    });
+
+    $empresaHospedaje = $gastosEmpresa->filter(function ($expense) {
+      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
+      return $typeId === ExpenseType::ACCOMMODATION_ID;
+    });
+
+    $empresaMovilidad = $gastosEmpresa->filter(function ($expense) {
+      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
+      return in_array($typeId, [
+        ExpenseType::LOCAL_TRANSPORT_ID,
+        ExpenseType::TRANSPORTATION_ID
+      ]);
+    });
+
+    $empresaOtros = $gastosEmpresa->filter(function ($expense) {
+      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
+      $isMainCategory = in_array($typeId, [
+        ExpenseType::MEALS_ID,
+        ExpenseType::ACCOMMODATION_ID,
+        ExpenseType::LOCAL_TRANSPORT_ID,
+        ExpenseType::TRANSPORTATION_ID
+      ]);
+      return $typeId !== null && !$isMainCategory;
+    });
+
+    // GASTOS ASUMIDOS POR EL COLABORADOR - Por categoría
+    $colaboradorAlimentacion = $gastosColaborador->filter(function ($expense) {
+      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
+      return $typeId === ExpenseType::MEALS_ID;
+    });
+
+    $colaboradorHospedaje = $gastosColaborador->filter(function ($expense) {
+      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
+      return $typeId === ExpenseType::ACCOMMODATION_ID;
+    });
+
+    $colaboradorMovilidad = $gastosColaborador->filter(function ($expense) {
+      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
+      return in_array($typeId, [
+        ExpenseType::LOCAL_TRANSPORT_ID,
+        ExpenseType::TRANSPORTATION_ID
+      ]);
+    });
+
+    $colaboradorOtros = $gastosColaborador->filter(function ($expense) {
+      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
+      $isMainCategory = in_array($typeId, [
+        ExpenseType::MEALS_ID,
+        ExpenseType::ACCOMMODATION_ID,
+        ExpenseType::LOCAL_TRANSPORT_ID,
+        ExpenseType::TRANSPORTATION_ID
+      ]);
+      return $typeId !== null && !$isMainCategory;
+    });
+
+    // Calcular totales por categoría y por tipo de gasto
+    $totalEmpresaAlimentacion = $empresaAlimentacion->sum('company_amount');
+    $totalEmpresaHospedaje = $empresaHospedaje->sum('company_amount');
+    $totalEmpresaMovilidad = $empresaMovilidad->sum('company_amount');
+    $totalEmpresaOtros = $empresaOtros->sum('company_amount');
+    $totalEmpresa = $gastosEmpresa->sum('company_amount');
+
+    $totalColaboradorAlimentacion = $colaboradorAlimentacion->sum('company_amount');
+    $totalColaboradorHospedaje = $colaboradorHospedaje->sum('company_amount');
+    $totalColaboradorMovilidad = $colaboradorMovilidad->sum('company_amount');
+    $totalColaboradorOtros = $colaboradorOtros->sum('company_amount');
+    $totalColaborador = $gastosColaborador->sum('company_amount');
+
+    $totalGeneral = $allExpenses->sum('company_amount');
+
+    // Calcular importes de pie de página
+    $importeOtorgado = $dataArray['cash_amount'] ?? 0;
+    $montoDevolver = $importeOtorgado - $totalGeneral;
 
     $pdf = PDF::loadView('reports.gp.gestionhumana.viaticos.settlement', [
       'request' => $dataArray,
-      'expensesWithReceipts' => $expensesWithReceipts,
-      'expensesWithoutReceipts' => $expensesWithoutReceipts,
-      'totalWithReceipts' => $totalWithReceipts,
-      'totalWithoutReceipts' => $totalWithoutReceipts,
+      // Gastos de la empresa
+      'empresaAlimentacion' => $empresaAlimentacion,
+      'empresaHospedaje' => $empresaHospedaje,
+      'empresaMovilidad' => $empresaMovilidad,
+      'empresaOtros' => $empresaOtros,
+      'totalEmpresaAlimentacion' => $totalEmpresaAlimentacion,
+      'totalEmpresaHospedaje' => $totalEmpresaHospedaje,
+      'totalEmpresaMovilidad' => $totalEmpresaMovilidad,
+      'totalEmpresaOtros' => $totalEmpresaOtros,
+      'totalEmpresa' => $totalEmpresa,
+      // Gastos del colaborador
+      'colaboradorAlimentacion' => $colaboradorAlimentacion,
+      'colaboradorHospedaje' => $colaboradorHospedaje,
+      'colaboradorMovilidad' => $colaboradorMovilidad,
+      'colaboradorOtros' => $colaboradorOtros,
+      'totalColaboradorAlimentacion' => $totalColaboradorAlimentacion,
+      'totalColaboradorHospedaje' => $totalColaboradorHospedaje,
+      'totalColaboradorMovilidad' => $totalColaboradorMovilidad,
+      'totalColaboradorOtros' => $totalColaboradorOtros,
+      'totalColaborador' => $totalColaborador,
+      // Totales generales
       'totalGeneral' => $totalGeneral,
-      'saldo' => $saldo,
+      'importeOtorgado' => $importeOtorgado,
+      'montoDevolver' => $montoDevolver,
     ]);
 
     $pdf->setOptions([
@@ -1291,25 +1386,21 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   private function sendPerDiemRequestApprovedEmail(PerDiemRequest $request): void
   {
     try {
-      $emailData = [
-        'employee_name' => $request->employee->nombre_completo,
-        'request_code' => $request->code,
-        'destination' => $request->district->nombre ?? 'N/A',
-        'start_date' => $request->start_date->format('d/m/Y'),
-        'end_date' => $request->end_date->format('d/m/Y'),
-        'total_budget' => $request->total_budget,
-      ];
-
-      $this->emailService->send([
-        'to' => [
-          $request->employee->email,
-          'hvaldiviezos@automotorespakatnamu.com',
-          'ngonzalesd@automotorespakatnamu.com'
-        ], // For testing
+      $emailConfig = [
+        'to' => $request->employee->email,
         'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
         'template' => 'emails.per-diem-request-approved',
-        'data' => $emailData,
-      ]);
+        'data' => [
+          'employee_name' => $request->employee->nombre_completo,
+          'request_code' => $request->code,
+          'destination' => $request->district->nombre ?? 'N/A',
+          'start_date' => $request->start_date->format('d/m/Y'),
+          'end_date' => $request->end_date->format('d/m/Y'),
+          'total_budget' => $request->total_budget,
+        ]
+      ];
+
+      $this->emailService->queue($emailConfig);
     } catch (Exception $e) {
       \Log::error('Error sending per diem request approved email: ' . $e->getMessage());
     }
