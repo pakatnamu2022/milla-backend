@@ -11,6 +11,8 @@ use App\Http\Requests\gp\gestionhumana\viaticos\ReviewPerDiemRequestRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\MarkPaidPerDiemRequestRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\StartSettlementPerDiemRequestRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\CompleteSettlementPerDiemRequestRequest;
+use App\Http\Requests\gp\gestionhumana\viaticos\ApproveSettlementPerDiemRequestRequest;
+use App\Http\Requests\gp\gestionhumana\viaticos\RejectSettlementPerDiemRequestRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\CancelPerDiemRequestRequest;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRateResource;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRequestResource;
@@ -63,6 +65,19 @@ class PerDiemRequestController extends Controller
   {
     try {
       return $this->service->getPendingApprovals();
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Display pending settlements for the logged-in user
+   * Shows settlements that need approval from the user (as boss or module approver)
+   */
+  public function pendingSettlements()
+  {
+    try {
+      return $this->service->getPendingSettlements();
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
@@ -228,6 +243,42 @@ class PerDiemRequestController extends Controller
       return $this->success([
         'data' => new PerDiemRequestResource($perDiemRequest),
         'message' => 'Liquidación completada exitosamente'
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Approve settlement
+   */
+  public function approveSettlement(ApproveSettlementPerDiemRequestRequest $request, int $id)
+  {
+    try {
+      $data = $request->validated();
+      $perDiemRequest = $this->service->approveSettlement($id, $data);
+
+      return $this->success([
+        'data' => new PerDiemRequestResource($perDiemRequest),
+        'message' => 'Liquidación aprobada exitosamente'
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Reject settlement
+   */
+  public function rejectSettlement(RejectSettlementPerDiemRequestRequest $request, int $id)
+  {
+    try {
+      $data = $request->validated();
+      $perDiemRequest = $this->service->rejectSettlement($id, $data);
+
+      return $this->success([
+        'data' => new PerDiemRequestResource($perDiemRequest),
+        'message' => 'Liquidación rechazada exitosamente'
       ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());

@@ -309,6 +309,49 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   }
 
   /**
+   * Get pending settlements for the authenticated user
+   * Returns:
+   * - Settlements with status 'submitted' if user is the authorizer (boss)
+   * - Settlements with status 'approved_by_boss' (pending final approval from module)
+   */
+  public function getPendingSettlements()
+  {
+    $userId = auth()->user()->person->id;
+
+    // Get settlements pending first approval (where user is the boss)
+    $settlementsForBoss = PerDiemRequest::where('settlement_status', 'submitted')
+      ->where('authorizer_id', $userId)
+      ->with([
+        'employee',
+        'company',
+        'companyService',
+        'district',
+        'policy',
+        'category',
+      ])
+      ->orderBy('settlement_date', 'desc')
+      ->get();
+
+    // Get settlements pending final approval (already approved by boss)
+    $settlementsForModule = PerDiemRequest::where('settlement_status', 'approved_by_boss')
+      ->with([
+        'employee',
+        'company',
+        'companyService',
+        'district',
+        'policy',
+        'category',
+      ])
+      ->orderBy('settlement_date', 'desc')
+      ->get();
+
+    // Combine both collections
+    $allPendingSettlements = $settlementsForBoss->merge($settlementsForModule);
+
+    return PerDiemRequestResource::collection($allPendingSettlements);
+  }
+
+  /**
    * Get rates for a specific destination and category
    */
   public function getRatesForDestination(int $districtId, int $categoryId): Collection
@@ -501,6 +544,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       // Update settlement information
       $request->update([
         'settled' => true,
+        'settlement_status' => 'submitted',
         'settlement_date' => $data['settlement_date'] ?? now(),
         'total_spent' => $totalSpent,
         'balance_to_return' => $balanceToReturn > 0 ? $balanceToReturn : 0,
@@ -508,6 +552,102 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       // Send settlement completed email to employee
       $this->sendPerDiemRequestSettledEmail($request->fresh(['employee', 'district']));
+
+      DB::commit();
+      return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category', 'expenses']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Approve settlement
+   * Two-level approval system:
+   * 1. First approval must be from the boss (authorizer_id) -> status: 'approved_by_boss'
+   * 2. Second approval can be from anyone with access to module -> status: 'approved'
+   */
+  public function approveSettlement(int $id, array $data): PerDiemRequest
+  {
+    try {
+      DB::beginTransaction();
+
+      $request = $this->find($id);
+      $currentUserId = auth()->user()->person->id ?? null;
+
+      // Validate that settlement has been submitted or approved by boss
+      if (!in_array($request->settlement_status, ['submitted', 'approved_by_boss'])) {
+        throw new Exception('Solo se pueden aprobar liquidaciones que han sido enviadas para revisión');
+      }
+
+      // First approval - must be from the boss
+      if ($request->settlement_status === 'submitted') {
+        // Validate that the user is the boss
+        if ($currentUserId !== $request->authorizer_id) {
+          throw new Exception('La primera aprobación de la liquidación debe ser realizada por el jefe directo');
+        }
+
+        // Update settlement status to approved by boss
+        $request->update([
+          'settlement_status' => 'approved_by_boss',
+        ]);
+
+        $approvalNote = "LIQUIDACIÓN APROBADA POR JEFE DIRECTO";
+      } else {
+        // Second approval - can be anyone with access to module
+        // Update settlement status to approved (final)
+        $request->update([
+          'settlement_status' => 'approved',
+        ]);
+
+        $approvalNote = "LIQUIDACIÓN APROBADA FINALMENTE POR MÓDULO";
+      }
+
+      // If there are comments, add them to notes
+      $currentNotes = $request->notes ?? '';
+      $newNotes = $currentNotes ? $currentNotes . "\n\n" . $approvalNote : $approvalNote;
+
+      if (!empty($data['comments'])) {
+        $newNotes .= " - COMENTARIOS: " . strtoupper($data['comments']);
+      }
+
+      $request->update(['notes' => $newNotes]);
+
+      DB::commit();
+      return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category', 'expenses']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Reject settlement
+   * Can be rejected at any approval level (by boss or module)
+   */
+  public function rejectSettlement(int $id, array $data): PerDiemRequest
+  {
+    try {
+      DB::beginTransaction();
+
+      $request = $this->find($id);
+
+      // Validate that settlement has been submitted or approved by boss
+      if (!in_array($request->settlement_status, ['submitted', 'approved_by_boss'])) {
+        throw new Exception('Solo se pueden rechazar liquidaciones que están pendientes de aprobación');
+      }
+
+      // Update settlement status to rejected
+      $request->update([
+        'settlement_status' => 'rejected',
+        'settled' => false,
+      ]);
+
+      // Add rejection reason to notes
+      $currentNotes = $request->notes ?? '';
+      $rejectionNote = "MOTIVO DE RECHAZO DE LIQUIDACIÓN: " . strtoupper($data['rejection_reason']);
+      $newNotes = $currentNotes ? $currentNotes . "\n\n" . $rejectionNote : $rejectionNote;
+      $request->update(['notes' => $newNotes]);
 
       DB::commit();
       return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category', 'expenses']);
@@ -825,6 +965,18 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $pdf->setPaper('A4', 'portrait');
 
     return $pdf;
+  }
+
+  /**
+   * Public method to regenerate budgets (called from HotelReservationService)
+   *
+   * @param PerDiemRequest $request
+   * @param Collection $rates Collection of PerDiemRate
+   * @return float Total budget amount
+   */
+  public function regenerateBudgets(PerDiemRequest $request, Collection $rates): float
+  {
+    return $this->generateBudgets($request, $rates);
   }
 
   /**

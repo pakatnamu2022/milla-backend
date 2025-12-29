@@ -37,6 +37,7 @@ class PerDiemRequest extends BaseModel
     'payment_date',
     'payment_method',
     'settled',
+    'settlement_status',
     'settlement_date',
     'total_spent',
     'balance_to_return',
@@ -69,6 +70,7 @@ class PerDiemRequest extends BaseModel
   const filters = [
     'search' => ['code', 'purpose', 'employee.nombre_completo'],
     'status' => '=',
+    'settlement_status' => '=',
     'employee_id' => '=',
     'authorizer_id' => '=',
     'company_id' => '=',
