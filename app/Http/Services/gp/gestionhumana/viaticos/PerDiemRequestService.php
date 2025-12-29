@@ -518,66 +518,6 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Confirm a per diem request and recalculate budgets
-   *
-   * @param int $id Per diem request ID
-   * @return PerDiemRequestResource
-   * @throws Exception
-   */
-  public function confirm(int $id): PerDiemRequestResource
-  {
-    try {
-      DB::beginTransaction();
-
-      $request = $this->find($id);
-
-      // Validate status is 'approved'
-      if ($request->status !== 'approved') {
-        throw new Exception('Solo se pueden confirmar solicitudes aprobadas');
-      }
-
-      // Change status to 'in_progress'
-      $request->update(['status' => 'in_progress']);
-
-      // Delete existing budgets
-      $request->budgets()->delete();
-
-      // Get rates again
-      $rates = PerDiemRate::getCurrentRatesByDistrict(
-        $request->district_id,
-        $request->per_diem_category_id
-      );
-
-      // Load hotel reservation if exists
-      $hotelReservation = $request->hotelReservation()->with('hotelAgreement')->first();
-
-      // Regenerate budgets with hotel consideration
-      $totalBudget = $this->generateBudgets($request, $rates);
-
-      // Update total budget
-      $request->update(['total_budget' => $totalBudget]);
-
-      DB::commit();
-
-      return new PerDiemRequestResource(
-        $request->fresh([
-          'employee',
-          'company',
-          'companyService',
-          'district',
-          'policy',
-          'category',
-          'budgets.expenseType',
-          'hotelReservation.hotelAgreement'
-        ])
-      );
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
-  }
-
-  /**
    * Get available expense types for a per diem request
    * Returns expense types that have budgets assigned to the request
    * Also includes TRANSPORTATION if less than 2 transportation expenses exist
@@ -885,6 +825,18 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $pdf->setPaper('A4', 'portrait');
 
     return $pdf;
+  }
+
+  /**
+   * Public method to regenerate budgets (called from HotelReservationService)
+   *
+   * @param PerDiemRequest $request
+   * @param Collection $rates Collection of PerDiemRate
+   * @return float Total budget amount
+   */
+  public function regenerateBudgets(PerDiemRequest $request, Collection $rates): float
+  {
+    return $this->generateBudgets($request, $rates);
   }
 
   /**

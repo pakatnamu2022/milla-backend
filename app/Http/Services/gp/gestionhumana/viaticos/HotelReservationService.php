@@ -112,6 +112,28 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         $this->uploadAndAttachFiles($reservation, $files);
       }
 
+      // Confirm request: change status to in_progress and regenerate budgets if status is approved
+      if ($perDiemRequest->status === 'approved') {
+        // Change status to 'in_progress'
+        $perDiemRequest->update(['status' => 'in_progress']);
+
+        // Delete existing budgets
+        $perDiemRequest->budgets()->delete();
+
+        // Get rates again
+        $rates = PerDiemRate::getCurrentRatesByDistrict(
+          $perDiemRequest->district_id,
+          $perDiemRequest->per_diem_category_id
+        );
+
+        // Regenerate budgets with hotel consideration using PerDiemRequestService
+        $perDiemRequestService = app(PerDiemRequestService::class);
+        $totalBudget = $perDiemRequestService->regenerateBudgets($perDiemRequest, $rates);
+
+        // Update total budget
+        $perDiemRequest->update(['total_budget' => $totalBudget]);
+      }
+
       // Create company expense for accommodation
       $this->createCompanyExpenseForReservation($reservation, $data['document_number'] ?? "");
 
