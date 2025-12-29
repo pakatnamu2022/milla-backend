@@ -1178,6 +1178,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     // Per Diem Requests
     Route::get('per-diem-requests/my-requests', [PerDiemRequestController::class, 'myRequests']);
     Route::get('per-diem-requests/pending-approvals', [PerDiemRequestController::class, 'pendingApprovals']);
+    Route::get('per-diem-requests/pending-settlements', [PerDiemRequestController::class, 'pendingSettlements']);
     Route::get('per-diem-requests/overdue', [PerDiemRequestController::class, 'overdue']);
     Route::get('per-diem-requests/rates', [PerDiemRequestController::class, 'rates']);
     Route::post('per-diem-requests/{id}/submit', [PerDiemRequestController::class, 'submit']);
@@ -1185,6 +1186,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('per-diem-requests/{id}/mark-paid', [PerDiemRequestController::class, 'markAsPaid']);
     Route::post('per-diem-requests/{id}/start-settlement', [PerDiemRequestController::class, 'startSettlement']);
     Route::post('per-diem-requests/{id}/complete-settlement', [PerDiemRequestController::class, 'completeSettlement']);
+    Route::post('per-diem-requests/{id}/approve-settlement', [PerDiemRequestController::class, 'approveSettlement']);
+    Route::post('per-diem-requests/{id}/reject-settlement', [PerDiemRequestController::class, 'rejectSettlement']);
     Route::get('per-diem-requests/{id}/settlement-pdf', [PerDiemRequestController::class, 'settlementPDF']);
     Route::get('per-diem-requests/{id}/expenses-pdf', [PerDiemRequestController::class, 'exportExpensesPDF']);
     Route::get('per-diem-requests/{id}/expense-detail-pdf', [PerDiemRequestController::class, 'expenseDetailPDF']);
