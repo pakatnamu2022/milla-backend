@@ -67,11 +67,11 @@ class ViaticosMasterSeeder extends Seeder
       PerDiemPolicySeeder::class,
       HotelAgreementSeeder::class,
       PerDiemRatesSeeder::class,
-      PerDiemRequestSeeder::class,
-      RequestBudgetSeeder::class,
-      PerDiemApprovalSeeder::class,
-      HotelReservationSeeder::class,
-      PerDiemExpenseSeeder::class,
+//      PerDiemRequestSeeder::class,
+//      RequestBudgetSeeder::class,
+//      PerDiemApprovalSeeder::class,
+//      HotelReservationSeeder::class,
+//      PerDiemExpenseSeeder::class,
     ];
 
     foreach ($seeders as $seeder) {
