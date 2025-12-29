@@ -513,8 +513,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         throw new Exception('La solicitud debe estar pagada para iniciar la liquidación cuando tiene with_request habilitado');
       }
 
-      // Don't change status, just mark settlement as started
-      // Status remains as is ('approved' or 'in_progress')
+      // Update settlement status to submitted
+      $request->update([
+        'settlement_status' => 'submitted',
+      ]);
 
       // Send settlement email to employee
       $this->sendPerDiemRequestSettlementEmail($request->fresh(['employee', 'district']));
