@@ -682,10 +682,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Generate settlement report PDF with detailed expense breakdown
+   * Generate expenseTotal report PDF with detailed expense breakdown
    * Shows all expenses grouped by categories: alimentación, hospedaje, movilidad, otros, sin comprobante
    */
-  public function generateSettlementPDF($id)
+  public function generateexpenseTotalPDF($id)
   {
     $perDiemRequest = $this->find($id);
 
@@ -837,6 +837,105 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   }
 
   /**
+   * Generate expense detail report PDF showing only employee expenses
+   * Shows expenses paid by the employee (not company expenses)
+   */
+  public function generateExpenseDetailPDF($id)
+  {
+    $perDiemRequest = $this->find($id);
+
+    // Load all necessary relationships
+    $perDiemRequest->load([
+      'employee.boss.position',
+      'employee.position.area',
+      'company',
+      'companyService',
+      'district',
+      'category',
+      'policy',
+      'approvals.approver.position',
+      'expenses.expenseType',
+    ]);
+
+    $dataResource = new PerDiemRequestResource($perDiemRequest);
+    $dataArray = $dataResource->resolve();
+
+    // Obtener solo los gastos del personal (no asumidos por la empresa)
+    $allExpenses = collect($dataArray['expenses'] ?? []);
+
+    $gastosColaborador = $allExpenses->filter(function ($expense) {
+      return !isset($expense['is_company_expense']) || $expense['is_company_expense'] === false;
+    });
+
+    // Categorizar gastos del personal
+    $alimentacion = $gastosColaborador->filter(function ($expense) {
+      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
+      return $typeId === ExpenseType::MEALS_ID;
+    });
+
+    $hospedaje = $gastosColaborador->filter(function ($expense) {
+      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
+      return $typeId === ExpenseType::ACCOMMODATION_ID;
+    });
+
+    $movilidad = $gastosColaborador->filter(function ($expense) {
+      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
+      return in_array($typeId, [
+        ExpenseType::LOCAL_TRANSPORT_ID,
+        ExpenseType::TRANSPORTATION_ID
+      ]);
+    });
+
+    $otros = $gastosColaborador->filter(function ($expense) {
+      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
+      $isMainCategory = in_array($typeId, [
+        ExpenseType::MEALS_ID,
+        ExpenseType::ACCOMMODATION_ID,
+        ExpenseType::LOCAL_TRANSPORT_ID,
+        ExpenseType::TRANSPORTATION_ID
+      ]);
+      return $typeId !== null && !$isMainCategory;
+    });
+
+    // Calcular totales por categoría
+    $totalAlimentacion = $alimentacion->sum('company_amount');
+    $totalHospedaje = $hospedaje->sum('company_amount');
+    $totalMovilidad = $movilidad->sum('company_amount');
+    $totalOtros = $otros->sum('company_amount');
+    $totalGeneral = $gastosColaborador->sum('company_amount');
+
+    // Calcular importes de pie de página
+    $importeOtorgado = $dataArray['cash_amount'] ?? 0;
+    $montoDevolver = $importeOtorgado - $totalGeneral;
+
+    $pdf = PDF::loadView('reports.gp.gestionhumana.viaticos.expense-detail', [
+      'request' => $dataArray,
+      'alimentacion' => $alimentacion,
+      'hospedaje' => $hospedaje,
+      'movilidad' => $movilidad,
+      'otros' => $otros,
+      'totalAlimentacion' => $totalAlimentacion,
+      'totalHospedaje' => $totalHospedaje,
+      'totalMovilidad' => $totalMovilidad,
+      'totalOtros' => $totalOtros,
+      'totalGeneral' => $totalGeneral,
+      'importeOtorgado' => $importeOtorgado,
+      'montoDevolver' => $montoDevolver,
+    ]);
+
+    $pdf->setOptions([
+      'defaultFont' => 'Arial',
+      'isHtml5ParserEnabled' => true,
+      'isRemoteEnabled' => false,
+      'dpi' => 96,
+    ]);
+
+    $pdf->setPaper('A4', 'portrait');
+
+    return $pdf;
+  }
+
+  /**
    * Generate budgets for a per diem request
    *
    * @param PerDiemRequest $request The per diem request
@@ -967,167 +1066,6 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       'days' => 0,
       'total' => 0,
     ]);
-  }
-
-  /**
-   * Generate approved expenses export PDF with attachments
-   */
-  public function generateExpensesPDF($id)
-  {
-    $perDiemRequest = $this->find($id);
-
-    // Load all necessary relationships
-    $perDiemRequest->load([
-      'employee.boss.position',
-      'employee.position.area',
-      'company',
-      'companyService',
-      'district',
-      'category',
-      'policy',
-      'approvals.approver.position',
-      'expenses.expenseType',
-    ]);
-
-    $dataResource = new PerDiemRequestResource($perDiemRequest);
-    $dataArray = $dataResource->resolve();
-
-    // Filtrar solo gastos aprobados (validated = true)
-    $approvedExpenses = collect($dataArray['expenses'] ?? [])->filter(function ($expense) {
-      return $expense['validated'] === true;
-    });
-
-    // Calcular totales
-    $totalApproved = $approvedExpenses->sum('company_amount');
-
-    // Filtrar gastos que tienen archivos adjuntos
-    $expensesWithAttachments = $approvedExpenses->filter(function ($expense) {
-      return !empty($expense['receipt_path']);
-    });
-
-    $pdf = PDF::loadView('reports.gp.gestionhumana.viaticos.expenses-export', [
-      'request' => $dataArray,
-      'approvedExpenses' => $approvedExpenses,
-      'totalApproved' => $totalApproved,
-      'expensesWithAttachments' => $expensesWithAttachments,
-    ]);
-
-    $pdf->setOptions([
-      'defaultFont' => 'Arial',
-      'isHtml5ParserEnabled' => true,
-      'isRemoteEnabled' => true,
-      'dpi' => 96,
-    ]);
-
-    $pdf->setPaper('A4', 'portrait');
-
-    return $pdf;
-  }
-
-  /**
-   * Generate expense detail PDF report for travel expenses
-   * Shows all expenses grouped by type (alimentación, hospedaje, movilidad, otros, sin comprobante)
-   *
-   * @param int $id Per diem request ID
-   * @return mixed PDF instance
-   */
-  public function generateExpenseDetailPDF($id)
-  {
-    $perDiemRequest = $this->find($id);
-
-    // Load all necessary relationships
-    $perDiemRequest->load([
-      'employee.position.area',
-      'company',
-      'district',
-      'expenses.expenseType',
-    ]);
-
-    $dataResource = new PerDiemRequestResource($perDiemRequest);
-    $dataArray = $dataResource->resolve();
-
-    // Agrupar gastos por tipo de gasto
-    $allExpenses = collect($dataArray['expenses'] ?? []);
-
-    // Gastos de alimentación
-    $alimentacion = $allExpenses->filter(function ($expense) {
-      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
-      return $typeId === ExpenseType::MEALS_ID;
-    });
-
-    // Gastos de hospedaje
-    $hospedaje = $allExpenses->filter(function ($expense) {
-      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
-      return $typeId === ExpenseType::ACCOMMODATION_ID;
-    });
-
-    // Gastos de movilidad (transporte local + transporte)
-    $movilidad = $allExpenses->filter(function ($expense) {
-      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
-      return in_array($typeId, [
-        ExpenseType::LOCAL_TRANSPORT_ID,
-        ExpenseType::TRANSPORTATION_ID
-      ]);
-    });
-
-    // Gastos sin comprobante
-    $sinComprobante = $allExpenses->filter(function ($expense) {
-      return isset($expense['receipt_type']) && $expense['receipt_type'] === 'no_receipt';
-    });
-
-    // Otros gastos (los que no están en las categorías anteriores)
-    $otros = $allExpenses->filter(function ($expense) {
-      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
-      $isMainCategory = in_array($typeId, [
-        ExpenseType::MEALS_ID,
-        ExpenseType::ACCOMMODATION_ID,
-        ExpenseType::LOCAL_TRANSPORT_ID,
-        ExpenseType::TRANSPORTATION_ID
-      ]);
-      $isNoReceipt = isset($expense['receipt_type']) && $expense['receipt_type'] === 'no_receipt';
-
-      return $typeId !== null && !$isMainCategory && !$isNoReceipt;
-    });
-
-    // Calcular totales por categoría
-    $totalAlimentacion = $alimentacion->sum('company_amount');
-    $totalHospedaje = $hospedaje->sum('company_amount');
-    $totalMovilidad = $movilidad->sum('company_amount');
-    $totalOtros = $otros->sum('company_amount');
-    $totalSinComprobante = $sinComprobante->sum('company_amount');
-    $totalGeneral = $allExpenses->sum('company_amount');
-
-    // Calcular importes de pie de página
-    $importeOtorgado = $dataArray['cash_amount'] ?? 0;
-    $montoDevolver = $importeOtorgado - $totalGeneral;
-
-    $pdf = PDF::loadView('reports.gp.gestionhumana.viaticos.expense-detail', [
-      'request' => $dataArray,
-      'alimentacion' => $alimentacion,
-      'hospedaje' => $hospedaje,
-      'movilidad' => $movilidad,
-      'otros' => $otros,
-      'sinComprobante' => $sinComprobante,
-      'totalAlimentacion' => $totalAlimentacion,
-      'totalHospedaje' => $totalHospedaje,
-      'totalMovilidad' => $totalMovilidad,
-      'totalOtros' => $totalOtros,
-      'totalSinComprobante' => $totalSinComprobante,
-      'totalGeneral' => $totalGeneral,
-      'importeOtorgado' => $importeOtorgado,
-      'montoDevolver' => $montoDevolver,
-    ]);
-
-    $pdf->setOptions([
-      'defaultFont' => 'Arial',
-      'isHtml5ParserEnabled' => true,
-      'isRemoteEnabled' => false,
-      'dpi' => 96,
-    ]);
-
-    $pdf->setPaper('A4', 'portrait');
-
-    return $pdf;
   }
 
   /**
