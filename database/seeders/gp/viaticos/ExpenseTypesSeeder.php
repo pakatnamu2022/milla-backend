@@ -21,7 +21,7 @@ class ExpenseTypesSeeder extends Seeder
         'description' => 'Hotel lodging', 'requires_receipt' => true, 'order' => 1, 'active' => true,
       ],
       [
-        'parent_id' => null, 'code' => 'transportation', 'name' => 'Pasajes',
+        'parent_id' => null, 'code' => 'transportation', 'name' => 'Pasajes Interprovinciales',
         'description' => 'Bus, plane, or other transport tickets', 'requires_receipt' => true, 'order' => 2, 'active' => true,
       ],
       [
@@ -43,7 +43,7 @@ class ExpenseTypesSeeder extends Seeder
         ],
       ],
       [
-        'parent_id' => null, 'code' => 'local_transport', 'name' => 'Transporte Local',
+        'parent_id' => null, 'code' => 'local_transport', 'name' => 'Movilidad Local',
         'description' => 'Transportation within destination city (taxi, uber, etc.)', 'requires_receipt' => false, 'order' => 4, 'active' => true,
       ],
     ];

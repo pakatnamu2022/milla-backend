@@ -26,6 +26,9 @@ class ViaticosMasterSeeder extends Seeder
     DB::table('gh_per_diem_category')->truncate();
     $this->command->info('   ✓ gh_per_diem_category');
 
+    DB::table('gh_expense_type')->truncate();
+    $this->command->info('   ✓ gh_expense_type');
+
     DB::table('gh_per_diem_expense')->truncate();
     $this->command->info('   ✓ gh_per_diem_expense');
 
@@ -67,11 +70,11 @@ class ViaticosMasterSeeder extends Seeder
       PerDiemPolicySeeder::class,
       HotelAgreementSeeder::class,
       PerDiemRatesSeeder::class,
-      PerDiemRequestSeeder::class,
-      RequestBudgetSeeder::class,
-      PerDiemApprovalSeeder::class,
-      HotelReservationSeeder::class,
-      PerDiemExpenseSeeder::class,
+//      PerDiemRequestSeeder::class,
+//      RequestBudgetSeeder::class,
+//      PerDiemApprovalSeeder::class,
+//      HotelReservationSeeder::class,
+//      PerDiemExpenseSeeder::class,
     ];
 
     foreach ($seeders as $seeder) {

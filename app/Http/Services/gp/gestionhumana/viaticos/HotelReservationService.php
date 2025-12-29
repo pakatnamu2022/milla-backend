@@ -9,6 +9,7 @@ use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Models\gp\gestionhumana\viaticos\ExpenseType;
 use App\Models\gp\gestionhumana\viaticos\HotelReservation;
 use App\Models\gp\gestionhumana\viaticos\PerDiemExpense;
+use App\Models\gp\gestionhumana\viaticos\PerDiemRate;
 use App\Models\gp\gestionhumana\viaticos\PerDiemRequest;
 use App\Models\gp\gestionsistema\DigitalFile;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +23,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
   protected DigitalFileService $digitalFileService;
 
   // Configuración de rutas para archivos
-  private const FILE_PATHS = [
+  private const array FILE_PATHS = [
     'receipt_file' => '/gh/viaticos/reservaciones/',
   ];
 
@@ -47,6 +48,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
 
   /**
    * Find a hotel reservation by ID (internal method)
+   * @throws Exception
    */
   public function find($id)
   {
@@ -110,6 +112,28 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
       // Subir archivo y actualizar URL
       if (!empty($files)) {
         $this->uploadAndAttachFiles($reservation, $files);
+      }
+
+      // Confirm request: change status to in_progress and regenerate budgets if status is approved
+      if ($perDiemRequest->status === 'approved') {
+        // Change status to 'in_progress'
+        $perDiemRequest->update(['status' => 'in_progress']);
+
+        // Delete existing budgets
+        $perDiemRequest->budgets()->delete();
+
+        // Get rates again
+        $rates = PerDiemRate::getCurrentRatesByDistrict(
+          $perDiemRequest->district_id,
+          $perDiemRequest->per_diem_category_id
+        );
+
+        // Regenerate budgets with hotel consideration using PerDiemRequestService
+        $perDiemRequestService = app(PerDiemRequestService::class);
+        $totalBudget = $perDiemRequestService->regenerateBudgets($perDiemRequest, $rates);
+
+        // Update total budget
+        $perDiemRequest->update(['total_budget' => $totalBudget]);
       }
 
       // Create company expense for accommodation

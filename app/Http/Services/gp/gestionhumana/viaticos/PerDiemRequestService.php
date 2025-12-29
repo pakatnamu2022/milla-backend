@@ -518,66 +518,6 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Confirm a per diem request and recalculate budgets
-   *
-   * @param int $id Per diem request ID
-   * @return PerDiemRequestResource
-   * @throws Exception
-   */
-  public function confirm(int $id): PerDiemRequestResource
-  {
-    try {
-      DB::beginTransaction();
-
-      $request = $this->find($id);
-
-      // Validate status is 'approved'
-      if ($request->status !== 'approved') {
-        throw new Exception('Solo se pueden confirmar solicitudes aprobadas');
-      }
-
-      // Change status to 'in_progress'
-      $request->update(['status' => 'in_progress']);
-
-      // Delete existing budgets
-      $request->budgets()->delete();
-
-      // Get rates again
-      $rates = PerDiemRate::getCurrentRatesByDistrict(
-        $request->district_id,
-        $request->per_diem_category_id
-      );
-
-      // Load hotel reservation if exists
-      $hotelReservation = $request->hotelReservation()->with('hotelAgreement')->first();
-
-      // Regenerate budgets with hotel consideration
-      $totalBudget = $this->generateBudgets($request, $rates);
-
-      // Update total budget
-      $request->update(['total_budget' => $totalBudget]);
-
-      DB::commit();
-
-      return new PerDiemRequestResource(
-        $request->fresh([
-          'employee',
-          'company',
-          'companyService',
-          'district',
-          'policy',
-          'category',
-          'budgets.expenseType',
-          'hotelReservation.hotelAgreement'
-        ])
-      );
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
-  }
-
-  /**
    * Get available expense types for a per diem request
    * Returns expense types that have budgets assigned to the request
    * Also includes TRANSPORTATION if less than 2 transportation expenses exist
@@ -605,8 +545,59 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $expenseTypeIds[] = ExpenseType::TRANSPORTATION_ID;
     }
 
+    // Replace parent expense types with their children (leaf nodes only)
+    $finalExpenseTypeIds = [];
+    foreach ($expenseTypeIds as $expenseTypeId) {
+      $expenseType = ExpenseType::with('children')->find($expenseTypeId);
+
+      if ($expenseType) {
+        // If the expense type has children, add the children instead of the parent
+        if ($expenseType->children->isNotEmpty()) {
+          $childrenIds = $expenseType->children->pluck('id')->toArray();
+          $finalExpenseTypeIds = array_merge($finalExpenseTypeIds, $childrenIds);
+        } else {
+          // If no children, add the expense type itself (it's already a leaf node)
+          $finalExpenseTypeIds[] = $expenseTypeId;
+        }
+      }
+    }
+
+    // Remove duplicates
+    $finalExpenseTypeIds = array_unique($finalExpenseTypeIds);
+
+    // Handle meals based on hotel reservation
+    $hasMealTypes = !empty(array_intersect($finalExpenseTypeIds, [
+      ExpenseType::BREAKFAST_ID,
+      ExpenseType::LUNCH_ID,
+      ExpenseType::DINNER_ID
+    ]));
+
+    if ($hasMealTypes) {
+      $hotelReservation = $request->hotelReservation()->with('hotelAgreement')->first();
+
+      // If no hotel reservation but meal types exist, throw exception
+      if (!$hotelReservation) {
+        throw new Exception('No se pueden obtener tipos de gasto de comidas porque la solicitud no tiene una reserva de hotel registrada.');
+      }
+
+      // If hotel exists with agreement, remove meals that are included
+      if ($hotelReservation->hotelAgreement) {
+        $agreement = $hotelReservation->hotelAgreement;
+
+        if ($agreement->includes_breakfast) {
+          $finalExpenseTypeIds = array_diff($finalExpenseTypeIds, [ExpenseType::BREAKFAST_ID]);
+        }
+        if ($agreement->includes_lunch) {
+          $finalExpenseTypeIds = array_diff($finalExpenseTypeIds, [ExpenseType::LUNCH_ID]);
+        }
+        if ($agreement->includes_dinner) {
+          $finalExpenseTypeIds = array_diff($finalExpenseTypeIds, [ExpenseType::DINNER_ID]);
+        }
+      }
+    }
+
     // Get expense types with parent relation
-    $expenseTypes = ExpenseType::whereIn('id', $expenseTypeIds)
+    $expenseTypes = ExpenseType::whereIn('id', $finalExpenseTypeIds)
       ->with('parent')
       ->orderBy('order')
       ->get();
@@ -1325,7 +1316,11 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   {
     try {
       $emailConfig = [
-        'to' => $request->employee->email,
+        'to' => [
+//          $request->employee->email,
+          'hvaldiviezos@automotorespakatnamu.com',
+//          'ngonzalesd@automotorespakatnamu.com'
+        ],
         'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
         'template' => 'emails.per-diem-request-approved',
         'data' => [
@@ -1362,7 +1357,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $this->emailService->send([
         'to' => [
           'hvaldiviezos@automotorespakatnamu.com',
-          $request->employee->email,
+//          $request->employee->email,
           $request->employee->boss->email ?? null,
           'griojasf@automotorespakatnamu.com'
         ], // For testing
@@ -1392,7 +1387,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $this->emailService->send([
         'to' => [
           'hvaldiviezos@automotorespakatnamu.com',
-          $request->employee->email,
+//          $request->employee->email,
           $request->employee->boss->email ?? null,
           'griojasf@automotorespakatnamu.com'
         ], // For testing

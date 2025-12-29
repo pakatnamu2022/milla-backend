@@ -66,6 +66,31 @@ class PerDiemExpenseService extends BaseService
         throw new Exception('No se pueden agregar gastos a una solicitud en el estado actual. Asegúrese de que la solicitud esté en progreso o en liquidación.');
       }
 
+      // Validate meals expenses based on hotel reservation
+      if (in_array($data['expense_type_id'], [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
+        $hotelReservation = $request->hotelReservation()->with('hotelAgreement')->first();
+
+        // If no hotel reservation exists, meals cannot be expensed
+        if (!$hotelReservation) {
+          throw new Exception('No se puede agregar un gasto de comida porque la solicitud no tiene una reserva de hotel registrada.');
+        }
+
+        // If hotel agreement exists, check if meal is included
+        if ($hotelReservation->hotelAgreement) {
+          $agreement = $hotelReservation->hotelAgreement;
+
+          if ($data['expense_type_id'] === ExpenseType::BREAKFAST_ID && $agreement->includes_breakfast) {
+            throw new Exception('No se puede agregar un gasto de desayuno porque el hotel ya lo incluye.');
+          }
+          if ($data['expense_type_id'] === ExpenseType::LUNCH_ID && $agreement->includes_lunch) {
+            throw new Exception('No se puede agregar un gasto de almuerzo porque el hotel ya lo incluye.');
+          }
+          if ($data['expense_type_id'] === ExpenseType::DINNER_ID && $agreement->includes_dinner) {
+            throw new Exception('No se puede agregar un gasto de cena porque el hotel ya lo incluye.');
+          }
+        }
+      }
+
       if (in_array($data['expense_type_id'], [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
         $budget = RequestBudget::where('expense_type_id', ExpenseType::MEALS_ID)
           ->where('per_diem_request_id', $requestId)
@@ -163,6 +188,34 @@ class PerDiemExpenseService extends BaseService
       // Validate that expense can be updated
       if ($expense->validated) {
         throw new Exception('Cannot update expense. Expense has already been validated.');
+      }
+
+      // Validate meals expenses based on hotel reservation (if expense_type_id is being changed)
+      if (isset($data['expense_type_id']) && $data['expense_type_id'] !== $expense->expense_type_id) {
+        if (in_array($data['expense_type_id'], [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
+          $request = $expense->request;
+          $hotelReservation = $request->hotelReservation()->with('hotelAgreement')->first();
+
+          // If no hotel reservation exists, meals cannot be expensed
+          if (!$hotelReservation) {
+            throw new Exception('No se puede cambiar el tipo de gasto a comida porque la solicitud no tiene una reserva de hotel registrada.');
+          }
+
+          // If hotel agreement exists, check if meal is included
+          if ($hotelReservation->hotelAgreement) {
+            $agreement = $hotelReservation->hotelAgreement;
+
+            if ($data['expense_type_id'] === ExpenseType::BREAKFAST_ID && $agreement->includes_breakfast) {
+              throw new Exception('No se puede cambiar el tipo de gasto a desayuno porque el hotel ya lo incluye.');
+            }
+            if ($data['expense_type_id'] === ExpenseType::LUNCH_ID && $agreement->includes_lunch) {
+              throw new Exception('No se puede cambiar el tipo de gasto a almuerzo porque el hotel ya lo incluye.');
+            }
+            if ($data['expense_type_id'] === ExpenseType::DINNER_ID && $agreement->includes_dinner) {
+              throw new Exception('No se puede cambiar el tipo de gasto a cena porque el hotel ya lo incluye.');
+            }
+          }
+        }
       }
 
       // Extraer archivo del array de datos
