@@ -13,7 +13,7 @@ class StorePerDiemRequestRequest extends StoreRequest
       'company_service_id' => ['required', 'integer', 'exists:companies,id'],
       'district_id' => ['required', 'integer', 'exists:district,id'],
       'start_date' => ['required', 'date'],
-      'end_date' => ['required', 'date', 'after:start_date'],
+      'end_date' => ['required', 'date', 'after_or_equal:start_date'],
       'purpose' => ['required', 'string', 'max:500'],
       'notes' => ['nullable', 'string', 'max:500'],
       'with_active' => ['required', 'boolean'],

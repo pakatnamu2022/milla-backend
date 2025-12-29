@@ -337,6 +337,24 @@ class PerDiemRequestController extends Controller
   }
 
   /**
+   * Confirm a per diem request
+   * Transitions from 'approved' to 'in_progress' and regenerates budgets
+   */
+  public function confirm(int $id)
+  {
+    try {
+      $perDiemRequest = $this->service->confirm($id);
+
+      return $this->success([
+        'data' => $perDiemRequest,
+        'message' => 'Solicitud confirmada exitosamente. Los presupuestos han sido recalculados.'
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Get available budgets for a per diem request
    */
   public function availableBudgets(int $id)

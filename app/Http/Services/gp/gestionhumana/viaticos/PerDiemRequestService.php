@@ -560,11 +560,6 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         throw new Exception('Solo se puede completar la liquidación de solicitudes aprobadas o en progreso');
       }
 
-      // Validate paid only if with_request is true
-      if ($request->with_request && !$request->paid) {
-        throw new Exception('La solicitud debe estar pagada para completar la liquidación cuando tiene with_request habilitado');
-      }
-
       // Calculate total spent from all non-rejected expenses (company_amount)
       $totalSpent = $request->expenses()
         ->where('rejected', false)
@@ -690,6 +685,66 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       DB::commit();
       return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category', 'expenses']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Confirm a per diem request and recalculate budgets
+   *
+   * @param int $id Per diem request ID
+   * @return PerDiemRequestResource
+   * @throws Exception
+   */
+  public function confirm(int $id): PerDiemRequestResource
+  {
+    try {
+      DB::beginTransaction();
+
+      $request = $this->find($id);
+
+      // Validate status is 'approved'
+      if ($request->status !== 'approved') {
+        throw new Exception('Solo se pueden confirmar solicitudes aprobadas');
+      }
+
+      // Change status to 'in_progress'
+      $request->update(['status' => 'in_progress']);
+
+      // Delete existing budgets
+      $request->budgets()->delete();
+
+      // Get rates again
+      $rates = PerDiemRate::getCurrentRatesByDistrict(
+        $request->district_id,
+        $request->per_diem_category_id
+      );
+
+      // Load hotel reservation if exists
+      $hotelReservation = $request->hotelReservation()->with('hotelAgreement')->first();
+
+      // Regenerate budgets with hotel consideration
+      $totalBudget = $this->generateBudgets($request, $rates);
+
+      // Update total budget
+      $request->update(['total_budget' => $totalBudget]);
+
+      DB::commit();
+
+      return new PerDiemRequestResource(
+        $request->fresh([
+          'employee',
+          'company',
+          'companyService',
+          'district',
+          'policy',
+          'category',
+          'budgets.expenseType',
+          'hotelReservation.hotelAgreement'
+        ])
+      );
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -1004,18 +1059,6 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $pdf->setPaper('A4', 'portrait');
 
     return $pdf;
-  }
-
-  /**
-   * Public method to regenerate budgets (called from HotelReservationService)
-   *
-   * @param PerDiemRequest $request
-   * @param Collection $rates Collection of PerDiemRate
-   * @return float Total budget amount
-   */
-  public function regenerateBudgets(PerDiemRequest $request, Collection $rates): float
-  {
-    return $this->generateBudgets($request, $rates);
   }
 
   /**
@@ -1591,4 +1634,18 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       \Log::error('Error sending per diem request settled email: ' . $e->getMessage());
     }
   }
+  
+
+  /**
+   * Public method to regenerate budgets (called from HotelReservationService)
+   *
+   * @param PerDiemRequest $request
+   * @param Collection $rates Collection of PerDiemRate
+   * @return float Total budget amount
+   */
+  public function regenerateBudgets(PerDiemRequest $request, Collection $rates): float
+  {
+    return $this->generateBudgets($request, $rates);
+  }
+
 }

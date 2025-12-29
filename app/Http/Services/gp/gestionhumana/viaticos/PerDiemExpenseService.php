@@ -466,6 +466,20 @@ class PerDiemExpenseService extends BaseService
     // Get the per diem request
     $request = PerDiemRequest::findOrFail($requestId);
 
+    // TRANSPORTATION (Pasajes) doesn't have budget limits
+    if ($expenseTypeId === ExpenseType::TRANSPORTATION_ID) {
+      return [
+        'per_diem_request_id' => $requestId,
+        'expense_type_id' => $expenseTypeId,
+        'date' => $date,
+        'daily_amount' => null,
+        'total_spent_on_date' => 0,
+        'remaining_budget' => null,
+        'is_over_budget' => false,
+        'has_no_limit' => true,
+      ];
+    }
+
     // Get the budget for this expense type
     $budget = $request->budgets()
       ->where('expense_type_id', $expenseTypeId)
@@ -493,6 +507,7 @@ class PerDiemExpenseService extends BaseService
       'total_spent_on_date' => $totalSpentOnDate,
       'remaining_budget' => max(0, $remainingBudget), // Never return negative
       'is_over_budget' => $remainingBudget < 0,
+      'has_no_limit' => false,
     ];
   }
 
