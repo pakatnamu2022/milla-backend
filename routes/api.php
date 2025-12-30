@@ -1062,6 +1062,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Order Purchase Requests - Solicitudes de Compra de Órdenes
+      Route::get('orderPurchaseRequests/pending-details', [ApOrderPurchaseRequestsController::class, 'getPendingDetails']);
+      Route::patch('orderPurchaseRequests/details/{id}/reject', [ApOrderPurchaseRequestsController::class, 'rejectDetail']);
       Route::apiResource('orderPurchaseRequests', ApOrderPurchaseRequestsController::class)->only([
         'index',
         'show',

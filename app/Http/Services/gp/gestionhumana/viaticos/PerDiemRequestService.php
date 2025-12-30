@@ -1659,12 +1659,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $perDiemRequest = $this->find($id);
       $perDiemRequest->load(['employee', 'company', 'expenses.expenseType']);
 
-      // Get mobility expenses only (not linked to any payroll yet OR linked to existing payroll)
+      // Get mobility expenses only (LOCAL TRANSPORT only - not general transportation)
       $mobilityExpenses = $perDiemRequest->expenses->filter(function ($expense) {
-        return in_array($expense->expense_type_id, [
-          ExpenseType::LOCAL_TRANSPORT_ID,
-          ExpenseType::TRANSPORTATION_ID
-        ]);
+        return $expense->expense_type_id === ExpenseType::LOCAL_TRANSPORT_ID;
       });
 
       // Validate that there are mobility expenses

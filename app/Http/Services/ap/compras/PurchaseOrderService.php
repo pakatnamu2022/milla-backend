@@ -191,6 +191,11 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       // Guardar items si existen
       $this->saveItemsIfExists($items, $purchaseOrder);
 
+      // OPCIONAL: Vincular solicitudes si se proporcionan
+      if (isset($data['request_detail_ids']) && !empty($data['request_detail_ids'])) {
+        $this->linkPurchaseRequests($purchaseOrder, $data['request_detail_ids']);
+      }
+
       // Si type_operation_id = TIPO_OPERACION_POSTVENTA, actualizar quantity_in_transit
       if (isset($data['type_operation_id']) && $data['type_operation_id'] == ApCommercialMasters::TIPO_OPERACION_POSTVENTA) {
         $this->updateInTransitStockOnCreate($purchaseOrder);
@@ -636,4 +641,21 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     }
   }
 
+  /**
+   * OPCIONAL: Vincular solicitudes de compra a la orden de compra
+   * @param PurchaseOrder $purchaseOrder
+   * @param array $requestDetailIds IDs de ap_order_purchase_request_details
+   * @return void
+   * @throws Exception
+   */
+  protected function linkPurchaseRequests(PurchaseOrder $purchaseOrder, array $requestDetailIds): void
+  {
+    // Vincular los detalles de solicitud a la orden de compra
+    $purchaseOrder->requestDetails()->attach($requestDetailIds);
+
+    // Actualizar el status de los detalles a 'ordered'
+    DB::table('ap_order_purchase_request_details')
+      ->whereIn('id', $requestDetailIds)
+      ->update(['status' => 'ordered']);
+  }
 }

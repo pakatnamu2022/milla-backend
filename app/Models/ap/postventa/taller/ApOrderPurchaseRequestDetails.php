@@ -2,9 +2,11 @@
 
 namespace App\Models\ap\postventa\taller;
 
+use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\postventa\gestionProductos\Products;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ApOrderPurchaseRequestDetails extends Model
@@ -19,6 +21,7 @@ class ApOrderPurchaseRequestDetails extends Model
     'quantity',
     'notes',
     'requested_delivery_date',
+    'status',
   ];
 
   const filters = [
@@ -48,5 +51,15 @@ class ApOrderPurchaseRequestDetails extends Model
   public function product(): BelongsTo
   {
     return $this->belongsTo(Products::class, 'product_id');
+  }
+
+  public function purchaseOrders(): BelongsToMany
+  {
+    return $this->belongsToMany(
+      PurchaseOrder::class,
+      'ap_order_purchase_request_detail_purchase_order',
+      'ap_order_purchase_request_detail_id',
+      'purchase_order_id'
+    )->withTimestamps();
   }
 }

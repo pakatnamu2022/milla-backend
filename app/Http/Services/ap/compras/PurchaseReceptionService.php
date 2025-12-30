@@ -302,6 +302,9 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     } catch (Exception $e) {
       throw new Exception('Error al crear el movimiento de inventario y actualizar stock: ' . $e->getMessage());
     }
+
+    // OPCIONAL: Notificar usuarios si la orden tiene solicitudes vinculadas
+    $this->notifyRequestUsers($reception->purchaseOrder);
   }
 
   /**
@@ -378,5 +381,31 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       ->get();
 
     return PurchaseReceptionResource::collection($receptions);
+  }
+
+  /**
+   * OPCIONAL: Notificar a los usuarios que solicitaron productos cuando llega la orden
+   * Solo notifica si la orden tiene solicitudes vinculadas
+   * @param PurchaseOrder $purchaseOrder
+   * @return void
+   */
+  protected function notifyRequestUsers(PurchaseOrder $purchaseOrder): void
+  {
+    $requestDetailsCount = $purchaseOrder->requestDetails()->count();
+
+    if ($requestDetailsCount === 0) {
+      return;
+    }
+
+    $purchaseOrder->requestDetails()->update(['status' => 'received']);
+
+    // TODO: Aquí puedes agregar la lógica de notificación
+    // Ejemplo usando el método del modelo:
+    // $usersToNotify = $purchaseOrder->getUsersToNotify();
+    // foreach ($usersToNotify as $user) {
+    //   Notification::send($user['user_id'], new ProductsArrivedNotification($purchaseOrder, $user['request_id']));
+    // }
+
+    // Por ahora solo actualizamos el status, la notificación se puede implementar después
   }
 }
