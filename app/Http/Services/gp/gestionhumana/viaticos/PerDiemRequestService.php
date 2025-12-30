@@ -127,7 +127,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'end_date' => $data['end_date'],
         'days_count' => $daysCount,
         'purpose' => $data['purpose'],
-        'status' => 'pending',
+        'status' => PerDiemRequest::SETTLEMENT_PENDING,
         'notes' => $data['notes'] ?? null,
         'cash_amount' => 0,
         'transfer_amount' => 0,
@@ -138,7 +138,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'balance_to_return' => 0,
         'final_result' => "0",
         'with_active' => $data['with_active'] ?? false,
-        'with_request' => $data['with_request'] ?? false,
+        'with_request' => false,
         'authorizer_id' => $data['authorizer_id'] ?? null,
       ];
 
@@ -188,7 +188,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $request = $this->find($data['id']);
 
       // Only allow updates if status is pending or rejected
-      if (!in_array($request->status, ['pending', 'rejected'])) {
+      if (!in_array($request->status, [PerDiemRequest::STATUS_PENDING, PerDiemRequest::STATUS_REJECTED])) {
         throw new Exception('Solo se pueden actualizar solicitudes en estado pendiente o rechazadas');
       }
 
@@ -218,7 +218,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $request = $this->find($id);
 
     // Only allow deletion if status is pending
-    if ($request->status !== 'pending') {
+    if ($request->status !== PerDiemRequest::STATUS_PENDING) {
       throw new Exception('Solo se pueden eliminar solicitudes en estado pendiente');
     }
 
@@ -244,7 +244,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $request = $this->find($id);
 
       // Validate that the request can be cancelled
-      if (in_array($request->status, ['settled', 'cancelled'])) {
+      if (in_array($request->status, [PerDiemRequest::STATUS_SETTLED, PerDiemRequest::STATUS_CANCELLED])) {
         throw new Exception('No se puede cancelar una solicitud que ya está liquidada o cancelada');
       }
 
@@ -255,7 +255,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       // Update request status to cancelled
       $request->update([
-        'status' => 'cancelled',
+        'status' => PerDiemRequest::STATUS_CANCELLED,
         'notes' => isset($data['cancellation_reason'])
           ? ($request->notes ? $request->notes . "\n\nMotivo de cancelación: " . strtoupper($data['cancellation_reason']) : "MOTIVO DE CANCELACIÓN: " . strtoupper($data['cancellation_reason']))
           : $request->notes
@@ -309,46 +309,20 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Get pending settlements for the authenticated user
-   * Returns:
-   * - Settlements with status 'submitted' if user is the authorizer (boss)
-   * - Settlements with status 'approved_by_boss' (pending final approval from module)
+   * Get pending settlements for the authenticated user (as authorizer)
+   * Returns per diem requests with settlement_status 'submitted'
+   * that require the user's approval
    */
   public function getPendingSettlements()
   {
     $userId = auth()->user()->person->id;
 
-    // Get settlements pending first approval (where user is the boss)
-    $settlementsForBoss = PerDiemRequest::where('settlement_status', 'submitted')
+    $pendingSettlements = PerDiemRequest::where('settlement_status', PerDiemRequest::SETTLEMENT_SUBMITTED)
       ->where('authorizer_id', $userId)
-      ->with([
-        'employee',
-        'company',
-        'companyService',
-        'district',
-        'policy',
-        'category',
-      ])
       ->orderBy('settlement_date', 'desc')
       ->get();
 
-    // Get settlements pending final approval (already approved by boss)
-    $settlementsForModule = PerDiemRequest::where('settlement_status', 'approved_by_boss')
-      ->with([
-        'employee',
-        'company',
-        'companyService',
-        'district',
-        'policy',
-        'category',
-      ])
-      ->orderBy('settlement_date', 'desc')
-      ->get();
-
-    // Combine both collections
-    $allPendingSettlements = $settlementsForBoss->merge($settlementsForModule);
-
-    return PerDiemRequestResource::collection($allPendingSettlements);
+    return PerDiemRequestResource::collection($pendingSettlements);
   }
 
   /**
@@ -370,7 +344,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $request = $this->find($id);
 
       // Validate status
-      if (!in_array($request->status, ['pending', 'rejected'])) {
+      if (!in_array($request->status, [PerDiemRequest::STATUS_PENDING, PerDiemRequest::STATUS_REJECTED])) {
         throw new Exception('Solo se pueden enviar solicitudes en estado pendiente o rechazadas');
       }
 
@@ -436,7 +410,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       // Update request status based on approval decision
       if ($data['status'] === PerDiemApproval::REJECTED) {
         // If rejected by any approver, immediately deny the request
-        $request->update(['status' => 'rejected']);
+        $request->update(['status' => PerDiemRequest::STATUS_REJECTED]);
       } elseif ($data['status'] === PerDiemApproval::APPROVED) {
         // Check if all approvals are approved
         $allApproved = $request->approvals()
@@ -445,7 +419,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
         if ($allApproved) {
           // All approvers approved, update request status to approved
-          $request->update(['status' => 'approved']);
+          $request->update(['status' => PerDiemRequest::STATUS_APPROVED]);
 
           // Send approval email to employee
           $this->sendPerDiemRequestApprovedEmail($request->fresh(['employee', 'district']));
@@ -472,7 +446,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $request = $this->find($id);
 
       // Validate status
-      if ($request->status !== 'approved') {
+      if ($request->status !== PerDiemRequest::STATUS_APPROVED) {
         throw new Exception('Solo se pueden marcar como pagadas las solicitudes aprobadas');
       }
 
@@ -503,19 +477,15 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       $request = $this->find($id);
 
-      // Validate status - must be in progress or approved
-      if (!in_array($request->status, ['approved', 'in_progress'])) {
-        throw new Exception('Solo se puede iniciar liquidación de solicitudes aprobadas o en progreso');
-      }
-
-      // Validate paid only if with_request is true
-      if ($request->with_request && !$request->paid) {
-        throw new Exception('La solicitud debe estar pagada para iniciar la liquidación cuando tiene with_request habilitado');
+      // Validate status - must be in progress
+      if (!in_array($request->status, [PerDiemRequest::STATUS_IN_PROGRESS])) {
+        throw new Exception('Solo se puede iniciar liquidación de solicitudes en progreso');
       }
 
       // Update settlement status to submitted
       $request->update([
-        'settlement_status' => 'submitted',
+        'status' => PerDiemRequest::STATUS_PENDING_SETTLEMENT,
+        'settlement_status' => PerDiemRequest::SETTLEMENT_SUBMITTED,
       ]);
 
       // Send settlement email to employee
@@ -541,7 +511,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $request = $this->find($id);
 
       // Validate status - must be approved or in progress
-      if (!in_array($request->status, ['approved', 'in_progress'])) {
+      if (!in_array($request->status, [PerDiemRequest::STATUS_APPROVED, PerDiemRequest::STATUS_IN_PROGRESS])) {
         throw new Exception('Solo se puede completar la liquidación de solicitudes aprobadas o en progreso');
       }
 
@@ -556,10 +526,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       // Update settlement information
       $request->update([
         'settled' => true,
-        'settlement_status' => 'submitted',
+        'settlement_status' => PerDiemRequest::SETTLEMENT_COMPLETED,
         'settlement_date' => now(),
         'total_spent' => $totalSpent,
-        'balance_to_return' => $balanceToReturn > 0 ? $balanceToReturn : 0,
+        'balance_to_return' => max($balanceToReturn, 0),
       ]);
 
       // Add comments to notes if provided
@@ -582,9 +552,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
   /**
    * Approve settlement
-   * Two-level approval system:
-   * 1. First approval must be from the boss (authorizer_id) -> status: 'approved_by_boss'
-   * 2. Second approval can be from anyone with access to module -> status: 'approved'
+   * Can only be approved by the boss at this stage
    */
   public function approveSettlement(int $id, array $data): PerDiemRequest
   {
@@ -594,32 +562,20 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $request = $this->find($id);
       $currentUserId = auth()->user()->person->id ?? null;
 
-      // Validate that settlement has been submitted or approved by boss
-      if (!in_array($request->settlement_status, ['submitted', 'approved_by_boss'])) {
+      if ($request->settlement_status != PerDiemRequest::SETTLEMENT_SUBMITTED) {
         throw new Exception('Solo se pueden aprobar liquidaciones que han sido enviadas para revisión');
       }
 
-      // First approval - must be from the boss
-      if ($request->settlement_status === 'submitted') {
-        // Validate that the user is the boss
+      if ($request->settlement_status === PerDiemRequest::SETTLEMENT_SUBMITTED) {
         if ($currentUserId !== $request->authorizer_id) {
-          throw new Exception('La primera aprobación de la liquidación debe ser realizada por el jefe directo');
+          throw new Exception('La aprobación de la liquidación debe ser realizada por el jefe directo');
         }
 
-        // Update settlement status to approved by boss
         $request->update([
-          'settlement_status' => 'approved_by_boss',
+          'settlement_status' => PerDiemRequest::SETTLEMENT_APPROVED,
         ]);
 
         $approvalNote = "LIQUIDACIÓN APROBADA POR JEFE DIRECTO";
-      } else {
-        // Second approval - can be anyone with access to module
-        // Update settlement status to approved (final)
-        $request->update([
-          'settlement_status' => 'approved',
-        ]);
-
-        $approvalNote = "LIQUIDACIÓN APROBADA FINALMENTE POR MÓDULO";
       }
 
       // If there are comments, add them to notes
@@ -652,13 +608,13 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $request = $this->find($id);
 
       // Validate that settlement has been submitted or approved by boss
-      if (!in_array($request->settlement_status, ['submitted', 'approved_by_boss'])) {
+      if ($request->settlement_status != PerDiemRequest::SETTLEMENT_SUBMITTED) {
         throw new Exception('Solo se pueden rechazar liquidaciones que están pendientes de aprobación');
       }
 
       // Update settlement status to rejected
       $request->update([
-        'settlement_status' => 'rejected',
+        'settlement_status' => PerDiemRequest::SETTLEMENT_REJECTED,
         'settled' => false,
       ]);
 
@@ -691,12 +647,12 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $request = $this->find($id);
 
       // Validate status is 'approved'
-      if ($request->status !== 'approved') {
+      if ($request->status !== PerDiemRequest::SETTLEMENT_APPROVED) {
         throw new Exception('Solo se pueden confirmar solicitudes aprobadas');
       }
 
       // Change status to 'in_progress'
-      $request->update(['status' => 'in_progress']);
+      $request->update(['status' => PerDiemRequest::STATUS_IN_PROGRESS]);
 
       // Delete existing budgets
       $request->budgets()->delete();
@@ -1295,11 +1251,6 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       DB::beginTransaction();
 
       $request = $this->find($id);
-
-      // Validate that the request has with_request enabled
-      if (!$request->with_request) {
-        throw new Exception('Esta solicitud no requiere voucher de depósito (with_request es false)');
-      }
 
       // Delete old voucher if exists
       if ($request->deposit_voucher_url) {

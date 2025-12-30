@@ -99,6 +99,29 @@ class PerDiemRequest extends BaseModel
     'created_at',
   ];
 
+  const string SETTLEMENT_PENDING = 'pending';
+  const string SETTLEMENT_SUBMITTED = 'submitted';
+  const string SETTLEMENT_APPROVED = 'approved';
+  const string SETTLEMENT_REJECTED = 'rejected';
+  const string SETTLEMENT_COMPLETED = 'completed';
+
+  const string STATUS_PENDING = 'pending';
+  const string STATUS_IN_PROGRESS = 'in_progress';
+  const string STATUS_PENDING_SETTLEMENT = 'pending_settlement';
+  const string STATUS_CANCELLED = 'cancelled';
+  const string STATUS_APPROVED = 'approved';
+  const string STATUS_REJECTED = 'rejected';
+  const string STATUS_SETTLED = 'settled';
+
+
+  const array SETTLEMENT_STATUSES = [
+    self::SETTLEMENT_PENDING,
+    self::SETTLEMENT_SUBMITTED,
+    self::SETTLEMENT_APPROVED,
+    self::SETTLEMENT_REJECTED,
+    self::SETTLEMENT_COMPLETED,
+  ];
+
   public function SetPurposeAttribute($value)
   {
     return $this->attributes['purpose'] = strtoupper($value);

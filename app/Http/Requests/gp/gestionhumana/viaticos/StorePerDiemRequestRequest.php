@@ -17,8 +17,17 @@ class StorePerDiemRequestRequest extends StoreRequest
       'purpose' => ['required', 'string', 'max:500'],
       'notes' => ['nullable', 'string', 'max:500'],
       'with_active' => ['required', 'boolean'],
-      'with_request' => ['required', 'boolean'],
     ];
+  }
+
+  /**
+   * Get the validated data with additional computed fields
+   */
+  public function validated($key = null, $default = null)
+  {
+    $data = parent::validated($key, $default);
+    $data['with_request'] = false;
+    return $data;
   }
 
   /**
@@ -26,25 +35,17 @@ class StorePerDiemRequestRequest extends StoreRequest
    *
    * @return array<string, string>
    */
-  public function messages(): array
+  public function attributes(): array
   {
     return [
-      'company_id.required' => 'La empresa es requerida.',
-      'company_id.exists' => 'La empresa seleccionada no existe.',
-      'company_service_id.required' => 'El servicio de la empresa es requerido.',
-      'company_service_id.exists' => 'El servicio de la empresa seleccionado no existe.',
-      'district_id.required' => 'El distrito es requerido.',
-      'district_id.exists' => 'El distrito seleccionado no existe.',
-      'start_date.required' => 'La fecha de inicio es requerida.',
-      'end_date.required' => 'La fecha de fin es requerida.',
-      'end_date.after' => 'La fecha de fin debe ser posterior a la fecha de inicio.',
-      'purpose.required' => 'El propósito es requerido.',
-      'purpose.max' => 'El propósito no puede tener más de 500 caracteres.',
-      'notes.max' => 'Las notas no pueden tener más de 500 caracteres.',
-      'with_active.required' => 'El campo de viajar con activo es requerido.',
-      'with_active.boolean' => 'El campo de viajar con activo debe ser verdadero o falso.',
-      'with_request.required' => 'El campo de solicitar presupuesto es requerido.',
-      'with_request.boolean' => 'El campo de solicitar presupuesto debe ser verdadero o falso.',
+      'company_id' => 'empresa',
+      'company_service_id' => 'empresa de servicio',
+      'district_id' => 'distrito',
+      'start_date' => 'fecha de inicio',
+      'end_date' => 'fecha de fin',
+      'purpose' => 'propósito',
+      'notes' => 'notas',
+      'with_active' => 'con activo',
     ];
   }
 
