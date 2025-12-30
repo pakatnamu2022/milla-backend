@@ -246,7 +246,7 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       'data' => $details->map(function ($detail) {
         return [
           'id' => $detail->id,
-          'request_id' => $detail->order_purchase_request_id,
+          'ap_purchase_request_id' => $detail->order_purchase_request_id,
           'request_number' => $detail->orderPurchaseRequest->request_number,
           'product_id' => $detail->product_id,
           'product_name' => $detail->product->name ?? null,
@@ -255,7 +255,7 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
           'notes' => $detail->notes,
           'requested_delivery_date' => $detail->requested_delivery_date,
           'warehouse_id' => $detail->orderPurchaseRequest->warehouse_id,
-          'warehouse_name' => $detail->orderPurchaseRequest->warehouse->name ?? null,
+          'warehouse_name' => $detail->orderPurchaseRequest->warehouse->description ?? null,
           'created_at' => $detail->created_at,
         ];
       })
