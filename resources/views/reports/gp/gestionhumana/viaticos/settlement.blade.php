@@ -199,9 +199,9 @@
     <!-- Total Empresa -->
     <tr style="background-color: #d0d0d0;">
       <td colspan="4" class="text-right label" style="font-size: 11px;">TOTAL ASUMIDO POR LA EMPRESA:</td>
-      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalEmpresa, 2) }}</td>
-      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalEmpresa, 2) }}</td>
-      <td class="text-right label" style="font-size: 11px;">S/. 0.00</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalEmpresaReceipt, 2) }}</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalEmpresaCompany, 2) }}</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalEmpresaEmployee, 2) }}</td>
     </tr>
   </table>
 @endif
@@ -250,18 +250,41 @@
     <!-- Total Colaborador -->
     <tr style="background-color: #d0d0d0;">
       <td colspan="4" class="text-right label" style="font-size: 11px;">TOTAL ASUMIDO POR EL COLABORADOR:</td>
-      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalColaborador, 2) }}</td>
-      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalColaborador, 2) }}</td>
-      <td class="text-right label" style="font-size: 11px;">S/. 0.00</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalColaboradorReceipt, 2) }}</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalColaboradorCompany, 2) }}</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalColaboradorEmployee, 2) }}</td>
     </tr>
   </table>
 @endif
 
-<!-- Total General -->
+<!-- Consolidado -->
 <table>
-  <tr style="background-color: #e0e0e0;">
-    <td class="text-right label" style="width: 85%; font-size: 12px;">TOTAL GENERAL DE GASTOS:</td>
-    <td class="text-right label" style="font-size: 12px;">S/. {{ number_format($totalGeneral, 2) }}</td>
+  <tr>
+    <th colspan="4" class="section-title">CONSOLIDADO DE GASTOS</th>
+  </tr>
+  <tr style="background-color: #e8e8e8;">
+    <th class="label" style="width: 55%;">CONCEPTO</th>
+    <th class="label" style="width: 15%;">TOTAL GASTADO</th>
+    <th class="label" style="width: 15%;">CUBIERTO EMPRESA</th>
+    <th class="label" style="width: 15%;">CUBIERTO COLABORADOR</th>
+  </tr>
+  <tr>
+    <td class="label">Asumido por la Empresa:</td>
+    <td class="text-right">S/. {{ number_format($totalEmpresaReceipt, 2) }}</td>
+    <td class="text-right">S/. {{ number_format($totalEmpresaCompany, 2) }}</td>
+    <td class="text-right">S/. {{ number_format($totalEmpresaEmployee, 2) }}</td>
+  </tr>
+  <tr>
+    <td class="label">Asumido por el Colaborador:</td>
+    <td class="text-right">S/. {{ number_format($totalColaboradorReceipt, 2) }}</td>
+    <td class="text-right">S/. {{ number_format($totalColaboradorCompany, 2) }}</td>
+    <td class="text-right">S/. {{ number_format($totalColaboradorEmployee, 2) }}</td>
+  </tr>
+  <tr style="background-color: #d0d0d0;">
+    <td class="label" style="font-size: 11px;">TOTAL GENERAL:</td>
+    <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalGeneralReceipt, 2) }}</td>
+    <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalGeneralCompany, 2) }}</td>
+    <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalGeneralEmployee, 2) }}</td>
   </tr>
 </table>
 
@@ -275,8 +298,8 @@
     <td class="text-right">S/. {{ number_format($importeOtorgado ?? 0, 2) }}</td>
   </tr>
   <tr>
-    <td class="label">Total general de gastos:</td>
-    <td class="text-right">S/. {{ number_format($totalGeneral, 2) }}</td>
+    <td class="label">Total cubierto por la empresa (Colaborador):</td>
+    <td class="text-right">S/. {{ number_format($totalColaboradorCompany, 2) }}</td>
   </tr>
   <tr>
     <td class="label">Monto a devolver y/o reembolso de gastos:</td>
