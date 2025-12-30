@@ -67,7 +67,7 @@ class PerDiemExpenseService extends BaseService
       }
 
       // Cast expense_type_id to int to ensure proper comparison
-      $data['expense_type_id'] = (int) $data['expense_type_id'];
+      $data['expense_type_id'] = (int)$data['expense_type_id'];
 
       // Validate meals expenses based on hotel reservation
       if (in_array($data['expense_type_id'], [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
@@ -116,7 +116,7 @@ class PerDiemExpenseService extends BaseService
         if (!$budget) {
           throw new Exception('No se encontró presupuesto para alimentación en esta solicitud. Asegúrese de que la solicitud esté confirmada y tenga presupuestos asignados.');
         }
-      } else if ($data['expense_type_id'] !== ExpenseType::TRANSPORTATION_ID) {
+      } else if (!in_array($data['expense_type_id'], [ExpenseType::TRANSPORTATION_ID, ExpenseType::GASOLINE_ID, ExpenseType::TOLLS_ID])) {
         $budget = RequestBudget::where('expense_type_id', $data['expense_type_id'])
           ->where('per_diem_request_id', $requestId)
           ->first();
@@ -146,6 +146,10 @@ class PerDiemExpenseService extends BaseService
 
       } else if ($data['expense_type_id'] === ExpenseType::TRANSPORTATION_ID) {
         // Skip budget validation for TRANSPORTATION (no limit)
+        $companyAmount = $data['receipt_amount'];
+        $employeeAmount = 0;
+      } else if ($data['expense_type_id'] === ExpenseType::GASOLINE_ID || $data['expense_type_id'] === ExpenseType::TOLLS_ID) {
+        // Full amount is company expense for GASOLINE and TOLLS
         $companyAmount = $data['receipt_amount'];
         $employeeAmount = 0;
       } else {
@@ -217,7 +221,7 @@ class PerDiemExpenseService extends BaseService
 
       // Cast expense_type_id to int if present to ensure proper comparison
       if (isset($data['expense_type_id'])) {
-        $data['expense_type_id'] = (int) $data['expense_type_id'];
+        $data['expense_type_id'] = (int)$data['expense_type_id'];
       }
 
       // Validate meals expenses based on hotel reservation (if expense_type_id is being changed)
@@ -509,7 +513,7 @@ class PerDiemExpenseService extends BaseService
     $request = PerDiemRequest::findOrFail($requestId);
 
     // Cast expense_type_id to int to ensure proper comparison
-    $expenseTypeId = (int) $expenseTypeId;
+    $expenseTypeId = (int)$expenseTypeId;
 
     // TRANSPORTATION (Pasajes) doesn't have budget limits
     if ($expenseTypeId === ExpenseType::TRANSPORTATION_ID) {

@@ -551,6 +551,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $request->update([
         'settled' => true,
         'settlement_status' => PerDiemRequest::SETTLEMENT_COMPLETED,
+        'status' => PerDiemRequest::STATUS_SETTLED,
         'settlement_date' => now(),
         'total_spent' => $totalSpent,
         'balance_to_return' => max($balanceToReturn, 0),
@@ -1810,7 +1811,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       // Send email to employee
       $this->emailService->send([
-        'to' => [$request->employee->email2, 'hvaldiviezos@automotorespakatnamu.com'],
+        'to' => ['hvaldiviezos@automotorespakatnamu.com'],
         'subject' => 'Solicitud de Viáticos Creada - ' . $request->code,
         'template' => 'emails.per-diem-request-created-employee',
         'data' => $employeeEmailData,
@@ -1850,7 +1851,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   {
     try {
       $emailConfig = [
-        'to' => [$request->employee->email2, 'hvaldiviezos@automotorespakatnamu.com'],
+        'to' => ['hvaldiviezos@automotorespakatnamu.com'],
         'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
         'template' => 'emails.per-diem-request-approved',
         'data' => [
@@ -1875,6 +1876,54 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   private function sendPerDiemRequestSettlementEmail(PerDiemRequest $request): void
   {
     try {
+      // Obtener gastos de la empresa
+      $gastosEmpresa = $request->expenses->filter(function ($expense) {
+        return $expense->is_company_expense === true && !$expense->rejected;
+      });
+
+      // Obtener gastos del colaborador
+      $gastosColaborador = $request->expenses->filter(function ($expense) {
+        return $expense->is_company_expense === false && !$expense->rejected;
+      });
+
+      // Formatear gastos de la empresa para el correo
+      $gastosEmpresaDetalle = $gastosEmpresa->map(function ($expense) {
+        return [
+          'fecha' => Carbon::parse($expense->expense_date)->format('d/m/Y'),
+          'tipo' => $expense->expenseType->name ?? 'N/A',
+          'razon_social' => $expense->business_name ?? 'N/A',
+          'monto_comprobante' => $expense->receipt_amount,
+          'asume_empresa' => $expense->company_amount,
+          'asume_colaborador' => $expense->employee_amount,
+        ];
+      })->toArray();
+
+      // Formatear gastos del colaborador para el correo
+      $gastosColaboradorDetalle = $gastosColaborador->map(function ($expense) {
+        return [
+          'fecha' => Carbon::parse($expense->expense_date)->format('d/m/Y'),
+          'tipo' => $expense->expenseType->name ?? 'N/A',
+          'razon_social' => $expense->business_name ?? 'N/A',
+          'monto_comprobante' => $expense->receipt_amount,
+          'asume_empresa' => $expense->company_amount,
+          'asume_colaborador' => $expense->employee_amount,
+        ];
+      })->toArray();
+
+      // Calcular totales
+      $totalEmpresaComprobante = $gastosEmpresa->sum('receipt_amount');
+      $totalEmpresaAsumeEmpresa = $gastosEmpresa->sum('company_amount');
+      $totalEmpresaAsumeColaborador = $gastosEmpresa->sum('employee_amount');
+
+      $totalColaboradorComprobante = $gastosColaborador->sum('receipt_amount');
+      $totalColaboradorAsumeEmpresa = $gastosColaborador->sum('company_amount');
+      $totalColaboradorAsumeColaborador = $gastosColaborador->sum('employee_amount');
+
+      // Totales generales
+      $totalGeneralComprobante = $totalEmpresaComprobante + $totalColaboradorComprobante;
+      $totalGeneralAsumeEmpresa = $totalEmpresaAsumeEmpresa + $totalColaboradorAsumeEmpresa;
+      $totalGeneralAsumeColaborador = $totalEmpresaAsumeColaborador + $totalColaboradorAsumeColaborador;
+
       $emailData = [
         'employee_name' => $request->employee->nombre_completo,
         'request_code' => $request->code,
@@ -1882,13 +1931,27 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'start_date' => $request->start_date->format('d/m/Y'),
         'end_date' => $request->end_date->format('d/m/Y'),
         'total_budget' => $request->total_budget,
+        // Gastos de la empresa
+        'gastos_empresa' => $gastosEmpresaDetalle,
+        'total_empresa_comprobante' => $totalEmpresaComprobante,
+        'total_empresa_asume_empresa' => $totalEmpresaAsumeEmpresa,
+        'total_empresa_asume_colaborador' => $totalEmpresaAsumeColaborador,
+        // Gastos del colaborador
+        'gastos_colaborador' => $gastosColaboradorDetalle,
+        'total_colaborador_comprobante' => $totalColaboradorComprobante,
+        'total_colaborador_asume_empresa' => $totalColaboradorAsumeEmpresa,
+        'total_colaborador_asume_colaborador' => $totalColaboradorAsumeColaborador,
+        // Totales generales
+        'total_general_comprobante' => $totalGeneralComprobante,
+        'total_general_asume_empresa' => $totalGeneralAsumeEmpresa,
+        'total_general_asume_colaborador' => $totalGeneralAsumeColaborador,
       ];
 
+      /**
+       * $request->employee->boss->email2
+       */
       $this->emailService->send([
-        'to' => [
-          $request->employee->email2,
-          $request->employee->boss->email2 ?? null, 'hvaldiviezos@automotorespakatnamu.com'
-        ],
+        'to' => ['hvaldiviezos@automotorespakatnamu.com'],
         'subject' => 'Liquidación de Viáticos - ' . $request->code,
         'template' => 'emails.per-diem-request-settlement',
         'data' => $emailData,
@@ -1934,10 +1997,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       ];
 
       $this->emailService->send([
-        'to' => [
-          $request->employee->email2,
-          $request->employee->boss->email2 ?? null, 'hvaldiviezos@automotorespakatnamu.com'
-        ],
+        'to' => ['hvaldiviezos@automotorespakatnamu.com'],
         'subject' => 'Liquidación de Viáticos Completada - ' . $request->code,
         'template' => 'emails.per-diem-request-settled',
         'data' => $emailData,
@@ -1977,7 +2037,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       // Send to employee
       $this->emailService->send([
-        'to' => [$request->employee->email2, 'hvaldiviezos@automotorespakatnamu.com'],
+        'to' => ['hvaldiviezos@automotorespakatnamu.com'],
         'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
         'template' => 'emails.per-diem-request-cancelled',
         'data' => $emailData,
@@ -2012,7 +2072,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       ];
 
       $this->emailService->send([
-        'to' => [$request->employee->email2, 'hvaldiviezos@automotorespakatnamu.com'],
+        'to' => ['hvaldiviezos@automotorespakatnamu.com'],
         'subject' => 'Tu Viaje Está en Progreso - ' . $request->code,
         'template' => 'emails.per-diem-in-progress',
         'data' => $emailData,
