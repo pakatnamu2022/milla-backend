@@ -1572,7 +1572,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       // Send email to employee
       $this->emailService->send([
-        'to' => [$request->employee->email2],
+        'to' => [$request->employee->email2, 'hvaldiviezos@automotorespakatnamu.com'],
         'subject' => 'Solicitud de Viáticos Creada - ' . $request->code,
         'template' => 'emails.per-diem-request-created-employee',
         'data' => $employeeEmailData,
@@ -1612,7 +1612,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   {
     try {
       $emailConfig = [
-        'to' => [$request->employee->email2],
+        'to' => [$request->employee->email2, 'hvaldiviezos@automotorespakatnamu.com'],
         'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
         'template' => 'emails.per-diem-request-approved',
         'data' => [
@@ -1649,7 +1649,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $this->emailService->send([
         'to' => [
           $request->employee->email2,
-          $request->employee->boss->email2 ?? null
+          $request->employee->boss->email2 ?? null, 'hvaldiviezos@automotorespakatnamu.com'
         ],
         'subject' => 'Liquidación de Viáticos - ' . $request->code,
         'template' => 'emails.per-diem-request-settlement',
@@ -1677,7 +1677,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $this->emailService->send([
         'to' => [
           $request->employee->email2,
-          $request->employee->boss->email2 ?? null
+          $request->employee->boss->email2 ?? null, 'hvaldiviezos@automotorespakatnamu.com'
         ],
         'subject' => 'Liquidación de Viáticos Completada - ' . $request->code,
         'template' => 'emails.per-diem-request-settled',
@@ -1718,7 +1718,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       // Send to employee
       $this->emailService->send([
-        'to' => [$request->employee->email2],
+        'to' => [$request->employee->email2, 'hvaldiviezos@automotorespakatnamu.com'],
         'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
         'template' => 'emails.per-diem-request-cancelled',
         'data' => $emailData,
@@ -1753,7 +1753,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       ];
 
       $this->emailService->send([
-        'to' => [$request->employee->email2],
+        'to' => [$request->employee->email2, 'hvaldiviezos@automotorespakatnamu.com'],
         'subject' => 'Tu Viaje Está en Progreso - ' . $request->code,
         'template' => 'emails.per-diem-in-progress',
         'data' => $emailData,
