@@ -8,7 +8,6 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
-use App\Http\Utils\Constants;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionhumana\viaticos\ExpenseType;
 use App\Models\gp\gestionhumana\viaticos\HotelReservation;
@@ -1084,68 +1083,97 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       'expenses.expenseType',
     ]);
 
+    // Obtener solo los gastos del personal (no asumidos por la empresa) directamente del modelo
+    $gastosColaborador = $perDiemRequest->expenses->filter(function ($expense) {
+      return !$expense->is_company_expense;
+    });
+
+    // Agrupar gastos por parent (si tienen parent, agrupar por parent_id, si no por expense_type_id)
+    $expensesByParent = [];
+
+    foreach ($gastosColaborador as $expense) {
+      if (!$expense->expense_type_id) continue;
+
+      $expenseType = $expense->expenseType;
+      if (!$expenseType) continue;
+
+      // Si tiene padre, agrupar por el ID del padre
+      if ($expenseType->parent_id) {
+        $parentId = $expenseType->parent_id;
+        if (!isset($expensesByParent[$parentId])) {
+          $expensesByParent[$parentId] = [];
+        }
+        $expensesByParent[$parentId][] = $expense;
+      } else {
+        // Si no tiene padre, agrupar por su propio ID
+        $typeId = $expense->expense_type_id;
+        if (!isset($expensesByParent[$typeId])) {
+          $expensesByParent[$typeId] = [];
+        }
+        $expensesByParent[$typeId][] = $expense;
+      }
+    }
+
+    // Preparar array de categorías con sus gastos y totales
+    $expenseCategories = [];
+    foreach ($expensesByParent as $parentTypeId => $expenses) {
+      $expensesCollection = collect($expenses);
+
+      // Obtener el tipo de gasto padre (puede ser el mismo si no tiene padre)
+      $parentType = ExpenseType::find($parentTypeId);
+      if (!$parentType) continue;
+
+      $typeName = $parentType->name ?? 'Sin categoría';
+
+      // Convertir los gastos a array para la vista
+      $expensesArray = $expensesCollection->map(function ($expense) {
+        // Concatenar el tipo de gasto con las notas
+        $expenseTypeName = $expense->expenseType->name ?? '';
+        $notes = $expense->notes ?? '';
+        $detalle = $expenseTypeName . ($notes ? ' - ' . $notes : '');
+
+        return [
+          'expense_date' => $expense->expense_date,
+          'receipt_number' => $expense->receipt_number,
+          'business_name' => $expense->business_name,
+          'notes' => $detalle,
+          'receipt_amount' => $expense->receipt_amount,
+          'company_amount' => $expense->company_amount,
+          'employee_amount' => $expense->employee_amount,
+        ];
+      });
+
+      $expenseCategories[] = [
+        'type_id' => $parentTypeId,
+        'type_name' => $typeName,
+        'expenses' => $expensesArray,
+        'total_receipt' => $expensesCollection->sum('receipt_amount'),
+        'total_company' => $expensesCollection->sum('company_amount'),
+        'total_employee' => $expensesCollection->sum('employee_amount'),
+      ];
+    }
+
+    // Totales generales
+    $totalGeneralReceipt = $gastosColaborador->sum('receipt_amount');
+    $totalGeneralCompany = $gastosColaborador->sum('company_amount');
+    $totalGeneralEmployee = $gastosColaborador->sum('employee_amount');
+
+    // Preparar datos de la solicitud para la vista
     $dataResource = new PerDiemRequestResource($perDiemRequest);
     $dataArray = $dataResource->resolve();
 
-    // Obtener solo los gastos del personal (no asumidos por la empresa)
-    $allExpenses = collect($dataArray['expenses'] ?? []);
-
-    $gastosColaborador = $allExpenses->filter(function ($expense) {
-      return !isset($expense['is_company_expense']) || $expense['is_company_expense'] === false;
-    });
-
-    // Categorizar gastos del personal
-    $alimentacion = $gastosColaborador->filter(function ($expense) {
-      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
-      return $typeId === ExpenseType::MEALS_ID;
-    });
-
-    $hospedaje = $gastosColaborador->filter(function ($expense) {
-      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
-      return $typeId === ExpenseType::ACCOMMODATION_ID;
-    });
-
-    $movilidad = $gastosColaborador->filter(function ($expense) {
-      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
-      return in_array($typeId, [
-        ExpenseType::LOCAL_TRANSPORT_ID,
-        ExpenseType::TRANSPORTATION_ID
-      ]);
-    });
-
-    $otros = $gastosColaborador->filter(function ($expense) {
-      $typeId = $expense['expense_type_id'] ?? ($expense['expense_type']['id'] ?? null);
-      $isMainCategory = in_array($typeId, [
-        ExpenseType::MEALS_ID,
-        ExpenseType::ACCOMMODATION_ID,
-        ExpenseType::LOCAL_TRANSPORT_ID,
-        ExpenseType::TRANSPORTATION_ID
-      ]);
-      return $typeId !== null && !$isMainCategory;
-    });
-
-    // Calcular totales por categoría
-    $totalAlimentacion = $alimentacion->sum('company_amount');
-    $totalHospedaje = $hospedaje->sum('company_amount');
-    $totalMovilidad = $movilidad->sum('company_amount');
-    $totalOtros = $otros->sum('company_amount');
-    $totalGeneral = $gastosColaborador->sum('company_amount');
-
     // Calcular importes de pie de página
     $importeOtorgado = $dataArray['cash_amount'] ?? 0;
-    $montoDevolver = $importeOtorgado - $totalGeneral;
+    $montoDevolver = $importeOtorgado - $totalGeneralCompany;
 
     $pdf = PDF::loadView('reports.gp.gestionhumana.viaticos.expense-detail', [
       'request' => $dataArray,
-      'alimentacion' => $alimentacion,
-      'hospedaje' => $hospedaje,
-      'movilidad' => $movilidad,
-      'otros' => $otros,
-      'totalAlimentacion' => $totalAlimentacion,
-      'totalHospedaje' => $totalHospedaje,
-      'totalMovilidad' => $totalMovilidad,
-      'totalOtros' => $totalOtros,
-      'totalGeneral' => $totalGeneral,
+      'expenseCategories' => $expenseCategories,
+      // Totales Generales
+      'totalGeneralReceipt' => $totalGeneralReceipt,
+      'totalGeneralCompany' => $totalGeneralCompany,
+      'totalGeneralEmployee' => $totalGeneralEmployee,
+      // Importes
       'importeOtorgado' => $importeOtorgado,
       'montoDevolver' => $montoDevolver,
     ]);
@@ -1356,9 +1384,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
   /**
    * Generate mobility payroll for a per diem request
-   * Creates a payroll record and links all mobility expenses to it
+   * Creates a payroll record, links all mobility expenses to it, and returns the PDF directly
    */
-  public function generateMobilityPayroll(int $id)
+  public function generateMobilityPayrollPDF(int $id)
   {
     try {
       DB::beginTransaction();
@@ -1367,7 +1395,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $perDiemRequest = $this->find($id);
       $perDiemRequest->load(['employee', 'company', 'expenses.expenseType']);
 
-      // Get mobility expenses only
+      // Get mobility expenses only (not linked to any payroll yet OR linked to existing payroll)
       $mobilityExpenses = $perDiemRequest->expenses->filter(function ($expense) {
         return in_array($expense->expense_type_id, [
           ExpenseType::LOCAL_TRANSPORT_ID,
@@ -1386,51 +1414,60 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         throw new Exception('No se encontró el empleado asociado a la solicitud');
       }
 
-      // Extract period from expense dates (format: mes/año)
-      $firstExpenseDate = $mobilityExpenses->min('expense_date');
-      $period = Carbon::parse($firstExpenseDate)->format('m/Y');
+      // Check if there's already a mobility payroll for this request
+      $existingPayrollId = $mobilityExpenses->first()->mobility_payroll_id;
 
-      // Get serie based on company (you can adjust this logic as needed)
-      $serie = 'MOV-' . ($perDiemRequest->company->id ?? '001');
+      if ($existingPayrollId) {
+        // Update existing payroll: link any new mobility expenses to it
+        foreach ($mobilityExpenses as $expense) {
+          if (!$expense->mobility_payroll_id) {
+            $expense->mobility_payroll_id = $existingPayrollId;
+            $expense->save();
+          }
+        }
 
-      // Get sede_id from employee
-      $sedeId = $perDiemRequest->employee->sede_id ?? null;
+        $mobilityPayroll = MobilityPayroll::find($existingPayrollId);
+      } else {
+        // Extract period from expense dates (format: mes/año)
+        $firstExpenseDate = $mobilityExpenses->min('expense_date');
+        $period = Carbon::parse($firstExpenseDate)->format('m/Y');
 
-      // Generate next correlative for this serie, period and sede_id
-      $correlative = MobilityPayroll::getNextCorrelative($serie, $period, $sedeId);
+        // Get serie based on company
+        $serie = 'MOV-' . ($perDiemRequest->company->id ?? '001');
 
-      // Create mobility payroll record
-      $mobilityPayroll = MobilityPayroll::create([
-        'worker_id' => $employee->id,
-        'num_doc' => $perDiemRequest->companyService->num_doc ?? '',
-        'company_name' => $perDiemRequest->companyService->name ?? '',
-        'address' => $perDiemRequest->companyService->address ?? '',
-        'serie' => $serie,
-        'correlative' => $correlative,
-        'period' => $period,
-        'sede_id' => $perDiemRequest->employee->sede_id ?? null,
-      ]);
+        // Get sede_id from employee
+        $sedeId = $perDiemRequest->employee->sede_id ?? null;
 
-      // Update all mobility expenses with the payroll ID
-      foreach ($mobilityExpenses as $expense) {
-        $expense->mobility_payroll_id = $mobilityPayroll->id;
-        $expense->save();
+        // Generate next correlative for this serie, period and sede_id
+        $correlative = MobilityPayroll::getNextCorrelative($serie, $period, $sedeId);
+
+        // Create mobility payroll record
+        $mobilityPayroll = MobilityPayroll::create([
+          'worker_id' => $employee->id,
+          'num_doc' => $perDiemRequest->companyService->num_doc ?? '',
+          'company_name' => $perDiemRequest->companyService->name ?? '',
+          'address' => $perDiemRequest->companyService->address ?? '',
+          'serie' => $serie,
+          'correlative' => $correlative,
+          'period' => $period,
+          'sede_id' => $perDiemRequest->employee->sede_id ?? null,
+        ]);
+
+        // Update all mobility expenses with the payroll ID
+        foreach ($mobilityExpenses as $expense) {
+          $expense->mobility_payroll_id = $mobilityPayroll->id;
+          $expense->save();
+        }
+
+        // Mark the per diem request as having mobility payroll generated
+        $perDiemRequest->update(['mobility_payroll_generated' => true]);
       }
-
-      // Mark the per diem request as having mobility payroll generated
-      $perDiemRequest->update(['mobility_payroll_generated' => true]);
 
       DB::commit();
 
-      // Load relationships for response
-      $mobilityPayroll->load(['worker', 'sede', 'expenses.expenseType']);
+      // Generate and return PDF directly
+      return $this->mobilityPayrollPDF($id);
 
-      return [
-        'mobility_payroll' => $mobilityPayroll,
-        'expenses_count' => $mobilityExpenses->count(),
-        'total_amount' => $mobilityExpenses->sum('receipt_amount'),
-        'message' => 'Planilla de movilidad generada exitosamente'
-      ];
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -1441,10 +1478,15 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
    * Generate mobility payroll PDF report
    * Creates a PDF with mobility payroll header and expense details
    */
-  public function generateMobilityPayrollPDF(int $id)
+  public function mobilityPayrollPDF(int $id)
   {
     $perDiemRequest = $this->find($id);
     $perDiemRequest->load(['employee', 'company', 'expenses.expenseType']);
+
+    // Check if mobility payroll has been generated for this request
+    if (!$perDiemRequest->mobility_payroll_generated) {
+      throw new Exception('Aún no se ha generado la planilla de movilidad para esta solicitud. Debe generar la planilla primero antes de poder visualizar el PDF.');
+    }
 
     // Get mobility expenses with mobility_payroll_id
     $mobilityExpenses = $perDiemRequest->expenses->filter(function ($expense) {
@@ -1453,7 +1495,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
     // Validate that there are mobility expenses with payroll
     if ($mobilityExpenses->isEmpty()) {
-      throw new Exception('No hay gastos de movilidad con planilla generada');
+      throw new Exception('No se encontraron gastos de movilidad vinculados a la planilla. Verifique que existan gastos de movilidad y que la planilla haya sido generada correctamente.');
     }
 
     // Get the mobility payroll ID (should be the same for all expenses)

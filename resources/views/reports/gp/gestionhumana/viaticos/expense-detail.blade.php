@@ -156,103 +156,51 @@
 </table>
 
 <!-- GASTOS DEL COLABORADOR -->
-@if(count($alimentacion) > 0 || count($hospedaje) > 0 || count($movilidad) > 0 || count($otros) > 0)
+@if(count($expenseCategories) > 0)
   <table>
     <tr>
-      <th colspan="5" class="section-title">GASTOS DEL COLABORADOR</th>
+      <th colspan="7" class="section-title">GASTOS DEL COLABORADOR</th>
     </tr>
     <tr>
-      <th style="width: 12%;">FECHA</th>
-      <th style="width: 15%;">N° COMPROBANTE</th>
-      <th style="width: 28%;">RAZÓN SOCIAL</th>
-      <th style="width: 30%;">DETALLE</th>
-      <th style="width: 15%;">MONTO</th>
+      <th style="width: 10%;">FECHA</th>
+      <th style="width: 12%;">N° COMPROBANTE</th>
+      <th style="width: 20%;">RAZÓN SOCIAL</th>
+      <th style="width: 23%;">DETALLE</th>
+      <th style="width: 12%;">TOTAL GASTADO</th>
+      <th style="width: 12%;">CUBIERTO EMPRESA</th>
+      <th style="width: 11%;">CUBIERTO POR MÍ</th>
     </tr>
 
-    @if(count($alimentacion) > 0)
-      <!-- Alimentación -->
+    @foreach($expenseCategories as $category)
+      <!-- {{ $category['type_name'] }} -->
       <tr>
-        <td colspan="5" class="subsection-title">ALIMENTACIÓN</td>
+        <td colspan="7" class="subsection-title">{{ strtoupper($category['type_name']) }}</td>
       </tr>
-      @foreach($alimentacion as $expense)
+      @foreach($category['expenses'] as $expense)
         <tr>
           <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
           <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
           <td>{{ $expense['business_name'] ?? '-' }}</td>
           <td>{{ $expense['notes'] ?? '-' }}</td>
+          <td class="text-right">S/. {{ number_format($expense['receipt_amount'] ?? 0, 2) }}</td>
           <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
+          <td class="text-right">S/. {{ number_format($expense['employee_amount'] ?? 0, 2) }}</td>
         </tr>
       @endforeach
       <tr style="background-color: #f0f0f0;">
-        <td colspan="4" class="text-right label">TOTAL ALIMENTACIÓN:</td>
-        <td class="text-right label">S/. {{ number_format($totalAlimentacion, 2) }}</td>
+        <td colspan="4" class="text-right label">TOTAL {{ strtoupper($category['type_name']) }}:</td>
+        <td class="text-right label">S/. {{ number_format($category['total_receipt'], 2) }}</td>
+        <td class="text-right label">S/. {{ number_format($category['total_company'], 2) }}</td>
+        <td class="text-right label">S/. {{ number_format($category['total_employee'], 2) }}</td>
       </tr>
-    @endif
-
-    @if(count($hospedaje) > 0)
-      <!-- Hospedaje -->
-      <tr>
-        <td colspan="5" class="subsection-title">HOSPEDAJE</td>
-      </tr>
-      @foreach($hospedaje as $expense)
-        <tr>
-          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
-          <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
-          <td>{{ $expense['business_name'] ?? '-' }}</td>
-          <td>{{ $expense['notes'] ?? '-' }}</td>
-          <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
-        </tr>
-      @endforeach
-      <tr style="background-color: #f0f0f0;">
-        <td colspan="4" class="text-right label">TOTAL HOSPEDAJE:</td>
-        <td class="text-right label">S/. {{ number_format($totalHospedaje, 2) }}</td>
-      </tr>
-    @endif
-
-    @if(count($movilidad) > 0)
-      <!-- Movilidad -->
-      <tr>
-        <td colspan="5" class="subsection-title">MOVILIDAD</td>
-      </tr>
-      @foreach($movilidad as $expense)
-        <tr>
-          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
-          <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
-          <td>{{ $expense['business_name'] ?? '-' }}</td>
-          <td>{{ $expense['notes'] ?? '-' }}</td>
-          <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
-        </tr>
-      @endforeach
-      <tr style="background-color: #f0f0f0;">
-        <td colspan="4" class="text-right label">TOTAL MOVILIDAD:</td>
-        <td class="text-right label">S/. {{ number_format($totalMovilidad, 2) }}</td>
-      </tr>
-    @endif
-
-    @if(count($otros) > 0)
-      <!-- Otros Gastos -->
-      <tr>
-        <td colspan="5" class="subsection-title">OTROS GASTOS</td>
-      </tr>
-      @foreach($otros as $expense)
-        <tr>
-          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
-          <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
-          <td>{{ $expense['business_name'] ?? '-' }}</td>
-          <td>{{ $expense['notes'] ?? '-' }}</td>
-          <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
-        </tr>
-      @endforeach
-      <tr style="background-color: #f0f0f0;">
-        <td colspan="4" class="text-right label">TOTAL OTROS GASTOS:</td>
-        <td class="text-right label">S/. {{ number_format($totalOtros, 2) }}</td>
-      </tr>
-    @endif
+    @endforeach
 
     <!-- Total General -->
     <tr style="background-color: #d0d0d0;">
       <td colspan="4" class="text-right label" style="font-size: 11px;">TOTAL GENERAL DE GASTOS:</td>
-      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalGeneral, 2) }}</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalGeneralReceipt, 2) }}</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalGeneralCompany, 2) }}</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalGeneralEmployee, 2) }}</td>
     </tr>
   </table>
 @endif
@@ -268,7 +216,7 @@
   </tr>
   <tr>
     <td class="label">Total de gastos del personal:</td>
-    <td class="text-right">S/. {{ number_format($totalGeneral, 2) }}</td>
+    <td class="text-right">S/. {{ number_format($totalGeneralCompany, 2) }}</td>
   </tr>
   <tr>
     <td class="label">Monto a devolver y/o reembolso de gastos:</td>
