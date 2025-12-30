@@ -1804,7 +1804,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $employeeEmailData = [
         'employee_name' => $request->employee->nombre_completo,
         'request_code' => $request->code,
-        'destination' => $request->district->nombre ?? 'N/A',
+        'destination' => $request->district->name ?? 'N/A',
         'start_date' => $request->start_date->format('d/m/Y'),
         'end_date' => $request->end_date->format('d/m/Y'),
         'days_count' => $request->days_count,
@@ -1825,7 +1825,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'boss_name' => $request->employee->boss->nombre_completo,
           'employee_name' => $request->employee->nombre_completo,
           'request_code' => $request->code,
-          'destination' => $request->district->nombre ?? 'N/A',
+          'destination' => $request->district->name ?? 'N/A',
           'start_date' => $request->start_date->format('d/m/Y'),
           'end_date' => $request->end_date->format('d/m/Y'),
           'days_count' => $request->days_count,
@@ -1859,7 +1859,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'data' => [
           'employee_name' => $request->employee->nombre_completo,
           'request_code' => $request->code,
-          'destination' => $request->district->nombre ?? 'N/A',
+          'destination' => $request->district->name ?? 'N/A',
           'start_date' => $request->start_date->format('d/m/Y'),
           'end_date' => $request->end_date->format('d/m/Y'),
           'total_budget' => $request->total_budget,
@@ -1881,7 +1881,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $emailData = [
         'employee_name' => $request->employee->nombre_completo,
         'request_code' => $request->code,
-        'destination' => $request->district->nombre ?? 'N/A',
+        'destination' => $request->district->name ?? 'N/A',
         'start_date' => $request->start_date->format('d/m/Y'),
         'end_date' => $request->end_date->format('d/m/Y'),
         'total_budget' => $request->total_budget,
@@ -1951,7 +1951,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $emailData = [
         'employee_name' => $request->employee->nombre_completo,
         'request_code' => $request->code,
-        'destination' => $request->district->nombre ?? 'N/A',
+        'destination' => $request->district->name ?? 'N/A',
         'start_date' => $request->start_date->format('d/m/Y'),
         'end_date' => $request->end_date->format('d/m/Y'),
         'cancellation_reason' => $cancellationReason,
@@ -1988,7 +1988,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $emailData = [
         'employee_name' => $request->employee->nombre_completo,
         'request_code' => $request->code,
-        'destination' => $request->district->nombre ?? 'N/A',
+        'destination' => $request->district->name ?? 'N/A',
         'start_date' => $request->start_date->format('d/m/Y'),
         'total_budget' => $request->total_budget,
       ];
