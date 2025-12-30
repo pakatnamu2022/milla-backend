@@ -1,0 +1,529 @@
+@php
+  function getBase64Image($path) {
+    $fullPath = public_path($path);
+    if (!file_exists($fullPath)) {
+      return '';
+    }
+    $imageData = base64_encode(file_get_contents($fullPath));
+    $mimeType = mime_content_type($fullPath);
+    return "data:{$mimeType};base64,{$imageData}";
+  }
+@endphp
+  <!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Liquidación de Gastos</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      padding: 30px;
+    }
+
+    .title {
+      background-color: #e0e0e0;
+      padding: 8px;
+      font-size: 14px;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 15px;
+      border: 1px solid #000;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+    }
+
+    table, th, td {
+      border: 1px solid #000;
+    }
+
+    td, th {
+      padding: 5px 8px;
+      vertical-align: top;
+    }
+
+    th {
+      background-color: #e0e0e0;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .label {
+      font-weight: bold;
+      font-size: 9px;
+    }
+
+    .section-title {
+      background-color: #d0d0d0;
+      font-weight: bold;
+      padding: 6px;
+      text-align: center;
+      font-size: 11px;
+    }
+
+    .subsection-title {
+      background-color: #e8e8e8;
+      font-weight: bold;
+      padding: 5px;
+      text-align: left;
+      font-size: 10px;
+    }
+
+    .text-center {
+      text-align: center;
+    }
+
+    .text-right {
+      text-align: right;
+    }
+
+    .dotted-line {
+      border-bottom: 1px dotted #000;
+      min-height: 18px;
+      display: inline-block;
+      width: 100%;
+    }
+
+    .signature-section {
+      margin-top: 30px;
+    }
+
+    .signature-box {
+      min-height: 60px;
+      text-align: center;
+      vertical-align: bottom;
+      padding-top: 40px;
+    }
+
+    .page-break {
+      page-break-after: always;
+    }
+
+    .evidence-section {
+      margin-top: 40px;
+    }
+
+    .evidence-title {
+      background-color: #d0d0d0;
+      padding: 10px;
+      font-size: 14px;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 20px;
+      border: 1px solid #000;
+    }
+
+    .evidence-item {
+      margin-bottom: 30px;
+      page-break-inside: avoid;
+    }
+
+    .evidence-info {
+      background-color: #f5f5f5;
+      padding: 0;
+      margin-bottom: 10px;
+    }
+
+    .evidence-image {
+      max-width: 100%;
+      border: 1px solid #ccc;
+      display: block;
+      margin: 10px auto;
+    }
+
+    .no-evidence {
+      text-align: center;
+      color: #999;
+      font-style: italic;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Título -->
+<div class="title">LIQUIDACIÓN DE GASTOS</div>
+
+<!-- Datos Generales -->
+<table>
+  <tr>
+    <th colspan="6" class="section-title">DATOS GENERALES</th>
+  </tr>
+  <tr>
+    <td class="label" style="width: 20%;">Nombre del empleado:</td>
+    <td colspan="3">{{ $request['employee']['full_name'] ?? '' }}</td>
+    <td class="label" style="width: 15%;">Área:</td>
+    <td>{{ $request['employee']['position']['area']['name'] ?? '' }}</td>
+  </tr>
+  <tr>
+    <td class="label">Cargo del empleado:</td>
+    <td colspan="5">{{ $request['employee']['position']['name'] ?? '' }}</td>
+  </tr>
+  <tr>
+    <td class="label">Empresa de servicio:</td>
+    <td colspan="5">{{ $request['company_service']['name'] ?? '' }}</td>
+  </tr>
+  <tr>
+    <td class="label">Lugar de destino:</td>
+    <td colspan="3">{{ $request['district']['name'] ?? '' }}</td>
+    <td class="label">Zona:</td>
+    <td>{{ ($request['district']['zone'] ?? 'Nacional') }}</td>
+  </tr>
+  <tr>
+    <td class="label">Objetivo del viaje:</td>
+    <td colspan="5">{{ $request['purpose'] ?? '' }}</td>
+  </tr>
+  <tr>
+    <td class="label">Fecha de inicio:</td>
+    <td>{{ \Carbon\Carbon::parse($request['start_date'])->format('d/m/Y') }}</td>
+    <td class="label" style="width: 15%;">Fecha fin:</td>
+    <td>{{ \Carbon\Carbon::parse($request['end_date'])->format('d/m/Y') }}</td>
+    <td class="label">Moneda:</td>
+    <td>S/. - Nuevos Soles</td>
+  </tr>
+  <tr>
+    <td class="label">Importe otorgado:</td>
+    <td colspan="5">S/. {{ number_format($request['total_budget'] ?? 0, 2) }}</td>
+  </tr>
+</table>
+
+<!-- GASTOS ASUMIDOS POR LA EMPRESA -->
+@if(count($empresaCategories) > 0)
+  <table>
+    <tr>
+      <th colspan="7" class="section-title">GASTOS ASUMIDOS POR LA EMPRESA</th>
+    </tr>
+    <tr>
+      <th style="width: 10%;">FECHA</th>
+      <th style="width: 12%;">N° COMPROBANTE</th>
+      <th style="width: 20%;">RAZÓN SOCIAL</th>
+      <th style="width: 23%;">DETALLE</th>
+      <th style="width: 12%;">TOTAL GASTADO</th>
+      <th style="width: 12%;">CUBIERTO EMPRESA</th>
+      <th style="width: 11%;">CUBIERTO POR COLABORADOR</th>
+    </tr>
+
+    @foreach($empresaCategories as $category)
+      <!-- {{ $category['type_name'] }} -->
+      <tr>
+        <td colspan="7" class="subsection-title">{{ strtoupper($category['type_name']) }}</td>
+      </tr>
+      @foreach($category['expenses'] as $expense)
+        <tr>
+          <td
+            class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
+          <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
+          <td>{{ $expense['business_name'] ?? '-' }}</td>
+          <td>{{ $expense['detalle'] ?? '-' }}</td>
+          <td class="text-right">S/. {{ number_format($expense['receipt_amount'] ?? 0, 2) }}</td>
+          <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
+          <td class="text-right">S/. {{ number_format($expense['employee_amount'] ?? 0, 2) }}</td>
+        </tr>
+      @endforeach
+      <tr style="background-color: #f0f0f0;">
+        <td colspan="4" class="text-right label">TOTAL {{ strtoupper($category['type_name']) }}:</td>
+        <td class="text-right label">S/. {{ number_format($category['total_receipt'], 2) }}</td>
+        <td class="text-right label">S/. {{ number_format($category['total_company'], 2) }}</td>
+        <td class="text-right label">S/. {{ number_format($category['total_employee'], 2) }}</td>
+      </tr>
+    @endforeach
+
+    <!-- Total Empresa -->
+    <tr style="background-color: #d0d0d0;">
+      <td colspan="4" class="text-right label" style="font-size: 11px;">TOTAL ASUMIDO POR LA EMPRESA:</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalEmpresaReceipt, 2) }}</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalEmpresaCompany, 2) }}</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalEmpresaEmployee, 2) }}</td>
+    </tr>
+  </table>
+@endif
+
+<!-- GASTOS ASUMIDOS POR EL COLABORADOR -->
+@if(count($colaboradorCategories) > 0)
+  <table>
+    <tr>
+      <th colspan="7" class="section-title">GASTOS ASUMIDOS POR EL COLABORADOR</th>
+    </tr>
+    <tr>
+      <th style="width: 10%;">FECHA</th>
+      <th style="width: 12%;">N° COMPROBANTE</th>
+      <th style="width: 20%;">RAZÓN SOCIAL</th>
+      <th style="width: 23%;">DETALLE</th>
+      <th style="width: 12%;">TOTAL GASTADO</th>
+      <th style="width: 12%;">CUBIERTO EMPRESA</th>
+      <th style="width: 11%;">CUBIERTO POR COLABORADOR</th>
+    </tr>
+
+    @foreach($colaboradorCategories as $category)
+      <!-- {{ $category['type_name'] }} -->
+      <tr>
+        <td colspan="7" class="subsection-title">{{ strtoupper($category['type_name']) }}</td>
+      </tr>
+      @foreach($category['expenses'] as $expense)
+        <tr>
+          <td
+            class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
+          <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
+          <td>{{ $expense['business_name'] ?? '-' }}</td>
+          <td>{{ $expense['detalle'] ?? '-' }}</td>
+          <td class="text-right">S/. {{ number_format($expense['receipt_amount'] ?? 0, 2) }}</td>
+          <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
+          <td class="text-right">S/. {{ number_format($expense['employee_amount'] ?? 0, 2) }}</td>
+        </tr>
+      @endforeach
+      <tr style="background-color: #f0f0f0;">
+        <td colspan="4" class="text-right label">TOTAL {{ strtoupper($category['type_name']) }}:</td>
+        <td class="text-right label">S/. {{ number_format($category['total_receipt'], 2) }}</td>
+        <td class="text-right label">S/. {{ number_format($category['total_company'], 2) }}</td>
+        <td class="text-right label">S/. {{ number_format($category['total_employee'], 2) }}</td>
+      </tr>
+    @endforeach
+
+    <!-- Total Colaborador -->
+    <tr style="background-color: #d0d0d0;">
+      <td colspan="4" class="text-right label" style="font-size: 11px;">TOTAL ASUMIDO POR EL COLABORADOR:</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalColaboradorReceipt, 2) }}</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalColaboradorCompany, 2) }}</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalColaboradorEmployee, 2) }}</td>
+    </tr>
+  </table>
+@endif
+
+<!-- Consolidado -->
+<table>
+  <tr>
+    <th colspan="4" class="section-title">CONSOLIDADO DE GASTOS</th>
+  </tr>
+  <tr style="background-color: #e8e8e8;">
+    <th class="label" style="width: 55%;">CONCEPTO</th>
+    <th class="label" style="width: 15%;">TOTAL GASTADO</th>
+    <th class="label" style="width: 15%;">CUBIERTO EMPRESA</th>
+    <th class="label" style="width: 15%;">CUBIERTO COLABORADOR</th>
+  </tr>
+  <tr>
+    <td class="label">Asumido por la Empresa:</td>
+    <td class="text-right">S/. {{ number_format($totalEmpresaReceipt, 2) }}</td>
+    <td class="text-right">S/. {{ number_format($totalEmpresaCompany, 2) }}</td>
+    <td class="text-right">S/. {{ number_format($totalEmpresaEmployee, 2) }}</td>
+  </tr>
+  <tr>
+    <td class="label">Asumido por el Colaborador:</td>
+    <td class="text-right">S/. {{ number_format($totalColaboradorReceipt, 2) }}</td>
+    <td class="text-right">S/. {{ number_format($totalColaboradorCompany, 2) }}</td>
+    <td class="text-right">S/. {{ number_format($totalColaboradorEmployee, 2) }}</td>
+  </tr>
+  <tr style="background-color: #d0d0d0;">
+    <td class="label" style="font-size: 11px;">TOTAL GENERAL:</td>
+    <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalGeneralReceipt, 2) }}</td>
+    <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalGeneralCompany, 2) }}</td>
+    <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalGeneralEmployee, 2) }}</td>
+  </tr>
+</table>
+
+<!-- Resumen de la Liquidación -->
+<table>
+  <tr>
+    <th colspan="2" class="section-title">RESUMEN DE LA LIQUIDACIÓN</th>
+  </tr>
+  <tr>
+    <td class="label" style="width: 70%;">Importe otorgado para viáticos:</td>
+    <td class="text-right">S/. {{ number_format($importeOtorgado ?? 0, 2) }}</td>
+  </tr>
+  <tr>
+    <td class="label">Total cubierto por la empresa (Colaborador):</td>
+    <td class="text-right">S/. {{ number_format($totalColaboradorCompany, 2) }}</td>
+  </tr>
+  <tr>
+    <td class="label">Monto a devolver y/o reembolso de gastos:</td>
+    <td class="text-right label">
+      @if($montoDevolver > 0)
+        S/. {{ number_format($montoDevolver, 2) }} (A DEVOLVER)
+      @elseif($montoDevolver < 0)
+        S/. {{ number_format(abs($montoDevolver), 2) }} (A REEMBOLSAR)
+      @else
+        S/. 0.00
+      @endif
+    </td>
+  </tr>
+</table>
+
+<!-- Firmas -->
+@php
+  $boss = $request['employee']['boss'] ?? null;
+
+  // Buscar el approval aprobado
+  $approverName = null;
+  $approverPosition = null;
+
+  if (isset($request['approvals'])) {
+    $approvals = $request['approvals'];
+
+    // Convertir a array si es necesario
+    if (is_object($approvals)) {
+      $approvals = json_decode(json_encode($approvals), true);
+    }
+
+    if (is_array($approvals) || is_iterable($approvals)) {
+      foreach ($approvals as $approval) {
+        // Convertir a array si es objeto
+        if (is_object($approval)) {
+          $approval = json_decode(json_encode($approval), true);
+        }
+
+        $status = $approval['status'] ?? null;
+
+        if ($status === 'approved') {
+          $approverData = $approval['approver'] ?? null;
+
+          if ($approverData) {
+            // Convertir a array si es objeto
+            if (is_object($approverData)) {
+              $approverData = json_decode(json_encode($approverData), true);
+            }
+
+            $approverName = $approverData['full_name'] ?? null;
+            $approverPosition = $approverData['position']['name'] ?? null;
+            break;
+          }
+        }
+      }
+    }
+  }
+@endphp
+<table class="signature-section">
+  <tr>
+    <td class="signature-box" style="width: 33%;">
+      <div class="dotted-line"></div>
+      <div class="label" style="margin-top: 5px;">Firma del Empleado</div>
+      <div style="margin-top: 3px;">{{ $request['employee']['full_name'] ?? '' }}</div>
+      <div style="margin-top: 3px;">{{ $request['employee']['position']['name'] ?? '' }}</div>
+    </td>
+    <td class="signature-box" style="width: 33%;">
+      <div class="dotted-line"></div>
+      <div class="label" style="margin-top: 5px;">Responsable</div>
+      @if($boss)
+        <div style="margin-top: 3px;">{{ $boss['full_name'] ?? '' }}</div>
+        <div style="margin-top: 3px;">{{ $boss['position']['name'] ?? '' }}</div>
+      @else
+        <div style="margin-top: 3px;">_______________________</div>
+        <div style="margin-top: 3px;">Cargo: _________________</div>
+      @endif
+    </td>
+    <td class="signature-box" style="width: 34%;">
+      <div class="dotted-line"></div>
+      <div class="label" style="margin-top: 5px;">Autorizado por</div>
+      @if($approverName)
+        <div style="margin-top: 3px;">{{ $approverName }}</div>
+        <div style="margin-top: 3px;">{{ $approverPosition ?? '' }}</div>
+      @else
+        <div style="margin-top: 3px;">_______________________</div>
+        <div style="margin-top: 3px;">Cargo: _________________</div>
+      @endif
+    </td>
+  </tr>
+</table>
+
+<!-- SECCIÓN DE EVIDENCIAS/ANEXOS -->
+@php
+  // Recolectar todos los gastos con evidencia
+  $gastosConEvidencia = [];
+
+  // Gastos de la empresa
+  foreach($empresaCategories as $category) {
+    foreach($category['expenses'] as $expense) {
+      if (!empty($expense['receipt_path'])) {
+        $gastosConEvidencia[] = [
+          'type' => 'EMPRESA',
+          'category' => $category['type_name'],
+          'expense' => $expense
+        ];
+      }
+    }
+  }
+
+  // Gastos del colaborador
+  foreach($colaboradorCategories as $category) {
+    foreach($category['expenses'] as $expense) {
+      if (!empty($expense['receipt_path'])) {
+        $gastosConEvidencia[] = [
+          'type' => 'COLABORADOR',
+          'category' => $category['type_name'],
+          'expense' => $expense
+        ];
+      }
+    }
+  }
+@endphp
+
+@if(count($gastosConEvidencia) > 0)
+  <div class="page-break"></div>
+
+  <div class="evidence-section">
+    <div class="evidence-title">ANEXOS - EVIDENCIAS DE COMPROBANTES</div>
+
+    @foreach($gastosConEvidencia as $index => $item)
+      <div class="evidence-item">
+        <div class="evidence-info">
+          <table style="margin-bottom: 0;">
+            <tr>
+              <td class="label" style="width: 25%;">Tipo de Gasto:</td>
+              <td colspan="3">{{ strtoupper($item['category']) }} ({{ $item['type'] }})</td>
+            </tr>
+            <tr>
+              <td class="label">N° Comprobante:</td>
+              <td>{{ $item['expense']['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
+              <td class="label" style="width: 15%;">Fecha:</td>
+              <td>{{ isset($item['expense']['expense_date']) ? \Carbon\Carbon::parse($item['expense']['expense_date'])->format('d/m/Y') : '-' }}</td>
+            </tr>
+            <tr>
+              <td class="label">Razón Social:</td>
+              <td colspan="3">{{ $item['expense']['business_name'] ?? '-' }}</td>
+            </tr>
+            <tr>
+              <td class="label">Detalle:</td>
+              <td colspan="3">{{ $item['expense']['detalle'] ?? '-' }}</td>
+            </tr>
+            <tr>
+              <td class="label">Monto:</td>
+              <td colspan="3">S/. {{ number_format($item['expense']['receipt_amount'] ?? 0, 2) }}</td>
+            </tr>
+          </table>
+        </div>
+
+        @php
+          $receiptPath = $item['expense']['receipt_path'];
+          $extension = strtolower(pathinfo($receiptPath, PATHINFO_EXTENSION));
+        @endphp
+
+        @if(in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'bmp']))
+          <img src="{{ $receiptPath }}" alt="Comprobante {{ $item['expense']['receipt_number'] }}"
+               class="evidence-image">
+        @elseif($extension === 'pdf')
+          <div style="text-align: center; padding: 20px; background-color: #f9f9f9; border: 1px solid #ddd;">
+            <p class="label">ARCHIVO PDF</p>
+            <p style="margin-top: 10px; font-size: 8px; word-break: break-all; padding: 0 10px;">{{ $receiptPath }}</p>
+          </div>
+        @else
+          <div style="text-align: center; padding: 20px; background-color: #f9f9f9; border: 1px solid #ddd;">
+            <p class="label">ARCHIVO ADJUNTO</p>
+            <p style="margin-top: 10px; font-size: 8px; word-break: break-all; padding: 0 10px;">{{ $receiptPath }}</p>
+          </div>
+        @endif
+      </div>
+    @endforeach
+  </div>
+@endif
+
+</body>
+</html>

@@ -28,6 +28,7 @@ class ApOrderQuotationsResource extends JsonResource
       'details' => ApOrderQuotationDetailsResource::collection($this->details),
       'created_by' => $this->created_by,
       'created_by_name' => $this->createdBy ? $this->createdBy->name : null,
+      'is_take' => (bool)$this->is_take,
     ];
   }
 }

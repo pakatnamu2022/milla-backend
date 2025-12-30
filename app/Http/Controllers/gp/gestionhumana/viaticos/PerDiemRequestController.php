@@ -314,7 +314,7 @@ class PerDiemRequestController extends Controller
   public function expenseTotalPDF($id)
   {
     try {
-      $pdf = $this->service->generateexpenseTotalPDF($id);
+      $pdf = $this->service->generateExpenseTotalPDF($id);
       $filename = "liquidacion-gastos-{$id}.pdf";
       return $pdf->download($filename);
     } catch (Exception $e) {
@@ -434,6 +434,20 @@ class PerDiemRequestController extends Controller
     try {
       $pdf = $this->service->mobilityPayrollPDF($id);
       $filename = "planilla-movilidad-{$id}.pdf";
+      return $pdf->download($filename);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Generate expenseTotal report PDF with evidence/receipts
+   */
+  public function expenseTotalWithEvidencePDF($id)
+  {
+    try {
+      $pdf = $this->service->generateExpenseTotalWithEvidencePDF($id);
+      $filename = "liquidacion-gastos-evidencias-{$id}.pdf";
       return $pdf->download($filename);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
