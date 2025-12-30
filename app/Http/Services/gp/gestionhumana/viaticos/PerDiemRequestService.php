@@ -166,7 +166,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       }
 
       // Send email notifications
-      //$this->sendPerDiemRequestCreatedEmails($request->fresh(['employee.boss', 'district']));
+      $this->sendPerDiemRequestCreatedEmails($request->fresh(['employee.boss', 'district']));
 
       DB::commit();
       return new PerDiemRequestResource($request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category', 'budgets.expenseType', 'approvals.approver']));
@@ -1545,7 +1545,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       // Send email to employee
       $this->emailService->send([
         'to' => [
-          $request->employee->email ?? null,
+          $request->employee->email2 ?? null,
           'hvaldiviezos@automotorespakatnamu.com'
         ], // For testing
         'subject' => 'Solicitud de Viáticos Creada - ' . $request->code,
@@ -1569,7 +1569,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
         $this->emailService->send([
           'to' => [
-            $request->employee->boss->email ?? null,
+            $request->employee->boss->email2 ?? null,
             'hvaldiviezos@automotorespakatnamu.com'
           ], // For testing
           'subject' => 'Nueva Solicitud de Viáticos Pendiente de Aprobación - ' . $request->code,
@@ -1591,7 +1591,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     try {
       $emailConfig = [
         'to' => [
-//          $request->employee->email,
+          $request->employee->email2,
           'hvaldiviezos@automotorespakatnamu.com',
 //          'ngonzalesd@automotorespakatnamu.com'
         ],
@@ -1631,8 +1631,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $this->emailService->send([
         'to' => [
           'hvaldiviezos@automotorespakatnamu.com',
-//          $request->employee->email,
-          $request->employee->boss->email ?? null,
+          $request->employee->email2,
+          $request->employee->boss->email2 ?? null,
           'griojasf@automotorespakatnamu.com'
         ], // For testing
         'subject' => 'Liquidación de Viáticos - ' . $request->code,
@@ -1661,8 +1661,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $this->emailService->send([
         'to' => [
           'hvaldiviezos@automotorespakatnamu.com',
-//          $request->employee->email,
-          $request->employee->boss->email ?? null,
+          $request->employee->email2,
+          $request->employee->boss->email2 ?? null,
           'griojasf@automotorespakatnamu.com'
         ], // For testing
         'subject' => 'Liquidación de Viáticos Completada - ' . $request->code,
