@@ -5,6 +5,7 @@ namespace App\Http\Services\gp\gestionhumana\viaticos;
 use App\Http\Resources\gp\gestionhumana\viaticos\HotelReservationResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\EmailService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Models\gp\gestionhumana\viaticos\ExpenseType;
 use App\Models\gp\gestionhumana\viaticos\HotelReservation;
@@ -21,15 +22,17 @@ use Exception;
 class HotelReservationService extends BaseService implements BaseServiceInterface
 {
   protected DigitalFileService $digitalFileService;
+  protected EmailService $emailService;
 
   // Configuración de rutas para archivos
   private const array FILE_PATHS = [
     'receipt_file' => '/gh/viaticos/reservaciones/',
   ];
 
-  public function __construct(DigitalFileService $digitalFileService)
+  public function __construct(DigitalFileService $digitalFileService, EmailService $emailService)
   {
     $this->digitalFileService = $digitalFileService;
+    $this->emailService = $emailService;
   }
 
   /**
@@ -134,6 +137,9 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
 
         // Update total budget
         $perDiemRequest->update(['total_budget' => $totalBudget]);
+
+        // Send hotel reservation email
+        $this->sendHotelReservationEmail($reservation->fresh(['request.employee', 'request.district']));
       }
 
       // Create company expense for accommodation
@@ -380,9 +386,39 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         'notes' => "Reserva de hotel: {$reservation->hotel_name} ({$reservation->nights_count} noches)",
         'is_company_expense' => true,
         'validated' => true,
-        'validated_by' => auth()->id(),
+        'validated_by' => auth()->user()->partner_id,
         'validated_at' => now(),
       ]);
+    }
+  }
+
+  /**
+   * Send email notification when a hotel reservation is created
+   */
+  private function sendHotelReservationEmail(HotelReservation $reservation): void
+  {
+    try {
+      $request = $reservation->request;
+
+      $emailData = [
+        'employee_name' => $request->employee->nombre_completo,
+        'request_code' => $request->code,
+        'hotel_name' => $reservation->hotel_name,
+        'address' => $reservation->address,
+        'checkin_date' => $reservation->checkin_date->format('d/m/Y'),
+        'checkout_date' => $reservation->checkout_date->format('d/m/Y'),
+        'nights_count' => $reservation->nights_count,
+        'total_cost' => $reservation->total_cost,
+      ];
+
+      $this->emailService->send([
+        'to' => [$request->employee->email2],
+        'subject' => 'Reserva de Hotel Confirmada - ' . $request->code,
+        'template' => 'emails.per-diem-hotel-reserved',
+        'data' => $emailData,
+      ]);
+    } catch (Exception $e) {
+      \Log::error('Error sending hotel reservation email: ' . $e->getMessage());
     }
   }
 }
