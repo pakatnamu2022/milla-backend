@@ -9,7 +9,7 @@
     return "data:{$mimeType};base64,{$imageData}";
   }
 @endphp
-<!doctype html>
+  <!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -159,33 +159,40 @@
 @if(count($empresaCategories) > 0)
   <table>
     <tr>
-      <th colspan="5" class="section-title">GASTOS ASUMIDOS POR LA EMPRESA</th>
+      <th colspan="7" class="section-title">GASTOS ASUMIDOS POR LA EMPRESA</th>
     </tr>
     <tr>
-      <th style="width: 12%;">FECHA</th>
-      <th style="width: 15%;">N° COMPROBANTE</th>
-      <th style="width: 28%;">RAZÓN SOCIAL</th>
-      <th style="width: 30%;">DETALLE</th>
-      <th style="width: 15%;">MONTO</th>
+      <th style="width: 10%;">FECHA</th>
+      <th style="width: 12%;">N° COMPROBANTE</th>
+      <th style="width: 20%;">RAZÓN SOCIAL</th>
+      <th style="width: 23%;">DETALLE</th>
+      <th style="width: 12%;">TOTAL GASTADO</th>
+      <th style="width: 12%;">CUBIERTO EMPRESA</th>
+      <th style="width: 11%;">CUBIERTO POR COLABORADOR</th>
     </tr>
 
     @foreach($empresaCategories as $category)
       <!-- {{ $category['type_name'] }} -->
       <tr>
-        <td colspan="5" class="subsection-title">{{ strtoupper($category['type_name']) }}</td>
+        <td colspan="7" class="subsection-title">{{ strtoupper($category['type_name']) }}</td>
       </tr>
       @foreach($category['expenses'] as $expense)
         <tr>
-          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
+          <td
+            class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
           <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
           <td>{{ $expense['business_name'] ?? '-' }}</td>
           <td>{{ $expense['detalle'] ?? '-' }}</td>
+          <td class="text-right">S/. {{ number_format($expense['receipt_amount'] ?? 0, 2) }}</td>
           <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
+          <td class="text-right">S/. {{ number_format($expense['employee_amount'] ?? 0, 2) }}</td>
         </tr>
       @endforeach
       <tr style="background-color: #f0f0f0;">
         <td colspan="4" class="text-right label">TOTAL {{ strtoupper($category['type_name']) }}:</td>
+        <td class="text-right label">S/. {{ number_format($category['total_receipt'], 2) }}</td>
         <td class="text-right label">S/. {{ number_format($category['total_company'], 2) }}</td>
+        <td class="text-right label">S/. {{ number_format($category['total_employee'], 2) }}</td>
       </tr>
     @endforeach
 
@@ -193,6 +200,8 @@
     <tr style="background-color: #d0d0d0;">
       <td colspan="4" class="text-right label" style="font-size: 11px;">TOTAL ASUMIDO POR LA EMPRESA:</td>
       <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalEmpresa, 2) }}</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalEmpresa, 2) }}</td>
+      <td class="text-right label" style="font-size: 11px;">S/. 0.00</td>
     </tr>
   </table>
 @endif
@@ -201,33 +210,40 @@
 @if(count($colaboradorCategories) > 0)
   <table>
     <tr>
-      <th colspan="5" class="section-title">GASTOS ASUMIDOS POR EL COLABORADOR</th>
+      <th colspan="7" class="section-title">GASTOS ASUMIDOS POR EL COLABORADOR</th>
     </tr>
     <tr>
-      <th style="width: 12%;">FECHA</th>
-      <th style="width: 15%;">N° COMPROBANTE</th>
-      <th style="width: 28%;">RAZÓN SOCIAL</th>
-      <th style="width: 30%;">DETALLE</th>
-      <th style="width: 15%;">MONTO</th>
+      <th style="width: 10%;">FECHA</th>
+      <th style="width: 12%;">N° COMPROBANTE</th>
+      <th style="width: 20%;">RAZÓN SOCIAL</th>
+      <th style="width: 23%;">DETALLE</th>
+      <th style="width: 12%;">TOTAL GASTADO</th>
+      <th style="width: 12%;">CUBIERTO EMPRESA</th>
+      <th style="width: 11%;">CUBIERTO POR COLABORADOR</th>
     </tr>
 
     @foreach($colaboradorCategories as $category)
       <!-- {{ $category['type_name'] }} -->
       <tr>
-        <td colspan="5" class="subsection-title">{{ strtoupper($category['type_name']) }}</td>
+        <td colspan="7" class="subsection-title">{{ strtoupper($category['type_name']) }}</td>
       </tr>
       @foreach($category['expenses'] as $expense)
         <tr>
-          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
+          <td
+            class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
           <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
           <td>{{ $expense['business_name'] ?? '-' }}</td>
           <td>{{ $expense['detalle'] ?? '-' }}</td>
+          <td class="text-right">S/. {{ number_format($expense['receipt_amount'] ?? 0, 2) }}</td>
           <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
+          <td class="text-right">S/. {{ number_format($expense['employee_amount'] ?? 0, 2) }}</td>
         </tr>
       @endforeach
       <tr style="background-color: #f0f0f0;">
         <td colspan="4" class="text-right label">TOTAL {{ strtoupper($category['type_name']) }}:</td>
+        <td class="text-right label">S/. {{ number_format($category['total_receipt'], 2) }}</td>
         <td class="text-right label">S/. {{ number_format($category['total_company'], 2) }}</td>
+        <td class="text-right label">S/. {{ number_format($category['total_employee'], 2) }}</td>
       </tr>
     @endforeach
 
@@ -235,6 +251,8 @@
     <tr style="background-color: #d0d0d0;">
       <td colspan="4" class="text-right label" style="font-size: 11px;">TOTAL ASUMIDO POR EL COLABORADOR:</td>
       <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalColaborador, 2) }}</td>
+      <td class="text-right label" style="font-size: 11px;">S/. {{ number_format($totalColaborador, 2) }}</td>
+      <td class="text-right label" style="font-size: 11px;">S/. 0.00</td>
     </tr>
   </table>
 @endif
