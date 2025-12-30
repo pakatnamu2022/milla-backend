@@ -412,14 +412,15 @@ class PerDiemRequestController extends Controller
   }
 
   /**
-   * Generate mobility payroll for a per diem request
+   * Generate mobility payroll for a per diem request and return PDF directly
+   * Creates or updates the payroll and returns the PDF for download
    */
-  public function generateMobilityPayroll(int $id)
+  public function generateMobilityPayrollPDF(int $id)
   {
     try {
-      $result = $this->service->generateMobilityPayroll($id);
-
-      return $this->success($result);
+      $pdf = $this->service->generateMobilityPayrollPDF($id);
+      $filename = "planilla-movilidad-{$id}.pdf";
+      return $pdf->download($filename);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
@@ -431,7 +432,7 @@ class PerDiemRequestController extends Controller
   public function mobilityPayrollPDF($id)
   {
     try {
-      $pdf = $this->service->generateMobilityPayrollPDF($id);
+      $pdf = $this->service->mobilityPayrollPDF($id);
       $filename = "planilla-movilidad-{$id}.pdf";
       return $pdf->download($filename);
     } catch (Exception $e) {
