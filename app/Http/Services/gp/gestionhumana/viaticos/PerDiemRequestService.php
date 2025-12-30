@@ -867,7 +867,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
    * Generate expenseTotal report PDF with detailed expense breakdown
    * Shows all expenses grouped by dynamic categories based on expense_type parent
    */
-  public function generateexpenseTotalPDF($id)
+  public function generateExpenseTotalPDF($id)
   {
     $perDiemRequest = $this->find($id);
 
@@ -1071,6 +1071,228 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       'defaultFont' => 'Arial',
       'isHtml5ParserEnabled' => true,
       'isRemoteEnabled' => false,
+      'dpi' => 96,
+    ]);
+
+    $pdf->setPaper('A4', 'portrait');
+
+    return $pdf;
+  }
+
+  /**
+   * Generate expenseTotal report PDF with evidence/receipts
+   * Same as generateExpenseTotalPDF but includes receipt images/PDFs for each expense
+   */
+  public function generateExpenseTotalWithEvidencePDF($id)
+  {
+    $perDiemRequest = $this->find($id);
+
+    if (!$perDiemRequest->settled) {
+      throw new Exception('No se puede generar el reporte de gastos con evidencias para una solicitud no ha sido liquidada.');
+    }
+
+    // Load all necessary relationships
+    $perDiemRequest->load([
+      'employee.boss.position',
+      'employee.position.area',
+      'company',
+      'companyService',
+      'district',
+      'category',
+      'policy',
+      'approvals.approver.position',
+      'expenses.expenseType',
+    ]);
+
+    // Separar gastos por quien los asume (empresa vs colaborador)
+    $gastosEmpresa = $perDiemRequest->expenses->filter(function ($expense) {
+      return $expense->is_company_expense === true;
+    });
+
+    $gastosColaborador = $perDiemRequest->expenses->filter(function ($expense) {
+      return $expense->is_company_expense === false;
+    });
+
+    // ===== GASTOS DE LA EMPRESA =====
+    // Agrupar gastos por parent (si tienen parent, agrupar por parent_id, si no por expense_type_id)
+    $empresaExpensesByParent = [];
+    foreach ($gastosEmpresa as $expense) {
+      if (!$expense->expense_type_id) continue;
+
+      $expenseType = $expense->expenseType;
+      if (!$expenseType) continue;
+
+      // Si tiene padre, agrupar por el ID del padre
+      if ($expenseType->parent_id) {
+        $parentId = $expenseType->parent_id;
+        if (!isset($empresaExpensesByParent[$parentId])) {
+          $empresaExpensesByParent[$parentId] = [];
+        }
+        $empresaExpensesByParent[$parentId][] = $expense;
+      } else {
+        // Si no tiene padre, agrupar por su propio ID
+        $typeId = $expense->expense_type_id;
+        if (!isset($empresaExpensesByParent[$typeId])) {
+          $empresaExpensesByParent[$typeId] = [];
+        }
+        $empresaExpensesByParent[$typeId][] = $expense;
+      }
+    }
+
+    // Preparar array de categorías con sus gastos y totales para empresa
+    $empresaCategories = [];
+    foreach ($empresaExpensesByParent as $parentTypeId => $expenses) {
+      $expensesCollection = collect($expenses);
+
+      // Obtener el tipo de gasto padre (puede ser el mismo si no tiene padre)
+      $parentType = ExpenseType::find($parentTypeId);
+      if (!$parentType) continue;
+
+      $typeName = $parentType->name ?? 'Sin categoría';
+
+      // Convertir los gastos a array para la vista (INCLUIR receipt_path)
+      $expensesArray = $expensesCollection->map(function ($expense) {
+        // Concatenar el tipo de gasto con las notas
+        $expenseTypeName = $expense->expenseType->name ?? '';
+        $notes = $expense->notes ?? '';
+        $detalle = $expenseTypeName . ($notes ? ' - ' . $notes : '');
+
+        return [
+          'expense_date' => $expense->expense_date,
+          'receipt_number' => $expense->receipt_number,
+          'business_name' => $expense->business_name,
+          'detalle' => $detalle,
+          'receipt_amount' => $expense->receipt_amount,
+          'company_amount' => $expense->company_amount,
+          'employee_amount' => $expense->employee_amount,
+          'receipt_path' => $expense->receipt_path, // Ruta de la evidencia
+        ];
+      });
+
+      $empresaCategories[] = [
+        'type_id' => $parentTypeId,
+        'type_name' => $typeName,
+        'expenses' => $expensesArray,
+        'total_receipt' => $expensesCollection->sum('receipt_amount'),
+        'total_company' => $expensesCollection->sum('company_amount'),
+        'total_employee' => $expensesCollection->sum('employee_amount'),
+      ];
+    }
+
+    // ===== GASTOS DEL COLABORADOR =====
+    // Agrupar gastos por parent (si tienen parent, agrupar por parent_id, si no por expense_type_id)
+    $colaboradorExpensesByParent = [];
+    foreach ($gastosColaborador as $expense) {
+      if (!$expense->expense_type_id) continue;
+
+      $expenseType = $expense->expenseType;
+      if (!$expenseType) continue;
+
+      // Si tiene padre, agrupar por el ID del padre
+      if ($expenseType->parent_id) {
+        $parentId = $expenseType->parent_id;
+        if (!isset($colaboradorExpensesByParent[$parentId])) {
+          $colaboradorExpensesByParent[$parentId] = [];
+        }
+        $colaboradorExpensesByParent[$parentId][] = $expense;
+      } else {
+        // Si no tiene padre, agrupar por su propio ID
+        $typeId = $expense->expense_type_id;
+        if (!isset($colaboradorExpensesByParent[$typeId])) {
+          $colaboradorExpensesByParent[$typeId] = [];
+        }
+        $colaboradorExpensesByParent[$typeId][] = $expense;
+      }
+    }
+
+    // Preparar array de categorías con sus gastos y totales para colaborador
+    $colaboradorCategories = [];
+    foreach ($colaboradorExpensesByParent as $parentTypeId => $expenses) {
+      $expensesCollection = collect($expenses);
+
+      // Obtener el tipo de gasto padre (puede ser el mismo si no tiene padre)
+      $parentType = ExpenseType::find($parentTypeId);
+      if (!$parentType) continue;
+
+      $typeName = $parentType->name ?? 'Sin categoría';
+
+      // Convertir los gastos a array para la vista (INCLUIR receipt_path)
+      $expensesArray = $expensesCollection->map(function ($expense) {
+        // Concatenar el tipo de gasto con las notas
+        $expenseTypeName = $expense->expenseType->name ?? '';
+        $notes = $expense->notes ?? '';
+        $detalle = $expenseTypeName . ($notes ? ' - ' . $notes : '');
+
+        return [
+          'expense_date' => $expense->expense_date,
+          'receipt_number' => $expense->receipt_number,
+          'business_name' => $expense->business_name,
+          'detalle' => $detalle,
+          'receipt_amount' => $expense->receipt_amount,
+          'company_amount' => $expense->company_amount,
+          'employee_amount' => $expense->employee_amount,
+          'receipt_path' => $expense->receipt_path, // Ruta de la evidencia
+        ];
+      });
+
+      $colaboradorCategories[] = [
+        'type_id' => $parentTypeId,
+        'type_name' => $typeName,
+        'expenses' => $expensesArray,
+        'total_receipt' => $expensesCollection->sum('receipt_amount'),
+        'total_company' => $expensesCollection->sum('company_amount'),
+        'total_employee' => $expensesCollection->sum('employee_amount'),
+      ];
+    }
+
+    // Totales de gastos de la empresa (3 columnas)
+    $totalEmpresaReceipt = $gastosEmpresa->sum('receipt_amount');
+    $totalEmpresaCompany = $gastosEmpresa->sum('company_amount');
+    $totalEmpresaEmployee = $gastosEmpresa->sum('employee_amount');
+
+    // Totales de gastos del colaborador (3 columnas)
+    $totalColaboradorReceipt = $gastosColaborador->sum('receipt_amount');
+    $totalColaboradorCompany = $gastosColaborador->sum('company_amount');
+    $totalColaboradorEmployee = $gastosColaborador->sum('employee_amount');
+
+    // Totales generales (suma de empresa + colaborador)
+    $totalGeneralReceipt = $totalEmpresaReceipt + $totalColaboradorReceipt;
+    $totalGeneralCompany = $totalEmpresaCompany + $totalColaboradorCompany;
+    $totalGeneralEmployee = $totalEmpresaEmployee + $totalColaboradorEmployee;
+
+    // Preparar datos de la solicitud para la vista
+    $dataResource = new PerDiemRequestResource($perDiemRequest);
+    $dataArray = $dataResource->resolve();
+
+    // Calcular importes de pie de página
+    $importeOtorgado = $dataArray['cash_amount'] ?? 0;
+    // El monto a devolver se calcula sobre lo cubierto por la empresa del colaborador
+    $montoDevolver = $importeOtorgado - $totalColaboradorCompany;
+
+    $pdf = PDF::loadView('reports.gp.gestionhumana.viaticos.settlement-with-evidence', [
+      'request' => $dataArray,
+      // Gastos de la empresa (categorías dinámicas)
+      'empresaCategories' => $empresaCategories,
+      'totalEmpresaReceipt' => $totalEmpresaReceipt,
+      'totalEmpresaCompany' => $totalEmpresaCompany,
+      'totalEmpresaEmployee' => $totalEmpresaEmployee,
+      // Gastos del colaborador (categorías dinámicas)
+      'colaboradorCategories' => $colaboradorCategories,
+      'totalColaboradorReceipt' => $totalColaboradorReceipt,
+      'totalColaboradorCompany' => $totalColaboradorCompany,
+      'totalColaboradorEmployee' => $totalColaboradorEmployee,
+      // Totales generales
+      'totalGeneralReceipt' => $totalGeneralReceipt,
+      'totalGeneralCompany' => $totalGeneralCompany,
+      'totalGeneralEmployee' => $totalGeneralEmployee,
+      'importeOtorgado' => $importeOtorgado,
+      'montoDevolver' => $montoDevolver,
+    ]);
+
+    $pdf->setOptions([
+      'defaultFont' => 'Arial',
+      'isHtml5ParserEnabled' => true,
+      'isRemoteEnabled' => true, // IMPORTANTE: Activar para cargar imágenes remotas
       'dpi' => 96,
     ]);
 

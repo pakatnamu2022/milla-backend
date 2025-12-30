@@ -79,4 +79,10 @@ class ApOrderQuotations extends Model
   {
     return $this->hasMany(ApOrderQuotationDetails::class, 'order_quotation_id');
   }
+
+  public function markAsTaken(): void
+  {
+    $this->is_take = 1;
+    $this->save();
+  }
 }

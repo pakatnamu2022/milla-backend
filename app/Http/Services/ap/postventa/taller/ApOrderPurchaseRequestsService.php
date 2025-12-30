@@ -9,6 +9,7 @@ use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequests;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
+use App\Models\ap\postventa\taller\ApOrderQuotations;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -61,6 +62,12 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       // Validate that all products exist in the warehouse
       if (!empty($details) && isset($data['warehouse_id'])) {
         $this->validateProductsInWarehouse($details, $data['warehouse_id']);
+      }
+
+      // Mark quotation as taken if provided
+      if (isset($data['ap_order_quotation_id'])) {
+        ApOrderQuotations::find($data['ap_order_quotation_id'])
+          ?->markAsTaken();
       }
 
       // Create purchase request
