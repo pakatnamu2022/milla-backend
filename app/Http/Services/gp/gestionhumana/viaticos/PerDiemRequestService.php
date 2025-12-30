@@ -56,10 +56,14 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
   /**
    * Find a per diem request by ID (internal method)
+   * Includes optimized eager loading for budgets with expenses
    */
   public function find($id)
   {
-    $perDiemRequest = PerDiemRequest::where('id', $id)->first();
+    $perDiemRequest = PerDiemRequest::with([
+      'budgets.expenseType',
+      'expenses.expenseType' // Eager load expenses for spent calculation
+    ])->where('id', $id)->first();
     if (!$perDiemRequest) {
       throw new Exception('Solicitud de viático no encontrada');
     }

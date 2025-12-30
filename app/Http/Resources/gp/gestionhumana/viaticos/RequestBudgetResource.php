@@ -21,6 +21,7 @@ class RequestBudgetResource extends JsonResource
       'daily_amount' => (float)$this->daily_amount,
       'days' => $this->days,
       'total' => (float)$this->total,
+      'spent' => $this->calculateSpent(),
     ];
   }
 }
