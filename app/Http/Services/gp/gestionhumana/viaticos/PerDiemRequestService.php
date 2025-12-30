@@ -535,7 +535,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $request = $this->find($id);
 
       // Validate status - must be approved or in progress
-      if (!in_array($request->status, [PerDiemRequest::STATUS_APPROVED, PerDiemRequest::STATUS_IN_PROGRESS])) {
+      if (!in_array($request->status, [PerDiemRequest::STATUS_PENDING_SETTLEMENT])) {
         throw new Exception('Solo se puede completar la liquidación de solicitudes aprobadas o en progreso');
       }
 
