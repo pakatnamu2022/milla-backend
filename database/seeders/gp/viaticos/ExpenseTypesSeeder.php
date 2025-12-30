@@ -55,7 +55,7 @@ class ExpenseTypesSeeder extends Seeder
         'description' => 'Fuel expenses', 'requires_receipt' => true, 'order' => 6, 'active' => true,
       ],
       [
-        'parent_id' => null, 'code' => 'gasoline', 'name' => 'Pasajes Aéreos',
+        'parent_id' => null, 'code' => 'airfare', 'name' => 'Pasajes Aéreos',
         'description' => 'Airfare expenses', 'requires_receipt' => true, 'order' => 7, 'active' => true,
       ],
       [
