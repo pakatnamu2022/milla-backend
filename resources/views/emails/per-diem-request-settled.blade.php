@@ -60,8 +60,12 @@
                 </div>
                 <div style="font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#111827;">
                   <strong>Código:</strong> {{ $request_code }}<br>
-                  <strong>Presupuesto asignado:</strong> S/ {{ number_format($total_budget, 2) }}<br>
                   <strong>Total gastado:</strong> S/ {{ number_format($total_spent, 2) }}<br>
+                  <strong>Total que asume la empresa:</strong> S/ {{ number_format($total_asume_empresa, 2) }}<br>
+                  <strong>Total que asume el colaborador:</strong> S/ {{ number_format($total_asume_colaborador, 2) }}<br>
+                  <strong>Total a reembolsar:</strong> S/ {{ number_format($total_reembolsar, 2) }}<br>
+                  <br>
+                  <strong>Presupuesto asignado:</strong> S/ {{ number_format($total_budget, 2) }}<br>
                   @if($balance_to_return > 0)
                     <strong>Saldo a devolver:</strong> S/ {{ number_format($balance_to_return, 2) }}
                   @endif
