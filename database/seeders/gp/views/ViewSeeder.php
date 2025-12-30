@@ -29,25 +29,18 @@ class ViewSeeder extends Seeder
     $GH = 77;
 
     $data = [
-      /**
-       * VIATICOS
-       */
-      ['descripcion' => 'Viaticos', 'submodule' => false, 'route' => 'viaticos', 'parent_id' => $GH, 'slug' => 'viaticos',
-        'ruta' => '-', 'icon' => 'TicketsPlane', 'company_id' => $GP, 'idPadre' => $VERSION_2,
+      ['descripcion' => 'Contabilidad', 'submodule' => true, 'slug' => 'contabilidad', 'route' => 'contabilidad', 'ruta' => null,
+        'icon' => 'TicketsPlane', 'company_id' => $AP, 'idPadre' => $VERSION_2, 'parent_id' => null,
         'children' => [
-          ['descripcion' => 'Categoría de Viaticos', 'submodule' => false, 'route' => 'categoria-viaticos', 'slug' => 'categoria-viaticos',
-            'ruta' => '-', 'icon' => 'TicketsPlane', 'company_id' => $GP, 'idPadre' => $VERSION_2,],
-          ['descripcion' => 'Política de Viaticos', 'submodule' => false, 'route' => 'politica-viaticos', 'slug' => 'politica-viaticos',
-            'ruta' => '-', 'icon' => 'TicketsPlane', 'company_id' => $GP, 'idPadre' => $VERSION_2,],
-          ['descripcion' => 'Solicitud de Viaticos', 'submodule' => false, 'route' => 'solicitud-viaticos', 'slug' => 'solicitud-viaticos',
-            'ruta' => '-', 'icon' => 'TicketsPlane', 'company_id' => $GP, 'idPadre' => $VERSION_2,],
-          ['descripcion' => 'Convenios Hoteles', 'submodule' => false, 'route' => 'convenios-hoteles', 'slug' => 'convenios-hoteles',
-            'ruta' => '-', 'icon' => 'TicketsPlane', 'company_id' => $GP, 'idPadre' => $VERSION_2,],
-        ]
+          ['descripcion' => 'Viaticos AP', 'submodule' => false, 'route' => 'viaticos-ap', 'slug' => 'viaticos-ap',
+            'ruta' => '-', 'icon' => 'TicketsPlane', 'company_id' => $AP, 'idPadre' => $VERSION_2,
+            'children' => [
+              ['descripcion' => 'Solicitud de Viaticos', 'submodule' => false, 'route' => 'solicitud-viaticos', 'slug' => 'solicitud-viaticos',
+                'ruta' => '-', 'icon' => 'TicketsPlane', 'company_id' => $AP, 'idPadre' => $VERSION_2,],
+            ]
+          ],
+        ],
       ],
-      ['descripcion' => 'Maestros', 'submodule' => false, 'route' => 'maestros', 'parent_id' => $GH, 'slug' => 'viaticos',
-        'ruta' => '-', 'icon' => 'TicketsPlane', 'company_id' => $GP, 'idPadre' => $VERSION_2],
-
     ];
 
     foreach ($data as $item) {
@@ -68,6 +61,8 @@ class ViewSeeder extends Seeder
 
       // Procesar children si existen
       foreach ($children as $child) {
+        $grandChildren = $child['children'] ?? [];
+        unset($child['children']);
         $child['parent_id'] = $view->id;
 
         $childView = View::updateOrCreate(
@@ -81,6 +76,24 @@ class ViewSeeder extends Seeder
         );
 
         $this->command->info("  - Child agregado: " . $childView->id);
+
+        // Procesar grandchildren (tercer nivel)
+        foreach ($grandChildren as $grandChild) {
+          unset($grandChild['children']);
+          $grandChild['parent_id'] = $childView->id;
+
+          $grandChildView = View::updateOrCreate(
+            [
+              'descripcion' => $grandChild['descripcion'],
+              'company_id' => $grandChild['company_id'],
+              'route' => $grandChild['route'],
+              'parent_id' => $grandChild['parent_id']
+            ],
+            $grandChild
+          );
+
+          $this->command->info("    - GrandChild agregado: " . $grandChildView->id);
+        }
       }
     }
   }

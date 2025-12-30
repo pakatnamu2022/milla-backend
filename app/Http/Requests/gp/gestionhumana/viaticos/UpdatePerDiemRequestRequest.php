@@ -17,7 +17,6 @@ class UpdatePerDiemRequestRequest extends StoreRequest
       'purpose' => ['nullable', 'string', 'max:500'],
       'notes' => ['nullable', 'string', 'max:500'],
       'with_active' => ['nullable', 'boolean'],
-      'with_request' => ['nullable', 'boolean'],
     ];
   }
 
@@ -54,6 +53,7 @@ class UpdatePerDiemRequestRequest extends StoreRequest
       $data['total_budget'] = $totalBudget;
     }
 
+    $data['with_request'] = false;
     return $data;
   }
 }
