@@ -94,6 +94,20 @@ class PerDiemExpenseService extends BaseService
         }
       }
 
+      // Validate that only one lunch or dinner per day can be created
+      if (in_array($data['expense_type_id'], [ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
+        $existingExpense = PerDiemExpense::where('per_diem_request_id', $requestId)
+          ->where('expense_type_id', $data['expense_type_id'])
+          ->whereDate('expense_date', $data['expense_date'])
+          ->where('rejected', false)
+          ->first();
+
+        if ($existingExpense) {
+          $mealType = $data['expense_type_id'] === ExpenseType::LUNCH_ID ? 'almuerzo' : 'cena';
+          throw new Exception("Ya existe un gasto de {$mealType} para esta fecha. Solo se permite un gasto de {$mealType} por día.");
+        }
+      }
+
       if (in_array($data['expense_type_id'], [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
         $budget = RequestBudget::where('expense_type_id', ExpenseType::MEALS_ID)
           ->where('per_diem_request_id', $requestId)
@@ -231,6 +245,26 @@ class PerDiemExpenseService extends BaseService
               throw new Exception('No se puede cambiar el tipo de gasto a cena porque el hotel ya lo incluye.');
             }
           }
+        }
+      }
+
+      // Validate that only one lunch or dinner per day can be created (when changing type or date)
+      $expenseTypeChanged = isset($data['expense_type_id']) && $data['expense_type_id'] !== $expense->expense_type_id;
+      $expenseDateChanged = isset($data['expense_date']) && $data['expense_date'] !== $expense->expense_date;
+      $newExpenseTypeId = $data['expense_type_id'] ?? $expense->expense_type_id;
+      $newExpenseDate = $data['expense_date'] ?? $expense->expense_date;
+
+      if (in_array($newExpenseTypeId, [ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID]) && ($expenseTypeChanged || $expenseDateChanged)) {
+        $existingExpense = PerDiemExpense::where('per_diem_request_id', $expense->per_diem_request_id)
+          ->where('id', '!=', $expense->id) // Exclude current expense
+          ->where('expense_type_id', $newExpenseTypeId)
+          ->whereDate('expense_date', $newExpenseDate)
+          ->where('rejected', false)
+          ->first();
+
+        if ($existingExpense) {
+          $mealType = $newExpenseTypeId === ExpenseType::LUNCH_ID ? 'almuerzo' : 'cena';
+          throw new Exception("Ya existe un gasto de {$mealType} para esta fecha. Solo se permite un gasto de {$mealType} por día.");
         }
       }
 

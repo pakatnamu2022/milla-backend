@@ -52,4 +52,54 @@ class RequestBudget extends BaseModel
   {
     return $this->belongsTo(ExpenseType::class);
   }
+
+  /**
+   * Calculate total spent for this budget
+   * Includes expenses that match this budget's expense_type_id directly
+   * OR expenses whose expense_type parent_id matches this budget's expense_type_id
+   * Excludes rejected expenses and company expenses
+   */
+  public function calculateSpent(): float
+  {
+    // Get the request's expenses (should be eager loaded)
+    $request = $this->request;
+
+    if (!$request || !$request->relationLoaded('expenses')) {
+      // Fallback: if not eager loaded, load expenses
+      $request = $this->request()->with('expenses.expenseType')->first();
+    }
+
+    if (!$request || !$request->expenses) {
+      return 0.0;
+    }
+
+    // Filter expenses that apply to this budget
+    $relevantExpenses = $request->expenses->filter(function ($expense) {
+      // Exclude rejected expenses
+      if ($expense->rejected) {
+        return false;
+      }
+
+      // Exclude company expenses
+      if ($expense->is_company_expense) {
+        return false;
+      }
+
+      // Include if expense type matches directly
+      if ($expense->expense_type_id === $this->expense_type_id) {
+        return true;
+      }
+
+      // Include if expense type's parent matches this budget's type
+      if ($expense->expenseType &&
+          $expense->expenseType->parent_id === $this->expense_type_id) {
+        return true;
+      }
+
+      return false;
+    });
+
+    // Sum company_amount
+    return (float) $relevantExpenses->sum('company_amount');
+  }
 }
