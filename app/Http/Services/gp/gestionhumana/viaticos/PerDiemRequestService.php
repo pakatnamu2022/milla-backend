@@ -1023,10 +1023,20 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       ];
     }
 
-    // Totales generales
-    $totalEmpresa = $gastosEmpresa->sum('company_amount');
-    $totalColaborador = $gastosColaborador->sum('company_amount');
-    $totalGeneral = $totalEmpresa + $totalColaborador;
+    // Totales de gastos de la empresa (3 columnas)
+    $totalEmpresaReceipt = $gastosEmpresa->sum('receipt_amount');
+    $totalEmpresaCompany = $gastosEmpresa->sum('company_amount');
+    $totalEmpresaEmployee = $gastosEmpresa->sum('employee_amount');
+
+    // Totales de gastos del colaborador (3 columnas)
+    $totalColaboradorReceipt = $gastosColaborador->sum('receipt_amount');
+    $totalColaboradorCompany = $gastosColaborador->sum('company_amount');
+    $totalColaboradorEmployee = $gastosColaborador->sum('employee_amount');
+
+    // Totales generales (suma de empresa + colaborador)
+    $totalGeneralReceipt = $totalEmpresaReceipt + $totalColaboradorReceipt;
+    $totalGeneralCompany = $totalEmpresaCompany + $totalColaboradorCompany;
+    $totalGeneralEmployee = $totalEmpresaEmployee + $totalColaboradorEmployee;
 
     // Preparar datos de la solicitud para la vista
     $dataResource = new PerDiemRequestResource($perDiemRequest);
@@ -1034,18 +1044,25 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
     // Calcular importes de pie de página
     $importeOtorgado = $dataArray['cash_amount'] ?? 0;
-    $montoDevolver = $importeOtorgado - $totalGeneral;
+    // El monto a devolver se calcula sobre lo cubierto por la empresa del colaborador
+    $montoDevolver = $importeOtorgado - $totalColaboradorCompany;
 
     $pdf = PDF::loadView('reports.gp.gestionhumana.viaticos.settlement', [
       'request' => $dataArray,
       // Gastos de la empresa (categorías dinámicas)
       'empresaCategories' => $empresaCategories,
-      'totalEmpresa' => $totalEmpresa,
+      'totalEmpresaReceipt' => $totalEmpresaReceipt,
+      'totalEmpresaCompany' => $totalEmpresaCompany,
+      'totalEmpresaEmployee' => $totalEmpresaEmployee,
       // Gastos del colaborador (categorías dinámicas)
       'colaboradorCategories' => $colaboradorCategories,
-      'totalColaborador' => $totalColaborador,
+      'totalColaboradorReceipt' => $totalColaboradorReceipt,
+      'totalColaboradorCompany' => $totalColaboradorCompany,
+      'totalColaboradorEmployee' => $totalColaboradorEmployee,
       // Totales generales
-      'totalGeneral' => $totalGeneral,
+      'totalGeneralReceipt' => $totalGeneralReceipt,
+      'totalGeneralCompany' => $totalGeneralCompany,
+      'totalGeneralEmployee' => $totalGeneralEmployee,
       'importeOtorgado' => $importeOtorgado,
       'montoDevolver' => $montoDevolver,
     ]);
