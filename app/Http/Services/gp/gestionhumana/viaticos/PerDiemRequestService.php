@@ -1907,12 +1907,33 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   private function sendPerDiemRequestSettledEmail(PerDiemRequest $request): void
   {
     try {
+      // Calcular total que asume la empresa (gastos de empresa)
+      $gastosEmpresa = $request->expenses->filter(function ($expense) {
+        return $expense->is_company_expense === true && !$expense->rejected;
+      });
+      $totalAsumeEmpresa = $gastosEmpresa->sum('company_amount');
+
+      // Calcular total que asume el colaborador (gastos del colaborador)
+      $gastosColaborador = $request->expenses->filter(function ($expense) {
+        return $expense->is_company_expense === false && !$expense->rejected;
+      });
+      $totalAsumeColaborador = $gastosColaborador->sum('company_amount');
+
+      // Calcular el total a reembolsar (importe otorgado - lo que asume el colaborador)
+      $importeOtorgado = $request->cash_amount ?? 0;
+      $totalReembolsar = $importeOtorgado - $totalAsumeColaborador;
+
       $emailData = [
         'employee_name' => $request->employee->nombre_completo,
         'request_code' => $request->code,
         'total_budget' => $request->total_budget,
         'total_spent' => $request->total_spent,
         'balance_to_return' => $request->balance_to_return,
+        // Nuevos datos para el correo
+        'total_asume_empresa' => $totalAsumeEmpresa,
+        'total_asume_colaborador' => $totalAsumeColaborador,
+        'total_reembolsar' => $totalReembolsar,
+        'importe_otorgado' => $importeOtorgado,
       ];
 
       $this->emailService->send([
