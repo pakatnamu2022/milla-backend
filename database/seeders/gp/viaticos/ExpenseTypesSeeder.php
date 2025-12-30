@@ -46,6 +46,22 @@ class ExpenseTypesSeeder extends Seeder
         'parent_id' => null, 'code' => 'local_transport', 'name' => 'Movilidad Local',
         'description' => 'Transportation within destination city (taxi, uber, etc.)', 'requires_receipt' => false, 'order' => 4, 'active' => true,
       ],
+      [
+        'parent_id' => null, 'code' => 'tolls', 'name' => 'Peajes',
+        'description' => 'Tolls and road fees', 'requires_receipt' => true, 'order' => 5, 'active' => true,
+      ],
+      [
+        'parent_id' => null, 'code' => 'gasoline', 'name' => 'Gasolina',
+        'description' => 'Fuel expenses', 'requires_receipt' => true, 'order' => 6, 'active' => true,
+      ],
+      [
+        'parent_id' => null, 'code' => 'gasoline', 'name' => 'Pasajes Aéreos',
+        'description' => 'Airfare expenses', 'requires_receipt' => true, 'order' => 7, 'active' => true,
+      ],
+      [
+        'parent_id' => null, 'code' => 'others', 'name' => 'Otros',
+        'description' => 'Other miscellaneous expenses', 'requires_receipt' => false, 'order' => 8, 'active' => false,
+      ],
     ];
 
     foreach ($data as $item) {
