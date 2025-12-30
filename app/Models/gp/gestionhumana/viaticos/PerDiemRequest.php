@@ -99,20 +99,14 @@ class PerDiemRequest extends BaseModel
     'created_at',
   ];
 
+  /**
+   * SETTLEMENT STATUS VALUES
+   */
   const string SETTLEMENT_PENDING = 'pending';
   const string SETTLEMENT_SUBMITTED = 'submitted';
   const string SETTLEMENT_APPROVED = 'approved';
   const string SETTLEMENT_REJECTED = 'rejected';
   const string SETTLEMENT_COMPLETED = 'completed';
-
-  const string STATUS_PENDING = 'pending';
-  const string STATUS_IN_PROGRESS = 'in_progress';
-  const string STATUS_PENDING_SETTLEMENT = 'pending_settlement';
-  const string STATUS_CANCELLED = 'cancelled';
-  const string STATUS_APPROVED = 'approved';
-  const string STATUS_REJECTED = 'rejected';
-  const string STATUS_SETTLED = 'settled';
-
 
   const array SETTLEMENT_STATUSES = [
     self::SETTLEMENT_PENDING,
@@ -121,6 +115,28 @@ class PerDiemRequest extends BaseModel
     self::SETTLEMENT_REJECTED,
     self::SETTLEMENT_COMPLETED,
   ];
+
+  /**
+   * REQUEST STATUS VALUES
+   */
+  const string STATUS_PENDING = 'pending';
+  const string STATUS_IN_PROGRESS = 'in_progress';
+  const string STATUS_PENDING_SETTLEMENT = 'pending_settlement';
+  const string STATUS_CANCELLED = 'cancelled';
+  const string STATUS_APPROVED = 'approved';
+  const string STATUS_REJECTED = 'rejected';
+  const string STATUS_SETTLED = 'settled';
+
+  const array STATUSES = [
+    self::STATUS_PENDING,
+    self::STATUS_IN_PROGRESS,
+    self::STATUS_PENDING_SETTLEMENT,
+    self::STATUS_CANCELLED,
+    self::STATUS_APPROVED,
+    self::STATUS_REJECTED,
+    self::STATUS_SETTLED,
+  ];
+
 
   public function SetPurposeAttribute($value)
   {
