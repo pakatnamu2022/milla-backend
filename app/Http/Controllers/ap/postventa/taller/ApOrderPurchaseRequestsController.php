@@ -7,6 +7,7 @@ use App\Http\Requests\ap\postventa\taller\IndexApOrderPurchaseRequestsRequest;
 use App\Http\Requests\ap\postventa\taller\StoreApOrderPurchaseRequestsRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateApOrderPurchaseRequestsRequest;
 use App\Http\Services\ap\postventa\taller\ApOrderPurchaseRequestsService;
+use Illuminate\Http\Request;
 
 class ApOrderPurchaseRequestsController extends Controller
 {
@@ -59,6 +60,32 @@ class ApOrderPurchaseRequestsController extends Controller
   {
     try {
       return $this->service->destroy($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Obtener detalles de solicitudes pendientes para crear órdenes de compra
+   * GET /api/purchase-requests/pending-details
+   */
+  public function getPendingDetails(Request $request)
+  {
+    try {
+      return $this->service->getPendingDetails($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Rechazar/descartar un detalle de solicitud
+   * PATCH /api/purchase-requests/details/{id}/reject
+   */
+  public function rejectDetail($id)
+  {
+    try {
+      return $this->service->rejectDetail($id);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

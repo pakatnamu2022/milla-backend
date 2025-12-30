@@ -212,4 +212,81 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
     return $prefix . str_pad($newSequence, 4, '0', STR_PAD_LEFT);
   }
+
+  /**
+   * Obtener detalles de solicitudes pendientes para crear órdenes de compra
+   * Solo devuelve detalles con status 'pending'
+   * @param Request $request
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function getPendingDetails(Request $request)
+  {
+    $query = ApOrderPurchaseRequestDetails::with([
+      'orderPurchaseRequest.warehouse',
+      'product'
+    ])
+      ->where('status', 'pending')
+      ->orderBy('created_at', 'desc');
+
+    // Filtro opcional por warehouse_id
+    if ($request->has('warehouse_id')) {
+      $query->whereHas('orderPurchaseRequest', function ($q) use ($request) {
+        $q->where('warehouse_id', $request->warehouse_id);
+      });
+    }
+
+    // Filtro opcional por producto
+    if ($request->has('product_id')) {
+      $query->where('product_id', $request->product_id);
+    }
+
+    $details = $query->get();
+
+    return response()->json([
+      'data' => $details->map(function ($detail) {
+        return [
+          'id' => $detail->id,
+          'request_id' => $detail->order_purchase_request_id,
+          'request_number' => $detail->orderPurchaseRequest->request_number,
+          'product_id' => $detail->product_id,
+          'product_name' => $detail->product->name ?? null,
+          'product_code' => $detail->product->code ?? null,
+          'quantity' => $detail->quantity,
+          'notes' => $detail->notes,
+          'requested_delivery_date' => $detail->requested_delivery_date,
+          'warehouse_id' => $detail->orderPurchaseRequest->warehouse_id,
+          'warehouse_name' => $detail->orderPurchaseRequest->warehouse->name ?? null,
+          'created_at' => $detail->created_at,
+        ];
+      })
+    ]);
+  }
+
+  /**
+   * Rechazar/descartar un detalle de solicitud
+   * Cambia el status a 'rejected'
+   * @param int $detailId
+   * @return \Illuminate\Http\JsonResponse
+   * @throws Exception
+   */
+  public function rejectDetail(int $detailId)
+  {
+    $detail = ApOrderPurchaseRequestDetails::find($detailId);
+
+    if (!$detail) {
+      throw new Exception('Detalle de solicitud no encontrado');
+    }
+
+    // Solo se puede rechazar si está en pending
+    if ($detail->status !== 'pending') {
+      throw new Exception("No se puede rechazar un detalle con status '{$detail->status}'. Solo se pueden rechazar detalles pendientes.");
+    }
+
+    $detail->update(['status' => 'rejected']);
+
+    return response()->json([
+      'message' => 'Detalle de solicitud rechazado correctamente',
+      'data' => $detail
+    ]);
+  }
 }
