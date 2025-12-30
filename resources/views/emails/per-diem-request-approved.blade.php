@@ -96,21 +96,18 @@
               @endif
             </td>
           </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="padding:20px 24px;background:#f9fafc;border-top:1px solid #eef0f5;">
-              <p style="margin:0 0 4px 0;font:400 12px/1.6 Inter,Arial,Helvetica,sans-serif;color:#4b5563;">
-                Fecha: {{ now()->format('d/m/Y H:i') }}
-              </p>
-              <p style="margin:0 0 8px 0;font:400 12px/1.6 Inter,Arial,Helvetica,sans-serif;color:#6b7280;">
-                Este es un correo automático, no responder a este mensaje.
-              </p>
-            </td>
-          </tr>
         </table>
         <!-- /Container -->
       </td>
     </tr>
   </table>
+
+  <!-- Dark mode support -->
+  <style>
+    @media (prefers-color-scheme: dark) {
+      table, td { background-color: #0b0f1a !important; }
+      .invert-bg { background-color: #0b0f1a !important; }
+      h1, h2, h3, p, div, span, strong { color: #e5e7eb !important; }
+    }
+  </style>
 @endsection

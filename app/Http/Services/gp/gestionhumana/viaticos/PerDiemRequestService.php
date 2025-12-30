@@ -260,6 +260,12 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           : $request->notes
       ]);
 
+      // Send cancellation email
+      $this->sendPerDiemRequestCancelledEmail(
+        $request->fresh(['employee.boss', 'district']),
+        $data['cancellation_reason'] ?? ''
+      );
+
       DB::commit();
       return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category']);
     } catch (Exception $e) {
@@ -685,6 +691,11 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       // Update total budget
       $request->update(['total_budget' => $totalBudget]);
+
+      // Send in-progress email ONLY if no hotel reservation exists
+      if (!$request->hotelReservation()->exists()) {
+        $this->sendPerDiemInProgressEmail($request->fresh(['employee', 'district']));
+      }
 
       DB::commit();
 
@@ -1561,10 +1572,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       // Send email to employee
       $this->emailService->send([
-        'to' => [
-          $request->employee->email2 ?? null,
-          'hvaldiviezos@automotorespakatnamu.com'
-        ], // For testing
+        'to' => [$request->employee->email2],
         'subject' => 'Solicitud de Viáticos Creada - ' . $request->code,
         'template' => 'emails.per-diem-request-created-employee',
         'data' => $employeeEmailData,
@@ -1585,10 +1593,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         ];
 
         $this->emailService->send([
-          'to' => [
-            $request->employee->boss->email2 ?? null,
-            'hvaldiviezos@automotorespakatnamu.com'
-          ], // For testing
+          'to' => [$request->employee->boss->email2],
           'subject' => 'Nueva Solicitud de Viáticos Pendiente de Aprobación - ' . $request->code,
           'template' => 'emails.per-diem-request-created-boss',
           'data' => $bossEmailData,
@@ -1607,11 +1612,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   {
     try {
       $emailConfig = [
-        'to' => [
-          $request->employee->email2,
-          'hvaldiviezos@automotorespakatnamu.com',
-//          'ngonzalesd@automotorespakatnamu.com'
-        ],
+        'to' => [$request->employee->email2],
         'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
         'template' => 'emails.per-diem-request-approved',
         'data' => [
@@ -1647,11 +1648,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       $this->emailService->send([
         'to' => [
-          'hvaldiviezos@automotorespakatnamu.com',
           $request->employee->email2,
-          $request->employee->boss->email2 ?? null,
-          'griojasf@automotorespakatnamu.com'
-        ], // For testing
+          $request->employee->boss->email2 ?? null
+        ],
         'subject' => 'Liquidación de Viáticos - ' . $request->code,
         'template' => 'emails.per-diem-request-settlement',
         'data' => $emailData,
@@ -1677,11 +1676,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       $this->emailService->send([
         'to' => [
-          'hvaldiviezos@automotorespakatnamu.com',
           $request->employee->email2,
-          $request->employee->boss->email2 ?? null,
-          'griojasf@automotorespakatnamu.com'
-        ], // For testing
+          $request->employee->boss->email2 ?? null
+        ],
         'subject' => 'Liquidación de Viáticos Completada - ' . $request->code,
         'template' => 'emails.per-diem-request-settled',
         'data' => $emailData,
@@ -1702,6 +1699,68 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   public function regenerateBudgets(PerDiemRequest $request, Collection $rates): float
   {
     return $this->generateBudgets($request, $rates);
+  }
+
+  /**
+   * Send email notification when a per diem request is cancelled
+   */
+  private function sendPerDiemRequestCancelledEmail(PerDiemRequest $request, string $cancellationReason = ''): void
+  {
+    try {
+      $emailData = [
+        'employee_name' => $request->employee->nombre_completo,
+        'request_code' => $request->code,
+        'destination' => $request->district->nombre ?? 'N/A',
+        'start_date' => $request->start_date->format('d/m/Y'),
+        'end_date' => $request->end_date->format('d/m/Y'),
+        'cancellation_reason' => $cancellationReason,
+      ];
+
+      // Send to employee
+      $this->emailService->send([
+        'to' => [$request->employee->email2],
+        'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
+        'template' => 'emails.per-diem-request-cancelled',
+        'data' => $emailData,
+      ]);
+
+      // Send to boss if exists
+      if ($request->employee->jefe_id && $request->employee->boss) {
+        $this->emailService->send([
+          'to' => [$request->employee->boss->email2],
+          'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
+          'template' => 'emails.per-diem-request-cancelled',
+          'data' => $emailData,
+        ]);
+      }
+    } catch (Exception $e) {
+      \Log::error('Error sending per diem request cancelled email: ' . $e->getMessage());
+    }
+  }
+
+  /**
+   * Send email notification when a per diem request status changes to in_progress
+   */
+  private function sendPerDiemInProgressEmail(PerDiemRequest $request): void
+  {
+    try {
+      $emailData = [
+        'employee_name' => $request->employee->nombre_completo,
+        'request_code' => $request->code,
+        'destination' => $request->district->nombre ?? 'N/A',
+        'start_date' => $request->start_date->format('d/m/Y'),
+        'total_budget' => $request->total_budget,
+      ];
+
+      $this->emailService->send([
+        'to' => [$request->employee->email2],
+        'subject' => 'Tu Viaje Está en Progreso - ' . $request->code,
+        'template' => 'emails.per-diem-in-progress',
+        'data' => $emailData,
+      ]);
+    } catch (Exception $e) {
+      \Log::error('Error sending per diem in progress email: ' . $e->getMessage());
+    }
   }
 
 }

@@ -21,19 +21,18 @@
                     @endif
                   </td>
                   <td align="right" style="vertical-align:middle;">
-                  <span
-                    style="display:inline-block;padding:6px 10px;border:1px solid #e6e8ee;border-radius:999px;font:600 12px/1.2 Inter,Arial,Helvetica,sans-serif;color:#01237E;background:#eef2ff;">
-                    Viáticos
-                  </span>
+                    <span style="display:inline-block;padding:6px 10px;border:1px solid #3b82f6;border-radius:999px;font:600 12px/1.2 Inter,Arial,Helvetica,sans-serif;color:#1e3a8a;background:#dbeafe;">
+                      En Progreso
+                    </span>
                   </td>
                 </tr>
               </table>
 
               <h1 style="margin:16px 0 4px 0;font:700 20px/1.25 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                Solicitud de Viáticos Creada
+                Tu Viaje Está en Progreso
               </h1>
               <p style="margin:0;font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#4b5563;">
-                Tu solicitud ha sido registrada exitosamente
+                Tu solicitud de viáticos está activa
               </p>
             </td>
           </tr>
@@ -45,47 +44,40 @@
                 Hola <strong style="font-weight:600;color:#111827;">{{ $employee_name }}</strong>,
               </p>
 
-              <div
-                style="margin:0 0 16px 0;padding:16px;border:1px solid #eef0f5;border-radius:12px;background:#fbfbfe;">
+              <div style="margin:0 0 16px 0;padding:16px;border:1px solid #eef0f5;border-radius:12px;background:#fbfbfe;">
                 <p style="margin:0;font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                  Tu solicitud de viáticos ha sido creada exitosamente y está pendiente de aprobación.
+                  Tu solicitud de viáticos <strong>{{ $request_code }}</strong> ahora está en progreso. Todos los detalles de tu viaje han sido confirmados.
                 </p>
               </div>
 
-              <div
-                style="margin:0 0 16px 0;padding:12px 14px;border-left:4px solid #10b981;background:#ecfdf5;border-radius:10px;">
-                <div
-                  style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#065f46;margin-bottom:4px;">
-                  Información de la Solicitud
+              <div style="margin:0 0 16px 0;padding:12px 14px;border-left:4px solid #3b82f6;background:#eff6ff;border-radius:10px;">
+                <div style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#1e3a8a;margin-bottom:4px;">
+                  Detalles del Viaje
                 </div>
                 <div style="font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#111827;">
                   <strong>Código:</strong> {{ $request_code }}<br>
                   <strong>Destino:</strong> {{ $destination }}<br>
                   <strong>Fecha inicio:</strong> {{ $start_date }}<br>
-                  <strong>Fecha fin:</strong> {{ $end_date }}<br>
-                  <strong>Días:</strong> {{ $days_count }}<br>
-                  <strong>Propósito:</strong> {{ $purpose }}
+                  @if(isset($total_budget) && $total_budget)
+                    <strong>Presupuesto total:</strong> S/ {{ number_format($total_budget, 2) }}
+                  @endif
                 </div>
               </div>
 
-              <div
-                style="margin:0 0 16px 0;padding:12px 14px;border:1px dashed #dfe3ec;border-radius:12px;background:#fcfdfd;">
-                <strong
-                  style="display:block;margin-bottom:6px;font:600 14px/1.5 Inter,Arial,Helvetica,sans-serif;color:#01237E;">
-                  Próximos pasos
+              <div style="margin:0 0 16px 0;padding:12px 14px;border:1px dashed #dfe3ec;border-radius:12px;background:#fcfdfd;">
+                <strong style="display:block;margin-bottom:6px;font:600 14px/1.5 Inter,Arial,Helvetica,sans-serif;color:#01237E;">
+                  Importante
                 </strong>
                 <div style="font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                  Tu solicitud será revisada por tu jefe directo. Te notificaremos una vez que sea aprobada o si se requiere alguna modificación.
+                  Recuerda guardar todos tus comprobantes de gastos. Al finalizar tu viaje, deberás registrar y liquidar tus gastos en el sistema.
                 </div>
               </div>
 
               @if(isset($button_url))
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"
-                       style="margin:20px auto;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:20px auto;">
                   <tr>
                     <td align="center" bgcolor="#01237E" style="border-radius:10px;">
-                      <a href="{{ $button_url }}"
-                         style="display:inline-block;padding:12px 20px;font:600 14px/1 Inter,Arial,Helvetica,sans-serif;text-decoration:none;color:#ffffff;background:#01237E;border-radius:10px;border:1px solid #011a5b;">
+                      <a href="{{ $button_url }}" style="display:inline-block;padding:12px 20px;font:600 14px/1 Inter,Arial,Helvetica,sans-serif;text-decoration:none;color:#ffffff;background:#01237E;border-radius:10px;border:1px solid #011a5b;">
                         Ver Solicitud
                       </a>
                     </td>
