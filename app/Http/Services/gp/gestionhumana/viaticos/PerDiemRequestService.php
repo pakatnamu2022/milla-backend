@@ -745,6 +745,21 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $expenseTypeIds[] = ExpenseType::TRANSPORTATION_ID;
     }
 
+    // Add TOLLS and GASOLINE if with_active is true
+    if ($request->with_active) {
+      if (!in_array(ExpenseType::TOLLS_ID, $expenseTypeIds)) {
+        $expenseTypeIds[] = ExpenseType::TOLLS_ID;
+      }
+      if (!in_array(ExpenseType::GASOLINE_ID, $expenseTypeIds)) {
+        $expenseTypeIds[] = ExpenseType::GASOLINE_ID;
+      }
+    }
+
+    // Add AIRFARE only for managers (category 1)
+    if ($request->per_diem_category_id === 1 && !in_array(ExpenseType::AIRFARE_ID, $expenseTypeIds)) {
+      $expenseTypeIds[] = ExpenseType::AIRFARE_ID;
+    }
+
     // Replace parent expense types with their children (leaf nodes only)
     $finalExpenseTypeIds = [];
     foreach ($expenseTypeIds as $expenseTypeId) {
