@@ -60,11 +60,12 @@ class PerDiemRequestController extends Controller
 
   /**
    * Display pending approval requests for the logged-in user (as approver/manager)
+   * Supports filtering by approval_status: 'pending', 'approved', 'all'
    */
-  public function pendingApprovals()
+  public function pendingApprovals(Request $request)
   {
     try {
-      return $this->service->getPendingApprovals();
+      return $this->service->getPendingApprovals($request);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

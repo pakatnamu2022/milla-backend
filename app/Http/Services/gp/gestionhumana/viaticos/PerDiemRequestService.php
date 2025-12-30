@@ -286,14 +286,19 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Get pending approval requests for the authenticated user (as approver)
+   * Get approval requests for the authenticated user (as approver)
+   * @param Request $request
+   * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
    */
-  public function getPendingApprovals()
+  public function getPendingApprovals(Request $request)
   {
     $approverId = auth()->user()->person->id;
 
-    // Get all per diem requests where the user has a pending approval
-    $requests = PerDiemRequest::where('status', PerDiemApproval::PENDING)
+    // Get approval_status filter: 'pending' (default), 'approved', 'all'
+    $approvalStatus = $request->query('approval_status', 'pending');
+
+    // Build query
+    $query = PerDiemRequest::query()
       ->where('authorizer_id', $approverId)
       ->with([
         'employee',
@@ -301,9 +306,19 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'companyService',
         'district',
         'policy',
-      ])
-      ->orderBy('created_at', 'desc')
-      ->get();
+      ]);
+
+    // Filter by approval status
+    if ($approvalStatus === 'pending') {
+      // Show only pending approvals
+      $query->where('status', PerDiemApproval::PENDING);
+    } elseif ($approvalStatus === 'approved') {
+      // Show only approved by this user
+      $query->where('status', 'approved');
+    }
+    // If 'all', don't filter by status (shows pending + approved)
+
+    $requests = $query->orderBy('created_at', 'desc')->get();
 
     return PerDiemRequestResource::collection($requests);
   }
