@@ -48,7 +48,7 @@
               <div
                 style="margin:0 0 16px 0;padding:16px;border:1px solid #eef0f5;border-radius:12px;background:#fbfbfe;">
                 <p style="margin:0;font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                  Tu solicitud de viáticos <strong>{{ $request_code }}</strong> está lista para ser liquidada. Por favor, registra tus gastos a la brevedad posible.
+                  Has enviado tu liquidación de viáticos <strong>{{ $request_code }}</strong> para revisión. A continuación, encontrarás el detalle de los gastos que has registrado.
                 </p>
               </div>
 
@@ -67,16 +67,86 @@
                 </div>
               </div>
 
+              <!-- Resumen de Totales -->
               <div
-                style="margin:0 0 16px 0;padding:12px 14px;border:1px dashed #dfe3ec;border-radius:12px;background:#fcfdfd;">
-                <strong
-                  style="display:block;margin-bottom:6px;font:600 14px/1.5 Inter,Arial,Helvetica,sans-serif;color:#01237E;">
-                  Acción requerida
-                </strong>
-                <div style="font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                  Por favor, registra todos tus gastos y adjunta los comprobantes correspondientes. Recuerda que tienes un plazo para completar la liquidación.
+                style="margin:0 0 16px 0;padding:12px 14px;border-left:4px solid #10b981;background:#ecfdf5;border-radius:10px;">
+                <div
+                  style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#065f46;margin-bottom:8px;">
+                  Resumen de Liquidación
+                </div>
+                <div style="font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#111827;">
+                  <strong>Total gastado:</strong> S/ {{ number_format($total_general_comprobante, 2) }}<br>
+                  <strong>Total que asume la empresa:</strong> S/ {{ number_format($total_general_asume_empresa, 2) }}<br>
+                  <strong>Total que asumes tú:</strong> S/ {{ number_format($total_general_asume_colaborador, 2) }}
                 </div>
               </div>
+
+              @if(count($gastos_empresa) > 0)
+                <!-- Gastos de la Empresa -->
+                <div style="margin:0 0 16px 0;">
+                  <h3 style="margin:0 0 8px 0;font:600 14px/1.5 Inter,Arial,Helvetica,sans-serif;color:#111827;">
+                    Gastos Asumidos por la Empresa
+                  </h3>
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+                         style="border:1px solid #e6e8ee;border-radius:8px;overflow:hidden;">
+                    <thead>
+                    <tr style="background:#f9fafc;">
+                      <th style="padding:8px;text-align:left;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">Fecha</th>
+                      <th style="padding:8px;text-align:left;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">Tipo</th>
+                      <th style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">Monto</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach($gastos_empresa as $gasto)
+                      <tr>
+                        <td style="padding:8px;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">{{ $gasto['fecha'] }}</td>
+                        <td style="padding:8px;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">{{ $gasto['tipo'] }}</td>
+                        <td style="padding:8px;text-align:right;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">S/ {{ number_format($gasto['asume_empresa'], 2) }}</td>
+                      </tr>
+                    @endforeach
+                    <tr style="background:#f9fafc;">
+                      <td colspan="2" style="padding:8px;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;">Total Empresa</td>
+                      <td style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;">S/ {{ number_format($total_empresa_asume_empresa, 2) }}</td>
+                    </tr>
+                    </tbody>
+                  </table>
+                </div>
+              @endif
+
+              @if(count($gastos_colaborador) > 0)
+                <!-- Gastos del Colaborador -->
+                <div style="margin:0 0 16px 0;">
+                  <h3 style="margin:0 0 8px 0;font:600 14px/1.5 Inter,Arial,Helvetica,sans-serif;color:#111827;">
+                    Tus Gastos Personales
+                  </h3>
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+                         style="border:1px solid #e6e8ee;border-radius:8px;overflow:hidden;">
+                    <thead>
+                    <tr style="background:#f9fafc;">
+                      <th style="padding:8px;text-align:left;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">Fecha</th>
+                      <th style="padding:8px;text-align:left;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">Tipo</th>
+                      <th style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">Empresa</th>
+                      <th style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">Tú</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach($gastos_colaborador as $gasto)
+                      <tr>
+                        <td style="padding:8px;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">{{ $gasto['fecha'] }}</td>
+                        <td style="padding:8px;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">{{ $gasto['tipo'] }}</td>
+                        <td style="padding:8px;text-align:right;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">S/ {{ number_format($gasto['asume_empresa'], 2) }}</td>
+                        <td style="padding:8px;text-align:right;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">S/ {{ number_format($gasto['asume_colaborador'], 2) }}</td>
+                      </tr>
+                    @endforeach
+                    <tr style="background:#f9fafc;">
+                      <td colspan="2" style="padding:8px;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;">Total</td>
+                      <td style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;">S/ {{ number_format($total_colaborador_asume_empresa, 2) }}</td>
+                      <td style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;">S/ {{ number_format($total_colaborador_asume_colaborador, 2) }}</td>
+                    </tr>
+                    </tbody>
+                  </table>
+                </div>
+              @endif
 
               @if(isset($button_url))
                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"
