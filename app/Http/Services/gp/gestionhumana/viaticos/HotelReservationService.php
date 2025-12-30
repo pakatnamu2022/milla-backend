@@ -386,7 +386,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         'notes' => "Reserva de hotel: {$reservation->hotel_name} ({$reservation->nights_count} noches)",
         'is_company_expense' => true,
         'validated' => true,
-        'validated_by' => auth()->id(),
+        'validated_by' => auth()->user()->partner_id,
         'validated_at' => now(),
       ]);
     }
