@@ -44,8 +44,7 @@ class EvaluationService extends BaseService
     EvaluationPersonService       $evaluationPersonService,
     EvaluationPersonResultService $evaluationPersonResultService,
     ExportService                 $exportService
-  )
-  {
+  ) {
     $this->evaluationPersonService = $evaluationPersonService;
     $this->evaluationPersonResultService = $evaluationPersonResultService;
     $this->exportService = $exportService;
@@ -593,7 +592,7 @@ class EvaluationService extends BaseService
         ->whereIn('person_id', $personsToRemove)
         ->delete();
 
-      EvaluationWorker::where('evaluation_id', $evaluation->id)
+      EvaluationPerson::where('evaluation_id', $evaluation->id)
         ->whereIn('person_id', $personsToRemove)
         ->delete();
 
@@ -805,12 +804,12 @@ class EvaluationService extends BaseService
 
     foreach ($cycleDetails as $detail) {
       // Verificar si ya existe este person_cycle_detail para esta evaluación
-      $exists = EvaluationWorker::where('evaluation_id', $evaluation->id)
+      $exists = EvaluationPerson::where('evaluation_id', $evaluation->id)
         ->where('person_cycle_detail_id', $detail->id)
         ->exists();
 
       if (!$exists) {
-        EvaluationWorker::create([
+        EvaluationPerson::create([
           'person_id' => $detail->person_id,
           'chief_id' => $detail->chief_id,
           'chief' => $detail->chief,

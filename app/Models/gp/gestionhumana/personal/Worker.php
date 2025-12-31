@@ -23,6 +23,9 @@ class Worker extends BaseModel
     'nombre_completo',
     'sede_id',
     'jefe_id',
+    'email',
+    'email2',
+    'email3',
   ];
 
   const filters = [

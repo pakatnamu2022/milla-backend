@@ -93,7 +93,7 @@ class EvaluationPersonResult extends BaseModel
 
   public function details()
   {
-    return $this->hasMany(EvaluationWorker::class, 'evaluation_id', 'evaluation_id')
+    return $this->hasMany(EvaluationPerson::class, 'evaluation_id', 'evaluation_id')
       ->where('person_id', $this->person_id)->whereNull('deleted_at');
   }
 
@@ -696,5 +696,4 @@ class EvaluationPersonResult extends BaseModel
       'groups' => count($competenceGroups),
     ];
   }
-
 }

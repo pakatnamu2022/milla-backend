@@ -185,7 +185,7 @@ class PurchaseOrder extends BaseModel
   public function getUsersToNotify()
   {
     return $this->requestDetails()
-      ->with('orderPurchaseRequest.apOrderQuotation')
+      ->with('orderPurchaseRequest.requestedBy.person')
       ->get()
       ->pluck('orderPurchaseRequest')
       ->unique('id')
@@ -194,10 +194,14 @@ class PurchaseOrder extends BaseModel
         return [
           'request_id' => $request->id,
           'request_number' => $request->request_number,
-          'user_id' => $request->apOrderQuotation->user_id ?? null,
+          'user_id' => $request->requested_by,
+          'user_name' => $request->requestedBy?->person?->nombre_completo ?? 'Usuario',
+          'email' => $request->requestedBy?->person?->email2,
         ];
       })
-      ->whereNotNull('user_id');
+      ->whereNotNull('email')
+      ->unique('email')
+      ->values();
   }
 
   /**

@@ -27,10 +27,10 @@ class EvaluationPersonService extends BaseService
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      EvaluationWorker::class,
+      EvaluationPerson::class,
       $request,
-      EvaluationWorker::filters,
-      EvaluationWorker::sorts,
+      EvaluationPerson::filters,
+      EvaluationPerson::sorts,
       EvaluationPersonResource::class,
     );
   }
@@ -45,7 +45,7 @@ class EvaluationPersonService extends BaseService
 
   public function find($id)
   {
-    $evaluationPerson = EvaluationWorker::where('id', $id)->first();
+    $evaluationPerson = EvaluationPerson::where('id', $id)->first();
     if (!$evaluationPerson) {
       throw new Exception('Evaluación de persona no encontrada');
     }
@@ -57,7 +57,7 @@ class EvaluationPersonService extends BaseService
     DB::beginTransaction();
     try {
       $data = $this->enrichData($data);
-      $evaluationPerson = EvaluationWorker::create($data);
+      $evaluationPerson = EvaluationPerson::create($data);
 
       // Recalcular resultados después de crear
       $this->recalculatePersonResults($evaluationPerson->evaluation_id, $evaluationPerson->person_id);
@@ -76,8 +76,8 @@ class EvaluationPersonService extends BaseService
     $cycle = EvaluationCycle::findOrFail($evaluation->cycle_id);
     $details = EvaluationPersonCycleDetail::where('cycle_id', $cycle->id)->get();
 
-    $ids = EvaluationWorker::where('evaluation_id', $evaluation->id)->pluck('id');
-    EvaluationWorker::destroy($ids);
+    $ids = EvaluationPerson::where('evaluation_id', $evaluation->id)->pluck('id');
+    EvaluationPerson::destroy($ids);
 
     DB::transaction(function () use ($details, $evaluation) {
       foreach ($details as $detail) {
@@ -91,7 +91,7 @@ class EvaluationPersonService extends BaseService
           'compliance' => 0,
           'qualification' => 0,
         ];
-        EvaluationWorker::create($data);
+        EvaluationPerson::create($data);
       }
     });
   }
@@ -209,7 +209,7 @@ class EvaluationPersonService extends BaseService
    */
   public function calculateObjectivesResult($evaluationId, $personId)
   {
-    $evaluationPersons = EvaluationWorker::where('evaluation_id', $evaluationId)
+    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluationId)
       ->where('person_id', $personId)
       ->with('personCycleDetail')
       ->get();
@@ -263,7 +263,6 @@ class EvaluationPersonService extends BaseService
         'evaluation_id' => $evaluationId,
         'persons_updated' => $personResults->count()
       ];
-
     } catch (\Exception $e) {
       DB::rollBack();
       throw $e;
@@ -287,7 +286,7 @@ class EvaluationPersonService extends BaseService
       'competencias_completadas' => EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
         ->where('result', '>', 0)
         ->count(),
-      'objetivos_completados' => EvaluationWorker::where('evaluation_id', $evaluationId)
+      'objetivos_completados' => EvaluationPerson::where('evaluation_id', $evaluationId)
         ->where('result', '>', 0)
         ->count(),
     ];
@@ -304,7 +303,7 @@ class EvaluationPersonService extends BaseService
     $evaluation = Evaluation::findOrFail($evaluationId);
 
     // Obtener todas las personas de esta evaluación agrupadas por person_id
-    $evaluationPersons = EvaluationWorker::where('evaluation_id', $evaluationId)
+    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluationId)
       ->with('personCycleDetail')
       ->get()
       ->groupBy('person_id');
@@ -342,7 +341,6 @@ class EvaluationPersonService extends BaseService
             }
           }
           $status = 'completado';
-
         } elseif ($processedCount < $completedCount + $inProgressCount) {
           // 30% en progreso - completar SOLO LA MITAD de las evaluaciones de esta persona
           $evaluationsToComplete = intval($personEvaluations->count() / 2);
@@ -363,7 +361,6 @@ class EvaluationPersonService extends BaseService
             }
           }
           $status = 'en progreso';
-
         } else {
           // 20% sin responder - NO ACTUALIZAR NINGUNA evaluación de esta persona
           $status = 'sin responder';
@@ -386,7 +383,6 @@ class EvaluationPersonService extends BaseService
         ],
         'description' => 'Personas distribuidas: 50% completadas (todas sus evaluaciones), 30% en progreso (mitad de sus evaluaciones), 20% sin responder (ninguna evaluación)'
       ];
-
     } catch (\Exception $e) {
       DB::rollBack();
       throw new Exception("Error al ejecutar la prueba: " . $e->getMessage());
@@ -401,7 +397,7 @@ class EvaluationPersonService extends BaseService
   {
     $evaluation = Evaluation::findOrFail($evaluationId);
 
-    $evaluationPersons = EvaluationWorker::where('evaluation_id', $evaluationId)
+    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluationId)
       ->with('personCycleDetail')
       ->get();
 
@@ -426,7 +422,6 @@ class EvaluationPersonService extends BaseService
           ]);
 
           $updatedCount++;
-
         }
       }
 
@@ -440,7 +435,6 @@ class EvaluationPersonService extends BaseService
         'updated_persons' => $updatedCount,
         'description' => "Todos los resultados fueron actualizados con el {$percentage}% de sus metas correspondientes"
       ];
-
     } catch (\Exception $e) {
       DB::rollBack();
       throw new Exception("Error al ejecutar la prueba: " . $e->getMessage());

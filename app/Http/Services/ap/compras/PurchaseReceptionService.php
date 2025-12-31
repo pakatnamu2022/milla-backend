@@ -7,6 +7,7 @@ use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\EmailService;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseOrderItem;
 use App\Models\ap\compras\PurchaseReception;
@@ -397,15 +398,51 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       return;
     }
 
+    // Obtener usuarios únicos a notificar con sus correos
+    $usersToNotify = $purchaseOrder->getUsersToNotify();
+
+    if ($usersToNotify->isEmpty()) {
+      return;
+    }
+
     $purchaseOrder->requestDetails()->update(['status' => 'received']);
 
-    // TODO: Aquí puedes agregar la lógica de notificación
-    // Ejemplo usando el método del modelo:
-    // $usersToNotify = $purchaseOrder->getUsersToNotify();
-    // foreach ($usersToNotify as $user) {
-    //   Notification::send($user['user_id'], new ProductsArrivedNotification($purchaseOrder, $user['request_id']));
-    // }
+    $emailService = new EmailService();
 
-    // Por ahora solo actualizamos el status, la notificación se puede implementar después
+    // Agrupar por email para enviar un solo correo por usuario
+    $groupedByEmail = $usersToNotify->groupBy('email');
+
+    foreach ($groupedByEmail as $email => $userRequests) {
+      try {
+        // Obtener el primer registro para obtener el nombre del usuario
+        $firstUser = $userRequests->first();
+        $userName = $firstUser['user_name'] ?? 'Usuario';
+
+        // Recopilar todas las solicitudes de este usuario
+        $requestNumbers = $userRequests->pluck('request_number')->unique()->toArray();
+
+        $emailConfig = [
+          'to' => $email,
+          'subject' => 'Pedido Recibido - Orden de Compra ' . $purchaseOrder->number,
+          'template' => 'emails.purchase-order-received',
+          'data' => [
+            'badge' => 'Pedido Recibido',
+            'title' => 'Pedido Recibido en Almacén',
+            'subtitle' => 'Los productos de tu solicitud ya están disponibles',
+            'user_name' => $userName,
+            'purchase_order_number' => $purchaseOrder->number,
+            'request_numbers' => $requestNumbers,
+            'date' => now()->format('d/m/Y H:i'),
+            'company_name' => 'Grupo Pakatnamu',
+            'contact_info' => 'almacen@grupopakatnamu.com'
+          ]
+        ];
+
+        // Enviar correo usando cola de trabajo
+        $emailService->queue($emailConfig);
+      } catch (\Exception $e) {
+        \Log::error('Error al enviar notificación de recepción de orden de compra a ' . $email . ': ' . $e->getMessage());
+      }
+    }
   }
 }

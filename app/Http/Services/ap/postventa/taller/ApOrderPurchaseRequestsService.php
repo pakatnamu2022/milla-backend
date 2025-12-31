@@ -50,9 +50,9 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       // Generate unique request number
       $data['request_number'] = $this->generateRequestNumber();
 
-      // Set created_by
+      // Set requested_by
       if (auth()->check()) {
-        $data['created_by'] = auth()->user()->id;
+        $data['requested_by'] = auth()->user()->id;
       }
 
       // Extract details from data
@@ -257,6 +257,7 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
           'warehouse_id' => $detail->orderPurchaseRequest->warehouse_id,
           'warehouse_name' => $detail->orderPurchaseRequest->warehouse->description ?? null,
           'created_at' => $detail->created_at,
+          'requested_name' => $detail->orderPurchaseRequest->requestedBy->name ?? null,
         ];
       })
     ]);

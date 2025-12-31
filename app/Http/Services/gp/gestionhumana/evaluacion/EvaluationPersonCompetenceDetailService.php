@@ -165,7 +165,6 @@ class EvaluationPersonCompetenceDetailService extends BaseService
 
     // Actualizar EvaluationPersonResult
     $this->updatePersonResult($evaluationId, $personId, $competencesResult, $objectivesResult);
-
   }
 
 
@@ -290,7 +289,7 @@ class EvaluationPersonCompetenceDetailService extends BaseService
    */
   public function calculateObjectivesResult($evaluationId, $personId)
   {
-    $evaluationPersons = EvaluationWorker::where('evaluation_id', $evaluationId)
+    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluationId)
       ->where('person_id', $personId)
       ->with('personCycleDetail')
       ->get();
@@ -414,7 +413,6 @@ class EvaluationPersonCompetenceDetailService extends BaseService
           ]
         ]
       ];
-
     } catch (Exception $e) {
       DB::rollBack();
 
