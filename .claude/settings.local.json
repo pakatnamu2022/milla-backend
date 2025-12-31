@@ -17,7 +17,6 @@
       "Bash(xargs:*)",
       "Bash(grep:*)",
       "Bash(test:*)",
-      "Bash(ls -la \"C:\\\\laragon\\\\www\\\\milla-backend\\\\app\\\\Http\\\\Controllers\\\\gp\\\\gestionhumana\\\\viaticos\"\" 2>/dev/null | findstr \"Controller \")",
       "Bash(git log:*)"
     ],
     "deny": [],

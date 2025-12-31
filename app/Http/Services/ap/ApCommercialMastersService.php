@@ -8,6 +8,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\ApCommercialMasters;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class ApCommercialMastersService extends BaseService implements BaseServiceInterface
@@ -43,6 +44,10 @@ class ApCommercialMastersService extends BaseService implements BaseServiceInter
     }
 
     $ApCommercialMasters = ApCommercialMasters::create($data);
+
+    // Limpiar el cache de tipos cuando se crea un registro
+    Cache::forget('commercial_masters_types');
+
     return new ApCommercialMastersResource($ApCommercialMasters);
   }
 
@@ -62,6 +67,10 @@ class ApCommercialMastersService extends BaseService implements BaseServiceInter
       throw new Exception('El campo num. digitos debe tener formato de número entero.');
     }
     $ApCommercialMasters->update($data);
+
+    // Limpiar el cache de tipos cuando se actualiza un registro
+    Cache::forget('commercial_masters_types');
+
     return new ApCommercialMastersResource($ApCommercialMasters);
   }
 
@@ -71,6 +80,31 @@ class ApCommercialMastersService extends BaseService implements BaseServiceInter
     DB::transaction(function () use ($ApCommercialMasters) {
       $ApCommercialMasters->delete();
     });
+
+    // Limpiar el cache de tipos cuando se elimina un registro
+    Cache::forget('commercial_masters_types');
+
     return response()->json(['message' => 'Concepto de tabla maestra eliminado correctamente']);
+  }
+
+  /**
+   * Obtener todos los tipos registrados en Master Comercial
+   * Cacheado por 24 horas (1440 minutos)
+   */
+  public function getTypes()
+  {
+    return Cache::remember('commercial_masters_types', 1440, function () {
+      $types = ApCommercialMasters::select('type')
+        ->distinct()
+        ->whereNotNull('type')
+        ->orderBy('type')
+        ->pluck('type');
+
+      return response()->json([
+        'data' => $types,
+        'count' => $types->count(),
+        'cached_at' => now()->toDateTimeString(),
+      ]);
+    });
   }
 }

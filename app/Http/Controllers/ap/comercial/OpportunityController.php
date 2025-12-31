@@ -144,4 +144,17 @@ class OpportunityController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Obtener datos necesarios para generar una solicitud desde una oportunidad
+   * GET /api/ap/commercial/opportunities/{id}/request-data
+   */
+  public function getRequestData($id)
+  {
+    try {
+      return $this->service->getRequestData($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

@@ -6,6 +6,22 @@ use App\Http\Requests\StoreRequest;
 
 class StoreVehiclesRequest extends StoreRequest
 {
+  /**
+   * Determina si el usuario está autorizado para hacer esta solicitud
+   * Verifica el permiso de asociar VIN
+   */
+  public function authorize(): bool
+  {
+    $user = auth()->user();
+
+    // Verificar si el usuario tiene el permiso de asociar VIN
+    if (!$user->hasPermission('vehicles.associate_vin')) {
+      return false;
+    }
+
+    return true;
+  }
+
   public function rules(): array
   {
     return [

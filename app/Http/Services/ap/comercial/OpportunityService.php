@@ -244,4 +244,51 @@ class OpportunityService extends BaseService implements BaseServiceInterface
       ];
     })->values();
   }
+
+  /**
+   * Obtener datos necesarios para generar una solicitud de cotización desde una oportunidad
+   * Sin lógica adicional, solo exposición de datos
+   */
+  public function getRequestData($id)
+  {
+    $opportunity = $this->find($id);
+
+    // Cargar relaciones necesarias
+    $opportunity->load(['client', 'worker', 'family']);
+
+    return response()->json([
+      'opportunity_id' => $opportunity->id,
+      'holder_id' => $opportunity->client_id,
+      'client' => [
+        'id' => $opportunity->client->id,
+        'name' => $opportunity->client->card_name,
+        'num_doc' => $opportunity->client->num_doc,
+        'phone' => $opportunity->client->phone1,
+        'email' => $opportunity->client->e_mail,
+      ],
+      'worker_id' => $opportunity->worker_id,
+      'worker' => [
+        'id' => $opportunity->worker->id,
+        'full_name' => $opportunity->worker->FullName,
+        'email' => $opportunity->worker->email,
+      ],
+      'family_id' => $opportunity->family_id,
+      'family' => $opportunity->family ? [
+        'id' => $opportunity->family->id,
+        'description' => $opportunity->family->description,
+      ] : null,
+      'opportunity_status' => [
+        'id' => $opportunity->opportunityStatus->id,
+        'code' => $opportunity->opportunityStatus->code,
+        'description' => $opportunity->opportunityStatus->description,
+      ],
+      'client_status' => $opportunity->clientStatus ? [
+        'id' => $opportunity->clientStatus->id,
+        'code' => $opportunity->clientStatus->code,
+        'description' => $opportunity->clientStatus->description,
+      ] : null,
+      'comment' => $opportunity->comment,
+      'created_at' => $opportunity->created_at,
+    ]);
+  }
 }

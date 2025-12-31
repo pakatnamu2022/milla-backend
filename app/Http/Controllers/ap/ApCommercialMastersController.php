@@ -63,4 +63,17 @@ class ApCommercialMastersController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Obtener todos los tipos registrados en Master Comercial (cacheado)
+   * GET /api/ap/commercialMasters/types
+   */
+  public function getTypes()
+  {
+    try {
+      return $this->service->getTypes();
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
