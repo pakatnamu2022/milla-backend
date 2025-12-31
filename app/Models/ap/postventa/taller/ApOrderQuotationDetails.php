@@ -25,6 +25,9 @@ class ApOrderQuotationDetails extends Model
     'discount',
     'total_amount',
     'observations',
+    'retail_price_external',
+    'flete_external',
+    'percentage_flete_external',
   ];
 
   const filters = [

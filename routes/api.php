@@ -1032,6 +1032,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
+      Route::get('workOrderParts/quotation-by-vehicle/{vehicle_id}', [ApWorkOrderPartsController::class, 'getQuotationByVehicle']);
+      Route::post('workOrderParts/store-bulk-from-quotation', [ApWorkOrderPartsController::class, 'storeBulkFromQuotation']);
 
       // Work Order Labour - Mano de Obra de Órdenes de Trabajo
       Route::apiResource('workOrderLabour', WorkOrderLabourController::class)->only([
