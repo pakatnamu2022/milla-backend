@@ -311,25 +311,25 @@ class StoreCreditNoteRequest extends StoreRequest
       }
 
       // VALIDACIÓN 3: Verificar que el documento original no haya sido regularizado por anticipo
-      if ($originalDocument->sunat_concept_transaction_type_id == 36) { // Tipo operación: Anticipos
-        // Buscar si existe una factura que regulariza este anticipo
-        $hasRegularization = ElectronicDocument::whereHas('items', function ($query) use ($originalDocument) {
-          $query->where('anticipo_regularizacion', true)
-            ->where('anticipo_documento_serie', $originalDocument->serie)
-            ->where('anticipo_documento_numero', $originalDocument->numero);
-        })
-          ->where('aceptada_por_sunat', true)
-          ->where('anulado', false)
-          ->whereNull('deleted_at')
-          ->exists();
-
-        if ($hasRegularization) {
-          $validator->errors()->add(
-            'original_document_id',
-            'No se puede crear una nota de crédito para un anticipo que ya ha sido regularizado. Debe crear la nota de crédito sobre la factura de regularización.'
-          );
-        }
-      }
+//      if ($originalDocument->sunat_concept_transaction_type_id == 36) { // Tipo operación: Anticipos
+//        // Buscar si existe una factura que regulariza este anticipo
+//        $hasRegularization = ElectronicDocument::whereHas('items', function ($query) use ($originalDocument) {
+//          $query->where('anticipo_regularizacion', true)
+//            ->where('anticipo_documento_serie', $originalDocument->serie)
+//            ->where('anticipo_documento_numero', $originalDocument->numero);
+//        })
+//          ->where('aceptada_por_sunat', true)
+//          ->where('anulado', false)
+//          ->whereNull('deleted_at')
+//          ->exists();
+//
+//        if ($hasRegularization) {
+//          $validator->errors()->add(
+//            'original_document_id',
+//            'No se puede crear una nota de crédito para un anticipo que ya ha sido regularizado. Debe crear la nota de crédito sobre la factura de regularización.'
+//          );
+//        }
+//      }
     });
   }
 }
