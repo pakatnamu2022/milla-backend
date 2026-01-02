@@ -1750,6 +1750,11 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       throw new Exception('Aún no se ha generado la planilla de movilidad para esta solicitud. Debe generar la planilla primero antes de poder visualizar el PDF.');
     }
 
+    // if settled is false, throw exception
+    if (!$perDiemRequest->settled) {
+      throw new Exception('La solicitud debe estar liquidada para generar la planilla de movilidad.');
+    }
+
     // Get mobility expenses with mobility_payroll_id
     $mobilityExpenses = $perDiemRequest->expenses->filter(function ($expense) {
       return !is_null($expense->mobility_payroll_id);
