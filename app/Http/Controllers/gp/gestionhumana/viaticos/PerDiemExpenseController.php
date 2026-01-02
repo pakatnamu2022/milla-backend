@@ -44,6 +44,21 @@ class PerDiemExpenseController extends Controller
   }
 
   /**
+   * Display a specific expense
+   */
+  public function show(int $expenseId)
+  {
+    try {
+      $expense = PerDiemExpense::with(['expenseType', 'validator', 'rejector', 'request'])
+        ->findOrFail($expenseId);
+
+      return $this->success(new PerDiemExpenseResource($expense));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Store a newly created expense
    */
   public function store(int $requestId, StorePerDiemExpenseRequest $request)

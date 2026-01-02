@@ -1221,6 +1221,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     // Expenses
     Route::get('per-diem-requests/{requestId}/expenses', [PerDiemExpenseController::class, 'index']);
     Route::post('per-diem-requests/{requestId}/expenses', [PerDiemExpenseController::class, 'store']);
+    Route::get('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'show']);
     Route::post('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'update']);
     Route::delete('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'destroy']);
     Route::post('per-diem-expenses/{expenseId}/validate', [PerDiemExpenseController::class, 'isValid']);
