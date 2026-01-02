@@ -190,6 +190,9 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         $this->uploadAndAttachFiles($reservation, $files);
       }
 
+      // Update associated company expense
+      $this->createCompanyExpenseForReservation($reservation->fresh(), $data['document_number'] ?? "");
+
       DB::commit();
       return new HotelReservationResource($reservation->fresh(['request', 'hotelAgreement']));
     } catch (Exception $e) {
@@ -367,6 +370,8 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         'employee_amount' => 0,
         'expense_date' => $reservation->checkin_date,
         'receipt_path' => $reservation->receipt_path,
+        'receipt_number' => strtoupper($document_number),
+        'business_name' => strtoupper($reservation->hotel_name),
         'notes' => "Reserva de hotel: {$reservation->hotel_name} ({$reservation->nights_count} noches)",
       ]);
     } else {

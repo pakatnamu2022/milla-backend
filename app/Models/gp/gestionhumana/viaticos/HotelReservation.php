@@ -61,6 +61,11 @@ class HotelReservation extends BaseModel
     return $this->belongsTo(PerDiemRequest::class, 'per_diem_request_id');
   }
 
+  public function expense(): BelongsTo
+  {
+    return $this->belongsTo(PerDiemExpense::class, 'id', 'hotel_reservation_id');
+  }
+
   /**
    * Get the hotel agreement this reservation is associated with
    */

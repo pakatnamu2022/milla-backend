@@ -37,6 +37,8 @@ class HotelReservationResource extends JsonResource
         ] : null;
       }),
 
+      'expense' => $this->expense ? PerDiemExpenseResource::make($this->expense) : null,
+
       'created_at' => $this->created_at,
       'updated_at' => $this->updated_at,
     ];
