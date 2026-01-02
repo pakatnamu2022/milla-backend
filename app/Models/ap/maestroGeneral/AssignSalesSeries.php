@@ -55,7 +55,7 @@ class AssignSalesSeries extends Model
   const int NOTA_CREDITO_NUBEFACT = 31;
   const int NOTA_DEBITO_NUBEFACT = 32;
   const int GUIA_REMISION = 803;
-  const int TRAVEL_EXPENSE_FORM = 881;
+  const int TRAVEL_EXPENSE_FORM = 879;
 
   public function setSeriesAttribute($value)
   {
