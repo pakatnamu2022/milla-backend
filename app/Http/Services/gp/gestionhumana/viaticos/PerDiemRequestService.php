@@ -722,6 +722,24 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     }
   }
 
+  public function confirmProgress(int $id): PerDiemRequestResource
+  {
+    $request = $this->find($id);
+    $request->update(['status' => PerDiemRequest::STATUS_IN_PROGRESS]);
+
+    return new PerDiemRequestResource($request->fresh([
+      'employee',
+      'company',
+      'companyService',
+      'district',
+      'policy',
+      'category',
+      'budgets.expenseType',
+      'hotelReservation.hotelAgreement'
+    ]));
+  }
+
+
   /**
    * Get available expense types for a per diem request
    * Returns expense types that have budgets assigned to the request
@@ -917,11 +935,11 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
     // Separar gastos por quien los asume (empresa vs colaborador)
     $gastosEmpresa = $perDiemRequest->expenses->filter(function ($expense) {
-      return $expense->is_company_expense === true;
+      return $expense->is_company_expense === true && $expense->validated == 1;
     });
 
     $gastosColaborador = $perDiemRequest->expenses->filter(function ($expense) {
-      return $expense->is_company_expense === false;
+      return $expense->is_company_expense === false && $expense->validated == 1;
     });
 
     // ===== GASTOS DE LA EMPRESA =====
@@ -967,11 +985,6 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         $expenseTypeName = $expense->expenseType->name ?? '';
         $notes = $expense->notes ?? '';
         $detalle = $expenseTypeName . ($notes ? ' - ' . $notes : '');
-
-        // Log para ver el detalle
-        \Log::info('Detalle del gasto', [
-          'expense' => $expense,
-        ]);
 
         return [
           'expense_date' => $expense->expense_date,
@@ -1360,7 +1373,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
     // Obtener solo los gastos del personal (no asumidos por la empresa) directamente del modelo
     $gastosColaborador = $perDiemRequest->expenses->filter(function ($expense) {
-      return !$expense->is_company_expense;
+      return !$expense->is_company_expense && $expense->validated == 1;
     });
 
     // Agrupar gastos por parent (si tienen parent, agrupar por parent_id, si no por expense_type_id)
