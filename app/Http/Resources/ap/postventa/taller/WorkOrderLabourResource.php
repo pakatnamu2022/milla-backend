@@ -11,6 +11,7 @@ class WorkOrderLabourResource extends JsonResource
   {
     return [
       'id' => $this->id,
+      'group_number' => $this->group_number,
       'description' => $this->description,
       'time_spent' => $this->time_spent,
       'hourly_rate' => $this->hourly_rate,
@@ -23,6 +24,7 @@ class WorkOrderLabourResource extends JsonResource
           'full_name' => $this->worker->full_name,
         ];
       }),
+      'worker_full_name' => $this->worker->nombre_completo,
       'work_order_id' => $this->work_order_id,
       'work_order' => $this->whenLoaded('workOrder', function () {
         return [

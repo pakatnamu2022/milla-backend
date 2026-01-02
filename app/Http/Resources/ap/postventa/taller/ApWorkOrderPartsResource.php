@@ -28,6 +28,7 @@ class ApWorkOrderPartsResource extends JsonResource
       'total_amount' => (float)$this->total_amount,
       'registered_by' => $this->registered_by,
       'is_delivered' => (bool)$this->is_delivered,
+      'group_number' => $this->group_number,
       'registered_by_name' => $this->registeredBy ? $this->registeredBy->name : null,
     ];
   }

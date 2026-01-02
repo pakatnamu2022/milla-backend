@@ -341,4 +341,64 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
 
     return 'pending';
   }
+
+  /**
+   * Obtener lista consolidada de trabajadores únicos que participaron en una orden de trabajo
+   * Sin duplicados
+   */
+  public function getWorkers($workOrderId)
+  {
+    // Obtener todos los registros de planificación para la orden de trabajo
+    $plannings = ApWorkOrderPlanning::with(['worker'])
+      ->where('work_order_id', $workOrderId)
+      ->get();
+
+    if ($plannings->isEmpty()) {
+      return [];
+    }
+
+    // Agrupar por worker_id para obtener trabajadores únicos
+    $grouped = $plannings->groupBy('worker_id');
+
+    $workers = [];
+
+    foreach ($grouped as $workerId => $workerPlannings) {
+      $firstPlanning = $workerPlannings->first();
+
+      // Calcular totales del trabajador
+      $totalEstimatedHours = $workerPlannings->sum('estimated_hours');
+      $totalActualHours = $workerPlannings->sum('actual_hours');
+
+      // Contar trabajos por estado
+      $totalJobs = $workerPlannings->count();
+      $completedJobs = $workerPlannings->where('status', 'completed')->count();
+      $inProgressJobs = $workerPlannings->where('status', 'in_progress')->count();
+      $pendingJobs = $workerPlannings->where('status', 'pending')->count();
+
+      // Calcular porcentaje de progreso
+      $progressPercentage = $totalEstimatedHours > 0
+        ? round(($totalActualHours / $totalEstimatedHours) * 100, 2)
+        : 0;
+
+      $workers[] = [
+        'worker_id' => $workerId,
+        'worker_name' => $firstPlanning->worker ? $firstPlanning->worker->nombre_completo : 'N/A',
+        'total_jobs' => $totalJobs,
+        'completed_jobs' => $completedJobs,
+        'in_progress_jobs' => $inProgressJobs,
+        'pending_jobs' => $pendingJobs,
+        'total_estimated_hours' => round($totalEstimatedHours, 2),
+        'total_actual_hours' => round($totalActualHours, 2),
+        'remaining_hours' => round($totalEstimatedHours - $totalActualHours, 2),
+        'progress_percentage' => $progressPercentage,
+      ];
+    }
+
+    // Ordenar por nombre del trabajador
+    usort($workers, function ($a, $b) {
+      return strcmp($a['worker_name'], $b['worker_name']);
+    });
+
+    return $workers;
+  }
 }

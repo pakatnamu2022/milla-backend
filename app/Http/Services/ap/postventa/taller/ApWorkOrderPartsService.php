@@ -10,6 +10,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\Products;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
 use Exception;
@@ -184,12 +185,21 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
   /**
    * Obtener cotización activa por vehicle_id
    * Retorna la cotización vigente (expiration_date no vencida)
+   * Solo retorna productos con status = 'pending'
    */
   public function getQuotationByVehicle($vehicleId)
   {
     $quotation = ApOrderQuotations::where('vehicle_id', $vehicleId)
       ->where('expiration_date', '>=', now())
-      ->with(['details.product', 'vehicle', 'sede', 'createdBy'])
+      ->with([
+        'details' => function ($query) {
+          $query->where('status', 'pending');
+        },
+        'details.product',
+        'vehicle',
+        'sede',
+        'createdBy'
+      ])
       ->latest('created_at')
       ->first();
 
@@ -203,6 +213,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
   /**
    * Guardar masivamente repuestos desde una cotización
    * Valida stock de cada producto antes de guardar
+   * Marca solo los detalles seleccionados como 'taken'
    */
   public function storeBulkFromQuotation(mixed $data)
   {
@@ -210,23 +221,21 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $quotationId = $data['quotation_id'];
       $workOrderId = $data['work_order_id'];
       $warehouseId = $data['warehouse_id'];
+      $quotationDetailIds = $data['quotation_detail_ids'];
 
-      // Obtener la cotización con sus detalles
-      $quotation = ApOrderQuotations::with('details.product')
-        ->where('id', $quotationId)
-        ->first();
+      // Obtener solo los detalles seleccionados
+      $quotationDetails = ApOrderQuotationDetails::with('product')
+        ->where('order_quotation_id', $quotationId)
+        ->whereIn('id', $quotationDetailIds)
+        ->get();
 
-      if (!$quotation) {
-        throw new Exception('Cotización no encontrada');
-      }
-
-      if ($quotation->details->isEmpty()) {
-        throw new Exception('La cotización no tiene productos');
+      if ($quotationDetails->isEmpty()) {
+        throw new Exception('No se encontraron productos seleccionados');
       }
 
       // Validar stock para todos los productos ANTES de crear cualquier registro
       $stockService = new ProductWarehouseStockService();
-      foreach ($quotation->details as $detail) {
+      foreach ($quotationDetails as $detail) {
         if (!$detail->product_id) {
           continue; // Skip si no tiene product_id
         }
@@ -249,7 +258,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $createdParts = [];
       $inventoryMovementService = new InventoryMovementService();
 
-      foreach ($quotation->details as $detail) {
+      foreach ($quotationDetails as $detail) {
         if (!$detail->product_id) {
           continue; // Skip si no tiene product_id
         }
@@ -262,6 +271,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
           'quantity_used' => $detail->quantity,
           'unit_price' => $detail->unit_price,
           'discount_percentage' => $detail->discount ?? 0,
+          'group_number' => $data['group_number'],
         ];
 
         // Calcular precios y totales automáticamente
@@ -278,20 +288,20 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         // Crear movimiento de inventario de salida
         $inventoryMovementService->createWorkOrderPartOutbound($workOrderPart);
 
-        $createdParts[] = $workOrderPart;
-      }
+        // Cargar las relaciones necesarias
+        $workOrderPart->load(['workOrder', 'product', 'warehouse']);
 
-      // Marcar la cotización como tomada
-      $quotation->markAsTaken();
+        $createdParts[] = $workOrderPart;
+
+        // Marcar este detalle específico como tomado
+        $detail->status = 'taken';
+        $detail->save();
+      }
 
       return [
         'message' => 'Repuestos agregados correctamente desde la cotización',
         'total_parts' => count($createdParts),
-        'parts' => ApWorkOrderPartsResource::collection(collect($createdParts)->load([
-          'workOrder',
-          'product',
-          'warehouse'
-        ]))
+        'parts' => ApWorkOrderPartsResource::collection($createdParts)
       ];
     });
   }

@@ -28,6 +28,7 @@ class ApOrderQuotationDetails extends Model
     'retail_price_external',
     'flete_external',
     'percentage_flete_external',
+    'status',
   ];
 
   const filters = [

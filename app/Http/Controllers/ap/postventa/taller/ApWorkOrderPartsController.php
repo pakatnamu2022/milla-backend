@@ -5,9 +5,9 @@ namespace App\Http\Controllers\ap\postventa\taller;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\postventa\taller\IndexApWorkOrderPartsRequest;
 use App\Http\Requests\ap\postventa\taller\StoreApWorkOrderPartsRequest;
+use App\Http\Requests\ap\postventa\taller\StoreBulkFromQuotationRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateApWorkOrderPartsRequest;
 use App\Http\Services\ap\postventa\taller\ApWorkOrderPartsService;
-use Illuminate\Http\Request;
 
 class ApWorkOrderPartsController extends Controller
 {
@@ -82,17 +82,12 @@ class ApWorkOrderPartsController extends Controller
   /**
    * Guardar masivamente repuestos desde una cotización
    * POST /api/ap-work-order-parts/store-bulk-from-quotation
-   * Body: { quotation_id, work_order_id, warehouse_id }
+   * Body: { quotation_id, work_order_id, warehouse_id, group_number, quotation_detail_ids[] }
    */
-  public function storeBulkFromQuotation(Request $request)
+  public function storeBulkFromQuotation(StoreBulkFromQuotationRequest $request)
   {
     try {
-      $validated = $request->validate([
-        'quotation_id' => 'required|exists:ap_order_quotations,id',
-        'work_order_id' => 'required|exists:ap_work_orders,id',
-        'warehouse_id' => 'required|exists:general_warehouses,id',
-      ]);
-
+      $validated = $request->validated();
       return $this->success($this->service->storeBulkFromQuotation($validated));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
