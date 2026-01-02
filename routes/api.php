@@ -121,6 +121,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::get('/permissions', [AuthController::class, 'permissions'])->name('permissions');
   Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
   Route::post('/change-password', [AuthController::class, 'changePassword'])->name('changePassword');
+  Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('resetPassword');
 
   //    GENERAL
   //    SEDE
@@ -1219,7 +1220,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     // Expenses
     Route::get('per-diem-requests/{requestId}/expenses', [PerDiemExpenseController::class, 'index']);
     Route::post('per-diem-requests/{requestId}/expenses', [PerDiemExpenseController::class, 'store']);
-    Route::put('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'update']);
+    Route::post('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'update']);
     Route::delete('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'destroy']);
     Route::post('per-diem-expenses/{expenseId}/validate', [PerDiemExpenseController::class, 'isValid']);
     Route::post('per-diem-expenses/{expenseId}/reject', [PerDiemExpenseController::class, 'reject']);

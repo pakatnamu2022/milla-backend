@@ -343,4 +343,23 @@ class AuthService
     return response()->json(['message' => 'Contraseña actualizada correctamente']);
   }
 
+  public function resetPassword($request)
+  {
+    $user = User::find($request->user_id);
+
+    if (!$user) {
+      return response()->json(['message' => 'Usuario no encontrado'], 404);
+    }
+
+    $user->update([
+      'password' => Hash::make($user->username),
+      'verified_at' => null
+    ]);
+
+    return response()->json([
+      'message' => 'Contraseña restablecida correctamente',
+      'username' => $user->username
+    ]);
+  }
+
 }
