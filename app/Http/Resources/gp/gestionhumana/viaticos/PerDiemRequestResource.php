@@ -71,9 +71,9 @@ class PerDiemRequestResource extends JsonResource
         'id' => $this->company->id,
         'name' => $this->company->name,
       ] : null,
-      'company_service' => $this->companyService ? [
-        'id' => $this->companyService->id,
-        'name' => $this->companyService->name,
+      'sede_service' => $this->sedeService ? [
+        'id' => $this->sedeService->id,
+        'name' => $this->sedeService->abreviatura,
       ] : null,
       'district' => $this->district ? [
         'id' => $this->district->id,

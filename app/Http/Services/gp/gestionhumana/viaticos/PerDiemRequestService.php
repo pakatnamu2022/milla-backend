@@ -124,7 +124,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'per_diem_policy_id' => $currentPolicy->id,
         'employee_id' => $data['employee_id'],
         'company_id' => $data['company_id'],
-        'company_service_id' => $data['company_service_id'],
+        'sede_service_id' => $data['sede_service_id'],
         'district_id' => $data['district_id'],
         'per_diem_category_id' => $employee->position->per_diem_category_id,
         'start_date' => $data['start_date'],
@@ -174,7 +174,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $this->sendPerDiemRequestCreatedEmails($request->fresh(['employee.boss', 'district']));
 
       DB::commit();
-      return new PerDiemRequestResource($request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category', 'budgets.expenseType', 'approvals.approver']));
+      return new PerDiemRequestResource($request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category', 'budgets.expenseType', 'approvals.approver']));
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -207,7 +207,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $request->update($data);
 
       DB::commit();
-      return new PerDiemRequestResource($request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category']));
+      return new PerDiemRequestResource($request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category']));
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -272,7 +272,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       );
 
       DB::commit();
-      return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category']);
+      return $request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category']);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -313,7 +313,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       ->with([
         'employee',
         'company',
-        'companyService',
+        'sedeService',
         'district',
         'policy',
       ]);
@@ -390,7 +390,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       }
 
       DB::commit();
-      return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category', 'approvals.approver']);
+      return $request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category', 'approvals.approver']);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -485,7 +485,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       ]);
 
       DB::commit();
-      return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category']);
+      return $request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category']);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -517,7 +517,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $this->sendPerDiemRequestSettlementEmail($request->fresh(['employee', 'district']));
 
       DB::commit();
-      return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category']);
+      return $request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category']);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -569,7 +569,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $this->sendPerDiemRequestSettledEmail($request->fresh(['employee', 'district']));
 
       DB::commit();
-      return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category', 'expenses']);
+      return $request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category', 'expenses']);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -615,7 +615,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $request->update(['notes' => $newNotes]);
 
       DB::commit();
-      return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category', 'expenses']);
+      return $request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category', 'expenses']);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -651,7 +651,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $request->update(['notes' => $newNotes]);
 
       DB::commit();
-      return $request->fresh(['employee', 'company', 'companyService', 'district', 'policy', 'category', 'expenses']);
+      return $request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category', 'expenses']);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -709,7 +709,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         $request->fresh([
           'employee',
           'company',
-          'companyService',
+          'sedeService',
           'district',
           'policy',
           'category',
@@ -731,7 +731,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     return new PerDiemRequestResource($request->fresh([
       'employee',
       'company',
-      'companyService',
+      'sedeService',
       'district',
       'policy',
       'category',
@@ -926,7 +926,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       'employee.boss.position',
       'employee.position.area',
       'company',
-      'companyService',
+      'sedeService',
       'district',
       'category',
       'policy',
@@ -1146,7 +1146,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       'employee.boss.position',
       'employee.position.area',
       'company',
-      'companyService',
+      'sedeService',
       'district',
       'category',
       'policy',
@@ -1364,7 +1364,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       'employee.boss.position',
       'employee.position.area',
       'company',
-      'companyService',
+      'sedeService',
       'district',
       'category',
       'policy',
@@ -1654,7 +1654,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         $request->fresh([
           'employee',
           'company',
-          'companyService',
+          'sedeService',
           'district',
           'policy',
           'category'
@@ -1713,8 +1713,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         $firstExpenseDate = $mobilityExpenses->min('expense_date');
         $period = Carbon::parse($firstExpenseDate)->format('m/Y');
 
-        // Get sede_id from employee
-        $sedeId = $perDiemRequest->employee->sede_id ?? null;
+        // Get sede_id from the per diem request
+        $sedeId = $perDiemRequest->sede_service_id ?? null;
 
         // Get serie and correlative_start from AssignSalesSeries
         $assignedSeries = AssignSalesSeries::where('type_receipt_id', AssignSalesSeries::TRAVEL_EXPENSE_FORM)
@@ -1734,9 +1734,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         // Create mobility payroll record
         $mobilityPayroll = MobilityPayroll::create([
           'worker_id' => $employee->id,
-          'num_doc' => $perDiemRequest->companyService->num_doc ?? '',
-          'company_name' => $perDiemRequest->companyService->name ?? '',
-          'address' => $perDiemRequest->companyService->address ?? '',
+          'num_doc' => $perDiemRequest->sedeService->company->num_doc ?? '',
+          'company_name' => $perDiemRequest->sedeService->company->name ?? '',
+          'address' => $perDiemRequest->sedeService->company->address ?? '',
           'serie' => $serie,
           'correlative' => $correlative,
           'period' => $period,

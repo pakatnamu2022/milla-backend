@@ -10,7 +10,7 @@ class StorePerDiemRequestRequest extends StoreRequest
   {
     return [
       'company_id' => ['required', 'integer', 'exists:companies,id'],
-      'company_service_id' => ['required', 'integer', 'exists:companies,id'],
+      'sede_service_id' => ['required', 'integer', 'exists:config_sede,id'],
       'district_id' => ['required', 'integer', 'exists:district,id'],
       'start_date' => ['required', 'date'],
       'end_date' => ['required', 'date', 'after_or_equal:start_date'],
@@ -39,7 +39,7 @@ class StorePerDiemRequestRequest extends StoreRequest
   {
     return [
       'company_id' => 'empresa',
-      'company_service_id' => 'empresa de servicio',
+      'sede_service_id' => 'sede de servicio',
       'district_id' => 'distrito',
       'start_date' => 'fecha de inicio',
       'end_date' => 'fecha de fin',

@@ -10,7 +10,7 @@ class UpdatePerDiemRequestRequest extends StoreRequest
   {
     return [
       'company_id' => ['nullable', 'integer', 'exists:companies,id'],
-      'company_service_id' => ['nullable', 'integer', 'exists:companies,id'],
+      'sede_service_id' => ['nullable', 'integer', 'exists:config_sede,id'],
       'district_id' => ['nullable', 'integer', 'exists:district,id'],
       'start_date' => ['nullable', 'date'],
       'end_date' => ['nullable', 'date', 'after:start_date'],
@@ -27,7 +27,7 @@ class UpdatePerDiemRequestRequest extends StoreRequest
   {
     return [
       'company_id.exists' => 'La empresa seleccionada no existe.',
-      'company_service_id.exists' => 'El servicio de la empresa seleccionado no existe.',
+      'sede_service_id.exists' => 'El servicio de la sede seleccionado no existe.',
       'district_id.exists' => 'El distrito seleccionado no existe.',
       'end_date.after' => 'La fecha de fin debe ser posterior a la fecha de inicio.',
       'purpose.max' => 'El propósito no puede tener más de 500 caracteres.',
