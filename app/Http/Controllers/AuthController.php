@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\ChangePasswordRequest;
+use App\Http\Requests\Auth\ResetPasswordRequest;
+use App\Http\Requests\Auth\ResetPasswordByCompanyRequest;
 use App\Http\Services\common\AuthService;
 use Illuminate\Http\Request;
 
@@ -42,6 +45,21 @@ class AuthController extends Controller
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
+  }
+
+  public function changePassword(ChangePasswordRequest $request)
+  {
+    return $this->service->changePassword($request);
+  }
+
+  public function resetPassword(ResetPasswordRequest $request)
+  {
+    return $this->service->resetPassword($request);
+  }
+
+  public function resetPasswordByCompany(ResetPasswordByCompanyRequest $request)
+  {
+    return $this->service->resetPasswordByCompany($request);
   }
 
 }

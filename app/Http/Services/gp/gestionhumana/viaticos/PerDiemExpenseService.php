@@ -207,16 +207,22 @@ class PerDiemExpenseService extends BaseService
   /**
    * Update expense
    */
-  public function update(int $expenseId, array $data): PerDiemExpense
+  public function update(int $expenseId, array $data, $file): PerDiemExpense
   {
     try {
       DB::beginTransaction();
 
       $expense = PerDiemExpense::findOrFail($expenseId);
+      $request = $expense->request;
 
       // Validate that expense can be updated
       if ($expense->validated) {
         throw new Exception('Cannot update expense. Expense has already been validated.');
+      }
+
+      // Validate request status
+      if (!in_array($request->status, ['in_progress', 'pending_settlement', 'settled'])) {
+        throw new Exception('No se pueden actualizar gastos de una solicitud en el estado actual. Asegúrese de que la solicitud esté en progreso o en liquidación.');
       }
 
       // Cast expense_type_id to int if present to ensure proper comparison
@@ -224,10 +230,14 @@ class PerDiemExpenseService extends BaseService
         $data['expense_type_id'] = (int)$data['expense_type_id'];
       }
 
+      // Get the new values (use provided or existing)
+      $newExpenseTypeId = $data['expense_type_id'] ?? $expense->expense_type_id;
+      $newExpenseDate = $data['expense_date'] ?? $expense->expense_date;
+      $newReceiptAmount = $data['receipt_amount'] ?? $expense->receipt_amount;
+
       // Validate meals expenses based on hotel reservation (if expense_type_id is being changed)
       if (isset($data['expense_type_id']) && $data['expense_type_id'] !== $expense->expense_type_id) {
         if (in_array($data['expense_type_id'], [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
-          $request = $expense->request;
           $hotelReservation = $request->hotelReservation()->with('hotelAgreement')->first();
 
           // If no hotel reservation exists, meals cannot be expensed
@@ -255,8 +265,6 @@ class PerDiemExpenseService extends BaseService
       // Validate that only one lunch or dinner per day can be created (when changing type or date)
       $expenseTypeChanged = isset($data['expense_type_id']) && $data['expense_type_id'] !== $expense->expense_type_id;
       $expenseDateChanged = isset($data['expense_date']) && $data['expense_date'] !== $expense->expense_date;
-      $newExpenseTypeId = $data['expense_type_id'] ?? $expense->expense_type_id;
-      $newExpenseDate = $data['expense_date'] ?? $expense->expense_date;
 
       if (in_array($newExpenseTypeId, [ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID]) && ($expenseTypeChanged || $expenseDateChanged)) {
         $existingExpense = PerDiemExpense::where('per_diem_request_id', $expense->per_diem_request_id)
@@ -272,16 +280,84 @@ class PerDiemExpenseService extends BaseService
         }
       }
 
-      // Extraer archivo del array de datos
-      $files = $this->extractFiles($data);
+      // Recalculate amounts if receipt_amount or expense_type_id changed
+      $shouldRecalculateAmounts = isset($data['receipt_amount']) || isset($data['expense_type_id']) || isset($data['expense_date']);
 
-      // Auto-complete business_name from cache if not provided
+      if ($shouldRecalculateAmounts) {
+        // Check if budget exists for this expense type
+        if (in_array($newExpenseTypeId, [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
+          $budget = RequestBudget::where('expense_type_id', ExpenseType::MEALS_ID)
+            ->where('per_diem_request_id', $expense->per_diem_request_id)
+            ->first();
+
+          if (!$budget) {
+            throw new Exception('No se encontró presupuesto para alimentación en esta solicitud. Asegúrese de que la solicitud esté confirmada y tenga presupuestos asignados.');
+          }
+        } else if (!in_array($newExpenseTypeId, [ExpenseType::TRANSPORTATION_ID, ExpenseType::GASOLINE_ID, ExpenseType::TOLLS_ID])) {
+          $budget = RequestBudget::where('expense_type_id', $newExpenseTypeId)
+            ->where('per_diem_request_id', $expense->per_diem_request_id)
+            ->first();
+
+          if (!$budget) {
+            throw new Exception('No se encontró presupuesto para este tipo de gasto en esta solicitud. Asegúrese de que la solicitud esté confirmada y tenga presupuestos asignados.');
+          }
+        }
+
+        // Recalculate company_amount and employee_amount
+        if (in_array($newExpenseTypeId, [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
+          // Meals (BREAKFAST, LUNCH, DINNER) share the same budget
+          $expensesByType = PerDiemExpense::where('per_diem_request_id', $expense->per_diem_request_id)
+            ->where('id', '!=', $expense->id) // Exclude current expense
+            ->whereIn('expense_type_id', [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])
+            ->whereDate('expense_date', $newExpenseDate)
+            ->where('rejected', false)
+            ->sum('company_amount');
+
+          $available = $budget->daily_amount - $expensesByType;
+
+          if ($newReceiptAmount > $available) {
+            $data['company_amount'] = $available;
+            $data['employee_amount'] = $newReceiptAmount - $available;
+          } else {
+            $data['company_amount'] = $newReceiptAmount;
+            $data['employee_amount'] = 0;
+          }
+
+        } else if ($newExpenseTypeId === ExpenseType::TRANSPORTATION_ID) {
+          // Skip budget validation for TRANSPORTATION (no limit)
+          $data['company_amount'] = $newReceiptAmount;
+          $data['employee_amount'] = 0;
+        } else if ($newExpenseTypeId === ExpenseType::GASOLINE_ID || $newExpenseTypeId === ExpenseType::TOLLS_ID) {
+          // Full amount is company expense for GASOLINE and TOLLS
+          $data['company_amount'] = $newReceiptAmount;
+          $data['employee_amount'] = 0;
+        } else {
+          $expensesByType = PerDiemExpense::where('per_diem_request_id', $expense->per_diem_request_id)
+            ->where('id', '!=', $expense->id) // Exclude current expense
+            ->where('expense_type_id', $newExpenseTypeId)
+            ->whereDate('expense_date', $newExpenseDate)
+            ->where('rejected', false)
+            ->sum('company_amount');
+
+          $available = $budget->daily_amount - $expensesByType;
+
+          if ($newReceiptAmount > $available) {
+            $data['company_amount'] = $available;
+            $data['employee_amount'] = $newReceiptAmount - $available;
+          } else {
+            $data['company_amount'] = $newReceiptAmount;
+            $data['employee_amount'] = 0;
+          }
+        }
+      }
+
+      // Auto-complete business_name from cache if RUC is provided
       $this->getBusinessNameFromCache($data);
 
+      // Update expense
       $expense->update([
         'expense_type_id' => $data['expense_type_id'] ?? $expense->expense_type_id,
         'expense_date' => $data['expense_date'] ?? $expense->expense_date,
-        'concept' => $data['concept'] ?? $expense->concept,
         'receipt_amount' => $data['receipt_amount'] ?? $expense->receipt_amount,
         'company_amount' => $data['company_amount'] ?? $expense->company_amount,
         'employee_amount' => $data['employee_amount'] ?? $expense->employee_amount,
@@ -292,13 +368,13 @@ class PerDiemExpenseService extends BaseService
         'business_name' => $data['business_name'] ?? $expense->business_name,
       ]);
 
-      // Si hay nuevo archivo, subirlo y actualizar URL
-      if (!empty($files)) {
-        // Eliminar archivo anterior si existe
+      // Handle file upload if present
+      if (!empty($file)) {
+        // Delete previous file if exists
         $this->deleteAttachedFiles($expense);
 
-        // Subir nuevo archivo
-        $this->uploadAndAttachFiles($expense, $files);
+        // Upload new file
+        $this->uploadAndAttachFiles($expense, $file);
       }
 
       // Update request total spent

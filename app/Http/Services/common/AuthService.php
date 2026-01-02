@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class AuthService
 {
@@ -320,6 +321,72 @@ class AuthService
       ->distinct()
       ->pluck('p.code')
       ->toArray();
+  }
+
+  public function changePassword($request)
+  {
+    $user = Auth::user();
+
+    if (!$user) {
+      return response()->json(['message' => 'No autenticado'], 401);
+    }
+
+    if (!Hash::check($request->current_password, $user->password)) {
+      return response()->json(['message' => 'La contraseña actual es incorrecta'], 422);
+    }
+
+    $user->update([
+      'password' => Hash::make($request->new_password),
+      'verified_at' => now()
+    ]);
+
+    return response()->json(['message' => 'Contraseña actualizada correctamente']);
+  }
+
+  public function resetPassword($request)
+  {
+    $user = User::find($request->user_id);
+
+    if (!$user) {
+      return response()->json(['message' => 'Usuario no encontrado'], 404);
+    }
+
+    $user->update([
+      'password' => Hash::make($user->username),
+      'verified_at' => null
+    ]);
+
+    return response()->json([
+      'message' => 'Contraseña restablecida correctamente',
+      'username' => $user->username
+    ]);
+  }
+
+  public function resetPasswordByCompany($request)
+  {
+    // Obtener todos los usuarios de la empresa a través de la relación person -> sede -> empresa
+    $users = User::whereHas('person.sede', function ($query) use ($request) {
+      $query->where('empresa_id', $request->company_id);
+    })->get();
+
+    if ($users->isEmpty()) {
+      return response()->json(['message' => 'No se encontraron usuarios para esta empresa'], 404);
+    }
+
+    $updatedCount = 0;
+    foreach ($users as $user) {
+      $user->update([
+        'password' => Hash::make($user->username),
+        'verified_at' => null
+      ]);
+      $updatedCount++;
+    }
+
+    return response()->json([
+      'message' => 'Contraseñas restablecidas correctamente',
+      'users_updated' => $updatedCount,
+      'company_id' => $request->company_id
+    ]);
   }
 
 }

@@ -37,6 +37,7 @@ class UserResource extends JsonResource
       'role_id' => $this->role?->id,
       'subordinates' => $this->person?->subordinates->count() ?? 0,
       'sedes' => SedeResource::collection($this->sedes),
+      'verified_at' => $this->verified_at,
     ];
   }
 }
