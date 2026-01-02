@@ -23,7 +23,7 @@ class StoreAssignSalesSeriesRequest extends StoreRequest
       'type_receipt_id' => ['required', 'exists:ap_commercial_masters,id'],
       'type_operation_id' => ['required', 'exists:ap_commercial_masters,id'],
       'sede_id' => ['required', 'exists:config_sede,id'],
-      'type' => ['required', 'in:PURCHASE,SALE'],
+      'type' => ['required', 'in:PURCHASE,SALE,OTHERS'],
     ];
   }
 
