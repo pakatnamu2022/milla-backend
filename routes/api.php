@@ -1234,6 +1234,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     // Hotel Reservations
     Route::post('per-diem-requests/{requestId}/hotel-reservation', [HotelReservationController::class, 'store']);
+    Route::get('hotel-reservations/{reservationId}', [HotelReservationController::class, 'show']);
     Route::post('hotel-reservations/{reservationId}', [HotelReservationController::class, 'update']);
     Route::delete('hotel-reservations/{reservationId}', [HotelReservationController::class, 'destroy']);
     Route::post('hotel-reservations/{reservationId}/mark-attended', [HotelReservationController::class, 'markAttended']);

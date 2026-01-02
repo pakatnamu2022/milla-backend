@@ -34,6 +34,18 @@ class HotelReservationController extends Controller
   }
 
   /**
+   * Display a specific hotel reservation
+   */
+  public function show(int $reservationId)
+  {
+    try {
+      return $this->success($this->service->show($reservationId));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
    * Store a newly created hotel reservation
    */
   public function store(int $requestId, StoreHotelReservationRequest $request)
