@@ -7,6 +7,24 @@ use Illuminate\Validation\Rule;
 
 class UpdateVehiclesRequest extends StoreRequest
 {
+  /**
+   * Determina si el usuario está autorizado para hacer esta solicitud
+   * Verifica el permiso de asociar VIN solo si se está intentando modificar el VIN
+   */
+  public function authorize(): bool
+  {
+    $user = auth()->user();
+
+    // Si se está intentando modificar el VIN, verificar permiso
+    if ($this->has('vin')) {
+      if (!$user->hasPermission('vehicles.associate_vin')) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   public function rules(): array
   {
     return [

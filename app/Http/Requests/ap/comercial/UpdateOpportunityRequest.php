@@ -3,13 +3,47 @@
 namespace App\Http\Requests\ap\comercial;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\comercial\Opportunity;
+use App\Models\ap\comercial\OpportunityAction;
+use Carbon\Carbon;
 
 class UpdateOpportunityRequest extends StoreRequest
 {
   public function rules(): array
   {
     return [
-      'worker_id' => 'sometimes|integer|exists:rrhh_persona,id',
+      'worker_id' => [
+        'sometimes',
+        'integer',
+        'exists:rrhh_persona,id',
+        function ($attribute, $value, $fail) {
+          // Solo validar si se está intentando cambiar el asesor
+          $opportunityId = $this->route('id');
+          $opportunity = Opportunity::find($opportunityId);
+
+          if (!$opportunity) {
+            return;
+          }
+
+          // Si el worker_id no está cambiando, no validar
+          if ($opportunity->worker_id == $value) {
+            return;
+          }
+
+          // Obtener la última acción registrada en esta oportunidad
+          $lastAction = OpportunityAction::where('opportunity_id', $opportunityId)
+            ->orderBy('datetime', 'desc')
+            ->first();
+
+          if ($lastAction) {
+            $daysSinceLastAction = Carbon::parse($lastAction->datetime)->diffInDays(now());
+
+            if ($daysSinceLastAction < 15) {
+              $fail('No se puede cambiar el asesor hasta que hayan pasado al menos 15 días desde la última acción registrada en la oportunidad.');
+            }
+          }
+        },
+      ],
       'client_id' => 'sometimes|integer|exists:business_partners,id',
       'family_id' => 'sometimes|integer|exists:ap_families,id',
       'opportunity_type_id' => 'sometimes|integer|exists:ap_commercial_masters,id',

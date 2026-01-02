@@ -7,6 +7,7 @@ use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\configuracionComercial\vehiculo\VehicleAccessory;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
@@ -163,6 +164,15 @@ class PurchaseOrder extends BaseModel
       'vehicle_movement_id', // Local key en purchase_order
       'ap_vehicle_id' // Local key en vehicle_movement
     );
+  }
+
+  /**
+   * Relación con accesorios de vehículo
+   * Los accesorios están asociados a la orden de compra
+   */
+  public function accessories(): HasMany
+  {
+    return $this->hasMany(VehicleAccessory::class, 'vehicle_purchase_order_id');
   }
 
   /**

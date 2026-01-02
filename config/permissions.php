@@ -116,6 +116,12 @@ return [
       'icon' => 'Building',
       'policy_method' => 'viewBranches',
     ],
+    'assign' => [
+      'label' => 'Asignar',
+      'description' => 'Permite asignar registros o tareas',
+      'icon' => 'UserCheck',
+      'policy_method' => 'assign',
+    ],
   ],
 
   /*

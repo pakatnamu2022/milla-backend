@@ -33,6 +33,7 @@ class ApCommercialMasters extends Model
   const sorts = [
     'code',
     'description',
+    'status',
     'type',
   ];
 

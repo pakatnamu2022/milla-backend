@@ -543,6 +543,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
    */
   Route::group(['prefix' => 'ap'], function () {
     // Maestros Comercial
+    Route::get('commercialMasters/types', [ApCommercialMastersController::class, 'getTypes']);
     Route::apiResource('commercialMasters', ApCommercialMastersController::class)->only([
       'index',
       'show',
@@ -800,6 +801,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('opportunities/my', [OpportunityController::class, 'myOpportunities']);
       Route::get('opportunities/agenda/my', [OpportunityController::class, 'myAgenda']);
       Route::get('opportunities/{opportunityId}/actions', [OpportunityController::class, 'getActions']);
+      Route::get('opportunities/{id}/request-data', [OpportunityController::class, 'getRequestData']);
       Route::put('opportunities/{opportunityId}/close', [OpportunityController::class, 'close']);
 
       Route::apiResource('opportunities', OpportunityController::class)->only([
