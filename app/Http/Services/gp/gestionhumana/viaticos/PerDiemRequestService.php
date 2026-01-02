@@ -18,6 +18,7 @@ use App\Models\gp\gestionhumana\viaticos\PerDiemPolicy;
 use App\Models\gp\gestionhumana\viaticos\PerDiemApproval;
 use App\Models\gp\gestionhumana\viaticos\MobilityPayroll;
 use App\Models\gp\gestionsistema\DigitalFile;
+use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
@@ -722,6 +723,24 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     }
   }
 
+  public function confirmProgress(int $id): PerDiemRequestResource
+  {
+    $request = $this->find($id);
+    $request->update(['status' => PerDiemRequest::STATUS_IN_PROGRESS]);
+
+    return new PerDiemRequestResource($request->fresh([
+      'employee',
+      'company',
+      'companyService',
+      'district',
+      'policy',
+      'category',
+      'budgets.expenseType',
+      'hotelReservation.hotelAgreement'
+    ]));
+  }
+
+
   /**
    * Get available expense types for a per diem request
    * Returns expense types that have budgets assigned to the request
@@ -917,11 +936,11 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
     // Separar gastos por quien los asume (empresa vs colaborador)
     $gastosEmpresa = $perDiemRequest->expenses->filter(function ($expense) {
-      return $expense->is_company_expense === true;
+      return $expense->is_company_expense === true && $expense->validated == 1;
     });
 
     $gastosColaborador = $perDiemRequest->expenses->filter(function ($expense) {
-      return $expense->is_company_expense === false;
+      return $expense->is_company_expense === false && $expense->validated == 1;
     });
 
     // ===== GASTOS DE LA EMPRESA =====
@@ -967,11 +986,6 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         $expenseTypeName = $expense->expenseType->name ?? '';
         $notes = $expense->notes ?? '';
         $detalle = $expenseTypeName . ($notes ? ' - ' . $notes : '');
-
-        // Log para ver el detalle
-        \Log::info('Detalle del gasto', [
-          'expense' => $expense,
-        ]);
 
         return [
           'expense_date' => $expense->expense_date,
@@ -1360,7 +1374,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
     // Obtener solo los gastos del personal (no asumidos por la empresa) directamente del modelo
     $gastosColaborador = $perDiemRequest->expenses->filter(function ($expense) {
-      return !$expense->is_company_expense;
+      return !$expense->is_company_expense && $expense->validated == 1;
     });
 
     // Agrupar gastos por parent (si tienen parent, agrupar por parent_id, si no por expense_type_id)
@@ -1699,14 +1713,23 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         $firstExpenseDate = $mobilityExpenses->min('expense_date');
         $period = Carbon::parse($firstExpenseDate)->format('m/Y');
 
-        // Get serie based on company
-        $serie = 'MOV-' . ($perDiemRequest->company->id ?? '001');
-
         // Get sede_id from employee
         $sedeId = $perDiemRequest->employee->sede_id ?? null;
 
+        // Get serie and correlative_start from AssignSalesSeries
+        $assignedSeries = AssignSalesSeries::where('type_receipt_id', AssignSalesSeries::TRAVEL_EXPENSE_FORM)
+          ->where('sede_id', $sedeId)
+          ->first();
+
+        if (!$assignedSeries) {
+          throw new Exception('No se encontró una serie asignada para formularios de gastos de viaje en esta sede. Por favor, configure una serie en el maestro de series.');
+        }
+
+        $serie = $assignedSeries->series;
+        $correlativeStart = $assignedSeries->correlative_start;
+
         // Generate next correlative for this serie, period and sede_id
-        $correlative = MobilityPayroll::getNextCorrelative($serie, $period, $sedeId);
+        $correlative = MobilityPayroll::getNextCorrelative($serie, $period, $sedeId, $correlativeStart);
 
         // Create mobility payroll record
         $mobilityPayroll = MobilityPayroll::create([
