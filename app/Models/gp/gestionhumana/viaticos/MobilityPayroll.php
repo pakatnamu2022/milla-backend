@@ -52,8 +52,16 @@ class MobilityPayroll extends BaseModel
 
   /**
    * Generate next correlative number for a given serie, period and sede_id
+   * If no records exist, starts from correlativeStart (from AssignSalesSeries)
+   * Otherwise continues the sequence from the last correlative
+   *
+   * @param string $serie Serie code
+   * @param string $period Period in format mm/YYYY
+   * @param int|null $sedeId Sede ID for filtering
+   * @param int $correlativeStart Starting correlative number from AssignSalesSeries (default: 1)
+   * @return string Formatted correlative number with padding
    */
-  public static function getNextCorrelative(string $serie, string $period, ?int $sedeId = null): string
+  public static function getNextCorrelative(string $serie, string $period, ?int $sedeId = null, int $correlativeStart = 1): string
   {
     $query = self::where('serie', $serie)
       ->where('period', $period);
@@ -66,11 +74,14 @@ class MobilityPayroll extends BaseModel
     $lastPayroll = $query->orderBy('correlative', 'desc')
       ->first();
 
+    // Si no hay registros previos, usar el correlative_start configurado
+    // Si ya existen registros, continuar la secuencia
     if (!$lastPayroll) {
-      return '00001';
+      $nextNumber = $correlativeStart;
+    } else {
+      $nextNumber = intval($lastPayroll->correlative) + 1;
     }
 
-    $nextNumber = intval($lastPayroll->correlative) + 1;
     return str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
   }
 

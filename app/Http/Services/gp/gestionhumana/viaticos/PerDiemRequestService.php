@@ -18,6 +18,7 @@ use App\Models\gp\gestionhumana\viaticos\PerDiemPolicy;
 use App\Models\gp\gestionhumana\viaticos\PerDiemApproval;
 use App\Models\gp\gestionhumana\viaticos\MobilityPayroll;
 use App\Models\gp\gestionsistema\DigitalFile;
+use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
@@ -1712,14 +1713,23 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         $firstExpenseDate = $mobilityExpenses->min('expense_date');
         $period = Carbon::parse($firstExpenseDate)->format('m/Y');
 
-        // Get serie based on company
-        $serie = 'MOV-' . ($perDiemRequest->company->id ?? '001');
-
         // Get sede_id from employee
         $sedeId = $perDiemRequest->employee->sede_id ?? null;
 
+        // Get serie and correlative_start from AssignSalesSeries
+        $assignedSeries = AssignSalesSeries::where('type_receipt_id', AssignSalesSeries::TRAVEL_EXPENSE_FORM)
+          ->where('sede_id', $sedeId)
+          ->first();
+
+        if (!$assignedSeries) {
+          throw new Exception('No se encontró una serie asignada para formularios de gastos de viaje en esta sede. Por favor, configure una serie en el maestro de series.');
+        }
+
+        $serie = $assignedSeries->series;
+        $correlativeStart = $assignedSeries->correlative_start;
+
         // Generate next correlative for this serie, period and sede_id
-        $correlative = MobilityPayroll::getNextCorrelative($serie, $period, $sedeId);
+        $correlative = MobilityPayroll::getNextCorrelative($serie, $period, $sedeId, $correlativeStart);
 
         // Create mobility payroll record
         $mobilityPayroll = MobilityPayroll::create([
