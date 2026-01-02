@@ -362,4 +362,31 @@ class AuthService
     ]);
   }
 
+  public function resetPasswordByCompany($request)
+  {
+    // Obtener todos los usuarios de la empresa a través de la relación person -> sede -> empresa
+    $users = User::whereHas('person.sede', function ($query) use ($request) {
+      $query->where('empresa_id', $request->company_id);
+    })->get();
+
+    if ($users->isEmpty()) {
+      return response()->json(['message' => 'No se encontraron usuarios para esta empresa'], 404);
+    }
+
+    $updatedCount = 0;
+    foreach ($users as $user) {
+      $user->update([
+        'password' => Hash::make($user->username),
+        'verified_at' => null
+      ]);
+      $updatedCount++;
+    }
+
+    return response()->json([
+      'message' => 'Contraseñas restablecidas correctamente',
+      'users_updated' => $updatedCount,
+      'company_id' => $request->company_id
+    ]);
+  }
+
 }

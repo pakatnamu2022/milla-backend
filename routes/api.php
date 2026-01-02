@@ -122,6 +122,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
   Route::post('/change-password', [AuthController::class, 'changePassword'])->name('changePassword');
   Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('resetPassword');
+  Route::post('/reset-password-by-company', [AuthController::class, 'resetPasswordByCompany'])->name('resetPasswordByCompany');
 
   //    GENERAL
   //    SEDE
