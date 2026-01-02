@@ -1721,13 +1721,6 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           ->where('sede_id', $sedeId)
           ->first();
 
-        \Log::info('Información de serie asignada', [
-          'sede_id_filtrado' => $sedeId,
-          'type_receipt_id' => AssignSalesSeries::TRAVEL_EXPENSE_FORM,
-          'assignedSeries_encontrado' => $assignedSeries ? 'Sí' : 'No',
-          'assignedSeries_data' => $assignedSeries ? $assignedSeries->toArray() : null,
-        ]);
-
         if (!$assignedSeries) {
           throw new Exception('No se encontró una serie asignada para formularios de gastos de viaje en esta sede. Por favor, configure una serie en el maestro de series.');
         }
