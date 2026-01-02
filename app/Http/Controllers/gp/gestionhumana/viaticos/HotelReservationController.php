@@ -55,6 +55,10 @@ class HotelReservationController extends Controller
   {
     try {
       $data = $request->all();
+      $file = $request->file('receipt_file');
+      if ($file) {
+        $data['receipt_file'] = $file;
+      }
       $data['id'] = $reservationId;
       return $this->success($this->service->update($data));
     } catch (Throwable $th) {
