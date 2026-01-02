@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class AuthService
 {
@@ -320,6 +321,26 @@ class AuthService
       ->distinct()
       ->pluck('p.code')
       ->toArray();
+  }
+
+  public function changePassword($request)
+  {
+    $user = Auth::user();
+
+    if (!$user) {
+      return response()->json(['message' => 'No autenticado'], 401);
+    }
+
+    if (!Hash::check($request->current_password, $user->password)) {
+      return response()->json(['message' => 'La contraseña actual es incorrecta'], 422);
+    }
+
+    $user->update([
+      'password' => Hash::make($request->new_password),
+      'verified_at' => now()
+    ]);
+
+    return response()->json(['message' => 'Contraseña actualizada correctamente']);
   }
 
 }

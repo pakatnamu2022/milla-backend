@@ -120,6 +120,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::get('/authenticate', [AuthController::class, 'authenticate'])->name('authenticate');
   Route::get('/permissions', [AuthController::class, 'permissions'])->name('permissions');
   Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+  Route::post('/change-password', [AuthController::class, 'changePassword'])->name('changePassword');
 
   //    GENERAL
   //    SEDE
