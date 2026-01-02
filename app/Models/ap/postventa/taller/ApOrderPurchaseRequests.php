@@ -4,6 +4,7 @@ namespace App\Models\ap\postventa\taller;
 
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -26,6 +27,7 @@ class ApOrderPurchaseRequests extends Model
     'notified_at',
     'observations',
     'status',
+    'requested_by'
   ];
 
   const filters = [
@@ -77,6 +79,11 @@ class ApOrderPurchaseRequests extends Model
   public function warehouse(): BelongsTo
   {
     return $this->belongsTo(Warehouse::class, 'warehouse_id');
+  }
+
+  public function requestedBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'requested_by');
   }
 
   public function details()

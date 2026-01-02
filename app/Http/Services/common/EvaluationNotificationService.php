@@ -92,7 +92,7 @@ class EvaluationNotificationService
    */
   private function getLeadersWithPendingEvaluations(Evaluation $evaluation): array
   {
-    $evaluationPersons = EvaluationWorker::where('evaluation_id', $evaluation->id)
+    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluation->id)
       ->with(['person'])
       ->get();
 
@@ -307,7 +307,7 @@ class EvaluationNotificationService
    */
   private function getLeadersForEvaluation(Evaluation $evaluation): array
   {
-    $evaluationPersons = EvaluationWorker::where('evaluation_id', $evaluation->id)
+    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluation->id)
       ->with(['person', 'person.position', 'person.area'])
       ->get();
 
@@ -492,7 +492,7 @@ class EvaluationNotificationService
    */
   private function calculateTeamSummary(Evaluation $evaluation, int $leaderId): array
   {
-    $evaluationPersons = EvaluationWorker::where('evaluation_id', $evaluation->id)
+    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluation->id)
       ->where('chief_id', $leaderId)
       ->with('person')
       ->get();

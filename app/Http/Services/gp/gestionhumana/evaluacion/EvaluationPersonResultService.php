@@ -25,8 +25,7 @@ class EvaluationPersonResultService extends BaseService
 
   public function __construct(
     ExportService $exportService
-  )
-  {
+  ) {
     $this->exportService = $exportService;
   }
 
@@ -66,7 +65,7 @@ class EvaluationPersonResultService extends BaseService
       ->unique();
 
     // Get person_ids where the person is chief in objectives
-    $objectivePersonIds = EvaluationWorker::where('evaluation_id', $activeEvaluation->id)
+    $objectivePersonIds = EvaluationPerson::where('evaluation_id', $activeEvaluation->id)
       ->where('chief_id', $id)
       ->pluck('person_id')
       ->unique();
@@ -109,7 +108,7 @@ class EvaluationPersonResultService extends BaseService
     ])->findOrFail($evaluation_id);
 
     // PASO 1: Obtener person_ids de colaboradores desde EvaluationPerson
-    $collaboratorPersonIds = EvaluationWorker::where('evaluation_id', $evaluation_id)
+    $collaboratorPersonIds = EvaluationPerson::where('evaluation_id', $evaluation_id)
       ->where('chief_id', $chief_id)
       ->pluck('person_id')
       ->unique()
@@ -117,7 +116,7 @@ class EvaluationPersonResultService extends BaseService
 
     // Si no hay colaboradores, verificar qué chief_ids existen
     if ($collaboratorPersonIds->isEmpty()) {
-      $uniqueChiefIds = EvaluationWorker::where('evaluation_id', $evaluation_id)
+      $uniqueChiefIds = EvaluationPerson::where('evaluation_id', $evaluation_id)
         ->pluck('chief_id')
         ->unique()
         ->values();
@@ -686,7 +685,7 @@ class EvaluationPersonResultService extends BaseService
         ->delete();
 
       // 4. Reset EvaluationPerson if exists
-      $evaluationsPerson = EvaluationWorker::where('person_id', $personId)
+      $evaluationsPerson = EvaluationPerson::where('person_id', $personId)
         ->where('evaluation_id', $evaluationId)
         ->get();
 

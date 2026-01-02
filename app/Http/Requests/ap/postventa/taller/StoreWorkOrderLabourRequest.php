@@ -16,8 +16,35 @@ class StoreWorkOrderLabourRequest extends StoreRequest
       ],
       'time_spent' => [
         'required',
-        'numeric',
-        'min:0.01',
+        function ($attribute, $value, $fail) {
+          // Validar si es formato decimal (horas)
+          if (is_numeric($value)) {
+            $hours = floatval($value);
+            if ($hours <= 0 || $hours > 999) {
+              $fail('El tiempo debe estar entre 0.01 y 999 horas.');
+            }
+            return;
+          }
+
+          // Validar si es formato HH:MM o HH:MM:SS
+          if (preg_match('/^(\d{1,3}):([0-5]?\d)(:([0-5]?\d))?$/', $value, $matches)) {
+            $hours = intval($matches[1]);
+            $minutes = intval($matches[2]);
+
+            if ($hours > 999) {
+              $fail('Las horas no pueden ser mayores a 999.');
+            }
+            if ($minutes > 59) {
+              $fail('Los minutos deben estar entre 0 y 59.');
+            }
+            if ($hours == 0 && $minutes == 0) {
+              $fail('El tiempo debe ser mayor a 0.');
+            }
+            return;
+          }
+
+          $fail('El formato de tiempo debe ser decimal (ej: 2.5) o HH:MM / HH:MM:SS');
+        }
       ],
       'hourly_rate' => [
         'required',
@@ -28,6 +55,16 @@ class StoreWorkOrderLabourRequest extends StoreRequest
         'required',
         'integer',
         'exists:ap_work_orders,id',
+      ],
+      'worker_id' => [
+        'required',
+        'integer',
+        'exists:rrhh_persona,id',
+      ],
+      'group_number' => [
+        'sometimes',
+        'integer',
+        'min:1',
       ],
     ];
   }
@@ -50,6 +87,13 @@ class StoreWorkOrderLabourRequest extends StoreRequest
       'work_order_id.required' => 'La orden de trabajo es obligatoria.',
       'work_order_id.integer' => 'La orden de trabajo debe ser un entero.',
       'work_order_id.exists' => 'La orden de trabajo seleccionada no existe.',
+
+      'worker_id.required' => 'El trabajador es obligatorio.',
+      'worker_id.integer' => 'El trabajador debe ser un entero.',
+      'worker_id.exists' => 'El trabajador seleccionado no existe.',
+
+      'group_number.integer' => 'El número de grupo debe ser un entero.',
+      'group_number.min' => 'El número de grupo debe ser al menos 1.',
     ];
   }
 }

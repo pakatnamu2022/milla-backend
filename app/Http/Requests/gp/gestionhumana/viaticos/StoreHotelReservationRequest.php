@@ -10,6 +10,7 @@ class StoreHotelReservationRequest extends StoreRequest
   {
     return [
       'hotel_agreement_id' => ['required', 'integer', 'exists:gh_hotel_agreement,id'],
+      'ruc' => ['required', 'string', 'max:20'],
       'hotel_name' => ['required', 'string', 'max:255'],
       'address' => ['required', 'string', 'max:500'],
       'phone' => ['required', 'string', 'max:50'],
@@ -33,6 +34,7 @@ class StoreHotelReservationRequest extends StoreRequest
       'hotel_agreement_id.required' => 'El acuerdo del hotel es requerido.',
       'hotel_agreement_id.integer' => 'El acuerdo del hotel debe ser un número entero.',
       'hotel_agreement_id.exists' => 'El acuerdo del hotel seleccionado no existe.',
+      'ruc.required' => 'El RUC del hotel es requerido.',
       'hotel_name.required' => 'El nombre del hotel es requerido.',
       'address.required' => 'La dirección del hotel es requerida.',
       'checkin_date.required' => 'La fecha de check-in es requerida.',

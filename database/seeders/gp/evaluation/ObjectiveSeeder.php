@@ -2394,42 +2394,42 @@ class ObjectiveSeeder extends Seeder
         "weight" => 25,
         "categoria" => "Asesor comercial"
       ],
-//      [
-//        "dni" => "43112264",
-//        "objective" => "Tener mínimo un rendimiento de combustible del 92%",
-//        "metric" => "Número",
-//        "goal" => 92,
-//        "isAscending" => 1,
-//        "weight" => 25,
-//        "categoria" => "Conductor De Tracto Camion"
-//      ],
-//      [
-//        "dni" => "43112264",
-//        "objective" => "No tener incidencias, con responsalidad del conductor",
-//        "metric" => "Número",
-//        "goal" => 0,
-//        "isAscending" => 0,
-//        "weight" => 25,
-//        "categoria" => "Conductor De Tracto Camion"
-//      ],
-//      [
-//        "dni" => "43112264",
-//        "objective" => "No tener multas por llenado por mal llenado de guías",
-//        "metric" => "Número",
-//        "goal" => 0,
-//        "isAscending" => 0,
-//        "weight" => 25,
-//        "categoria" => "Conductor De Tracto Camion"
-//      ],
-//      [
-//        "dni" => "43112264",
-//        "objective" => "Tener mínimo 85 promedio de conducción (Se da un un rango de cumplimiento entre 80 y 90)",
-//        "metric" => "Número",
-//        "goal" => 85,
-//        "isAscending" => 1,
-//        "weight" => 25,
-//        "categoria" => "Conductor De Tracto Camion"
-//      ],
+      //      [
+      //        "dni" => "43112264",
+      //        "objective" => "Tener mínimo un rendimiento de combustible del 92%",
+      //        "metric" => "Número",
+      //        "goal" => 92,
+      //        "isAscending" => 1,
+      //        "weight" => 25,
+      //        "categoria" => "Conductor De Tracto Camion"
+      //      ],
+      //      [
+      //        "dni" => "43112264",
+      //        "objective" => "No tener incidencias, con responsalidad del conductor",
+      //        "metric" => "Número",
+      //        "goal" => 0,
+      //        "isAscending" => 0,
+      //        "weight" => 25,
+      //        "categoria" => "Conductor De Tracto Camion"
+      //      ],
+      //      [
+      //        "dni" => "43112264",
+      //        "objective" => "No tener multas por llenado por mal llenado de guías",
+      //        "metric" => "Número",
+      //        "goal" => 0,
+      //        "isAscending" => 0,
+      //        "weight" => 25,
+      //        "categoria" => "Conductor De Tracto Camion"
+      //      ],
+      //      [
+      //        "dni" => "43112264",
+      //        "objective" => "Tener mínimo 85 promedio de conducción (Se da un un rango de cumplimiento entre 80 y 90)",
+      //        "metric" => "Número",
+      //        "goal" => 85,
+      //        "isAscending" => 1,
+      //        "weight" => 25,
+      //        "categoria" => "Conductor De Tracto Camion"
+      //      ],
       [
         "dni" => "42137357",
         "objective" => "Meta de facturación mensual mayor o igual a 100%",
@@ -2880,42 +2880,42 @@ class ObjectiveSeeder extends Seeder
         "weight" => 20,
         "categoria" => "Partner De Gestión Humana"
       ],
-//      [
-//        "dni" => "42562016",
-//        "objective" => "Cumplimiento mensual de los límites de velocidad en ruta",
-//        "metric" => "Número",
-//        "goal" => 99,
-//        "isAscending" => 1,
-//        "weight" => 25,
-//        "categoria" => "Conductor I"
-//      ],
-//      [
-//        "dni" => "42562016",
-//        "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza ",
-//        "metric" => "Número",
-//        "goal" => 3,
-//        "isAscending" => 0,
-//        "weight" => 25,
-//        "categoria" => "Conductor I"
-//      ],
-//      [
-//        "dni" => "42562016",
-//        "objective" => "Cero multas por infringir las normas de tránsito en el desarrollo de sus funciones",
-//        "metric" => "Número",
-//        "goal" => 0,
-//        "isAscending" => 0,
-//        "weight" => 25,
-//        "categoria" => "Conductor I"
-//      ],
-//      [
-//        "dni" => "42562016",
-//        "objective" => "Cero incidencias en la ruta asignada (robos, choques,etc)",
-//        "metric" => "Número",
-//        "goal" => 0,
-//        "isAscending" => 0,
-//        "weight" => 25,
-//        "categoria" => "Conductor I"
-//      ],
+      //      [
+      //        "dni" => "42562016",
+      //        "objective" => "Cumplimiento mensual de los límites de velocidad en ruta",
+      //        "metric" => "Número",
+      //        "goal" => 99,
+      //        "isAscending" => 1,
+      //        "weight" => 25,
+      //        "categoria" => "Conductor I"
+      //      ],
+      //      [
+      //        "dni" => "42562016",
+      //        "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza ",
+      //        "metric" => "Número",
+      //        "goal" => 3,
+      //        "isAscending" => 0,
+      //        "weight" => 25,
+      //        "categoria" => "Conductor I"
+      //      ],
+      //      [
+      //        "dni" => "42562016",
+      //        "objective" => "Cero multas por infringir las normas de tránsito en el desarrollo de sus funciones",
+      //        "metric" => "Número",
+      //        "goal" => 0,
+      //        "isAscending" => 0,
+      //        "weight" => 25,
+      //        "categoria" => "Conductor I"
+      //      ],
+      //      [
+      //        "dni" => "42562016",
+      //        "objective" => "Cero incidencias en la ruta asignada (robos, choques,etc)",
+      //        "metric" => "Número",
+      //        "goal" => 0,
+      //        "isAscending" => 0,
+      //        "weight" => 25,
+      //        "categoria" => "Conductor I"
+      //      ],
       [
         "dni" => "40158039",
         "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza ",
@@ -7632,15 +7632,15 @@ class ObjectiveSeeder extends Seeder
         "weight" => 100,
         "categoria" => "Asistente De Reparto"
       ],
-//      [
-//        "dni" => "70614230",
-//        "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza ",
-//        "metric" => "Número",
-//        "goal" => 3,
-//        "isAscending" => 0,
-//        "weight" => 100,
-//        "categoria" => "Asistente De Reparto"
-//      ],
+      //      [
+      //        "dni" => "70614230",
+      //        "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza ",
+      //        "metric" => "Número",
+      //        "goal" => 3,
+      //        "isAscending" => 0,
+      //        "weight" => 100,
+      //        "categoria" => "Asistente De Reparto"
+      //      ],
       [
         "dni" => "70984021",
         "objective" => "Cuadres de caja oportunos",
@@ -8743,13 +8743,13 @@ class ObjectiveSeeder extends Seeder
      * ]
      */
 
-//      1. Eliminar todos los registros de las tablas
+    //      1. Eliminar todos los registros de las tablas
     DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
     EvaluationPersonDashboard::query()->truncate();
     EvaluationDashboard::query()->truncate();
     EvaluationPersonDetail::query()->truncate();
-    EvaluationWorker::query()->truncate();
+    EvaluationPerson::query()->truncate();
     EvaluationPersonResult::query()->truncate();
     EvaluationPersonCycleDetail::query()->truncate();
     EvaluationCategoryObjectiveDetail::query()->truncate();
@@ -8764,10 +8764,10 @@ class ObjectiveSeeder extends Seeder
     DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
 
-//    2. Definir servicios
+    //    2. Definir servicios
     $categoryObjectiveService = new EvaluationCategoryObjectiveDetailService();
 
-//    Mapear todos los datos
+    //    Mapear todos los datos
     foreach ($data as $item) {
       $person = Worker::where('vat', $item['dni'])->where('status_id', 22)->first();
 
@@ -8840,7 +8840,7 @@ class ObjectiveSeeder extends Seeder
       EvaluationCategoryObjectiveDetail::create($data);
     }
 
-//    4. Asignar el gerente general category 'Gerente General' position id 23
+    //    4. Asignar el gerente general category 'Gerente General' position id 23
     $categoryChiefExecutive = HierarchicalCategory::create([
       'name' => 'Gerente General',
       'description' => 'Description for the category Gerente General',
@@ -8852,7 +8852,7 @@ class ObjectiveSeeder extends Seeder
       'position_id' => 23,
     ]);
 
-//    Excluir del cálculo al gerente general
+    //    Excluir del cálculo al gerente general
     $excludedPositions = [215, 307, 255, 214, 276, 23, 294, 326, 295, 352];
     $excludedPeople = Worker::whereIn('cargo_id', $excludedPositions)->where('status_id', 22)->get();
     if ($excludedPeople) {
@@ -8862,8 +8862,7 @@ class ObjectiveSeeder extends Seeder
         ]);
       }
     }
-//    5. Asignar objetivos faltantes a todas las categorías
+    //    5. Asignar objetivos faltantes a todas las categorías
     $categoryObjectiveService->assignMissingObjectives();
-
   }
 }

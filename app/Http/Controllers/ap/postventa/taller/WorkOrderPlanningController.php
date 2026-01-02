@@ -72,4 +72,17 @@ class WorkOrderPlanningController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Obtener lista consolidada de trabajadores únicos que participaron en una orden de trabajo
+   * GET /api/work-order-planning/workers/{work_order_id}
+   */
+  public function getWorkers($workOrderId)
+  {
+    try {
+      return $this->success($this->service->getWorkers($workOrderId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

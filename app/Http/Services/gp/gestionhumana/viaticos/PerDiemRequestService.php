@@ -968,10 +968,15 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         $notes = $expense->notes ?? '';
         $detalle = $expenseTypeName . ($notes ? ' - ' . $notes : '');
 
+        // Log para ver el detalle
+        \Log::info('Detalle del gasto', [
+          'expense' => $expense,
+        ]);
+
         return [
           'expense_date' => $expense->expense_date,
           'receipt_number' => $expense->receipt_number,
-          'business_name' => $expense->business_name,
+          'business_name' => $expense->business_name . ($expense->ruc ? ' (RUC: ' . $expense->ruc . ')' : ''),
           'detalle' => $detalle,
           'receipt_amount' => $expense->receipt_amount,
           'company_amount' => $expense->company_amount,
@@ -1036,7 +1041,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         return [
           'expense_date' => $expense->expense_date,
           'receipt_number' => $expense->receipt_number,
-          'business_name' => $expense->business_name,
+          'business_name' => $expense->business_name . ($expense->ruc ? ' (RUC: ' . $expense->ruc . ')' : ''),
           'detalle' => $detalle,
           'receipt_amount' => $expense->receipt_amount,
           'company_amount' => $expense->company_amount,
@@ -1405,7 +1410,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         return [
           'expense_date' => $expense->expense_date,
           'receipt_number' => $expense->receipt_number,
-          'business_name' => $expense->business_name,
+          'business_name' => $expense->business_name . ($expense->ruc ? ' (RUC: ' . $expense->ruc . ')' : ''),
           'detalle' => $detalle,
           'receipt_amount' => $expense->receipt_amount,
           'company_amount' => $expense->company_amount,
@@ -1748,6 +1753,11 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     // Check if mobility payroll has been generated for this request
     if (!$perDiemRequest->mobility_payroll_generated) {
       throw new Exception('Aún no se ha generado la planilla de movilidad para esta solicitud. Debe generar la planilla primero antes de poder visualizar el PDF.');
+    }
+
+    // if settled is false, throw exception
+    if (!$perDiemRequest->settled) {
+      throw new Exception('La solicitud debe estar liquidada para generar la planilla de movilidad.');
     }
 
     // Get mobility expenses with mobility_payroll_id

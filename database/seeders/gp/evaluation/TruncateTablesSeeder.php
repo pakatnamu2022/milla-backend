@@ -29,7 +29,7 @@ class TruncateTablesSeeder extends Seeder
     DetailedDevelopmentPlan::query()->truncate();
     EvaluationPersonCycleDetail::query()->truncate();
     EvaluationPersonCompetenceDetail::query()->truncate();
-    EvaluationWorker::query()->truncate();
+    EvaluationPerson::query()->truncate();
     EvaluationPersonResult::query()->truncate();
     EvaluationPersonDashboard::query()->truncate();
     EvaluationDashboard::query()->truncate();

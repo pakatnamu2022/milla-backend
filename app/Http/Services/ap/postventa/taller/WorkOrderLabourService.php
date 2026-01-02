@@ -35,18 +35,31 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
   public function store(mixed $data)
   {
     return DB::transaction(function () use ($data) {
+      // Convertir time_spent a decimal para el cálculo si es necesario
+      $timeSpentDecimal = is_numeric($data['time_spent'])
+        ? floatval($data['time_spent'])
+        : $this->timeToDecimal($data['time_spent']);
+
       // Calcular el costo total automáticamente
       if (isset($data['time_spent']) && isset($data['hourly_rate'])) {
-        $data['total_cost'] = $data['time_spent'] * $data['hourly_rate'];
-      }
-
-      if (auth()->check()) {
-        $data['worker_id'] = auth()->user()->person->id;
+        $data['total_cost'] = $timeSpentDecimal * floatval($data['hourly_rate']);
       }
 
       $workOrderLabour = WorkOrderLabour::create($data);
       return new WorkOrderLabourResource($workOrderLabour->load(['worker', 'workOrder']));
     });
+  }
+
+  /**
+   * Convertir formato TIME (HH:MM:SS o HH:MM) a decimal
+   */
+  private function timeToDecimal(string $time): float
+  {
+    $parts = explode(':', $time);
+    $hours = intval($parts[0]);
+    $minutes = isset($parts[1]) ? intval($parts[1]) : 0;
+
+    return $hours + ($minutes / 60);
   }
 
   public function show($id)
@@ -65,9 +78,17 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
 
       // Calcular el costo total automáticamente si se actualizan time_spent u hourly_rate
       if (isset($data['time_spent']) || isset($data['hourly_rate'])) {
-        $timeSpent = $data['time_spent'] ?? $workOrderLabour->time_spent;
+        // Obtener time_spent en formato decimal
+        if (isset($data['time_spent'])) {
+          $timeSpent = is_numeric($data['time_spent'])
+            ? floatval($data['time_spent'])
+            : $this->timeToDecimal($data['time_spent']);
+        } else {
+          $timeSpent = $workOrderLabour->time_spent_decimal;
+        }
+
         $hourlyRate = $data['hourly_rate'] ?? $workOrderLabour->hourly_rate;
-        $data['total_cost'] = $timeSpent * $hourlyRate;
+        $data['total_cost'] = $timeSpent * floatval($hourlyRate);
       }
 
       $workOrderLabour->update($data);

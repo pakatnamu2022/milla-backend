@@ -59,6 +59,22 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
         'nullable',
         'string',
       ],
+      'retail_price_external' => [
+        'nullable',
+        'numeric',
+        'min:0',
+      ],
+      'flete_external' => [
+        'nullable',
+        'numeric',
+        'min:0',
+      ],
+      'percentage_flete_external' => [
+        'nullable',
+        'numeric',
+        'min:0',
+        'max:100',
+      ],
     ];
   }
 

@@ -1037,6 +1037,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
+      Route::get('workOrderParts/quotation-by-vehicle/{vehicle_id}', [ApWorkOrderPartsController::class, 'getQuotationByVehicle']);
+      Route::post('workOrderParts/store-bulk-from-quotation', [ApWorkOrderPartsController::class, 'storeBulkFromQuotation']);
 
       // Work Order Labour - Mano de Obra de Órdenes de Trabajo
       Route::apiResource('workOrderLabour', WorkOrderLabourController::class)->only([
@@ -1090,6 +1092,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Work Order Planning - Planificación de Órdenes de Trabajo
       // Consolidado por grupo (debe ir antes del apiResource para evitar conflictos)
       Route::get('workOrderPlanning/consolidated/{workOrderId}', [WorkOrderPlanningController::class, 'consolidated']);
+      // Lista de trabajadores únicos que participaron en la orden de trabajo
+      Route::get('workOrderPlanning/workers/{workOrderId}', [WorkOrderPlanningController::class, 'getWorkers']);
 
       Route::apiResource('workOrderPlanning', WorkOrderPlanningController::class)->only([
         'index',
@@ -1204,7 +1208,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('per-diem-requests/{id}/available-expense-types', [PerDiemRequestController::class, 'availableExpenseTypes']);
     Route::post('per-diem-requests/{id}/agregar-deposito', [PerDiemRequestController::class, 'agregarDeposito']);
     Route::get('per-diem-requests/{id}/generate-mobility-payroll-pdf', [PerDiemRequestController::class, 'generateMobilityPayrollPDF']);
-    Route::get('per-diem-requests/{id}/mobility-payroll-pdf', [PerDiemRequestController::class, 'mobilityPayrollPDF']);
     Route::apiResource('per-diem-requests', PerDiemRequestController::class)->only([
       'index',
       'show',

@@ -427,20 +427,6 @@ class PerDiemRequestController extends Controller
   }
 
   /**
-   * Generate mobility payroll PDF report
-   */
-  public function mobilityPayrollPDF($id)
-  {
-    try {
-      $pdf = $this->service->mobilityPayrollPDF($id);
-      $filename = "planilla-movilidad-{$id}.pdf";
-      return $pdf->download($filename);
-    } catch (Exception $e) {
-      return $this->error($e->getMessage());
-    }
-  }
-
-  /**
    * Generate expenseTotal report PDF with evidence/receipts
    */
   public function expenseTotalWithEvidencePDF($id)

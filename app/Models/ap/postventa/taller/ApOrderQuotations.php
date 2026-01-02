@@ -3,6 +3,7 @@
 namespace App\Models\ap\postventa\taller;
 
 use App\Models\ap\comercial\Vehicles;
+use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,6 +17,7 @@ class ApOrderQuotations extends Model
 
   protected $fillable = [
     'vehicle_id',
+    'sede_id',
     'quotation_number',
     'subtotal',
     'discount_percentage',
@@ -68,6 +70,11 @@ class ApOrderQuotations extends Model
   public function vehicle(): BelongsTo
   {
     return $this->belongsTo(Vehicles::class, 'vehicle_id');
+  }
+
+  public function sede(): BelongsTo
+  {
+    return $this->belongsTo(Sede::class, 'sede_id');
   }
 
   public function createdBy(): BelongsTo
