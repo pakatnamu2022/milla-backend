@@ -9,7 +9,7 @@
     return "data:{$mimeType};base64,{$imageData}";
   }
 @endphp
-<!doctype html>
+  <!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -178,10 +178,11 @@
       </tr>
       @foreach($category['expenses'] as $expense)
         <tr>
-          <td class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
+          <td
+            class="text-center">{{ isset($expense['expense_date']) ? \Carbon\Carbon::parse($expense['expense_date'])->format('d/m/Y') : '-' }}</td>
           <td class="text-center">{{ $expense['receipt_number'] ?? 'SIN COMPROBANTE' }}</td>
           <td>{{ $expense['business_name'] ?? '-' }}</td>
-          <td>{{ $expense['notes'] ?? '-' }}</td>
+          <td>{{ $expense['detalle'] ?? '-' }}</td>
           <td class="text-right">S/. {{ number_format($expense['receipt_amount'] ?? 0, 2) }}</td>
           <td class="text-right">S/. {{ number_format($expense['company_amount'] ?? 0, 2) }}</td>
           <td class="text-right">S/. {{ number_format($expense['employee_amount'] ?? 0, 2) }}</td>

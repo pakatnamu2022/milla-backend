@@ -968,10 +968,15 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         $notes = $expense->notes ?? '';
         $detalle = $expenseTypeName . ($notes ? ' - ' . $notes : '');
 
+        // Log para ver el detalle
+        \Log::info('Detalle del gasto', [
+          'expense' => $expense,
+        ]);
+
         return [
           'expense_date' => $expense->expense_date,
           'receipt_number' => $expense->receipt_number,
-          'business_name' => $expense->business_name,
+          'business_name' => $expense->business_name . ($expense->ruc ? ' (RUC: ' . $expense->ruc . ')' : ''),
           'detalle' => $detalle,
           'receipt_amount' => $expense->receipt_amount,
           'company_amount' => $expense->company_amount,
@@ -1036,7 +1041,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         return [
           'expense_date' => $expense->expense_date,
           'receipt_number' => $expense->receipt_number,
-          'business_name' => $expense->business_name,
+          'business_name' => $expense->business_name . ($expense->ruc ? ' (RUC: ' . $expense->ruc . ')' : ''),
           'detalle' => $detalle,
           'receipt_amount' => $expense->receipt_amount,
           'company_amount' => $expense->company_amount,
@@ -1405,7 +1410,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         return [
           'expense_date' => $expense->expense_date,
           'receipt_number' => $expense->receipt_number,
-          'business_name' => $expense->business_name,
+          'business_name' => $expense->business_name . ($expense->ruc ? ' (RUC: ' . $expense->ruc . ')' : ''),
           'detalle' => $detalle,
           'receipt_amount' => $expense->receipt_amount,
           'company_amount' => $expense->company_amount,

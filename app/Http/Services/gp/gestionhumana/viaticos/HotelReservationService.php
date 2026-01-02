@@ -143,7 +143,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
       }
 
       // Create company expense for accommodation
-      $this->createCompanyExpenseForReservation($reservation, $data['document_number'] ?? "");
+      $this->createCompanyExpenseForReservation($reservation, $data['document_number'] ?? "", $data['ruc'] ?? "");
 
       DB::commit();
       return new HotelReservationResource($reservation->fresh(['request', 'hotelAgreement']));
@@ -354,7 +354,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
   /**
    * Create a company expense for the hotel reservation
    */
-  private function createCompanyExpenseForReservation(HotelReservation $reservation, string $document_number = ""): void
+  private function createCompanyExpenseForReservation(HotelReservation $reservation, string $document_number = "", string $ruc = ""): void
   {
     // Check if expense already exists for this reservation
     $existingExpense = PerDiemExpense::where('hotel_reservation_id', $reservation->id)->first();
@@ -381,6 +381,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         'employee_amount' => 0,
         'receipt_type' => 'invoice',
         'receipt_number' => strtoupper($document_number),
+        'ruc' => strtoupper($ruc),
         'business_name' => strtoupper($reservation->hotel_name),
         'receipt_path' => $reservation->receipt_path,
         'notes' => "Reserva de hotel: {$reservation->hotel_name} ({$reservation->nights_count} noches)",
