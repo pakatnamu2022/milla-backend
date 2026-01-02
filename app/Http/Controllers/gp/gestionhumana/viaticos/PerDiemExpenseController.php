@@ -110,7 +110,7 @@ class PerDiemExpenseController extends Controller
   public function isValid(int $expenseId, ValidatePerDiemExpenseRequest $request)
   {
     try {
-      $validatorId = auth()->id();
+      $validatorId = auth()->user()->partner_id;
       $expense = $this->service->validateExpense($expenseId, $validatorId);
 
       return response()->json([
