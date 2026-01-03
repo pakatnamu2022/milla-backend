@@ -1320,7 +1320,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $isRegularized = false;
 
     foreach ($electronicDocumentItems as $electronicDocumentItem) {
-      $electronicDocumentParent = ElectronicDocument::where('id', $electronicDocumentItem->ap_billing_electronic_document_id)
+      $electronicDocumentParent = ElectronicDocument::where('id', $electronicDocumentItem->reference_document_id)
         ->where('anulado', false)
         ->where('aceptada_por_sunat', true)
         ->whereNull('deleted_at')
@@ -1333,9 +1333,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 //    throw new Exception($electronicDocumentFirstItem);
     }
 
-    if ($isRegularized) {
-      throw new Exception('El anticipo ya ha sido regularizado, no se puede crear una nota de crédito. En su lugar cree una nota de crédito para el documento de regularización.');
-    }
+//    if ($isRegularized) {
+//      throw new Exception('El anticipo ya ha sido regularizado, no se puede crear una nota de crédito. En su lugar cree una nota de crédito para el documento de regularización.');
+//    }
 
     return [
       'series' => $series->series,
