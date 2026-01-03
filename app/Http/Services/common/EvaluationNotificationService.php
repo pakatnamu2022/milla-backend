@@ -357,7 +357,7 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => [$leader->email2, "hvaldiviezos@automotorespakatnamu.com"],
+        'to' => $leader->email2,
         'subject' => 'Nueva Evaluación de Desempeño Habilitada',
         'template' => 'emails.evaluation-opened',
         'data' => [
