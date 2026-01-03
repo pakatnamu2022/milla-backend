@@ -5,10 +5,8 @@ namespace App\Http\Services\common;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\personal\Worker;
-use App\Http\Services\common\EmailService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 
 class EvaluationNotificationService
 {
@@ -155,7 +153,7 @@ class EvaluationNotificationService
   /**
    * Envía el recordatorio a un líder específico
    */
-  private function sendReminderToLeader(Evaluation $evaluation, Person $leader, array $pendingData): array
+  private function sendReminderToLeader(Evaluation $evaluation, Worker $leader, array $pendingData): array
   {
     try {
       $emailConfig = [
@@ -355,7 +353,7 @@ class EvaluationNotificationService
   /**
    * Envía correo de apertura a un líder
    */
-  private function sendOpenedEmailToLeader(Evaluation $evaluation, Person $leader, array $leaderData): array
+  private function sendOpenedEmailToLeader(Evaluation $evaluation, Worker $leader, array $leaderData): array
   {
     try {
       $emailConfig = [
@@ -559,7 +557,7 @@ class EvaluationNotificationService
   /**
    * Envía correo de cierre a un líder
    */
-  private function sendClosedEmailToLeader(Evaluation $evaluation, Person $leader, array $leaderData, array $teamSummary): array
+  private function sendClosedEmailToLeader(Evaluation $evaluation, Worker $leader, array $leaderData, array $teamSummary): array
   {
     try {
       $emailConfig = [
