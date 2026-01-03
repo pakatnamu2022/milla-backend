@@ -1212,46 +1212,6 @@ registradas",
         "weight" => "50"
       ],
       [
-        "dni" => "45523776",
-        "objective" => "Vales pendientes rendidos al 100%",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "isAscending" => 1,
-        "weight" => "20"
-      ],
-      [
-        "dni" => "45523776",
-        "objective" => "Arqueo de caja, sin diferencias ",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "isAscending" => 1,
-        "weight" => "20"
-      ],
-      [
-        "dni" => "45523776",
-        "objective" => "Cuadres de caja oportunos",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "isAscending" => 1,
-        "weight" => "20"
-      ],
-      [
-        "dni" => "45523776",
-        "objective" => "Envio de reportes oportunos",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "isAscending" => 1,
-        "weight" => "20"
-      ],
-      [
-        "dni" => "45523776",
-        "objective" => "Informe de estado de las cuentas por cobrar",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "isAscending" => 1,
-        "weight" => "20"
-      ],
-      [
         "dni" => "74413833",
         "objective" => "Eficiencia de OT > 70%",
         "metric" => "Porcentaje",
