@@ -2830,30 +2830,6 @@ registradas",
         "weight" => "34"
       ],
       [
-        "dni" => "02855107",
-        "objective" => "Cero soles de multa por errores contables en la empresa a cargo\n",
-        "metric" => "Soles",
-        "goal" => 0,
-        "isAscending" => 0,
-        "weight" => "33"
-      ],
-      [
-        "dni" => "02855107",
-        "objective" => "Cero errores en el registro de información contable de manera mensual",
-        "metric" => "Errores",
-        "goal" => 2,
-        "isAscending" => 0,
-        "weight" => "33"
-      ],
-      [
-        "dni" => "02855107",
-        "objective" => "Entrega de cierre contable mensual integral (en los primeros 12 días calendario)",
-        "metric" => "Dias",
-        "goal" => 12,
-        "isAscending" => 0,
-        "weight" => "34"
-      ],
-      [
         "dni" => "42082941",
         "objective" => "Número de unidades entregadas",
         "metric" => "Unidad",
