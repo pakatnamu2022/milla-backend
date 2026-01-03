@@ -357,7 +357,7 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => $leader->email,
+        'to' => $leader->email2,
         'subject' => 'Nueva Evaluación de Desempeño Habilitada',
         'template' => 'emails.evaluation-opened',
         'data' => [
@@ -397,7 +397,7 @@ class EvaluationNotificationService
       return [
         'leader_id' => $leader->id,
         'leader_name' => $leader->nombre_completo,
-        'leader_email' => $leader->email,
+        'leader_email' => $leader->email2,
         'team_count' => $leaderData['team_count'] ?? 0,
         'sent' => false,
         'error' => $e->getMessage(),
@@ -561,7 +561,7 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => $leader->email,
+        'to' => $leader->email2,
         'subject' => 'Evaluación de Desempeño Finalizada - Resumen de Resultados',
         'template' => 'emails.evaluation-closed',
         'data' => [
@@ -599,7 +599,7 @@ class EvaluationNotificationService
       return [
         'leader_id' => $leader->id,
         'leader_name' => $leader->nombre_completo,
-        'leader_email' => $leader->email,
+        'leader_email' => $leader->email2,
         'team_count' => $leaderData['team_count'],
         'average_score' => $teamSummary['average_score'],
         'sent' => $sent,
@@ -611,7 +611,7 @@ class EvaluationNotificationService
       return [
         'leader_id' => $leader->id,
         'leader_name' => $leader->nombre_completo,
-        'leader_email' => $leader->email,
+        'leader_email' => $leader->email2,
         'sent' => false,
         'error' => $e->getMessage(),
         'evaluation_id' => $evaluation->id,
