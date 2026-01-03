@@ -7898,6 +7898,10 @@ registradas",
 
       $category = $person->position->hierarchicalCategory;
 
+      if (!$category) {
+        throw new \Exception("La persona con DNI: {$item['dni']} no tiene una categoría jerárquica asignada.");
+      }
+
       $objective = EvaluationObjective::where('name', $item['objective'])->first();
       $metric = EvaluationMetric::where('name', $item['metric'])->first();
 
