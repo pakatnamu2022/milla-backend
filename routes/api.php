@@ -113,6 +113,10 @@ use App\Http\Controllers\gp\maestroGeneral\SedeController;
 use App\Http\Controllers\gp\maestroGeneral\SunatConceptsController;
 use App\Http\Controllers\gp\tics\EquipmentController;
 use App\Http\Controllers\gp\tics\EquipmentTypeController;
+use App\Http\Controllers\tp\comercial\TpTravelPhotoController;
+//TP - Controller
+use App\Http\Controllers\tp\comercial\TravelControlController;
+
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login'])->name('login');
@@ -141,6 +145,78 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     'store',
     'destroy'
   ]);
+
+    // TP - COMERCIAL - CONTROL VIAJES
+  Route::group(['prefix' => 'tp/comercial'], function(){
+    Route::apiResource('control-travel', TravelControlController::class )->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
+
+    //ESTADO DEL VIAJE
+    Route::post('control-travel/{id}/state', [TravelControlController::class, 'changeState'])->name('control-travel.change-state');
+
+    //INICIAR RUTA
+    Route::post('control-travel/{id}/start', [TravelControlController::class, 'startRoute'])->name('control-travel.start');
+
+    //FINALIZAR RUTA
+    Route::post('control-travel/{id}/end', [TravelControlController::class, 'endRoute'])->name('control-travel.end');
+
+    //REGISTRAR COMBUSTIBLE (JIMMI)
+
+    Route::post('control-travel/{id}/fuel', [TravelControlController::class, 'fuelRecord'])->name('control-travel.fuel-record');
+
+    //REGISTROS DE CONDUCTOR
+    Route::get('control-travel/{id}/records', [TravelControlController::class, 'driverRecords'])->name('control-travel.records');
+
+    //FILTROS Y BUSQUEDA
+    //estados disponibles
+    Route::get('control-travel/filters/states', [TravelControlController::class, 'availableStates'])->name('control-travel.states');
+    
+    //conductores activos
+    Route::get('control-travel/filters/drivers', [TravelControlController::class, 'activeDrivers'])->name('control-travel.drivers');
+    
+    //vehiculos activos
+    Route::get('control-travel/filters/vehicles', [TravelControlController::class, 'activeVehicles'])->name('control-travel.vehicles');
+
+    //VALIDAR KILOMETRAJE
+    Route::get('control-travel/validate-mileage/{vehicle_id}', [TravelControlController::class, 'validateMileage'])->name('control-travel.validate-km');
+
+    //PARA FOTOS DE INICIO Y FINAL DE RUTA
+    Route::prefix('control-travel/{id}')->group(function(){
+      
+      //SUBIR LA FOTO
+      Route::post('/photos', [TpTravelPhotoController::class, 'store'])
+              ->name('control-travel.photos.store');
+
+      // SUBIR MULTIPLES FOTOS
+      // Route::post('/photos/multiple', [TravelPhotoController::class, 'storeMultiple'])
+      //         ->name('control-travel.photos.multiple');
+      
+      //OBTENER TODAS LAS FOTOS
+      Route::get('/photos', [TpTravelPhotoController::class, 'index'])
+              ->name('control-travel.photos.index');
+
+      //ESTADISTICAS DE FOTOS
+      Route::get('/photos/statistics', [TpTravelPhotoController::class, 'photoStatistics'])
+              ->name('control-travel.photos.statistics');
+
+    });
+    //RUTAS GENERALES DE FOTOS
+      Route::prefix('photos')->group(function(){
+
+        //OBTENER UNA FOTO POR ID
+        Route::get('/{id}', [TpTravelPhotoController::class, 'show'])
+              ->name('photos.show');
+        
+        //ELIMINAR UNA FOTO
+        Route::delete('/{id}', [TpTravelPhotoController::class, 'destroy'])
+              ->name('photos.destroy');
+      });
+  });
 
   //    SYSTEM
   Route::group(['prefix' => 'configuration'], function () {
