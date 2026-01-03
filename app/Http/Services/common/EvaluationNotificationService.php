@@ -371,7 +371,7 @@ class EvaluationNotificationService
           'team_count' => $leaderData['team_count'],
           'team_members' => $leaderData['team_members'],
           'has_objectives' => true,
-          'has_competences' => true,
+          'has_competences' => in_array($evaluation->typeEvaluation, [Evaluation::EVALUATION_TYPE_180, Evaluation::EVALUATION_TYPE_360]),
           'has_goals' => true,
           'evaluation_url' => config('app.frontend_url'),
           'additional_notes' => 'Recuerde que completar las evaluaciones a tiempo contribuye al desarrollo profesional de su equipo.',
