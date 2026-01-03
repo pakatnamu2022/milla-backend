@@ -199,7 +199,7 @@ programados)",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "47085242",
@@ -504,7 +504,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "77668182",
@@ -624,7 +624,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "47241820",
@@ -1057,7 +1057,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "27167946",
@@ -1097,7 +1097,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "45092596",
@@ -1169,7 +1169,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "05644606",
@@ -1305,7 +1305,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "02767057",
@@ -1473,7 +1473,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "27436038",
@@ -1481,7 +1481,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "44184967",
@@ -1569,7 +1569,7 @@ registradas",
         "metric" => "Porcentaje",
         "goal" => 100,
         "isAscending" => 1,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "26619707",
@@ -1577,7 +1577,7 @@ registradas",
         "metric" => "Unidad",
         "goal" => 1,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "47037915",
@@ -1617,7 +1617,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "44764424",
@@ -1777,7 +1777,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "47618600",
@@ -1785,7 +1785,7 @@ registradas",
         "metric" => "Unidad",
         "goal" => 1,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "45243028",
@@ -1881,7 +1881,7 @@ registradas",
         "metric" => "Porcentaje",
         "goal" => 100,
         "isAscending" => 1,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "73468572",
@@ -1945,7 +1945,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "74325638",
@@ -2025,7 +2025,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "26729421",
@@ -2209,7 +2209,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "42819192",
@@ -2217,7 +2217,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "42140416",
@@ -2225,7 +2225,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "40896485",
@@ -2297,7 +2297,7 @@ registradas",
         "metric" => "Porcentaje",
         "goal" => 100,
         "isAscending" => 1,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "73092833",
@@ -2305,7 +2305,7 @@ registradas",
         "metric" => "Porcentaje",
         "goal" => 5,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "40521977",
@@ -2345,7 +2345,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "71900918",
@@ -2418,7 +2418,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "46815084",
@@ -2458,7 +2458,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "75848561",
@@ -2514,7 +2514,7 @@ registradas",
         "metric" => "Unidad",
         "goal" => 1,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "09994093",
@@ -2611,7 +2611,7 @@ registradas",
         "metric" => "Unidad",
         "goal" => 1,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "40654637",
@@ -2707,7 +2707,7 @@ registradas",
         "metric" => "Unidad",
         "goal" => 1,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "47189021",
@@ -2867,7 +2867,7 @@ registradas",
         "metric" => "Unidad",
         "goal" => 1,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "42298543",
@@ -3067,7 +3067,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "72318704",
@@ -3099,7 +3099,7 @@ registradas",
         "metric" => "Porcentaje",
         "goal" => 100,
         "isAscending" => 1,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "16475507",
@@ -3227,7 +3227,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "44249939",
@@ -3235,7 +3235,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "47057666",
@@ -3267,7 +3267,7 @@ registradas",
         "metric" => "Porcentaje",
         "goal" => 100,
         "isAscending" => 1,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "46343351",
@@ -3300,7 +3300,7 @@ programados)",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "19324383",
@@ -3340,7 +3340,7 @@ programados)",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "48299990",
@@ -3452,7 +3452,7 @@ programados)",
         "metric" => "Porcentaje",
         "goal" => 100,
         "isAscending" => 1,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "42116951",
@@ -3564,7 +3564,7 @@ programados)",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "16734135",
@@ -3837,7 +3837,7 @@ de caja",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "17632430",
@@ -4086,7 +4086,7 @@ programados)",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "17619908",
@@ -4206,7 +4206,7 @@ programados)",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "41037767",
@@ -4238,7 +4238,7 @@ programados)",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "41430542",
@@ -4838,7 +4838,7 @@ programados)",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "46479361",
@@ -4998,7 +4998,7 @@ programados)",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "75235770",
@@ -5006,7 +5006,7 @@ programados)",
         "metric" => "Porcentaje",
         "goal" => 90,
         "isAscending" => 1,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "71628227",
@@ -5264,7 +5264,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "42310255",
@@ -5392,7 +5392,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "44723898",
@@ -5539,7 +5539,7 @@ bonificaciòn, soat,certificado MTC)",
         "metric" => "Porcentaje",
         "goal" => 5,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "70309494",
@@ -5611,7 +5611,7 @@ bonificaciòn, soat,certificado MTC)",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "76692661",
@@ -5820,7 +5820,7 @@ programados)",
         "metric" => "Unidad",
         "goal" => 1,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "44588021",
@@ -5973,7 +5973,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "73340961",
@@ -5981,7 +5981,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "46002145",
@@ -5989,7 +5989,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "18217261",
@@ -6133,7 +6133,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "70984021",
@@ -6269,7 +6269,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => 75089704,
@@ -6277,7 +6277,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => 73078735,
@@ -6381,7 +6381,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => 75480931,
@@ -6813,7 +6813,7 @@ registradas",
         "metric" => "Porcentaje",
         "goal" => 100,
         "isAscending" => 1,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "46966858",
@@ -6853,7 +6853,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "42662829",
@@ -6885,7 +6885,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "47552281",
@@ -7061,7 +7061,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "75262550",
@@ -7069,7 +7069,7 @@ registradas",
         "metric" => "Porcentaje",
         "goal" => 5,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "74537001",
@@ -7077,7 +7077,7 @@ registradas",
         "metric" => "Porcentaje",
         "goal" => 5,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "76332500",
@@ -7381,7 +7381,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "42091625",
@@ -7445,7 +7445,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "75078996",
@@ -7453,7 +7453,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "74068114",
@@ -7461,7 +7461,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "74135027",
@@ -7469,7 +7469,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "78378602",
@@ -7477,7 +7477,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 3,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "72657695",
@@ -7485,7 +7485,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 45,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "76422823",
@@ -7493,7 +7493,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 45,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "76846424",
@@ -7501,7 +7501,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 45,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "73786239",
@@ -7509,7 +7509,7 @@ registradas",
         "metric" => "Minutos",
         "goal" => 45,
         "isAscending" => 0,
-        "weight" => "10"
+        "weight" => "100"
       ],
       [
         "dni" => "41583758",
