@@ -5,6 +5,7 @@ namespace App\Http\Controllers\ap\postventa\taller;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\postventa\taller\IndexApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\StoreApOrderQuotationsRequest;
+use App\Http\Requests\ap\postventa\taller\StoreApOrderQuotationWithProductsRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationsRequest;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsService;
 
@@ -30,6 +31,15 @@ class ApOrderQuotationsController extends Controller
   {
     try {
       return $this->success($this->service->store($request->all()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function storeWithProducts(StoreApOrderQuotationWithProductsRequest $request)
+  {
+    try {
+      return $this->success($this->service->storeWithProducts($request->validated()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

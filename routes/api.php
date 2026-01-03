@@ -1051,6 +1051,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Work Order Quotations - Cotizaciones de Órdenes de Trabajo
       Route::get('orderQuotations/{id}/pdf', [ApOrderQuotationsController::class, 'downloadPDF']);
+      Route::post('orderQuotations/with-products', [ApOrderQuotationsController::class, 'storeWithProducts']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',

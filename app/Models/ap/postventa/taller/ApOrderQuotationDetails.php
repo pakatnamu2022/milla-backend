@@ -26,8 +26,8 @@ class ApOrderQuotationDetails extends Model
     'total_amount',
     'observations',
     'retail_price_external',
-    'flete_external',
-    'percentage_flete_external',
+    'exchange_rate',
+    'freight_commission',
     'status',
   ];
 
