@@ -49,7 +49,7 @@ class EmailService
       );
 
       if (isset($config['to'])) {
-        Mail::to($config['to'])->queue($mailable->onQueue('sync'));
+        Mail::to($config['to'])->queue($mailable->onQueue('mail'));
       }
       return true;
     } catch (\Exception $e) {
