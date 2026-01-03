@@ -22,6 +22,10 @@ use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
+
+/**
+ * php artisan db:seed --class=Database\Seeders\gp\evaluation\ObjectiveSeeder2
+ */
 class ObjectiveSeeder2 extends Seeder
 {
   public function run(): void
@@ -747,7 +751,7 @@ registradas",
         "metric" => "Puntaje",
         "goal" => 100,
         "isAscending" => 1,
-        "weight" => "5%"
+        "weight" => "5"
       ],
       [
         "dni" => "42119750",
@@ -755,7 +759,7 @@ registradas",
         "metric" => "Puntaje",
         "goal" => 100,
         "isAscending" => 1,
-        "weight" => "5%"
+        "weight" => "5"
       ],
       [
         "dni" => "42119750",
@@ -763,7 +767,7 @@ registradas",
         "metric" => "Puntaje",
         "goal" => 100,
         "isAscending" => 1,
-        "weight" => "5%"
+        "weight" => "5"
       ],
       [
         "dni" => "42119750",
@@ -771,7 +775,7 @@ registradas",
         "metric" => "Puntaje",
         "goal" => 100,
         "isAscending" => 1,
-        "weight" => "5%"
+        "weight" => "5"
       ],
       [
         "dni" => "16804371",
