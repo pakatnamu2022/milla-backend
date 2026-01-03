@@ -1052,30 +1052,6 @@ registradas",
         "weight" => "34"
       ],
       [
-        "dni" => "44652712",
-        "objective" => "Cero soles de multa por errores contables en la empresa a cargo\n",
-        "metric" => "Soles",
-        "goal" => 0,
-        "isAscending" => 0,
-        "weight" => "33"
-      ],
-      [
-        "dni" => "44652712",
-        "objective" => "Cero errores en el registro de información contable de manera mensual",
-        "metric" => "Errores",
-        "goal" => 2,
-        "isAscending" => 0,
-        "weight" => "33"
-      ],
-      [
-        "dni" => "44652712",
-        "objective" => "Entrega de cierre contable mensual integral (en los primeros 12 días calendario)",
-        "metric" => "Dias",
-        "goal" => 12,
-        "isAscending" => 0,
-        "weight" => "34"
-      ],
-      [
         "dni" => "19256673",
         "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza ",
         "metric" => "Minutos",
