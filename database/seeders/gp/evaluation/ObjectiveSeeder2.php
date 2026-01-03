@@ -4145,30 +4145,6 @@ programados)",
         "weight" => "34"
       ],
       [
-        "dni" => "75618646",
-        "objective" => "Número de unidades entregadas",
-        "metric" => "Unidad",
-        "goal" => 6,
-        "isAscending" => 1,
-        "weight" => "50"
-      ],
-      [
-        "dni" => "75618646",
-        "objective" => "Colocación de créditos",
-        "metric" => "Unidad",
-        "goal" => 2,
-        "isAscending" => 1,
-        "weight" => "25"
-      ],
-      [
-        "dni" => "75618646",
-        "objective" => "Colocación de seguros",
-        "metric" => "Unidad",
-        "goal" => 1,
-        "isAscending" => 1,
-        "weight" => "25"
-      ],
-      [
         "dni" => "72650523",
         "objective" => "Cumplimiento de presupuesto comercial",
         "metric" => "Porcentaje",
