@@ -7896,7 +7896,7 @@ registradas",
     foreach ($data as $item) {
       $person = Worker::where('vat', $item['dni'])->where('status_id', 22)->first();
 
-      $category = $person->position->hierarchicalCategory;
+      $category = $person->position?->hierarchicalCategory;
 
       if (!$category) {
         throw new \Exception("La persona con DNI: {$item['dni']} no tiene una categoría jerárquica asignada.");
