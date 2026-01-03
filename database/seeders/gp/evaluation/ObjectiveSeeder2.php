@@ -12,6 +12,7 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationDashboard;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationMetric;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationObjective;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
@@ -7876,6 +7877,7 @@ registradas",
     EvaluationPersonResult::query()->truncate();
     EvaluationPersonCycleDetail::query()->truncate();
     EvaluationCategoryObjectiveDetail::query()->truncate();
+    EvaluationPersonCompetenceDetail::query()->truncate();
 //    EvaluationCategoryCompetenceDetail::query()->truncate();
     EvaluationCycle::query()->truncate();
     Evaluation::query()->truncate();
