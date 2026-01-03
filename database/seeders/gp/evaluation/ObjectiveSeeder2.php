@@ -7659,7 +7659,7 @@ registradas",
       $category = $person?->position?->hierarchicalCategory;
 
       if (!$category) {
-        throw new \Exception("La persona con DNI: {$item['dni']} no tiene una categoría jerárquica asignada.");
+        continue; // Omitir personas sin categoría jerárquica
       }
 
       $objective = EvaluationObjective::where('name', $item['objective'])->first();
@@ -7671,10 +7671,6 @@ registradas",
 
       if (!$person->cargo_id) {
         throw new \Exception("La persona con DNI: {$item['dni']} no tiene un cargo asignado.");
-      }
-
-      if (!$category) {
-        throw new \Exception("La persona con DNI: {$item['dni']} no tiene una categoría jerárquica asignada.");
       }
 
       $categoryDetail = HierarchicalCategoryDetail::where('position_id', $person->cargo_id)
