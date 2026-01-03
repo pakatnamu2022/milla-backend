@@ -6,6 +6,7 @@ use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\gestionsistema\District;
+use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -22,7 +23,7 @@ class PerDiemRequest extends BaseModel
     'per_diem_policy_id',
     'employee_id',
     'company_id',
-    'company_service_id',
+    'sede_service_id',
     'district_id',
     'per_diem_category_id',
     'start_date',
@@ -74,7 +75,7 @@ class PerDiemRequest extends BaseModel
     'employee_id' => '=',
     'authorizer_id' => '=',
     'company_id' => '=',
-    'company_service_id' => '=',
+    'sede_service_id' => '=',
     'district_id' => '=',
     'per_diem_category_id' => '=',
     'per_diem_policy_id' => '=',
@@ -94,7 +95,7 @@ class PerDiemRequest extends BaseModel
     'total_budget',
     'employee_id',
     'company_id',
-    'company_service_id',
+    'sede_service_id',
     'district_id',
     'created_at',
   ];
@@ -177,9 +178,9 @@ class PerDiemRequest extends BaseModel
     return $this->belongsTo(Company::class, 'company_id');
   }
 
-  public function companyService(): BelongsTo
+  public function sedeService(): BelongsTo
   {
-    return $this->belongsTo(Company::class, 'company_service_id');
+    return $this->belongsTo(Sede::class, 'sede_service_id');
   }
 
   /**
