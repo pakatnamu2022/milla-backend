@@ -500,20 +500,18 @@ class EvaluationService extends BaseService
       ];
     }
 
-    return $this->withoutObservers(function () use ($evaluation, $mode, $resetProgress) {
-      $result = match ($mode) {
-        'full_reset' => $this->executeFullReset($evaluation, $resetProgress),
-        'sync_with_cycle' => $this->executeSyncWithCycle($evaluation, $resetProgress),
-        'add_missing_only' => $this->executeAddMissingOnly($evaluation),
-        default => throw new Exception("Modo de regeneración no válido: {$mode}")
-      };
+    $result = match ($mode) {
+      'full_reset' => $this->executeFullReset($evaluation, $resetProgress),
+      'sync_with_cycle' => $this->executeSyncWithCycle($evaluation, $resetProgress),
+      'add_missing_only' => $this->executeAddMissingOnly($evaluation),
+      default => throw new Exception("Modo de regeneración no válido: {$mode}")
+    };
 
-      return array_merge($result, [
-        'success' => true,
-        'changes_detected' => true,
-        'mode_used' => $mode
-      ]);
-    }, $evaluation->id);
+    return array_merge($result, [
+      'success' => true,
+      'changes_detected' => true,
+      'mode_used' => $mode
+    ]);
   }
 
   /**
