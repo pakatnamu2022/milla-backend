@@ -1924,46 +1924,6 @@ registradas",
         "weight" => "20"
       ],
       [
-        "dni" => "76627801",
-        "objective" => "Vales pendientes rendidos al 100%",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "isAscending" => 1,
-        "weight" => "20"
-      ],
-      [
-        "dni" => "76627801",
-        "objective" => "Arqueo de caja, sin diferencias ",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "isAscending" => 1,
-        "weight" => "20"
-      ],
-      [
-        "dni" => "76627801",
-        "objective" => "Cuadres de caja oportunos",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "isAscending" => 1,
-        "weight" => "20"
-      ],
-      [
-        "dni" => "76627801",
-        "objective" => "Envio de reportes oportunos",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "isAscending" => 1,
-        "weight" => "20"
-      ],
-      [
-        "dni" => "76627801",
-        "objective" => "Informe de estado de las cuentas por cobrar",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "isAscending" => 1,
-        "weight" => "20"
-      ],
-      [
         "dni" => "48021041",
         "objective" => "Cuadres de caja oportunos\n",
         "metric" => "Porcentaje",
