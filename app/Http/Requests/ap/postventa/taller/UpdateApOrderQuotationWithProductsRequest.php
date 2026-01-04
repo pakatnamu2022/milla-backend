@@ -6,7 +6,7 @@ use App\Http\Requests\StoreRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
 
-class StoreApOrderQuotationWithProductsRequest extends StoreRequest
+class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
 {
   public function rules(): array
   {

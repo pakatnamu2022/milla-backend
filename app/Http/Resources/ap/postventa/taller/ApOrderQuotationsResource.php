@@ -13,6 +13,7 @@ class ApOrderQuotationsResource extends JsonResource
     return [
       'id' => $this->id,
       'vehicle_id' => $this->vehicle_id,
+      'sede_id' => $this->sede_id,
       'plate' => $this->vehicle ? $this->vehicle->plate : "-",
       'vehicle' => new VehiclesResource($this->whenLoaded('vehicle')),
       'quotation_number' => $this->quotation_number,
