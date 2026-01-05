@@ -29,6 +29,9 @@ class ApOrderQuotationDetailsResource extends JsonResource
       'discount' => $this->discount ?? 0,
       'total_amount' => $this->total_amount ?? 0,
       'observations' => $this->observations,
+      'retail_price_external' => $this->retail_price_external,
+      'exchange_rate' => $this->exchange_rate,
+      'freight_commission' => $this->freight_commission,
 
       // Relationships
       'order_quotation' => new ApOrderQuotationsResource($this->whenLoaded('orderQuotation')),

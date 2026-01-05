@@ -13,6 +13,7 @@ class ApOrderQuotationsResource extends JsonResource
     return [
       'id' => $this->id,
       'vehicle_id' => $this->vehicle_id,
+      'sede_id' => $this->sede_id,
       'plate' => $this->vehicle ? $this->vehicle->plate : "-",
       'vehicle' => new VehiclesResource($this->whenLoaded('vehicle')),
       'quotation_number' => $this->quotation_number,
@@ -29,6 +30,7 @@ class ApOrderQuotationsResource extends JsonResource
       'created_by' => $this->created_by,
       'created_by_name' => $this->createdBy ? $this->createdBy->name : null,
       'is_take' => (bool)$this->is_take,
+      'area_id' => $this->area_id,
     ];
   }
 }
