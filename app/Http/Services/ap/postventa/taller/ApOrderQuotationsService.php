@@ -78,6 +78,86 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     });
   }
 
+  public function storeWithProducts(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $vehicle = Vehicles::find($data['vehicle_id']);
+
+      if ($vehicle->customer_id === null) {
+        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
+      }
+
+      if (auth()->check()) {
+        $data['created_by'] = auth()->user()->id;
+      }
+
+      // Calculate validity days
+      $quotation_date = Carbon::parse($data['quotation_date']);
+      $expiration_date = Carbon::parse($data['expiration_date']);
+      $validation_days = $quotation_date->diffInDays($expiration_date);
+
+      // Calculate totals from details
+      $subtotal = 0;
+      $discount_amount = 0;
+
+      foreach ($data['details'] as $detail) {
+        $itemSubtotal = $detail['quantity'] * $detail['unit_price'];
+        $itemDiscount = isset($detail['discount']) ? ($itemSubtotal * $detail['discount'] / 100) : 0;
+
+        $subtotal += $itemSubtotal;
+        $discount_amount += $itemDiscount;
+      }
+
+      $subtotal_after_discount = $subtotal - $discount_amount;
+      $tax_amount = $subtotal_after_discount * Constants::VAT_TAX / 100;
+      $total_amount = $subtotal_after_discount + $tax_amount;
+
+      // Prepare quotation data
+      $quotationData = [
+        'area_id' => $data['area_id'],
+        'vehicle_id' => $data['vehicle_id'],
+        'sede_id' => $data['sede_id'],
+        'quotation_date' => $data['quotation_date'],
+        'expiration_date' => $data['expiration_date'],
+        'observations' => $data['observations'] ?? null,
+        'created_by' => $data['created_by'],
+        'quotation_number' => $this->generateNextQuotationNumber(),
+        'subtotal' => $subtotal,
+        'discount_amount' => $discount_amount,
+        'tax_amount' => $tax_amount,
+        'total_amount' => $total_amount,
+        'validity_days' => $validation_days,
+      ];
+
+      // Create quotation
+      $quotation = ApOrderQuotations::create($quotationData);
+
+      // Create details
+      foreach ($data['details'] as $detail) {
+        $quotation->details()->create([
+          'item_type' => 'PRODUCT',
+          'product_id' => $detail['product_id'],
+          'description' => $detail['description'],
+          'quantity' => $detail['quantity'],
+          'unit_measure' => $detail['unit_measure'],
+          'unit_price' => $detail['unit_price'],
+          'discount' => $detail['discount'] ?? 0,
+          'total_amount' => $detail['total_amount'],
+          'observations' => $detail['observations'] ?? null,
+          'retail_price_external' => $detail['retail_price_external'] ?? null,
+          'exchange_rate' => $detail['exchange_rate'] ?? null,
+          'freight_commission' => $detail['freight_commission'] ?? null,
+        ]);
+      }
+
+      return new ApOrderQuotationsResource($quotation->load([
+        'vehicle',
+        'createdBy',
+        'details.product'
+      ]));
+    });
+  }
+
   public function show($id)
   {
     return new ApOrderQuotationsResource($this->find($id));
@@ -102,6 +182,81 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       ]);
 
       return new ApOrderQuotationsResource($quotation);
+    });
+  }
+
+  public function updateWithProducts(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $quotation = $this->find($data['id']);
+      $vehicle = Vehicles::find($data['vehicle_id']);
+
+      if ($vehicle->customer_id === null) {
+        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para actualizar una cotización');
+      }
+
+      // Calculate validity days
+      $quotation_date = Carbon::parse($data['quotation_date']);
+      $expiration_date = Carbon::parse($data['expiration_date']);
+      $validation_days = $quotation_date->diffInDays($expiration_date);
+
+      // Calculate totals from details
+      $subtotal = 0;
+      $discount_amount = 0;
+
+      foreach ($data['details'] as $detail) {
+        $itemSubtotal = $detail['quantity'] * $detail['unit_price'];
+        $itemDiscount = isset($detail['discount']) ? ($itemSubtotal * $detail['discount'] / 100) : 0;
+
+        $subtotal += $itemSubtotal;
+        $discount_amount += $itemDiscount;
+      }
+
+      $subtotal_after_discount = $subtotal - $discount_amount;
+      $tax_amount = $subtotal_after_discount * Constants::VAT_TAX / 100;
+      $total_amount = $subtotal_after_discount + $tax_amount;
+
+      // Update quotation data
+      $quotation->update([
+        'area_id' => $data['area_id'],
+        'vehicle_id' => $data['vehicle_id'],
+        'sede_id' => $data['sede_id'],
+        'quotation_date' => $data['quotation_date'],
+        'expiration_date' => $data['expiration_date'],
+        'observations' => $data['observations'] ?? null,
+        'subtotal' => $subtotal,
+        'discount_amount' => $discount_amount,
+        'tax_amount' => $tax_amount,
+        'total_amount' => $total_amount,
+        'validity_days' => $validation_days,
+      ]);
+
+      // Delete existing details
+      $quotation->details()->delete();
+
+      // Create new details
+      foreach ($data['details'] as $detail) {
+        $quotation->details()->create([
+          'item_type' => 'PRODUCT',
+          'product_id' => $detail['product_id'],
+          'description' => $detail['description'],
+          'quantity' => $detail['quantity'],
+          'unit_measure' => $detail['unit_measure'],
+          'unit_price' => $detail['unit_price'],
+          'discount' => $detail['discount'] ?? 0,
+          'total_amount' => $detail['total_amount'],
+          'observations' => $detail['observations'] ?? null,
+          'retail_price_external' => $detail['retail_price_external'] ?? null,
+          'exchange_rate' => $detail['exchange_rate'] ?? null,
+          'freight_commission' => $detail['freight_commission'] ?? null,
+        ]);
+      }
+
+      return new ApOrderQuotationsResource($quotation->load([
+        'vehicle',
+        'createdBy',
+        'details.product'
+      ]));
     });
   }
 

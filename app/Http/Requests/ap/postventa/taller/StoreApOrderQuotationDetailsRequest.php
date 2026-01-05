@@ -64,12 +64,12 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
         'numeric',
         'min:0',
       ],
-      'flete_external' => [
+      'exchange_rate' => [
         'nullable',
         'numeric',
         'min:0',
       ],
-      'percentage_flete_external' => [
+      'freight_commission' => [
         'nullable',
         'numeric',
         'min:0',

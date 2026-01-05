@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\postventa\taller;
 
+use App\Models\ap\ApPostVentaMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
@@ -30,6 +31,7 @@ class ApOrderQuotations extends Model
     'observations',
     'created_by',
     'is_take',
+    'area_id',
   ];
 
   const filters = [
@@ -37,6 +39,7 @@ class ApOrderQuotations extends Model
     'vehicle_id' => '=',
     'quotation_date' => 'between',
     'is_take' => '=',
+    'area_id' => '=',
   ];
 
   const sorts = [
@@ -80,6 +83,11 @@ class ApOrderQuotations extends Model
   public function createdBy(): BelongsTo
   {
     return $this->belongsTo(User::class, 'created_by');
+  }
+
+  public function Area(): BelongsTo
+  {
+    return $this->belongsTo(ApPostVentaMasters::class, 'area_id');
   }
 
   public function details()
