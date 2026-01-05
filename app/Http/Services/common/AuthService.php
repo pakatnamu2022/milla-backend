@@ -340,7 +340,10 @@ class AuthService
       'verified_at' => now()
     ]);
 
-    return response()->json(['message' => 'Contraseña actualizada correctamente']);
+    // Invalidar todos los tokens de sesión del usuario
+    $user->tokens()->delete();
+
+    return response()->json(['message' => 'Contraseña actualizada correctamente. Todas las sesiones han sido cerradas.']);
   }
 
   public function resetPassword($request)
