@@ -61,7 +61,9 @@ class User extends Authenticatable
 
   public function person()
   {
-    return $this->hasOne(Worker::class, 'id', 'partner_id');
+    return $this->hasOne(Worker::class, 'id', 'partner_id')
+      ->where('rrhh_persona.status_deleted', 1)
+      ->where('rrhh_persona.status_id', 22);
   }
 
   public function role()

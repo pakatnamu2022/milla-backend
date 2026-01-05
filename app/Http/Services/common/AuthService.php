@@ -6,6 +6,7 @@ use App\Http\Resources\gp\gestionsistema\RoleResource;
 use App\Http\Resources\gp\gestionsistema\UserResource;
 use App\Models\gp\gestionsistema\Role;
 use App\Models\User;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -20,8 +21,13 @@ class AuthService
     if (Auth::attempt($credentials)) {
       $user = Auth::user();
       $token = $user->createToken('AuthToken', expiresAt: now()->addDays(7));
-
       $user = User::with('person')->find($user->id);
+      $person = $user->person;
+      if (!$person->verified_at) {
+        $user->tokens()->delete();
+        throw new Exception('Credenciales Inválidas', 401);
+      }
+
       $permissionsData = $this->permissions();
 
       return response()->json([
@@ -41,6 +47,11 @@ class AuthService
     if ($user) {
       $user = User::with('person')->find($user->id);
       $permissionsData = $this->permissions();
+      $person = $user->person;
+      if (!$person->verified_at) {
+        $user->tokens()->delete();
+        throw new Exception('Credenciales Inválidas', 401);
+      }
       return response()->json([
         'user' => UserResource::make($user),
         'permissions' => $permissionsData['permissions'],
