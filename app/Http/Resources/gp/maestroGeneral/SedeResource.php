@@ -35,6 +35,7 @@ class SedeResource extends JsonResource
       'province_id' => $this->province_id,
       'province' => $this->province?->name,
       'district_id' => $this->district_id,
+      'shop_id' => $this->shop_id,
       'district' => $this->district?->name,
       'status' => $this->status,
       'has_workshop' => $this->has_workshop,

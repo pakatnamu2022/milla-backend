@@ -3,6 +3,7 @@
 namespace App\Http\Requests\gp\gestionhumana\viaticos;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\gp\maestroGeneral\Sede;
 
 class StorePerDiemRequestRequest extends StoreRequest
 {
@@ -11,7 +12,6 @@ class StorePerDiemRequestRequest extends StoreRequest
     return [
       'company_id' => ['required', 'integer', 'exists:companies,id'],
       'sede_service_id' => ['required', 'integer', 'exists:config_sede,id'],
-      'district_id' => ['required', 'integer', 'exists:district,id'],
       'start_date' => ['required', 'date'],
       'end_date' => ['required', 'date', 'after_or_equal:start_date'],
       'purpose' => ['required', 'string', 'max:500'],
@@ -27,6 +27,7 @@ class StorePerDiemRequestRequest extends StoreRequest
   {
     $data = parent::validated($key, $default);
     $data['with_request'] = false;
+    $data['district_id'] = Sede::findOrFail($data['sede_service_id'])->district_id;
     return $data;
   }
 

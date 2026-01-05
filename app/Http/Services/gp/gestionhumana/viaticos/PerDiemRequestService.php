@@ -1884,7 +1884,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   {
     try {
       $emailConfig = [
-        'to' => [$request->employee->email2, $request->employee->boss?->email2],
+        'to' => [$request->employee->email2, $request->employee->boss?->email2, "ngonzalesd@grupopakatnamu.com"],
         'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
         'template' => 'emails.per-diem-request-approved',
         'data' => [
@@ -1983,8 +1983,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       /**
        * $request->employee->boss->email2
        */
+
+
       $this->emailService->queue([
-        'to' => [$request->employee->email2, $request->employee->boss?->email2],
+        'to' => [$request->employee->email2, $request->employee->boss?->email2, "griojasf@automotorespakatnamu.com"],
         'subject' => 'Liquidación de Viáticos - ' . $request->code,
         'template' => 'emails.per-diem-request-settlement',
         'data' => $emailData,

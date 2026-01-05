@@ -340,9 +340,6 @@ class AuthService
       'verified_at' => now()
     ]);
 
-    // Invalidar todos los tokens de sesión del usuario
-    $user->tokens()->delete();
-
     return response()->json(['message' => 'Contraseña actualizada correctamente. Todas las sesiones han sido cerradas.']);
   }
 
@@ -358,6 +355,9 @@ class AuthService
       'password' => Hash::make($user->username),
       'verified_at' => null
     ]);
+
+    // Invalidar todos los tokens de sesión del usuario
+    $user->tokens()->delete();
 
     return response()->json([
       'message' => 'Contraseña restablecida correctamente',
