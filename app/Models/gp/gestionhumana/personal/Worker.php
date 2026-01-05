@@ -10,6 +10,7 @@ use App\Models\gp\gestionsistema\Status;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetail;
 use App\Models\gp\maestroGeneral\Sede;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -119,5 +120,10 @@ class Worker extends BaseModel
   public function position()
   {
     return $this->hasOne(Position::class, 'id', 'cargo_id');
+  }
+
+  public function user()
+  {
+    return $this->hasOne(User::class, 'partner_id', 'id');
   }
 }
