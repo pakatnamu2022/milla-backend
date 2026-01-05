@@ -108,10 +108,18 @@ class EvaluationNotificationService
           'leader_id' => $leaderId,
           'total_evaluations' => 0,
           'pending_evaluations' => 0,
-          'pending_details' => []
+          'pending_details' => [],
+          'person_ids' => [], // Para trackear los person_id únicos
+          'pending_person_ids' => [] // Para trackear los person_id pendientes únicos
         ];
       }
 
+      // Verificar si ya procesamos este person_id para evitar duplicados
+      if (in_array($evalPerson->person_id, $leadersPending[$leaderId]['person_ids'])) {
+        continue;
+      }
+
+      $leadersPending[$leaderId]['person_ids'][] = $evalPerson->person_id;
       $leadersPending[$leaderId]['total_evaluations']++;
 
       // Verificar si la evaluación está pendiente
@@ -119,12 +127,19 @@ class EvaluationNotificationService
 
       if (!$isCompleted) {
         $leadersPending[$leaderId]['pending_evaluations']++;
+        $leadersPending[$leaderId]['pending_person_ids'][] = $evalPerson->person_id;
         $leadersPending[$leaderId]['pending_details'][] = [
           'employee_name' => $evalPerson->person->nombre_completo ?? 'N/A',
           'progress_percentage' => $this->calculateEvaluationProgress($evalPerson),
           'employee_id' => $evalPerson->person_id
         ];
       }
+    }
+
+    // Remover los arrays de tracking antes de retornar
+    foreach ($leadersPending as &$leaderData) {
+      unset($leaderData['person_ids']);
+      unset($leaderData['pending_person_ids']);
     }
 
     // Filtrar solo líderes que tienen evaluaciones pendientes
@@ -157,7 +172,8 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => $leader->email,
+//        'to' => $leader->email,
+        'to' => "hvaldiviezos@automotorespakatnamu.com",
         'subject' => 'Recordatorio: Evaluaciones de Desempeño Pendientes',
         'template' => 'emails.evaluation-reminder',
         'data' => [
