@@ -34,7 +34,9 @@ class PotentialBuyersService extends BaseService
 
   public function list(Request $request)
   {
-    $isTicsArea = $worker->user->role->id === Constants::TICS_ROL_ID;
+    throw new Exception($request);
+    if (auth()->user->has_rol_tics) {
+    }
 
     return $this->getFilteredResults(
       PotentialBuyers::class,

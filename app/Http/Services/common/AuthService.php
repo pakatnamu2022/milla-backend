@@ -23,7 +23,7 @@ class AuthService
       $token = $user->createToken('AuthToken', expiresAt: now()->addDays(7));
       $user = User::with('person')->find($user->id);
       $person = $user->person;
-      if (!$person->verified_at) {
+      if (!$person) {
         $user->tokens()->delete();
         throw new Exception('Credenciales Inválidas', 401);
       }
@@ -48,7 +48,7 @@ class AuthService
       $user = User::with('person')->find($user->id);
       $permissionsData = $this->permissions();
       $person = $user->person;
-      if (!$person->verified_at) {
+      if (!$person) {
         $user->tokens()->delete();
         throw new Exception('Credenciales Inválidas', 401);
       }
