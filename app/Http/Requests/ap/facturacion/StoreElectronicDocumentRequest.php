@@ -31,6 +31,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'ap_vehicle_movement_id',
       'client_id',
       'purchase_request_quote_id',
+      'order_quotation_id',
       'sunat_concept_currency_id',
       'sunat_concept_detraction_type_id',
       'documento_que_se_modifica_tipo',
@@ -226,6 +227,18 @@ class StoreElectronicDocumentRequest extends StoreRequest
         'integer',
         Rule::exists('purchase_request_quote', 'id')
           ->whereNull('deleted_at')->where('status', 1)
+      ],
+      'order_quotation_id' => [
+        'nullable',
+        'integer',
+        Rule::exists('ap_order_quotations', 'id')
+          ->whereNull('deleted_at')
+      ],
+      'work_orders_id' => [
+        'nullable',
+        'integer',
+        Rule::exists('ap_work_orders', 'id')
+          ->whereNull('deleted_at')
       ],
       'cliente_email_1' => 'nullable|email|max:250',
       'cliente_email_2' => 'nullable|email|max:250',

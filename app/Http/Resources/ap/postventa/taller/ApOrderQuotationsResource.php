@@ -26,6 +26,8 @@ class ApOrderQuotationsResource extends JsonResource
       'quotation_date' => $this->quotation_date,
       'expiration_date' => $this->expiration_date,
       'observations' => $this->observations,
+      'currency_id' => $this->currency_id,
+      'currency' => $this->currency,
       'details' => ApOrderQuotationDetailsResource::collection($this->details),
       'created_by' => $this->created_by,
       'created_by_name' => $this->createdBy ? $this->createdBy->name : null,
