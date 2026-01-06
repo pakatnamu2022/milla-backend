@@ -32,7 +32,11 @@
                 Solicitud de Viáticos Aprobada
               </h1>
               <p style="margin:0;font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#4b5563;">
-                Tu solicitud ha sido aprobada
+                @if($recipient_type === 'employee')
+                  Tu solicitud ha sido aprobada
+                @else
+                  Solicitud aprobada exitosamente
+                @endif
               </p>
             </td>
           </tr>
@@ -41,13 +45,21 @@
           <tr>
             <td style="padding:24px;">
               <p style="margin:0 0 12px 0;font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                Hola <strong style="font-weight:600;color:#111827;">{{ $employee_name }}</strong>,
+                @if($recipient_type === 'employee')
+                  Hola <strong style="font-weight:600;color:#111827;">{{ $employee_name }}</strong>,
+                @else
+                  Estimado/a,
+                @endif
               </p>
 
               <div
                 style="margin:0 0 16px 0;padding:16px;border:1px solid #eef0f5;border-radius:12px;background:#fbfbfe;">
                 <p style="margin:0;font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                  Tu solicitud de viáticos <strong>{{ $request_code }}</strong> ha sido aprobada exitosamente.
+                  @if($recipient_type === 'employee')
+                    Tu solicitud de viáticos <strong>{{ $request_code }}</strong> ha sido aprobada exitosamente.
+                  @else
+                    La solicitud de viáticos <strong>{{ $request_code }}</strong> del colaborador <strong>{{ $employee_name }}</strong> ha sido aprobada exitosamente.
+                  @endif
                 </p>
               </div>
 
@@ -76,8 +88,16 @@
                   Próximos pasos
                 </strong>
                 <div style="font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                  Tu solicitud será procesada para el desembolso correspondiente. Mantente atento a nuevas
-                  notificaciones.
+                  @if($recipient_type === 'employee')
+                    Tu solicitud será procesada para el desembolso correspondiente. Mantente atento a nuevas
+                    notificaciones.
+                  @elseif($recipient_type === 'boss')
+                    La solicitud ha sido aprobada y será procesada por el área de contabilidad para el desembolso
+                    correspondiente.
+                  @else
+                    Por favor, proceda con el desembolso correspondiente según los montos aprobados. El colaborador
+                    será notificado de los siguientes pasos.
+                  @endif
                 </div>
               </div>
 
