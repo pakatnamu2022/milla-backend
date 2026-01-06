@@ -1003,6 +1003,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Work Orders - Órdenes de Trabajo
       Route::post('workOrders/{id}/calculate-totals', [WorkOrderController::class, 'calculateTotals']);
+      Route::get('workOrders/{id}/payment-summary', [WorkOrderController::class, 'getPaymentSummary']);
       Route::apiResource('workOrders', WorkOrderController::class)->only([
         'index',
         'show',

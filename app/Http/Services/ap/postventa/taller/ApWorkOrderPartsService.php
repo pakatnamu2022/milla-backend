@@ -7,6 +7,7 @@ use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\ApPostVentaMasters;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\Products;
@@ -190,6 +191,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
   public function getQuotationByVehicle($vehicleId)
   {
     $quotation = ApOrderQuotations::where('vehicle_id', $vehicleId)
+      ->where('area_id', ApPostVentaMasters::AREA_TALLER_ID) // Área de Taller
       ->where('expiration_date', '>=', now())
       ->with([
         'details' => function ($query) {
