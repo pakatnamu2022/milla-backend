@@ -2,8 +2,7 @@
 
 @section('content')
   <!-- Wrapper -->
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-         style="background:#f6f7fb;padding:24px 0;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
     <tr>
       <td align="center">
         <!-- Container -->
@@ -75,7 +74,8 @@
                   Próximos pasos
                 </strong>
                 <div style="font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                  Tu solicitud será revisada por tu jefe directo. Te notificaremos una vez que sea aprobada o si se requiere alguna modificación.
+                  Tu solicitud será revisada por tu jefe directo. Te notificaremos una vez que sea aprobada o si se
+                  requiere alguna modificación.
                 </div>
               </div>
 
@@ -103,9 +103,17 @@
   <!-- Dark mode support -->
   <style>
     @media (prefers-color-scheme: dark) {
-      table, td { background-color: #0b0f1a !important; }
-      .invert-bg { background-color: #0b0f1a !important; }
-      h1, h2, h3, p, div, span, strong { color: #e5e7eb !important; }
+      table, td {
+        background-color: #0b0f1a !important;
+      }
+
+      .invert-bg {
+        background-color: #0b0f1a !important;
+      }
+
+      h1, h2, h3, p, div, span, strong {
+        color: #e5e7eb !important;
+      }
     }
 
     /* Mobile responsive */

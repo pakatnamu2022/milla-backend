@@ -2,8 +2,7 @@
 
 @section('content')
   <!-- Wrapper -->
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-         style="background:#f6f7fb;padding:24px 0;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
     <tr>
       <td align="center">
         <!-- Container -->
@@ -21,7 +20,8 @@
                     @endif
                   </td>
                   <td align="right" style="vertical-align:middle;">
-                    <span style="display:inline-block;padding:6px 10px;border:1px solid #3b82f6;border-radius:999px;font:600 12px/1.2 Inter,Arial,Helvetica,sans-serif;color:#1e3a8a;background:#dbeafe;">
+                    <span
+                      style="display:inline-block;padding:6px 10px;border:1px solid #3b82f6;border-radius:999px;font:600 12px/1.2 Inter,Arial,Helvetica,sans-serif;color:#1e3a8a;background:#dbeafe;">
                       En Progreso
                     </span>
                   </td>
@@ -44,13 +44,16 @@
                 Hola <strong style="font-weight:600;color:#111827;">{{ $employee_name }}</strong>,
               </p>
 
-              <div style="margin:0 0 16px 0;padding:16px;border:1px solid #eef0f5;border-radius:12px;background:#fbfbfe;">
+              <div
+                style="margin:0 0 16px 0;padding:16px;border:1px solid #eef0f5;border-radius:12px;background:#fbfbfe;">
                 <p style="margin:0;font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                  Tu solicitud de viáticos <strong>{{ $request_code }}</strong> ahora está en progreso. Todos los detalles de tu viaje han sido confirmados.
+                  Tu solicitud de viáticos <strong>{{ $request_code }}</strong> ahora está en progreso. Todos los
+                  detalles de tu viaje han sido confirmados.
                 </p>
               </div>
 
-              <div style="margin:0 0 16px 0;padding:12px 14px;border-left:4px solid #3b82f6;background:#eff6ff;border-radius:10px;">
+              <div
+                style="margin:0 0 16px 0;padding:12px 14px;border-left:4px solid #3b82f6;background:#eff6ff;border-radius:10px;">
                 <div style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#1e3a8a;margin-bottom:4px;">
                   Detalles del Viaje
                 </div>
@@ -64,20 +67,25 @@
                 </div>
               </div>
 
-              <div style="margin:0 0 16px 0;padding:12px 14px;border:1px dashed #dfe3ec;border-radius:12px;background:#fcfdfd;">
-                <strong style="display:block;margin-bottom:6px;font:600 14px/1.5 Inter,Arial,Helvetica,sans-serif;color:#01237E;">
+              <div
+                style="margin:0 0 16px 0;padding:12px 14px;border:1px dashed #dfe3ec;border-radius:12px;background:#fcfdfd;">
+                <strong
+                  style="display:block;margin-bottom:6px;font:600 14px/1.5 Inter,Arial,Helvetica,sans-serif;color:#01237E;">
                   Importante
                 </strong>
                 <div style="font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                  Recuerda guardar todos tus comprobantes de gastos. Al finalizar tu viaje, deberás registrar y liquidar tus gastos en el sistema.
+                  Recuerda guardar todos tus comprobantes de gastos. Al finalizar tu viaje, deberás registrar y liquidar
+                  tus gastos en el sistema.
                 </div>
               </div>
 
               @if(isset($button_url))
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:20px auto;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"
+                       style="margin:20px auto;">
                   <tr>
                     <td align="center" bgcolor="#01237E" style="border-radius:10px;">
-                      <a href="{{ $button_url }}" style="display:inline-block;padding:12px 20px;font:600 14px/1 Inter,Arial,Helvetica,sans-serif;text-decoration:none;color:#ffffff;background:#01237E;border-radius:10px;border:1px solid #011a5b;">
+                      <a href="{{ $button_url }}"
+                         style="display:inline-block;padding:12px 20px;font:600 14px/1 Inter,Arial,Helvetica,sans-serif;text-decoration:none;color:#ffffff;background:#01237E;border-radius:10px;border:1px solid #011a5b;">
                         Ver Solicitud
                       </a>
                     </td>
@@ -95,9 +103,17 @@
   <!-- Dark mode support -->
   <style>
     @media (prefers-color-scheme: dark) {
-      table, td { background-color: #0b0f1a !important; }
-      .invert-bg { background-color: #0b0f1a !important; }
-      h1, h2, h3, p, div, span, strong { color: #e5e7eb !important; }
+      table, td {
+        background-color: #0b0f1a !important;
+      }
+
+      .invert-bg {
+        background-color: #0b0f1a !important;
+      }
+
+      h1, h2, h3, p, div, span, strong {
+        color: #e5e7eb !important;
+      }
     }
 
     /* Mobile responsive */

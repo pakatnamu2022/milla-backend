@@ -2,8 +2,7 @@
 
 @section('content')
   <!-- Wrapper -->
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-         style="background:#f6f7fb;padding:24px 0;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
     <tr>
       <td align="center">
         <!-- Container -->
@@ -48,7 +47,8 @@
               <div
                 style="margin:0 0 16px 0;padding:16px;border:1px solid #eef0f5;border-radius:12px;background:#fbfbfe;">
                 <p style="margin:0;font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                  La liquidación de tu solicitud de viáticos <strong>{{ $request_code }}</strong> ha sido completada exitosamente.
+                  La liquidación de tu solicitud de viáticos <strong>{{ $request_code }}</strong> ha sido completada
+                  exitosamente.
                 </p>
               </div>
 
@@ -62,7 +62,8 @@
                   <strong>Código:</strong> {{ $request_code }}<br>
                   <strong>Total gastado:</strong> S/ {{ number_format($total_spent, 2) }}<br>
                   <strong>Total que asume la empresa:</strong> S/ {{ number_format($total_asume_empresa, 2) }}<br>
-                  <strong>Total que asume el colaborador:</strong> S/ {{ number_format($total_asume_colaborador, 2) }}<br>
+                  <strong>Total que asume el colaborador:</strong> S/ {{ number_format($total_asume_colaborador, 2) }}
+                  <br>
                   <strong>Total a reembolsar:</strong> S/ {{ number_format($total_reembolsar, 2) }}<br>
                   <br>
                   <strong>Presupuesto asignado:</strong> S/ {{ number_format($total_budget, 2) }}<br>
@@ -80,7 +81,8 @@
                     Acción requerida
                   </strong>
                   <div style="font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                    Tienes un saldo de S/ {{ number_format($balance_to_return, 2) }} para devolver. Por favor, coordina con el área correspondiente.
+                    Tienes un saldo de S/ {{ number_format($balance_to_return, 2) }} para devolver. Por favor, coordina
+                    con el área correspondiente.
                   </div>
                 </div>
               @endif
@@ -109,9 +111,17 @@
   <!-- Dark mode support -->
   <style>
     @media (prefers-color-scheme: dark) {
-      table, td { background-color: #0b0f1a !important; }
-      .invert-bg { background-color: #0b0f1a !important; }
-      h1, h2, h3, p, div, span, strong { color: #e5e7eb !important; }
+      table, td {
+        background-color: #0b0f1a !important;
+      }
+
+      .invert-bg {
+        background-color: #0b0f1a !important;
+      }
+
+      h1, h2, h3, p, div, span, strong {
+        color: #e5e7eb !important;
+      }
     }
 
     /* Mobile responsive */
