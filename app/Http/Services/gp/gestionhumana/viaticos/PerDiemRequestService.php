@@ -2029,6 +2029,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'subject' => 'Liquidación de Viáticos - ' . $request->code,
           'template' => 'emails.per-diem-request-settlement',
           'data' => array_merge($emailData, [
+            'recipient_type' => 'employee',
             'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
           ]),
         ]);
@@ -2042,6 +2043,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'subject' => 'Liquidación de Viáticos - ' . $request->code,
           'template' => 'emails.per-diem-request-settlement',
           'data' => array_merge($emailData, [
+            'recipient_type' => 'boss',
             'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
           ]),
         ]);
@@ -2055,6 +2057,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'subject' => 'Liquidación de Viáticos - ' . $request->code,
           'template' => 'emails.per-diem-request-settlement',
           'data' => array_merge($emailData, [
+            'recipient_type' => 'accounting',
             'button_url' => config('app.frontend_url') . '/ap/contabilidad/viaticos-ap',
           ]),
         ]);

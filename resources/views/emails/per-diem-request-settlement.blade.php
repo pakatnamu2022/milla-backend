@@ -32,7 +32,11 @@
                 Liquidación de Viáticos
               </h1>
               <p style="margin:0;font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#4b5563;">
-                Es momento de liquidar tus gastos
+                @if($recipient_type === 'employee')
+                  Es momento de liquidar tus gastos
+                @else
+                  Liquidación de gastos en revisión
+                @endif
               </p>
             </td>
           </tr>
@@ -41,14 +45,23 @@
           <tr>
             <td style="padding:24px;">
               <p style="margin:0 0 12px 0;font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                Hola <strong style="font-weight:600;color:#111827;">{{ $employee_name }}</strong>,
+                @if($recipient_type === 'employee')
+                  Hola <strong style="font-weight:600;color:#111827;">{{ $employee_name }}</strong>,
+                @else
+                  Estimado/a,
+                @endif
               </p>
 
               <div
                 style="margin:0 0 16px 0;padding:16px;border:1px solid #eef0f5;border-radius:12px;background:#fbfbfe;">
                 <p style="margin:0;font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                  Has enviado tu liquidación de viáticos <strong>{{ $request_code }}</strong> para revisión. A
-                  continuación, encontrarás el detalle de los gastos que has registrado.
+                  @if($recipient_type === 'employee')
+                    Has enviado tu liquidación de viáticos <strong>{{ $request_code }}</strong> para revisión. A
+                    continuación, encontrarás el detalle de los gastos que has registrado.
+                  @else
+                    El colaborador <strong>{{ $employee_name }}</strong> ha enviado su liquidación de viáticos <strong>{{ $request_code }}</strong> para revisión. A
+                    continuación, encontrarás el detalle de los gastos registrados.
+                  @endif
                 </p>
               </div>
 
@@ -78,7 +91,11 @@
                   <strong>Total gastado:</strong> S/ {{ number_format($total_general_comprobante, 2) }}<br>
                   <strong>Total que asume la empresa:</strong> S/ {{ number_format($total_general_asume_empresa, 2) }}
                   <br>
-                  <strong>Total que asumes tú:</strong> S/ {{ number_format($total_general_asume_colaborador, 2) }}
+                  @if($recipient_type === 'employee')
+                    <strong>Total que asumes tú:</strong> S/ {{ number_format($total_general_asume_colaborador, 2) }}
+                  @else
+                    <strong>Total que asume el colaborador:</strong> S/ {{ number_format($total_general_asume_colaborador, 2) }}
+                  @endif
                 </div>
               </div>
 
@@ -136,7 +153,11 @@
                 <!-- Gastos del Colaborador -->
                 <div style="margin:0 0 16px 0;">
                   <h3 style="margin:0 0 8px 0;font:600 14px/1.5 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                    Tus Gastos Personales
+                    @if($recipient_type === 'employee')
+                      Tus Gastos Personales
+                    @else
+                      Gastos Personales del Colaborador
+                    @endif
                   </h3>
                   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
                          style="border:1px solid #e6e8ee;border-radius:8px;overflow:hidden;">
@@ -156,7 +177,11 @@
                       </th>
                       <th
                         style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">
-                        Tú
+                        @if($recipient_type === 'employee')
+                          Tú
+                        @else
+                          Colaborador
+                        @endif
                       </th>
                     </tr>
                     </thead>
@@ -198,7 +223,11 @@
                     <td align="center" bgcolor="#01237E" style="border-radius:10px;">
                       <a href="{{ $button_url }}"
                          style="display:inline-block;padding:12px 20px;font:600 14px/1 Inter,Arial,Helvetica,sans-serif;text-decoration:none;color:#ffffff;background:#01237E;border-radius:10px;border:1px solid #011a5b;">
-                        Liquidar Gastos
+                        @if($recipient_type === 'employee')
+                          Ver Mi Liquidación
+                        @else
+                          Revisar Liquidación
+                        @endif
                       </a>
                     </td>
                   </tr>
