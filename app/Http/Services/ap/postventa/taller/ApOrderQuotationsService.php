@@ -122,9 +122,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $discount_amount += $itemDiscount;
       }
 
-      $subtotal_after_discount = $subtotal - $discount_amount;
-      $tax_amount = $subtotal_after_discount * Constants::VAT_TAX / 100;
-      $total_amount = $subtotal_after_discount + $tax_amount;
+      $total_amount = $subtotal - $discount_amount;
 
       // Prepare quotation data
       $quotationData = [
@@ -138,7 +136,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'quotation_number' => $this->generateNextQuotationNumber(),
         'subtotal' => $subtotal,
         'discount_amount' => $discount_amount,
-        'tax_amount' => $tax_amount,
+        'tax_amount' => Constants::VAT_TAX,
         'total_amount' => $total_amount,
         'validity_days' => $validation_days,
         'exchange_rate' => $exchangeRate->rate,
@@ -176,8 +174,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
   public function show($id)
   {
-    return new ApOrderQuotationsResource($this->find($id));
+    $quotation = $this->find($id);
+    $quotation->load('advancesOrderQuotation');
+    return new ApOrderQuotationsResource($quotation);
   }
+
 
   public function update(mixed $data)
   {
@@ -247,9 +248,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $discount_amount += $itemDiscount;
       }
 
-      $subtotal_after_discount = $subtotal - $discount_amount;
-      $tax_amount = $subtotal_after_discount * Constants::VAT_TAX / 100;
-      $total_amount = $subtotal_after_discount + $tax_amount;
+      $total_amount = $subtotal - $discount_amount;
 
       // Update quotation data
       $quotation->update([
@@ -261,7 +260,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'observations' => $data['observations'] ?? null,
         'subtotal' => $subtotal,
         'discount_amount' => $discount_amount,
-        'tax_amount' => $tax_amount,
+        'tax_amount' => Constants::VAT_TAX,
         'total_amount' => $total_amount,
         'validity_days' => $validation_days,
         'currency_id' => $data['currency_id'],

@@ -4,11 +4,13 @@ namespace App\Models\ap\postventa\taller;
 
 use App\Models\ap\ApPostVentaMasters;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ApOrderQuotations extends Model
@@ -101,6 +103,12 @@ class ApOrderQuotations extends Model
   public function details()
   {
     return $this->hasMany(ApOrderQuotationDetails::class, 'order_quotation_id');
+  }
+
+  public function advancesOrderQuotation(): HasMany
+  {
+    return $this->hasMany(ElectronicDocument::class, 'order_quotation_id')
+      ->where('is_advance_payment', true);
   }
 
   public function markAsTaken(): void

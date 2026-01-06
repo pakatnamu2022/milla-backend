@@ -238,7 +238,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       'total_gratuita' => 'nullable|numeric|min:0',
       'total_otros_cargos' => 'nullable|numeric|min:0',
       'total_isc' => 'nullable|numeric|min:0',
-      'total' => 'nullable|numeric|min:0',
+      'total' => 'nullable|numeric|min:1',
 
       // Percepción
       'percepcion_tipo' => 'nullable|integer|between:1,3',
@@ -322,6 +322,8 @@ class UpdateElectronicDocumentRequest extends StoreRequest
   {
     return [
       'ap_billing_document_type_id.exists' => 'El tipo de documento seleccionado no es válido',
+      'series.exists' => 'La serie seleccionada no es válida o no está asignada a usted',
+      'total.min' => 'El total del documento debe ser al menos $1 o S/. 1',
       'serie.size' => 'La serie debe tener exactamente 4 caracteres',
       'items.min' => 'Debe agregar al menos un item al documento',
       'items.*.descripcion.required_with' => 'La descripción del item es obligatoria',

@@ -262,7 +262,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'total_gratuita' => 'nullable|numeric|min:0',
       'total_otros_cargos' => 'nullable|numeric|min:0',
       'total_isc' => 'nullable|numeric|min:0',
-      'total' => 'required|numeric|min:0',
+      'total' => 'required|numeric|min:1',
 
       // Percepción
       'percepcion_tipo' => 'nullable|integer|between:1,3',
@@ -333,7 +333,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'items.*.subtotal' => 'required|numeric|min:0',
       'items.*.sunat_concept_igv_type_id' => 'required|integer|exists:sunat_concepts,id',
       'items.*.igv' => 'required|numeric|min:0',
-      'items.*.total' => 'required|numeric|min:0',
+      'items.*.total' => 'required|numeric|min:1',
       'items.*.anticipo_regularizacion' => 'nullable|boolean',
       'items.*.anticipo_documento_serie' => 'nullable|string|size:4',
       'items.*.anticipo_documento_numero' => 'nullable|integer|min:1',
@@ -369,11 +369,17 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'cliente_denominacion.required' => 'El nombre o razón social del cliente es obligatorio',
       'fecha_de_emision.required' => 'La fecha de emisión es obligatoria',
       'total.required' => 'El total del documento es obligatorio',
+      'total.min' => 'El total del documento debe ser al menos $1 o S/.1',
       'items.required' => 'Debe agregar al menos un item al documento',
       'items.min' => 'Debe agregar al menos un item al documento',
       'items.*.descripcion.required' => 'La descripción del item es obligatoria',
       'items.*.cantidad.required' => 'La cantidad del item es obligatoria',
       'items.*.cantidad.min' => 'La cantidad debe ser mayor a 0',
+      
+      // Mensajes personalizados para reference_document_id
+      'items.*.reference_document_id.required_if' => 'Debe seleccionar el documento de anticipo que se está regularizando',
+      'items.*.reference_document_id.exists' => 'El documento de anticipo seleccionado no es válido. Verifique que el documento exista, esté aceptado por SUNAT y no esté anulado',
+      'items.*.reference_document_id.integer' => 'El documento de referencia debe ser un ID válido',
     ];
   }
 
