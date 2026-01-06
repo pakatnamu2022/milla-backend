@@ -32,6 +32,8 @@ class UserResource extends JsonResource
       'position' => $this->person?->position?->name,
       'empresa' => $this->person?->sede?->company?->abbreviation,
       'sede' => $this->person?->sede?->suc_abrev,
+      'sede_id' => $this->person?->sede?->id,
+      'shop_id' => $this->person?->sede?->shop_id,
       'fecha_ingreso' => $this->person?->fecha_inicio,
       'role' => $this->role?->nombre,
       'role_id' => $this->role?->id,

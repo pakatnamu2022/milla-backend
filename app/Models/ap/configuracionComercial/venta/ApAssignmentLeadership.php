@@ -21,7 +21,7 @@ class ApAssignmentLeadership extends Model
   ];
 
   const filters = [
-    'search' => ['boss_id', 'worker_id'],
+    'search' => ['boss.nombre_completo', 'worker.nombre_completo'],
     'boss_id' => '=',
     'worker_id' => '=',
     'year' => '=',

@@ -2,8 +2,7 @@
 
 @section('content')
   <!-- Wrapper -->
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-         style="background:#f6f7fb;padding:24px 0;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
     <tr>
       <td align="center">
         <!-- Container -->
@@ -33,7 +32,11 @@
                 Solicitud de Viáticos Aprobada
               </h1>
               <p style="margin:0;font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#4b5563;">
-                Tu solicitud ha sido aprobada
+                @if($recipient_type === 'employee')
+                  Tu solicitud ha sido aprobada
+                @else
+                  Solicitud aprobada exitosamente
+                @endif
               </p>
             </td>
           </tr>
@@ -42,13 +45,21 @@
           <tr>
             <td style="padding:24px;">
               <p style="margin:0 0 12px 0;font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                Hola <strong style="font-weight:600;color:#111827;">{{ $employee_name }}</strong>,
+                @if($recipient_type === 'employee')
+                  Hola <strong style="font-weight:600;color:#111827;">{{ $employee_name }}</strong>,
+                @else
+                  Estimado/a,
+                @endif
               </p>
 
               <div
                 style="margin:0 0 16px 0;padding:16px;border:1px solid #eef0f5;border-radius:12px;background:#fbfbfe;">
                 <p style="margin:0;font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                  Tu solicitud de viáticos <strong>{{ $request_code }}</strong> ha sido aprobada exitosamente.
+                  @if($recipient_type === 'employee')
+                    Tu solicitud de viáticos <strong>{{ $request_code }}</strong> ha sido aprobada exitosamente.
+                  @else
+                    La solicitud de viáticos <strong>{{ $request_code }}</strong> del colaborador <strong>{{ $employee_name }}</strong> ha sido aprobada exitosamente.
+                  @endif
                 </p>
               </div>
 
@@ -77,7 +88,16 @@
                   Próximos pasos
                 </strong>
                 <div style="font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                  Tu solicitud será procesada para el desembolso correspondiente. Mantente atento a nuevas notificaciones.
+                  @if($recipient_type === 'employee')
+                    Tu solicitud será procesada para el desembolso correspondiente. Mantente atento a nuevas
+                    notificaciones.
+                  @elseif($recipient_type === 'boss')
+                    La solicitud ha sido aprobada y será procesada por el área de contabilidad para el desembolso
+                    correspondiente.
+                  @else
+                    Por favor, proceda con el desembolso correspondiente según los montos aprobados. El colaborador
+                    será notificado de los siguientes pasos.
+                  @endif
                 </div>
               </div>
 
@@ -105,9 +125,47 @@
   <!-- Dark mode support -->
   <style>
     @media (prefers-color-scheme: dark) {
-      table, td { background-color: #0b0f1a !important; }
-      .invert-bg { background-color: #0b0f1a !important; }
-      h1, h2, h3, p, div, span, strong { color: #e5e7eb !important; }
+      table, td {
+        background-color: #0b0f1a !important;
+      }
+
+      .invert-bg {
+        background-color: #0b0f1a !important;
+      }
+
+      h1, h2, h3, p, div, span, strong {
+        color: #e5e7eb !important;
+      }
+    }
+
+    /* Mobile responsive */
+    @media (max-width: 480px) {
+      table[style*="padding:24px"] > tr > td {
+        padding: 15px !important;
+      }
+
+      span[style*="padding:6px 10px"] {
+        font-size: 11px !important;
+        padding: 4px 10px !important;
+      }
+
+      h1 {
+        font-size: 20px !important;
+        line-height: 1.3 !important;
+      }
+
+      p, td, div {
+        font-size: 13px !important;
+      }
+
+      a[style*="padding:12px"] {
+        padding: 10px 16px !important;
+        font-size: 13px !important;
+      }
+
+      table[style*="margin:20px"] {
+        margin: 15px auto !important;
+      }
     }
   </style>
 @endsection

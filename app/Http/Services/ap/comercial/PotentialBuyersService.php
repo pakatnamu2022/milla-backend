@@ -6,6 +6,7 @@ use App\Http\Resources\ap\comercial\PotentialBuyersResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\common\ImportService;
+use App\Http\Utils\Constants;
 use App\Imports\ap\comercial\PotentialBuyersDercoImport;
 use App\Imports\ap\comercial\PotentialBuyersSocialNetworksImport;
 use App\Jobs\ValidatePotentialBuyersDocuments;
@@ -33,6 +34,10 @@ class PotentialBuyersService extends BaseService
 
   public function list(Request $request)
   {
+    throw new Exception($request);
+    if (auth()->user->has_rol_tics) {
+    }
+
     return $this->getFilteredResults(
       PotentialBuyers::class,
       $request,

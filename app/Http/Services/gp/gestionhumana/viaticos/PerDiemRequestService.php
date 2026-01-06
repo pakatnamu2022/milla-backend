@@ -304,33 +304,33 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   {
     $approverId = auth()->user()->person->id;
 
-    // Get approval_status filter: 'pending' (default), 'approved', 'all'
+    // Merge authorizer_id filter
+    $request->merge(['authorizer_id' => $approverId]);
+
+    // Handle approval_status filter: 'pending' (default), 'approved', 'all'
     $approvalStatus = $request->query('approval_status', 'pending');
-
-    // Build query
-    $query = PerDiemRequest::query()
-      ->where('authorizer_id', $approverId)
-      ->with([
-        'employee',
-        'company',
-        'sedeService',
-        'district',
-        'policy',
-      ]);
-
-    // Filter by approval status
-    if ($approvalStatus === 'pending') {
-      // Show only pending approvals
-      $query->where('status', PerDiemApproval::PENDING);
-    } elseif ($approvalStatus === 'approved') {
-      // Show only approved by this user
-      $query->where('status', 'approved');
+    if ($approvalStatus !== 'all') {
+      // Convert approval_status to status filter
+      $statusValue = $approvalStatus === 'pending' ? PerDiemApproval::PENDING : $approvalStatus;
+      $request->merge(['status' => $statusValue]);
     }
-    // If 'all', don't filter by status (shows pending + approved)
 
-    $requests = $query->orderBy('created_at', 'desc')->get();
+    // Build query with relationships
+    $query = PerDiemRequest::query()->with([
+      'employee',
+      'company',
+      'sedeService',
+      'district',
+      'policy',
+    ]);
 
-    return PerDiemRequestResource::collection($requests);
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      PerDiemRequest::filters,
+      PerDiemRequest::sorts,
+      PerDiemRequestResource::class,
+    );
   }
 
   /**
@@ -1828,7 +1828,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   /**
    * Send email notifications when a per diem request is created
    */
-  private function sendPerDiemRequestCreatedEmails(PerDiemRequest $request): void
+  private function sendPerDiemRequestCreatedEmails(PerDiemRequest $request, bool $sendToEmployee = true, bool $sendToBoss = true): void
   {
     try {
       // Email data for employee
@@ -1840,18 +1840,22 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'end_date' => $request->end_date->format('d/m/Y'),
         'days_count' => $request->days_count,
         'purpose' => $request->purpose,
+        'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
       ];
 
       // Send email to employee
-      $this->emailService->queue([
-        'to' => $request->employee->email2,
-        'subject' => 'Solicitud de Viáticos Creada - ' . $request->code,
-        'template' => 'emails.per-diem-request-created-employee',
-        'data' => $employeeEmailData,
-      ]);
+      if ($sendToEmployee) {
+        $this->emailService->queue([
+          'to' => $request->employee->email2,
+//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          'subject' => 'Solicitud de Viáticos Creada - ' . $request->code,
+          'template' => 'emails.per-diem-request-created-employee',
+          'data' => $employeeEmailData,
+        ]);
+      }
 
       // Send email to boss if exists
-      if ($request->employee->jefe_id && $request->employee->boss) {
+      if ($sendToBoss && $request->employee->jefe_id && $request->employee->boss) {
         $bossEmailData = [
           'boss_name' => $request->employee->boss->nombre_completo,
           'employee_name' => $request->employee->nombre_completo,
@@ -1862,10 +1866,12 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'days_count' => $request->days_count,
           'total_budget' => $request->total_budget,
           'purpose' => $request->purpose,
+          'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
         ];
 
         $this->emailService->queue([
           'to' => [$request->employee->boss->email2],
+//          'to' => "hvaldiviezos@automotorespakatnamu.com",
           'subject' => 'Nueva Solicitud de Viáticos Pendiente de Aprobación - ' . $request->code,
           'template' => 'emails.per-diem-request-created-boss',
           'data' => $bossEmailData,
@@ -1880,24 +1886,59 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   /**
    * Send email notification when a per diem request is approved
    */
-  private function sendPerDiemRequestApprovedEmail(PerDiemRequest $request): void
+  private function sendPerDiemRequestApprovedEmail(PerDiemRequest $request, bool $sendToEmployee = true, bool $sendToBoss = true, bool $sendToAccounting = true): void
   {
     try {
-      $emailConfig = [
-        'to' => [$request->employee->email2, $request->employee->boss?->email2],
-        'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
-        'template' => 'emails.per-diem-request-approved',
-        'data' => [
-          'employee_name' => $request->employee->nombre_completo,
-          'request_code' => $request->code,
-          'destination' => $request->district->name ?? 'N/A',
-          'start_date' => $request->start_date->format('d/m/Y'),
-          'end_date' => $request->end_date->format('d/m/Y'),
-          'total_budget' => $request->total_budget,
-        ]
+      $emailData = [
+        'employee_name' => $request->employee->nombre_completo,
+        'request_code' => $request->code,
+        'destination' => $request->district->name ?? 'N/A',
+        'start_date' => $request->start_date->format('d/m/Y'),
+        'end_date' => $request->end_date->format('d/m/Y'),
+        'total_budget' => $request->total_budget,
       ];
 
-      $this->emailService->queue($emailConfig);
+      // Send email to employee
+      if ($sendToEmployee) {
+        $this->emailService->queue([
+          'to' => $request->employee->email2,
+//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
+          'template' => 'emails.per-diem-request-approved',
+          'data' => array_merge($emailData, [
+            'recipient_type' => 'employee',
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+          ]),
+        ]);
+      }
+
+      // Send email to boss if exists
+      if ($sendToBoss && $request->employee->boss) {
+        $this->emailService->queue([
+          'to' => $request->employee->boss->email2,
+//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
+          'template' => 'emails.per-diem-request-approved',
+          'data' => array_merge($emailData, [
+            'recipient_type' => 'boss',
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          ]),
+        ]);
+      }
+
+      // Send email to accounting
+      if ($sendToAccounting) {
+        $this->emailService->queue([
+          'to' => 'ngonzalesd@grupopakatnamu.com',
+//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
+          'template' => 'emails.per-diem-request-approved',
+          'data' => array_merge($emailData, [
+            'recipient_type' => 'accounting',
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          ]),
+        ]);
+      }
     } catch (Exception $e) {
       \Log::error('Error sending per diem request approved email: ' . $e->getMessage());
     }
@@ -1906,7 +1947,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   /**
    * Send email notification when settlement process starts
    */
-  private function sendPerDiemRequestSettlementEmail(PerDiemRequest $request): void
+  private function sendPerDiemRequestSettlementEmail(PerDiemRequest $request, bool $sendToEmployee = true, bool $sendToBoss = true, bool $sendToAccounting = true): void
   {
     try {
       // Obtener gastos de la empresa
@@ -1980,15 +2021,47 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'total_general_asume_colaborador' => $totalGeneralAsumeColaborador,
       ];
 
-      /**
-       * $request->employee->boss->email2
-       */
-      $this->emailService->queue([
-        'to' => [$request->employee->email2, $request->employee->boss?->email2],
-        'subject' => 'Liquidación de Viáticos - ' . $request->code,
-        'template' => 'emails.per-diem-request-settlement',
-        'data' => $emailData,
-      ]);
+      // Send to employee
+      if ($sendToEmployee) {
+        $this->emailService->queue([
+          'to' => $request->employee->email2,
+//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          'subject' => 'Liquidación de Viáticos - ' . $request->code,
+          'template' => 'emails.per-diem-request-settlement',
+          'data' => array_merge($emailData, [
+            'recipient_type' => 'employee',
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+          ]),
+        ]);
+      }
+
+      // Send to boss if exists
+      if ($sendToBoss && $request->employee->boss) {
+        $this->emailService->queue([
+          'to' => $request->employee->boss->email2,
+//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          'subject' => 'Liquidación de Viáticos - ' . $request->code,
+          'template' => 'emails.per-diem-request-settlement',
+          'data' => array_merge($emailData, [
+            'recipient_type' => 'boss',
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          ]),
+        ]);
+      }
+
+      // Send to accounting (contabilidad)
+      if ($sendToAccounting) {
+        $this->emailService->queue([
+          'to' => 'griojasf@automotorespakatnamu.com',
+//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          'subject' => 'Liquidación de Viáticos - ' . $request->code,
+          'template' => 'emails.per-diem-request-settlement',
+          'data' => array_merge($emailData, [
+            'recipient_type' => 'accounting',
+            'button_url' => config('app.frontend_url') . '/ap/contabilidad/viaticos-ap',
+          ]),
+        ]);
+      }
     } catch (Exception $e) {
       \Log::error('Error sending per diem request settlement email: ' . $e->getMessage());
     }
@@ -1997,7 +2070,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   /**
    * Send email notification when settlement is completed
    */
-  private function sendPerDiemRequestSettledEmail(PerDiemRequest $request): void
+  private function sendPerDiemRequestSettledEmail(PerDiemRequest $request, bool $sendToEmployee = true, bool $sendToBoss = true): void
   {
     try {
       // Calcular total que asume la empresa (gastos de empresa)
@@ -2029,12 +2102,33 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'importe_otorgado' => $importeOtorgado,
       ];
 
-      $this->emailService->queue([
-        'to' => [$request->employee->email2, $request->employee->boss?->email2],
-        'subject' => 'Liquidación de Viáticos Completada - ' . $request->code,
-        'template' => 'emails.per-diem-request-settled',
-        'data' => $emailData,
-      ]);
+      // Send to employee
+      if ($sendToEmployee) {
+        $this->emailService->queue([
+          'to' => $request->employee->email2,
+//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          'subject' => 'Liquidación de Viáticos Completada - ' . $request->code,
+          'template' => 'emails.per-diem-request-settled',
+          'data' => array_merge($emailData, [
+            'recipient_type' => 'employee',
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+          ]),
+        ]);
+      }
+
+      // Send to boss if exists
+      if ($sendToBoss && $request->employee->boss) {
+        $this->emailService->queue([
+          'to' => $request->employee->boss->email2,
+//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          'subject' => 'Liquidación de Viáticos Completada - ' . $request->code,
+          'template' => 'emails.per-diem-request-settled',
+          'data' => array_merge($emailData, [
+            'recipient_type' => 'boss',
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          ]),
+        ]);
+      }
     } catch (Exception $e) {
       \Log::error('Error sending per diem request settled email: ' . $e->getMessage());
     }
@@ -2056,7 +2150,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   /**
    * Send email notification when a per diem request is cancelled
    */
-  private function sendPerDiemRequestCancelledEmail(PerDiemRequest $request, string $cancellationReason = ''): void
+  private function sendPerDiemRequestCancelledEmail(PerDiemRequest $request, string $cancellationReason = '', bool $sendToEmployee = true, bool $sendToBoss = true): void
   {
     try {
       $emailData = [
@@ -2069,12 +2163,30 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       ];
 
       // Send to employee
-      $this->emailService->queue([
-        'to' => [$request->employee->email2, $request->employee->boss?->email2],
-        'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
-        'template' => 'emails.per-diem-request-cancelled',
-        'data' => $emailData,
-      ]);
+      if ($sendToEmployee) {
+        $this->emailService->queue([
+          'to' => $request->employee->email2,
+//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
+          'template' => 'emails.per-diem-request-cancelled',
+          'data' => array_merge($emailData, [
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+          ]),
+        ]);
+      }
+
+      // Send to boss if exists
+      if ($sendToBoss && $request->employee->boss) {
+        $this->emailService->queue([
+          'to' => $request->employee->boss->email2,
+//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
+          'template' => 'emails.per-diem-request-cancelled',
+          'data' => array_merge($emailData, [
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          ]),
+        ]);
+      }
 
     } catch (Exception $e) {
       \Log::error('Error sending per diem request cancelled email: ' . $e->getMessage());
@@ -2084,7 +2196,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   /**
    * Send email notification when a per diem request status changes to in_progress
    */
-  private function sendPerDiemInProgressEmail(PerDiemRequest $request): void
+  private function sendPerDiemInProgressEmail(PerDiemRequest $request, bool $sendToEmployee = true, bool $sendToBoss = true): void
   {
     try {
       $emailData = [
@@ -2095,14 +2207,156 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'total_budget' => $request->total_budget,
       ];
 
-      $this->emailService->queue([
-        'to' => [$request->employee->email2, $request->employee->boss?->email2],
-        'subject' => 'Tu Viaje Está en Progreso - ' . $request->code,
-        'template' => 'emails.per-diem-in-progress',
-        'data' => $emailData,
-      ]);
+      // Send to employee
+      if ($sendToEmployee) {
+        $this->emailService->queue([
+          'to' => $request->employee->email2,
+//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          'subject' => 'Tu Viaje Está en Progreso - ' . $request->code,
+          'template' => 'emails.per-diem-in-progress',
+          'data' => array_merge($emailData, [
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+          ]),
+        ]);
+      }
+
+      // Send to boss if exists
+      if ($sendToBoss && $request->employee->boss) {
+        $this->emailService->queue([
+          'to' => $request->employee->boss->email2,
+//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          'subject' => 'Tu Viaje Está en Progreso - ' . $request->code,
+          'template' => 'emails.per-diem-in-progress',
+          'data' => array_merge($emailData, [
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          ]),
+        ]);
+      }
     } catch (Exception $e) {
       \Log::error('Error sending per diem in progress email: ' . $e->getMessage());
+    }
+  }
+
+  /**
+   * Resend emails for a per diem request based on email type and recipient filters
+   * This method calls the existing private email methods
+   *
+   * @param int $id Per diem request ID
+   * @param array $data Request data with email_type and recipient filters
+   * @return array Success message with emails sent
+   * @throws Exception
+   */
+  public function resendEmails(int $id, array $data): array
+  {
+    $request = $this->find($id);
+
+    // Load necessary relationships
+    $request->load(['employee.boss', 'district', 'expenses.expenseType']);
+
+    $emailType = $data['email_type'];
+    $sendToEmployee = $data['send_to_employee'] ?? false;
+    $sendToBoss = $data['send_to_boss'] ?? false;
+    $sendToAccounting = $data['send_to_accounting'] ?? false;
+
+    // Count emails to be sent
+    $emailCount = 0;
+    $recipients = [];
+
+    try {
+      switch ($emailType) {
+        case 'created':
+          $this->sendPerDiemRequestCreatedEmails($request, $sendToEmployee, $sendToBoss);
+          if ($sendToEmployee && $request->employee->email2) {
+            $emailCount++;
+            $recipients[] = 'Empleado';
+          }
+          if ($sendToBoss && $request->employee->boss) {
+            $emailCount++;
+            $recipients[] = 'Jefe';
+          }
+          break;
+
+        case 'approved':
+          $this->sendPerDiemRequestApprovedEmail($request, $sendToEmployee, $sendToBoss, $sendToAccounting);
+          if ($sendToEmployee && $request->employee->email2) {
+            $emailCount++;
+            $recipients[] = 'Empleado';
+          }
+          if ($sendToBoss && $request->employee->boss) {
+            $emailCount++;
+            $recipients[] = 'Jefe';
+          }
+          if ($sendToAccounting) {
+            $emailCount++;
+            $recipients[] = 'Contabilidad';
+          }
+          break;
+
+        case 'settlement':
+          $this->sendPerDiemRequestSettlementEmail($request, $sendToEmployee, $sendToBoss, $sendToAccounting);
+          if ($sendToEmployee && $request->employee->email2) {
+            $emailCount++;
+            $recipients[] = 'Empleado';
+          }
+          if ($sendToBoss && $request->employee->boss) {
+            $emailCount++;
+            $recipients[] = 'Jefe';
+          }
+          if ($sendToAccounting) {
+            $emailCount++;
+            $recipients[] = 'Contabilidad';
+          }
+          break;
+
+        case 'settled':
+          $this->sendPerDiemRequestSettledEmail($request, $sendToEmployee, $sendToBoss);
+          if ($sendToEmployee && $request->employee->email2) {
+            $emailCount++;
+            $recipients[] = 'Empleado';
+          }
+          if ($sendToBoss && $request->employee->boss) {
+            $emailCount++;
+            $recipients[] = 'Jefe';
+          }
+          break;
+
+        case 'cancelled':
+          $this->sendPerDiemRequestCancelledEmail($request, '', $sendToEmployee, $sendToBoss);
+          if ($sendToEmployee && $request->employee->email2) {
+            $emailCount++;
+            $recipients[] = 'Empleado';
+          }
+          if ($sendToBoss && $request->employee->boss) {
+            $emailCount++;
+            $recipients[] = 'Jefe';
+          }
+          break;
+
+        case 'in_progress':
+          $this->sendPerDiemInProgressEmail($request, $sendToEmployee, $sendToBoss);
+          if ($sendToEmployee && $request->employee->email2) {
+            $emailCount++;
+            $recipients[] = 'Empleado';
+          }
+          if ($sendToBoss && $request->employee->boss) {
+            $emailCount++;
+            $recipients[] = 'Jefe';
+          }
+          break;
+
+        default:
+          throw new Exception('Tipo de correo no válido');
+      }
+
+      return [
+        'message' => 'Correos reenviados exitosamente',
+        'email_type' => $emailType,
+        'recipients' => $recipients,
+        'total_sent' => $emailCount,
+      ];
+    } catch (Exception $e) {
+      \Log::error('Error resending per diem request emails: ' . $e->getMessage());
+      throw $e;
     }
   }
 

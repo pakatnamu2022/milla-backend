@@ -2,6 +2,7 @@
 
 namespace App\Models\gp\gestionhumana\personal;
 
+use App\Http\Utils\Constants;
 use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
 use App\Models\gp\gestionsistema\Area;
@@ -50,6 +51,16 @@ class Worker extends BaseModel
       $builder->where('status_deleted', 1)
         ->where('b_empleado', 1);
     });
+  }
+
+  /**
+   * Indica si el trabajador tiene el rol de TICS
+   * Attribute: has_rol_tics
+   * @return bool
+   */
+  public function getHasRolTicsAttribute(): bool
+  {
+    return $this->user && $this->user->role && $this->user->role->id === Constants::TICS_ROL_ID;
   }
 
   public function scopeWorking($query)
