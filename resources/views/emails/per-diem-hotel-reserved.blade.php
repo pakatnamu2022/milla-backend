@@ -65,7 +65,7 @@
                   <strong>Check-in:</strong> {{ $checkin_date }}<br>
                   <strong>Check-out:</strong> {{ $checkout_date }}<br>
                   <strong>Noches:</strong> {{ $nights_count }}<br>
-                  @if(isset($total_cost) && $total_cost)
+                  @if(isset($total_cost) && $total_cost && false)
                     <strong>Costo total:</strong> S/ {{ number_format($total_cost, 2) }}
                   @endif
                 </div>
