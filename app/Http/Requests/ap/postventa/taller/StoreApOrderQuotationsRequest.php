@@ -9,6 +9,7 @@ class StoreApOrderQuotationsRequest extends StoreRequest
   public function rules(): array
   {
     return [
+      'currency_id' => ['required', 'integer', 'exists:type_currency,id'],
       'area_id' => ['required', 'integer', 'exists:ap_post_venta_masters,id'],
       'vehicle_id' => ['required', 'integer', 'exists:ap_vehicles,id'],
       'sede_id' => ['required', 'integer', 'exists:config_sede,id'],
@@ -21,6 +22,8 @@ class StoreApOrderQuotationsRequest extends StoreRequest
   public function messages(): array
   {
     return [
+      'currency_id.required' => 'Moneda es obligatoria.',
+      'currency_id.exists' => 'La moneda no existe.',
       'area_id.required' => 'Área de postventa es obligatoria.',
       'area_id.exists' => 'El área de postventa no existe.',
       'vehicle_id.required' => 'Vehículo asociado es obligatorio.',

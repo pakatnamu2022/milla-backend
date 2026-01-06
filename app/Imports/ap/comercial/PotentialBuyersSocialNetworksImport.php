@@ -81,7 +81,7 @@ class PotentialBuyersSocialNetworksImport implements ToModel, WithHeadingRow, Wi
   {
     // Obtener sede desde el nombre de ciudad
     $ciudad = $row[9] ?? $row['sede'] ?? null;
-    $sedeData = $this->getSedeDataFromCity($ciudad);
+    $sedeData = $this->getSedeDataFromCity($ciudad, $row[0] ?? $row['marca'] ?? null);
 
     // Obtener marca
     $marca = $row[0] ?? $row['marca'] ?? null;
@@ -211,7 +211,7 @@ class PotentialBuyersSocialNetworksImport implements ToModel, WithHeadingRow, Wi
   /**
    * Obtiene la sede desde el nombre de la ciudad
    */
-  private function getSedeDataFromCity($cityName)
+  private function getSedeDataFromCity($cityName, $vehicleBrand)
   {
     $defaultReturn = ['id' => null, 'abreviatura' => null];
 
@@ -227,7 +227,10 @@ class PotentialBuyersSocialNetworksImport implements ToModel, WithHeadingRow, Wi
       return $defaultReturn;
     }
 
-    // 2. Buscar la sede por district_id (soporta un ID o array de IDs)
+    // 2. Obtener el brand_id para buscar sedes con consultores asignados
+    $brandId = $this->getVehicleBrandId($vehicleBrand);
+
+    // 3. Buscar la sede por district_id (soporta un ID o array de IDs)
     $query = Sede::query();
 
     if (is_array($districtId)) {
@@ -236,12 +239,34 @@ class PotentialBuyersSocialNetworksImport implements ToModel, WithHeadingRow, Wi
       $query->where('district_id', $districtId);
     }
 
-    $sede = $query->first();
+    $sedes = $query->get();
 
-    if (!$sede) {
+    if ($sedes->isEmpty()) {
       return $defaultReturn;
     }
 
+    // 4. Si tenemos brand_id, buscar la sede que tenga consultores asignados para esa marca
+    if ($brandId) {
+      $currentYear = date('Y');
+      $currentMonth = date('m');
+
+      foreach ($sedes as $sede) {
+        // Verificar si esta sede tiene consultores asignados para la marca
+        $hasConsultants = ApAssignBrandConsultant::where('sede_id', $sede->id)
+          ->where('brand_id', $brandId)
+          ->where('year', $currentYear)
+          ->where('month', $currentMonth)
+          ->where('status', 1)
+          ->exists();
+
+        if ($hasConsultants) {
+          return ['id' => $sede->id, 'abreviatura' => $sede->abreviatura];
+        }
+      }
+    }
+
+    // 5. Si no encontramos sede con consultores asignados, retornar la primera disponible
+    $sede = $sedes->first();
     return ['id' => $sede->id, 'abreviatura' => $sede->abreviatura];
   }
 

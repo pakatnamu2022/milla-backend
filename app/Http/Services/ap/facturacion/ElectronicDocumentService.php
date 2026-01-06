@@ -660,13 +660,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if (isset($data['items']) && is_array($data['items'])) {
         $calculatedTotals = $this->calculateTotalsFromItemsNotes($data['items']);
 
-        // Log para debug
-        Log::info('Totales calculados para NC', [
-          'calculated' => $calculatedTotals,
-          'items_count' => count($data['items']),
-          'items' => $data['items']
-        ]);
-
         // Merge calculated totals only if not provided by user
         foreach ($calculatedTotals as $key => $value) {
           if (!isset($data[$key])) {

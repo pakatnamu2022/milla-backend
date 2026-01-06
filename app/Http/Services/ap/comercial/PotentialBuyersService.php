@@ -459,7 +459,7 @@ class PotentialBuyersService extends BaseService
     DB::beginTransaction();
     try {
       // Obtener todos los registros del mes anterior y mes actual
-      $unassignedBuyers = PotentialBuyers::whereBetween('registration_date', [
+      $unassignedBuyers = PotentialBuyers::whereBetween('created_at', [
         now()->subMonth()->startOfMonth(),
         now()->endOfMonth()
       ])
