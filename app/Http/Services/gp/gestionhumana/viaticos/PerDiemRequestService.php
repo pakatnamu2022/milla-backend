@@ -1840,6 +1840,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'end_date' => $request->end_date->format('d/m/Y'),
         'days_count' => $request->days_count,
         'purpose' => $request->purpose,
+        'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
       ];
 
       // Send email to employee
@@ -1862,6 +1863,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'days_count' => $request->days_count,
           'total_budget' => $request->total_budget,
           'purpose' => $request->purpose,
+          'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
         ];
 
         $this->emailService->queue([
@@ -1883,21 +1885,46 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   private function sendPerDiemRequestApprovedEmail(PerDiemRequest $request): void
   {
     try {
-      $emailConfig = [
-        'to' => [$request->employee->email2, $request->employee->boss?->email2, "ngonzalesd@grupopakatnamu.com"],
-        'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
-        'template' => 'emails.per-diem-request-approved',
-        'data' => [
-          'employee_name' => $request->employee->nombre_completo,
-          'request_code' => $request->code,
-          'destination' => $request->district->name ?? 'N/A',
-          'start_date' => $request->start_date->format('d/m/Y'),
-          'end_date' => $request->end_date->format('d/m/Y'),
-          'total_budget' => $request->total_budget,
-        ]
+      $emailData = [
+        'employee_name' => $request->employee->nombre_completo,
+        'request_code' => $request->code,
+        'destination' => $request->district->name ?? 'N/A',
+        'start_date' => $request->start_date->format('d/m/Y'),
+        'end_date' => $request->end_date->format('d/m/Y'),
+        'total_budget' => $request->total_budget,
       ];
 
-      $this->emailService->queue($emailConfig);
+      // Send email to employee
+      $this->emailService->queue([
+        'to' => $request->employee->email2,
+        'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
+        'template' => 'emails.per-diem-request-approved',
+        'data' => array_merge($emailData, [
+          'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+        ]),
+      ]);
+
+      // Send email to boss if exists
+      if ($request->employee->boss) {
+        $this->emailService->queue([
+          'to' => $request->employee->boss->email2,
+          'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
+          'template' => 'emails.per-diem-request-approved',
+          'data' => array_merge($emailData, [
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          ]),
+        ]);
+      }
+
+      // Send email to ngonzalesd
+      $this->emailService->queue([
+        'to' => 'ngonzalesd@grupopakatnamu.com',
+        'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
+        'template' => 'emails.per-diem-request-approved',
+        'data' => array_merge($emailData, [
+          'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+        ]),
+      ]);
     } catch (Exception $e) {
       \Log::error('Error sending per diem request approved email: ' . $e->getMessage());
     }
@@ -1980,16 +2007,36 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'total_general_asume_colaborador' => $totalGeneralAsumeColaborador,
       ];
 
-      /**
-       * $request->employee->boss->email2
-       */
-
-
+      // Send to employee
       $this->emailService->queue([
-        'to' => [$request->employee->email2, $request->employee->boss?->email2, "griojasf@automotorespakatnamu.com"],
+        'to' => $request->employee->email2,
         'subject' => 'Liquidación de Viáticos - ' . $request->code,
         'template' => 'emails.per-diem-request-settlement',
-        'data' => $emailData,
+        'data' => array_merge($emailData, [
+          'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+        ]),
+      ]);
+
+      // Send to boss if exists
+      if ($request->employee->boss) {
+        $this->emailService->queue([
+          'to' => $request->employee->boss->email2,
+          'subject' => 'Liquidación de Viáticos - ' . $request->code,
+          'template' => 'emails.per-diem-request-settlement',
+          'data' => array_merge($emailData, [
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          ]),
+        ]);
+      }
+
+      // Send to accounting (contabilidad)
+      $this->emailService->queue([
+        'to' => 'griojasf@automotorespakatnamu.com',
+        'subject' => 'Liquidación de Viáticos - ' . $request->code,
+        'template' => 'emails.per-diem-request-settlement',
+        'data' => array_merge($emailData, [
+          'button_url' => config('app.frontend_url') . '/ap/contabilidad/viaticos-ap',
+        ]),
       ]);
     } catch (Exception $e) {
       \Log::error('Error sending per diem request settlement email: ' . $e->getMessage());
@@ -2031,12 +2078,27 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'importe_otorgado' => $importeOtorgado,
       ];
 
+      // Send to employee
       $this->emailService->queue([
-        'to' => [$request->employee->email2, $request->employee->boss?->email2],
+        'to' => $request->employee->email2,
         'subject' => 'Liquidación de Viáticos Completada - ' . $request->code,
         'template' => 'emails.per-diem-request-settled',
-        'data' => $emailData,
+        'data' => array_merge($emailData, [
+          'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+        ]),
       ]);
+
+      // Send to boss if exists
+      if ($request->employee->boss) {
+        $this->emailService->queue([
+          'to' => $request->employee->boss->email2,
+          'subject' => 'Liquidación de Viáticos Completada - ' . $request->code,
+          'template' => 'emails.per-diem-request-settled',
+          'data' => array_merge($emailData, [
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          ]),
+        ]);
+      }
     } catch (Exception $e) {
       \Log::error('Error sending per diem request settled email: ' . $e->getMessage());
     }
@@ -2072,11 +2134,25 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       // Send to employee
       $this->emailService->queue([
-        'to' => [$request->employee->email2, $request->employee->boss?->email2],
+        'to' => $request->employee->email2,
         'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
         'template' => 'emails.per-diem-request-cancelled',
-        'data' => $emailData,
+        'data' => array_merge($emailData, [
+          'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+        ]),
       ]);
+
+      // Send to boss if exists
+      if ($request->employee->boss) {
+        $this->emailService->queue([
+          'to' => $request->employee->boss->email2,
+          'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
+          'template' => 'emails.per-diem-request-cancelled',
+          'data' => array_merge($emailData, [
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          ]),
+        ]);
+      }
 
     } catch (Exception $e) {
       \Log::error('Error sending per diem request cancelled email: ' . $e->getMessage());
@@ -2097,12 +2173,27 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'total_budget' => $request->total_budget,
       ];
 
+      // Send to employee
       $this->emailService->queue([
-        'to' => [$request->employee->email2, $request->employee->boss?->email2],
+        'to' => $request->employee->email2,
         'subject' => 'Tu Viaje Está en Progreso - ' . $request->code,
         'template' => 'emails.per-diem-in-progress',
-        'data' => $emailData,
+        'data' => array_merge($emailData, [
+          'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+        ]),
       ]);
+
+      // Send to boss if exists
+      if ($request->employee->boss) {
+        $this->emailService->queue([
+          'to' => $request->employee->boss->email2,
+          'subject' => 'Tu Viaje Está en Progreso - ' . $request->code,
+          'template' => 'emails.per-diem-in-progress',
+          'data' => array_merge($emailData, [
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          ]),
+        ]);
+      }
     } catch (Exception $e) {
       \Log::error('Error sending per diem in progress email: ' . $e->getMessage());
     }

@@ -56,6 +56,18 @@ return [
 
   /*
   |--------------------------------------------------------------------------
+  | Frontend Application URL
+  |--------------------------------------------------------------------------
+  |
+  | This URL is used to generate links in emails and notifications that
+  | redirect users to the frontend application.
+  |
+  */
+
+  'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
+
+  /*
+  |--------------------------------------------------------------------------
   | Application Timezone
   |--------------------------------------------------------------------------
   |

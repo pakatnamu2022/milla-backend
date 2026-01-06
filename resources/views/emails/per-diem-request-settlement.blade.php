@@ -176,5 +176,44 @@
       .invert-bg { background-color: #0b0f1a !important; }
       h1, h2, h3, p, div, span, strong { color: #e5e7eb !important; }
     }
+
+    /* Mobile responsive */
+    @media (max-width: 480px) {
+      table[style*="padding:24px"] > tr > td {
+        padding: 15px !important;
+      }
+
+      span[style*="padding:6px 10px"] {
+        font-size: 11px !important;
+        padding: 4px 10px !important;
+      }
+
+      h1 {
+        font-size: 20px !important;
+        line-height: 1.3 !important;
+      }
+
+      p, td, div {
+        font-size: 13px !important;
+      }
+
+      a[style*="padding:12px"] {
+        padding: 10px 16px !important;
+        font-size: 13px !important;
+      }
+
+      table[style*="margin:20px"] {
+        margin: 15px auto !important;
+      }
+    }
+
+    /* Table optimization for mobile */
+    @media (max-width: 600px) {
+      table[style*="border-collapse:collapse"] {
+        display: block !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+      }
+    }
   </style>
 @endsection
