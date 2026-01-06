@@ -9,6 +9,7 @@ use App\Http\Utils\Constants;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\gp\maestroGeneral\ExchangeRate;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Exception;
@@ -47,6 +48,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   {
     return DB::transaction(function () use ($data) {
       $vehicle = Vehicles::find($data['vehicle_id']);
+      $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
+
+      $exchangeRate = ExchangeRate::where('date', $date)->first();
+      if (!$exchangeRate) {
+        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      }
 
       if ($vehicle->customer_id === null) {
         throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
@@ -61,6 +68,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $data['discount_amount'] = 0;
       $data['tax_amount'] = Constants::VAT_TAX;
       $data['total_amount'] = 0;
+      $data['exchange_rate'] = $exchangeRate->rate;
 
       // Calculate validity days
       $quotation_date = Carbon::parse($data['quotation_date']);
@@ -82,6 +90,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   {
     return DB::transaction(function () use ($data) {
       $vehicle = Vehicles::find($data['vehicle_id']);
+      $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
+
+      $exchangeRate = ExchangeRate::where('date', $date)->first();
+      if (!$exchangeRate) {
+        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      }
 
       if ($vehicle->customer_id === null) {
         throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
@@ -108,9 +122,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $discount_amount += $itemDiscount;
       }
 
-      $subtotal_after_discount = $subtotal - $discount_amount;
-      $tax_amount = $subtotal_after_discount * Constants::VAT_TAX / 100;
-      $total_amount = $subtotal_after_discount + $tax_amount;
+      $total_amount = $subtotal - $discount_amount;
 
       // Prepare quotation data
       $quotationData = [
@@ -124,9 +136,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'quotation_number' => $this->generateNextQuotationNumber(),
         'subtotal' => $subtotal,
         'discount_amount' => $discount_amount,
-        'tax_amount' => $tax_amount,
+        'tax_amount' => Constants::VAT_TAX,
         'total_amount' => $total_amount,
         'validity_days' => $validation_days,
+        'exchange_rate' => $exchangeRate->rate,
+        'currency_id' => $data['currency_id'],
       ];
 
       // Create quotation
@@ -160,18 +174,34 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
   public function show($id)
   {
-    return new ApOrderQuotationsResource($this->find($id));
+    $quotation = $this->find($id);
+    $quotation->load('advancesOrderQuotation');
+    return new ApOrderQuotationsResource($quotation);
   }
+
 
   public function update(mixed $data)
   {
     return DB::transaction(function () use ($data) {
       $quotation = $this->find($data['id']);
       $vehicle = Vehicles::find($data['vehicle_id']);
+      $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
+
+      $exchangeRate = ExchangeRate::where('date', $date)->first();
+      if (!$exchangeRate) {
+        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      }
 
       if ($vehicle->customer_id === null) {
         throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
       }
+
+      // Calculate validity days
+      $quotation_date = Carbon::parse($data['quotation_date']);
+      $expiration_date = Carbon::parse($data['expiration_date']);
+      $validation_days = $quotation_date->diffInDays($expiration_date);
+      $data['validity_days'] = $validation_days;
+      $data['exchange_rate'] = $exchangeRate->rate;
 
       $quotation->update($data);
 
@@ -190,6 +220,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return DB::transaction(function () use ($data) {
       $quotation = $this->find($data['id']);
       $vehicle = Vehicles::find($data['vehicle_id']);
+      $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
+
+      $exchangeRate = ExchangeRate::where('date', $date)->first();
+      if (!$exchangeRate) {
+        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      }
 
       if ($vehicle->customer_id === null) {
         throw new Exception('El vehículo debe estar asociado a un "TITULAR" para actualizar una cotización');
@@ -212,9 +248,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $discount_amount += $itemDiscount;
       }
 
-      $subtotal_after_discount = $subtotal - $discount_amount;
-      $tax_amount = $subtotal_after_discount * Constants::VAT_TAX / 100;
-      $total_amount = $subtotal_after_discount + $tax_amount;
+      $total_amount = $subtotal - $discount_amount;
 
       // Update quotation data
       $quotation->update([
@@ -226,9 +260,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'observations' => $data['observations'] ?? null,
         'subtotal' => $subtotal,
         'discount_amount' => $discount_amount,
-        'tax_amount' => $tax_amount,
+        'tax_amount' => Constants::VAT_TAX,
         'total_amount' => $total_amount,
         'validity_days' => $validation_days,
+        'currency_id' => $data['currency_id'],
+        'exchange_rate' => $exchangeRate->rate,
       ]);
 
       // Delete existing details

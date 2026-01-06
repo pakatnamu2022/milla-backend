@@ -14,7 +14,7 @@ class UpdateAssignSalesSeriesRequest extends StoreRequest
       'series' => [
         'nullable',
         'string',
-        'max:50',
+        'max:4',
         Rule::unique('assign_sales_series', 'series')
           ->whereNull('deleted_at')
           ->where('status', 1)
@@ -26,6 +26,31 @@ class UpdateAssignSalesSeriesRequest extends StoreRequest
       'type_operation_id' => ['nullable', 'exists:ap_commercial_masters,id'],
       'sede_id' => ['nullable', 'exists:config_sede,id'],
       'status' => ['nullable', 'boolean'],
+      'is_advance' => ['nullable', 'boolean'],
+    ];
+  }
+
+  public function messages(): array
+  {
+    return [
+      'series.string' => 'La serie debe ser una cadena de texto.',
+      'series.max' => 'La serie no debe exceder los 4 caracteres.',
+      'series.unique' => 'La serie ya está en uso.',
+
+      'type.in' => 'El tipo seleccionado no es válido.',
+
+      'correlative_start.integer' => 'El correlativo inicial debe ser un número entero.',
+      'correlative_start.min' => 'El correlativo inicial debe ser al menos 1.',
+
+      'type_receipt_id.exists' => 'El tipo de comprobante seleccionado no es válido.',
+
+      'type_operation_id.exists' => 'El tipo de operación seleccionado no es válido.',
+
+      'sede_id.exists' => 'La sede seleccionada no es válida.',
+
+      'status.boolean' => 'El estado debe ser verdadero o falso.',
+
+      'is_advance.boolean' => 'El campo es anticipo debe ser verdadero o falso.',
     ];
   }
 

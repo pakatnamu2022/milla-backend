@@ -13,6 +13,8 @@ use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
@@ -44,6 +46,8 @@ class ElectronicDocument extends BaseModel
     'ap_vehicle_movement_id',
     'client_id',
     'purchase_request_quote_id',
+    'order_quotation_id',
+    'work_orders_id',
     'credit_note_id',
     'debit_note_id',
     'sunat_concept_identity_document_type_id',
@@ -166,6 +170,8 @@ class ElectronicDocument extends BaseModel
     'origin_entity_id' => '=',
     'ap_vehicle_movement_id' => '=',
     'purchase_request_quote_id' => '=',
+    'order_quotation_id' => '=',
+    'work_orders_id' => '=',
     'cliente_numero_de_documento' => '=',
     'sunat_concept_currency_id' => '=',
     'status' => '=',
@@ -596,5 +602,15 @@ class ElectronicDocument extends BaseModel
   public function purchaseRequestQuote(): HasOne
   {
     return $this->hasOne(PurchaseRequestQuote::class, 'id', 'purchase_request_quote_id');
+  }
+
+  public function orderQuotation(): HasOne
+  {
+    return $this->hasOne(ApOrderQuotations::class, 'id', 'order_quotation_id');
+  }
+
+  public function workOrder(): HasOne
+  {
+    return $this->hasOne(ApWorkOrder::class, 'id', 'work_orders_id');
   }
 }

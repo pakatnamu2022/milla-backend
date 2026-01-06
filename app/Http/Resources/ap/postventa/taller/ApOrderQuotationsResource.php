@@ -3,6 +3,7 @@
 namespace App\Http\Resources\ap\postventa\taller;
 
 use App\Http\Resources\ap\comercial\VehiclesResource;
+use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -26,7 +27,10 @@ class ApOrderQuotationsResource extends JsonResource
       'quotation_date' => $this->quotation_date,
       'expiration_date' => $this->expiration_date,
       'observations' => $this->observations,
+      'currency_id' => $this->currency_id,
+      'currency' => $this->currency,
       'details' => ApOrderQuotationDetailsResource::collection($this->details),
+      'advances' => ElectronicDocumentResource::collection($this->whenLoaded('advancesOrderQuotation')),
       'created_by' => $this->created_by,
       'created_by_name' => $this->createdBy ? $this->createdBy->name : null,
       'is_take' => (bool)$this->is_take,
