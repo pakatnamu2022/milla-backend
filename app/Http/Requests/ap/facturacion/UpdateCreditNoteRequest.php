@@ -218,118 +218,118 @@ class UpdateCreditNoteRequest extends StoreRequest
       }
 
       // VALIDACIÓN 2: Verificar que los items de la nota de crédito sean válidos respecto al documento original
-      if ($this->has('items') && is_array($this->input('items'))) {
-        $creditNoteItems = $this->input('items');
-        $originalItems = $originalDocument->items->keyBy('id')->toArray();
-
-        // Crear un mapa de items originales por código/descripción para validación flexible
-        $originalItemsMap = [];
-        foreach ($originalItems as $origItem) {
-          $key = $origItem['codigo'] ?? $origItem['descripcion'];
-          if (!isset($originalItemsMap[$key])) {
-            $originalItemsMap[$key] = [
-              'cantidad' => 0,
-              'total' => 0
-            ];
-          }
-          $originalItemsMap[$key]['cantidad'] += $origItem['cantidad'];
-          $originalItemsMap[$key]['total'] += $origItem['total'];
-        }
-
-        // Obtener items ya acreditados
-        $previousCreditNotes = ElectronicDocument::with('items')
-          ->where('documento_que_se_modifica_tipo', $originalDocument->sunat_concept_document_type_id)
-          ->where('documento_que_se_modifica_serie', $originalDocument->serie)
-          ->where('documento_que_se_modifica_numero', $originalDocument->numero)
-          ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
-          ->where('aceptada_por_sunat', true)
-          ->where('anulado', false)
-          ->whereNull('deleted_at')
-          ->get();
-
-        $creditedItemsMap = [];
-        foreach ($previousCreditNotes as $creditNote) {
-          foreach ($creditNote->items as $item) {
-            $key = $item->codigo ?? $item->descripcion;
-            if (!isset($creditedItemsMap[$key])) {
-              $creditedItemsMap[$key] = [
-                'cantidad' => 0,
-                'total' => 0
-              ];
-            }
-            $creditedItemsMap[$key]['cantidad'] += $item->cantidad;
-            $creditedItemsMap[$key]['total'] += $item->total;
-          }
-        }
-
-        // Validar cada item de la nota de crédito
-        foreach ($creditNoteItems as $index => $item) {
-          $itemKey = $item['codigo'] ?? $item['descripcion'];
-
-          // Verificar que el item exista en el documento original
-          if (!isset($originalItemsMap[$itemKey])) {
-            $validator->errors()->add(
-              "items.{$index}.descripcion",
-              "El item '{$itemKey}' no existe en el documento original"
-            );
-            continue;
-          }
-
-          $originalItemData = $originalItemsMap[$itemKey];
-          $creditedItemData = $creditedItemsMap[$itemKey] ?? ['cantidad' => 0, 'total' => 0];
-
-          // Validar cantidad
-          $availableQuantity = $originalItemData['cantidad'] - $creditedItemData['cantidad'];
-          if ($item['cantidad'] > $availableQuantity) {
-            $validator->errors()->add(
-              "items.{$index}.cantidad",
-              sprintf(
-                "La cantidad del item (%.4f) excede la cantidad disponible para acreditar (%.4f). Original: %.4f, Ya acreditado: %.4f",
-                $item['cantidad'],
-                $availableQuantity,
-                $originalItemData['cantidad'],
-                $creditedItemData['cantidad']
-              )
-            );
-          }
-
-          // Validar total del item
-          $availableTotal = $originalItemData['total'] - $creditedItemData['total'];
-          if ($item['total'] > $availableTotal + 0.01) { // Tolerancia de 1 centavo por redondeos
-            $validator->errors()->add(
-              "items.{$index}.total",
-              sprintf(
-                "El total del item (%.2f) excede el total disponible para acreditar (%.2f). Original: %.2f, Ya acreditado: %.2f",
-                $item['total'],
-                $availableTotal,
-                $originalItemData['total'],
-                $creditedItemData['total']
-              )
-            );
-          }
-        }
-      }
+//      if ($this->has('items') && is_array($this->input('items'))) {
+//        $creditNoteItems = $this->input('items');
+//        $originalItems = $originalDocument->items->keyBy('id')->toArray();
+//
+//        // Crear un mapa de items originales por código/descripción para validación flexible
+//        $originalItemsMap = [];
+//        foreach ($originalItems as $origItem) {
+//          $key = $origItem['codigo'] ?? $origItem['descripcion'];
+//          if (!isset($originalItemsMap[$key])) {
+//            $originalItemsMap[$key] = [
+//              'cantidad' => 0,
+//              'total' => 0
+//            ];
+//          }
+//          $originalItemsMap[$key]['cantidad'] += $origItem['cantidad'];
+//          $originalItemsMap[$key]['total'] += $origItem['total'];
+//        }
+//
+//        // Obtener items ya acreditados
+//        $previousCreditNotes = ElectronicDocument::with('items')
+//          ->where('documento_que_se_modifica_tipo', $originalDocument->sunat_concept_document_type_id)
+//          ->where('documento_que_se_modifica_serie', $originalDocument->serie)
+//          ->where('documento_que_se_modifica_numero', $originalDocument->numero)
+//          ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+//          ->where('aceptada_por_sunat', true)
+//          ->where('anulado', false)
+//          ->whereNull('deleted_at')
+//          ->get();
+//
+//        $creditedItemsMap = [];
+//        foreach ($previousCreditNotes as $creditNote) {
+//          foreach ($creditNote->items as $item) {
+//            $key = $item->codigo ?? $item->descripcion;
+//            if (!isset($creditedItemsMap[$key])) {
+//              $creditedItemsMap[$key] = [
+//                'cantidad' => 0,
+//                'total' => 0
+//              ];
+//            }
+//            $creditedItemsMap[$key]['cantidad'] += $item->cantidad;
+//            $creditedItemsMap[$key]['total'] += $item->total;
+//          }
+//        }
+//
+//        // Validar cada item de la nota de crédito
+//        foreach ($creditNoteItems as $index => $item) {
+//          $itemKey = $item['codigo'] ?? $item['descripcion'];
+//
+//          // Verificar que el item exista en el documento original
+//          if (!isset($originalItemsMap[$itemKey])) {
+//            $validator->errors()->add(
+//              "items.{$index}.descripcion",
+//              "El item '{$itemKey}' no existe en el documento original"
+//            );
+//            continue;
+//          }
+//
+//          $originalItemData = $originalItemsMap[$itemKey];
+//          $creditedItemData = $creditedItemsMap[$itemKey] ?? ['cantidad' => 0, 'total' => 0];
+//
+//          // Validar cantidad
+//          $availableQuantity = $originalItemData['cantidad'] - $creditedItemData['cantidad'];
+//          if ($item['cantidad'] > $availableQuantity) {
+//            $validator->errors()->add(
+//              "items.{$index}.cantidad",
+//              sprintf(
+//                "La cantidad del item (%.4f) excede la cantidad disponible para acreditar (%.4f). Original: %.4f, Ya acreditado: %.4f",
+//                $item['cantidad'],
+//                $availableQuantity,
+//                $originalItemData['cantidad'],
+//                $creditedItemData['cantidad']
+//              )
+//            );
+//          }
+//
+//          // Validar total del item
+//          $availableTotal = $originalItemData['total'] - $creditedItemData['total'];
+//          if ($item['total'] > $availableTotal + 0.01) { // Tolerancia de 1 centavo por redondeos
+//            $validator->errors()->add(
+//              "items.{$index}.total",
+//              sprintf(
+//                "El total del item (%.2f) excede el total disponible para acreditar (%.2f). Original: %.2f, Ya acreditado: %.2f",
+//                $item['total'],
+//                $availableTotal,
+//                $originalItemData['total'],
+//                $creditedItemData['total']
+//              )
+//            );
+//          }
+//        }
+//      }
 
       // VALIDACIÓN 3: Verificar que el documento original no haya sido regularizado por anticipo
-      if ($originalDocument->sunat_concept_transaction_type_id == 36) { // Tipo operación: Anticipos
-        // Buscar si existe una factura que regulariza este anticipo
-        $hasRegularization = ElectronicDocument::whereHas('items', function ($query) use ($originalDocument) {
-          $query->where('anticipo_regularizacion', true)
-            ->where('anticipo_documento_serie', $originalDocument->serie)
-            ->where('anticipo_documento_numero', $originalDocument->numero);
-        })
-          ->where('aceptada_por_sunat', true)
-          ->where('anulado', false)
-          ->whereNull('deleted_at')
-          ->exists();
-
-        if ($hasRegularization) {
-          $validator->errors()->add(
-            'original_document_id',
-            'No se puede crear una nota de crédito para un anticipo que ya ha sido regularizado. Debe crear la nota de crédito sobre la factura de regularización.'
-          );
-        }
-      }
+//      if ($originalDocument->sunat_concept_transaction_type_id == 36) { // Tipo operación: Anticipos
+//        // Buscar si existe una factura que regulariza este anticipo
+//        $hasRegularization = ElectronicDocument::whereHas('items', function ($query) use ($originalDocument) {
+//          $query->where('anticipo_regularizacion', true)
+//            ->where('anticipo_documento_serie', $originalDocument->serie)
+//            ->where('anticipo_documento_numero', $originalDocument->numero);
+//        })
+//          ->where('aceptada_por_sunat', true)
+//          ->where('anulado', false)
+//          ->whereNull('deleted_at')
+//          ->exists();
+//
+//        if ($hasRegularization) {
+//          $validator->errors()->add(
+//            'original_document_id',
+//            'No se puede crear una nota de crédito para un anticipo que ya ha sido regularizado. Debe crear la nota de crédito sobre la factura de regularización.'
+//          );
+//        }
+//      }
     });
   }
 }

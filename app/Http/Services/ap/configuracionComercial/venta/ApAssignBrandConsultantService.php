@@ -33,28 +33,28 @@ class ApAssignBrandConsultantService extends BaseService implements BaseServiceI
     $month = $request->get('month');
 
     if (!empty($brandId) && !empty($sedeId)) {
-      if (method_exists($results, 'additional')) {
-        $shopId = Sede::where('id', $sedeId)->value('shop_id');
-        $shopName = ApCommercialMasters::where('id', $shopId)->value('description');
-        $goalSellIn = ApGoalSellOutIn::where('brand_id', $brandId)
-          ->where('shop_id', $shopId)
-          ->where('type', 'IN')
-          ->where('year', $year)
-          ->where('month', $month)
-          ->first()->goal ?? 0;
-        $goalSellOut = ApGoalSellOutIn::where('brand_id', $brandId)
-          ->where('shop_id', $shopId)
-          ->where('type', 'OUT')
-          ->where('year', $year)
-          ->where('month', $month)
-          ->first()->goal ?? 0;
+      $shopId = Sede::where('id', $sedeId)->value('shop_id');
+      $shopName = ApCommercialMasters::where('id', $shopId)->value('description');
+      $goalSellIn = ApGoalSellOutIn::where('brand_id', $brandId)
+        ->where('shop_id', $shopId)
+        ->where('type', 'IN')
+        ->where('year', $year)
+        ->where('month', $month)
+        ->first()->goal ?? 0;
+      $goalSellOut = ApGoalSellOutIn::where('brand_id', $brandId)
+        ->where('shop_id', $shopId)
+        ->where('type', 'OUT')
+        ->where('year', $year)
+        ->where('month', $month)
+        ->first()->goal ?? 0;
 
-        return $results->additional([
-          'meta_sell_in' => $goalSellIn,
-          'meta_sell_out' => $goalSellOut,
-          'shop' => $shopName,
-        ]);
-      }
+      // Decodificar el JSON, agregar datos y recodificar
+      $data = json_decode($results->content(), true);
+      $data['meta_sell_in'] = $goalSellIn;
+      $data['meta_sell_out'] = $goalSellOut;
+      $data['shop'] = $shopName;
+
+      return response()->json($data, $results->status());
     }
 
     return $results;
