@@ -152,6 +152,143 @@ class EvaluationPersonCycleDetailService extends BaseService
   }
 
   /**
+   * Regenera los personCycleDetail para una persona específica en un ciclo
+   * Elimina los existentes y los vuelve a crear con datos actualizados
+   *
+   * @param int $cycleId - ID del ciclo
+   * @param int $personId - ID de la persona
+   * @return \Illuminate\Support\Collection - Colección de personCycleDetails regenerados
+   * @throws Exception
+   */
+  public function regenerateForPerson(int $cycleId, int $personId)
+  {
+    return DB::transaction(function () use ($cycleId, $personId) {
+      // 1. Buscar el ciclo y validar que existe
+      $cycle = EvaluationCycle::find($cycleId);
+      if (!$cycle) {
+        throw new Exception('Ciclo no encontrado');
+      }
+
+      // 2. Buscar la persona (Worker) y validar que existe
+      $person = Worker::find($personId);
+      if (!$person) {
+        throw new Exception('Persona no encontrada');
+      }
+
+      // 3. Obtener la categoría jerárquica de la persona
+      $hierarchicalCategory = $person->position?->hierarchicalCategory;
+      if (!$hierarchicalCategory) {
+        throw new Exception('La persona ' . $person->nombre_completo . ' no tiene una categoría jerárquica asignada.');
+      }
+
+      // 4. Validar que la persona tiene evaluador (supervisor_id o jefe_id)
+      $evaluatorId = $person->supervisor_id ?? $person->jefe_id;
+      if (!$evaluatorId) {
+        throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $hierarchicalCategory->name . ' no tiene un evaluador asignado.');
+      }
+
+      $chief = Worker::find($evaluatorId);
+      if (!$chief) {
+        throw new Exception('No se encontró el evaluador con ID ' . $evaluatorId . ' para la persona ' . $person->nombre_completo);
+      }
+
+      // 5. Eliminar los personCycleDetail existentes de esa persona en ese ciclo
+      EvaluationPersonCycleDetail::where('person_id', $personId)
+        ->where('cycle_id', $cycleId)
+        ->delete();
+
+      // 6. Obtener los objetivos de la categoría jerárquica
+      $objectives = $hierarchicalCategory->objectives()->get();
+      if ($objectives->isEmpty()) {
+        throw new Exception('La categoría jerárquica ' . $hierarchicalCategory->name . ' no tiene objetivos asignados.');
+      }
+
+      $regeneratedDetails = collect();
+
+      // 7. Para cada objetivo, crear el personCycleDetail
+      foreach ($objectives as $objective) {
+        // Verificar si la persona tiene un EvaluationCategoryObjectiveDetail activo para este objetivo
+        $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
+          ->where('category_id', $hierarchicalCategory->id)
+          ->where('person_id', $person->id)
+          ->where('active', 1)
+          ->whereNull('deleted_at')
+          ->first();
+
+        if ($categoryObjective) {
+          $goal = 0;
+          $weight = 0;
+
+          // Intentar obtener goal y weight del ciclo anterior
+          $previousCycle = EvaluationCycle::where('id', '<', $cycle->id)
+            ->orderBy('id', 'desc')
+            ->first();
+
+          if ($previousCycle) {
+            $previousDetail = EvaluationPersonCycleDetail::withTrashed()
+              ->where('person_id', $person->id)
+              ->where('cycle_id', $previousCycle->id)
+              ->where('category_id', $hierarchicalCategory->id)
+              ->where('objective_id', $objective->id)
+              ->whereNull('deleted_at')
+              ->first();
+
+            if ($previousDetail) {
+              $goal = $previousDetail->goal;
+              $weight = $previousDetail->weight;
+            }
+          }
+
+          // Si no hay goal del ciclo anterior, usar el de categoryObjective
+          if ($goal === 0) {
+            $goal = $categoryObjective->goal ?? 0;
+            if ($weight === 0) {
+              $weight = $categoryObjective->weight ?? 0;
+            }
+          }
+
+          // Si aún no hay goal, usar goalReference del objetivo
+          if ($goal === 0) {
+            $goal = $objective->goalReference;
+            if ($weight === 0) {
+              $weight = round(100 / $objectives->count(), 2);
+            }
+          }
+
+          $data = [
+            'person_id' => $person->id,
+            'chief_id' => $evaluatorId,
+            'position_id' => $person->cargo_id,
+            'sede_id' => $person->sede_id,
+            'area_id' => $person->area_id,
+            'cycle_id' => $cycle->id,
+            'category_id' => $hierarchicalCategory->id,
+            'objective_id' => $objective->id,
+            'isAscending' => $objective->isAscending,
+            'person' => $person->nombre_completo,
+            'chief' => $chief->nombre_completo,
+            'position' => $person->position?->name ?? '',
+            'sede' => $person->sede?->abreviatura ?? '',
+            'area' => $person->position?->area?->name ?? '',
+            'category' => $hierarchicalCategory->name,
+            'objective' => $objective->name,
+            'goal' => $goal,
+            'weight' => $weight,
+            'metric' => $objective->metric?->name ?? '',
+            'end_date_objectives' => $cycle->end_date_objectives,
+          ];
+
+          $detail = EvaluationPersonCycleDetail::create($data);
+          $regeneratedDetails->push($detail);
+        }
+      }
+
+      // 8. Retornar la colección de detalles regenerados
+      return $regeneratedDetails;
+    });
+  }
+
+  /**
    * Revalida todas las personas de un ciclo completo
    * Verifica que aún cumplan las validaciones originales del store
    */

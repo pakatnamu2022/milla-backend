@@ -24,12 +24,15 @@ use Illuminate\Support\Facades\DB;
 class EvaluationPersonResultService extends BaseService
 {
   protected $exportService;
+  protected EvaluationPersonCycleDetailService $personCycleDetailService;
 
   public function __construct(
-    ExportService $exportService
+    ExportService                      $exportService,
+    EvaluationPersonCycleDetailService $personCycleDetailService
   )
   {
     $this->exportService = $exportService;
+    $this->personCycleDetailService = $personCycleDetailService;
   }
 
   public function export(Request $request)
@@ -663,7 +666,7 @@ class EvaluationPersonResultService extends BaseService
   {
     return DB::transaction(function () use ($personId, $evaluationId) {
 
-      $evaluation = Evaluation::with('evaluationModel')->findOrFail($evaluationId);
+      $evaluation = Evaluation::findOrFail($evaluationId);
       $cycle = EvaluationCycle::findOrFail($evaluation->cycle_id);
       $person = Worker::findOrFail($personId);
 
@@ -679,13 +682,9 @@ class EvaluationPersonResultService extends BaseService
         ->where('evaluation_id', $evaluationId)
         ->delete();
 
-      // 1.3. Eliminar EvaluationPersonCycleDetail (asignación de objetivos en el ciclo)
-      EvaluationPersonCycleDetail::where('person_id', $personId)
-        ->where('cycle_id', $cycle->id)
-        ->delete();
-
-      // PASO 2: Regenerar EvaluationPersonCycleDetail con datos actualizados
-      $personCycleDetails = $this->regeneratePersonCycleDetails($person, $cycle);
+      // PASO 2: Regenerar EvaluationPersonCycleDetail con datos actualizados usando el servicio
+      // El servicio se encarga de eliminar y regenerar los personCycleDetail
+      $personCycleDetails = $this->personCycleDetailService->regenerateForPerson($cycle->id, $person->id);
 
       if ($personCycleDetails->isEmpty()) {
         throw new Exception('No se pudieron regenerar objetivos (personCycleDetail) para esta persona. Verifica que la persona tenga objetivos asignados en su categoría jerárquica.');
@@ -772,124 +771,11 @@ class EvaluationPersonResultService extends BaseService
   }
 
   /**
-   * Regenera los personCycleDetail para una persona específica
-   * Basado en la lógica de EvaluationPersonCycleDetailService::storeByCategoryAndCycle
-   */
-  private function regeneratePersonCycleDetails($person, $cycle)
-  {
-    $hierarchicalCategory = $person->position?->hierarchicalCategory;
-
-    if (!$hierarchicalCategory) {
-      throw new Exception('La persona ' . $person->nombre_completo . ' no tiene una categoría jerárquica asignada.');
-    }
-
-    // Obtener el evaluador actualizado
-    $evaluatorId = $person->supervisor_id ?? $person->jefe_id;
-    if (!$evaluatorId) {
-      throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $hierarchicalCategory->name . ' no tiene un evaluador asignado.');
-    }
-
-    $chief = \App\Models\gp\gestionhumana\personal\Worker::find($evaluatorId);
-    if (!$chief) {
-      throw new Exception('No se encontró el evaluador con ID ' . $evaluatorId . ' para la persona ' . $person->nombre_completo);
-    }
-
-    // Obtener objetivos de la categoría
-    $objectives = $hierarchicalCategory->objectives()->get();
-
-    if ($objectives->isEmpty()) {
-      throw new Exception('La categoría jerárquica ' . $hierarchicalCategory->name . ' no tiene objetivos asignados.');
-    }
-
-    $regeneratedDetails = collect();
-
-    foreach ($objectives as $objective) {
-      // Verificar si la persona tiene un EvaluationCategoryObjectiveDetail activo para este objetivo
-      $categoryObjective = \App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
-        ->where('category_id', $hierarchicalCategory->id)
-        ->where('person_id', $person->id)
-        ->where('active', 1)
-        ->whereNull('deleted_at')
-        ->first();
-
-      if ($categoryObjective) {
-        $goal = 0;
-        $weight = 0;
-
-        // Intentar obtener goal y weight del ciclo anterior
-        $previousCycle = EvaluationCycle::where('id', '<', $cycle->id)
-          ->orderBy('id', 'desc')
-          ->first();
-
-        if ($previousCycle) {
-          $previousDetail = EvaluationPersonCycleDetail::where('person_id', $person->id)
-            ->where('cycle_id', $previousCycle->id)
-            ->where('category_id', $hierarchicalCategory->id)
-            ->where('objective_id', $objective->id)
-            ->whereNull('deleted_at')
-            ->first();
-
-          if ($previousDetail) {
-            $goal = $previousDetail->goal;
-            $weight = $previousDetail->weight;
-          }
-        }
-
-        // Si no hay goal del ciclo anterior, usar el de categoryObjective
-        if ($goal === 0) {
-          $goal = $categoryObjective->goal ?? 0;
-          if ($weight === 0) {
-            $weight = $categoryObjective->weight ?? 0;
-          }
-        }
-
-        // Si aún no hay goal, usar goalReference del objetivo
-        if ($goal === 0) {
-          $goal = $objective->goalReference;
-          if ($weight === 0) {
-            $weight = round(100 / $objectives->count(), 2);
-          }
-        }
-
-        $data = [
-          'person_id' => $person->id,
-          'chief_id' => $evaluatorId,
-          'position_id' => $person->cargo_id,
-          'sede_id' => $person->sede_id,
-          'area_id' => $person->area_id,
-          'cycle_id' => $cycle->id,
-          'category_id' => $hierarchicalCategory->id,
-          'objective_id' => $objective->id,
-          'isAscending' => $objective->isAscending,
-          'person' => $person->nombre_completo,
-          'chief' => $chief->nombre_completo,
-          'position' => $person->position?->name ?? '',
-          'sede' => $person->sede?->abreviatura ?? '',
-          'area' => $person->position?->area?->name ?? '',
-          'category' => $hierarchicalCategory->name,
-          'objective' => $objective->name,
-          'goal' => $goal,
-          'weight' => $weight,
-          'metric' => $objective->metric?->name ?? '',
-          'end_date_objectives' => $cycle->end_date_objectives,
-        ];
-
-        $detail = EvaluationPersonCycleDetail::create($data);
-        $regeneratedDetails->push($detail);
-      }
-    }
-
-    return $regeneratedDetails;
-  }
-
-  /**
    * Regenera las competencias de una persona en una evaluación
    * Basado en la lógica de EvaluationService::asignarCompetenciasAPersona
    */
   private function regeneratePersonCompetences(Evaluation $evaluacion, $persona)
   {
-    $evaluationModel = $evaluacion->evaluationModel;
-
     // Constantes de tipos de evaluador
     $TIPO_EVALUADOR_JEFE = 0;
     $TIPO_EVALUADOR_AUTOEVALUACION = 1;
@@ -910,7 +796,7 @@ class EvaluationPersonResultService extends BaseService
 
     foreach ($competenciasData as $competenciaData) {
       // 1. Autoevaluación (solo si el peso es mayor a 0)
-      if ($evaluacion->selfEvaluation && $evaluationModel->self_weight > 0) {
+      if ($evaluacion->selfEvaluation && $evaluacion->self_weight > 0) {
         $this->crearDetalleCompetencia(
           $evaluacion->id,
           $persona,
@@ -921,7 +807,7 @@ class EvaluationPersonResultService extends BaseService
       }
 
       // 2. Evaluación del jefe directo (solo si el peso es mayor a 0)
-      if ($tieneJefe && $evaluationModel->leadership_weight > 0) {
+      if ($tieneJefe && $evaluacion->leadership_weight > 0) {
         $this->crearDetalleCompetencia(
           $evaluacion->id,
           $persona,
@@ -932,7 +818,7 @@ class EvaluationPersonResultService extends BaseService
       }
 
       // 3. Evaluación de compañeros (solo si está habilitada y el peso es mayor a 0)
-      if ($evaluacion->partnersEvaluation && $evaluationModel->par_weight > 0) {
+      if ($evaluacion->partnersEvaluation && $evaluacion->par_weight > 0) {
         $partners = $this->obtenerCompanerosPorEvaluationParEvaluator($persona);
         foreach ($partners as $partner) {
           $this->crearDetalleCompetencia(
@@ -946,7 +832,7 @@ class EvaluationPersonResultService extends BaseService
       }
 
       // 4. Evaluación de reportes directos (solo si el peso es mayor a 0 y tiene subordinados)
-      if ($tieneSubordinados && $evaluationModel->report_weight > 0) {
+      if ($tieneSubordinados && $evaluacion->report_weight > 0) {
         $subordinados = \App\Models\gp\gestionhumana\personal\Worker::where('jefe_id', $persona->id)
           ->where('status_deleted', 1)
           ->where('status_id', 22)
