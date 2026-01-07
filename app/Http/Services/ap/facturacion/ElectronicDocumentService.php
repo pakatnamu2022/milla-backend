@@ -17,6 +17,7 @@ use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -211,6 +212,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $document->update([
           'ap_vehicle_movement_id' => $vehicleMovement->id
         ]);
+      }
+
+      // Marcar cotización con has_invoice_generated si viene order_quotation_id
+      if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
+        $this->updateQuotationInvoiceStatus($data['order_quotation_id']);
       }
 
       DB::commit();
@@ -449,6 +455,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $document->markAsAccepted($nubefactData);
         SyncSalesDocumentJob::dispatch($id);
         $document->markAsInProgress();
+
+        // Actualizar estado de cotización si el documento tiene order_quotation_id
+        if ($document->order_quotation_id) {
+          $this->updateQuotationInvoiceStatus($document->order_quotation_id);
+        }
       }
 
       // Verificar si el documento fue anulado en Nubefact
@@ -1504,5 +1515,60 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }),
       'series' => new SalesDocumentSerialDynamicsResource($document)
     ];
+  }
+
+  /**
+   * Update quotation invoice status
+   * Marks has_invoice_generated = true when a document is created
+   * Marks is_fully_paid = true when total paid (accepted docs, non-advance) >= quotation total
+   *
+   * @param int $quotationId
+   * @return void
+   * @throws Exception
+   */
+  private function updateQuotationInvoiceStatus(int $quotationId): void
+  {
+    try {
+      $quotation = ApOrderQuotations::find($quotationId);
+
+      if (!$quotation) {
+        return;
+      }
+
+      // Marcar que se generó factura
+      $quotation->update(['has_invoice_generated' => true]);
+
+      // Calcular total pagado (solo documentos aceptados por SUNAT que NO sean anticipos)
+      $totalPaid = ElectronicDocument::where('order_quotation_id', $quotationId)
+        ->where('status', ElectronicDocument::STATUS_ACCEPTED)
+        ->where('aceptada_por_sunat', true)
+        ->where('is_advance_payment', 0)  // Excluir anticipos
+        ->whereNull('deleted_at')
+        ->sum('total');
+
+      // Si el total pagado >= total de la cotización, marcar como totalmente pagado
+      if ($totalPaid >= $quotation->total_amount) {
+        $quotation->update(['is_fully_paid' => true]);
+
+        Log::info('Quotation marked as fully paid', [
+          'quotation_id' => $quotationId,
+          'quotation_total' => $quotation->total_amount,
+          'total_paid' => $totalPaid,
+        ]);
+      } else {
+        Log::info('Quotation invoice generated but not fully paid', [
+          'quotation_id' => $quotationId,
+          'quotation_total' => $quotation->total_amount,
+          'total_paid' => $totalPaid,
+          'remaining' => $quotation->total_amount - $totalPaid,
+        ]);
+      }
+    } catch (Exception $e) {
+      Log::error('Error updating quotation invoice status', [
+        'quotation_id' => $quotationId,
+        'error' => $e->getMessage(),
+      ]);
+      // No lanzar excepción para evitar que falle la creación del documento
+    }
   }
 }
