@@ -2,8 +2,7 @@
 
 @section('content')
   <!-- Wrapper -->
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-         style="background:#f6f7fb;padding:24px 0;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
     <tr>
       <td align="center">
         <!-- Container -->

@@ -9,6 +9,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationDashboard;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationModel;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationParEvaluator;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
@@ -44,7 +45,8 @@ class EvaluationService extends BaseService
     EvaluationPersonService       $evaluationPersonService,
     EvaluationPersonResultService $evaluationPersonResultService,
     ExportService                 $exportService
-  ) {
+  )
+  {
     $this->evaluationPersonService = $evaluationPersonService;
     $this->evaluationPersonResultService = $evaluationPersonResultService;
     $this->exportService = $exportService;
@@ -526,7 +528,7 @@ class EvaluationService extends BaseService
     EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluation->id)->delete();
 
     // 2. Resetear dashboards
-    \App\Models\gp\gestionhumana\evaluacion\EvaluationDashboard::where('evaluation_id', $evaluation->id)->get()->each->resetStats();
+    EvaluationDashboard::where('evaluation_id', $evaluation->id)->get()->each->resetStats();
     EvaluationPersonDashboard::where('evaluation_id', $evaluation->id)->delete();
 
     // 3. Recrear todo desde cero
@@ -631,8 +633,8 @@ class EvaluationService extends BaseService
     }
 
     // Resetear dashboards
-    \App\Models\gp\gestionhumana\evaluacion\EvaluationDashboard::where('evaluation_id', $evaluation->id)->get()->each->resetStats();
-    \App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard::where('evaluation_id', $evaluation->id)->delete();
+    EvaluationDashboard::where('evaluation_id', $evaluation->id)->get()->each->resetStats();
+    EvaluationPersonDashboard::where('evaluation_id', $evaluation->id)->delete();
 
     return [
       'message' => 'Evaluación sincronizada con el ciclo',

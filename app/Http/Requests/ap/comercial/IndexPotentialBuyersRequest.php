@@ -12,7 +12,7 @@ class IndexPotentialBuyersRequest extends IndexRequest
   {
     return [
       'registration_date' => 'nullable|array|size:2',
-      'registration_date.*' => 'required|date|date_format:Y-m-d',
+      'registration_date.*' => 'nullable|date|date_format:Y-m-d',
       'worker_id' => 'nullable|exists:rrhh_persona,id',
       'sede_id' => 'nullable|exists:config_sede,id',
       'type' => 'nullable|in:LEADS,VISITA',
@@ -23,7 +23,9 @@ class IndexPotentialBuyersRequest extends IndexRequest
         'nullable',
         'string',
         Rule::in(PotentialBuyers::sorts)
-      ]
+      ],
+      'created_at' => 'nullable|array|size:2',
+      'created_at.*' => 'nullable|date|date_format:Y-m-d',
     ];
   }
 }
