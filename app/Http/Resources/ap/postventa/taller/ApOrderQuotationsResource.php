@@ -35,6 +35,9 @@ class ApOrderQuotationsResource extends JsonResource
       'created_by_name' => $this->createdBy ? $this->createdBy->name : null,
       'is_take' => (bool)$this->is_take,
       'area_id' => $this->area_id,
+      'has_invoice_generated' => (bool)$this->has_invoice_generated,
+      'is_fully_paid' => (bool)$this->is_fully_paid,
+      'output_generation_warehouse' => (bool)$this->output_generation_warehouse,
     ];
   }
 }

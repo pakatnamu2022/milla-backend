@@ -245,4 +245,25 @@ class InventoryMovementController extends Controller
       return $this->error($e->getMessage());
     }
   }
+
+  /**
+   * Create sale outbound movement from quotation
+   * Creates SALE type movement referencing an ApOrderQuotation
+   *
+   * @param int $quotationId Quotation ID
+   * @return JsonResponse
+   */
+  public function createSaleFromQuotation(int $quotationId): JsonResponse
+  {
+    try {
+      $movement = $this->inventoryMovementService->createSaleFromQuotation($quotationId);
+
+      return $this->success([
+        'message' => 'Movimiento de salida por venta creado exitosamente',
+        'movement' => $movement,
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }
