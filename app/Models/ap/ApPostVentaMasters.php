@@ -48,4 +48,6 @@ class ApPostVentaMasters extends Model
 
   // Add status Order Work
   const OPENING_WORK_ORDER_ID = 19;
+
+  const AREA_TALLER_ID = 34;
 }
