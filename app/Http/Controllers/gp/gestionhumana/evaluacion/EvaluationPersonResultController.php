@@ -7,6 +7,7 @@ use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationPersonResultReq
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationPersonResultRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationPersonResultRequest;
 use App\Http\Requests\PersonEvaluationRequest;
+use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationPersonResultService;
 use Illuminate\Http\Request;
 
@@ -119,6 +120,16 @@ class EvaluationPersonResultController extends Controller
   {
     try {
       return $this->success($this->service->regeneratePersonEvaluation($personId, $evaluationId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function getBossesByEvaluation(int $evaluationId)
+  {
+    try {
+      $bosses = $this->service->getBossesByEvaluation($evaluationId);
+      return $this->success(WorkerResource::collection($bosses));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

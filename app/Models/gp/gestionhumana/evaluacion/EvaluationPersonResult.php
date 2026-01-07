@@ -48,6 +48,7 @@ class EvaluationPersonResult extends BaseModel
   const filters = [
     'search' => ['person.nombre_completo'],
     'person_id' => '=',
+    'boss_dni' => '=',
     'person.cargo_id' => '=',
     'evaluation_id' => '=',
     'competencesPercentage' => '=',

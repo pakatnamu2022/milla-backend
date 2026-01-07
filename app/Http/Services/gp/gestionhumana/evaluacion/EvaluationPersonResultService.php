@@ -11,10 +11,12 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,11 +24,15 @@ use Illuminate\Support\Facades\DB;
 class EvaluationPersonResultService extends BaseService
 {
   protected $exportService;
+  protected EvaluationPersonCycleDetailService $personCycleDetailService;
 
   public function __construct(
-    ExportService $exportService
-  ) {
+    ExportService                      $exportService,
+    EvaluationPersonCycleDetailService $personCycleDetailService
+  )
+  {
     $this->exportService = $exportService;
+    $this->personCycleDetailService = $personCycleDetailService;
   }
 
   public function export(Request $request)
@@ -649,28 +655,102 @@ class EvaluationPersonResultService extends BaseService
     return response()->json(['message' => 'Persona de Evaluación eliminada correctamente']);
   }
 
+  /**
+   * Regenera completamente la evaluación de una persona
+   * - Elimina y regenera EvaluationPersonCycleDetail con supervisor actualizado
+   * - Elimina y regenera EvaluationPerson desde personCycleDetail regenerado
+   * - Elimina y regenera competencias con evaluadores actualizados
+   * - Actualiza EvaluationPersonResult con información actualizada del supervisor
+   */
   public function regeneratePersonEvaluation(int $personId, int $evaluationId)
   {
-
-    DB::transaction(function () use ($personId, $evaluationId) {
+    return DB::transaction(function () use ($personId, $evaluationId) {
 
       $evaluation = Evaluation::findOrFail($evaluationId);
-      // 1. Reset EvaluationPersonResult
+      $cycle = EvaluationCycle::findOrFail($evaluation->cycle_id);
+      $person = Worker::findOrFail($personId);
+
+      // PASO 1: Eliminar todos los datos existentes de esta persona en esta evaluación
+
+      // 1.1. Eliminar competencias
+      EvaluationPersonCompetenceDetail::where('person_id', $personId)
+        ->where('evaluation_id', $evaluationId)
+        ->delete();
+
+      // 1.2. Eliminar EvaluationPerson (objetivos)
+      EvaluationPerson::where('person_id', $personId)
+        ->where('evaluation_id', $evaluationId)
+        ->delete();
+
+      // PASO 2: Regenerar EvaluationPersonCycleDetail con datos actualizados usando el servicio
+      // El servicio se encarga de eliminar y regenerar los personCycleDetail
+      $personCycleDetails = $this->personCycleDetailService->regenerateForPerson($cycle->id, $person->id);
+
+      if ($personCycleDetails->isEmpty()) {
+        throw new Exception('No se pudieron regenerar objetivos (personCycleDetail) para esta persona. Verifica que la persona tenga objetivos asignados en su categoría jerárquica.');
+      }
+
+      // PASO 3: Regenerar EvaluationPerson desde personCycleDetail regenerado
+      foreach ($personCycleDetails as $detail) {
+        $data = [
+          'person_id' => $detail->person_id,
+          'chief_id' => $detail->chief_id,
+          'chief' => $detail->chief,
+          'person_cycle_detail_id' => $detail->id,
+          'evaluation_id' => $evaluation->id,
+          'result' => 0,
+          'compliance' => 0,
+          'qualification' => 0,
+          'objective_parameter_id' => $detail->parameter_id ?? null,
+          'period_id' => $detail->period_id ?? null,
+        ];
+        EvaluationPerson::create($data);
+      }
+
+      // PASO 4: Regenerar competencias
+      $this->regeneratePersonCompetences($evaluation, $person);
+
+      // PASO 5: Actualizar EvaluationPersonResult con información actualizada
       $personResult = EvaluationPersonResult::where('person_id', $personId)
         ->where('evaluation_id', $evaluationId)
         ->first();
 
       if ($personResult) {
+        // Obtener el evaluador actualizado
+        $evaluator = $person->evaluator;
+        if (!$evaluator) {
+          throw new Exception('La persona ' . $person->nombre_completo . ' no tiene un evaluador asignado.');
+        }
+
+        // Obtener la categoría jerárquica
+        $hierarchicalCategory = $person->position?->hierarchicalCategory;
+        $objectivesPercentage = $hierarchicalCategory?->hasObjectives ? $evaluation->objectivesPercentage : 0;
+        $competencesPercentage = $hierarchicalCategory?->hasObjectives ? $evaluation->competencesPercentage : 100;
+
         $personResult->update([
+          'objectivesPercentage' => $objectivesPercentage,
+          'competencesPercentage' => $competencesPercentage,
           'objectivesResult' => 0,
           'competencesResult' => 0,
           'status' => 0,
           'result' => 0,
           'comments' => null,
+          'name' => $person->nombre_completo,
+          'dni' => $person->vat,
+          'hierarchical_category' => $person->position?->hierarchicalCategory?->name,
+          'position' => $person->position?->name,
+          'area' => $person->position?->area?->name,
+          'sede' => $person->sede?->abreviatura,
+          'boss' => $evaluator->nombre_completo,
+          'boss_dni' => $evaluator->vat,
+          'boss_hierarchical_category' => $evaluator->position?->hierarchicalCategory?->name ?? "-",
+          'boss_position' => $evaluator->position?->name,
+          'boss_area' => $evaluator->position?->area?->name,
+          'boss_sede' => $evaluator->sede?->abreviatura,
         ]);
       }
 
-      // 2. Reset EvaluationPersonDashboard
+      // PASO 6: Reset EvaluationPersonDashboard
       $dashboard = EvaluationPersonDashboard::where('person_id', $personId)
         ->where('evaluation_id', $evaluationId)
         ->first();
@@ -679,29 +759,194 @@ class EvaluationPersonResultService extends BaseService
         $dashboard->resetStats();
       }
 
-      // 3. Delete EvaluationPersonCompetenceDetail records
-      EvaluationPersonCompetenceDetail::where('person_id', $personId)
-        ->where('evaluation_id', $evaluationId)
-        ->delete();
+      return [
+        'message' => 'Evaluación del colaborador regenerada completamente desde cero',
+        'details' => [
+          'cycle_details_regenerated' => $personCycleDetails->count(),
+          'objectives_regenerated' => $personCycleDetails->count(),
+          'evaluator_updated' => $evaluator->nombre_completo ?? 'N/A',
+        ]
+      ];
+    });
+  }
 
-      // 4. Reset EvaluationPerson if exists
-      $evaluationsPerson = EvaluationPerson::where('person_id', $personId)
-        ->where('evaluation_id', $evaluationId)
-        ->get();
+  /**
+   * Regenera las competencias de una persona en una evaluación
+   * Basado en la lógica de EvaluationService::asignarCompetenciasAPersona
+   */
+  private function regeneratePersonCompetences(Evaluation $evaluacion, $persona)
+  {
+    // Constantes de tipos de evaluador
+    $TIPO_EVALUADOR_JEFE = 0;
+    $TIPO_EVALUADOR_AUTOEVALUACION = 1;
+    $TIPO_EVALUADOR_COMPANEROS = 2;
+    $TIPO_EVALUADOR_REPORTES = 3;
 
-      if ($evaluationsPerson) {
-        foreach ($evaluationsPerson as $evaluationPerson) {
-          $evaluationPerson->update([
-            'result' => 0,
-            'compliance' => 0,
-            'qualification' => 0,
-            'comment' => null,
-            'wasEvaluated' => false,
-          ]);
+    // Verificar si tiene jefe
+    $tieneJefe = $persona->jefe_id !== null;
+
+    // Verificar si tiene subordinados
+    $tieneSubordinados = \App\Models\gp\gestionhumana\personal\Worker::where('jefe_id', $persona->id)
+      ->where('status_deleted', 1)
+      ->where('status_id', 22)
+      ->exists();
+
+    // Obtener competencias asignadas a la persona
+    $competenciasData = $this->obtenerCompetenciasParaPersona($persona);
+
+    foreach ($competenciasData as $competenciaData) {
+      // 1. Autoevaluación (solo si el peso es mayor a 0)
+      if ($evaluacion->selfEvaluation && $evaluacion->self_weight > 0) {
+        $this->crearDetalleCompetencia(
+          $evaluacion->id,
+          $persona,
+          $competenciaData,
+          $persona->id,
+          $TIPO_EVALUADOR_AUTOEVALUACION
+        );
+      }
+
+      // 2. Evaluación del jefe directo (solo si el peso es mayor a 0)
+      if ($tieneJefe && $evaluacion->leadership_weight > 0) {
+        $this->crearDetalleCompetencia(
+          $evaluacion->id,
+          $persona,
+          $competenciaData,
+          $persona->jefe_id,
+          $TIPO_EVALUADOR_JEFE
+        );
+      }
+
+      // 3. Evaluación de compañeros (solo si está habilitada y el peso es mayor a 0)
+      if ($evaluacion->partnersEvaluation && $evaluacion->par_weight > 0) {
+        $partners = $this->obtenerCompanerosPorEvaluationParEvaluator($persona);
+        foreach ($partners as $partner) {
+          $this->crearDetalleCompetencia(
+            $evaluacion->id,
+            $persona,
+            $competenciaData,
+            $partner->id,
+            $TIPO_EVALUADOR_COMPANEROS
+          );
         }
       }
-    });
 
-    return ['message' => 'Evaluación del   colaborador regenerada correctamente'];
+      // 4. Evaluación de reportes directos (solo si el peso es mayor a 0 y tiene subordinados)
+      if ($tieneSubordinados && $evaluacion->report_weight > 0) {
+        $subordinados = \App\Models\gp\gestionhumana\personal\Worker::where('jefe_id', $persona->id)
+          ->where('status_deleted', 1)
+          ->where('status_id', 22)
+          ->get();
+
+        foreach ($subordinados as $subordinado) {
+          $this->crearDetalleCompetencia(
+            $evaluacion->id,
+            $persona,
+            $competenciaData,
+            $subordinado->id,
+            $TIPO_EVALUADOR_REPORTES
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Crear detalle de competencia
+   */
+  private function crearDetalleCompetencia($evaluacionId, $persona, $competenciaData, $evaluadorId, $tipoEvaluador)
+  {
+    $evaluador = \App\Models\gp\gestionhumana\personal\Worker::find($evaluadorId);
+
+    if (!$evaluador || !$competenciaData) {
+      return;
+    }
+
+    EvaluationPersonCompetenceDetail::create([
+      'evaluation_id' => $evaluacionId,
+      'evaluator_id' => $evaluador->id,
+      'person_id' => $persona->id,
+      'competence_id' => $competenciaData['competence_id'],
+      'sub_competence_id' => $competenciaData['sub_competence_id'],
+      'person' => $persona->nombre_completo,
+      'evaluator' => $evaluador->nombre_completo,
+      'competence' => $competenciaData['competence_name'],
+      'sub_competence' => $competenciaData['sub_competence_name'],
+      'evaluatorType' => $tipoEvaluador,
+      'result' => 0
+    ]);
+  }
+
+  /**
+   * Obtener competencias para una persona según su categoría jerárquica
+   */
+  private function obtenerCompetenciasParaPersona($persona)
+  {
+    $competenciasAsignadas = DB::table('gh_evaluation_category_competence')
+      ->join('gh_config_competencias', 'gh_evaluation_category_competence.competence_id', '=', 'gh_config_competencias.id')
+      ->join('gh_config_subcompetencias', 'gh_config_competencias.id', '=', 'gh_config_subcompetencias.competencia_id')
+      ->join('gh_hierarchical_category_detail', 'gh_evaluation_category_competence.category_id', '=', 'gh_hierarchical_category_detail.hierarchical_category_id')
+      ->where('gh_evaluation_category_competence.person_id', $persona->id)
+      ->where('gh_evaluation_category_competence.active', 1)
+      ->where('gh_hierarchical_category_detail.position_id', $persona->cargo_id)
+      ->whereNull('gh_config_competencias.deleted_at')
+      ->whereNull('gh_config_subcompetencias.deleted_at')
+      ->whereNull('gh_evaluation_category_competence.deleted_at')
+      ->whereNull('gh_hierarchical_category_detail.deleted_at')
+      ->select([
+        'gh_config_competencias.id as competence_id',
+        'gh_config_competencias.nombre as competence_name',
+        'gh_config_subcompetencias.id as sub_competence_id',
+        'gh_config_subcompetencias.nombre as sub_competence_name'
+      ])
+      ->get()
+      ->toArray();
+
+    return array_map(function ($item) {
+      return (array)$item;
+    }, $competenciasAsignadas);
+  }
+
+  /**
+   * Obtener compañeros desde EvaluationParEvaluator
+   */
+  private function obtenerCompanerosPorEvaluationParEvaluator($persona)
+  {
+    $parEvaluators = \App\Models\gp\gestionhumana\evaluacion\EvaluationParEvaluator::where('worker_id', $persona->id)->get();
+
+    if ($parEvaluators->isEmpty()) {
+      return collect();
+    }
+
+    $mateIds = $parEvaluators->pluck('mate_id')->toArray();
+
+    return \App\Models\gp\gestionhumana\personal\Worker::whereIn('id', $mateIds)
+      ->where('status_deleted', 1)
+      ->where('status_id', 22)
+      ->get();
+  }
+
+  /**
+   * Obtiene la lista de bosses únicos de una evaluación
+   * @param int $evaluationId
+   * @return \Illuminate\Support\Collection
+   */
+  public function getBossesByEvaluation(int $evaluationId)
+  {
+    // Obtener los DNIs únicos de bosses de la evaluación
+    $bossDnis = EvaluationPersonResult::where('evaluation_id', $evaluationId)
+      ->whereNotNull('boss_dni')
+      ->pluck('boss_dni')
+      ->unique()
+      ->filter()
+      ->values();
+
+    // Buscar los Workers por DNI
+    $bosses = Worker::whereIn('vat', $bossDnis)
+      ->working()
+      ->with(['position.hierarchicalCategory', 'position.area', 'sede'])
+      ->get();
+
+    return $bosses;
   }
 }
