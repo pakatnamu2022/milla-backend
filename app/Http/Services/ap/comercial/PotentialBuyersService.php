@@ -34,10 +34,6 @@ class PotentialBuyersService extends BaseService
 
   public function list(Request $request)
   {
-    throw new Exception($request);
-    if (auth()->user->has_rol_tics) {
-    }
-
     return $this->getFilteredResults(
       PotentialBuyers::class,
       $request,
