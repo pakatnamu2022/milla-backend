@@ -2134,7 +2134,6 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     }
   }
 
-
   /**
    * Public method to regenerate budgets (called from HotelReservationService)
    *
