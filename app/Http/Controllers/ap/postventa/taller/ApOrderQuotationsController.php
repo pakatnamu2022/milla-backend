@@ -89,7 +89,9 @@ class ApOrderQuotationsController extends Controller
   public function downloadPDF($id)
   {
     try {
-      return $this->service->generateQuotationPDF($id);
+      $with_labor = request()->input('with_labor', true);
+      $with_labor = filter_var($with_labor, FILTER_VALIDATE_BOOLEAN);
+      return $this->service->generateQuotationPDF($id, $with_labor);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

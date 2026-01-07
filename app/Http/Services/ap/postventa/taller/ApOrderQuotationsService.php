@@ -332,7 +332,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return "COT-{$year}-{$month}-{$newNumber}";
   }
 
-  public function generateQuotationPDF($id)
+  public function generateQuotationPDF($id, $with_labor = true)
   {
     $quotation = ApOrderQuotations::with([
       'vehicle.model.family.brand',
@@ -406,8 +406,14 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $data['vehicle_km'] = 'N/A';
     }
 
+    // Filtrar detalles según el parámetro with_labor
+    $details = $quotation->details;
+    if (!$with_labor) {
+      $details = $details->where('item_type', '!=', 'labor');
+    }
+
     // Detalles de la cotización
-    $data['details'] = $quotation->details->map(function ($detail) {
+    $data['details'] = $details->map(function ($detail) {
       return [
         'code' => $detail->product ? $detail->product->code : '-',
         'description' => $detail->description,
@@ -420,17 +426,27 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       ];
     });
 
-    // Calcular totales
-    $totalLabor = $quotation->details->where('item_type', 'labor')->sum('total_amount');
+    // Calcular totales según el parámetro with_labor
+    $totalLabor = $with_labor ? $quotation->details->where('item_type', 'labor')->sum('total_amount') : 0;
     $totalParts = $quotation->details->where('item_type', 'part')->sum('total_amount');
-    $totalDiscounts = $quotation->details->sum('discount');
+    $totalDiscounts = $with_labor ? $quotation->details->sum('discount') : $details->sum('discount');
+
+    // Recalcular subtotal y total si no se incluye mano de obra
+    if (!$with_labor) {
+      $subtotal = $details->sum('total_amount') + $totalDiscounts;
+      $total_amount = $details->sum('total_amount');
+    } else {
+      $subtotal = $quotation->subtotal;
+      $total_amount = $quotation->total_amount;
+    }
 
     $data['total_labor'] = $totalLabor;
     $data['total_parts'] = $totalParts;
     $data['total_discounts'] = $totalDiscounts;
-    $data['subtotal'] = $quotation->subtotal;
+    $data['subtotal'] = $subtotal;
     $data['tax_amount'] = $quotation->tax_amount;
-    $data['total_amount'] = $quotation->total_amount;
+    $data['total_amount'] = $total_amount;
+    $data['with_labor'] = $with_labor;
 
     // Generar PDF
     $pdf = Pdf::loadView('reports.ap.postventa.taller.order-quotation', [

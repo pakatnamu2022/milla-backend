@@ -401,10 +401,12 @@
 <!-- Totales -->
 <div class="totals-section">
   <table>
+    @if($quotation['with_labor'])
     <tr>
       <td class="label-total">Total M.O.:</td>
       <td class="value-total">S/ {{ number_format($quotation['total_labor'], 2) }}</td>
     </tr>
+    @endif
     <tr>
       <td class="label-total">Total Recambios:</td>
       <td class="value-total">S/ {{ number_format($quotation['total_parts'], 2) }}</td>
