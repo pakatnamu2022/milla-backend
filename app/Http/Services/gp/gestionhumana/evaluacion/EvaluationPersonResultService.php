@@ -943,6 +943,7 @@ class EvaluationPersonResultService extends BaseService
 
     // Buscar los Workers por DNI
     $bosses = Worker::whereIn('vat', $bossDnis)
+      ->working()
       ->with(['position.hierarchicalCategory', 'position.area', 'sede'])
       ->get();
 

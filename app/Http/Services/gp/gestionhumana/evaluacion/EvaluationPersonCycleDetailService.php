@@ -624,6 +624,7 @@ class EvaluationPersonCycleDetailService extends BaseService
 
     // Buscar los Workers por ID
     $chiefs = Worker::whereIn('id', $chiefIds)
+      ->working()
       ->with(['position.hierarchicalCategory', 'position.area', 'sede'])
       ->get();
 
