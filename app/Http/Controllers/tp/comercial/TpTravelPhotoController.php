@@ -8,7 +8,7 @@ use App\Http\Requests\tp\comercial\UpdateTpTravelPhotoRequest;
 use App\Http\Services\tp\comercial\TpTravelPhotoService;
 use App\Models\tp\comercial\TpTravelPhoto;
 use Illuminate\Http\Request;
-use Exception;
+use Throwable;
 
 class TpTravelPhotoController extends Controller
 {
@@ -29,13 +29,9 @@ class TpTravelPhotoController extends Controller
        try{
             return response()->json($this->photoService->list($request, $id));
 
-       }catch(Exception $e){
-            return response()->json([
-                'message' => 'Error al obtener la lista de fotos del viaje id:'.$id,
-                'error' => $e->getMessage()
-            ],500);
-
-       }
+       }catch(Throwable $th){
+            return $this->error($th->getMessage());
+        }
       
     }
 
@@ -57,12 +53,8 @@ class TpTravelPhotoController extends Controller
             
             return response()->json($this->photoService->store($request, $id), 201);
 
-        }catch(Exception $e){
-            return response()->json([
-                'message' => 'Error al guardar la foto',
-                'error' => $e->getMessage()
-
-            ],500);
+        }catch(Throwable $th){
+            return $this->error($th->getMessage());
         }
        
     }
@@ -75,10 +67,8 @@ class TpTravelPhotoController extends Controller
         try{
             return response()->json($this->photoService->show($id));
 
-        }catch(Exception $e){
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 404);
+        }catch(Throwable $th){
+            return $this->error($th->getMessage());
         }
     }
 
@@ -106,12 +96,8 @@ class TpTravelPhotoController extends Controller
         try{
             return response()->json($this->photoService->destroy($id));
 
-        }catch(Exception $e){
-           
-            return response()->json([
-                'message' => 'Error al eliminar la foto',
-                'error' => $e->getMessage()
-            ], 500);
+        }catch(Throwable $th){
+            return $this->error($th->getMessage());
         }
     }
 
@@ -121,11 +107,8 @@ class TpTravelPhotoController extends Controller
         try{
             return response()->json($this->photoService->photoStatistics($id));
 
-        }catch(Exception $e){
-            return response()->json([
-                'message' => 'Error al obtener las estadisticas de la foto',
-                'error' => $e->getMessage()
-            ], 500);
+        }catch(Throwable $th){
+            return $this->error($th->getMessage());
         }
     }
 }

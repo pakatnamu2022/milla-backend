@@ -5,113 +5,111 @@ namespace App\Http\Services\tp\comercial;
 use App\Http\Resources\tp\comercial\DriverTravelRecordResource;
 use App\Http\Resources\tp\comercial\TravelControlResource;
 use App\Http\Services\BaseService;
+use App\Models\gp\gestionsistema\Person;
+use App\Models\tp\comercial\DispatchStatus;
 use App\Models\tp\comercial\TravelControl;
 use App\Models\tp\comercial\DriverTravelRecord;
 use App\Models\tp\comercial\TravelExpense;
+use App\Models\tp\comercial\Vehicle;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class TravelControlService extends BaseService
 {
     public function list(Request $request)
     {
-        
         $perPage = $request->get('per_page', 15);
         $search = $request->get('search', '');
-        $status = $request->get('status', 'all');
+        $status = $request->get('status', DispatchStatus::FILTER_ALL);
 
         $user = auth()->user();
         $userRole = $user->roles()->first();
         $userName = $user->username;
 
-        // Construir query principal con subqueries (MANTENER IGUAL AL CONTROLLER ORIGINAL)
-        $query = DB::table('op_despacho')
-            ->selectRaw($this->getViajeQuery())
-            ->addSelect([
-                'conductor_nombre' => DB::table('rrhh_persona')
-                    ->select('nombre_completo')
-                    ->whereColumn('id', 'op_despacho.conductor_id')
-                    ->limit(1),
-                'tracto_placa' => DB::table('op_vehiculo')
-                    ->select('placa')
-                    ->whereColumn('id', 'op_despacho.tracto_id')
-                    ->limit(1),
-                'carreta_placa' => DB::table('op_vehiculo')
-                    ->select('placa')
-                    ->whereColumn('id', 'op_despacho.carreta_id')
-                    ->limit(1),
-                'cliente_nombre' => DB::table('rrhh_persona')
-                    ->select('nombre_completo')
-                    ->whereColumn('id', 'op_despacho.idcliente')
-                    ->limit(1),
-                'estado_descripcion' => DB::table('op_despacho_estados')
-                    ->select('descripcion')
-                    ->whereColumn('id', 'op_despacho.estado')
-                    ->limit(1),
-                'estado_color' => DB::table('op_despacho_estados')
-                    ->select('color2')
-                    ->whereColumn('id', 'op_despacho.estado')
-                    ->limit(1),
-                'estado_porcentaje' => DB::table('op_despacho_estados')
-                    ->select('porcentaje')
-                    ->whereColumn('id', 'op_despacho.estado')
-                    ->limit(1),
-                'estado_norden' => DB::table('op_despacho_estados')
-                    ->select('norden')
-                    ->whereColumn('id', 'op_despacho.estado')
-                    ->limit(1)
-            ])
-            ->whereNotIn('op_despacho.estado', [10])
-            ->orderBy('op_despacho.fecha_viaje', 'DESC');
+        $query = TravelControl::with([
+            'driver:id,nombre_completo,vat,email',
+            'tract:id,placa,marca,modelo',
+            'cart:id,placa',
+            'customer:id,nombre_completo,vat as ruc',
+            'statusTrip:id,descripcion,color2,porcentaje,norden',
+            'items' => function($q) {
+                $q->select('id', 'despacho_id', 'cantidad', 'idproducto', 'idorigen', 'iddestino')
+                ->with([
+                    'product:id,descripcion',
+                    'origin:id,descripcion',
+                    'destination:id,descripcion'
+                ]);
+            },
+            'recordsDriver:id,dispatch_id,driver_id,record_type,recorded_at,recorded_mileage,notes,device_id',
+            'expenses' => function($q) {
+                $q->where('concepto_id', 25)
+                ->select('id', 'viaje_id', 'monto', 'km_tanqueo', 'created_at');
+            }
+        ])
+        ->select([
+            'id',
+            'conductor_id',
+            'tracto_id',
+            'carreta_id',
+            'idcliente',
+            'estado',
+            'km_inicio',
+            'km_fin',
+            'fecha_viaje',
+            'observacion_comercial',
+            'proxima_prog',
+            'ubicacion',
+            'produccion',
+            'condiciones',
+            'nliquidacion',
+            'created_at',
+            'updated_at'
+        ])
+        ->whereNotIn('estado', [10])
+        ->orderBy('fecha_viaje', 'DESC');
 
-        // Filtro por rol de conductor
         if ($userRole && $userRole->id == 106) {
-            $conductorId = DB::table('rrhh_persona')
-                ->where('vat', $userName)
-                ->value('id');
-            if ($conductorId) {
-                $query->where('op_despacho.conductor_id', $conductorId);
+            $conductor = Person::where('vat', $userName)->first();
+            if ($conductor) {
+                $query->where('conductor_id', $conductor->id);
             }
         }
 
-        // Filtro por estado
-        if ($status !== 'all') {
-            $status = (int) $status;
-            $camposObligatoriosCompletado = ['op_despacho.km_inicio', 'op_despacho.km_fin'];
+        //filtro por estado
 
-            switch ($status) {
-                case 3:
-                    $query->whereIn('op_despacho.estado', [3, 4, 5, 6, 7])
-                        ->whereNotNull('op_despacho.km_inicio');
+        if($status !== DispatchStatus::FILTER_ALL){
+            switch($status){
+                case DispatchStatus::FILTER_IN_PROGRESS:
+                    $query->whereIn('estado', DispatchStatus::getInProgressStatuses())
+                            ->whereNotNull('km_inicio');
                     break;
-                case 9:
-                    $query->where('op_despacho.estado', $status);
-                    foreach ($camposObligatoriosCompletado as $campo) {
-                        $query->whereNotNull($campo);
-                    }
+                case DispatchStatus::FILTER_COMPLETED:
+                    $query->whereIn('estado', [DispatchStatus::STATUS_COMPLETED, 
+                    DispatchStatus::STATUS_LIQUIDATED])
+                    ->whereNotNull('km_inicio')
+                    ->whereNotNull('km_fin');
                     break;
                 default:
-                    $query->where('op_despacho.estado', $status);
+                    $dbStatuses = DispatchStatus::fromTripStatus($status);
+                        if (!empty($dbStatuses)) {
+                            $query->whereIn('estado', $dbStatuses);
+                        }
+                    break;
             }
         }
 
-        // Búsqueda
+
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('op_despacho.id', 'LIKE', "%{$search}%")
-                    ->orWhereExists(function ($subQuery) use ($search) {
-                        $subQuery->select(DB::raw(1))
-                            ->from('rrhh_persona')
-                            ->whereColumn('rrhh_persona.id', 'op_despacho.conductor_id')
-                            ->where('rrhh_persona.nombre_completo', 'LIKE', "%{$search}%");
+                $q->where('id', 'LIKE', "%{$search}%")
+                    ->orWhereHas('driver', function ($q2) use ($search) {
+                        $q2->where('nombre_completo', 'LIKE', "%{$search}%");
                     })
-                    ->orWhereExists(function ($subQuery) use ($search) {
-                        $subQuery->select(DB::raw(1))
-                            ->from('op_vehiculo')
-                            ->whereColumn('op_vehiculo.id', 'op_despacho.tracto_id')
-                            ->where('op_vehiculo.placa', 'LIKE', "%{$search}%");
+                    ->orWhereHas('tract', function ($q3) use ($search) {
+                        $q3->where('placa', 'LIKE', "%{$search}%");
                     });
             });
         }
@@ -119,75 +117,22 @@ class TravelControlService extends BaseService
         // Paginación
         $travels = $query->paginate($perPage);
 
-        // Cargar relaciones adicionales para cada viaje (IGUAL AL CONTROLLER ORIGINAL)
-        $travelRelations = [];
-        foreach ($travels->items() as $travel) {
-            $travelArray = (array) $travel;
-            
-            // Items del despacho
-            $travelArray['items'] = DB::table('op_despacho_item')
-                ->select('id', 'despacho_id', 'cantidad', 'idproducto', 'idorigen', 'iddestino')
-                ->where('despacho_id', $travel->id)
-                ->get()
-                ->toArray();
-            
-            // Registros del conductor
-            $travelArray['driver_records'] = DB::table('driver_travel_record')
-                ->select('id', 'dispatch_id', 'record_type', 'recorded_at', 
-                        'recorded_mileage', 'notes', 'device_id')
-                ->where('dispatch_id', $travel->id)
-                ->orderBy('recorded_at')
-                ->get()
-                ->toArray();
-            
-            // Gastos de combustible
-            $travelArray['gastos'] = DB::table('op_gastos_viaje')
-                ->select('id', 'viaje_id', 'monto', 'km_tanqueo', 'created_at')
-                ->where('viaje_id', $travel->id)
-                ->where('concepto_id', 25)
-                ->get()
-                ->toArray();
-
-            $travelArray['photos'] = DB::table('tp_travel_photo')
-                ->where('dispatch_id', $travel->id)
-                ->get()
-                ->toArray();
-            
-            // Campos adicionales para frontend (MANTENER IGUAL)
-            $travelArray['estado'] = $travel->idestado;
-            $travelArray['tripNumber'] = $travel->codigo;
-            $travelArray['plate'] = $travel->tracto_placa;
-            $travelArray['route'] = $travel->ruta;
-            $travelArray['client'] = $travel->cliente_nombre;
-            
-            $travelRelations[] = $travelArray;
-        }
-
-        $transformedData = TravelControlResource::collection(
-            collect($travelRelations)
-        );
+        // Transformar datos
+        $transformedData = TravelControlResource::collection($travels);
 
         return [
             'data' => $transformedData,
-            'links' => [
-                'first' => $travels->url(1),
-                'last' => $travels->url($travels->lastPage()),
-                'prev' => $travels->previousPageUrl(),
-                'next' => $travels->nextPageUrl(),
-            ],
+            'links' => $travels->linkCollection()->toArray(),
             'meta' => [
                 'current_page' => $travels->currentPage(),
                 'from' => $travels->firstItem(),
                 'last_page' => $travels->lastPage(),
-                'links' => $travels->linkCollection()->toArray(),
-                'path' => $travels->path(),
                 'per_page' => $travels->perPage(),
                 'to' => $travels->lastItem(),
                 'total' => $travels->total(),
             ]
         ];
     }
-
     public function store($data)
     {
         try {
@@ -210,152 +155,30 @@ class TravelControlService extends BaseService
                 'message' => 'Viaje creado correctamente',
                 'data' => new TravelControlResource($viaje)
             ];
-        } catch (Exception $e) {
+        } catch (Throwable $th) {
             DB::rollBack();
-            throw new Exception('Error al crear el viaje: ' . $e->getMessage());
+            Log::error("Error al crear el viaje" . $th->getMessage());
+            throw new Exception('Error al crear el viaje: ' . $th->getMessage());
         }
     }
 
-    public function find($id)
-    {
-        $viaje = DB::table('op_despacho')
-            ->selectRaw($this->getViajeQuery())
-            ->addSelect([
-                'conductor_nombre' => DB::table('rrhh_persona')
-                    ->select('nombre_completo')
-                    ->whereColumn('id', 'op_despacho.conductor_id')
-                    ->limit(1),
-                'conductor_documento' => DB::table('rrhh_persona')
-                    ->select('documento')
-                    ->whereColumn('id', 'op_despacho.conductor_id')
-                    ->limit(1),
-                'conductor_telefono' => DB::table('rrhh_persona')
-                    ->select('telefono')
-                    ->whereColumn('id', 'op_despacho.conductor_id')
-                    ->limit(1),
-                'conductor_email' => DB::table('rrhh_persona')
-                    ->select('email')
-                    ->whereColumn('id', 'op_despacho.conductor_id')
-                    ->limit(1),
-                'tracto_placa' => DB::table('op_vehiculo')
-                    ->select('placa')
-                    ->whereColumn('id', 'op_despacho.tracto_id')
-                    ->limit(1),
-                'tracto_marca' => DB::table('op_vehiculo')
-                    ->select('marca')
-                    ->whereColumn('id', 'op_despacho.tracto_id')
-                    ->limit(1),
-                'tracto_modelo' => DB::table('op_vehiculo')
-                    ->select('modelo')
-                    ->whereColumn('id', 'op_despacho.tracto_id')
-                    ->limit(1),
-                'carreta_placa' => DB::table('op_vehiculo')
-                    ->select('placa')
-                    ->whereColumn('id', 'op_despacho.carreta_id')
-                    ->limit(1),
-                'cliente_nombre' => DB::table('rrhh_persona')
-                    ->select('nombre_completo')
-                    ->whereColumn('id', 'op_despacho.idcliente')
-                    ->limit(1),
-                'cliente_ruc' => DB::table('rrhh_persona')
-                    ->select('ruc')
-                    ->whereColumn('id', 'op_despacho.idcliente')
-                    ->limit(1),
-                'estado_descripcion' => DB::table('op_despacho_estados')
-                    ->select('descripcion')
-                    ->whereColumn('id', 'op_despacho.estado')
-                    ->limit(1),
-                'estado_color' => DB::table('op_despacho_estados')
-                    ->select('color2')
-                    ->whereColumn('id', 'op_despacho.estado')
-                    ->limit(1),
-                'estado_porcentaje' => DB::table('op_despacho_estados')
-                    ->select('porcentaje')
-                    ->whereColumn('id', 'op_despacho.estado')
-                    ->limit(1),
-                'estado_norden' => DB::table('op_despacho_estados')
-                    ->select('norden')
-                    ->whereColumn('id', 'op_despacho.estado')
-                    ->limit(1)
-            ])
-            ->where('op_despacho.id', $id)
-            ->whereNotIn('op_despacho.estado', [9, 10])
-            ->first();
-
-        if (!$viaje) {
-            throw new Exception('Viaje no encontrado');
-        }
-
-        return $viaje;
-    }
 
     public function show($id)
     {
-        $travelData = $this->find($id);
-        
-        $travelArray = (array) $travelData;
-        
-        $travelArray['items'] = DB::table('op_despacho_item as odi')
-            ->select(
-                'odi.id',
-                'odi.despacho_id',
-                'odi.cantidad',
-                'odi.idproducto',
-                'odi.idorigen',
-                'odi.iddestino',
-                'pp.descripcion as producto_descripcion',
-                'rco.descripcion as origen_descripcion',
-                'rci.descripcion as destino_descripcion'
-            )
-            ->leftJoin('fac_producto_sales as pp', 'pp.id', '=', 'odi.idproducto')
-            ->leftJoin('fac_ciudades_sales as rco', 'rco.id', '=', 'odi.idorigen')
-            ->leftJoin('fac_ciudades_sales as rci', 'rci.id', '=', 'odi.iddestino')
-            ->where('odi.despacho_id', $id)
-            ->get()
-            ->toArray();
-        
-        $travelArray['driver_records'] = DB::table('driver_travel_record')
-            ->select('*')
-            ->where('dispatch_id', $id)
-            ->orderBy('recorded_at')
-            ->get()
-            ->toArray();
-        
-        $travelArray['gastos'] = DB::table('op_gastos_viaje')
-            ->select('op_gastos_viaje.*', 'gc.nombre as concepto_nombre')
-            ->leftJoin('gasto_concepto as gc', 'gc.id', '=', 'op_gastos_viaje.concepto_id')
-            ->where('viaje_id', $id)
-            ->get()
-            ->toArray();
+        $travel = TravelControl::with([
+            'driver:id,nombre_completo,vat,email',
+            'tract:id,placa,marca,modelo',
+            'cart:id,placa',
+            'customer:id,nombre_completo,ruc',
+            'statusTrip:id,descripcion,color2,porcentaje,norden',
+            'items.product:id,descripcion',
+            'recordsDriver',
+            'expenses' => function($q) {
+                $q->where('concepto_id', 25);
+            }
+        ])->findOrFail($id);
 
-        $travelArray['photos'] = DB::table('tp_travel_photo')
-            ->where('dispatch_id', $id)
-            ->get()
-            ->toArray();
-        
-        $travelArray['driver'] = [
-            'id' => $travelData->conductor_id,
-            'name' => $travelData->conductor_nombre,
-            'documento' => $travelData->conductor_documento,
-            'telefono' => $travelData->conductor_telefono,
-            'email' => $travelData->conductor_email
-        ];
-        
-        $travelArray['vehicle'] = [
-            'placa' => $travelData->tracto_placa,
-            'marca' => $travelData->tracto_marca,
-            'modelo' => $travelData->tracto_modelo
-        ];
-        
-        $viajeArray['estado_info'] = [
-            'descripcion' => $travelData->estado_descripcion,
-            'color' => $travelData->estado_color,
-            'porcentaje' => $travelData->estado_porcentaje,
-            'norden' => $travelData->estado_norden
-        ];
-
-        // Retornar datos crudos, NO usar Resource
-        return new TravelControlResource((object) $travelArray);
+        return new TravelControlResource($travel);
     }
 
     public function update($data)
@@ -377,7 +200,7 @@ class TravelControlService extends BaseService
 
         $travel->update($updateData);
         
-        $travel->load(['items', 'driver_records', 'photos']);
+        $travel->load(['items', 'recordsDriver']);
 
         return [
             'message' => 'Viaje actualizado correctamente',
@@ -444,7 +267,8 @@ class TravelControlService extends BaseService
                 'km_inicio' => $data['mileage']
             ]);
 
-            $travel->load(['recordsDriver', 'items']);
+            $travel->load(['recordsDriver', 'items', 'tract', 'cart', 'customer',
+            'statusTrip', 'driver', 'expenses']);
 
             DB::commit();
 
@@ -452,9 +276,10 @@ class TravelControlService extends BaseService
                 'message' => 'Ruta iniciada correctamente',
                 'data' => new TravelControlResource($travel)
             ];
-        } catch (Exception $e) {
+        } catch (Throwable $th) {
             DB::rollBack();
-            throw new Exception('Error al iniciar la ruta: ' . $e->getMessage());
+            Log::error("Error al iniciar la ruta" . $th->getMessage());
+            throw new Exception('Error en el servicio de iniciar la ruta: ' . $th->getMessage());
         }
     }
 
@@ -496,9 +321,11 @@ class TravelControlService extends BaseService
                 $travel->items()->update(['cantidad' => $data['tonnage']]);
             }
 
+            // Actualizar vehículo usando Eloquent
             $travel->tract()->update(['kilometraje' => $data['mileage']]);
 
-            $travel->load(['recordsDriver', 'items']);
+            $travel->load(['recordsDriver', 'items', 'tract', 'cart', 'customer',
+            'statusTrip', 'driver', 'expenses']);
 
             DB::commit();
 
@@ -506,9 +333,10 @@ class TravelControlService extends BaseService
                 'message' => 'Ruta finalizada correctamente',
                 'data' => new TravelControlResource($travel)
             ];
-        } catch (Exception $e) {
+        } catch (Throwable $th) {
             DB::rollBack();
-            throw new Exception('Error al finalizar la ruta: ' . $e->getMessage());
+            Log::error("Error al finalizar la ruta" . $th->getMessage());
+            throw new Exception('Error en el servicio de finalizar ruta: ' . $th->getMessage());
         }
     }
 
@@ -527,10 +355,8 @@ class TravelControlService extends BaseService
                 throw new Exception('El viaje no está en un estado válido para registro de combustible');
             }
 
-            $cliente = DB::table('rrhh_persona')
-                ->where('id', $travel->idcliente)
-                ->select('vat', 'nombre_completo')
-                ->first();
+            // Usando Eloquent para obtener cliente
+            $cliente = Person::find($travel->idcliente, ['vat', 'nombre_completo']);
 
             $totalKm = $travel->km_fin - $travel->km_inicio;
             $monto = $data['kmFactor'] * $totalKm;
@@ -539,7 +365,7 @@ class TravelControlService extends BaseService
                 'viaje_id' => $travel->id,
                 'concepto_id' => 25,
                 'monto' => $monto,
-                'km_tanqueo' =>  null,
+                'km_tanqueo' => null,
                 'numero_doc' => $data['documentNumber'] ?? 'SIN-' . time(),
                 'fecha_emision' => now()->format('Y-m-d'),
                 'ruc' => $cliente->vat ?? ($data['vatNumber'] ?? '00000000000'),
@@ -547,7 +373,7 @@ class TravelControlService extends BaseService
                 'status_observacion' => sprintf(
                     'Factor: %s soles/km | Galones: %s | Km recorridos: %s | Observaciones: %s',
                     $data['kmFactor'],
-                     0,
+                    0,
                     $totalKm,
                     $data['notes'] ?? ''
                 ),
@@ -561,7 +387,8 @@ class TravelControlService extends BaseService
                 $travel->update(['estado' => 9]);
             }
 
-            $travel->load(['recordsDriver', 'items', 'expenses']);
+            $travel->load(['recordsDriver', 'items', 'tract', 'cart', 'customer',
+            'statusTrip', 'driver', 'expenses']);
             DB::commit();
 
             return [
@@ -571,7 +398,7 @@ class TravelControlService extends BaseService
                     'fuel' => [
                         'id' => $travelExpense->id,
                         'kmFactor' => $data['kmFactor'],
-                        'fuelGallons' =>  null,
+                        'fuelGallons' => null,
                         'fuelAmount' => $monto,
                         'totalKm' => $totalKm,
                         'numero_doc' => $travelExpense->numero_doc,
@@ -579,9 +406,10 @@ class TravelControlService extends BaseService
                     ]
                 ]
             ];
-        } catch (Exception $e) {
+        } catch (Throwable $th) {
             DB::rollBack();
-            throw new Exception('Error al registrar combustible: ' . $e->getMessage());
+            Log::error("Error al registrar combustible".$th->getMessage());
+            throw new Exception('Error al registrar combustible: ' . $th->getMessage());
         }
     }
 
@@ -594,15 +422,19 @@ class TravelControlService extends BaseService
         }
 
         $mapStates = [
-            'pending' => 1,
-            'in_progress' => 3,
-            'fuel_pending' => 8,
-            'completed' => 9
+            'pending' => DispatchStatus::STATUS_PENDING,
+            'in_progress' => DispatchStatus::STATUS_EN_ROUTE,
+            'fuel_pending' => DispatchStatus::STATUS_FUEL_PENDING,
+            'completed' => DispatchStatus::STATUS_COMPLETED
         ];
+
+        if(!isset($mapStates[$data['state']])){
+            throw new Exception('Estado invalido');
+        }
 
         $travel->update(['estado' => $mapStates[$data['state']]]);
 
-        $travel->load(['driver_records', 'items', 'photos']);
+        $travel->load(['recordsDriver', 'items']);
 
         return [
             'message' => 'Estado actualizado correctamente',
@@ -612,17 +444,27 @@ class TravelControlService extends BaseService
 
     public function driverRecords($id)
     {
-        $viaje = TravelControl::activos()->find($id);
-        
-        if (!$viaje) {
-            throw new Exception('Viaje no encontrado');
+        try {
+            $viaje = TravelControl::find($id);
+            
+            if (!$viaje) {
+                throw new Exception('Viaje no encontrado');
+            }
+
+            $registros = $viaje->recordsDriver()
+                ->with([
+                    'driver:id,nombre_completo,vat',
+                    'dispatch:id,conductor_id,idcliente'
+                ])
+                ->orderBy('recorded_at')
+                ->get();
+
+            return DriverTravelRecordResource::collection($registros);
+            
+        } catch (Exception $e) {
+            Log::error("Error en driverRecords - Viaje ID: {$id} - " . $e->getMessage());
+            throw new Exception('Error al obtener registros del conductor: ' . $e->getMessage());
         }
-
-        $registros = DriverTravelRecord::where('dispatch_id', $id)
-            ->orderBy('recorded_at')
-            ->get();
-
-       return DriverTravelRecordResource::collection($registros);
     }
 
     public function validateMileage($vehiculo_id)
@@ -638,182 +480,29 @@ class TravelControlService extends BaseService
 
     public function availableStates()
     {
-        return DB::table('op_despacho_estados')
-            ->whereNotIn('id', [9, 10])
+        return DispatchStatus::whereNotIn('id', [9, 10])
             ->select('id', 'descripcion', 'color2', 'porcentaje')
             ->get();
     }
 
     private function getLatestMileage($vehicleId)
     {
-        //ultimo registro del kilometraje del conductor/vehiculo
-        $latestMileage = DB::table('driver_travel_record as rvc')
-                        ->join('op_despacho as d', 'd.id', '=', 'rvc.dispatch_id')
-                        ->where('d.tracto_id', $vehicleId)
-                        ->where('rvc.record_type', 'end')
-                        ->whereNotNull('rvc.recorded_mileage')
-                        ->orderBy('rvc.recorded_at', 'desc')
-                        ->value('rvc.recorded_mileage');
+        $latestRecord = DriverTravelRecord::whereHas('dispatch', function($query) use ($vehicleId) {
+            $query->where('tracto_id', $vehicleId);
+        })
+        ->where('record_type', 'end')
+        ->whereNotNull('recorded_mileage')
+        ->orderBy('recorded_at', 'desc')
+        ->first();
 
-        if(!$latestMileage){
-            $latestMileage = DB::table('op_vehiculo')
-                                ->where('id', $vehicleId)
-                                ->value('kilometraje') ?? 0;
+        if ($latestRecord) {
+            return $latestRecord->recorded_mileage;
         }
 
-        return $latestMileage;
+        // Si no hay registros, obtener del vehículo
+        $vehicle = Vehicle::find($vehicleId);
+        return $vehicle ? ($vehicle->kilometraje ?? 0) : 0;
     }
 
-    private function getViajeQuery()
-    {
-        return "
-            op_despacho.id,
-            CONCAT('TPV', LPAD(op_despacho.id, 8, '0')) as codigo,
-            op_despacho.estado as idestado,
-            op_despacho.km_inicio,
-            op_despacho.km_fin,
-            op_despacho.produccion,
-            op_despacho.condiciones,
-            
-            op_despacho.nliquidacion,
-            op_despacho.conductor_id,
-            op_despacho.tracto_id,
-            op_despacho.carreta_id,
-            op_despacho.idcliente,
-            op_despacho.ubicacion as ubic_cabecera,
-            op_despacho.observacion_comercial,
-            op_despacho.obs_cistas,
-            op_despacho.obs_combustible,
-            op_despacho.obs_adic_1,
-            op_despacho.obs_adic_2,
-            op_despacho.obs_adic_3,
-            op_despacho.obs_adic_4,
-            op_despacho.obs_adic_5,
-            op_despacho.obs_adic_6,
-            op_despacho.obs_adic_7,
-            op_despacho.obs_adic_8,
-            op_despacho.proxima_prog,
-            
-            -- Cálculos adicionales
-            (op_despacho.km_fin - op_despacho.km_inicio) as totalKm,
-            
-            -- Horas totales calculadas
-            (
-                SELECT TIMESTAMPDIFF(MINUTE, 
-                    MIN(CASE WHEN record_type = 'start' THEN recorded_at END),
-                    MAX(CASE WHEN record_type = 'end' THEN recorded_at END)
-                ) / 60.0
-                FROM driver_travel_record 
-                WHERE dispatch_id = op_despacho.id
-                AND record_type IN ('start', 'end')
-            ) as totalHours,
-            
-            -- Toneladas
-            (
-                SELECT SUM(cantidad) 
-                FROM op_despacho_item 
-                WHERE despacho_id = op_despacho.id
-            ) as tonnage,
-            
-            -- Combustible
-            (
-                SELECT monto 
-                FROM op_gastos_viaje 
-                WHERE viaje_id = op_despacho.id 
-                AND concepto_id = 25 
-                LIMIT 1
-            ) as fuelAmount,
-            
-            (
-                SELECT km_tanqueo 
-                FROM op_gastos_viaje 
-                WHERE viaje_id = op_despacho.id 
-                AND concepto_id = 25 
-                LIMIT 1
-            ) as fuelGallons,
-            
-            -- Ruta y producto (importantes para tu frontend)
-            COALESCE((
-                SELECT CONCAT(
-                    COALESCE(rco.descripcion, 'Sin origen'), 
-                    ' - ', 
-                    COALESCE(rci.descripcion, 'Sin destino')
-                )
-                FROM op_despacho_item odt
-                LEFT JOIN fac_ciudades_sales rci ON rci.id = odt.iddestino
-                LEFT JOIN fac_ciudades_sales rco ON rco.id = odt.idorigen
-                WHERE odt.despacho_id = op_despacho.id 
-                LIMIT 1
-            ), 'Sin ruta') as ruta,
-            
-            COALESCE((
-                SELECT pp.descripcion
-                FROM op_despacho_item odi
-                LEFT JOIN fac_producto_sales pp ON pp.id = odi.idproducto
-                WHERE odi.despacho_id = op_despacho.id 
-                LIMIT 1
-            ), 'Sin producto') as producto,
-            
-            -- Próximo viaje
-            COALESCE((
-                SELECT CONCAT('TPV', LPAD(next_d.id, 8, '0'))
-                FROM op_despacho next_d
-                WHERE next_d.conductor_id = op_despacho.conductor_id
-                AND next_d.id > op_despacho.id
-                AND next_d.estado NOT IN (9,10)
-                ORDER BY next_d.id ASC
-                LIMIT 1
-            ), '-') as proximocod,
-            
-            -- Próxima ruta
-            COALESCE((
-                SELECT CONCAT(
-                    COALESCE(rco_next.descripcion, ''), 
-                    '-', 
-                    COALESCE(rci_next.descripcion, '')
-                )
-                FROM op_despacho next_d2
-                LEFT JOIN op_despacho_item odi_next ON odi_next.despacho_id = next_d2.id
-                LEFT JOIN fac_ciudades_sales rci_next ON rci_next.id = odi_next.iddestino
-                LEFT JOIN fac_ciudades_sales rco_next ON rco_next.id = odi_next.idorigen
-                WHERE next_d2.id = (
-                    SELECT next_d3.id
-                    FROM op_despacho next_d3
-                    WHERE next_d3.conductor_id = op_despacho.conductor_id
-                    AND next_d3.id > op_despacho.id
-                    AND next_d3.estado NOT IN (9,10)
-                    ORDER BY next_d3.id ASC
-                    LIMIT 1
-                )
-                LIMIT 1
-            ), '-') as proximoruta,
-            
-            -- Pendientes
-            COALESCE((
-                SELECT COUNT(p1.id)
-                FROM pendientes p1
-                WHERE p1.conductor_id = op_despacho.conductor_id
-                AND p1.status_deleted = 1
-                AND p1.status_id = 4
-            ), 0) as pendientecond,
-            
-            COALESCE((
-                SELECT COUNT(p2.id)
-                FROM pendientes p2
-                WHERE p2.tracto_id = op_despacho.tracto_id
-                AND p2.status_deleted = 1
-                AND p2.status_id = 4
-            ), 0) as pendientetracto,
-            
-            -- Fecha del último estado
-            COALESCE(
-                (SELECT ole2.fecha
-                FROM op_despacho_log_estados ole2
-                WHERE ole2.despacho_id = op_despacho.id
-                ORDER BY ole2.id DESC
-                LIMIT 1),
-                op_despacho.fecha_viaje
-            ) as fecha_estado
-        ";
-    }
+
 }

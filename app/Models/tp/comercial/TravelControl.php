@@ -152,21 +152,7 @@ class TravelControl extends BaseModel
     //mapear estados
     public function getMappedStatusAttribute()
     {
-        $map = [
-            1 => 'pending', //PENDIENTE
-            2 => 'pending', //PROGRAMADO
-            3 => 'in_progress', //EN RUTA
-            4 => 'in_progress', // EN ORIGEN
-            5 => 'in_progress', // CARGANDO
-            6 => 'in_progress', // EN TRANSITO
-            7 => 'in_progress', // DESCARGANDO
-            8 => 'fuel_pending', //POR COMBUSTIBLE
-            9 => 'completed', // FINALIZADO
-            10 => 'cancelled', //ANULADO
-            11 => 'completed' //LIQUIDADO
-        ];
-
-        return $map[$this->estado] ?? 'unknown';
+        return DispatchStatus::toTripStatus($this->estado);
     }
 
 

@@ -3,22 +3,27 @@
 namespace App\Http\Services\tp\comercial;
 
 use App\Helpers\DeviceHelper;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Resources\tp\comercial\TpTravelPhotoResource;
 use App\Http\Services\BaseService;
 use App\Models\tp\comercial\TpTravelPhoto;
 use App\Models\tp\comercial\TravelControl;
-use App\Models\tp\comercial\TravelPhoto;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Str;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-
 use Illuminate\Http\Request;
+use Throwable;
 
 class TpTravelPhotoService extends BaseService
 {
     // Aquí va la lógica del servicio para TpTravelPhoto
+    protected $digitalFileService;
+
+    public function __construct(DigitalFileService $digitalFileService)
+    {
+        $this->digitalFileService = $digitalFileService;
+    }
 
     private $allowedTypes = ['start', 'end',
     'fuel', 'incident', 'invoice'];
@@ -47,22 +52,16 @@ class TpTravelPhotoService extends BaseService
 
             $this->validateData($file, $dispatchId,$driverId, $typePhoto, $metadata);
 
-            //generar informacion del archivo
-            $nameFile = $this->generateFileName($file, $dispatchId, $typePhoto);
+            //subir archivo usando digitalfileservices
 
-            $path = $this->generatePath($dispatchId, $typePhoto, $nameFile);
+            $digitalFile = $this->uploadFileViaDigitalService($file, $dispatchId, $typePhoto);
 
-            Log::info("Subiendo foto al servidor: {$path}");
-            $urlPublic = $this->uploadTo($file, $path);
 
             $photoData = [
                 'dispatch_id' => $dispatchId,
                 'driver_id' => $driverId,
+                'digital_file_id' => $digitalFile->id,
                 'photo_type' => $typePhoto,
-                'file_name' => $nameFile,
-                'path' => $path,
-                'public_url' =>$urlPublic,
-                'mime_type' => $file->getClientMimeType(),
                 'latitude' => $metadata['latitude'] ?? null,
                 'longitude' => $metadata['longitude'] ?? null,
                 'user_agent' => $metadata['user_agent'] ?? null,
@@ -79,16 +78,9 @@ class TpTravelPhotoService extends BaseService
             
             return new TpTravelPhotoResource($photo);
         
-        }catch(Exception $e){
-            Log::error("Error en el servicio de fotos: " . $e->getMessage(), [
-                'dispatch_id' => $dispatchId,
-                'driver_id' => $driverId,
-                'type_photo' => $typePhoto,
-                'error' => $e->getTraceAsString()
-            ]);
-            throw new Exception("Error al guardar la captura: " . $e->getMessage());
-
-
+        }catch(Throwable $th){
+            Log::error("Error en el servicio de fotos: ".$th->getMessage());
+            throw new Exception("Error al guardar la captura: ".$th->getMessage());
         }
 
     }
@@ -140,25 +132,60 @@ class TpTravelPhotoService extends BaseService
 
             return $result;
 
-        }catch(Exception $e){
+        }catch(Throwable $th){
              if($tempFile){
                 fclose($tempFile);
             }
-
-            Log::error("Error en guardar a base64: ". $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
+            Log::error("Error en guardar a base64: ". $th->getMessage(), [
+                'trace' => $th->getTraceAsString(),
             ]);
-            throw new Exception("Error al procesar imagen base64: " . $e->getMessage());
-
+            throw new Exception("Error al procesar imagen base64: " . $th->getMessage());
         }
 
+    }
+
+    private function uploadFileViaDigitalService(UploadedFile $file, int $dispatchId,
+    string $typePhoto)
+    {
+        try{
+
+            $path = $this->generateDigitalFilePath($file,$dispatchId, $typePhoto);
+
+            $digitalFile = $this->digitalFileService->store(
+                $file,
+                $path,
+                'public',
+                'tp_travel_photo'
+            );
+
+            Log::info("Archivo subido a S3 via DigitalFileService. ID: {$digitalFile->id}");
+
+            return $digitalFile->resource;
+
+
+        }catch(Throwable $th){
+            Log::error("Error en el servicio UploadFileViaDigitalService: ".$th->getMessage());
+            throw new Exception("Error al subir archivo a S3: ".$th->getMessage());
+        }
+    }
+
+    private function generateDigitalFilePath(UploadedFile $file, int $dispatchId, string $typePhoto): string
+    {
+        $year = date('Y');
+        $month = date('m');
+        $timestamp = time();
+        $extension = $file->getClientOriginalExtension() ?: 'jpg';
+        $fileName = "travel_{$dispatchId}_{$typePhoto}_{$timestamp}.{$extension}";
+
+        return "tp/travel_photos/{$year}/{$month}/{$dispatchId}/{$typePhoto}/{$fileName}";
     }
 
 
     public function getPhotosByTravel(int $dispatchId, array $filters = [])
     {
         try{
-            $query = TpTravelPhoto::byTrip($dispatchId);
+            $query = TpTravelPhoto::with('digitalFile')
+                        ->where('dispatch_id', $dispatchId);
 
             if(!empty($filters['photo_type'])){
                 $query->where('photo_type', $filters['photo_type']);
@@ -180,9 +207,9 @@ class TpTravelPhotoService extends BaseService
 
             return TpTravelPhotoResource::collection($photos);
 
-        }catch(Exception $e){
-            Log::error("Error en obtener las fotos del viaje: ".$e->getMessage());
-            throw new Exception("Error al obtener fotos del viaje: ".$e->getMessage());
+        }catch(Throwable $th){
+            Log::error("Error en obtener las fotos del viaje: ".$th->getMessage());
+            throw new Exception("Error al obtener fotos del viaje: ".$th->getMessage());
         }
     }
 
@@ -190,20 +217,25 @@ class TpTravelPhotoService extends BaseService
     {
         try{
             $photo = TpTravelPhoto::findOrFail($photoId);
-            $this->deleteFromServer($photo->path);
+
+
+            if($photo->digital_file_id){
+                $this->digitalFileService->destroy($photo->digital_file_id);
+            }
 
             $photo->delete();
 
-            Log::info("Foto Eliminada: {$photoId}");
+            Log::info("Foto Eliminada: {$photoId}, Archivo Digital: {$photo->digital_file_id}");
 
             return  [
                 'mensaje' => 'Foto Eliminada Correctamente',
-                'foto_id' => $photoId
+                'foto_id' => $photoId,
+                'digital_file_id' => $photo->digital_file_id
             ];
 
-        }catch(Exception $e){
-            Log::error("Error en eliminar la foto: ". $e->getMessage());
-            throw new Exception("Error al eliminar la foto: ". $e->getMessage());
+        }catch(Throwable $th){
+            Log::error("Error en eliminar la foto: ". $th->getMessage());
+            throw new Exception("Error al eliminar la foto: ". $th->getMessage());
 
         }
     }
@@ -232,9 +264,9 @@ class TpTravelPhotoService extends BaseService
                 'no_geolocation' =>$total - $conGeolocation
             ];
 
-        }catch(Exception $e){
-             Log::error("Error en obtener las metricas: " . $e->getMessage());
-            throw new Exception("Error al obtener estadísticas: " . $e->getMessage());
+        }catch(Throwable $th){
+             Log::error("Error en obtener las metricas: " . $th->getMessage());
+            throw new Exception("Error al obtener estadísticas: " . $th->getMessage());
         }
     }
 
@@ -245,53 +277,12 @@ class TpTravelPhotoService extends BaseService
             $path = ltrim($path, '/');
             Storage::disk($disk)->delete($path);
 
-        }catch(Exception $e){
-            Log::warning("No se puede eliminar de S3: {$path}. Error: ".$e->getMessage());
+        }catch(Throwable $th){
+            Log::warning("No se puede eliminar de S3: {$path}. Error: ".$th->getMessage());
         }
     }
 
 
-
-    private function generateFileName(UploadedFile $file, int $dispatchId, string $typePhoto)
-    {
-        $timestamp = time();
-        $extension = $file->getClientOriginalExtension() ?: 'jpg';
-        $baseName = Str::slug("travel-{$dispatchId}-{$typePhoto}", '-');
-
-        return "{$baseName}-{$timestamp}.{$extension}";
-    }
-
-
-
-    private function uploadTo(UploadedFile $file, string $path)
-    {
-        //antes
-        $disk = config('filesystems.default', 'local');
-        $path = ltrim($path, '/');
-
-        // nueva configuracion
-        // $disk = 's3';
-        // $path = ltrim($path, '/');
-        
-        Storage::disk($disk)->put(
-            $path,
-            file_get_contents($file->getRealPath()),
-            [
-                'visibility' => 'public',
-                'ContentType' => $file->getMimeType()
-            ]
-        );
-
-        return Storage::disk($disk)->url($path);
-    }
-
-    private function generatePath(int $dispatchId, string $typePhoto, string $nameFile)
-    {
-        $year = date('Y');
-        $month = date('m');
-
-        return "tp/viajes/{$year}/{$month}/{$dispatchId}/{$typePhoto}/{$nameFile}";
-    }
 
     private function validateData($file, $dispatchId,$driverId, $typePhoto, $metadata)
     {
@@ -330,27 +321,7 @@ class TpTravelPhotoService extends BaseService
         }
     }
 
-    private function formatResponse(TpTravelPhoto $photo)
-    {
-        return [
-            'id' => $photo->id,
-            'dispatch_id' => $photo->dispatch_id,
-            'driver_id' => $photo->driver_id,
-            'photo_type'=> $photo->photo_type,  //inicio, fin, combustible, incidente
-            'file_name' => $photo->file_name,
-            'public_url'=> $photo->public_url,
-            'mime_type' => $photo->mime_type,
-            'latitude' =>  $photo->latitude,
-            'longitude'=>  $photo->longitude,
-            'user_agent' => $photo->user_agent,
-            'operating_system' => $photo->operating_system,
-            'browser' => $photo->browser,
-            'device_model' => $photo->device_model,
-            'notes' => $photo->notes,
-            'created_at' => $photo->created_at->format('Y-m-d H:i:s'),
-            'has_geolocation' => !empty($photo->latitude) && !empty($photo->longitude),
-        ];
-    }
+
 
     public function list(Request $request, $id)
     {
@@ -373,14 +344,9 @@ class TpTravelPhotoService extends BaseService
 
             return $photos;
 
-        }catch(\Exception $e){
-            Log::error("Error en index fotos: " . $e->getMessage());
-            
-            return response()->json([
-                'message' => 'Error al obtener las fotos',
-                'error' => $e->getMessage()
-            ], 500);
-
+        }catch(Throwable $th){
+            Log::error("Error en index fotos: " . $th->getMessage());
+            throw new Exception("Error al obtener las fotos" . $th->getMessage());
         }
     }
 
@@ -433,9 +399,10 @@ class TpTravelPhotoService extends BaseService
 
             return $result;
 
-        }catch(Exception $e)
+        }catch(Throwable $th)
         {
-            throw new Exception('Error al crear la foto: '.$e->getMessage());
+            Log::error("Error en el servicio de crear fotos" . $th->getMessage());
+            throw new Exception('Error al crear la foto: '.$th->getMessage());
         }
     }
 
@@ -453,13 +420,9 @@ class TpTravelPhotoService extends BaseService
 
             return new TpTravelPhotoResource($photo);
 
-        }catch(Exception $e){
-            Log::error("Error en show foto: " . $e->getMessage());
-            
-            return response()->json([
-                'message' => 'Error al obtener la foto',
-                'error' => $e->getMessage()
-            ], 500);
+        }catch(Throwable $th){
+            Log::error("Error en show foto: " . $th->getMessage());
+            throw new Exception("Error en el servicio de obtener la foto: " . $th->getMessage());
         }
     }
 
@@ -481,9 +444,9 @@ class TpTravelPhotoService extends BaseService
                 'photo_id' => $id
             ];
 
-        }catch(Exception $e){
-            Log::error("Error al eliminar la foto: ".$e->getMessage());
-            throw new Exception("Error al eliminar la foto: ".$e->getMessage());
+        }catch(Throwable $th){
+            Log::error("Error al eliminar la foto: ".$th->getMessage());
+            throw new Exception("Error al eliminar la foto: ".$th->getMessage());
         }
     }
 
@@ -507,98 +470,11 @@ class TpTravelPhotoService extends BaseService
                 ]
                 ]);
 
-        }catch(Exception $e){
+        }catch(Throwable $th){
             Log::error("Error en estadisticas de las fotos: ".$e->getMessage());
-
-            return response()->json([
-                'message' => 'Error al obtener estadisticas',
-                'error' => $e->getMessage()
-            ], 500);
+            throw new Exception("Error al obtener estadisticas" . $th->getMessage());
         }
     }
-
-
-    // public function storeMultiple(Request $request, $id){
-    //     $validator = Validator::make($request->all(), [
-    //         'fotos' => 'required|array|min:1|max:10',
-    //         'fotos.*.foto' => 'required|string',
-    //         'fotos.*.tipo_foto' => 'required|in:inicio,fin,combustible,incidente,comprobante',
-    //         'fotos.*.latitud' => 'nullable|numeric|between:-90,90',
-    //         'fotos.*.longitud' => 'nullable|numeric|between:-180,180'
-    //     ]);
-    //     if ($validator->fails()) {
-    //         return response()->json([
-    //             'message' => 'Error de validación',
-    //             'errors' => $validator->errors()
-    //         ], 422);
-    //     }
-
-    //     try{
-    //         $viaje = TravelControl::activos()->find($id);
-    //         if (!$viaje) {
-    //             return response()->json([
-    //                 'message' => 'Viaje no encontrado o no disponible'
-    //             ], 404);
-    //         }
-    //          $resultados = [];
-    //         $errores = [];
-            
-    //         foreach ($request->fotos as $index => $fotoData) {
-    //             try {
-    //                 $metadata = [
-    //                     'latitud' => $fotoData['latitud'] ?? null,
-    //                     'longitud' => $fotoData['longitud'] ?? null,
-    //                     'dispositivo_id' => $fotoData['dispositivo_id'] ?? null,
-    //                     'observaciones' => $fotoData['observaciones'] ?? null,
-    //                     'guardar_base64' => $fotoData['guardar_base64'] ?? false
-    //                 ];
-                    
-    //                 $resultado = $this->photoService->storeFromBase64(
-    //                     $fotoData['foto'],
-    //                     $viaje->id,
-    //                     $viaje->conductor_id,
-    //                     $fotoData['tipo_foto'],
-    //                     $metadata
-    //                 );
-                    
-    //                 $resultados[] = [
-    //                     'indice' => $index,
-    //                     'estado' => 'exitoso',
-    //                     'data' => $resultado
-    //                 ];
-                    
-    //             } catch (\Exception $e) {
-    //                 $errores[] = [
-    //                     'indice' => $index,
-    //                     'estado' => 'error',
-    //                     'error' => $e->getMessage()
-    //                 ];
-                    
-    //                 Log::warning("Error en foto multiple {$index}: " . $e->getMessage());
-    //             }
-    //         }
-            
-    //         $totalExitosos = count(array_filter($resultados, fn($r) => $r['estado'] === 'exitoso'));
-    //         $totalErrores = count($errores);
-            
-    //         return response()->json([
-    //             'message' => "{$totalExitosos} fotos guardadas exitosamente, {$totalErrores} con errores",
-    //             'data' => [
-    //                 'exitosos' => $resultados,
-    //                 'errores' => $errores
-    //             ],
-    //             'meta' => [
-    //                 'total_procesadas' => count($request->fotos),
-    //                 'exitosos' => $totalExitosos,
-    //                 'errores' => $totalErrores
-    //             ]
-    //         ], $totalErrores === 0 ? 201 : 207);
-
-    //     }catch(\Exception $e){
-
-    //     }
-    // }
-
 
 
 }

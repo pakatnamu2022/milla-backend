@@ -32,14 +32,6 @@ return new class extends Migration
             //referencias
             $table->foreign('dispatch_id')->references('id')->on('op_despacho');
         });
-
-        Schema::table('op_gastos_viaje', function (Blueprint $table){
-            $table->integer('liquidacion_id')->nullable()->change();
-            $table->string('numero_doc', 250)->nullable()->change();
-            $table->date('fecha_emision')->nullable()->change();
-            $table->decimal('km_tanqueo', 10,2)->nullable()->change();
-            $table->decimal('punto_tanqueo_id')->nullable()->change();
-        });
     }
 
     /**

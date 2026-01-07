@@ -3,21 +3,23 @@
 namespace App\Models\tp\comercial;
 
 use App\Models\BaseModel;
+use App\Models\gp\gestionsistema\DigitalFile;
 use App\Models\gp\gestionsistema\Person;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TpTravelPhoto extends BaseModel
 {
+    use SoftDeletes;
+
     protected $table = 'tp_travel_photo';
     protected $primaryKey = 'id';
     protected $fillable = [
         'dispatch_id',
         'driver_id',
+        'digital_file_id',
         'photo_type', //inicio, fin, combustible, incidente
-        'file_name',
-        'path',
-        'public_url',
-        'mime_type',
         'latitude',
         'longitude',
         'user_agent',
@@ -34,6 +36,12 @@ class TpTravelPhoto extends BaseModel
         'created_at'=> 'datetime',
         'updated_at' => 'datetime',
     ];
+
+
+    public function digitalFile(): BelongsTo
+    {
+        return $this->belongsTo(DigitalFile::class, 'digital_file_id');
+    }
 
     public function travel()
     {
@@ -86,6 +94,24 @@ class TpTravelPhoto extends BaseModel
         ];
 
         return $types[$this->photo_type] ?? $this->photo_type;
+    }
+
+    public function getPublicUrlAttribute(): ?string
+    {
+        return $this->digitalFile->url ?? null;
+    }
+
+    public function getFileNameAttribute(): ?string
+    {
+        return $this->digitalFile->name ?? null;
+    }
+    public function getMimeTypeAttribute(): ?string
+    {
+        return $this->digitalFile->mimeType ?? null;
+    }
+    public function getPathAttribute(): ?string
+    {
+        return $this->digitalFile->name ?? null; 
     }
 
 

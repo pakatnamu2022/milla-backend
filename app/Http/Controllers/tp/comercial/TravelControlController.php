@@ -11,6 +11,7 @@ use App\Http\Requests\tp\comercial\StoreTravelControlRequest;
 use App\Http\Requests\tp\comercial\UpdateTravelControlRequest;
 use App\Http\Services\tp\comercial\TravelControlService;
 use Illuminate\Http\Request;
+use Throwable;
 
 class TravelControlController extends Controller
 {
@@ -26,11 +27,8 @@ class TravelControlController extends Controller
     {
         try {
             return response()->json($this->service->list($request));
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error al obtener la lista de viajes',
-                'error' => $e->getMessage()
-            ], 500);
+        } catch(Throwable $th){
+            return $this->error($th->getMessage());
         }
     }
 
@@ -39,11 +37,8 @@ class TravelControlController extends Controller
         try {
             $data = $request->validated();
             return response()->json($this->service->store($data), 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error al crear el viaje',
-                'error' => $e->getMessage()
-            ], 500);
+        }catch(Throwable $th){
+            return $this->error($th->getMessage());
         }
     }
 
@@ -52,10 +47,8 @@ class TravelControlController extends Controller
         try{
             return response()->json($this->service->show($id));
 
-        }catch(\Exception $e){
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 404);
+        }catch(Throwable $th){
+            return $this->error($th->getMessage());
         }
     }
 
@@ -66,10 +59,8 @@ class TravelControlController extends Controller
             $data['id'] = $id;
             return response()->json($this->service->update($data));
 
-        }catch(\Exception $e){
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 500);
+        }catch(Throwable $th){
+            return $this->error($th->getMessage());
         }
     }
 
@@ -78,10 +69,8 @@ class TravelControlController extends Controller
         try{
             return response()->json($this->service->destroy($id));
 
-        }catch(\Exception $e){
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 500);
+        }catch(Throwable $th){
+            return $this->error($th->getMessage());
         }
     }
 
@@ -92,10 +81,8 @@ class TravelControlController extends Controller
             $data['id'] = $id;
 
             return response()->json($this->service->startRoute($data));
-        }catch(\Exception $e){
-            return response()->json([
-                'message' => $e->getMessage()
-            ], 500);
+        }catch(Throwable $th){
+            return $this->error($th->getMessage());
         }
     }
 
@@ -107,10 +94,8 @@ class TravelControlController extends Controller
             $data['id'] = $id;
             return response()->json($this->service->endRoute($data));
 
-        }catch(\Exception $e){
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 500);
+        }catch(Throwable $th){
+            return $this->error($th->getMessage());
         }
     }
 
@@ -121,10 +106,8 @@ class TravelControlController extends Controller
             $data['id'] = $id;
             return response()->json($this->service->fuelRecord($data));
 
-        }catch(\Exception $e){
-            return response()->json([
-                'message' => $e->getMessage()
-            ], 500);
+        }catch(Throwable $th){
+            return $this->error($th->getMessage());
         }
     }
 
@@ -136,11 +119,8 @@ class TravelControlController extends Controller
 
             return response()->json($this->service->changeState($data));
 
-        }catch(\Exception $e){
-            return response()->json([
-                'message' => 'Error al cambiar el estado',
-                'error' => $e->getMessage()
-            ],500);
+        }catch(Throwable $th){
+            return $this->error($th->getMessage());
         }
     }
 
@@ -151,11 +131,8 @@ class TravelControlController extends Controller
                 'data' => $this->service->driverRecords($id)
             ]);
 
-        }catch(\Exception $e){
-            return response()->json([
-                'message' => 'Error al obtener los registros',
-                'error' => $e->getMessage()
-            ], 500);
+        }catch(Throwable $th){
+            return $this->error($th->getMessage());
         }
     }
 
@@ -167,19 +144,21 @@ class TravelControlController extends Controller
                 'data' => $this->service->validateMileage($vehicle_id)
             ]);
 
-        }catch(\Exception $e){
-            return response()->json([
-                'message' => 'Error al validar kilometraje',
-                'error' => $e->getMessage()
-            ], 500);
+        }catch(Throwable $th){
+            return $this->error($th->getMessage());
         }
     }
 
     public function availableStates()
     {
-        return response()->json([
+        try{
+            return response()->json([
             'data' => $this->service->availableStates()
-        ]);
+            ]);
+        }catch(Throwable $th){
+            return $this->error($th->getMessage());
+        }
+        
     }
 
 }
