@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ap\ApCommercialMastersController;
 use App\Http\Controllers\ap\ApPostVentaMastersController;
+use App\Http\Controllers\GeneralMaster\GeneralMasterController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
@@ -235,6 +236,16 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     });
 
     Route::group(['prefix' => 'mg'], function () {
+      // General Master
+      Route::get('generalMaster/types', [GeneralMasterController::class, 'getTypes']);
+      Route::apiResource('generalMaster', GeneralMasterController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
       Route::get('sede/availableLocationsShop', [SedeController::class, 'availableLocationsShop']);
       Route::get('sede/my', [SedeController::class, 'mySedes']);
       Route::apiResource('sede', SedeController::class)->only([

@@ -499,7 +499,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $vehicle = $purchaseRequestQuote->vehicle ?? null;
 
     return response()->json([
-      'vehicle' => VehiclesResource::make($vehicle),
+      'vehicle' => $vehicle ? VehiclesResource::make($vehicle) : null,
       'documents' => ElectronicDocumentResource::collection($documents),
       'total_documents' => $documents->count(),
       'total_amount' => $documents->sum('total'),

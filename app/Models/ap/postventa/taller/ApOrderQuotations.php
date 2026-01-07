@@ -107,8 +107,7 @@ class ApOrderQuotations extends Model
 
   public function advancesOrderQuotation(): HasMany
   {
-    return $this->hasMany(ElectronicDocument::class, 'order_quotation_id')
-      ->where('is_advance_payment', true);
+    return $this->hasMany(ElectronicDocument::class, 'order_quotation_id');
   }
 
   public function markAsTaken(): void
