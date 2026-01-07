@@ -227,6 +227,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
       }
 
+      if ($quotation->has_invoice_generated) {
+        throw new Exception('No se puede actualizar una cotización que ya tiene una factura generada.');
+      }
+
       if ($vehicle->customer_id === null) {
         throw new Exception('El vehículo debe estar asociado a un "TITULAR" para actualizar una cotización');
       }
@@ -299,6 +303,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   public function destroy($id)
   {
     $quotation = $this->find($id);
+
+    if ($quotation->has_invoice_generated) {
+      throw new Exception('No se puede eliminar una cotización que ya tiene una factura generada.');
+    }
 
     DB::transaction(function () use ($quotation) {
       $quotation->delete();

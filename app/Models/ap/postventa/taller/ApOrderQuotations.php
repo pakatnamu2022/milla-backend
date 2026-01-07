@@ -37,6 +37,9 @@ class ApOrderQuotations extends Model
     'area_id',
     'currency_id',
     'exchange_rate',
+    'has_invoice_generated',
+    'is_fully_paid',
+    'output_generation_warehouse'
   ];
 
   const filters = [
@@ -58,6 +61,8 @@ class ApOrderQuotations extends Model
   protected $casts = [
     'quotation_date' => 'datetime',
     'expiration_date' => 'datetime',
+    'has_invoice_generated' => 'boolean',
+    'is_fully_paid' => 'boolean',
   ];
 
   protected static function boot()

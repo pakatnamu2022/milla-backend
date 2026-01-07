@@ -12,6 +12,7 @@ use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
+use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
 use Illuminate\Support\Facades\Auth;
@@ -978,6 +979,119 @@ class InventoryMovementService extends BaseService
 
       DB::commit();
       return $movement;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Create sale outbound movement from quotation
+   * Creates SALE movement referencing an ApOrderQuotation
+   * Updates stock automatically
+   *
+   * @param int $quotationId Quotation ID
+   * @return InventoryMovement
+   * @throws Exception
+   */
+  public function createSaleFromQuotation(int $quotationId): InventoryMovement
+  {
+    DB::beginTransaction();
+    try {
+      // Find quotation with details
+      $quotation = ApOrderQuotations::with(['details.product', 'sede'])->find($quotationId);
+
+      if (!$quotation) {
+        throw new Exception('Cotización no encontrada');
+      }
+
+      // Validamos que la cotización no haya generado ya una salida de almacén
+      if ($quotation->output_generation_warehouse) {
+        throw new Exception('La cotización ya ha generado una salida de almacén previamente');
+      }
+
+      // Get warehouse from sede
+      $warehouse = Warehouse::where('sede_id', $quotation->sede_id)
+        ->where('is_physical_warehouse', 1)
+        ->where('status', 1)
+        ->first();
+
+      if (!$warehouse) {
+        throw new Exception('No se encontró almacén asociado a la sede de la cotización');
+      }
+
+      // Filter only product items (exclude labor)
+      $productDetails = $quotation->details->where('item_type', '!=', 'labor')->where('product_id', '!=', null);
+
+      if ($productDetails->isEmpty()) {
+        throw new Exception('La cotización no contiene productos para generar salida de inventario');
+      }
+
+      // Validate stock availability for all products
+      foreach ($productDetails as $detail) {
+        $stock = $this->stockService->getStock($detail->product_id, $warehouse->id);
+
+        if (!$stock) {
+          throw new Exception(
+            "No se encontró registro de stock para el producto '{$detail->product->name}' en el almacén"
+          );
+        }
+
+        if ($stock->available_quantity < $detail->quantity) {
+          throw new Exception(
+            "Stock insuficiente para producto '{$detail->product->name}'. " .
+            "Disponible: {$stock->available_quantity}, Requerido: {$detail->quantity}"
+          );
+        }
+      }
+
+      // Create movement header
+      $movement = InventoryMovement::create([
+        'movement_number' => InventoryMovement::generateMovementNumber(),
+        'movement_type' => InventoryMovement::TYPE_SALE,
+        'movement_date' => now(),
+        'warehouse_id' => $warehouse->id,
+        'reference_type' => ApOrderQuotations::class,
+        'reference_id' => $quotation->id,
+        'user_id' => Auth::id(),
+        'status' => InventoryMovement::STATUS_APPROVED,
+        'notes' => "Salida por venta - Cotización {$quotation->quotation_number}",
+        'total_items' => 0,
+        'total_quantity' => 0,
+      ]);
+
+      // Create movement details
+      $totalItems = 0;
+      $totalQuantity = 0;
+
+      foreach ($productDetails as $detail) {
+        InventoryMovementDetail::create([
+          'inventory_movement_id' => $movement->id,
+          'product_id' => $detail->product_id,
+          'quantity' => $detail->quantity,
+          'unit_cost' => $detail->unit_price,
+          'total_cost' => $detail->total_amount,
+          'notes' => "Venta cotización {$quotation->quotation_number} - {$detail->description}",
+        ]);
+
+        $totalItems++;
+        $totalQuantity += $detail->quantity;
+      }
+
+      // Update movement totals
+      $movement->update([
+        'total_items' => $totalItems,
+        'total_quantity' => $totalQuantity,
+      ]);
+
+      // Update ApOrderQuotations output_generation_warehouse
+      $quotation->update(['output_generation_warehouse' => true]);
+
+      // Update stock automatically
+      $this->stockService->updateStockFromMovement($movement->fresh('details'));
+
+      DB::commit();
+      return $movement->load(['warehouse', 'user', 'details.product', 'reference']);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
