@@ -925,4 +925,27 @@ class EvaluationPersonResultService extends BaseService
       ->where('status_id', 22)
       ->get();
   }
+
+  /**
+   * Obtiene la lista de bosses únicos de una evaluación
+   * @param int $evaluationId
+   * @return \Illuminate\Support\Collection
+   */
+  public function getBossesByEvaluation(int $evaluationId)
+  {
+    // Obtener los DNIs únicos de bosses de la evaluación
+    $bossDnis = EvaluationPersonResult::where('evaluation_id', $evaluationId)
+      ->whereNotNull('boss_dni')
+      ->pluck('boss_dni')
+      ->unique()
+      ->filter()
+      ->values();
+
+    // Buscar los Workers por DNI
+    $bosses = Worker::whereIn('vat', $bossDnis)
+      ->with(['position.hierarchicalCategory', 'position.area', 'sede'])
+      ->get();
+
+    return $bosses;
+  }
 }

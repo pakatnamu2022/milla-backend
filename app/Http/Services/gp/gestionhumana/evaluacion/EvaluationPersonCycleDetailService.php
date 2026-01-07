@@ -606,4 +606,27 @@ class EvaluationPersonCycleDetailService extends BaseService
     });
     return response()->json(['message' => 'Detalle de Ciclo Persona eliminado correctamente']);
   }
+
+  /**
+   * Obtiene la lista de chiefs únicos de un ciclo
+   * @param int $cycleId
+   * @return \Illuminate\Support\Collection
+   */
+  public function getChiefsByCycle(int $cycleId)
+  {
+    // Obtener los IDs únicos de chiefs del ciclo
+    $chiefIds = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+      ->whereNotNull('chief_id')
+      ->pluck('chief_id')
+      ->unique()
+      ->filter()
+      ->values();
+
+    // Buscar los Workers por ID
+    $chiefs = Worker::whereIn('id', $chiefIds)
+      ->with(['position.hierarchicalCategory', 'position.area', 'sede'])
+      ->get();
+
+    return $chiefs;
+  }
 }

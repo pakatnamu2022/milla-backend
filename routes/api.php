@@ -428,6 +428,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'index']);
         Route::post('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'storeMany']);
         Route::get('/cycle/{cycle}/details', [EvaluationPersonCycleDetailController::class, 'index']);
+        Route::get('/cycle/{cycle}/chiefs', [EvaluationPersonCycleDetailController::class, 'getChiefsByCycle']);
         Route::get('/cycle/{id}/participants', [EvaluationCycleController::class, 'participants']);
         Route::get('/cycle/{id}/positions', [EvaluationCycleController::class, 'positions']);
 
@@ -493,6 +494,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('personResult/export', [EvaluationPersonResultController::class, 'export']);
         Route::get('personResult/getByPersonAndEvaluation', [EvaluationPersonResultController::class, 'getByPersonAndEvaluation']);
         Route::get('personResult/evaluations-to-evaluate/{id}', [EvaluationPersonResultController::class, 'getEvaluationsByPersonToEvaluate']);
+        Route::get('personResult/evaluation/{evaluation_id}/bosses', [EvaluationPersonResultController::class, 'getBossesByEvaluation']);
         Route::get('leader-dashboard/{evaluation_id}', [EvaluationPersonResultController::class, 'getLeaderDashboard']);
         Route::post('personResult/regenerate/{personId}/{evaluationId}', [EvaluationPersonResultController::class, 'regenerate']);
         Route::apiResource('personResult', EvaluationPersonResultController::class)->only([
