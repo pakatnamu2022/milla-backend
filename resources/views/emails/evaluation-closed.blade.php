@@ -9,8 +9,8 @@
       Le informamos que el período de evaluación <strong>{{ $evaluation_name }}</strong> ha finalizado. A continuación encontrará un resumen general del desempeño de su equipo.
     </div>
 
-    <div class="callout">
-      <div class="callout-title">Información de la evaluación</div>
+    <div class="card">
+      <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:10px;color:#111827;">Información de la evaluación</div>
       <div><strong>Evaluación:</strong> {{ $evaluation_name }}</div>
       <div><strong>Período:</strong> {{ $start_date }} - {{ $end_date }}</div>
       <div><strong>Fecha de cierre:</strong> {{ $closed_date }}</div>
@@ -130,8 +130,8 @@
     @endif
 
     @isset($top_competences)
-      <div class="callout" style="background:#f0fdf4;border-left-color:#10b981;">
-        <div class="callout-title" style="color:#059669;">✓ Fortalezas del Equipo</div>
+      <div class="card" style="border-left:3px solid #10b981;">
+        <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:8px;color:#059669;">✓ Fortalezas del Equipo</div>
         <ul style="margin:6px 0 0 0;padding-left:20px;">
           @foreach($top_competences as $competence)
             <li>{{ $competence }}</li>
@@ -141,8 +141,8 @@
     @endisset
 
     @isset($areas_improvement)
-      <div class="callout" style="background:#fff7ed;border-left-color:#f59e0b;">
-        <div class="callout-title" style="color:#d97706;">Áreas de Oportunidad</div>
+      <div class="card" style="border-left:3px solid #f59e0b;">
+        <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:8px;color:#d97706;">Áreas de Oportunidad</div>
         <ul style="margin:6px 0 0 0;padding-left:20px;">
           @foreach($areas_improvement as $area)
             <li>{{ $area }}</li>
@@ -151,8 +151,8 @@
       </div>
     @endisset
 
-    <div class="callout">
-      <div class="callout-title">Próximos Pasos</div>
+    <div class="card card-muted">
+      <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:8px;color:#111827;">Próximos Pasos</div>
       <div>
         • Revisar los resultados individuales con cada miembro del equipo<br>
         • Establecer planes de desarrollo personalizados<br>
@@ -169,7 +169,7 @@
 
     @isset($additional_notes)
       <div class="card" style="margin-top:16px;">
-        <div style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#01237e;margin-bottom:6px;">Nota</div>
+        <div style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#111827;margin-bottom:6px;">Nota</div>
         <div>{{ $additional_notes }}</div>
       </div>
     @endisset
