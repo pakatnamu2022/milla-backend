@@ -143,7 +143,7 @@
 
     .btn-primary {
       background: #01237e;
-      color: #ffffff;
+      color: #ffffff !important;
       border: 1px solid #0131b1;
     }
 
@@ -153,7 +153,7 @@
 
     .btn-secondary {
       background: #F60404;
-      color: #ffffff;
+      color: #ffffff !important;
       border: 1px solid #c50303;
     }
 
@@ -194,6 +194,7 @@
     .table tbody tr:last-child td {
       border-bottom: none;
     }
+
     /* Barra de progreso - estilo minimalista */
     .progress {
       height: 10px;
