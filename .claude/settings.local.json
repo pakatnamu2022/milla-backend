@@ -17,7 +17,8 @@
       "Bash(xargs:*)",
       "Bash(grep:*)",
       "Bash(test:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

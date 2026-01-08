@@ -17,7 +17,7 @@ class VerifyElectronicDocumentSyncCommand extends Command
    *
    * @var string
    */
-  protected $signature = 'electronic-document:verify-sync {--id= : ID del documento electrónico específico} {--all : Verificar todos los documentos pendientes} {--sync : Ejecutar inmediatamente sin usar cola}';
+  protected $signature = 'electronic-document:verify-sync {--id= : ID del documento electrónico específico} {--all : Verificar todos los documentos pendientes} {--limit=200 : Número máximo de documentos a procesar (default: 200)} {--sync : Ejecutar inmediatamente sin usar cola}';
 
   /**
    * The console command description.
@@ -110,6 +110,8 @@ class VerifyElectronicDocumentSyncCommand extends Command
    */
   private function getPendingDocuments()
   {
+    $limit = (int) $this->option('limit');
+
     $pendingDocumentIds = VehiclePurchaseOrderMigrationLog::whereNotNull('electronic_document_id')
       ->whereIn('status', [
         VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
@@ -124,6 +126,8 @@ class VerifyElectronicDocumentSyncCommand extends Command
       ->where('anulado', false)
       ->where('aceptada_por_sunat', true)
       ->whereNull('deleted_at')
+      ->orderBy('id')
+      ->limit($limit)
       ->get();
   }
 

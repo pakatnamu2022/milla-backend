@@ -25,6 +25,7 @@ class GeneralMaster extends Model
     'search' => ['code', 'description', 'type'],
     'type' => '=',
     'status' => '=',
+    'code' => '=',
   ];
 
   const sorts = [

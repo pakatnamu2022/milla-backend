@@ -13,7 +13,7 @@ class SyncCreditNoteDynamicsCommand extends Command
    *
    * @var string
    */
-  protected $signature = 'po:sync-credit-note-dynamics {--id= : ID de la orden de compra específica} {--all : Sincronizar todas las OC sin credit_note_dynamics}';
+  protected $signature = 'po:sync-credit-note-dynamics {--id= : ID de la orden de compra específica} {--all : Sincronizar todas las OC sin credit_note_dynamics} {--limit=50 : Número máximo de órdenes a procesar (default: 50)}';
 
   /**
    * The console command description.
@@ -82,23 +82,35 @@ class SyncCreditNoteDynamicsCommand extends Command
    */
   protected function syncAllPurchaseOrders(): int
   {
-    $count = PurchaseOrder::where(function ($query) {
+    $limit = (int) $this->option('limit');
+
+    $purchaseOrders = PurchaseOrder::where(function ($query) {
       $query->whereNull('credit_note_dynamics')
         ->orWhere('credit_note_dynamics', '');
     })
       ->whereNotNull('number')
-      ->count();
+      ->orderBy('id')
+      ->limit($limit)
+      ->get();
 
-    if ($count === 0) {
+    if ($purchaseOrders->isEmpty()) {
       $this->info('No hay órdenes de compra pendientes de sincronizar credit_note_dynamics');
       return Command::SUCCESS;
     }
 
-    $this->info("Despachando job para sincronizar {$count} órdenes de compra");
+    $this->info("Despachando jobs para sincronizar {$purchaseOrders->count()} órdenes de compra");
 
-    SyncCreditNoteDynamicsJob::dispatch();
+    $bar = $this->output->createProgressBar($purchaseOrders->count());
+    $bar->start();
 
-    $this->info("Job despachado exitosamente");
+    foreach ($purchaseOrders as $order) {
+      SyncCreditNoteDynamicsJob::dispatch($order->id);
+      $bar->advance();
+    }
+
+    $bar->finish();
+    $this->newLine();
+    $this->info("Jobs despachados exitosamente");
     return Command::SUCCESS;
   }
 }
