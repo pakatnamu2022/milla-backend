@@ -987,8 +987,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Product Warehouse Stock - Stock de Productos por Almacén
-      Route::get('productWarehouseStock/warehouse-stock-with-transit', [ProductWarehouseStockController::class, 'getWarehouseStockWithTransit']);
-
+      Route::apiResource('productWarehouseStock', ProductWarehouseStockController::class)->only([
+        'index',
+      ]);
+      Route::post('productWarehouseStock/by-product-ids', [ProductWarehouseStockController::class, 'getStockByProductIds']);
       // Transfer Receptions - Recepciones de Transferencias
       Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
         'index',
@@ -1066,6 +1068,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Work Order Quotations - Cotizaciones de Órdenes de Trabajo
       Route::get('orderQuotations/{id}/pdf', [ApOrderQuotationsController::class, 'downloadPDF']);
+      Route::get('orderQuotations/{id}/pdf-repuesto', [ApOrderQuotationsController::class, 'downloadRepuestoPDF']);
       Route::post('orderQuotations/with-products', [ApOrderQuotationsController::class, 'storeWithProducts']);
       Route::put('orderQuotations/{id}/with-products', [ApOrderQuotationsController::class, 'updateWithProducts']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([

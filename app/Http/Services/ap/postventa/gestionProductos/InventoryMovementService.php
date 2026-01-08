@@ -12,6 +12,7 @@ use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
+use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
@@ -300,16 +301,18 @@ class InventoryMovementService extends BaseService
           }
 
           $stock = $this->stockService->getStock($detail['product_id'], $transferData['warehouse_origin_id']);
+          $product = Products::find($detail['product_id']);
+          $productName = $product ? $product->name : "ID {$detail['product_id']}";
 
           if (!$stock) {
             throw new Exception(
-              "No se encontró registro de stock para el producto ID {$detail['product_id']} en el almacén de origen"
+              "No se encontró registro de stock para el producto '{$productName}' en el almacén de origen"
             );
           }
 
           if ($stock->available_quantity < $detail['quantity']) {
             throw new Exception(
-              "Stock insuficiente para producto ID {$detail['product_id']} en almacén de origen. " .
+              "Stock insuficiente para producto '{$productName}' en almacén de origen. " .
               "Stock disponible: {$stock->available_quantity}, Cantidad solicitada: {$detail['quantity']}"
             );
           }

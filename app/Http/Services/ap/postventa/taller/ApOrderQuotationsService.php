@@ -340,7 +340,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return "COT-{$year}-{$month}-{$newNumber}";
   }
 
-  public function generateQuotationPDF($id, $with_labor = true)
+  public function generateQuotationPDF($id)
   {
     $quotation = ApOrderQuotations::with([
       'vehicle.model.family.brand',
@@ -416,9 +416,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
     // Filtrar detalles según el parámetro with_labor
     $details = $quotation->details;
-    if (!$with_labor) {
-      $details = $details->where('item_type', '!=', 'labor');
-    }
 
     // Detalles de la cotización
     $data['details'] = $details->map(function ($detail) {
@@ -435,18 +432,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     });
 
     // Calcular totales según el parámetro with_labor
-    $totalLabor = $with_labor ? $quotation->details->where('item_type', 'labor')->sum('total_amount') : 0;
+    $totalLabor = $quotation->details->where('item_type', 'labor')->sum('total_amount');
     $totalParts = $quotation->details->where('item_type', 'part')->sum('total_amount');
-    $totalDiscounts = $with_labor ? $quotation->details->sum('discount') : $details->sum('discount');
+    $totalDiscounts = $quotation->details->sum('discount');
 
     // Recalcular subtotal y total si no se incluye mano de obra
-    if (!$with_labor) {
-      $subtotal = $details->sum('total_amount') + $totalDiscounts;
-      $total_amount = $details->sum('total_amount');
-    } else {
-      $subtotal = $quotation->subtotal;
-      $total_amount = $quotation->total_amount;
-    }
+    $subtotal = $quotation->subtotal;
+    $total_amount = $quotation->total_amount;
 
     $data['total_labor'] = $totalLabor;
     $data['total_parts'] = $totalParts;
@@ -454,7 +446,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $data['subtotal'] = $subtotal;
     $data['tax_amount'] = $quotation->tax_amount;
     $data['total_amount'] = $total_amount;
-    $data['with_labor'] = $with_labor;
 
     // Generar PDF
     $pdf = Pdf::loadView('reports.ap.postventa.taller.order-quotation', [
@@ -468,4 +459,126 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return $pdf->download($fileName);
   }
 
+
+  public function generateQuotationRepuestoPDF($id, $showCodes = true)
+  {
+    $quotation = ApOrderQuotations::with([
+      'vehicle.model.family.brand',
+      'vehicle.color',
+      'vehicle.customer.district',
+      'createdBy',
+      'details.product'
+    ])->find($id);
+
+    if (!$quotation) {
+      throw new Exception('Cotización no encontrada');
+    }
+
+    // Preparar datos para la vista
+    $data = [
+      'quotation_number' => $quotation->quotation_number,
+      'quotation_date' => $quotation->quotation_date,
+      'expiration_date' => $quotation->expiration_date,
+      'observations' => $quotation->observations ?? '',
+      'validity_days' => $quotation->validity_days,
+      'show_codes' => $showCodes,
+    ];
+
+    // Datos del cliente
+    if ($quotation->vehicle && $quotation->vehicle->customer) {
+      $customer = $quotation->vehicle->customer;
+      $data['customer_name'] = $customer->full_name;
+      $data['customer_document'] = $customer->num_doc ?? 'N/A';
+      $data['customer_address'] = $customer->direction ?? 'N/A';
+      $data['customer_district'] = $customer->district ? $customer->district->name : 'N/A';
+      $data['customer_email'] = $customer->email ?? 'N/A';
+      $data['customer_phone'] = $customer->phone ?? 'N/A';
+    } else {
+      $data['customer_name'] = 'N/A';
+      $data['customer_document'] = 'N/A';
+      $data['customer_address'] = 'N/A';
+      $data['customer_district'] = 'N/A';
+      $data['customer_email'] = 'N/A';
+      $data['customer_phone'] = 'N/A';
+    }
+
+    // Datos del asesor
+    if ($quotation->createdBy) {
+      $data['advisor_name'] = $quotation->createdBy->person->nombre_completo ?? 'N/A';
+      $data['advisor_phone'] = $quotation->createdBy->person->cel_personal ?? 'N/A';
+      $data['advisor_email'] = $quotation->createdBy->person->email ?? 'N/A';
+    } else {
+      $data['advisor_name'] = 'N/A';
+      $data['advisor_phone'] = 'N/A';
+      $data['advisor_email'] = 'N/A';
+    }
+
+    // Datos del vehículo (sin kilometraje)
+    if ($quotation->vehicle) {
+      $vehicle = $quotation->vehicle;
+      $data['vehicle_plate'] = $vehicle->plate ?? 'N/A';
+      $data['vehicle_vin'] = $vehicle->vin ?? 'N/A';
+      $data['vehicle_engine'] = $vehicle->engine_number ?? 'N/A';
+      $data['vehicle_model'] = $vehicle->model ? $vehicle->model->version : 'N/A';
+      $data['vehicle_brand'] = $vehicle->model && $vehicle->model->family && $vehicle->model->family->brand
+        ? $vehicle->model->family->brand->name
+        : 'N/A';
+      $data['vehicle_color'] = $vehicle->color ? $vehicle->color->description : 'N/A';
+    } else {
+      $data['vehicle_plate'] = 'N/A';
+      $data['vehicle_vin'] = 'N/A';
+      $data['vehicle_engine'] = 'N/A';
+      $data['vehicle_model'] = 'N/A';
+      $data['vehicle_brand'] = 'N/A';
+      $data['vehicle_color'] = 'N/A';
+    }
+
+    // Filtrar solo repuestos (excluir mano de obra)
+    $repuestosDetails = $quotation->details->where('item_type', '!=', 'labor');
+
+    // Detalles de la cotización (solo repuestos)
+    $data['details'] = $repuestosDetails->map(function ($detail) use ($showCodes) {
+      return [
+        'code' => $showCodes && $detail->product ? $detail->product->code : '',
+        'description' => $detail->description,
+        'observations' => $detail->observations ?? '',
+        'quantity' => $detail->quantity,
+        'unit_price' => $detail->unit_price,
+        'discount' => $detail->discount,
+        'total_amount' => $detail->total_amount,
+        'item_type' => $detail->item_type,
+      ];
+    });
+
+    // Calcular totales solo con repuestos
+    $totalParts = $repuestosDetails->sum('total_amount');
+    $totalDiscounts = $repuestosDetails->sum(function ($detail) {
+      return ($detail->quantity * $detail->unit_price) * ($detail->discount / 100);
+    });
+
+    // Calcular subtotal con repuestos
+    $subtotal = $repuestosDetails->sum(function ($detail) {
+      return $detail->quantity * $detail->unit_price;
+    });
+
+    // Total después de descuentos
+    $total_amount = $subtotal - $totalDiscounts;
+
+    $data['total_parts'] = $totalParts;
+    $data['total_discounts'] = $totalDiscounts;
+    $data['subtotal'] = $subtotal;
+    $data['tax_amount'] = $quotation->tax_amount;
+    $data['total_amount'] = $total_amount;
+
+    // Generar PDF
+    $pdf = Pdf::loadView('reports.ap.postventa.taller.order-quotation-repuesto', [
+      'quotation' => $data
+    ]);
+
+    $pdf->setPaper('a4', 'portrait');
+
+    $fileName = 'Cotizacion_Repuestos_' . $quotation->quotation_number . '.pdf';
+
+    return $pdf->download($fileName);
+  }
 }

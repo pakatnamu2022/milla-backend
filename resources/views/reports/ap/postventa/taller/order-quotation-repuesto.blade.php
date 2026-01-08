@@ -324,16 +324,14 @@
     <td colspan="4" class="section-header">DATOS DE LA PROPUESTA</td>
   </tr>
   <tr>
-    <td class="label-cell">Descripción:</td>
-    <td style="width: 40%;">{{ $quotation['observations'] }}</td>
-    <td class="label-cell">Asesor:</td>
-    <td style="width: 25%;">{{ $quotation['advisor_name'] }}</td>
-  </tr>
-  <tr>
     <td class="label-cell">Observaciones:</td>
-    <td></td>
+    <td style="width: 40%;">{{ $quotation['observations'] }}</td>
     <td class="label-cell">Celular:</td>
     <td>{{ $quotation['advisor_phone'] }}</td>
+  </tr>
+  <tr>
+    <td class="label-cell">Asesor:</td>
+    <td colspan="3">{{ $quotation['advisor_name'] }}</td>
   </tr>
   <tr>
     <td class="label-cell">Estado:</td>
@@ -364,18 +362,18 @@
     <td class="label-cell">Nº Motor:</td>
     <td>{{ $quotation['vehicle_engine'] }}</td>
   </tr>
-  <tr>
-    <td class="label-cell">Kilometraje:</td>
-    <td colspan="3">{{ $quotation['vehicle_km'] }}</td>
-  </tr>
 </table>
 
 <!-- Sección 3: Detalle de la Cotización -->
 <table class="details-table">
   <thead>
   <tr>
-    <th style="width: 10%;">Cód./Ref.</th>
-    <th style="width: 35%;">Descripción</th>
+    @if($quotation['show_codes'])
+      <th style="width: 10%;">Cód./Ref.</th>
+      <th style="width: 35%;">Descripción</th>
+    @else
+      <th style="width: 45%;">Descripción</th>
+    @endif
     <th style="width: 15%;">Observ.</th>
     <th style="width: 10%;">Tpo./Cant.</th>
     <th style="width: 12%;">P.Hora/PVP</th>
@@ -386,7 +384,9 @@
   <tbody>
   @foreach($quotation['details'] as $detail)
     <tr>
-      <td class="text-center">{{ $detail['code'] }}</td>
+      @if($quotation['show_codes'])
+        <td class="text-center">{{ $detail['code'] }}</td>
+      @endif
       <td class="text-left">{{ $detail['description'] }}</td>
       <td class="text-left">{{ $detail['observations'] }}</td>
       <td class="text-center">{{ number_format($detail['quantity'], 2) }}</td>
@@ -401,10 +401,6 @@
 <!-- Totales -->
 <div class="totals-section">
   <table>
-    <tr>
-      <td class="label-total">Total M.O.:</td>
-      <td class="value-total">S/ {{ number_format($quotation['total_labor'], 2) }}</td>
-    </tr>
     <tr>
       <td class="label-total">Total Recambios:</td>
       <td class="value-total">S/ {{ number_format($quotation['total_parts'], 2) }}</td>

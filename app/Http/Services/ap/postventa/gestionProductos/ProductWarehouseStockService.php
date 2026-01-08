@@ -2,14 +2,28 @@
 
 namespace App\Http\Services\ap\postventa\gestionProductos;
 
+use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseStockResource;
+use App\Http\Services\BaseService;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
-use App\Models\ap\postventa\gestionProductos\Products;
+use Illuminate\Http\Request;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use Exception;
 use Illuminate\Support\Facades\DB;
 
-class ProductWarehouseStockService
+class ProductWarehouseStockService extends BaseService
 {
+
+  public function list(Request $request)
+  {
+    return $this->getFilteredResults(
+      ProductWarehouseStock::class,
+      $request,
+      ProductWarehouseStock::filters,
+      ProductWarehouseStock::sorts,
+      ProductWarehouseStockResource::class,
+    );
+  }
+
   /**
    * Add stock to warehouse from inventory movement
    * IMPORTANT: quantity parameter should be the actual physical quantity to add
@@ -580,99 +594,77 @@ class ProductWarehouseStockService
       throw $e;
     }
   }
-  
-  public function getWarehouseStockWithTransit($request)
+
+  /**
+   * Get stock by multiple product IDs across all warehouses
+   * Returns stock information grouped by product
+   *
+   * @param array $productIds Array of product IDs
+   * @return array
+   */
+  public function getStockByProductIds(array $productIds): array
   {
-    // Warehouse ID is required
-    if (!$request->has('warehouse_id')) {
-      throw new Exception('El ID del almacén es requerido');
-    }
+    // Get all stocks for the given product IDs
+    $stocks = ProductWarehouseStock::whereIn('product_id', $productIds)
+      ->with(['product', 'warehouse'])
+      ->get();
 
-    $warehouseId = $request->warehouse_id;
+    // Group by product_id
+    $result = [];
+    foreach ($productIds as $productId) {
+      $productStocks = $stocks->where('product_id', $productId);
 
-    // Base query
-    $query = ProductWarehouseStock::query()
-      ->where('warehouse_id', $warehouseId)
-      ->with(['product.category', 'warehouse']);
-
-    // Filter by product name or code
-    if ($request->has('search')) {
-      $search = $request->search;
-      $query->whereHas('product', function ($q) use ($search) {
-        $q->where('name', 'LIKE', "%{$search}%")
-          ->orWhere('code', 'LIKE', "%{$search}%");
-      });
-    }
-
-    // Filter by product category
-    if ($request->has('category_id')) {
-      $query->whereHas('product', function ($q) use ($request) {
-        $q->where('category_id', $request->category_id);
-      });
-    }
-
-    // Filter by stock status
-    if ($request->has('stock_status')) {
-      $status = $request->stock_status;
-      switch ($status) {
-        case 'OUT_OF_STOCK':
-          $query->where('quantity', '<=', 0);
-          break;
-        case 'LOW_STOCK':
-          $query->whereColumn('quantity', '<=', 'minimum_stock')
-            ->where('quantity', '>', 0);
-          break;
-        case 'NORMAL':
-          $query->whereColumn('quantity', '>', 'minimum_stock')
-            ->where(function ($q) {
-              $q->whereNull('maximum_stock')
-                ->orWhereColumn('quantity', '<', 'maximum_stock');
-            });
-          break;
-        case 'OVER_STOCK':
-          $query->whereNotNull('maximum_stock')
-            ->whereColumn('quantity', '>=', 'maximum_stock');
-          break;
+      if ($productStocks->isEmpty()) {
+        // Product has no stock in any warehouse
+        $result[] = [
+          'product_id' => $productId,
+          'product_name' => null,
+          'warehouses' => [],
+          'total_quantity' => 0,
+          'total_quantity_in_transit' => 0,
+          'total_available_quantity' => 0,
+        ];
+        continue;
       }
-    }
 
-    // Filter by products with stock in transit
-    if ($request->has('with_transit') && $request->with_transit == true) {
-      $query->where('quantity_in_transit', '>', 0);
-    }
+      // Get product name from first stock record
+      $firstStock = $productStocks->first();
 
-    // Filter by available quantity
-    if ($request->has('has_available_stock') && $request->has_available_stock == true) {
-      $query->where('available_quantity', '>', 0);
-    }
+      // Calculate totals
+      $totalQuantity = $productStocks->sum('quantity');
+      $totalInTransit = $productStocks->sum('quantity_in_transit');
+      $totalAvailable = $productStocks->sum('available_quantity');
 
-    // Order by
-    // Check if specific stock ordering is requested
-    if ($request->has('order_by_stock')) {
-      $orderByStock = strtolower($request->order_by_stock);
-      if (in_array($orderByStock, ['asc', 'desc'])) {
-        $query->orderBy('quantity', $orderByStock);
+      // Build warehouses array
+      $warehouses = [];
+      foreach ($productStocks as $stock) {
+        $warehouses[] = [
+          'warehouse_id' => $stock->warehouse_id,
+          'warehouse_name' => $stock->warehouse?->description,
+          'quantity' => (float)$stock->quantity,
+          'quantity_in_transit' => (float)$stock->quantity_in_transit,
+          'reserved_quantity' => (float)$stock->reserved_quantity,
+          'available_quantity' => (float)$stock->available_quantity,
+          'minimum_stock' => (float)$stock->minimum_stock,
+          'maximum_stock' => (float)$stock->maximum_stock,
+          'stock_status' => $stock->stock_status,
+          'is_low_stock' => $stock->is_low_stock,
+          'is_out_of_stock' => $stock->is_out_of_stock,
+          'last_movement_date' => $stock->last_movement_date?->format('Y-m-d H:i:s'),
+        ];
       }
-    } else {
-      // Default ordering behavior
-      $sortBy = $request->get('sort_by', 'created_at');
-      $sortDirection = $request->get('sort_direction', 'desc');
 
-      if (in_array($sortBy, ProductWarehouseStock::sorts)) {
-        $query->orderBy($sortBy, $sortDirection);
-      }
+      $result[] = [
+        'product_id' => $productId,
+        'product_name' => $firstStock->product?->name,
+        'product_code' => $firstStock->product?->code,
+        'warehouses' => $warehouses,
+        'total_quantity' => (float)$totalQuantity,
+        'total_quantity_in_transit' => (float)$totalInTransit,
+        'total_available_quantity' => (float)$totalAvailable,
+      ];
     }
 
-    // Check if all=true to return all results without pagination
-    $all = $request->get('all', false);
-
-    if ($all == true || $all == 'true' || $all == '1') {
-      // Return all results without pagination
-      return $query->get();
-    }
-
-    // Paginate results (default behavior)
-    $perPage = $request->get('per_page', 15);
-    return $query->paginate($perPage);
+    return $result;
   }
 }

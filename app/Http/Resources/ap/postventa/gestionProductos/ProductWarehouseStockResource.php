@@ -18,7 +18,9 @@ class ProductWarehouseStockResource extends JsonResource
     return [
       'id' => $this->id,
       'product_id' => $this->product_id,
+      'product_name' => $this->product?->name,
       'warehouse_id' => $this->warehouse_id,
+      'warehouse_name' => $this->warehouse?->description,
       'quantity' => (float)$this->quantity,
       'quantity_in_transit' => (float)$this->quantity_in_transit,
       'quantity_pending_credit_note' => (float)$this->quantity_pending_credit_note,

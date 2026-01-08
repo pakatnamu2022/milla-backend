@@ -37,8 +37,6 @@ class ProductWarehouseStock extends Model
   const filters = [
     'product_id' => '=',
     'warehouse_id' => '=',
-    'quantity' => '>=',
-    'available_quantity' => '>=',
   ];
 
   const sorts = [
