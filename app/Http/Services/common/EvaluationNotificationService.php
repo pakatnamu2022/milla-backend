@@ -172,8 +172,7 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-//        'to' => $leader->email,
-        'to' => "hvaldiviezos@automotorespakatnamu.com",
+        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
         'subject' => 'Recordatorio: Evaluaciones de Desempeño Pendientes',
         'template' => 'emails.evaluation-reminder',
         'data' => [
@@ -198,7 +197,7 @@ class EvaluationNotificationService
       return [
         'leader_id' => $leader->id,
         'leader_name' => $leader->nombre_completo,
-        'leader_email' => $leader->email,
+        'leader_email' => $leader->email2,
         'pending_count' => $pendingData['pending_evaluations'],
         'total_count' => $pendingData['total_evaluations'],
         'sent' => $sent,
@@ -212,7 +211,7 @@ class EvaluationNotificationService
       return [
         'leader_id' => $leader->id,
         'leader_name' => $leader->nombre_completo,
-        'leader_email' => $leader->email,
+        'leader_email' => $leader->email2,
         'pending_count' => $pendingData['pending_evaluations'],
         'total_count' => $pendingData['total_evaluations'],
         'sent' => false,
@@ -281,7 +280,7 @@ class EvaluationNotificationService
       foreach ($leaders as $leaderId => $leaderData) {
         $leader = Worker::find($leaderId);
 
-        if (!$leader || !$leader->email) {
+        if (!$leader || !$leader->email2) {
           continue;
         }
 
@@ -373,7 +372,7 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => $leader->email2,
+        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
         'subject' => 'Nueva Evaluación de Desempeño Habilitada',
         'template' => 'emails.evaluation-opened',
         'data' => [
@@ -577,7 +576,7 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => $leader->email2,
+        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
         'subject' => 'Evaluación de Desempeño Finalizada - Resumen de Resultados',
         'template' => 'emails.evaluation-closed',
         'data' => [

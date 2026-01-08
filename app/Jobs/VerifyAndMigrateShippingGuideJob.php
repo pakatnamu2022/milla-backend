@@ -27,9 +27,9 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 {
   use Queueable;
 
-  public int $tries = 5;
+  public int $tries = 2; // Reducido de 5 → 2 para evitar crecimiento exponencial de jobs
   public int $timeout = 300;
-  public int $backoff = 60; // Esperar 60 segundos entre reintentos
+  public int $backoff = 120; // Aumentado a 120 segundos para dar más tiempo entre reintentos
 
   protected DatabaseSyncService $syncService;
 
