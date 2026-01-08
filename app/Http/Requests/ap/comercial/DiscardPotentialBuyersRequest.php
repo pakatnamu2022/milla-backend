@@ -10,7 +10,7 @@ class DiscardPotentialBuyersRequest extends StoreRequest
   {
     return [
       'comment' => 'required|string',
-      'reason_discarding_id' => 'required|exists:ap_commercial_masters,id',
+      'reason_discarding_id' => 'required|exists:ap_masters,id',
     ];
   }
 

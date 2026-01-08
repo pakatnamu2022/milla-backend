@@ -6,7 +6,7 @@ use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Resources\ap\postventa\taller\WorkOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
-use App\Models\ap\ApPostVentaMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\postventa\taller\AppointmentPlanning;
 use App\Models\ap\postventa\taller\ApWorkOrder;
@@ -25,7 +25,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $request,
       ApWorkOrder::filters,
       ApWorkOrder::sorts,
-      WorkOrderResource::class);
+      WorkOrderResource::class
+    );
   }
 
   public function find($id)
@@ -53,7 +54,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     return DB::transaction(function () use ($data) {
       // Generate correlative
       $data['correlative'] = $this->generateCorrelative();
-      $data['status_id'] = ApPostVentaMasters::OPENING_WORK_ORDER_ID;
+      $data['status_id'] = ApMasters::OPENING_WORK_ORDER_ID;
       $vehicle = Vehicles::find($data['vehicle_id']);
 
       if ($vehicle->customer_id === null) {

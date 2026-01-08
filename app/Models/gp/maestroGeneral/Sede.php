@@ -2,7 +2,7 @@
 
 namespace App\Models\gp\maestroGeneral;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\BaseModel;
 use App\Models\gp\gestionsistema\Area;
 use App\Models\gp\gestionsistema\Company;
@@ -130,6 +130,6 @@ class Sede extends BaseModel
 
   public function shop(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'shop_id');
+    return $this->belongsTo(ApMasters::class, 'shop_id');
   }
 }

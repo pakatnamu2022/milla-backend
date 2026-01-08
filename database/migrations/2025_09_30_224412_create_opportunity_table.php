@@ -18,9 +18,9 @@ return new class extends Migration {
 
       $table->foreignId('client_id')->constrained('business_partners');
       $table->foreignId('family_id')->constrained('ap_families');
-      $table->foreignId('opportunity_type_id')->constrained('ap_commercial_masters');
-      $table->foreignId('client_status_id')->constrained('ap_commercial_masters');
-      $table->foreignId('opportunity_status_id')->constrained('ap_commercial_masters');
+      $table->foreignId('opportunity_type_id')->constrained('ap_masters');
+      $table->foreignId('client_status_id')->constrained('ap_masters');
+      $table->foreignId('opportunity_status_id')->constrained('ap_masters');
 
       $table->timestamps();
       $table->softDeletes();

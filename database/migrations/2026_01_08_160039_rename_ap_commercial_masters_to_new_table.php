@@ -10,9 +10,7 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::table('ap_order_quotations', function (Blueprint $table) {
-      $table->foreignId('area_id')->nullable()->after('sede_id')->constrained('ap_masters');
-    });
+    Schema::rename('ap_commercial_masters', 'ap_masters');
   }
 
   /**
@@ -20,9 +18,6 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::table('ap_order_quotations', function (Blueprint $table) {
-      $table->dropForeign(['area_id']);
-      $table->dropColumn('area_id');
-    });
+    Schema::rename('ap_masters', 'ap_commercial_masters');
   }
 };

@@ -18,7 +18,7 @@ return new class extends Migration {
       $table->integer('sede_id');
       $table->foreign('sede_id')->references('id')->on('config_sede');
       $table->foreignId('type_operation_id')
-        ->constrained('ap_commercial_masters');
+        ->constrained('ap_masters');
       $table->timestamps();
       $table->softDeletes();
     });

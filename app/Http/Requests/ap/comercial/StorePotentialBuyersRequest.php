@@ -66,15 +66,15 @@ class StorePotentialBuyersRequest extends StoreRequest
       'document_type_id' => [
         'required',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'income_sector_id' => [
         'required',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'type' => 'required|string|max:50',
-      'area_id' => 'required|integer|exists:ap_commercial_masters,id',
+      'area_id' => 'required|integer|exists:ap_masters,id',
     ];
   }
 

@@ -14,8 +14,8 @@ return new class extends Migration {
       $table->id();
 
       $table->foreignId('opportunity_id')->constrained('ap_opportunity');
-      $table->foreignId('action_type_id')->constrained('ap_commercial_masters');
-      $table->foreignId('action_contact_type_id')->constrained('ap_commercial_masters');
+      $table->foreignId('action_type_id')->constrained('ap_masters');
+      $table->foreignId('action_contact_type_id')->constrained('ap_masters');
 
       $table->dateTime('datetime');
       $table->text('description')->nullable();

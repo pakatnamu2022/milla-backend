@@ -2,7 +2,7 @@
 
 namespace Database\Seeders\ap\commercial;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\OpportunityAction;
 use Carbon\Carbon;
@@ -21,8 +21,8 @@ class OpportunityActionSeeder extends Seeder
     }
 
     // Obtener IDs de tipos
-    $actionTypes = ApCommercialMasters::where('type', 'ACTION_TYPE')->pluck('id')->toArray();
-    $actionContactTypes = ApCommercialMasters::where('type', 'ACTION_CONTACT_TYPE')->pluck('id')->toArray();
+    $actionTypes = ApMasters::where('type', 'ACTION_TYPE')->pluck('id')->toArray();
+    $actionContactTypes = ApMasters::where('type', 'ACTION_CONTACT_TYPE')->pluck('id')->toArray();
 
     if (empty($actionTypes) || empty($actionContactTypes)) {
       $this->command->error('No hay tipos de acción configurados. Ejecuta primero ActionTypeSeeder y ActionContactTypeSeeder.');

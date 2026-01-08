@@ -13,7 +13,7 @@ return new class extends Migration {
     Schema::table('ap_purchase_order', function (Blueprint $table) {
       $table->string('payment_term')->nullable()->after('total');
       $table->foreignId('type_operation_id')->nullable()->after('vehicle_movement_id')
-        ->constrained('ap_commercial_masters');
+        ->constrained('ap_masters');
     });
 
     // Cambiamos a nullable los campos unit_measurement_id y description en ap_purchase_order_item

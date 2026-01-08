@@ -76,7 +76,7 @@ class ApVehicleDeliveryController extends Controller
         'license' => 'nullable|string|max:20',
         'plate' => 'nullable|string|max:20',
         'driver_name' => 'nullable|string|max:100',
-        'transfer_modality_id' => 'required|integer|exists:ap_commercial_masters,id',
+        'transfer_modality_id' => 'required|integer|exists:ap_masters,id',
         'carrier_ruc' => 'nullable|string|max:11|min:11',
         'company_name_transport' => 'nullable|string|max:100',
       ]);
@@ -134,5 +134,4 @@ class ApVehicleDeliveryController extends Controller
       ], 400);
     }
   }
-
 }

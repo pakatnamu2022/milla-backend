@@ -9,7 +9,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Utils\Constants;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -116,7 +116,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       throw new Exception("El número de motor {$data['engine_number']} ya existe en el sistema");
     }
 
-    if (!$data['type_operation_id']) $data['type_operation_id'] = ApCommercialMasters::TIPO_OPERACION_POSTVENTA;
+    if (!$data['type_operation_id']) $data['type_operation_id'] = ApMasters::TIPO_OPERACION_POSTVENTA;
 
     if (!isset($data['warehouse_id'])) {
       $data['warehouse_id'] = $data['warehouse_physical_id'] ?? null;

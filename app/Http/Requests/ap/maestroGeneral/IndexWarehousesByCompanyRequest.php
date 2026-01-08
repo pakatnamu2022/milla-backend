@@ -13,7 +13,7 @@ class IndexWarehousesByCompanyRequest extends IndexRequest
       'is_received' => ['required', 'boolean'],
       'ap_class_article_id' => ['nullable', 'integer', 'exists:ap_class_article,id'],
       'empresa_id' => ['required', 'integer', 'exists:companies,id'],
-      'type_operation_id' => ['required', 'integer', 'exists:ap_commercial_masters,id'],
+      'type_operation_id' => ['required', 'integer', 'exists:ap_masters,id'],
     ];
   }
 

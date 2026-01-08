@@ -3,7 +3,7 @@
 namespace App\Models\ap\comercial;
 
 use App\Http\Traits\Reportable;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -96,12 +96,12 @@ class Vehicles extends Model
 
   public function color(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'vehicle_color_id');
+    return $this->belongsTo(ApMasters::class, 'vehicle_color_id');
   }
 
   public function engineType(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'engine_type_id');
+    return $this->belongsTo(ApMasters::class, 'engine_type_id');
   }
 
   public function vehicleStatus(): BelongsTo
@@ -131,7 +131,7 @@ class Vehicles extends Model
 
   public function typeOperation(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'type_operation_id');
+    return $this->belongsTo(ApMasters::class, 'type_operation_id');
   }
 
   /**

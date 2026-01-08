@@ -14,7 +14,7 @@ class StoreTransferInventoryRequest extends StoreRequest
       'warehouse_destination_id' => 'required|integer|exists:warehouse,id|different:warehouse_origin_id',
       'movement_date' => 'required|date',
       'notes' => 'nullable|string|max:1000',
-      'reason_in_out_id' => 'nullable|integer|exists:ap_post_venta_masters,id',
+      'reason_in_out_id' => 'nullable|integer|exists:ap_masters,id',
       'item_type' => 'required|in:PRODUCTO,SERVICIO',
 
       // Detalles de productos o servicios

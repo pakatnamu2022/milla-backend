@@ -7,7 +7,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\comercial\OpportunityAction;
 use App\Models\ap\comercial\Opportunity;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +24,7 @@ class OpportunityActionService extends BaseService implements BaseServiceInterfa
       throw new Exception('Oportunidad no encontrada');
     }
 
-    $status = ApCommercialMasters::find($opportunity->opportunity_status_id);
+    $status = ApMasters::find($opportunity->opportunity_status_id);
     return $status && in_array($status->code, ['WON', 'LOST']);
   }
 

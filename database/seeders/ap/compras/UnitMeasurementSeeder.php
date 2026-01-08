@@ -2,7 +2,7 @@
 
 namespace Database\Seeders\ap\compras;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\UnitMeasurement;
 use Illuminate\Database\Seeder;
 

@@ -5,7 +5,7 @@ namespace App\Http\Resources\ap;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class ApPostVentaMastersResource extends JsonResource
+class ApMastersResource extends JsonResource
 {
   public function toArray(Request $request): array
   {

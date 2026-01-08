@@ -4,7 +4,7 @@ namespace App\Models\ap\facturacion;
 
 use App\Http\Services\ap\comercial\OpportunityService;
 use App\Http\Services\BaseService;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\BusinessPartners;
@@ -216,7 +216,7 @@ class ElectronicDocument extends BaseModel
         $quote = $model->purchaseRequestQuote;
         $opportunity = Opportunity::find($quote->opportunity_id);
         $opportunity->update([
-          'opportunity_status_id' => ApCommercialMasters::where('code', Opportunity::SOLD)
+          'opportunity_status_id' => ApMasters::where('code', Opportunity::SOLD)
             ->whereNull('deleted_at')
             ->first()
             ->id,

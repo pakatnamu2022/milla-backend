@@ -2,7 +2,7 @@
 
 namespace Database\Seeders\ap\commercial;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;

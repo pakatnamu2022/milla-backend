@@ -18,12 +18,12 @@ class PopulateClassTypeDataSeeder extends Seeder
   public function run(): void
   {
     // Obtener IDs de los tipos de clase
-    $vehicleTypeId = DB::table('ap_commercial_masters')
+    $vehicleTypeId = DB::table('ap_masters')
       ->where('type', 'CLASS_TYPE')
       ->where('code', '0')
       ->value('id');
 
-    $camionTypeId = DB::table('ap_commercial_masters')
+    $camionTypeId = DB::table('ap_masters')
       ->where('type', 'CLASS_TYPE')
       ->where('code', '1')
       ->value('id');

@@ -23,19 +23,19 @@ return new  class extends Migration {
       $table->boolean('is_approved')->default(false)->comment('Indica si la cotización ha sido aprobada para generar la solicitud de compra');
       $table->string('warranty', 100)->nullable();
       $table->foreignId('type_currency_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->foreignId('opportunity_id')->nullable()
         ->constrained('ap_opportunity')->onDelete('cascade');
       $table->foreignId('holder_id')
         ->constrained('business_partners')->onDelete('cascade');
       $table->foreignId('vehicle_color_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->foreignId('ap_models_vn_id')->nullable()
         ->constrained('ap_models_vn')->onDelete('cascade');
       $table->foreignId('ap_vehicle_purchase_order_id')->nullable()
         ->constrained('ap_vehicle_purchase_order')->onDelete('cascade');
       $table->foreignId('doc_type_currency_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->foreignId('exchange_rate_id')->nullable()
         ->constrained('exchange_rate')->onDelete('cascade');
       $table->timestamps();

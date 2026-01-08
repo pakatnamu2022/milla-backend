@@ -3,7 +3,7 @@
 namespace App\Http\Requests\ap\configuracionComercial\vehiculo;
 
 use App\Http\Requests\StoreRequest;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use Illuminate\Validation\Rule;
 
 class UpdateApVehicleBrandRequest extends StoreRequest
@@ -43,7 +43,7 @@ class UpdateApVehicleBrandRequest extends StoreRequest
       'group_id' => [
         'nullable',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'logo' => [
         'nullable',
@@ -60,12 +60,12 @@ class UpdateApVehicleBrandRequest extends StoreRequest
       'type_operation_id' => [
         'nullable',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'type_class_id' => [
         'nullable',
         'integer',
-        Rule::exists('ap_commercial_masters', 'id')
+        Rule::exists('ap_masters', 'id')
           ->where('type', 'CLASS_TYPE')
           ->where('status', 1)
           ->whereNull('deleted_at'),

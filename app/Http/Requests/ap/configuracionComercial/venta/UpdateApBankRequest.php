@@ -35,7 +35,7 @@ class UpdateApBankRequest extends StoreRequest
           ->ignore($this->route('bankAp')),
       ],
       'description' => 'nullable|string',
-      'bank_id' => 'nullable|integer|exists:ap_commercial_masters,id',
+      'bank_id' => 'nullable|integer|exists:ap_masters,id',
       'currency_id' => 'nullable|integer|exists:type_currency,id',
       'sede_id' => 'nullable|integer|exists:config_sede,id',
       'status' => 'nullable|boolean',

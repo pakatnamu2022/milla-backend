@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\postventa\taller;
 
-use App\Models\ap\ApPostVentaMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -97,7 +97,7 @@ class ApOrderQuotations extends Model
 
   public function Area(): BelongsTo
   {
-    return $this->belongsTo(ApPostVentaMasters::class, 'area_id');
+    return $this->belongsTo(ApMasters::class, 'area_id');
   }
 
   public function currency(): BelongsTo

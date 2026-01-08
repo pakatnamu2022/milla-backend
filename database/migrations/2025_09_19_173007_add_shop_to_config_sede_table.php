@@ -12,7 +12,7 @@ return new class extends Migration {
   {
     Schema::table('config_sede', function (Blueprint $table) {
       $table->unsignedBigInteger('shop_id')->nullable()->after('id');
-      $table->foreign('shop_id')->references('id')->on('ap_commercial_masters')->onDelete('set null');
+      $table->foreign('shop_id')->references('id')->on('ap_masters')->onDelete('set null');
     });
   }
 

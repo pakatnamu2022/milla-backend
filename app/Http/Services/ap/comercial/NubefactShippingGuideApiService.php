@@ -205,9 +205,9 @@ class NubefactShippingGuideApiService
     }
 
     // Campos específicos para GRE Transportista (tipo 8)
-//    if ($tipoComprobante == 8) {
-//      $this->addTransportistaFields($guide, $payload);
-//    }
+    //    if ($tipoComprobante == 8) {
+    //      $this->addTransportistaFields($guide, $payload);
+    //    }
 
     // Datos del conductor
     if ($guide->driver_doc) {
@@ -422,10 +422,10 @@ class NubefactShippingGuideApiService
       'codigo' => '001',
       'descripcion' => strtoupper(
         $vehicle->model->family->brand->name . ' ' .
-        $vehicle->model->version . ' ' .
-        $vehicle->model->model_year . ' ' .
-        'SERIE: ' . $vehicle->vin . ' ' .
-        'MOTOR: ' . $vehicle->engine_number
+          $vehicle->model->version . ' ' .
+          $vehicle->model->model_year . ' ' .
+          'SERIE: ' . $vehicle->vin . ' ' .
+          'MOTOR: ' . $vehicle->engine_number
       ),
       'cantidad' => '1',
     ]];

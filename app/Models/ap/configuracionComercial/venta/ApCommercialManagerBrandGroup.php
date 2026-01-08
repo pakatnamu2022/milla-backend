@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\configuracionComercial\venta;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -43,6 +43,6 @@ class ApCommercialManagerBrandGroup extends Model
 
   public function brandGroup()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'brand_group_id');
+    return $this->belongsTo(ApMasters::class, 'brand_group_id');
   }
 }

@@ -10,8 +10,8 @@ class UpdateOpportunityActionRequest extends StoreRequest
     {
         return [
             'opportunity_id' => 'sometimes|integer|exists:ap_opportunity,id',
-            'action_type_id' => 'sometimes|integer|exists:ap_commercial_masters,id',
-            'action_contact_type_id' => 'sometimes|integer|exists:ap_commercial_masters,id',
+            'action_type_id' => 'sometimes|integer|exists:ap_masters,id',
+            'action_contact_type_id' => 'sometimes|integer|exists:ap_masters,id',
             'datetime' => 'sometimes|date',
             'description' => 'nullable|string',
             'result' => 'sometimes|boolean',

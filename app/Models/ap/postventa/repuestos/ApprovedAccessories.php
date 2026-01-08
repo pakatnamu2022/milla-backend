@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\postventa\repuestos;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -67,6 +67,6 @@ class ApprovedAccessories extends Model
 
   public function bodyType(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'body_type_id');
+    return $this->belongsTo(ApMasters::class, 'body_type_id');
   }
 }

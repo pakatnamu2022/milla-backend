@@ -1,7 +1,6 @@
 <?php
 
-use App\Http\Controllers\ap\ApCommercialMastersController;
-use App\Http\Controllers\ap\ApPostVentaMastersController;
+use App\Http\Controllers\ap\ApMastersController;
 use App\Http\Controllers\GeneralMaster\GeneralMasterController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
@@ -557,17 +556,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
    */
   Route::group(['prefix' => 'ap'], function () {
     // Maestros Comercial
-    Route::get('commercialMasters/types', [ApCommercialMastersController::class, 'getTypes']);
-    Route::apiResource('commercialMasters', ApCommercialMastersController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    // Maestros Post Venta
-    Route::apiResource('postVentaMasters', ApPostVentaMastersController::class)->only([
+    Route::get('apMasters/types', [ApMastersController::class, 'getTypes']);
+    Route::apiResource('apMasters', ApMastersController::class)->only([
       'index',
       'show',
       'store',

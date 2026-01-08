@@ -2,7 +2,7 @@
 
 namespace Database\Seeders\ap\commercial;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use Illuminate\Database\Seeder;
 
 class VehicleAccessorySeeder extends Seeder
@@ -19,7 +19,7 @@ class VehicleAccessorySeeder extends Seeder
     ];
 
     foreach ($accessories as $accessory) {
-      ApCommercialMasters::firstOrCreate([
+      ApMasters::firstOrCreate([
         'code' => $accessory['code'],
         'type' => $accessory['type'],
       ], [
@@ -28,6 +28,6 @@ class VehicleAccessorySeeder extends Seeder
       ]);
     }
 
-    $this->command->info('✅ Accesorios de vehículos creados en ApCommercialMasters!');
+    $this->command->info('✅ Accesorios de vehículos creados en ApMasters!');
   }
 }

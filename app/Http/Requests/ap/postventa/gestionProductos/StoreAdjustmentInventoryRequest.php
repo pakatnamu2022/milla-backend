@@ -11,7 +11,7 @@ class StoreAdjustmentInventoryRequest extends StoreRequest
     return [
       'movement_type' => 'required|in:ADJUSTMENT_IN,ADJUSTMENT_OUT',
       'warehouse_id' => 'required|exists:warehouse,id',
-      'reason_in_out_id' => 'nullable|exists:ap_post_venta_masters,id',
+      'reason_in_out_id' => 'nullable|exists:ap_masters,id',
       'movement_date' => 'nullable|date',
       'notes' => 'nullable|string|max:1000',
       'details' => 'required|array|min:1',

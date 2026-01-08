@@ -13,7 +13,7 @@ return new class extends Migration
   public function up(): void
   {
     // Primero obtener el ID del tipo CLASS_TYPE VEHICLE
-    $vehicleTypeId = DB::table('ap_commercial_masters')
+    $vehicleTypeId = DB::table('ap_masters')
       ->where('type', 'CLASS_TYPE')
       ->where('code', '0')
       ->value('id');
@@ -27,7 +27,7 @@ return new class extends Migration
       $table->foreignId('type_class_id')
         ->default($vehicleTypeId)
         ->after('type_operation_id')
-        ->constrained('ap_commercial_masters')
+        ->constrained('ap_masters')
         ->cascadeOnDelete();
 
       // Crear índice para búsquedas rápidas
