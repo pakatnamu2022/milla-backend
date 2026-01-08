@@ -172,7 +172,8 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
+//        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
+        'to' => "hvaldiviezos@automotorespakatnamu.com",
         'subject' => 'Recordatorio: Evaluaciones de Desempeño Pendientes',
         'template' => 'emails.evaluation-reminder',
         'data' => [
@@ -372,7 +373,8 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
+//        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
+        'to' => "hvaldiviezos@automotorespakatnamu.com",
         'subject' => 'Nueva Evaluación de Desempeño Habilitada',
         'template' => 'emails.evaluation-opened',
         'data' => [
@@ -576,7 +578,8 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
+//        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
+        'to' => "hvaldiviezos@automotorespakatnamu.com",
         'subject' => 'Evaluación de Desempeño Finalizada - Resumen de Resultados',
         'template' => 'emails.evaluation-closed',
         'data' => [
