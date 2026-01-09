@@ -4,6 +4,7 @@ namespace App\Models\ap\postventa\taller;
 
 use App\Models\ap\ApPostVentaMasters;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
@@ -172,11 +173,27 @@ class ApWorkOrder extends Model
     return $this->hasOne(ApVehicleInspection::class, 'work_order_id');
   }
 
+  public function labours(): HasMany
+  {
+    return $this->hasMany(WorkOrderLabour::class, 'work_order_id');
+  }
+
+  public function parts(): HasMany
+  {
+    return $this->hasMany(ApWorkOrderParts::class, 'work_order_id');
+  }
+
   // Helper methods
   public function calculateTotals(): void
   {
     $this->subtotal = $this->total_labor_cost + $this->total_parts_cost;
     $this->final_amount = $this->subtotal - $this->discount_amount + $this->tax_amount;
     $this->save();
+  }
+
+  public function advancesWorkOrder(): HasMany
+  {
+    return $this->hasMany(ElectronicDocument::class, 'work_orders_id')
+      ->where('is_advance_payment', true);
   }
 }

@@ -16,15 +16,15 @@
       $globalProgress = round((($total - $pending) / $total) * 100);
     @endphp
 
-    <div class="callout">
-      <div class="callout-title">Resumen de la evaluación</div>
+    <div class="card">
+      <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:10px;color:#111827;">Resumen de la evaluación</div>
       <div><strong>Nombre:</strong> {{ $evaluation_name }}</div>
       <div><strong>Fecha límite:</strong> {{ $end_date }}</div>
       <div><strong>Pendientes:</strong> {{ $pending_count }} de {{ $total_count }}</div>
 
       <div style="margin-top:10px;">
         <div class="progress"><b style="width:{{ $globalProgress }}%"></b></div>
-        <div style="font:600 12px/1 Inter,Arial,Helvetica,sans-serif;color:#01237e;margin-top:6px;">Avance
+        <div style="font:600 12px/1 Inter,Arial,Helvetica,sans-serif;color:#111827;margin-top:6px;">Avance
           general: {{ $globalProgress }}%
         </div>
       </div>
@@ -63,8 +63,8 @@
       </div>
     @endif
 
-    <div class="callout">
-      <div class="callout-title">Acción requerida</div>
+    <div class="card card-muted">
+      <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:8px;color:#111827;">Acción requerida</div>
       Por favor ingrese al sistema para completar las evaluaciones pendientes. Su participación es fundamental para el
       desarrollo profesional de su equipo.
     </div>
@@ -76,8 +76,8 @@
     @endisset
 
     @isset($additional_notes)
-      <div class="callout" style="margin-top:16px;">
-        <div class="callout-title">Nota importante</div>
+      <div class="card" style="margin-top:16px;">
+        <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:6px;color:#111827;">Nota importante</div>
         <div>{{ $additional_notes }}</div>
       </div>
     @endisset

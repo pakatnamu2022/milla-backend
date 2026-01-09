@@ -349,10 +349,10 @@ class PerDiemRequestSeeder extends Seeder
       // Obtener company_id del empleado según su sede
       $companyId = $employee && $employee->sede ? $employee->sede->empresa_id : $companies->first()->id;
 
-      // company_service_id: por defecto 3, pero puede ser aleatorio
-      $companyServiceId = 3; // Por defecto
+      // sede_service_id: por defecto 3, pero puede ser aleatorio
+      $sedeServiceId = 13; // Por defecto
       // Opcionalmente puedes hacerlo aleatorio descomentando la siguiente línea:
-      // $companyServiceId = $companies->random()->id;
+      // $sedeServiceId = $companies->random()->id;
 
       // Asegurar que todos los campos requeridos tengan valor
       $defaults = [
@@ -372,7 +372,7 @@ class PerDiemRequestSeeder extends Seeder
         ['code' => $requestData['code']],
         array_merge($defaults, $requestData, [
           'company_id' => $companyId,
-          'company_service_id' => $companyServiceId,
+          'sede_service_id' => $sedeServiceId,
           'per_diem_policy_id' => $currentPolicy->id,
           'final_result' => '',
         ])

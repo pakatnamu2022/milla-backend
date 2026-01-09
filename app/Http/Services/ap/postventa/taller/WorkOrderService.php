@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\postventa\taller;
 
+use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Resources\ap\postventa\taller\WorkOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
@@ -232,5 +233,60 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'creator',
       'items.typePlanning'
     ]));
+  }
+
+  /**
+   * Get payment summary for a work order
+   * Returns consolidated payment information including labour, parts and advances
+   * Optionally filters by group_number
+   */
+  public function getPaymentSummary($workOrderId, $groupNumber = 1)
+  {
+    $workOrder = ApWorkOrder::with(['labours', 'parts', 'advancesWorkOrder'])
+      ->findOrFail($workOrderId);
+
+    // Filter labours and parts by group_number if provided
+    $labours = $groupNumber !== null
+      ? $workOrder->labours->where('group_number', $groupNumber)
+      : $workOrder->labours;
+
+    $parts = $groupNumber !== null
+      ? $workOrder->parts->where('group_number', $groupNumber)
+      : $workOrder->parts;
+
+    // Calculate total labour cost
+    $totalLabourCost = $labours->sum('total_cost') ?? 0;
+
+    // Calculate total parts cost
+    $totalPartsCost = $parts->sum('total_amount') ?? 0;
+
+    // Calculate total advances
+    $totalAdvances = $workOrder->advancesWorkOrder->sum('total') ?? 0;
+
+    // Calculate consolidated total
+    $subtotal = $totalLabourCost + $totalPartsCost;
+    $discountAmount = $workOrder->discount_amount ?? 0;
+    $taxAmount = $workOrder->tax_amount ?? 0;
+    $totalAmount = $subtotal - $discountAmount + $taxAmount;
+
+    // Calculate remaining balance (total - advances)
+    $remainingBalance = $totalAmount - $totalAdvances;
+
+    return response()->json([
+      'work_order_id' => $workOrder->id,
+      'correlative' => $workOrder->correlative,
+      'group_number' => $groupNumber,
+      'payment_summary' => [
+        'labour_cost' => (float)$totalLabourCost,
+        'parts_cost' => (float)$totalPartsCost,
+        'subtotal' => (float)$subtotal,
+        'discount_amount' => (float)$discountAmount,
+        'tax_amount' => (float)$taxAmount,
+        'total_amount' => (float)$totalAmount,
+        'total_advances' => (float)$totalAdvances,
+        'remaining_balance' => (float)$remainingBalance,
+      ],
+      'advances' => ElectronicDocumentResource::collection($workOrder->advancesWorkOrder),
+    ]);
   }
 }

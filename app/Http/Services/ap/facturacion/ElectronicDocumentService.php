@@ -17,12 +17,14 @@ use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use NumberFormatter;
@@ -36,6 +38,32 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   public function __construct(NubefactApiService $nubefactService)
   {
     $this->nubefactService = $nubefactService;
+  }
+
+  /**
+   * Despacha un job de sincronización con deduplicación para evitar jobs duplicados
+   * Usa cache de base de datos como lock para prevenir dispatch de jobs múltiples
+   * para el mismo documento electrónico
+   * @param int $electronicDocumentId
+   * @return void
+   */
+  protected function dispatchJobWithDeduplication(int $electronicDocumentId): void
+  {
+    $cacheKey = "sync-doc-{$electronicDocumentId}";
+
+    // Verificar si ya hay un job activo para este documento (lock existe)
+    if (Cache::store('database')->has($cacheKey)) {
+      // Ya hay un job activo, no despachar otro
+      return;
+    }
+
+    // Marcar como activo (lock por 10 minutos = 600 segundos)
+    // Este lock se limpiará automáticamente después de 10 minutos
+    // Si el job termina antes, el lock persiste pero no afecta porque ya se procesó
+    Cache::store('database')->put($cacheKey, true, 600);
+
+    // Despachar job
+    SyncSalesDocumentJob::dispatch($electronicDocumentId);
   }
 
   /**
@@ -211,6 +239,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $document->update([
           'ap_vehicle_movement_id' => $vehicleMovement->id
         ]);
+      }
+
+      // Marcar cotización con has_invoice_generated si viene order_quotation_id
+      if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
+        $this->updateQuotationInvoiceStatus($data['order_quotation_id']);
       }
 
       DB::commit();
@@ -447,8 +480,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Si el documento fue aceptado por SUNAT, actualizar usando el metodo del modelo
       if (isset($nubefactData['aceptada_por_sunat']) && $nubefactData['aceptada_por_sunat'] && !$document->aceptada_por_sunat) {
         $document->markAsAccepted($nubefactData);
-        SyncSalesDocumentJob::dispatch($id);
+        // Usa deduplicación para evitar jobs duplicados
+        $this->dispatchJobWithDeduplication($id);
         $document->markAsInProgress();
+
+        // Actualizar estado de cotización si el documento tiene order_quotation_id
+        if ($document->order_quotation_id) {
+          $this->updateQuotationInvoiceStatus($document->order_quotation_id);
+        }
       }
 
       // Verificar si el documento fue anulado en Nubefact
@@ -659,13 +698,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Calcular totales desde items si no se proporcionan
       if (isset($data['items']) && is_array($data['items'])) {
         $calculatedTotals = $this->calculateTotalsFromItemsNotes($data['items']);
-
-        // Log para debug
-        Log::info('Totales calculados para NC', [
-          'calculated' => $calculatedTotals,
-          'items_count' => count($data['items']),
-          'items' => $data['items']
-        ]);
 
         // Merge calculated totals only if not provided by user
         foreach ($calculatedTotals as $key => $value) {
@@ -1320,7 +1352,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $isRegularized = false;
 
     foreach ($electronicDocumentItems as $electronicDocumentItem) {
-      $electronicDocumentParent = ElectronicDocument::where('id', $electronicDocumentItem->ap_billing_electronic_document_id)
+      $electronicDocumentParent = ElectronicDocument::where('id', $electronicDocumentItem->reference_document_id)
         ->where('anulado', false)
         ->where('aceptada_por_sunat', true)
         ->whereNull('deleted_at')
@@ -1333,9 +1365,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 //    throw new Exception($electronicDocumentFirstItem);
     }
 
-    if ($isRegularized) {
-      throw new Exception('El anticipo ya ha sido regularizado, no se puede crear una nota de crédito. En su lugar cree una nota de crédito para el documento de regularización.');
-    }
+//    if ($isRegularized) {
+//      throw new Exception('El anticipo ya ha sido regularizado, no se puede crear una nota de crédito. En su lugar cree una nota de crédito para el documento de regularización.');
+//    }
 
     return [
       'series' => $series->series,
@@ -1394,8 +1426,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('No se puede sincronizar un documento anulado');
     }
 
-    // Dispatch the sync job
-    SyncSalesDocumentJob::dispatch($id);
+    // Dispatch the sync job con deduplicación
+    $this->dispatchJobWithDeduplication($id);
 
     return [
       'success' => true,
@@ -1511,5 +1543,60 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }),
       'series' => new SalesDocumentSerialDynamicsResource($document)
     ];
+  }
+
+  /**
+   * Update quotation invoice status
+   * Marks has_invoice_generated = true when a document is created
+   * Marks is_fully_paid = true when total paid (accepted docs, non-advance) >= quotation total
+   *
+   * @param int $quotationId
+   * @return void
+   * @throws Exception
+   */
+  private function updateQuotationInvoiceStatus(int $quotationId): void
+  {
+    try {
+      $quotation = ApOrderQuotations::find($quotationId);
+
+      if (!$quotation) {
+        return;
+      }
+
+      // Marcar que se generó factura
+      $quotation->update(['has_invoice_generated' => true]);
+
+      // Calcular total pagado (solo documentos aceptados por SUNAT que NO sean anticipos)
+      $totalPaid = ElectronicDocument::where('order_quotation_id', $quotationId)
+        ->where('status', ElectronicDocument::STATUS_ACCEPTED)
+        ->where('aceptada_por_sunat', true)
+        ->where('is_advance_payment', 0)  // Excluir anticipos
+        ->whereNull('deleted_at')
+        ->sum('total');
+
+      // Si el total pagado >= total de la cotización, marcar como totalmente pagado
+      if ($totalPaid >= $quotation->total_amount) {
+        $quotation->update(['is_fully_paid' => true]);
+
+        Log::info('Quotation marked as fully paid', [
+          'quotation_id' => $quotationId,
+          'quotation_total' => $quotation->total_amount,
+          'total_paid' => $totalPaid,
+        ]);
+      } else {
+        Log::info('Quotation invoice generated but not fully paid', [
+          'quotation_id' => $quotationId,
+          'quotation_total' => $quotation->total_amount,
+          'total_paid' => $totalPaid,
+          'remaining' => $quotation->total_amount - $totalPaid,
+        ]);
+      }
+    } catch (Exception $e) {
+      Log::error('Error updating quotation invoice status', [
+        'quotation_id' => $quotationId,
+        'error' => $e->getMessage(),
+      ]);
+      // No lanzar excepción para evitar que falle la creación del documento
+    }
   }
 }

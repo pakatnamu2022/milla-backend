@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources\ap\configuracionComercial\venta;
 
-use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ApAssignmentLeadershipResource extends JsonResource

@@ -9,6 +9,7 @@ use App\Http\Utils\Constants;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\gp\maestroGeneral\ExchangeRate;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Exception;
@@ -47,6 +48,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   {
     return DB::transaction(function () use ($data) {
       $vehicle = Vehicles::find($data['vehicle_id']);
+      $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
+
+      $exchangeRate = ExchangeRate::where('date', $date)->first();
+      if (!$exchangeRate) {
+        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      }
 
       if ($vehicle->customer_id === null) {
         throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
@@ -61,6 +68,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $data['discount_amount'] = 0;
       $data['tax_amount'] = Constants::VAT_TAX;
       $data['total_amount'] = 0;
+      $data['exchange_rate'] = $exchangeRate->rate;
 
       // Calculate validity days
       $quotation_date = Carbon::parse($data['quotation_date']);
@@ -78,20 +86,122 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     });
   }
 
+  public function storeWithProducts(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $vehicle = Vehicles::find($data['vehicle_id']);
+      $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
+
+      $exchangeRate = ExchangeRate::where('date', $date)->first();
+      if (!$exchangeRate) {
+        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      }
+
+      if ($vehicle->customer_id === null) {
+        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
+      }
+
+      if (auth()->check()) {
+        $data['created_by'] = auth()->user()->id;
+      }
+
+      // Calculate validity days
+      $quotation_date = Carbon::parse($data['quotation_date']);
+      $expiration_date = Carbon::parse($data['expiration_date']);
+      $validation_days = $quotation_date->diffInDays($expiration_date);
+
+      // Calculate totals from details
+      $subtotal = 0;
+      $discount_amount = 0;
+
+      foreach ($data['details'] as $detail) {
+        $itemSubtotal = $detail['quantity'] * $detail['unit_price'];
+        $itemDiscount = isset($detail['discount']) ? ($itemSubtotal * $detail['discount'] / 100) : 0;
+
+        $subtotal += $itemSubtotal;
+        $discount_amount += $itemDiscount;
+      }
+
+      $total_amount = $subtotal - $discount_amount;
+
+      // Prepare quotation data
+      $quotationData = [
+        'area_id' => $data['area_id'],
+        'vehicle_id' => $data['vehicle_id'],
+        'sede_id' => $data['sede_id'],
+        'quotation_date' => $data['quotation_date'],
+        'expiration_date' => $data['expiration_date'],
+        'observations' => $data['observations'] ?? null,
+        'created_by' => $data['created_by'],
+        'quotation_number' => $this->generateNextQuotationNumber(),
+        'subtotal' => $subtotal,
+        'discount_amount' => $discount_amount,
+        'tax_amount' => Constants::VAT_TAX,
+        'total_amount' => $total_amount,
+        'validity_days' => $validation_days,
+        'exchange_rate' => $exchangeRate->rate,
+        'currency_id' => $data['currency_id'],
+      ];
+
+      // Create quotation
+      $quotation = ApOrderQuotations::create($quotationData);
+
+      // Create details
+      foreach ($data['details'] as $detail) {
+        $quotation->details()->create([
+          'item_type' => 'PRODUCT',
+          'product_id' => $detail['product_id'],
+          'description' => $detail['description'],
+          'quantity' => $detail['quantity'],
+          'unit_measure' => $detail['unit_measure'],
+          'unit_price' => $detail['unit_price'],
+          'discount' => $detail['discount'] ?? 0,
+          'total_amount' => $detail['total_amount'],
+          'observations' => $detail['observations'] ?? null,
+          'retail_price_external' => $detail['retail_price_external'] ?? null,
+          'exchange_rate' => $detail['exchange_rate'] ?? null,
+          'freight_commission' => $detail['freight_commission'] ?? null,
+        ]);
+      }
+
+      return new ApOrderQuotationsResource($quotation->load([
+        'vehicle',
+        'createdBy',
+        'details.product'
+      ]));
+    });
+  }
+
   public function show($id)
   {
-    return new ApOrderQuotationsResource($this->find($id));
+    $quotation = $this->find($id);
+    $quotation->load('advancesOrderQuotation');
+    return new ApOrderQuotationsResource($quotation);
   }
+
 
   public function update(mixed $data)
   {
     return DB::transaction(function () use ($data) {
       $quotation = $this->find($data['id']);
       $vehicle = Vehicles::find($data['vehicle_id']);
+      $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
+
+      $exchangeRate = ExchangeRate::where('date', $date)->first();
+      if (!$exchangeRate) {
+        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      }
 
       if ($vehicle->customer_id === null) {
         throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
       }
+
+      // Calculate validity days
+      $quotation_date = Carbon::parse($data['quotation_date']);
+      $expiration_date = Carbon::parse($data['expiration_date']);
+      $validation_days = $quotation_date->diffInDays($expiration_date);
+      $data['validity_days'] = $validation_days;
+      $data['exchange_rate'] = $exchangeRate->rate;
 
       $quotation->update($data);
 
@@ -105,9 +215,98 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     });
   }
 
+  public function updateWithProducts(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $quotation = $this->find($data['id']);
+      $vehicle = Vehicles::find($data['vehicle_id']);
+      $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
+
+      $exchangeRate = ExchangeRate::where('date', $date)->first();
+      if (!$exchangeRate) {
+        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      }
+
+      if ($quotation->has_invoice_generated) {
+        throw new Exception('No se puede actualizar una cotización que ya tiene una factura generada.');
+      }
+
+      if ($vehicle->customer_id === null) {
+        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para actualizar una cotización');
+      }
+
+      // Calculate validity days
+      $quotation_date = Carbon::parse($data['quotation_date']);
+      $expiration_date = Carbon::parse($data['expiration_date']);
+      $validation_days = $quotation_date->diffInDays($expiration_date);
+
+      // Calculate totals from details
+      $subtotal = 0;
+      $discount_amount = 0;
+
+      foreach ($data['details'] as $detail) {
+        $itemSubtotal = $detail['quantity'] * $detail['unit_price'];
+        $itemDiscount = isset($detail['discount']) ? ($itemSubtotal * $detail['discount'] / 100) : 0;
+
+        $subtotal += $itemSubtotal;
+        $discount_amount += $itemDiscount;
+      }
+
+      $total_amount = $subtotal - $discount_amount;
+
+      // Update quotation data
+      $quotation->update([
+        'area_id' => $data['area_id'],
+        'vehicle_id' => $data['vehicle_id'],
+        'sede_id' => $data['sede_id'],
+        'quotation_date' => $data['quotation_date'],
+        'expiration_date' => $data['expiration_date'],
+        'observations' => $data['observations'] ?? null,
+        'subtotal' => $subtotal,
+        'discount_amount' => $discount_amount,
+        'tax_amount' => Constants::VAT_TAX,
+        'total_amount' => $total_amount,
+        'validity_days' => $validation_days,
+        'currency_id' => $data['currency_id'],
+        'exchange_rate' => $exchangeRate->rate,
+      ]);
+
+      // Delete existing details
+      $quotation->details()->delete();
+
+      // Create new details
+      foreach ($data['details'] as $detail) {
+        $quotation->details()->create([
+          'item_type' => 'PRODUCT',
+          'product_id' => $detail['product_id'],
+          'description' => $detail['description'],
+          'quantity' => $detail['quantity'],
+          'unit_measure' => $detail['unit_measure'],
+          'unit_price' => $detail['unit_price'],
+          'discount' => $detail['discount'] ?? 0,
+          'total_amount' => $detail['total_amount'],
+          'observations' => $detail['observations'] ?? null,
+          'retail_price_external' => $detail['retail_price_external'] ?? null,
+          'exchange_rate' => $detail['exchange_rate'] ?? null,
+          'freight_commission' => $detail['freight_commission'] ?? null,
+        ]);
+      }
+
+      return new ApOrderQuotationsResource($quotation->load([
+        'vehicle',
+        'createdBy',
+        'details.product'
+      ]));
+    });
+  }
+
   public function destroy($id)
   {
     $quotation = $this->find($id);
+
+    if ($quotation->has_invoice_generated) {
+      throw new Exception('No se puede eliminar una cotización que ya tiene una factura generada.');
+    }
 
     DB::transaction(function () use ($quotation) {
       $quotation->delete();
@@ -141,7 +340,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return "COT-{$year}-{$month}-{$newNumber}";
   }
 
-  public function generateQuotationPDF($id)
+  public function generateQuotationPDF($id, $with_labor = true)
   {
     $quotation = ApOrderQuotations::with([
       'vehicle.model.family.brand',
@@ -215,8 +414,14 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $data['vehicle_km'] = 'N/A';
     }
 
+    // Filtrar detalles según el parámetro with_labor
+    $details = $quotation->details;
+    if (!$with_labor) {
+      $details = $details->where('item_type', '!=', 'labor');
+    }
+
     // Detalles de la cotización
-    $data['details'] = $quotation->details->map(function ($detail) {
+    $data['details'] = $details->map(function ($detail) {
       return [
         'code' => $detail->product ? $detail->product->code : '-',
         'description' => $detail->description,
@@ -229,17 +434,27 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       ];
     });
 
-    // Calcular totales
-    $totalLabor = $quotation->details->where('item_type', 'labor')->sum('total_amount');
+    // Calcular totales según el parámetro with_labor
+    $totalLabor = $with_labor ? $quotation->details->where('item_type', 'labor')->sum('total_amount') : 0;
     $totalParts = $quotation->details->where('item_type', 'part')->sum('total_amount');
-    $totalDiscounts = $quotation->details->sum('discount');
+    $totalDiscounts = $with_labor ? $quotation->details->sum('discount') : $details->sum('discount');
+
+    // Recalcular subtotal y total si no se incluye mano de obra
+    if (!$with_labor) {
+      $subtotal = $details->sum('total_amount') + $totalDiscounts;
+      $total_amount = $details->sum('total_amount');
+    } else {
+      $subtotal = $quotation->subtotal;
+      $total_amount = $quotation->total_amount;
+    }
 
     $data['total_labor'] = $totalLabor;
     $data['total_parts'] = $totalParts;
     $data['total_discounts'] = $totalDiscounts;
-    $data['subtotal'] = $quotation->subtotal;
+    $data['subtotal'] = $subtotal;
     $data['tax_amount'] = $quotation->tax_amount;
-    $data['total_amount'] = $quotation->total_amount;
+    $data['total_amount'] = $total_amount;
+    $data['with_labor'] = $with_labor;
 
     // Generar PDF
     $pdf = Pdf::loadView('reports.ap.postventa.taller.order-quotation', [

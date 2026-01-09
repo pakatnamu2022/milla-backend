@@ -5,7 +5,9 @@ namespace App\Http\Controllers\ap\postventa\taller;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\postventa\taller\IndexApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\StoreApOrderQuotationsRequest;
+use App\Http\Requests\ap\postventa\taller\StoreApOrderQuotationWithProductsRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationsRequest;
+use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationWithProductsRequest;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsService;
 
 class ApOrderQuotationsController extends Controller
@@ -35,6 +37,15 @@ class ApOrderQuotationsController extends Controller
     }
   }
 
+  public function storeWithProducts(StoreApOrderQuotationWithProductsRequest $request)
+  {
+    try {
+      return $this->success($this->service->storeWithProducts($request->validated()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function show($id)
   {
     try {
@@ -55,6 +66,17 @@ class ApOrderQuotationsController extends Controller
     }
   }
 
+  public function updateWithProducts(UpdateApOrderQuotationWithProductsRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->updateWithProducts($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function destroy($id)
   {
     try {
@@ -67,7 +89,9 @@ class ApOrderQuotationsController extends Controller
   public function downloadPDF($id)
   {
     try {
-      return $this->service->generateQuotationPDF($id);
+      $with_labor = request()->input('with_labor', true);
+      $with_labor = filter_var($with_labor, FILTER_VALIDATE_BOOLEAN);
+      return $this->service->generateQuotationPDF($id, $with_labor);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

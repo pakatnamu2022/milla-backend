@@ -17,10 +17,25 @@ class ApAssignmentLeadershipController extends Controller
     $this->service = $service;
   }
 
+  /**
+   * Get individual assignment records
+   */
   public function index(IndexApAssignmentLeadershipRequest $request)
   {
     try {
       return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Get assignments grouped by boss (for management view)
+   */
+  public function grouped(IndexApAssignmentLeadershipRequest $request)
+  {
+    try {
+      return $this->service->getGroupedByBoss($request);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

@@ -89,9 +89,9 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
       // Extraer archivo del array de datos
       $files = $this->extractFiles($data);
 
-      // Calculate nights count
-      $checkinDate = Carbon::parse($data['checkin_date']);
-      $checkoutDate = Carbon::parse($data['checkout_date']);
+      // Calculate nights count (based on calendar days, not hours)
+      $checkinDate = Carbon::parse($data['checkin_date'])->startOfDay();
+      $checkoutDate = Carbon::parse($data['checkout_date'])->startOfDay();
       $nightsCount = $checkinDate->diffInDays($checkoutDate);
 
       // Prepare reservation data
@@ -171,10 +171,10 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
       // Extraer archivo del array de datos
       $files = $this->extractFiles($data);
 
-      // Calculate nights count if dates are updated
+      // Calculate nights count if dates are updated (based on calendar days, not hours)
       if (isset($data['checkin_date']) || isset($data['checkout_date'])) {
-        $checkinDate = Carbon::parse($data['checkin_date'] ?? $reservation->checkin_date);
-        $checkoutDate = Carbon::parse($data['checkout_date'] ?? $reservation->checkout_date);
+        $checkinDate = Carbon::parse($data['checkin_date'] ?? $reservation->checkin_date)->startOfDay();
+        $checkoutDate = Carbon::parse($data['checkout_date'] ?? $reservation->checkout_date)->startOfDay();
         $data['nights_count'] = $checkinDate->diffInDays($checkoutDate);
       }
 
@@ -415,6 +415,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         'checkout_date' => $reservation->checkout_date->format('d/m/Y'),
         'nights_count' => $reservation->nights_count,
         'total_cost' => $reservation->total_cost,
+        'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
       ];
 
       $this->emailService->send([

@@ -14,6 +14,7 @@ use App\Http\Requests\gp\gestionhumana\viaticos\CompleteSettlementPerDiemRequest
 use App\Http\Requests\gp\gestionhumana\viaticos\ApproveSettlementPerDiemRequestRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\RejectSettlementPerDiemRequestRequest;
 use App\Http\Requests\gp\gestionhumana\viaticos\CancelPerDiemRequestRequest;
+use App\Http\Requests\gp\gestionhumana\viaticos\ResendPerDiemRequestEmailsRequest;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRateResource;
 use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRequestResource;
 use App\Http\Services\gp\gestionhumana\viaticos\PerDiemRequestService;
@@ -62,7 +63,7 @@ class PerDiemRequestController extends Controller
    * Display pending approval requests for the logged-in user (as approver/manager)
    * Supports filtering by approval_status: 'pending', 'approved', 'all'
    */
-  public function pendingApprovals(Request $request)
+  public function pendingApprovals(IndexPerDiemRequestRequest $request)
   {
     try {
       return $this->service->getPendingApprovals($request);
@@ -453,6 +454,24 @@ class PerDiemRequestController extends Controller
       $pdf = $this->service->generateExpenseTotalWithEvidencePDF($id);
       $filename = "liquidacion-gastos-evidencias-{$id}.pdf";
       return $pdf->download($filename);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Resend emails for a per diem request
+   * Allows filtering recipients with boolean parameters
+   */
+  public function resendEmails(ResendPerDiemRequestEmailsRequest $request, int $id)
+  {
+    try {
+      $result = $this->service->resendEmails($id, $request->validated());
+
+      return $this->success([
+        'data' => $result,
+        'message' => $result['message']
+      ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

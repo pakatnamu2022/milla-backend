@@ -2,6 +2,7 @@
 
 namespace App\Models\gp\gestionhumana\personal;
 
+use App\Http\Utils\Constants;
 use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
 use App\Models\gp\gestionsistema\Area;
@@ -10,6 +11,7 @@ use App\Models\gp\gestionsistema\Status;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetail;
 use App\Models\gp\maestroGeneral\Sede;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -49,6 +51,16 @@ class Worker extends BaseModel
       $builder->where('status_deleted', 1)
         ->where('b_empleado', 1);
     });
+  }
+
+  /**
+   * Indica si el trabajador tiene el rol de TICS
+   * Attribute: has_rol_tics
+   * @return bool
+   */
+  public function getHasRolTicsAttribute(): bool
+  {
+    return $this->user && $this->user->role && $this->user->role->id === Constants::TICS_ROL_ID;
   }
 
   public function scopeWorking($query)
@@ -119,5 +131,10 @@ class Worker extends BaseModel
   public function position()
   {
     return $this->hasOne(Position::class, 'id', 'cargo_id');
+  }
+
+  public function user()
+  {
+    return $this->hasOne(User::class, 'partner_id', 'id');
   }
 }

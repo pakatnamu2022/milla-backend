@@ -6,6 +6,7 @@ use App\Http\Resources\ap\comercial\PotentialBuyersResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\common\ImportService;
+use App\Http\Utils\Constants;
 use App\Imports\ap\comercial\PotentialBuyersDercoImport;
 use App\Imports\ap\comercial\PotentialBuyersSocialNetworksImport;
 use App\Jobs\ValidatePotentialBuyersDocuments;
@@ -454,7 +455,7 @@ class PotentialBuyersService extends BaseService
     DB::beginTransaction();
     try {
       // Obtener todos los registros del mes anterior y mes actual
-      $unassignedBuyers = PotentialBuyers::whereBetween('registration_date', [
+      $unassignedBuyers = PotentialBuyers::whereBetween('created_at', [
         now()->subMonth()->startOfMonth(),
         now()->endOfMonth()
       ])

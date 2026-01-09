@@ -6,20 +6,24 @@
     <p style="margin:0 0 12px 0;">Estimado/a <strong style="font-weight:600;">{{ $leader_name }}</strong>,</p>
 
     <div class="card card-muted">
-      Le informamos que se ha habilitado una nueva evaluación de desempeño en la plataforma. Es momento de evaluar el desempeño de los miembros de su equipo durante el período indicado.
+      Le informamos que se ha habilitado una nueva evaluación de desempeño en la plataforma. Es momento de evaluar el
+      desempeño de los miembros de su equipo durante el período indicado.
     </div>
 
-    <div class="callout">
-      <div class="callout-title">Información de la evaluación</div>
+    <div class="card">
+      <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:10px;color:#111827;">Información de la evaluación</div>
       <div><strong>Nombre:</strong> {{ $evaluation_name }}</div>
       <div><strong>Fecha de inicio:</strong> {{ $start_date }}</div>
       <div><strong>Fecha límite:</strong> {{ $end_date }}</div>
-      <div><strong>Personal a evaluar:</strong> {{ $team_count }} {{ $team_count == 1 ? 'colaborador' : 'colaboradores' }}</div>
+      <div><strong>Personal a
+          evaluar:</strong> {{ $team_count }} {{ $team_count == 1 ? 'colaborador' : 'colaboradores' }}</div>
     </div>
 
     @if(!empty($team_members))
       <div class="card">
-        <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:8px;">Equipo asignado para evaluación</div>
+        <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:8px;">Equipo asignado para
+          evaluación
+        </div>
         <table class="table" role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
           <thead>
           <tr>
@@ -41,24 +45,22 @@
       </div>
     @endif
 
-    <div class="callout">
-      <div class="callout-title">Aspectos a evaluar</div>
+    <div class="card card-muted">
+      <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:8px;color:#111827;">Aspectos a evaluar</div>
       La evaluación de desempeño contempla los siguientes componentes:
       <ul style="margin:8px 0 0 0;padding-left:20px;">
         @if($has_objectives ?? true)
           <li>Objetivos y metas alcanzadas</li>
         @endif
+        <li>Cumplimiento de indicadores</li>
         @if($has_competences ?? true)
           <li>Competencias técnicas y blandas</li>
-        @endif
-        @if($has_goals ?? true)
-          <li>Cumplimiento de indicadores</li>
         @endif
       </ul>
     </div>
 
-    <div class="callout" style="background:#e6edff;border-left-color:#01237e;">
-      <div class="callout-title">Importante</div>
+    <div class="card" style="border-left:3px solid #01237e;">
+      <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:8px;color:#01237e;">Importante</div>
       <div>
         • Complete todas las evaluaciones antes de la fecha límite<br>
         • Sea objetivo y constructivo en sus comentarios<br>
@@ -74,13 +76,13 @@
 
     @isset($additional_notes)
       <div class="card" style="margin-top:16px;">
-        <div style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#01237e;margin-bottom:6px;">Nota</div>
+        <div style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#111827;margin-bottom:6px;">Nota</div>
         <div>{{ $additional_notes }}</div>
       </div>
     @endisset
 
     <p style="margin:20px 0 0 0;font-size:13px;color:#6b7280;">
-      Si tiene dudas sobre el proceso de evaluación, por favor contacte al área de Recursos Humanos.
+      Si tiene dudas sobre el proceso de evaluación de desempeño, por favor contactarse con el área de Gestión Humana.
     </p>
   </div>
 @endsection

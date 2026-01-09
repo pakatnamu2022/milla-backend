@@ -2,8 +2,7 @@
 
 @section('content')
   <!-- Wrapper -->
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-         style="background:#f6f7fb;padding:24px 0;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
     <tr>
       <td align="center">
         <!-- Container -->
@@ -33,7 +32,11 @@
                 Liquidación de Viáticos
               </h1>
               <p style="margin:0;font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#4b5563;">
-                Es momento de liquidar tus gastos
+                @if($recipient_type === 'employee')
+                  Es momento de liquidar tus gastos
+                @else
+                  Liquidación de gastos en revisión
+                @endif
               </p>
             </td>
           </tr>
@@ -42,13 +45,23 @@
           <tr>
             <td style="padding:24px;">
               <p style="margin:0 0 12px 0;font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                Hola <strong style="font-weight:600;color:#111827;">{{ $employee_name }}</strong>,
+                @if($recipient_type === 'employee')
+                  Hola <strong style="font-weight:600;color:#111827;">{{ $employee_name }}</strong>,
+                @else
+                  Estimado/a,
+                @endif
               </p>
 
               <div
                 style="margin:0 0 16px 0;padding:16px;border:1px solid #eef0f5;border-radius:12px;background:#fbfbfe;">
                 <p style="margin:0;font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                  Has enviado tu liquidación de viáticos <strong>{{ $request_code }}</strong> para revisión. A continuación, encontrarás el detalle de los gastos que has registrado.
+                  @if($recipient_type === 'employee')
+                    Has enviado tu liquidación de viáticos <strong>{{ $request_code }}</strong> para revisión. A
+                    continuación, encontrarás el detalle de los gastos que has registrado.
+                  @else
+                    El colaborador <strong>{{ $employee_name }}</strong> ha enviado su liquidación de viáticos <strong>{{ $request_code }}</strong> para revisión. A
+                    continuación, encontrarás el detalle de los gastos registrados.
+                  @endif
                 </p>
               </div>
 
@@ -76,8 +89,13 @@
                 </div>
                 <div style="font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#111827;">
                   <strong>Total gastado:</strong> S/ {{ number_format($total_general_comprobante, 2) }}<br>
-                  <strong>Total que asume la empresa:</strong> S/ {{ number_format($total_general_asume_empresa, 2) }}<br>
-                  <strong>Total que asumes tú:</strong> S/ {{ number_format($total_general_asume_colaborador, 2) }}
+                  <strong>Total que asume la empresa:</strong> S/ {{ number_format($total_general_asume_empresa, 2) }}
+                  <br>
+                  @if($recipient_type === 'employee')
+                    <strong>Total que asumes tú:</strong> S/ {{ number_format($total_general_asume_colaborador, 2) }}
+                  @else
+                    <strong>Total que asume el colaborador:</strong> S/ {{ number_format($total_general_asume_colaborador, 2) }}
+                  @endif
                 </div>
               </div>
 
@@ -91,22 +109,40 @@
                          style="border:1px solid #e6e8ee;border-radius:8px;overflow:hidden;">
                     <thead>
                     <tr style="background:#f9fafc;">
-                      <th style="padding:8px;text-align:left;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">Fecha</th>
-                      <th style="padding:8px;text-align:left;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">Tipo</th>
-                      <th style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">Monto</th>
+                      <th
+                        style="padding:8px;text-align:left;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">
+                        Fecha
+                      </th>
+                      <th
+                        style="padding:8px;text-align:left;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">
+                        Tipo
+                      </th>
+                      <th
+                        style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">
+                        Monto
+                      </th>
                     </tr>
                     </thead>
                     <tbody>
                     @foreach($gastos_empresa as $gasto)
                       <tr>
-                        <td style="padding:8px;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">{{ $gasto['fecha'] }}</td>
-                        <td style="padding:8px;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">{{ $gasto['tipo'] }}</td>
-                        <td style="padding:8px;text-align:right;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">S/ {{ number_format($gasto['asume_empresa'], 2) }}</td>
+                        <td
+                          style="padding:8px;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">{{ $gasto['fecha'] }}</td>
+                        <td
+                          style="padding:8px;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">{{ $gasto['tipo'] }}</td>
+                        <td
+                          style="padding:8px;text-align:right;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">
+                          S/ {{ number_format($gasto['asume_empresa'], 2) }}</td>
                       </tr>
                     @endforeach
                     <tr style="background:#f9fafc;">
-                      <td colspan="2" style="padding:8px;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;">Total Empresa</td>
-                      <td style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;">S/ {{ number_format($total_empresa_asume_empresa, 2) }}</td>
+                      <td colspan="2"
+                          style="padding:8px;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;">Total
+                        Empresa
+                      </td>
+                      <td
+                        style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;">
+                        S/ {{ number_format($total_empresa_asume_empresa, 2) }}</td>
                     </tr>
                     </tbody>
                   </table>
@@ -117,31 +153,63 @@
                 <!-- Gastos del Colaborador -->
                 <div style="margin:0 0 16px 0;">
                   <h3 style="margin:0 0 8px 0;font:600 14px/1.5 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                    Tus Gastos Personales
+                    @if($recipient_type === 'employee')
+                      Tus Gastos Personales
+                    @else
+                      Gastos Personales del Colaborador
+                    @endif
                   </h3>
                   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
                          style="border:1px solid #e6e8ee;border-radius:8px;overflow:hidden;">
                     <thead>
                     <tr style="background:#f9fafc;">
-                      <th style="padding:8px;text-align:left;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">Fecha</th>
-                      <th style="padding:8px;text-align:left;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">Tipo</th>
-                      <th style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">Empresa</th>
-                      <th style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">Tú</th>
+                      <th
+                        style="padding:8px;text-align:left;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">
+                        Fecha
+                      </th>
+                      <th
+                        style="padding:8px;text-align:left;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">
+                        Tipo
+                      </th>
+                      <th
+                        style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">
+                        Empresa
+                      </th>
+                      <th
+                        style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;border-bottom:1px solid #e6e8ee;">
+                        @if($recipient_type === 'employee')
+                          Tú
+                        @else
+                          Colaborador
+                        @endif
+                      </th>
                     </tr>
                     </thead>
                     <tbody>
                     @foreach($gastos_colaborador as $gasto)
                       <tr>
-                        <td style="padding:8px;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">{{ $gasto['fecha'] }}</td>
-                        <td style="padding:8px;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">{{ $gasto['tipo'] }}</td>
-                        <td style="padding:8px;text-align:right;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">S/ {{ number_format($gasto['asume_empresa'], 2) }}</td>
-                        <td style="padding:8px;text-align:right;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">S/ {{ number_format($gasto['asume_colaborador'], 2) }}</td>
+                        <td
+                          style="padding:8px;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">{{ $gasto['fecha'] }}</td>
+                        <td
+                          style="padding:8px;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">{{ $gasto['tipo'] }}</td>
+                        <td
+                          style="padding:8px;text-align:right;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">
+                          S/ {{ number_format($gasto['asume_empresa'], 2) }}</td>
+                        <td
+                          style="padding:8px;text-align:right;font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #f3f4f6;">
+                          S/ {{ number_format($gasto['asume_colaborador'], 2) }}</td>
                       </tr>
                     @endforeach
                     <tr style="background:#f9fafc;">
-                      <td colspan="2" style="padding:8px;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;">Total</td>
-                      <td style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;">S/ {{ number_format($total_colaborador_asume_empresa, 2) }}</td>
-                      <td style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;">S/ {{ number_format($total_colaborador_asume_colaborador, 2) }}</td>
+                      <td colspan="2"
+                          style="padding:8px;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;">Total
+                      </td>
+                      <td
+                        style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;">
+                        S/ {{ number_format($total_colaborador_asume_empresa, 2) }}</td>
+                      <td
+                        style="padding:8px;text-align:right;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;">
+                        S/ {{ number_format($total_colaborador_asume_colaborador, 2) }}</td>
                     </tr>
                     </tbody>
                   </table>
@@ -155,7 +223,11 @@
                     <td align="center" bgcolor="#01237E" style="border-radius:10px;">
                       <a href="{{ $button_url }}"
                          style="display:inline-block;padding:12px 20px;font:600 14px/1 Inter,Arial,Helvetica,sans-serif;text-decoration:none;color:#ffffff;background:#01237E;border-radius:10px;border:1px solid #011a5b;">
-                        Liquidar Gastos
+                        @if($recipient_type === 'employee')
+                          Ver Mi Liquidación
+                        @else
+                          Revisar Liquidación
+                        @endif
                       </a>
                     </td>
                   </tr>
@@ -172,9 +244,56 @@
   <!-- Dark mode support -->
   <style>
     @media (prefers-color-scheme: dark) {
-      table, td { background-color: #0b0f1a !important; }
-      .invert-bg { background-color: #0b0f1a !important; }
-      h1, h2, h3, p, div, span, strong { color: #e5e7eb !important; }
+      table, td {
+        background-color: #0b0f1a !important;
+      }
+
+      .invert-bg {
+        background-color: #0b0f1a !important;
+      }
+
+      h1, h2, h3, p, div, span, strong {
+        color: #e5e7eb !important;
+      }
+    }
+
+    /* Mobile responsive */
+    @media (max-width: 480px) {
+      table[style*="padding:24px"] > tr > td {
+        padding: 15px !important;
+      }
+
+      span[style*="padding:6px 10px"] {
+        font-size: 11px !important;
+        padding: 4px 10px !important;
+      }
+
+      h1 {
+        font-size: 20px !important;
+        line-height: 1.3 !important;
+      }
+
+      p, td, div {
+        font-size: 13px !important;
+      }
+
+      a[style*="padding:12px"] {
+        padding: 10px 16px !important;
+        font-size: 13px !important;
+      }
+
+      table[style*="margin:20px"] {
+        margin: 15px auto !important;
+      }
+    }
+
+    /* Table optimization for mobile */
+    @media (max-width: 600px) {
+      table[style*="border-collapse:collapse"] {
+        display: block !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+      }
     }
   </style>
 @endsection

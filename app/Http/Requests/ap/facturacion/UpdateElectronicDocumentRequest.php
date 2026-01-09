@@ -322,6 +322,8 @@ class UpdateElectronicDocumentRequest extends StoreRequest
   {
     return [
       'ap_billing_document_type_id.exists' => 'El tipo de documento seleccionado no es válido',
+      'series.exists' => 'La serie seleccionada no es válida o no está asignada a usted',
+      'total.min' => 'El total del documento debe ser al menos 0',
       'serie.size' => 'La serie debe tener exactamente 4 caracteres',
       'items.min' => 'Debe agregar al menos un item al documento',
       'items.*.descripcion.required_with' => 'La descripción del item es obligatoria',

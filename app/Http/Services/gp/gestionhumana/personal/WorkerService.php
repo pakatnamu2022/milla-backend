@@ -425,7 +425,7 @@ class WorkerService extends BaseService
    */
   public function getConsultantAssignments(Worker $worker, int $month, int $year): Collection
   {
-    $isTicsArea = $worker->position->area->id === Constants::TICS_AREA_ID;
+    $isTicsArea = $worker->user->role->id === Constants::TICS_ROL_ID;
 
     $query = ApAssignmentLeadership::where('month', $month)
       ->where('year', $year);

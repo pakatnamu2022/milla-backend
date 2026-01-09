@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationPersonCycleDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationPersonCycleDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationPersonCycleDetailRequest;
+use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetailService;
 
 class EvaluationPersonCycleDetailController extends Controller
@@ -59,6 +60,16 @@ class EvaluationPersonCycleDetailController extends Controller
   {
     try {
       return $this->service->destroy($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function getChiefsByCycle(int $cycleId)
+  {
+    try {
+      $chiefs = $this->service->getChiefsByCycle($cycleId);
+      return $this->success(WorkerResource::collection($chiefs));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

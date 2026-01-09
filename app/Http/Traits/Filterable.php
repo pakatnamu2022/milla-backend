@@ -522,4 +522,54 @@ trait Filterable
 
     return $resourceInstance;
   }
+
+  /**
+   * Paginate a collection manually (useful for grouped or transformed data)
+   * Returns the same format as getFilteredResults
+   */
+  protected function paginateCollection($collection, $request)
+  {
+    $all = filter_var($request->query('all', false), FILTER_VALIDATE_BOOLEAN);
+
+    if ($all) {
+      return response()->json($collection);
+    }
+
+    $perPage = (int)$request->query('per_page', Constants::DEFAULT_PER_PAGE);
+    $page = (int)$request->query('page', 1);
+    $total = $collection->count();
+    $lastPage = (int)ceil($total / $perPage);
+    $from = $total > 0 ? (($page - 1) * $perPage) + 1 : null;
+    $to = $total > 0 ? min($from + $perPage - 1, $total) : null;
+
+    $paginatedResults = $collection->slice(($page - 1) * $perPage, $perPage)->values();
+
+    $baseUrl = $request->url();
+    $queryParams = $request->query();
+
+    $first = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => 1]));
+    $last = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $lastPage]));
+    $prev = $page > 1 ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page - 1])) : null;
+    $next = $page < $lastPage ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page + 1])) : null;
+
+    return response()->json([
+      'data' => $paginatedResults,
+      'links' => [
+        'first' => $first,
+        'last' => $last,
+        'prev' => $prev,
+        'next' => $next,
+      ],
+      'meta' => [
+        'current_page' => $page,
+        'from' => $from,
+        'last_page' => $lastPage,
+        'links' => $this->generatePaginationLinks($page, $lastPage, $baseUrl, $queryParams),
+        'path' => $baseUrl,
+        'per_page' => $perPage,
+        'to' => $to,
+        'total' => $total,
+      ]
+    ]);
+  }
 }

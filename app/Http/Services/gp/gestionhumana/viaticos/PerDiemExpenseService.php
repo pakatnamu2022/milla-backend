@@ -652,7 +652,7 @@ class PerDiemExpenseService extends BaseService
         $data['business_name'] = $apiData['business_name'] ?? null;
       }
     } catch (Exception $e) {
-      Log::warning("Failed to fetch business_name for RUC {$data['ruc']}: " . $e->getMessage());
+      Log::warning("Failed to fetch business_name  for RUC {$data['ruc']}: " . $e->getMessage());
     }
   }
 }

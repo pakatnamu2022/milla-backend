@@ -98,6 +98,7 @@ class ElectronicDocumentResource extends JsonResource
       'status' => $this->status,
       'migration_status' => $this->migration_status,
       'error_message' => $this->error_message,
+      'is_advance_payment' => (boolean)$this->is_advance_payment,
 
       /**
        * Timestamps and users

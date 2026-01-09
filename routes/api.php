@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ap\ApCommercialMastersController;
 use App\Http\Controllers\ap\ApPostVentaMastersController;
+use App\Http\Controllers\GeneralMaster\GeneralMasterController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
@@ -289,6 +290,16 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     });
 
     Route::group(['prefix' => 'mg'], function () {
+      // General Master
+      Route::get('generalMaster/types', [GeneralMasterController::class, 'getTypes']);
+      Route::apiResource('generalMaster', GeneralMasterController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
       Route::get('sede/availableLocationsShop', [SedeController::class, 'availableLocationsShop']);
       Route::get('sede/my', [SedeController::class, 'mySedes']);
       Route::apiResource('sede', SedeController::class)->only([
@@ -471,6 +482,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'index']);
         Route::post('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'storeMany']);
         Route::get('/cycle/{cycle}/details', [EvaluationPersonCycleDetailController::class, 'index']);
+        Route::get('/cycle/{cycle}/chiefs', [EvaluationPersonCycleDetailController::class, 'getChiefsByCycle']);
         Route::get('/cycle/{id}/participants', [EvaluationCycleController::class, 'participants']);
         Route::get('/cycle/{id}/positions', [EvaluationCycleController::class, 'positions']);
 
@@ -536,6 +548,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('personResult/export', [EvaluationPersonResultController::class, 'export']);
         Route::get('personResult/getByPersonAndEvaluation', [EvaluationPersonResultController::class, 'getByPersonAndEvaluation']);
         Route::get('personResult/evaluations-to-evaluate/{id}', [EvaluationPersonResultController::class, 'getEvaluationsByPersonToEvaluate']);
+        Route::get('personResult/evaluation/{evaluation_id}/bosses', [EvaluationPersonResultController::class, 'getBossesByEvaluation']);
         Route::get('leader-dashboard/{evaluation_id}', [EvaluationPersonResultController::class, 'getLeaderDashboard']);
         Route::post('personResult/regenerate/{personId}/{evaluationId}', [EvaluationPersonResultController::class, 'regenerate']);
         Route::apiResource('personResult', EvaluationPersonResultController::class)->only([
@@ -742,6 +755,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
+
+      Route::get('assignmentLeadership/grouped/list', [ApAssignmentLeadershipController::class, 'grouped']);
 
       Route::apiResource('assignmentLeadership', ApAssignmentLeadershipController::class)->only([
         'index',
@@ -1017,6 +1032,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('inventoryMovements/transfers', [InventoryMovementController::class, 'createTransfer']);
       Route::put('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'updateTransfer']);
       Route::delete('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'destroyTransfer']);
+      Route::post('inventoryMovements/sales/quotation/{quotationId}', [InventoryMovementController::class, 'createSaleFromQuotation']);
       Route::get('inventoryMovements/kardex', [InventoryMovementController::class, 'getKardex']);
       Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history', [InventoryMovementController::class, 'getProductMovementHistory']);
       Route::apiResource('inventoryMovements', InventoryMovementController::class)->only([
@@ -1057,6 +1073,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Work Orders - Órdenes de Trabajo
       Route::post('workOrders/{id}/calculate-totals', [WorkOrderController::class, 'calculateTotals']);
+      Route::get('workOrders/{id}/payment-summary', [WorkOrderController::class, 'getPaymentSummary']);
       Route::apiResource('workOrders', WorkOrderController::class)->only([
         'index',
         'show',
@@ -1105,6 +1122,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Work Order Quotations - Cotizaciones de Órdenes de Trabajo
       Route::get('orderQuotations/{id}/pdf', [ApOrderQuotationsController::class, 'downloadPDF']);
+      Route::post('orderQuotations/with-products', [ApOrderQuotationsController::class, 'storeWithProducts']);
+      Route::put('orderQuotations/{id}/with-products', [ApOrderQuotationsController::class, 'updateWithProducts']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',
@@ -1263,6 +1282,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('per-diem-requests/{id}/available-expense-types', [PerDiemRequestController::class, 'availableExpenseTypes']);
     Route::post('per-diem-requests/{id}/agregar-deposito', [PerDiemRequestController::class, 'agregarDeposito']);
     Route::get('per-diem-requests/{id}/generate-mobility-payroll-pdf', [PerDiemRequestController::class, 'generateMobilityPayrollPDF']);
+    Route::post('per-diem-requests/{id}/resend-emails', [PerDiemRequestController::class, 'resendEmails']);
     Route::apiResource('per-diem-requests', PerDiemRequestController::class)->only([
       'index',
       'show',

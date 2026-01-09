@@ -7,6 +7,7 @@ use App\Http\Requests\ap\postventa\taller\IndexWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\StoreWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderRequest;
 use App\Http\Services\ap\postventa\taller\WorkOrderService;
+use Illuminate\Http\Request;
 
 class WorkOrderController extends Controller
 {
@@ -68,6 +69,16 @@ class WorkOrderController extends Controller
   {
     try {
       return $this->success($this->service->calculateTotals($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function getPaymentSummary($id, Request $request)
+  {
+    try {
+      $groupNumber = $request->query('group_number');
+      return $this->service->getPaymentSummary($id, $groupNumber);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

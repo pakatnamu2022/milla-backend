@@ -20,9 +20,9 @@ class SyncSalesDocumentJob implements ShouldQueue
 {
   use Queueable;
 
-  public int $tries = 3;
+  public int $tries = 2; // Reducido de 3 → 2 para evitar crecimiento exponencial de jobs
   public int $timeout = 300;
-  public int $backoff = 60;
+  public int $backoff = 120; // Aumentado a 120 segundos para dar más tiempo entre reintentos
 
   /**
    * Create a new job instance.

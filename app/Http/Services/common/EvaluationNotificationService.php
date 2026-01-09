@@ -5,10 +5,8 @@ namespace App\Http\Services\common;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\personal\Worker;
-use App\Http\Services\common\EmailService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 
 class EvaluationNotificationService
 {
@@ -110,10 +108,18 @@ class EvaluationNotificationService
           'leader_id' => $leaderId,
           'total_evaluations' => 0,
           'pending_evaluations' => 0,
-          'pending_details' => []
+          'pending_details' => [],
+          'person_ids' => [], // Para trackear los person_id únicos
+          'pending_person_ids' => [] // Para trackear los person_id pendientes únicos
         ];
       }
 
+      // Verificar si ya procesamos este person_id para evitar duplicados
+      if (in_array($evalPerson->person_id, $leadersPending[$leaderId]['person_ids'])) {
+        continue;
+      }
+
+      $leadersPending[$leaderId]['person_ids'][] = $evalPerson->person_id;
       $leadersPending[$leaderId]['total_evaluations']++;
 
       // Verificar si la evaluación está pendiente
@@ -121,12 +127,19 @@ class EvaluationNotificationService
 
       if (!$isCompleted) {
         $leadersPending[$leaderId]['pending_evaluations']++;
+        $leadersPending[$leaderId]['pending_person_ids'][] = $evalPerson->person_id;
         $leadersPending[$leaderId]['pending_details'][] = [
           'employee_name' => $evalPerson->person->nombre_completo ?? 'N/A',
           'progress_percentage' => $this->calculateEvaluationProgress($evalPerson),
           'employee_id' => $evalPerson->person_id
         ];
       }
+    }
+
+    // Remover los arrays de tracking antes de retornar
+    foreach ($leadersPending as &$leaderData) {
+      unset($leaderData['person_ids']);
+      unset($leaderData['pending_person_ids']);
     }
 
     // Filtrar solo líderes que tienen evaluaciones pendientes
@@ -155,11 +168,12 @@ class EvaluationNotificationService
   /**
    * Envía el recordatorio a un líder específico
    */
-  private function sendReminderToLeader(Evaluation $evaluation, Person $leader, array $pendingData): array
+  private function sendReminderToLeader(Evaluation $evaluation, Worker $leader, array $pendingData): array
   {
     try {
       $emailConfig = [
-        'to' => $leader->email,
+        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
+//        'to' => "hvaldiviezos@automotorespakatnamu.com",
         'subject' => 'Recordatorio: Evaluaciones de Desempeño Pendientes',
         'template' => 'emails.evaluation-reminder',
         'data' => [
@@ -171,7 +185,7 @@ class EvaluationNotificationService
           'pending_count' => $pendingData['pending_evaluations'],
           'total_count' => $pendingData['total_evaluations'],
           'pending_evaluations' => $pendingData['pending_details'],
-          'evaluation_url' => config('app.frontend_url') . '/evaluations/' . $evaluation->id,
+          'evaluation_url' => config('app.frontend_url') . '/perfil/equipo',
           'additional_notes' => $this->generateAdditionalNotes($evaluation),
           'send_date' => now()->format('d/m/Y H:i'),
           'company_name' => 'Grupo Pakana',
@@ -184,7 +198,7 @@ class EvaluationNotificationService
       return [
         'leader_id' => $leader->id,
         'leader_name' => $leader->nombre_completo,
-        'leader_email' => $leader->email,
+        'leader_email' => $leader->email2,
         'pending_count' => $pendingData['pending_evaluations'],
         'total_count' => $pendingData['total_evaluations'],
         'sent' => $sent,
@@ -198,7 +212,7 @@ class EvaluationNotificationService
       return [
         'leader_id' => $leader->id,
         'leader_name' => $leader->nombre_completo,
-        'leader_email' => $leader->email,
+        'leader_email' => $leader->email2,
         'pending_count' => $pendingData['pending_evaluations'],
         'total_count' => $pendingData['total_evaluations'],
         'sent' => false,
@@ -267,7 +281,7 @@ class EvaluationNotificationService
       foreach ($leaders as $leaderId => $leaderData) {
         $leader = Worker::find($leaderId);
 
-        if (!$leader || !$leader->email) {
+        if (!$leader || !$leader->email2) {
           continue;
         }
 
@@ -355,11 +369,12 @@ class EvaluationNotificationService
   /**
    * Envía correo de apertura a un líder
    */
-  private function sendOpenedEmailToLeader(Evaluation $evaluation, Person $leader, array $leaderData): array
+  private function sendOpenedEmailToLeader(Evaluation $evaluation, Worker $leader, array $leaderData): array
   {
     try {
       $emailConfig = [
-        'to' => $leader->email,
+        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
+//        'to' => "hvaldiviezos@automotorespakatnamu.com",
         'subject' => 'Nueva Evaluación de Desempeño Habilitada',
         'template' => 'emails.evaluation-opened',
         'data' => [
@@ -373,9 +388,9 @@ class EvaluationNotificationService
           'team_count' => $leaderData['team_count'],
           'team_members' => $leaderData['team_members'],
           'has_objectives' => true,
-          'has_competences' => true,
+          'has_competences' => in_array($evaluation->typeEvaluation, [Evaluation::EVALUATION_TYPE_180, Evaluation::EVALUATION_TYPE_360]),
           'has_goals' => true,
-          'evaluation_url' => config('app.frontend_url'),
+          'evaluation_url' => config('app.frontend_url') . '/perfil/equipo',
           'additional_notes' => 'Recuerde que completar las evaluaciones a tiempo contribuye al desarrollo profesional de su equipo.',
           'date' => now()->format('d/m/Y H:i'),
           'company_name' => 'Grupo Pakatnamu',
@@ -388,7 +403,7 @@ class EvaluationNotificationService
       return [
         'leader_id' => $leader->id,
         'leader_name' => $leader->nombre_completo,
-        'leader_email' => $leader->email,
+        'leader_email' => $leader->email2,
         'team_count' => $leaderData['team_count'],
         'sent' => $sent,
         'evaluation_id' => $evaluation->id,
@@ -399,7 +414,7 @@ class EvaluationNotificationService
       return [
         'leader_id' => $leader->id,
         'leader_name' => $leader->nombre_completo,
-        'leader_email' => $leader->email,
+        'leader_email' => $leader->email2,
         'team_count' => $leaderData['team_count'] ?? 0,
         'sent' => false,
         'error' => $e->getMessage(),
@@ -559,11 +574,12 @@ class EvaluationNotificationService
   /**
    * Envía correo de cierre a un líder
    */
-  private function sendClosedEmailToLeader(Evaluation $evaluation, Person $leader, array $leaderData, array $teamSummary): array
+  private function sendClosedEmailToLeader(Evaluation $evaluation, Worker $leader, array $leaderData, array $teamSummary): array
   {
     try {
       $emailConfig = [
-        'to' => $leader->email,
+        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
+//        'to' => "hvaldiviezos@automotorespakatnamu.com",
         'subject' => 'Evaluación de Desempeño Finalizada - Resumen de Resultados',
         'template' => 'emails.evaluation-closed',
         'data' => [
@@ -588,7 +604,7 @@ class EvaluationNotificationService
             'Comunicación efectiva',
             'Gestión del tiempo'
           ],
-          'evaluation_url' => config('app.frontend_url'),
+          'evaluation_url' => config('app.frontend_url') . '/perfil/equipo',
           'additional_notes' => 'Los resultados detallados están disponibles en la plataforma para su revisión.',
           'date' => now()->format('d/m/Y H:i'),
           'company_name' => 'Grupo Pakatnamu',
@@ -601,7 +617,7 @@ class EvaluationNotificationService
       return [
         'leader_id' => $leader->id,
         'leader_name' => $leader->nombre_completo,
-        'leader_email' => $leader->email,
+        'leader_email' => $leader->email2,
         'team_count' => $leaderData['team_count'],
         'average_score' => $teamSummary['average_score'],
         'sent' => $sent,
@@ -613,7 +629,7 @@ class EvaluationNotificationService
       return [
         'leader_id' => $leader->id,
         'leader_name' => $leader->nombre_completo,
-        'leader_email' => $leader->email,
+        'leader_email' => $leader->email2,
         'sent' => false,
         'error' => $e->getMessage(),
         'evaluation_id' => $evaluation->id,

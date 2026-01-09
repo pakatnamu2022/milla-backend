@@ -115,20 +115,21 @@
       color: #4b5563
     }
 
-    /* Llamados (primary/20) */
+    /* Llamados - estilo minimalista */
     .callout {
-      padding: 14px;
+      padding: 16px;
       border-radius: 12px;
       margin: 16px 0;
-      background: #e6edff;
-      border-left: 4px solid #01237e;
+      background: #ffffff;
+      border: 1px solid #e6e8ee;
+      border-left: 3px solid #01237e;
       color: #0f172a;
     }
 
     .callout-title {
-      font: 600 13px/1.5 Inter, Arial, Helvetica, sans-serif;
-      color: #01237e;
-      margin: 0 0 6px 0;
+      font: 600 14px/1.4 Inter, Arial, Helvetica, sans-serif;
+      color: #111827;
+      margin: 0 0 8px 0;
     }
 
     /* Botones */
@@ -142,7 +143,7 @@
 
     .btn-primary {
       background: #01237e;
-      color: #ffffff;
+      color: #ffffff !important;
       border: 1px solid #0131b1;
     }
 
@@ -152,7 +153,7 @@
 
     .btn-secondary {
       background: #F60404;
-      color: #ffffff;
+      color: #ffffff !important;
       border: 1px solid #c50303;
     }
 
@@ -160,41 +161,45 @@
       background: #c50303;
     }
 
-    /* Tabla corporativa */
+    /* Tabla corporativa - estilo minimalista */
     .table {
       width: 100%;
       border-collapse: collapse;
-      border: 1px solid #01237e;
+      border: 1px solid #e6e8ee;
       border-radius: 12px;
       overflow: hidden;
     }
 
     .table th {
-      background: #01237e;
-      color: #ffffff;
+      background: #f9fafc;
+      color: #111827;
       font: 600 12px/1.4 Inter, Arial, Helvetica, sans-serif;
       text-transform: uppercase;
-      padding: 10px 12px;
+      padding: 12px;
       text-align: left;
+      border-bottom: 2px solid #e6e8ee;
     }
 
     .table td {
-      border: 1px solid #01237e;
-      padding: 10px 12px;
+      border-bottom: 1px solid #e6e8ee;
+      padding: 12px;
       font: 400 14px/1.6 Inter, Arial, Helvetica, sans-serif;
       color: #111827;
     }
 
     .table tr:nth-child(even) {
-      background: #f3f7ff;
+      background: #fbfbfe;
     }
 
-    /* tono muy suave */
-    /* Barra de progreso */
+    .table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Barra de progreso - estilo minimalista */
     .progress {
       height: 10px;
       border-radius: 999px;
-      background: #b3c8fe;
+      background: #e6e8ee;
       overflow: hidden;
     }
 
@@ -202,6 +207,7 @@
       display: block;
       height: 10px;
       background: #01237e;
+      border-radius: 999px;
     }
 
     /* Footer */

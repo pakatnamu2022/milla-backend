@@ -14,7 +14,7 @@ class VerifyShippingGuideMigrationCommand extends Command
    *
    * @var string
    */
-  protected $signature = 'shipping-guide:verify-migration {--id= : ID de la guía de remisión específica} {--all : Verificar todas las guías pendientes} {--sync : Ejecutar inmediatamente sin usar cola}';
+  protected $signature = 'shipping-guide:verify-migration {--id= : ID de la guía de remisión específica} {--all : Verificar todas las guías pendientes} {--limit=100 : Número máximo de guías a procesar (default: 100)} {--sync : Ejecutar inmediatamente sin usar cola}';
 
   /**
    * The console command description.
@@ -66,12 +66,16 @@ class VerifyShippingGuideMigrationCommand extends Command
     }
 
     if ($all) {
-      // Verificar todas las guías pendientes
+      // Verificar todas las guías pendientes (limitado por --limit)
+      $limit = (int) $this->option('limit');
       $pendingGuides = ShippingGuides::whereIn('migration_status', [
         'pending',
         'in_progress',
         'failed'
-      ])->get();
+      ])
+      ->orderBy('id')
+      ->limit($limit)
+      ->get();
 
       if ($pendingGuides->isEmpty()) {
         $this->info("No hay guías pendientes de migración.");
@@ -116,25 +120,11 @@ class VerifyShippingGuideMigrationCommand extends Command
       return 0;
     }
 
-    // Si no se especifica ninguna opción, despachar el job sin ID
-    if ($useSync) {
-      $this->info("Ejecutando verificación para todas las guías pendientes...");
-      $syncService = app(DatabaseSyncService::class);
-      $job = new VerifyAndMigrateShippingGuideJob();
-
-      try {
-        $job->handle($syncService);
-        $this->info("✓ Verificación completada.");
-      } catch (\Exception $e) {
-        $this->error("Error: {$e->getMessage()}");
-        return 1;
-      }
-    } else {
-      $this->info("Despachando job de verificación para todas las guías pendientes...");
-      VerifyAndMigrateShippingGuideJob::dispatch();
-      $this->info("Job despachado a la cola.");
-    }
-
-    return 0;
+    // Si no se especifica ninguna opción, mostrar ayuda
+    $this->error("Debe especificar --id o --all para procesar guías.");
+    $this->line("Ejemplos:");
+    $this->line("  php artisan shipping-guide:verify-migration --id=123");
+    $this->line("  php artisan shipping-guide:verify-migration --all --limit=100");
+    return 1;
   }
 }

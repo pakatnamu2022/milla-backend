@@ -13,61 +13,38 @@ use Exception;
 class ApAssignmentLeadershipService extends BaseService
 {
 
+  /**
+   * List all assignment records (individual assignments)
+   */
   public function list(Request $request)
   {
-    $year = $request->query('year');
-    $month = $request->query('month');
-    $boss = $request->query('search');
-    $all = filter_var($request->query('all', false), FILTER_VALIDATE_BOOLEAN);
-    $perPage = (int)$request->query('per_page', 10);
-    $page = (int)$request->query('page', 1);
+    $query = ApAssignmentLeadership::with(['boss', 'worker']);
 
-    $query = ApAssignmentLeadership::with(['boss', 'worker'])
-      ->when($year, fn($q) => $q->where('year', $year))
-      ->when($month, fn($q) => $q->where('month', $month))
-      ->when($boss, function ($q) use ($boss) {
-        $q->whereHas('boss', function ($sub) use ($boss) {
-          $sub->where('nombre_completo', 'like', "%{$boss}%");
-        });
-      });
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      ApAssignmentLeadership::filters,
+      ApAssignmentLeadership::sorts,
+      ApAssignmentLeadershipResource::class,
+    );
+  }
 
-    if ($all) {
-      $allRecords = $query->get();
-      $grouped = $this->groupAssignments($allRecords);
+  /**
+   * Get assignments grouped by boss (for management view)
+   */
+  public function getGroupedByBoss(Request $request)
+  {
+    // Build query with relationships and apply filters
+    $query = ApAssignmentLeadership::with(['boss', 'worker']);
+    $query = $this->applyFilters($query, $request, ApAssignmentLeadership::filters);
+    $query = $this->applySorting($query, $request, ApAssignmentLeadership::sorts);
 
-      return response()->json($grouped);
-    }
-
+    // Get all records and group them
     $allRecords = $query->get();
-    $allGrouped = $this->groupAssignments($allRecords);
+    $grouped = $this->groupAssignments($allRecords);
 
-    $total = $allGrouped->count();
-    $totalPages = ceil($total / $perPage);
-    $offset = ($page - 1) * $perPage;
-
-    $paginatedGroups = $allGrouped->slice($offset, $perPage)->values();
-
-    $baseUrl = $request->url();
-    $queryParams = $request->except('page');
-
-    return response()->json([
-      'data' => $paginatedGroups,
-      'links' => [
-        'first' => $this->buildUrl($baseUrl, array_merge($queryParams, ['page' => 1])),
-        'last' => $this->buildUrl($baseUrl, array_merge($queryParams, ['page' => $totalPages])),
-        'prev' => $page > 1 ? $this->buildUrl($baseUrl, array_merge($queryParams, ['page' => $page - 1])) : null,
-        'next' => $page < $totalPages ? $this->buildUrl($baseUrl, array_merge($queryParams, ['page' => $page + 1])) : null,
-      ],
-      'meta' => [
-        'current_page' => $page,
-        'from' => $total > 0 ? $offset + 1 : null,
-        'last_page' => $totalPages,
-        'path' => $baseUrl,
-        'per_page' => $perPage,
-        'to' => min($offset + $perPage, $total),
-        'total' => $total,
-      ]
-    ]);
+    // Paginate the grouped collection
+    return $this->paginateCollection($grouped, $request);
   }
 
   private function groupAssignments($records)
@@ -91,11 +68,6 @@ class ApAssignmentLeadershipService extends BaseService
         'status' => $first->status
       ];
     })->values();
-  }
-
-  private function buildUrl($baseUrl, $params)
-  {
-    return $baseUrl . '?' . http_build_query($params);
   }
 
   public function show($id, Request $request)
