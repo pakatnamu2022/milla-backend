@@ -10,8 +10,8 @@
       desempeño de los miembros de su equipo durante el período indicado.
     </div>
 
-    <div class="callout">
-      <div class="callout-title">Información de la evaluación</div>
+    <div class="card">
+      <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:10px;color:#111827;">Información de la evaluación</div>
       <div><strong>Nombre:</strong> {{ $evaluation_name }}</div>
       <div><strong>Fecha de inicio:</strong> {{ $start_date }}</div>
       <div><strong>Fecha límite:</strong> {{ $end_date }}</div>
@@ -45,8 +45,8 @@
       </div>
     @endif
 
-    <div class="callout">
-      <div class="callout-title">Aspectos a evaluar</div>
+    <div class="card card-muted">
+      <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:8px;color:#111827;">Aspectos a evaluar</div>
       La evaluación de desempeño contempla los siguientes componentes:
       <ul style="margin:8px 0 0 0;padding-left:20px;">
         @if($has_objectives ?? true)
@@ -59,8 +59,8 @@
       </ul>
     </div>
 
-    <div class="callout" style="background:#e6edff;border-left-color:#01237e;">
-      <div class="callout-title">Importante</div>
+    <div class="card" style="border-left:3px solid #01237e;">
+      <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:8px;color:#01237e;">Importante</div>
       <div>
         • Complete todas las evaluaciones antes de la fecha límite<br>
         • Sea objetivo y constructivo en sus comentarios<br>
@@ -76,7 +76,7 @@
 
     @isset($additional_notes)
       <div class="card" style="margin-top:16px;">
-        <div style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#01237e;margin-bottom:6px;">Nota</div>
+        <div style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#111827;margin-bottom:6px;">Nota</div>
         <div>{{ $additional_notes }}</div>
       </div>
     @endisset

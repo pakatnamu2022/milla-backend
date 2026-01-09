@@ -172,8 +172,8 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-//        'to' => $leader->email,
-        'to' => "hvaldiviezos@automotorespakatnamu.com",
+        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
+//        'to' => "hvaldiviezos@automotorespakatnamu.com",
         'subject' => 'Recordatorio: Evaluaciones de Desempeño Pendientes',
         'template' => 'emails.evaluation-reminder',
         'data' => [
@@ -185,7 +185,7 @@ class EvaluationNotificationService
           'pending_count' => $pendingData['pending_evaluations'],
           'total_count' => $pendingData['total_evaluations'],
           'pending_evaluations' => $pendingData['pending_details'],
-          'evaluation_url' => config('app.frontend_url') . '/evaluations/' . $evaluation->id,
+          'evaluation_url' => config('app.frontend_url') . '/perfil/equipo',
           'additional_notes' => $this->generateAdditionalNotes($evaluation),
           'send_date' => now()->format('d/m/Y H:i'),
           'company_name' => 'Grupo Pakana',
@@ -198,7 +198,7 @@ class EvaluationNotificationService
       return [
         'leader_id' => $leader->id,
         'leader_name' => $leader->nombre_completo,
-        'leader_email' => $leader->email,
+        'leader_email' => $leader->email2,
         'pending_count' => $pendingData['pending_evaluations'],
         'total_count' => $pendingData['total_evaluations'],
         'sent' => $sent,
@@ -212,7 +212,7 @@ class EvaluationNotificationService
       return [
         'leader_id' => $leader->id,
         'leader_name' => $leader->nombre_completo,
-        'leader_email' => $leader->email,
+        'leader_email' => $leader->email2,
         'pending_count' => $pendingData['pending_evaluations'],
         'total_count' => $pendingData['total_evaluations'],
         'sent' => false,
@@ -281,7 +281,7 @@ class EvaluationNotificationService
       foreach ($leaders as $leaderId => $leaderData) {
         $leader = Worker::find($leaderId);
 
-        if (!$leader || !$leader->email) {
+        if (!$leader || !$leader->email2) {
           continue;
         }
 
@@ -373,7 +373,8 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => $leader->email2,
+        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
+//        'to' => "hvaldiviezos@automotorespakatnamu.com",
         'subject' => 'Nueva Evaluación de Desempeño Habilitada',
         'template' => 'emails.evaluation-opened',
         'data' => [
@@ -389,7 +390,7 @@ class EvaluationNotificationService
           'has_objectives' => true,
           'has_competences' => in_array($evaluation->typeEvaluation, [Evaluation::EVALUATION_TYPE_180, Evaluation::EVALUATION_TYPE_360]),
           'has_goals' => true,
-          'evaluation_url' => config('app.frontend_url'),
+          'evaluation_url' => config('app.frontend_url') . '/perfil/equipo',
           'additional_notes' => 'Recuerde que completar las evaluaciones a tiempo contribuye al desarrollo profesional de su equipo.',
           'date' => now()->format('d/m/Y H:i'),
           'company_name' => 'Grupo Pakatnamu',
@@ -577,7 +578,8 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => $leader->email2,
+        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
+//        'to' => "hvaldiviezos@automotorespakatnamu.com",
         'subject' => 'Evaluación de Desempeño Finalizada - Resumen de Resultados',
         'template' => 'emails.evaluation-closed',
         'data' => [
@@ -602,7 +604,7 @@ class EvaluationNotificationService
             'Comunicación efectiva',
             'Gestión del tiempo'
           ],
-          'evaluation_url' => config('app.frontend_url'),
+          'evaluation_url' => config('app.frontend_url') . '/perfil/equipo',
           'additional_notes' => 'Los resultados detallados están disponibles en la plataforma para su revisión.',
           'date' => now()->format('d/m/Y H:i'),
           'company_name' => 'Grupo Pakatnamu',

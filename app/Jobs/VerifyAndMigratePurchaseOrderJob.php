@@ -20,9 +20,9 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
 {
   use Queueable;
 
-  public int $tries = 5; // Aumentar intentos porque este job coordina todo el flujo
+  public int $tries = 2; // Reducido de 5 → 2 para evitar crecimiento exponencial de jobs
   public int $timeout = 300;
-  public int $backoff = 60; // Esperar 60 segundos entre reintentos para dar tiempo al sistema intermedio
+  public int $backoff = 120; // Aumentado a 120 segundos para dar más tiempo entre reintentos
 
   /**
    * Create a new job instance.

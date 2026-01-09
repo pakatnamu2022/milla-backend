@@ -24,6 +24,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use NumberFormatter;
@@ -37,6 +38,32 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   public function __construct(NubefactApiService $nubefactService)
   {
     $this->nubefactService = $nubefactService;
+  }
+
+  /**
+   * Despacha un job de sincronización con deduplicación para evitar jobs duplicados
+   * Usa cache de base de datos como lock para prevenir dispatch de jobs múltiples
+   * para el mismo documento electrónico
+   * @param int $electronicDocumentId
+   * @return void
+   */
+  protected function dispatchJobWithDeduplication(int $electronicDocumentId): void
+  {
+    $cacheKey = "sync-doc-{$electronicDocumentId}";
+
+    // Verificar si ya hay un job activo para este documento (lock existe)
+    if (Cache::store('database')->has($cacheKey)) {
+      // Ya hay un job activo, no despachar otro
+      return;
+    }
+
+    // Marcar como activo (lock por 10 minutos = 600 segundos)
+    // Este lock se limpiará automáticamente después de 10 minutos
+    // Si el job termina antes, el lock persiste pero no afecta porque ya se procesó
+    Cache::store('database')->put($cacheKey, true, 600);
+
+    // Despachar job
+    SyncSalesDocumentJob::dispatch($electronicDocumentId);
   }
 
   /**
@@ -461,7 +488,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Si el documento fue aceptado por SUNAT, actualizar usando el metodo del modelo
       if (isset($nubefactData['aceptada_por_sunat']) && $nubefactData['aceptada_por_sunat'] && !$document->aceptada_por_sunat) {
         $document->markAsAccepted($nubefactData);
-        SyncSalesDocumentJob::dispatch($id);
+        // Usa deduplicación para evitar jobs duplicados
+        $this->dispatchJobWithDeduplication($id);
         $document->markAsInProgress();
 
         // Actualizar estado de cotización si el documento tiene order_quotation_id
@@ -1406,8 +1434,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('No se puede sincronizar un documento anulado');
     }
 
-    // Dispatch the sync job
-    SyncSalesDocumentJob::dispatch($id);
+    // Dispatch the sync job con deduplicación
+    $this->dispatchJobWithDeduplication($id);
 
     return [
       'success' => true,

@@ -32,43 +32,49 @@ Schedule::command('app:sync-exchange-rate')
   ->withoutOverlapping();
 
 // Verificar y migrar órdenes de compra de vehículos pendientes
-Schedule::command('po:verify-migration --all')
-  ->everyThirtySeconds()
+// Procesa lotes de 100 órdenes cada 5 minutos (1,200/hora) para evitar sobrecarga
+Schedule::command('po:verify-migration --all --limit=100')
+  ->everyFiveMinutes()
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
 
 // Verificar y migrar guías de remisión pendientes
-Schedule::command('shipping-guide:verify-migration --all')
-  ->everyThirtySeconds()
+// Procesa lotes de 100 guías cada 5 minutos (1,200/hora) para evitar sobrecarga
+Schedule::command('shipping-guide:verify-migration --all --limit=100')
+  ->everyFiveMinutes()
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
 
 // Sincronizar invoice_dynamics desde Dynamics
-Schedule::command('po:sync-invoice-dynamics --all')
-  ->everyThirtySeconds()
+// Procesa lotes de 50 órdenes cada 10 minutos (300/hora) para reducir carga en API
+Schedule::command('po:sync-invoice-dynamics --all --limit=50')
+  ->everyTenMinutes()
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
 
 // Sincronizar credit_note_dynamics desde Dynamics
-Schedule::command('po:sync-credit-note-dynamics --all')
-  ->everyThirtySeconds()
+// Procesa lotes de 50 órdenes cada 10 minutos (300/hora) para reducir carga en API
+Schedule::command('po:sync-credit-note-dynamics --all --limit=50')
+  ->everyTenMinutes()
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
 
 // Verificar y sincronizar documentos electrónicos de venta a Dynamics
-Schedule::command('electronic-document:verify-sync --all')
-  ->everyFiveSeconds()
+// Procesa lotes de 200 documentos cada 2 minutos (6,000/hora) - más frecuente por mayor volumen
+Schedule::command('electronic-document:verify-sync --all --limit=200')
+  ->everyTwoMinutes()
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
 
 // Consultar estado de documentos electrónicos enviados a SUNAT
+// Verificación de estado cada minuto (solo lectura, no crea jobs masivos)
 Schedule::command('app:check-pending-electronic-documents')
-  ->everyFiveSeconds()
+  ->everyMinute()
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();

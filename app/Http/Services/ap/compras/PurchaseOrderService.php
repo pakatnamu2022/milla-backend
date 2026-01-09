@@ -19,6 +19,7 @@ use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\maestroGeneral\Sede;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -155,6 +156,32 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
   }
 
   /**
+   * Despacha un job de migración con deduplicación para evitar jobs duplicados
+   * Usa cache de base de datos como lock para prevenir dispatch de jobs múltiples
+   * para la misma orden de compra
+   * @param int $purchaseOrderId
+   * @return void
+   */
+  protected function dispatchJobWithDeduplication(int $purchaseOrderId): void
+  {
+    $cacheKey = "verify-po-{$purchaseOrderId}";
+
+    // Verificar si ya hay un job activo para esta orden (lock existe)
+    if (Cache::store('database')->has($cacheKey)) {
+      // Ya hay un job activo, no despachar otro
+      return;
+    }
+
+    // Marcar como activo (lock por 10 minutos = 600 segundos)
+    // Este lock se limpiará automáticamente después de 10 minutos
+    // Si el job termina antes, el lock persiste pero no afecta porque ya se procesó
+    Cache::store('database')->put($cacheKey, true, 600);
+
+    // Despachar job
+    VerifyAndMigratePurchaseOrderJob::dispatch($purchaseOrderId);
+  }
+
+  /**
    * Crea una nueva orden de compra
    * Si tiene datos de vehículo, crea: Vehicle → VehicleMovement → PurchaseOrder
    * Si type_operation_id = TIPO_OPERACION_POSTVENTA, actualiza quantity_in_transit
@@ -202,8 +229,9 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       }
 
       // Despachar job de migración y sincronización si está habilitado
+      // Usa deduplicación para evitar jobs duplicados
       if (config('database_sync.enabled', false)) {
-        VerifyAndMigratePurchaseOrderJob::dispatch($purchaseOrder->id);
+        $this->dispatchJobWithDeduplication($purchaseOrder->id);
       }
 
       DB::commit();
@@ -354,8 +382,9 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       }
 
       // Despachar job de migración si está habilitado y la orden está pendiente de migración
+      // Usa deduplicación para evitar jobs duplicados en actualizaciones
       if (config('database_sync.enabled', false) && $purchaseOrder->migration_status !== 'completed') {
-        VerifyAndMigratePurchaseOrderJob::dispatch($purchaseOrder->id);
+        $this->dispatchJobWithDeduplication($purchaseOrder->id);
       }
 
       DB::commit();
@@ -505,8 +534,9 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       }
 
       // Despachar job de migración si está habilitado
+      // Usa deduplicación para evitar jobs duplicados
       if (config('database_sync.enabled', false)) {
-        VerifyAndMigratePurchaseOrderJob::dispatch($newPurchaseOrder->id);
+        $this->dispatchJobWithDeduplication($newPurchaseOrder->id);
       }
 
       DB::commit();

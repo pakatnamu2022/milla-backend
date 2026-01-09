@@ -14,7 +14,7 @@ class VerifyPurchaseOrderMigrationCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'po:verify-migration {--id= : ID de la orden de compra específica} {--all : Verificar todas las órdenes pendientes} {--sync : Ejecutar inmediatamente sin usar cola}';
+    protected $signature = 'po:verify-migration {--id= : ID de la orden de compra específica} {--all : Verificar todas las órdenes pendientes} {--limit=100 : Número máximo de órdenes a procesar (default: 100)} {--sync : Ejecutar inmediatamente sin usar cola}';
 
     /**
      * The console command description.
@@ -66,12 +66,16 @@ class VerifyPurchaseOrderMigrationCommand extends Command
         }
 
         if ($all) {
-            // Verificar todas las órdenes pendientes
+            // Verificar todas las órdenes pendientes (limitado por --limit)
+            $limit = (int) $this->option('limit');
             $pendingOrders = PurchaseOrder::whereIn('migration_status', [
                 'pending',
                 'in_progress',
                 'failed'
-            ])->get();
+            ])
+            ->orderBy('id')
+            ->limit($limit)
+            ->get();
 
             if ($pendingOrders->isEmpty()) {
                 $this->info("No hay órdenes pendientes de migración.");
@@ -116,25 +120,11 @@ class VerifyPurchaseOrderMigrationCommand extends Command
             return 0;
         }
 
-        // Si no se especifica ninguna opción, despachar el job sin ID
-        if ($useSync) {
-            $this->info("Ejecutando verificación para todas las órdenes pendientes...");
-            $syncService = app(DatabaseSyncService::class);
-            $job = new VerifyAndMigratePurchaseOrderJob();
-
-            try {
-                $job->handle($syncService);
-                $this->info("✓ Verificación completada.");
-            } catch (\Exception $e) {
-                $this->error("Error: {$e->getMessage()}");
-                return 1;
-            }
-        } else {
-            $this->info("Despachando job de verificación para todas las órdenes pendientes...");
-            VerifyAndMigratePurchaseOrderJob::dispatch();
-            $this->info("Job despachado a la cola.");
-        }
-
-        return 0;
+        // Si no se especifica ninguna opción, mostrar ayuda
+        $this->error("Debe especificar --id o --all para procesar órdenes.");
+        $this->line("Ejemplos:");
+        $this->line("  php artisan po:verify-migration --id=123");
+        $this->line("  php artisan po:verify-migration --all --limit=100");
+        return 1;
     }
 }
