@@ -16,7 +16,8 @@ class ApOrderQuotationsResource extends JsonResource
       'vehicle_id' => $this->vehicle_id,
       'sede_id' => $this->sede_id,
       'plate' => $this->vehicle ? $this->vehicle->plate : "-",
-      'vehicle' => new VehiclesResource($this->whenLoaded('vehicle')),
+      'customer' => $this->vehicle ? $this->vehicle->customer->full_name : "-",
+      'vehicle' => new VehiclesResource($this->vehicle),
       'quotation_number' => $this->quotation_number,
       'subtotal' => (float)$this->subtotal,
       'discount_percentage' => (float)$this->discount_percentage,
@@ -38,6 +39,11 @@ class ApOrderQuotationsResource extends JsonResource
       'has_invoice_generated' => (bool)$this->has_invoice_generated,
       'is_fully_paid' => (bool)$this->is_fully_paid,
       'output_generation_warehouse' => (bool)$this->output_generation_warehouse,
+      'discard_reason' => $this->discardReason->description ?? null,
+      'discarded_note' => $this->discarded_note,
+      'discarded_by_name' => $this->discardedBy->name ?? null,
+      'discarded_at' => $this->discarded_at ? $this->discarded_at->format('Y-m-d') : null,
+      'status' => $this->status,
     ];
   }
 }

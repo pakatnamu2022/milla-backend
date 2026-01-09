@@ -145,6 +145,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       );
       $data['numero'] = $nextNumberData['number'];
 
+      // Validar que si la cotización status = Aperturado
+      if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
+        $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+        if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+          throw new Exception('No se puede generar un documento electrónico para una cotización descartada.');
+        }
+      }
+
       /**
        * Validar que la serie sea correcta
        */

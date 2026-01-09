@@ -8,6 +8,7 @@ use App\Http\Requests\ap\postventa\taller\StoreApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\StoreApOrderQuotationWithProductsRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationWithProductsRequest;
+use App\Http\Requests\ap\postventa\taller\DiscardApOrderQuotationsRequest;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsService;
 
 class ApOrderQuotationsController extends Controller
@@ -107,6 +108,17 @@ class ApOrderQuotationsController extends Controller
       }
 
       return $this->service->generateQuotationRepuestoPDF($id, $showCodes);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function discard(DiscardApOrderQuotationsRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->discard($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

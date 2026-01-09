@@ -49,7 +49,7 @@ class PotentialBuyers extends Model
     'sede_id' => '=',
     'vehicle_brand_id' => '=',
     'document_type_id' => '=',
-    'created_at' => 'date_btw',
+    'created_at' => 'date_between',
     'type' => '=',
     'income_sector_id' => '=',
     'area_id' => '=',

@@ -227,6 +227,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
       }
 
+      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+        throw new Exception('No se puede actualizar una cotización que ha sido descartada.');
+      }
+
       if ($quotation->has_invoice_generated) {
         throw new Exception('No se puede actualizar una cotización que ya tiene una factura generada.');
       }
@@ -308,11 +312,58 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       throw new Exception('No se puede eliminar una cotización que ya tiene una factura generada.');
     }
 
+    if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+      throw new Exception('No se puede eliminar una cotización que ha sido descartada.');
+    }
+
     DB::transaction(function () use ($quotation) {
       $quotation->delete();
     });
 
     return response()->json(['message' => 'Cotización eliminada correctamente']);
+  }
+
+  public function discard(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $quotation = $this->find($data['id']);
+
+      if ($quotation->has_invoice_generated) {
+        throw new Exception('No se puede descartar una cotización que ya tiene una factura generada.');
+      }
+
+      if ($quotation->discarded_at) {
+        throw new Exception('Esta cotización ya ha sido descartada previamente.');
+      }
+
+      // Preparar los datos de descarte
+      $discardData = [
+        'discard_reason_id' => $data['discard_reason_id'],
+        'discarded_note' => $data['discarded_note'] ?? null,
+        'discarded_by' => auth()->check() ? auth()->user()->id : null,
+        'discarded_at' => Carbon::now(),
+      ];
+
+      // Si se proporciona un status, actualizarlo
+      if (isset($data['status'])) {
+        $discardData['status'] = $data['status'];
+      } else {
+        // Establecer un status por defecto si no se proporciona
+        $discardData['status'] = ApOrderQuotations::STATUS_DESCARTADO;
+      }
+
+      $quotation->update($discardData);
+
+      $quotation->load([
+        'vehicle',
+        'createdBy',
+        'details',
+        'discardReason',
+        'discardedBy'
+      ]);
+
+      return new ApOrderQuotationsResource($quotation);
+    });
   }
 
   /**
