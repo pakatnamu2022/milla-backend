@@ -275,10 +275,19 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
     $businessPartner = $this->find($id);
     if (!$businessPartner->status_ap) throw new Exception('El socio comercial no es un cliente activo');
     $statusIds = ApCommercialMasters::where('type', 'OPPORTUNITY_STATUS')->whereIn('code', Opportunity::OPEN_STATUS_CODES)->pluck('id')->toArray();
-    $opportunity = Opportunity::where('client_id', $businessPartner->id)->whereIn('opportunity_status_id', $statusIds)->first();
-    if ($opportunity) {
-      throw new Exception('El cliente tiene oportunidades abiertas');
+    $opportunities = Opportunity::where('client_id', $businessPartner->id)
+      ->whereIn('opportunity_status_id', $statusIds)
+      ->with('family.brand')
+      ->get();
+
+    if ($opportunities->count() > 0) {
+      $brandIds = $opportunities->pluck('family.brand_id')->filter()->unique();
+
+      if ($brandIds->count() === 1) {
+        throw new Exception('El cliente tiene oportunidades abiertas de la misma marca');
+      }
     }
+
     return new BusinessPartnersResource($businessPartner);
   }
 }
