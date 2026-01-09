@@ -299,7 +299,7 @@ class EvaluationNotificationController extends Controller
           'evaluation_url' => config('app.frontend_url') . '/evaluations/' . $request->input('evaluation_id'),
           'additional_notes' => 'Esta es una prueba del sistema de notificaciones de evaluaciones.',
           'send_date' => now()->format('d/m/Y H:i'),
-          'company_name' => 'Grupo Pakana',
+          'company_name' => 'Grupo Pakatnamu',
           'contact_info' => 'rrhh@grupopakatnamu.com'
         ]
       ];

@@ -188,7 +188,7 @@ class EvaluationNotificationService
           'evaluation_url' => config('app.frontend_url') . '/perfil/equipo',
           'additional_notes' => $this->generateAdditionalNotes($evaluation),
           'send_date' => now()->format('d/m/Y H:i'),
-          'company_name' => 'Grupo Pakana',
+          'company_name' => 'Grupo Pakatnamu',
           'contact_info' => 'rrhh@grupopakatnamu.com'
         ]
       ];
@@ -697,7 +697,7 @@ class EvaluationNotificationService
           'conclusions' => $totalPendingEvaluations > 0
             ? "Se han identificado {$totalPendingEvaluations} evaluaciones pendientes que requieren seguimiento."
             : "Todas las evaluaciones están al día.",
-          'company_name' => 'Grupo Pakana',
+          'company_name' => 'Grupo Pakatnamu',
           'contact_info' => 'sistema@grupopakatnamu.com'
         ]
       ];
