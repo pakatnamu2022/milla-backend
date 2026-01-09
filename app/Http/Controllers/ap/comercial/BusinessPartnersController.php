@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\IndexBusinessPartnersRequest;
 use App\Http\Requests\ap\comercial\StoreBusinessPartnersRequest;
 use App\Http\Requests\ap\comercial\UpdateBusinessPartnersRequest;
+use App\Http\Requests\ap\comercial\ValidateBusinessPartnersRequest;
 use App\Http\Services\ap\comercial\BusinessPartnersService;
 use App\Http\Utils\Constants;
 use Illuminate\Http\Request;
@@ -71,7 +72,7 @@ class BusinessPartnersController extends Controller
 
     return $this->service->destroy($id, $request->type);
   }
-  
+
   public function establishments($id)
   {
     try {
@@ -90,10 +91,11 @@ class BusinessPartnersController extends Controller
     }
   }
 
-  public function validateOpportunity($id)
+  public function validateOpportunity(ValidateBusinessPartnersRequest $request, $id)
   {
     try {
-      return $this->success($this->service->validateOpportunity($id));
+      $leadId = $request->query('lead_id');
+      return $this->success($this->service->validateOpportunity($id, $leadId));
     } catch (\Throwable $th) {
       return $this->errorValidation($th->getMessage());
     }
