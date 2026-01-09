@@ -16,6 +16,7 @@ use App\Models\ap\ApCommercialMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\Opportunity;
+use App\Models\ap\comercial\PotentialBuyers;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -270,7 +271,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
    * >>>>>>> main
    * Validar si un socio comercial tiene oportunidades abiertas
    */
-  public function validateOpportunity($id)
+  public function validateOpportunity($id, $leadId): BusinessPartnersResource
   {
     $businessPartner = $this->find($id);
     if (!$businessPartner->status_ap) throw new Exception('El socio comercial no es un cliente activo');
@@ -281,10 +282,16 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       ->get();
 
     if ($opportunities->count() > 0) {
-      $brandIds = $opportunities->pluck('family.brand_id')->filter()->unique();
+      // Obtener el lead y su marca de vehículo
+      $lead = PotentialBuyers::findOrFail($leadId);
+      $newBrandId = $lead->vehicle_brand_id;
 
-      if ($brandIds->count() === 1) {
-        throw new Exception('El cliente tiene oportunidades abiertas de la misma marca');
+      // Obtener las marcas de todas las oportunidades existentes
+      $existingBrandIds = $opportunities->pluck('family.brand_id')->filter()->unique();
+
+      // Si la nueva oportunidad es de la misma marca que alguna existente, lanzar excepción
+      if ($existingBrandIds->contains($newBrandId)) {
+        throw new Exception('El cliente ya tiene una oportunidad abierta de la misma marca');
       }
     }
 
