@@ -94,6 +94,11 @@ class PurchaseOrder extends BaseModel
     'total',
   ];
 
+  // SUPPLY TYPE CONSTANTS
+  const STOCK = 'STOCK';
+  const LIMA = 'LIMA';
+  const IMPORTACION = 'IMPORTACION';
+
   // Relaciones
   public function supplier(): BelongsTo
   {

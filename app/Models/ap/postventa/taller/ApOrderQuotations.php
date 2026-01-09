@@ -44,6 +44,7 @@ class ApOrderQuotations extends Model
     'discarded_note',
     'discarded_by',
     'discarded_at',
+    'supply_type',
     'customer_signature_url',
     'status',
   ];
@@ -76,10 +77,16 @@ class ApOrderQuotations extends Model
     'is_fully_paid' => 'boolean',
   ];
 
+  //STATUS CONSTANTS
   const STATUS_DESCARTADO = 'Descartado';
   const STATUS_APERTURADO = 'Aperturado';
   const STATUS_POR_FACTURAR = 'Por Facturar';
   const STATUS_FACTURADO = 'Facturado';
+
+  // SUPPLY TYPE CONSTANTS
+  const STOCK = 'STOCK';
+  const LIMA = 'LIMA';
+  const IMPORTACION = 'IMPORTACION';
 
   protected static function boot()
   {
