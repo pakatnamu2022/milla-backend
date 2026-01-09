@@ -1,0 +1,4 @@
+# .github/CODEOWNERS
+
+# Solo pakatnamu2022 puede aprobar PRs a main
+* @pakatnamu2022
