@@ -44,6 +44,7 @@ class ApOrderQuotations extends Model
     'discarded_note',
     'discarded_by',
     'discarded_at',
+    'customer_signature_url',
     'status',
   ];
 

@@ -9,6 +9,7 @@ use App\Http\Requests\ap\postventa\taller\StoreApOrderQuotationWithProductsReque
 use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationWithProductsRequest;
 use App\Http\Requests\ap\postventa\taller\DiscardApOrderQuotationsRequest;
+use App\Http\Requests\ap\postventa\taller\ConfirmApOrderQuotationsRequest;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsService;
 
 class ApOrderQuotationsController extends Controller
@@ -119,6 +120,17 @@ class ApOrderQuotationsController extends Controller
       $data = $request->validated();
       $data['id'] = $id;
       return $this->success($this->service->discard($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function confirm(ConfirmApOrderQuotationsRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->confirm($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

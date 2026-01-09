@@ -1118,6 +1118,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('orderQuotations/with-products', [ApOrderQuotationsController::class, 'storeWithProducts']);
       Route::put('orderQuotations/{id}/with-products', [ApOrderQuotationsController::class, 'updateWithProducts']);
       Route::put('orderQuotations/{id}/discard', [ApOrderQuotationsController::class, 'discard']);
+      Route::put('orderQuotations/{id}/confirm', [ApOrderQuotationsController::class, 'confirm']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',

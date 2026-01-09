@@ -16,7 +16,8 @@ return new class extends Migration {
       $table->foreign('discarded_by')->references('id')->on('usr_users')->onDelete('set null');
       $table->dateTime('discarded_at')->nullable()->after('discarded_by');
       $table->string('discarded_note')->nullable()->after('discarded_at');
-      $table->enum('status', ['Aperturado', 'Descartado', 'Por Facturar', 'Facturado'])->default('Aperturado')->after('output_generation_warehouse');
+      $table->string('customer_signature_url', 500)->nullable()->after('output_generation_warehouse');
+      $table->enum('status', ['Aperturado', 'Descartado', 'Por Facturar', 'Facturado'])->default('Aperturado')->after('customer_signature_url');
     });
   }
 
@@ -32,6 +33,7 @@ return new class extends Migration {
       $table->dropColumn('discarded_by');
       $table->dropColumn('discarded_at');
       $table->dropColumn('discarded_note');
+      $table->dropColumn('customer_signature_url');
       $table->dropColumn('status');
     });
   }

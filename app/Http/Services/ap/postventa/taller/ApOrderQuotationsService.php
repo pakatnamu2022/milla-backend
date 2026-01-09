@@ -5,10 +5,13 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Utils\Constants;
+use App\Http\Utils\Helpers;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\gp\gestionsistema\DigitalFile;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -18,6 +21,18 @@ use Illuminate\Support\Facades\DB;
 
 class ApOrderQuotationsService extends BaseService implements BaseServiceInterface
 {
+  protected DigitalFileService $digitalFileService;
+
+  // Configuración de rutas para archivos
+  private const FILE_PATHS = [
+    'customer_signature' => '/ap/postventa/taller/cotizaciones/firmas-cliente/',
+  ];
+
+  public function __construct(DigitalFileService $digitalFileService)
+  {
+    $this->digitalFileService = $digitalFileService;
+  }
+
   public function list(Request $request)
   {
     return $this->getFilteredResults(
@@ -176,7 +191,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   {
     $quotation = $this->find($id);
     $quotation->load('advancesOrderQuotation');
-    return new ApOrderQuotationsResource($quotation);
+    return (new ApOrderQuotationsResource($quotation))->additional(['checkStock' => true]);
   }
 
 
@@ -229,6 +244,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
         throw new Exception('No se puede actualizar una cotización que ha sido descartada.');
+      }
+
+      if ($quotation->status !== ApOrderQuotations::STATUS_APERTURADO) {
+        throw new Exception('Solo se pueden eliminar cotizaciones en estado "Aperturado".');
       }
 
       if ($quotation->has_invoice_generated) {
@@ -307,6 +326,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   public function destroy($id)
   {
     $quotation = $this->find($id);
+
+    if ($quotation->status !== ApOrderQuotations::STATUS_APERTURADO) {
+      throw new Exception('Solo se pueden eliminar cotizaciones en estado "Aperturado".');
+    }
 
     if ($quotation->has_invoice_generated) {
       throw new Exception('No se puede eliminar una cotización que ya tiene una factura generada.');
@@ -498,6 +521,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $data['tax_amount'] = $quotation->tax_amount;
     $data['total_amount'] = $total_amount;
 
+    // Convertir firma del cliente a base64 si existe
+    $customerSignature = null;
+    if ($quotation->customer_signature_url) {
+      $customerSignature = Helpers::convertUrlToBase64($quotation->customer_signature_url);
+    }
+    $data['customer_signature'] = $customerSignature;
+
     // Generar PDF
     $pdf = Pdf::loadView('reports.ap.postventa.taller.order-quotation', [
       'quotation' => $data
@@ -621,6 +651,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $data['tax_amount'] = $quotation->tax_amount;
     $data['total_amount'] = $total_amount;
 
+    // Convertir firma del cliente a base64 si existe
+    $customerSignature = null;
+    if ($quotation->customer_signature_url) {
+      $customerSignature = Helpers::convertUrlToBase64($quotation->customer_signature_url);
+    }
+    $data['customer_signature'] = $customerSignature;
+
     // Generar PDF
     $pdf = Pdf::loadView('reports.ap.postventa.taller.order-quotation-repuesto', [
       'quotation' => $data
@@ -631,5 +668,66 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $fileName = 'Cotizacion_Repuestos_' . $quotation->quotation_number . '.pdf';
 
     return $pdf->download($fileName);
+  }
+
+  /**
+   * Confirma una cotización guardando la firma del cliente y cambiando el estado a "Por Facturar"
+   */
+  public function confirm(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $quotation = $this->find($data['id']);
+
+      // Validaciones
+      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+        throw new Exception('No se puede confirmar una cotización que ha sido descartada.');
+      }
+
+      if ($quotation->has_invoice_generated) {
+        throw new Exception('No se puede confirmar una cotización que ya tiene una factura generada.');
+      }
+
+      if ($quotation->status === ApOrderQuotations::STATUS_POR_FACTURAR) {
+        throw new Exception('Esta cotización ya ha sido confirmada previamente.');
+      }
+
+      // Procesar firma del cliente si existe
+      if (isset($data['customer_signature'])) {
+        $this->processCustomerSignature($quotation, $data['customer_signature']);
+      }
+
+      // Cambiar el estado a "Por Facturar"
+      $quotation->update([
+        'status' => ApOrderQuotations::STATUS_POR_FACTURAR,
+      ]);
+
+      $quotation->load([
+        'vehicle',
+        'createdBy',
+        'details',
+      ]);
+
+      return new ApOrderQuotationsResource($quotation);
+    });
+  }
+
+  /**
+   * Procesa y guarda la firma del cliente en base64
+   */
+  private function processCustomerSignature($quotation, string $base64Signature): void
+  {
+    // Convertir base64 a UploadedFile
+    $signatureFile = Helpers::base64ToUploadedFile($base64Signature, "customer_signature.png");
+
+    // Ruta y modelo
+    $path = self::FILE_PATHS['customer_signature'];
+    $model = $quotation->getTable();
+
+    // Subir archivo usando DigitalFileService
+    $digitalFile = $this->digitalFileService->store($signatureFile, $path, 'public', $model);
+
+    // Actualizar la cotización con la URL de la firma
+    $quotation->customer_signature_url = $digitalFile->url;
+    $quotation->save();
   }
 }
