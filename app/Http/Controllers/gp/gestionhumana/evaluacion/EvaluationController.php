@@ -8,16 +8,20 @@ use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\RegenerateEvaluationRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationRequest;
+use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationPersonService;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationService;
+use App\Jobs\UpdateEvaluationDashboards;
 use Illuminate\Http\Request;
 
 class EvaluationController extends Controller
 {
   protected EvaluationService $service;
+  protected EvaluationPersonService $evaluationPersonService;
 
-  public function __construct(EvaluationService $service)
+  public function __construct(EvaluationService $service, EvaluationPersonService $evaluationPersonService)
   {
     $this->service = $service;
+    $this->evaluationPersonService = $evaluationPersonService;
   }
 
   public function index(IndexEvaluationRequest $request)
@@ -103,7 +107,21 @@ class EvaluationController extends Controller
     try {
       $request->validate([
         'show_extra' => 'sometimes|boolean',
+        'recalculate' => 'sometimes|boolean',
       ]);
+
+      $recalculate = $request->input('recalculate', false);
+
+      // Si se solicita recálculo completo
+      if ($recalculate) {
+        // 1. Recalcular resultados de todas las personas
+        $this->evaluationPersonService->recalculateAllResults($id);
+
+        // 2. Disparar actualización completa de dashboards (general + individuales)
+        UpdateEvaluationDashboards::dispatch($id, true)
+          ->onQueue('evaluation-dashboards');
+      }
+
       $showExtra = $request->input('show_extra', 1);
       return $this->success($this->service->show($showExtra, $id));
     } catch (\Throwable $th) {

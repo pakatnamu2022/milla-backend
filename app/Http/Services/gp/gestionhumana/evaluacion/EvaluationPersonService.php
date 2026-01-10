@@ -16,6 +16,7 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class EvaluationPersonService extends BaseService
 {
@@ -198,6 +199,34 @@ class EvaluationPersonService extends BaseService
   {
     $evaluation = Evaluation::findOrFail($evaluationId);
 
+    // Primero, recalcular compliance y qualification de cada EvaluationPerson individual
+    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluationId)
+      ->where('person_id', $personId)
+      ->with('personCycleDetail')
+      ->get();
+
+    foreach ($evaluationPersons as $evaluationPerson) {
+      // Solo recalcular si tiene un resultado definido y personCycleDetail
+      if ($evaluationPerson->result !== null && $evaluationPerson->personCycleDetail) {
+        $result = floatval($evaluationPerson->result);
+        $goal = floatval($evaluationPerson->personCycleDetail->goal);
+        $isAscending = $evaluationPerson->personCycleDetail->isAscending;
+
+        // Calcular compliance usando la misma lógica que en update()
+        $compliance = $this->calculateCompliance($result, $goal, $isAscending);
+
+        // Calcular qualification (limitada a máximo 120%)
+        $qualification = min($compliance, 120.00);
+
+        // Actualizar los valores calculados
+        $evaluationPerson->update([
+          'compliance' => round($compliance, 2),
+          'qualification' => round($qualification, 2),
+          'wasEvaluated' => true,
+        ]);
+      }
+    }
+
     // Calcular resultado de objetivos
     $objectivesResult = $this->calculateObjectivesResult($evaluationId, $personId);
 
@@ -249,7 +278,7 @@ class EvaluationPersonService extends BaseService
    */
   public function recalculateAllResults($evaluationId)
   {
-    $evaluation = Evaluation::findOrFail($evaluationId);
+    Evaluation::findOrFail($evaluationId);
 
     // Obtener todas las personas de la evaluación
     $personResults = EvaluationPersonResult::where('evaluation_id', $evaluationId)->get();
