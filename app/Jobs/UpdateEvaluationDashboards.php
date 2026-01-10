@@ -21,6 +21,7 @@ class UpdateEvaluationDashboards implements ShouldQueue
   public function __construct($evaluationId = null)
   {
     $this->evaluationId = $evaluationId;
+    $this->onQueue('evaluation-dashboards');
   }
 
   /**

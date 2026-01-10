@@ -130,8 +130,7 @@ class EvaluationPersonService extends BaseService
     $evaluationPerson->update($data);
 
     $this->recalculatePersonResults($evaluationPerson->evaluation_id, $evaluationPerson->person_id);
-    UpdateEvaluationPersonDashboardsChunk::dispatchSync($evaluationPerson->evaluation_id, [$evaluationPerson->person_id]);
-
+    UpdateEvaluationPersonDashboardsChunk::dispatch($evaluationPerson->evaluation_id, [$evaluationPerson->person_id]);
 
     return new EvaluationPersonResource($evaluationPerson);
   }
