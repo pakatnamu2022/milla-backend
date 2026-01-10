@@ -51,23 +51,23 @@ return new class extends Migration {
       $table->boolean('status_dp')->default(false);
       $table->enum('type', ['CLIENTE', 'PROVEEDOR', 'AMBOS'])->default('CLIENTE');
       $table->foreignId('origin_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->foreignId('tax_class_type_id')
         ->constrained('tax_class_types')->onDelete('cascade');
       $table->foreignId('type_person_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->foreignId('district_id')
         ->constrained('district')->onDelete('cascade');
       $table->foreignId('document_type_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->foreignId('person_segment_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->foreignId('marital_status_id')->nullable()
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->foreignId('gender_id')->nullable()
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->foreignId('activity_economic_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->foreignId('company_id')
         ->constrained('companies')->onDelete('cascade');
       $table->timestamps();

@@ -17,6 +17,8 @@ use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
@@ -171,6 +173,17 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $data['serie']
       );
       $data['numero'] = $nextNumberData['number'];
+
+      // Validar que si la cotización status = Aperturado
+      if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
+        $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+        if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+          throw new Exception('No se puede generar un documento electrónico para una cotización descartada.');
+        }
+
+        // Validar stock de productos si no es un anticipo
+        $this->validateQuotationStock($quotation);
+      }
 
       /**
        * Validar que la serie sea correcta
@@ -1597,6 +1610,49 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'error' => $e->getMessage(),
       ]);
       // No lanzar excepción para evitar que falle la creación del documento
+    }
+  }
+  
+  private function validateQuotationStock(ApOrderQuotations $quotation): void
+  {
+    // Si es un anticipo, no validamos stock
+    if ($quotation->is_advance_payment == 1) {
+      return;
+    }
+
+    // Get warehouse from sede
+    $warehouse = Warehouse::where('sede_id', $quotation->sede_id)
+      ->where('is_physical_warehouse', 1)
+      ->where('status', 1)
+      ->first();
+
+    if (!$warehouse) {
+      throw new Exception('No se encontró un almacén físico activo para la sede seleccionada.');
+    }
+
+    // Get all product details from quotation
+    $productDetails = $quotation->details->where('item_type', 'PRODUCT');
+
+    if ($productDetails->isEmpty()) {
+      throw new Exception('La cotización no tiene productos para validar stock.');
+    }
+
+    // Check stock for each product
+    foreach ($productDetails as $detail) {
+      // Skip if no product_id
+      if (!$detail->product_id) {
+        continue;
+      }
+
+      // Get stock for this product in this warehouse
+      $stock = ProductWarehouseStock::where('warehouse_id', $warehouse->id)
+        ->where('product_id', $detail->product_id)
+        ->first();
+
+      // If no stock record found or insufficient available quantity, throw exception
+      if (!$stock || $stock->available_quantity < $detail->quantity) {
+        throw new Exception('No hay stock suficiente para el producto: ' . $detail->product->description);
+      }
     }
   }
 }

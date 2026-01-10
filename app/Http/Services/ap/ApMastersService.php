@@ -2,31 +2,31 @@
 
 namespace App\Http\Services\ap;
 
-use App\Http\Resources\ap\ApCommercialMastersResource;
+use App\Http\Resources\ap\ApMastersResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
-class ApCommercialMastersService extends BaseService implements BaseServiceInterface
+class ApMastersService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      ApCommercialMasters::class,
+      ApMasters::class,
       $request,
-      ApCommercialMasters::filters,
-      ApCommercialMasters::sorts,
-      ApCommercialMastersResource::class,
+      ApMasters::filters,
+      ApMasters::sorts,
+      ApMastersResource::class,
     );
   }
 
   public function find($id)
   {
-    $ApCommercialMasters = ApCommercialMasters::where('id', $id)->first();
+    $ApCommercialMasters = ApMasters::where('id', $id)->first();
     if (!$ApCommercialMasters) {
       throw new Exception('Concepto de tabla maestra no encontrado');
     }
@@ -43,17 +43,17 @@ class ApCommercialMastersService extends BaseService implements BaseServiceInter
       throw new Exception('El campo num. digitos debe tener formato de número entero.');
     }
 
-    $ApCommercialMasters = ApCommercialMasters::create($data);
+    $ApCommercialMasters = ApMasters::create($data);
 
     // Limpiar el cache de tipos cuando se crea un registro
     Cache::forget('commercial_masters_types');
 
-    return new ApCommercialMastersResource($ApCommercialMasters);
+    return new ApMastersResource($ApCommercialMasters);
   }
 
   public function show($id)
   {
-    return new ApCommercialMastersResource($this->find($id));
+    return new ApMastersResource($this->find($id));
   }
 
   public function update(Mixed $data)
@@ -71,7 +71,7 @@ class ApCommercialMastersService extends BaseService implements BaseServiceInter
     // Limpiar el cache de tipos cuando se actualiza un registro
     Cache::forget('commercial_masters_types');
 
-    return new ApCommercialMastersResource($ApCommercialMasters);
+    return new ApMastersResource($ApCommercialMasters);
   }
 
   public function destroy($id)
@@ -94,7 +94,7 @@ class ApCommercialMastersService extends BaseService implements BaseServiceInter
   public function getTypes()
   {
     return Cache::remember('commercial_masters_types', 1440, function () {
-      $types = ApCommercialMasters::select('type')
+      $types = ApMasters::select('type')
         ->distinct()
         ->whereNotNull('type')
         ->orderBy('type')

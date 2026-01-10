@@ -23,14 +23,14 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'warranty' => ['nullable', 'string', 'max:100'],
       'opportunity_id' => ['nullable', 'exists:ap_opportunity,id'],
       'holder_id' => ['sometimes', 'exists:business_partners,id'],
-      'vehicle_color_id' => ['sometimes', 'exists:ap_commercial_masters,id'],
+      'vehicle_color_id' => ['sometimes', 'exists:ap_masters,id'],
       'ap_models_vn_id' => ['nullable', 'exists:ap_models_vn,id'],
       'doc_type_currency_id' => ['sometimes', 'exists:type_currency,id'],
       'ap_vehicle_id' => ['nullable', 'exists:ap_vehicles,id'],
 
       // Validaciones para bonus_discounts
       'bonus_discounts' => ['nullable', 'array'],
-      'bonus_discounts.*.concept_id' => ['required', 'exists:ap_commercial_masters,id'],
+      'bonus_discounts.*.concept_id' => ['required', 'exists:ap_masters,id'],
       'bonus_discounts.*.description' => ['required', 'string', 'max:255'],
       'bonus_discounts.*.type' => ['required', 'string', 'in:FIJO,PORCENTAJE'],
       'bonus_discounts.*.value' => ['required', 'numeric', 'min:0'],
@@ -41,7 +41,7 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'accessories.*.accessory_id' => ['required', 'exists:approved_accessories,id'],
       'accessories.*.quantity' => ['required', 'integer', 'min:1'],
 
-      'type_currency_id' => ['sometimes', 'exists:ap_commercial_masters,id'],
+      'type_currency_id' => ['sometimes', 'exists:ap_masters,id'],
 
       'sede_id' => ['sometimes', 'exists:config_sede,id']
     ];

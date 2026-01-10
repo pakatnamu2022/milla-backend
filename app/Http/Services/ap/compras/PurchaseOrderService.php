@@ -9,14 +9,12 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
-use App\Http\Utils\Constants;
 use App\Jobs\VerifyAndMigratePurchaseOrderJob;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
-use App\Models\gp\maestroGeneral\Sede;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -208,7 +206,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       $data = $this->enrichData($data);
 
       // Si type_operation_id = TIPO_OPERACION_POSTVENTA, validar que productos existan en almacén
-      if (isset($data['type_operation_id']) && $data['type_operation_id'] == ApCommercialMasters::TIPO_OPERACION_POSTVENTA) {
+      if (isset($data['type_operation_id']) && $data['type_operation_id'] == ApMasters::TIPO_OPERACION_POSTVENTA) {
         $this->validateProductsInWarehouse($items, $data['warehouse_id']);
       }
 
@@ -224,7 +222,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       }
 
       // Si type_operation_id = TIPO_OPERACION_POSTVENTA, actualizar quantity_in_transit
-      if (isset($data['type_operation_id']) && $data['type_operation_id'] == ApCommercialMasters::TIPO_OPERACION_POSTVENTA) {
+      if (isset($data['type_operation_id']) && $data['type_operation_id'] == ApMasters::TIPO_OPERACION_POSTVENTA) {
         $this->updateInTransitStockOnCreate($purchaseOrder);
       }
 
@@ -262,7 +260,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       'engine_type_id' => $data['engine_type_id'],
       'sede_id' => $data['sede_id'],
       'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
-      'type_operation_id' => ApCommercialMasters::TIPO_OPERACION_COMERCIAL,
+      'type_operation_id' => ApMasters::TIPO_OPERACION_COMERCIAL,
     ];
 
     $vehicle = $vehicleService->store($vehicleData);
@@ -376,7 +374,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         $this->saveItemsIfExists($items, $purchaseOrder);
 
         // Si type_operation_id = TIPO_OPERACION_POSTVENTA, actualizar quantity_in_transit
-        if ($purchaseOrder->type_operation_id == ApCommercialMasters::TIPO_OPERACION_POSTVENTA) {
+        if ($purchaseOrder->type_operation_id == ApMasters::TIPO_OPERACION_POSTVENTA) {
           $this->updateInTransitStockOnUpdate($purchaseOrder, $oldItems, $items);
         }
       }
@@ -406,7 +404,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     $purchaseOrder = $this->find($id);
     DB::transaction(function () use ($purchaseOrder) {
       // Si type_operation_id = TIPO_OPERACION_POSTVENTA, remover quantity_in_transit antes de eliminar
-      if ($purchaseOrder->type_operation_id == ApCommercialMasters::TIPO_OPERACION_POSTVENTA) {
+      if ($purchaseOrder->type_operation_id == ApMasters::TIPO_OPERACION_POSTVENTA) {
         $this->removeInTransitStockOnDestroy($purchaseOrder);
       }
 

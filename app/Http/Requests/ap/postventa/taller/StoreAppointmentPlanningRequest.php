@@ -58,13 +58,13 @@ class StoreAppointmentPlanningRequest extends StoreRequest
       'type_operation_appointment_id' => [
         'required',
         'integer',
-        Rule::exists('ap_post_venta_masters', 'id')
+        Rule::exists('ap_masters', 'id')
           ->where('type', 'TIPO_OPERACION'),
       ],
       'type_planning_id' => [
         'required',
         'integer',
-        Rule::exists('ap_post_venta_masters', 'id')
+        Rule::exists('ap_masters', 'id')
           ->where('type', 'TIPO_PLANIFICACION'),
       ],
       'ap_vehicle_id' => [
@@ -198,5 +198,4 @@ class StoreAppointmentPlanningRequest extends StoreRequest
       }
     });
   }
-
 }

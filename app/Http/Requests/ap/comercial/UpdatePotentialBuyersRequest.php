@@ -66,15 +66,15 @@ class UpdatePotentialBuyersRequest extends StoreRequest
       'document_type_id' => [
         'sometimes',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'income_sector_id' => [
         'sometimes',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'type' => 'sometimes|string|max:50',
-      'area_id' => 'sometimes|integer|exists:ap_commercial_masters,id',
+      'area_id' => 'sometimes|integer|exists:ap_masters,id',
     ];
   }
 
@@ -129,5 +129,4 @@ class UpdatePotentialBuyersRequest extends StoreRequest
       'area_id.exists' => 'El ID de área no existe',
     ];
   }
-
 }

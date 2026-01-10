@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\postventa\taller;
 
-use App\Models\ap\ApPostVentaMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\gp\gestionhumana\personal\Worker;
@@ -140,7 +140,7 @@ class ApWorkOrder extends Model
 
   public function status(): BelongsTo
   {
-    return $this->belongsTo(ApPostVentaMasters::class, 'status_id');
+    return $this->belongsTo(ApMasters::class, 'status_id');
   }
 
   public function advisor(): BelongsTo

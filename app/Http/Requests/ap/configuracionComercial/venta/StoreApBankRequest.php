@@ -13,7 +13,7 @@ class StoreApBankRequest extends StoreRequest
       'description' => 'nullable|string',
       'account_number' => 'nullable|string|max:50|unique:ap_bank,account_number',
       'cci' => 'nullable|string|max:50|unique:ap_bank,cci',
-      'bank_id' => 'required|integer|exists:ap_commercial_masters,id',
+      'bank_id' => 'required|integer|exists:ap_masters,id',
       'currency_id' => 'required|integer|exists:type_currency,id',
       'sede_id' => 'required|integer|exists:config_sede,id',
     ];

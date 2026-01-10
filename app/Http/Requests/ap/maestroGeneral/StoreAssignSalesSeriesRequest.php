@@ -20,8 +20,8 @@ class StoreAssignSalesSeriesRequest extends StoreRequest
           ->where('status', 1),
       ],
       'correlative_start' => ['required', 'integer', 'min:1'],
-      'type_receipt_id' => ['required', 'exists:ap_commercial_masters,id'],
-      'type_operation_id' => ['required', 'exists:ap_commercial_masters,id'],
+      'type_receipt_id' => ['required', 'exists:ap_masters,id'],
+      'type_operation_id' => ['required', 'exists:ap_masters,id'],
       'sede_id' => ['required', 'exists:config_sede,id'],
       'type' => ['required', 'in:PURCHASE,SALE,OTHERS'],
       'is_advance' => ['required', 'boolean'],
@@ -78,7 +78,6 @@ class StoreAssignSalesSeriesRequest extends StoreRequest
           );
         }
       }
-
     });
   }
 

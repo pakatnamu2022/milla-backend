@@ -3,21 +3,21 @@
 namespace App\Http\Controllers\ap;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\ap\IndexApCommercialMastersRequest;
-use App\Http\Requests\ap\StoreApCommercialMastersRequest;
-use App\Http\Requests\ap\UpdateApCommercialMastersRequest;
-use App\Http\Services\ap\ApCommercialMastersService;
+use App\Http\Requests\ap\IndexApMastersRequest;
+use App\Http\Requests\ap\StoreApMastersRequest;
+use App\Http\Requests\ap\UpdateApMastersRequest;
+use App\Http\Services\ap\ApMastersService;
 
-class ApCommercialMastersController extends Controller
+class ApMastersController extends Controller
 {
-  protected ApCommercialMastersService $service;
+  protected ApMastersService $service;
 
-  public function __construct(ApCommercialMastersService $service)
+  public function __construct(ApMastersService $service)
   {
     $this->service = $service;
   }
 
-  public function index(IndexApCommercialMastersRequest $request)
+  public function index(IndexApMastersRequest $request)
   {
     try {
       return $this->service->list($request);
@@ -26,7 +26,7 @@ class ApCommercialMastersController extends Controller
     }
   }
 
-  public function store(StoreApCommercialMastersRequest $request)
+  public function store(StoreApMastersRequest $request)
   {
     try {
       return $this->success($this->service->store($request->validated()));
@@ -44,7 +44,7 @@ class ApCommercialMastersController extends Controller
     }
   }
 
-  public function update(UpdateApCommercialMastersRequest $request, $id)
+  public function update(UpdateApMastersRequest $request, $id)
   {
     try {
       $data = $request->validated();

@@ -2,7 +2,7 @@
 
 namespace Database\Seeders\ap\commercial;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\configuracionComercial\vehiculo\ApFamilies;
@@ -19,9 +19,9 @@ class OpportunitySeeder extends Seeder
     $families = ApFamilies::limit(3)->pluck('id')->toArray();
 
     // Obtener IDs de los masters
-    $opportunityTypes = ApCommercialMasters::where('type', 'OPPORTUNITY_TYPE')->pluck('id')->toArray();
-    $clientStatuses = ApCommercialMasters::where('type', 'CLIENT_STATUS')->pluck('id')->toArray();
-    $opportunityStatuses = ApCommercialMasters::where('type', 'OPPORTUNITY_STATUS')->pluck('id')->toArray();
+    $opportunityTypes = ApMasters::where('type', 'OPPORTUNITY_TYPE')->pluck('id')->toArray();
+    $clientStatuses = ApMasters::where('type', 'CLIENT_STATUS')->pluck('id')->toArray();
+    $opportunityStatuses = ApMasters::where('type', 'OPPORTUNITY_STATUS')->pluck('id')->toArray();
 
     // Verificar que tengamos datos
     if (empty($workers)) {

@@ -11,7 +11,7 @@ class StoreApCommercialManagerBrandGroupRequest extends StoreRequest
     return [
       'year' => 'required|integer|min:2000|max:2100',
       'month' => 'required|integer|min:1|max:12',
-      'brand_group_id' => 'required|exists:ap_commercial_masters,id',
+      'brand_group_id' => 'required|exists:ap_masters,id',
       'commercial_managers' => 'required|array|min:1',
       'commercial_managers.*' => 'integer|exists:rrhh_persona,id',
     ];

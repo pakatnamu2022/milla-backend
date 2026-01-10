@@ -26,7 +26,7 @@ class StoreApDeliveryReceivingChecklistRequest extends StoreRequest
       'category_id' => [
         'required',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'has_quantity' => [
         'sometimes',

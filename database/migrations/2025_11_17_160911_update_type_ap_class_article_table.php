@@ -13,7 +13,7 @@ return new class extends Migration {
     Schema::table('ap_class_article', function (Blueprint $table) {
       $table->dropColumn('type');
       $table->foreignId('type_operation_id')->nullable()->after('account')
-        ->constrained('ap_commercial_masters');
+        ->constrained('ap_masters');
     });
   }
 

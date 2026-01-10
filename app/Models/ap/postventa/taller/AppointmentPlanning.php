@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\postventa\taller;
 
-use App\Models\ap\ApPostVentaMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\gp\gestionhumana\personal\Worker;
@@ -78,12 +78,12 @@ class AppointmentPlanning extends Model
 
   public function typeOperationAppointment()
   {
-    return $this->belongsTo(ApPostVentaMasters::class, 'type_operation_appointment_id');
+    return $this->belongsTo(ApMasters::class, 'type_operation_appointment_id');
   }
 
   public function typePlanning()
   {
-    return $this->belongsTo(ApPostVentaMasters::class, 'type_planning_id');
+    return $this->belongsTo(ApMasters::class, 'type_planning_id');
   }
 
   public function vehicle()

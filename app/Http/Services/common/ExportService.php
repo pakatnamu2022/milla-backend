@@ -172,6 +172,17 @@ class ExportService
                   'value' => $betweenValues
                 ];
               }
+            } elseif ($filterOperator === 'date_btw' || $filterOperator === 'date_between') {
+              // Para filtros de fecha between, esperar un array [from, to]
+              if (is_array($value) && count($value) === 2) {
+                // Reindexar el array para asegurar que sea [0, 1]
+                $betweenValues = array_values($value);
+                $filters[] = [
+                  'column' => $filterKey,
+                  'operator' => 'date_between',
+                  'value' => $betweenValues
+                ];
+              }
             } elseif ($filterOperator === 'like') {
               $filters[] = [
                 'column' => $filterKey,

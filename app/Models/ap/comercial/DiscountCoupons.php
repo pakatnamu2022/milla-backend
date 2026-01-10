@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -44,7 +44,7 @@ class DiscountCoupons extends Model
 
   public function conceptCode(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'concept_code_id');
+    return $this->belongsTo(ApMasters::class, 'concept_code_id');
   }
 
   public function purchaseRequestQuote(): BelongsTo

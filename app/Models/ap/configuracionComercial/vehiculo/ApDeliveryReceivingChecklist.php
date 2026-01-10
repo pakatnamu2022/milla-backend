@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\configuracionComercial\vehiculo;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -40,7 +40,7 @@ class ApDeliveryReceivingChecklist extends Model
 
   public function category()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'category_id');
+    return $this->belongsTo(ApMasters::class, 'category_id');
   }
 
   public function setDescriptionAttribute($value)

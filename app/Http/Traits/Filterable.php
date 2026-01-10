@@ -220,6 +220,14 @@ trait Filterable
       case 'in':
         $query->whereIn($filter, $value);
         break;
+      case 'in_or_equal':
+        // Acepta tanto un valor único como un array
+        if (is_array($value)) {
+          $query->whereIn($filter, $value);
+        } else {
+          $query->where($filter, '=', $value);
+        }
+        break;
       default:
         break;
     }

@@ -11,7 +11,7 @@ return new class extends Migration {
   public function up(): void
   {
     Schema::table('ap_order_quotations', function (Blueprint $table) {
-      $table->foreignId('area_id')->nullable()->after('sede_id')->constrained('ap_post_venta_masters');
+      $table->foreignId('area_id')->nullable()->after('sede_id')->constrained('ap_masters');
     });
   }
 

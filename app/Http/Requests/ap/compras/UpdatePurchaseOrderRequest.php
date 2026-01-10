@@ -35,7 +35,7 @@ class UpdatePurchaseOrderRequest extends StoreRequest
       'vehicle_movement_id' => ['sometimes', 'nullable', 'integer', Rule::exists('ap_vehicle_movement', 'id')->whereNull('deleted_at')],
 
       // Tipo de Operación (opcional)
-      'type_operation_id' => ['sometimes', 'nullable', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('status', 1)->whereNull('deleted_at')],
+      'type_operation_id' => ['sometimes', 'nullable', 'integer', Rule::exists('ap_masters', 'id')->where('status', 1)->whereNull('deleted_at')],
 
       'payment_terms' => ['sometimes', 'nullable', 'string', 'max:255'],
 

@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\configuracionComercial\vehiculo;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -46,7 +46,7 @@ class ApVehicleBrand extends Model
 
   public function group()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'group_id');
+    return $this->belongsTo(ApMasters::class, 'group_id');
   }
 
   public function setCodeAttribute($value)
@@ -71,11 +71,11 @@ class ApVehicleBrand extends Model
 
   public function typeOperation()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'type_operation_id');
+    return $this->belongsTo(ApMasters::class, 'type_operation_id');
   }
 
   public function typeClass()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'type_class_id');
+    return $this->belongsTo(ApMasters::class, 'type_class_id');
   }
 }

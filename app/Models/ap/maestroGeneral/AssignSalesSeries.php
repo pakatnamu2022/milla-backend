@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\maestroGeneral;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -71,12 +71,12 @@ class AssignSalesSeries extends Model
 
   public function typeReceipt()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'type_receipt_id');
+    return $this->belongsTo(ApMasters::class, 'type_receipt_id');
   }
 
   public function typeOperation()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'type_operation_id');
+    return $this->belongsTo(ApMasters::class, 'type_operation_id');
   }
 
   public function sede()

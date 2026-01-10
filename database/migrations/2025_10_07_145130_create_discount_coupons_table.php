@@ -17,7 +17,7 @@ return new class extends Migration {
       $table->decimal('percentage', 12, 4);
       $table->decimal('amount', 12, 4);
       $table->foreignId('concept_code_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->foreignId('purchase_request_quote_id')
         ->constrained('purchase_request_quote')->onDelete('cascade');
       $table->timestamps();

@@ -10,7 +10,7 @@ use App\Http\Utils\Constants;
 use App\Imports\ap\comercial\PotentialBuyersDercoImport;
 use App\Imports\ap\comercial\PotentialBuyersSocialNetworksImport;
 use App\Jobs\ValidatePotentialBuyersDocuments;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\PotentialBuyers;
 use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
 use App\Models\gp\gestionhumana\personal\Worker;
@@ -75,7 +75,7 @@ class PotentialBuyersService extends BaseService
       }
       $data['user_id'] = auth()->id();
 
-      $TypeDocument = ApCommercialMasters::findOrFail($data['document_type_id']);
+      $TypeDocument = ApMasters::findOrFail($data['document_type_id']);
       $NumCharDoc = strlen($data['num_doc']);
       if ($TypeDocument->code != $NumCharDoc) {
         throw new Exception("El número de documento debe tener {$TypeDocument->code} caracteres para el tipo de documento seleccionado");
@@ -99,7 +99,7 @@ class PotentialBuyersService extends BaseService
   {
     DB::beginTransaction();
     try {
-      $TypeDocument = ApCommercialMasters::findOrFail($data['document_type_id']);
+      $TypeDocument = ApMasters::findOrFail($data['document_type_id']);
       $NumCharDoc = strlen($data['num_doc']);
       if ($TypeDocument->code != $NumCharDoc) {
         throw new Exception("El número de documento debe tener {$TypeDocument->code} caracteres para el tipo de documento seleccionado");
@@ -234,7 +234,7 @@ class PotentialBuyersService extends BaseService
 
           // Inicializar status_num_doc
           $statusNumDoc = 'PENDIENTE';
-          $countDigitTypeDoc = (int)ApCommercialMasters::find($documentTypeId)->code;
+          $countDigitTypeDoc = (int)ApMasters::find($documentTypeId)->code;
 
           // Validar si la longitud del documento no coincide con el tipo
           if ($docLength != $countDigitTypeDoc) {
@@ -385,7 +385,7 @@ class PotentialBuyersService extends BaseService
 
           // Inicializar status_num_doc
           $statusNumDoc = 'PENDIENTE';
-          $countDigitTypeDoc = (int)ApCommercialMasters::find($documentTypeId)->code;
+          $countDigitTypeDoc = (int)ApMasters::find($documentTypeId)->code;
 
           // Validar si la longitud del documento no coincide con el tipo
           if ($docLength != $countDigitTypeDoc) {

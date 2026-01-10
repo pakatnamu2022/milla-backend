@@ -16,7 +16,7 @@ return new class extends Migration {
         ->constrained('ap_vehicle_purchase_order')
         ->onDelete('cascade');
       $table->foreignId('accessory_id')
-        ->constrained('ap_commercial_masters')
+        ->constrained('ap_masters')
         ->onDelete('cascade');
       $table->decimal('unit_price', 10);
       $table->integer('quantity')->default(1);

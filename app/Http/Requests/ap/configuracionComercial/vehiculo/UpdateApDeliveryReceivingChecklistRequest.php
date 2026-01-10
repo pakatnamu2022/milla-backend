@@ -27,7 +27,7 @@ class UpdateApDeliveryReceivingChecklistRequest extends StoreRequest
       'category_id' => [
         'nullable',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'has_quantity' => [
         'nullable',

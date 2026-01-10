@@ -2,7 +2,7 @@
 
 namespace Database\Seeders\ap\commercial;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use Illuminate\Database\Seeder;
 
 class ClientStatusSeeder extends Seeder
@@ -17,7 +17,7 @@ class ClientStatusSeeder extends Seeder
     ];
 
     foreach ($data as $item) {
-      ApCommercialMasters::firstOrCreate([
+      ApMasters::firstOrCreate([
         'description' => $item['description'],
         'type' => $item['type'],
       ], [

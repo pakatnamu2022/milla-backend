@@ -9,11 +9,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class ApCommercialMasters extends Model
+class ApMasters extends Model
 {
   use SoftDeletes;
 
-  protected $table = 'ap_commercial_masters';
+  protected $table = 'ap_masters'; // ApMasters
 
   protected $fillable = [
     'id',
@@ -24,8 +24,8 @@ class ApCommercialMasters extends Model
   ];
 
   const filters = [
-    'search' => ['code', 'description', 'type'],
-    'type' => '=',
+    'search' => ['code', 'description'],
+    'type' => 'in_or_equal',
     'status' => '=',
     'open_opportunity_status' => 'accessor_bool',
   ];
@@ -37,7 +37,7 @@ class ApCommercialMasters extends Model
     'type',
   ];
 
-//  OPERATION TYPE
+  //  OPERATION TYPE
   const int TIPO_OPERACION_COMERCIAL = 794;
   const int TIPO_OPERACION_POSTVENTA = 804;
   const int TYPE_PERSON_NATURAL_ID = 704; // Persona Natural
@@ -45,9 +45,12 @@ class ApCommercialMasters extends Model
 
   // CLASS TYPE (para clasificación de marcas y clases de artículos)
   // Estos valores se obtienen dinámicamente de la BD, aquí solo como referencia
-  // para obtener los IDs reales usar: ApCommercialMasters::ofType('CLASS_TYPE')->where('code', '0')->first()->id
+  // para obtener los IDs reales usar: ApMasters::ofType('CLASS_TYPE')->where('code', '0')->first()->id
   const string CLASS_TYPE_VEHICLE_CODE = '0';
   const string CLASS_TYPE_CAMION_CODE = '1';
+
+  const int OPENING_WORK_ORDER_ID = 821; // Estado "Aperturada" para Orden de Trabajo
+  const int AREA_TALLER_ID = 2; // Área Taller
 
   public function setCodeAttribute($value)
   {

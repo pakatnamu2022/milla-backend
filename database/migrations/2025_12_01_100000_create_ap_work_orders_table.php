@@ -28,7 +28,7 @@ return new class extends Migration {
       $table->string('vehicle_vin', 50)->nullable()->comment('VIN del vehículo');
 
       $table->foreignId('status_id')->comment('Estado: ABIERTA, EN_PROCESO, COMPLETADA, etc.')
-        ->constrained('ap_post_venta_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
 
       // Responsible users
       $table->integer('advisor_id')->comment('Asesor de servicio responsable');

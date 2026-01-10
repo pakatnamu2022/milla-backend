@@ -4,6 +4,8 @@ namespace App\Http\Resources\ap\postventa\taller;
 
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
+use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,7 +18,8 @@ class ApOrderQuotationsResource extends JsonResource
       'vehicle_id' => $this->vehicle_id,
       'sede_id' => $this->sede_id,
       'plate' => $this->vehicle ? $this->vehicle->plate : "-",
-      'vehicle' => new VehiclesResource($this->whenLoaded('vehicle')),
+      'customer' => $this->vehicle ? $this->vehicle->customer->full_name : "-",
+      'vehicle' => new VehiclesResource($this->vehicle),
       'quotation_number' => $this->quotation_number,
       'subtotal' => (float)$this->subtotal,
       'discount_percentage' => (float)$this->discount_percentage,
@@ -37,7 +40,64 @@ class ApOrderQuotationsResource extends JsonResource
       'area_id' => $this->area_id,
       'has_invoice_generated' => (bool)$this->has_invoice_generated,
       'is_fully_paid' => (bool)$this->is_fully_paid,
+      'has_sufficient_stock' => $this->when(
+        isset($this->additional['checkStock']) && $this->additional['checkStock'],
+        fn() => $this->checkSufficientStock()
+      ),
       'output_generation_warehouse' => (bool)$this->output_generation_warehouse,
+      'discard_reason' => $this->discardReason->description ?? null,
+      'discarded_note' => $this->discarded_note,
+      'discarded_by_name' => $this->discardedBy->name ?? null,
+      'discarded_at' => $this->discarded_at ? $this->discarded_at->format('Y-m-d') : null,
+      'status' => $this->status,
     ];
+  }
+
+  /**
+   * Check if there is sufficient stock for all products in the quotation details
+   *
+   * @return bool
+   */
+  private function checkSufficientStock(): bool
+  {
+    // Get warehouse from sede
+    $warehouse = Warehouse::where('sede_id', $this->sede_id)
+      ->where('is_physical_warehouse', 1)
+      ->where('status', 1)
+      ->first();
+
+    // If no warehouse found, return false
+    if (!$warehouse) {
+      return false;
+    }
+
+    // Get all product details from quotation
+    $productDetails = $this->details->where('item_type', 'PRODUCT');
+
+    // If no products, return true
+    if ($productDetails->isEmpty()) {
+      return true;
+    }
+
+    // Check stock for each product
+    foreach ($productDetails as $detail) {
+      // Skip if no product_id
+      if (!$detail->product_id) {
+        continue;
+      }
+
+      // Get stock for this product in this warehouse
+      $stock = ProductWarehouseStock::where('warehouse_id', $warehouse->id)
+        ->where('product_id', $detail->product_id)
+        ->first();
+
+      // If no stock record found or insufficient available quantity, return false
+      if (!$stock || $stock->available_quantity < $detail->quantity) {
+        return false;
+      }
+    }
+
+    // All products have sufficient stock
+    return true;
   }
 }

@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\configuracionComercial\venta;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -48,6 +48,6 @@ class ApAccountingAccountPlan extends Model
 
   public function typeAccount()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'accounting_type_id');
+    return $this->belongsTo(ApMasters::class, 'accounting_type_id');
   }
 }

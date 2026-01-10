@@ -3,7 +3,7 @@
 namespace App\Imports\ap\comercial;
 
 use App\Http\Utils\Constants;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
 use App\Models\gp\gestionhumana\personal\Worker;
@@ -110,9 +110,9 @@ class PotentialBuyersDercoImport implements ToModel, WithHeadingRow, WithValidat
       '*.email' => 'nullable|email|max:100',
       '*.sede_id' => 'required|exists:sedes,id',
       '*.vehicle_brand_id' => 'nullable|exists:ap_vehicle_brands,id',
-      '*.document_type_id' => 'required|exists:ap_commercial_masters,id',
-      '*.income_sector_id' => 'nullable|exists:ap_commercial_masters,id',
-      '*.area_id' => 'nullable|exists:ap_commercial_masters,id',
+      '*.document_type_id' => 'required|exists:ap_masters,id',
+      '*.income_sector_id' => 'nullable|exists:ap_masters,id',
+      '*.area_id' => 'nullable|exists:ap_masters,id',
       '*.type' => 'nullable|in:VISITA,LEADS',
     ];
   }
@@ -149,7 +149,7 @@ class PotentialBuyersDercoImport implements ToModel, WithHeadingRow, WithValidat
     $documentTypeUpper = strtoupper(trim($documentType));
     $id_document = $documentTypeMap[$documentTypeUpper] ?? 0;
 
-    $master = ApCommercialMasters::where('type', 'TIPO_DOCUMENTO')
+    $master = ApMasters::where('type', 'TIPO_DOCUMENTO')
       ->where('id', $id_document)
       ->first();
     return $master ? $master->id : null;

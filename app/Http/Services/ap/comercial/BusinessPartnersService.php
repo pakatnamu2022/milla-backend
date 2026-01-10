@@ -12,9 +12,8 @@ use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Jobs\ProcessEstablishments;
 use App\Jobs\UpdateEstablishments;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
-use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PotentialBuyers;
 use Carbon\Carbon;
@@ -221,7 +220,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
    */
   public function getData(mixed $data): mixed
   {
-    if (isset($data['type_person_id']) && $data['type_person_id'] == ApCommercialMasters::TYPE_PERSON_NATURAL_ID && $data['type'] != 'PROVEEDOR' && isset($data['origin_id'])) {
+    if (isset($data['type_person_id']) && $data['type_person_id'] == ApMasters::TYPE_PERSON_NATURAL_ID && $data['type'] != 'PROVEEDOR' && isset($data['origin_id'])) {
       if (empty($data['birth_date'])) {
         throw new Exception('La fecha de nacimiento es requerida para personas naturales');
       }
@@ -239,7 +238,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       }
     }
 
-    $TypeDocument = ApCommercialMasters::findOrFail($data['document_type_id']);
+    $TypeDocument = ApMasters::findOrFail($data['document_type_id']);
     $NumCharDoc = strlen($data['num_doc']);
     if ($TypeDocument->code != $NumCharDoc) {
       throw new Exception("El número de documento debe tener {$TypeDocument->code} caracteres para el tipo de documento seleccionado");
@@ -275,7 +274,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
   {
     $businessPartner = $this->find($id);
     if (!$businessPartner->status_ap) throw new Exception('El socio comercial no es un cliente activo');
-    $statusIds = ApCommercialMasters::where('type', 'OPPORTUNITY_STATUS')->whereIn('code', Opportunity::OPEN_STATUS_CODES)->pluck('id')->toArray();
+    $statusIds = ApMasters::where('type', 'OPPORTUNITY_STATUS')->whereIn('code', Opportunity::OPEN_STATUS_CODES)->pluck('id')->toArray();
     $opportunities = Opportunity::where('client_id', $businessPartner->id)
       ->whereIn('opportunity_status_id', $statusIds)
       ->with('family.brand')

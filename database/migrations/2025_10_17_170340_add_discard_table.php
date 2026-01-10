@@ -12,7 +12,7 @@ return new class extends Migration {
   {
     Schema::table('potential_buyers', function (Blueprint $table) {
       $table->foreignId('reason_discarding_id')->after('user_id')->nullable()
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
     });
   }
 

@@ -35,7 +35,7 @@ return new class extends Migration {
 
       // Product Category - Categoría de Producto
       // Relación con la categoría (repuestos, lubricantes, accesorios, etc.)
-      $table->foreignId('product_category_id')->constrained('ap_post_venta_masters')->comment('Product category (spare parts, oils, accessories, etc.)');
+      $table->foreignId('product_category_id')->constrained('ap_masters')->comment('Product category (spare parts, oils, accessories, etc.)');
 
       // Brand - Marca
       // Marca del producto (Toyota, Castrol, etc.)

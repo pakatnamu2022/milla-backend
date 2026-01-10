@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\configuracionComercial\venta;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -48,7 +48,7 @@ class ApGoalSellOutIn extends Model
 
   public function shop()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'shop_id', 'id');
+    return $this->belongsTo(ApMasters::class, 'shop_id', 'id');
   }
 
   public function getTotalGoalAttribute()

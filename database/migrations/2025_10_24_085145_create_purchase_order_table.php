@@ -15,16 +15,16 @@ return new class extends Migration {
       $table->string('number');
       $table->integer('number_correlative')->comment('Número correlativo de la OC para casos de corrección por NC');
 
-//      GUIDE
+      //      GUIDE
       $table->string('number_guide');
       $table->foreignId('warehouse_id')->constrained('warehouse');
 
-//      INVOICE
+      //      INVOICE
       $table->string('invoice_series')->comment('Serie de la factura');
       $table->string('invoice_number')->comment('Número de la factura');
       $table->date('emission_date')->comment('Fecha de emisión de la factura');
       $table->date('due_date')->nullable()->comment('Fecha de vencimiento de la factura');
-//      $table->decimal('unit_price')->comment('Precio unitario del vehículo sin descuentos ni impuestos');
+      //      $table->decimal('unit_price')->comment('Precio unitario del vehículo sin descuentos ni impuestos');
       $table->decimal('discount')->default(0)->comment('Descuento aplicado en la factura');
       $table->decimal('subtotal')->comment('Subtotal aplicado en la factura');
       $table->decimal('isc')->default(0);
@@ -32,14 +32,14 @@ return new class extends Migration {
       $table->decimal('total');
       $table->foreignId('supplier_id')->constrained('business_partners');
       $table->foreignId('currency_id')->constrained('type_currency');
-      $table->foreignId('exchange_rate_id')->constrained('ap_commercial_masters');
+      $table->foreignId('exchange_rate_id')->constrained('ap_masters');
       $table->foreignId('supplier_order_type_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
 
       $table->integer('sede_id');
       $table->foreign('sede_id')->references('id')->on('config_sede');
 
-//      STATUS
+      //      STATUS
       $table->string('invoice_dynamics')->nullable()->comment('Número de factura en el sistema Dynamics');
       $table->string('receipt_dynamics')->nullable()->comment('Número de recibo en el sistema Dynamics');
       $table->string('credit_note_dynamics')->nullable()->comment('Número de nota de crédito en el sistema Dynamics');
@@ -51,7 +51,7 @@ return new class extends Migration {
 
       $table->foreignId('vehicle_movement_id')->nullable()->constrained('ap_vehicle_movement')->onDelete('cascade');
 
-//      TIMESTAMPS
+      //      TIMESTAMPS
       $table->timestamp('migrated_at')->nullable()->comment('Fecha y hora en que se completó la migración');
       $table->timestamps();
       $table->softDeletes();

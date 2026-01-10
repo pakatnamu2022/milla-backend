@@ -28,7 +28,7 @@ class StoreWarehouseRequest extends StoreRequest
       'type_operation_id' => [
         'required',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'article_class_id' => [
         'nullable',
