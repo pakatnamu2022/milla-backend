@@ -205,6 +205,12 @@ class PotentialBuyersService extends BaseService
       $duplicatedRecords = [];
       $createdIds = [];
 
+      // Variables para la asignación de asesores (mismo sistema que assignWorkersToUnassigned)
+      $currentYear = date('Y');
+      $currentMonth = date('m');
+      $workersCache = [];
+      $distributionCounter = [];
+
       // Procesar los datos importados con validación de duplicados y longitud de documento
       foreach ($importResult['data'] as $index => $rowData) {
         try {
@@ -244,6 +250,48 @@ class PotentialBuyersService extends BaseService
           // Agregar status_num_doc al array de datos
           $rowData['status_num_doc'] = $statusNumDoc;
           $rowData['user_id'] = auth()->id();
+
+          // Asignar asesor usando la misma lógica de assignWorkersToUnassigned
+          if (!empty($rowData['sede_id']) && !empty($rowData['vehicle_brand_id'])) {
+            // Crear clave única para esta combinación de sede + marca
+            $cacheKey = "{$rowData['sede_id']}_{$rowData['vehicle_brand_id']}";
+
+            // Si no están en cache, obtener los asesores de ApAssignBrandConsultant
+            if (!isset($workersCache[$cacheKey])) {
+              $workerIds = ApAssignBrandConsultant::where('sede_id', $rowData['sede_id'])
+                ->where('brand_id', $rowData['vehicle_brand_id'])
+                ->where('year', $currentYear)
+                ->where('month', $currentMonth)
+                ->where('status', 1)
+                ->pluck('worker_id')
+                ->toArray();
+
+              if (!empty($workerIds)) {
+                // Obtener datos de los workers
+                $workers = Worker::whereIn('id', $workerIds)
+                  ->pluck('id')
+                  ->toArray();
+
+                $workersCache[$cacheKey] = $workers;
+                $distributionCounter[$cacheKey] = 0;
+              } else {
+                $workersCache[$cacheKey] = [];
+              }
+            }
+
+            // Si hay asesores disponibles para esta combinación, asignar con round-robin
+            if (!empty($workersCache[$cacheKey])) {
+              $workers = $workersCache[$cacheKey];
+              $currentIndex = $distributionCounter[$cacheKey] % count($workers);
+              $assignedWorkerId = $workers[$currentIndex];
+
+              // Asignar el worker_id al registro
+              $rowData['worker_id'] = $assignedWorkerId;
+
+              // Incrementar el contador para el siguiente registro
+              $distributionCounter[$cacheKey]++;
+            }
+          }
 
           // Crear el registro
           $buyer = PotentialBuyers::create($rowData);
@@ -356,6 +404,12 @@ class PotentialBuyersService extends BaseService
       $duplicatedRecords = [];
       $createdIds = [];
 
+      // Variables para la asignación de asesores (mismo sistema que assignWorkersToUnassigned)
+      $currentYear = date('Y');
+      $currentMonth = date('m');
+      $workersCache = [];
+      $distributionCounter = [];
+
       // Procesar los datos importados con validación de duplicados y longitud de documento
       foreach ($importResult['data'] as $index => $rowData) {
         try {
@@ -395,6 +449,48 @@ class PotentialBuyersService extends BaseService
           // Agregar status_num_doc al array de datos
           $rowData['status_num_doc'] = $statusNumDoc;
           $rowData['user_id'] = auth()->id();
+
+          // Asignar asesor usando la misma lógica de assignWorkersToUnassigned
+          if (!empty($rowData['sede_id']) && !empty($rowData['vehicle_brand_id'])) {
+            // Crear clave única para esta combinación de sede + marca
+            $cacheKey = "{$rowData['sede_id']}_{$rowData['vehicle_brand_id']}";
+
+            // Si no están en cache, obtener los asesores de ApAssignBrandConsultant
+            if (!isset($workersCache[$cacheKey])) {
+              $workerIds = ApAssignBrandConsultant::where('sede_id', $rowData['sede_id'])
+                ->where('brand_id', $rowData['vehicle_brand_id'])
+                ->where('year', $currentYear)
+                ->where('month', $currentMonth)
+                ->where('status', 1)
+                ->pluck('worker_id')
+                ->toArray();
+
+              if (!empty($workerIds)) {
+                // Obtener datos de los workers
+                $workers = Worker::whereIn('id', $workerIds)
+                  ->pluck('id')
+                  ->toArray();
+
+                $workersCache[$cacheKey] = $workers;
+                $distributionCounter[$cacheKey] = 0;
+              } else {
+                $workersCache[$cacheKey] = [];
+              }
+            }
+
+            // Si hay asesores disponibles para esta combinación, asignar con round-robin
+            if (!empty($workersCache[$cacheKey])) {
+              $workers = $workersCache[$cacheKey];
+              $currentIndex = $distributionCounter[$cacheKey] % count($workers);
+              $assignedWorkerId = $workers[$currentIndex];
+
+              // Asignar el worker_id al registro
+              $rowData['worker_id'] = $assignedWorkerId;
+
+              // Incrementar el contador para el siguiente registro
+              $distributionCounter[$cacheKey]++;
+            }
+          }
 
           // Crear el registro
           $buyer = PotentialBuyers::create($rowData);
