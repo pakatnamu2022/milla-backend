@@ -5,9 +5,11 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetailResource;
 use App\Http\Resources\gp\gestionhumana\personal\PersonResource;
 use App\Http\Services\BaseService;
+use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use App\Models\gp\gestionhumana\personal\Worker;
@@ -20,7 +22,8 @@ class EvaluationPersonCycleDetailService extends BaseService
 {
 
   public function __construct(
-    protected EvaluationCategoryObjectiveDetailService $categoryObjectiveDetailService
+    protected EvaluationCategoryObjectiveDetailService $categoryObjectiveDetailService,
+    protected EvaluationPersonService                  $evaluationPersonService
   )
   {
   }
@@ -543,9 +546,10 @@ class EvaluationPersonCycleDetailService extends BaseService
     $personCycleDetail = $this->find($data['id']);
     $data['fixedWeight'] = isset($data['weight']) && $data['weight'] > 0;
     $personCycleDetail->update($data);
-    $this->recalculateWeights($personCycleDetail->id);
+    if (isset($data['weight'])) $this->recalculateWeights($personCycleDetail->id);
 
     DB::transaction(function () use ($personCycleDetail) {
+      // Actualizar EvaluationCategoryObjectiveDetail
       $categoryObjectiveDetail = EvaluationCategoryObjectiveDetail::where('objective_id', $personCycleDetail->objective_id)
         ->where('category_id', $personCycleDetail->category_id)
         ->where('person_id', $personCycleDetail->person_id)
@@ -559,6 +563,28 @@ class EvaluationPersonCycleDetailService extends BaseService
         ];
 
         $this->categoryObjectiveDetailService->update($data);
+      }
+
+      // Actualizar EvaluationPerson relacionados (solo en evaluaciones activas o en progreso)
+      $evaluationPersons = EvaluationPerson::where('person_cycle_detail_id', $personCycleDetail->id)
+        ->whereNull('deleted_at')
+        ->get();
+
+      foreach ($evaluationPersons as $evaluationPerson) {
+        $updateData = [
+          'id' => $evaluationPerson->id,
+          'person_id' => $personCycleDetail->person_id,
+          'chief_id' => $personCycleDetail->chief_id,
+          'chief' => $personCycleDetail->chief,
+        ];
+
+        // Si tiene result, agregarlo para que el servicio recalcule compliance y qualification
+        if ($evaluationPerson->result > 0) {
+          $updateData['result'] = $evaluationPerson->result;
+        }
+
+        // Usar el servicio de EvaluationPerson que ya tiene la lógica de cálculo
+        $this->evaluationPersonService->update($updateData);
       }
     });
     return new EvaluationPersonCycleDetailResource($personCycleDetail);

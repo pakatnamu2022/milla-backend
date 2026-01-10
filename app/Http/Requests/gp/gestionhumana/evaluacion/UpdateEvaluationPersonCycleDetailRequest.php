@@ -9,7 +9,7 @@ class UpdateEvaluationPersonCycleDetailRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'goal' => 'required|numeric|min:0',
+      'goal' => 'nullable|numeric|min:0',
       'weight' => 'nullable|numeric|min:0|max:100',
     ];
   }

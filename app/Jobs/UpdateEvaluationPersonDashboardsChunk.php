@@ -34,6 +34,7 @@ class UpdateEvaluationPersonDashboardsChunk implements ShouldQueue
   {
     $this->evaluationId = $evaluationId;
     $this->personIds = $personIds;
+    $this->onQueue('evaluation-dashboards');
   }
 
   /**
