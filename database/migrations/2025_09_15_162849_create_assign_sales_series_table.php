@@ -16,9 +16,9 @@ return new class extends Migration {
       $table->integer('correlative_start');
       $table->boolean('status')->default(true);
       $table->foreignId('type_receipt_id')
-        ->constrained('ap_commercial_masters');
+        ->constrained('ap_masters');
       $table->foreignId('type_operation_id')
-        ->constrained('ap_commercial_masters');
+        ->constrained('ap_masters');
       $table->integer('sede_id');
       $table->foreign('sede_id')->references('id')->on('config_sede');
       $table->timestamps();

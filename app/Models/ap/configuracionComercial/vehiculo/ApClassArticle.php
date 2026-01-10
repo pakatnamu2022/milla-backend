@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\configuracionComercial\vehiculo;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -51,7 +51,7 @@ class ApClassArticle extends Model
 
   public function typeOperation(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'type_operation_id');
+    return $this->belongsTo(ApMasters::class, 'type_operation_id');
   }
 
   /**
@@ -75,6 +75,6 @@ class ApClassArticle extends Model
 
   public function typeClass()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'type_class_id');
+    return $this->belongsTo(ApMasters::class, 'type_class_id');
   }
 }

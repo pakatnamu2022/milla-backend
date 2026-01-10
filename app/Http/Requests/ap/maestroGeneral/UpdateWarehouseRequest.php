@@ -28,7 +28,7 @@ class UpdateWarehouseRequest extends StoreRequest
       'type_operation_id' => [
         'nullable',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'status' => [
         'nullable',

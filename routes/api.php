@@ -1,7 +1,6 @@
 <?php
 
-use App\Http\Controllers\ap\ApCommercialMastersController;
-use App\Http\Controllers\ap\ApPostVentaMastersController;
+use App\Http\Controllers\ap\ApMastersController;
 use App\Http\Controllers\GeneralMaster\GeneralMasterController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
@@ -613,17 +612,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
    */
   Route::group(['prefix' => 'ap'], function () {
     // Maestros Comercial
-    Route::get('commercialMasters/types', [ApCommercialMastersController::class, 'getTypes']);
-    Route::apiResource('commercialMasters', ApCommercialMastersController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    // Maestros Post Venta
-    Route::apiResource('postVentaMasters', ApPostVentaMastersController::class)->only([
+    Route::get('apMasters/types', [ApMastersController::class, 'getTypes']);
+    Route::apiResource('apMasters', ApMastersController::class)->only([
       'index',
       'show',
       'store',
@@ -1043,8 +1033,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Product Warehouse Stock - Stock de Productos por Almacén
-      Route::get('productWarehouseStock/warehouse-stock-with-transit', [ProductWarehouseStockController::class, 'getWarehouseStockWithTransit']);
-
+      Route::apiResource('productWarehouseStock', ProductWarehouseStockController::class)->only([
+        'index',
+      ]);
+      Route::post('productWarehouseStock/by-product-ids', [ProductWarehouseStockController::class, 'getStockByProductIds']);
       // Transfer Receptions - Recepciones de Transferencias
       Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
         'index',
@@ -1122,8 +1114,11 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Work Order Quotations - Cotizaciones de Órdenes de Trabajo
       Route::get('orderQuotations/{id}/pdf', [ApOrderQuotationsController::class, 'downloadPDF']);
+      Route::get('orderQuotations/{id}/pdf-repuesto', [ApOrderQuotationsController::class, 'downloadRepuestoPDF']);
       Route::post('orderQuotations/with-products', [ApOrderQuotationsController::class, 'storeWithProducts']);
       Route::put('orderQuotations/{id}/with-products', [ApOrderQuotationsController::class, 'updateWithProducts']);
+      Route::put('orderQuotations/{id}/discard', [ApOrderQuotationsController::class, 'discard']);
+      Route::put('orderQuotations/{id}/confirm', [ApOrderQuotationsController::class, 'confirm']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',

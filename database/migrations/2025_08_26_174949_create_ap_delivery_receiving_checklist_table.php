@@ -16,7 +16,7 @@ return new class extends Migration {
       $table->enum('type', ['ENTREGA', 'RECEPCION']);
       $table->boolean('status')->default(true);
       $table->foreignId('category_id')
-        ->constrained('ap_commercial_masters')
+        ->constrained('ap_masters')
         ->cascadeOnUpdate()
         ->restrictOnDelete();
       $table->timestamps();

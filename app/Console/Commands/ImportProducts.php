@@ -2,13 +2,13 @@
 
 namespace App\Console\Commands;
 
+use App\Models\ap\ApMasters;
 use Illuminate\Console\Command;
 use App\Http\Services\ap\postventa\gestionProductos\ProductsService;
 use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
-use App\Models\ap\ApPostVentaMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 
@@ -80,7 +80,7 @@ class ImportProducts extends Command
             'code' => 'required|string|max:255',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'product_category_id' => 'nullable|integer|exists:ap_post_venta_masters,id',
+            'product_category_id' => 'nullable|integer|exists:ap_masters,id',
             'brand_id' => 'nullable|integer|exists:ap_vehicle_brand,id',
             'unit_measurement_id' => 'required|integer|exists:unit_measurement,id',
             'ap_class_article_id' => 'nullable|integer|exists:ap_class_article,id',
@@ -101,7 +101,7 @@ class ImportProducts extends Command
 
           // Obtener category code
           if (!empty($productData['product_category_id'])) {
-            $category = ApPostVentaMasters::find($productData['product_category_id']);
+            $category = ApMasters::find($productData['product_category_id']);
             if ($category && !empty($category->code)) {
               $dynCodeParts[] = $category->code;
             }
@@ -159,7 +159,6 @@ class ImportProducts extends Command
           // Llamar al servicio para guardar el producto
           $this->service->store($dataToStore);
           $success++;
-
         } catch (\Exception $e) {
           $errors[] = [
             'row' => $index + 2,
@@ -188,7 +187,6 @@ class ImportProducts extends Command
       }
 
       return 0;
-
     } catch (\Exception $e) {
       $this->error("Error al leer el archivo: " . $e->getMessage());
       return 1;

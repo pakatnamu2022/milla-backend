@@ -10,7 +10,7 @@ class StoreApOrderQuotationsRequest extends StoreRequest
   {
     return [
       'currency_id' => ['required', 'integer', 'exists:type_currency,id'],
-      'area_id' => ['required', 'integer', 'exists:ap_post_venta_masters,id'],
+      'area_id' => ['required', 'integer', 'exists:ap_masters,id'],
       'vehicle_id' => ['required', 'integer', 'exists:ap_vehicles,id'],
       'sede_id' => ['required', 'integer', 'exists:config_sede,id'],
       'quotation_date' => ['required', 'date'],

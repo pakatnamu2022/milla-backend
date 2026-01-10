@@ -31,7 +31,7 @@ class UpdateProductsRequest extends StoreRequest
       ],
       'name' => 'sometimes|required|string|max:255',
       'description' => 'nullable|string',
-      'product_category_id' => 'sometimes|required|exists:ap_post_venta_masters,id',
+      'product_category_id' => 'sometimes|required|exists:ap_masters,id',
       'brand_id' => 'nullable|exists:ap_vehicle_brand,id',
       'unit_measurement_id' => 'sometimes|required|exists:unit_measurement,id',
       'ap_class_article_id' => 'sometimes|required|exists:ap_class_article,id',

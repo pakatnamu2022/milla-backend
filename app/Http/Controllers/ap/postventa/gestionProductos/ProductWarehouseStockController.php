@@ -18,18 +18,40 @@ class ProductWarehouseStockController extends Controller
     $this->service = $service;
   }
 
-  public function getWarehouseStockWithTransit(Request $request)
+  public function index(Request $request)
   {
     try {
+      return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Get stock by multiple product IDs
+   * Returns stock information for multiple products across all warehouses
+   *
+   * @param Request $request
+   * @return JsonResponse
+   */
+  public function getStockByProductIds(Request $request): JsonResponse
+  {
+    try {
+      // Validate request
       $request->validate([
-        'warehouse_id' => 'required|integer|exists:warehouse,id',
+        'product_ids' => 'required|array',
+        'product_ids.*' => 'required|integer|exists:products,id',
       ]);
 
-      $stocks = $this->service->getWarehouseStockWithTransit($request);
+      $productIds = $request->input('product_ids');
+      $result = $this->service->getStockByProductIds($productIds);
 
-      return ProductWarehouseStockResource::collection($stocks);
-    } catch (Exception $e) {
-      return $this->error($e->getMessage());
+      return response()->json([
+        'success' => true,
+        'data' => $result,
+      ]);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
   }
 }

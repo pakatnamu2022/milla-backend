@@ -11,7 +11,7 @@ return new class extends Migration {
   public function up(): void
   {
     Schema::table('ap_models_vn', function (Blueprint $table) {
-      $table->foreignId('type_operation_id')->nullable()->after('currency_type_id')->constrained('ap_commercial_masters')->onDelete('set null');
+      $table->foreignId('type_operation_id')->nullable()->after('currency_type_id')->constrained('ap_masters')->onDelete('set null');
       $table->unsignedBigInteger('currency_type_id')->nullable()->change();
     });
   }

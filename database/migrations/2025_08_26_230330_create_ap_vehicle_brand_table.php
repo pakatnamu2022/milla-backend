@@ -21,7 +21,7 @@ return new class extends Migration
             $table->text('logo_min')->nullable();
             $table->boolean('status')->default(true);
             $table->foreignId('group_id')
-                ->constrained('ap_commercial_masters')
+                ->constrained('ap_masters')
                 ->cascadeOnUpdate()
                 ->restrictOnDelete();
             $table->timestamps();

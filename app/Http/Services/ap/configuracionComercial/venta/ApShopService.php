@@ -4,7 +4,7 @@ namespace App\Http\Services\ap\configuracionComercial\venta;
 
 use App\Http\Resources\ap\configuracionComercial\venta\ApShopResource;
 use App\Http\Services\BaseService;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +15,7 @@ class ApShopService extends BaseService
   public function list(Request $request)
   {
     $shop_name = $request->query('search');
-    $shops = ApCommercialMasters::where('type', 'TIENDA')
+    $shops = ApMasters::where('type', 'TIENDA')
       ->when($shop_name, function ($query) use ($shop_name) {
         $query->where('description', 'like', '%' . $shop_name . '%');
       })
@@ -26,7 +26,7 @@ class ApShopService extends BaseService
 
   public function find($id)
   {
-    $shop = ApCommercialMasters::where('type', 'TIENDA')
+    $shop = ApMasters::where('type', 'TIENDA')
       ->with('sedes')
       ->find($id);
 
@@ -41,7 +41,7 @@ class ApShopService extends BaseService
     DB::beginTransaction();
 
     try {
-      $shop = ApCommercialMasters::create($data);
+      $shop = ApMasters::create($data);
 
       $sedes_ids = $data['sedes'] ?? [];
       if (!empty($sedes_ids)) {

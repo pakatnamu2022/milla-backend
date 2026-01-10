@@ -23,15 +23,15 @@ return new class extends Migration {
       $table->string('campaign', 100)->comment("¿De qué campaña viene el cliente, derco, redes sociales?");
       $table->string('type')->comment("¿Es VISITA o LEADS, ETC?");
       $table->foreignId('income_sector_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->integer('sede_id');
       $table->foreign('sede_id')->references('id')->on('config_sede');
       $table->foreignId('vehicle_brand_id')
         ->constrained('ap_vehicle_brand')->onDelete('cascade');
       $table->foreignId('document_type_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->foreignId('area_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->timestamps();
       $table->softDeletes();
     });

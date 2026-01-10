@@ -177,22 +177,22 @@ class UpdateApModelsVnRequest extends StoreRequest
       'vehicle_type_id' => [
         'nullable',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'body_type_id' => [
         'nullable',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'traction_type_id' => [
         'nullable',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'transmission_id' => [
         'nullable',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'currency_type_id' => [
         'nullable',
@@ -202,7 +202,7 @@ class UpdateApModelsVnRequest extends StoreRequest
       'type_operation_id' => [
         'nullable',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'status' => ['nullable', 'boolean']
     ];

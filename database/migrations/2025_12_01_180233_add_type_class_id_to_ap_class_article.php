@@ -16,7 +16,7 @@ return new class extends Migration
       $table->foreignId('type_class_id')
         ->nullable()
         ->after('type_operation_id')
-        ->constrained('ap_commercial_masters')
+        ->constrained('ap_masters')
         ->nullOnDelete();
 
       // Crear índice para búsquedas rápidas

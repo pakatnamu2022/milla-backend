@@ -5,7 +5,7 @@ namespace App\Http\Services\ap\configuracionComercial\venta;
 use App\Http\Resources\ap\configuracionComercial\venta\ApAssignBrandConsultantResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\venta\ApGoalSellOutIn;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Http\Request;
@@ -34,7 +34,7 @@ class ApAssignBrandConsultantService extends BaseService implements BaseServiceI
 
     if (!empty($brandId) && !empty($sedeId)) {
       $shopId = Sede::where('id', $sedeId)->value('shop_id');
-      $shopName = ApCommercialMasters::where('id', $shopId)->value('description');
+      $shopName = ApMasters::where('id', $shopId)->value('description');
       $goalSellIn = ApGoalSellOutIn::where('brand_id', $brandId)
         ->where('shop_id', $shopId)
         ->where('type', 'IN')

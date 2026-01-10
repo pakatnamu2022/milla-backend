@@ -5,10 +5,13 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Utils\Constants;
+use App\Http\Utils\Helpers;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\gp\gestionsistema\DigitalFile;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -18,6 +21,18 @@ use Illuminate\Support\Facades\DB;
 
 class ApOrderQuotationsService extends BaseService implements BaseServiceInterface
 {
+  protected DigitalFileService $digitalFileService;
+
+  // Configuración de rutas para archivos
+  private const FILE_PATHS = [
+    'customer_signature' => '/ap/postventa/taller/cotizaciones/firmas-cliente/',
+  ];
+
+  public function __construct(DigitalFileService $digitalFileService)
+  {
+    $this->digitalFileService = $digitalFileService;
+  }
+
   public function list(Request $request)
   {
     return $this->getFilteredResults(
@@ -176,7 +191,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   {
     $quotation = $this->find($id);
     $quotation->load('advancesOrderQuotation');
-    return new ApOrderQuotationsResource($quotation);
+    return (new ApOrderQuotationsResource($quotation))->additional(['checkStock' => true]);
   }
 
 
@@ -225,6 +240,14 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $exchangeRate = ExchangeRate::where('date', $date)->first();
       if (!$exchangeRate) {
         throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      }
+
+      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+        throw new Exception('No se puede actualizar una cotización que ha sido descartada.');
+      }
+
+      if ($quotation->status !== ApOrderQuotations::STATUS_APERTURADO) {
+        throw new Exception('Solo se pueden eliminar cotizaciones en estado "Aperturado".');
       }
 
       if ($quotation->has_invoice_generated) {
@@ -304,8 +327,16 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   {
     $quotation = $this->find($id);
 
+    if ($quotation->status !== ApOrderQuotations::STATUS_APERTURADO) {
+      throw new Exception('Solo se pueden eliminar cotizaciones en estado "Aperturado".');
+    }
+
     if ($quotation->has_invoice_generated) {
       throw new Exception('No se puede eliminar una cotización que ya tiene una factura generada.');
+    }
+
+    if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+      throw new Exception('No se puede eliminar una cotización que ha sido descartada.');
     }
 
     DB::transaction(function () use ($quotation) {
@@ -313,6 +344,49 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     });
 
     return response()->json(['message' => 'Cotización eliminada correctamente']);
+  }
+
+  public function discard(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $quotation = $this->find($data['id']);
+
+      if ($quotation->has_invoice_generated) {
+        throw new Exception('No se puede descartar una cotización que ya tiene una factura generada.');
+      }
+
+      if ($quotation->discarded_at) {
+        throw new Exception('Esta cotización ya ha sido descartada previamente.');
+      }
+
+      // Preparar los datos de descarte
+      $discardData = [
+        'discard_reason_id' => $data['discard_reason_id'],
+        'discarded_note' => $data['discarded_note'] ?? null,
+        'discarded_by' => auth()->check() ? auth()->user()->id : null,
+        'discarded_at' => Carbon::now(),
+      ];
+
+      // Si se proporciona un status, actualizarlo
+      if (isset($data['status'])) {
+        $discardData['status'] = $data['status'];
+      } else {
+        // Establecer un status por defecto si no se proporciona
+        $discardData['status'] = ApOrderQuotations::STATUS_DESCARTADO;
+      }
+
+      $quotation->update($discardData);
+
+      $quotation->load([
+        'vehicle',
+        'createdBy',
+        'details',
+        'discardReason',
+        'discardedBy'
+      ]);
+
+      return new ApOrderQuotationsResource($quotation);
+    });
   }
 
   /**
@@ -340,7 +414,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return "COT-{$year}-{$month}-{$newNumber}";
   }
 
-  public function generateQuotationPDF($id, $with_labor = true)
+  public function generateQuotationPDF($id)
   {
     $quotation = ApOrderQuotations::with([
       'vehicle.model.family.brand',
@@ -416,9 +490,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
     // Filtrar detalles según el parámetro with_labor
     $details = $quotation->details;
-    if (!$with_labor) {
-      $details = $details->where('item_type', '!=', 'labor');
-    }
 
     // Detalles de la cotización
     $data['details'] = $details->map(function ($detail) {
@@ -435,18 +506,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     });
 
     // Calcular totales según el parámetro with_labor
-    $totalLabor = $with_labor ? $quotation->details->where('item_type', 'labor')->sum('total_amount') : 0;
+    $totalLabor = $quotation->details->where('item_type', 'labor')->sum('total_amount');
     $totalParts = $quotation->details->where('item_type', 'part')->sum('total_amount');
-    $totalDiscounts = $with_labor ? $quotation->details->sum('discount') : $details->sum('discount');
+    $totalDiscounts = $quotation->details->sum('discount');
 
     // Recalcular subtotal y total si no se incluye mano de obra
-    if (!$with_labor) {
-      $subtotal = $details->sum('total_amount') + $totalDiscounts;
-      $total_amount = $details->sum('total_amount');
-    } else {
-      $subtotal = $quotation->subtotal;
-      $total_amount = $quotation->total_amount;
-    }
+    $subtotal = $quotation->subtotal;
+    $total_amount = $quotation->total_amount;
 
     $data['total_labor'] = $totalLabor;
     $data['total_parts'] = $totalParts;
@@ -454,7 +520,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $data['subtotal'] = $subtotal;
     $data['tax_amount'] = $quotation->tax_amount;
     $data['total_amount'] = $total_amount;
-    $data['with_labor'] = $with_labor;
+
+    // Convertir firma del cliente a base64 si existe
+    $customerSignature = null;
+    if ($quotation->customer_signature_url) {
+      $customerSignature = Helpers::convertUrlToBase64($quotation->customer_signature_url);
+    }
+    $data['customer_signature'] = $customerSignature;
 
     // Generar PDF
     $pdf = Pdf::loadView('reports.ap.postventa.taller.order-quotation', [
@@ -468,4 +540,194 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return $pdf->download($fileName);
   }
 
+
+  public function generateQuotationRepuestoPDF($id, $showCodes = true)
+  {
+    $quotation = ApOrderQuotations::with([
+      'vehicle.model.family.brand',
+      'vehicle.color',
+      'vehicle.customer.district',
+      'createdBy',
+      'details.product'
+    ])->find($id);
+
+    if (!$quotation) {
+      throw new Exception('Cotización no encontrada');
+    }
+
+    // Preparar datos para la vista
+    $data = [
+      'quotation_number' => $quotation->quotation_number,
+      'quotation_date' => $quotation->quotation_date,
+      'expiration_date' => $quotation->expiration_date,
+      'observations' => $quotation->observations ?? '',
+      'validity_days' => $quotation->validity_days,
+      'show_codes' => $showCodes,
+    ];
+
+    // Datos del cliente
+    if ($quotation->vehicle && $quotation->vehicle->customer) {
+      $customer = $quotation->vehicle->customer;
+      $data['customer_name'] = $customer->full_name;
+      $data['customer_document'] = $customer->num_doc ?? 'N/A';
+      $data['customer_address'] = $customer->direction ?? 'N/A';
+      $data['customer_district'] = $customer->district ? $customer->district->name : 'N/A';
+      $data['customer_email'] = $customer->email ?? 'N/A';
+      $data['customer_phone'] = $customer->phone ?? 'N/A';
+    } else {
+      $data['customer_name'] = 'N/A';
+      $data['customer_document'] = 'N/A';
+      $data['customer_address'] = 'N/A';
+      $data['customer_district'] = 'N/A';
+      $data['customer_email'] = 'N/A';
+      $data['customer_phone'] = 'N/A';
+    }
+
+    // Datos del asesor
+    if ($quotation->createdBy) {
+      $data['advisor_name'] = $quotation->createdBy->person->nombre_completo ?? 'N/A';
+      $data['advisor_phone'] = $quotation->createdBy->person->cel_personal ?? 'N/A';
+      $data['advisor_email'] = $quotation->createdBy->person->email ?? 'N/A';
+    } else {
+      $data['advisor_name'] = 'N/A';
+      $data['advisor_phone'] = 'N/A';
+      $data['advisor_email'] = 'N/A';
+    }
+
+    // Datos del vehículo (sin kilometraje)
+    if ($quotation->vehicle) {
+      $vehicle = $quotation->vehicle;
+      $data['vehicle_plate'] = $vehicle->plate ?? 'N/A';
+      $data['vehicle_vin'] = $vehicle->vin ?? 'N/A';
+      $data['vehicle_engine'] = $vehicle->engine_number ?? 'N/A';
+      $data['vehicle_model'] = $vehicle->model ? $vehicle->model->version : 'N/A';
+      $data['vehicle_brand'] = $vehicle->model && $vehicle->model->family && $vehicle->model->family->brand
+        ? $vehicle->model->family->brand->name
+        : 'N/A';
+      $data['vehicle_color'] = $vehicle->color ? $vehicle->color->description : 'N/A';
+    } else {
+      $data['vehicle_plate'] = 'N/A';
+      $data['vehicle_vin'] = 'N/A';
+      $data['vehicle_engine'] = 'N/A';
+      $data['vehicle_model'] = 'N/A';
+      $data['vehicle_brand'] = 'N/A';
+      $data['vehicle_color'] = 'N/A';
+    }
+
+    // Filtrar solo repuestos (excluir mano de obra)
+    $repuestosDetails = $quotation->details->where('item_type', '!=', 'labor');
+
+    // Detalles de la cotización (solo repuestos)
+    $data['details'] = $repuestosDetails->map(function ($detail) use ($showCodes) {
+      return [
+        'code' => $showCodes && $detail->product ? $detail->product->code : '',
+        'description' => $detail->description,
+        'observations' => $detail->observations ?? '',
+        'quantity' => $detail->quantity,
+        'unit_price' => $detail->unit_price,
+        'discount' => $detail->discount,
+        'total_amount' => $detail->total_amount,
+        'item_type' => $detail->item_type,
+      ];
+    });
+
+    // Calcular totales solo con repuestos
+    $totalParts = $repuestosDetails->sum('total_amount');
+    $totalDiscounts = $repuestosDetails->sum(function ($detail) {
+      return ($detail->quantity * $detail->unit_price) * ($detail->discount / 100);
+    });
+
+    // Calcular subtotal con repuestos
+    $subtotal = $repuestosDetails->sum(function ($detail) {
+      return $detail->quantity * $detail->unit_price;
+    });
+
+    // Total después de descuentos
+    $total_amount = $subtotal - $totalDiscounts;
+
+    $data['total_parts'] = $totalParts;
+    $data['total_discounts'] = $totalDiscounts;
+    $data['subtotal'] = $subtotal;
+    $data['tax_amount'] = $quotation->tax_amount;
+    $data['total_amount'] = $total_amount;
+
+    // Convertir firma del cliente a base64 si existe
+    $customerSignature = null;
+    if ($quotation->customer_signature_url) {
+      $customerSignature = Helpers::convertUrlToBase64($quotation->customer_signature_url);
+    }
+    $data['customer_signature'] = $customerSignature;
+
+    // Generar PDF
+    $pdf = Pdf::loadView('reports.ap.postventa.taller.order-quotation-repuesto', [
+      'quotation' => $data
+    ]);
+
+    $pdf->setPaper('a4', 'portrait');
+
+    $fileName = 'Cotizacion_Repuestos_' . $quotation->quotation_number . '.pdf';
+
+    return $pdf->download($fileName);
+  }
+
+  /**
+   * Confirma una cotización guardando la firma del cliente y cambiando el estado a "Por Facturar"
+   */
+  public function confirm(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $quotation = $this->find($data['id']);
+
+      // Validaciones
+      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+        throw new Exception('No se puede confirmar una cotización que ha sido descartada.');
+      }
+
+      if ($quotation->has_invoice_generated) {
+        throw new Exception('No se puede confirmar una cotización que ya tiene una factura generada.');
+      }
+
+      if ($quotation->status === ApOrderQuotations::STATUS_POR_FACTURAR) {
+        throw new Exception('Esta cotización ya ha sido confirmada previamente.');
+      }
+
+      // Procesar firma del cliente si existe
+      if (isset($data['customer_signature'])) {
+        $this->processCustomerSignature($quotation, $data['customer_signature']);
+      }
+
+      // Cambiar el estado a "Por Facturar"
+      $quotation->update([
+        'status' => ApOrderQuotations::STATUS_POR_FACTURAR,
+      ]);
+
+      $quotation->load([
+        'vehicle',
+        'createdBy',
+        'details',
+      ]);
+
+      return new ApOrderQuotationsResource($quotation);
+    });
+  }
+
+  /**
+   * Procesa y guarda la firma del cliente en base64
+   */
+  private function processCustomerSignature($quotation, string $base64Signature): void
+  {
+    // Convertir base64 a UploadedFile
+    $signatureFile = Helpers::base64ToUploadedFile($base64Signature, "customer_signature.png");
+
+    // Ruta y modelo
+    $path = self::FILE_PATHS['customer_signature'];
+    $model = $quotation->getTable();
+
+    // Subir archivo usando DigitalFileService
+    $digitalFile = $this->digitalFileService->store($signatureFile, $path, 'public', $model);
+
+    // Actualizar la cotización con la URL de la firma
+    $quotation->customer_signature_url = $digitalFile->url;
+    $quotation->save();
+  }
 }

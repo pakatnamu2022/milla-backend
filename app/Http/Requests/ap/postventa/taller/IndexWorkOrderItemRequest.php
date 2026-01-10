@@ -22,7 +22,7 @@ class IndexWorkOrderItemRequest extends IndexRequest
       'type_planning_id' => [
         'nullable',
         'integer',
-        'exists:ap_post_venta_masters,id',
+        'exists:ap_masters,id',
       ],
     ];
   }

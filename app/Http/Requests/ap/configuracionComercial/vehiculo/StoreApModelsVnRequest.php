@@ -3,7 +3,7 @@
 namespace App\Http\Requests\ap\configuracionComercial\vehiculo;
 
 use App\Http\Requests\StoreRequest;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use Illuminate\Validation\Rule;
 
 class StoreApModelsVnRequest extends StoreRequest
@@ -106,63 +106,63 @@ class StoreApModelsVnRequest extends StoreRequest
         'max:50',
       ],
       'distributor_price' => [
-        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApMasters::TIPO_OPERACION_COMERCIAL),
         'nullable',
         'numeric',
         'min:0',
         'max:9999999999.99',
       ],
       'transport_cost' => [
-        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApMasters::TIPO_OPERACION_COMERCIAL),
         'nullable',
         'numeric',
         'min:0',
         'max:9999999999.99',
       ],
       'other_amounts' => [
-        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApMasters::TIPO_OPERACION_COMERCIAL),
         'nullable',
         'numeric',
         'min:0',
         'max:9999999999.99',
       ],
       'purchase_discount' => [
-        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApMasters::TIPO_OPERACION_COMERCIAL),
         'nullable',
         'numeric',
         'min:0',
         'max:9999999999.99',
       ],
       'igv_amount' => [
-        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApMasters::TIPO_OPERACION_COMERCIAL),
         'nullable',
         'numeric',
         'min:0',
         'max:9999999999.99',
       ],
       'total_purchase_excl_igv' => [
-        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApMasters::TIPO_OPERACION_COMERCIAL),
         'nullable',
         'numeric',
         'min:0',
         'max:9999999999.99',
       ],
       'total_purchase_incl_igv' => [
-        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApMasters::TIPO_OPERACION_COMERCIAL),
         'nullable',
         'numeric',
         'min:0',
         'max:9999999999.99',
       ],
       'sale_price' => [
-        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApMasters::TIPO_OPERACION_COMERCIAL),
         'nullable',
         'numeric',
         'min:0',
         'max:9999999999.99',
       ],
       'margin' => [
-        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        Rule::requiredIf(fn() => $this->input('type_operation_id') == ApMasters::TIPO_OPERACION_COMERCIAL),
         'nullable',
         'numeric',
         'min:0',
@@ -186,25 +186,25 @@ class StoreApModelsVnRequest extends StoreRequest
       'vehicle_type_id' => [
         'required',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'body_type_id' => [
         'required',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'traction_type_id' => [
         'required',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'transmission_id' => [
         'required',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'currency_type_id' => [
-        Rule::requiredIf(fn() => $this->input('currency_type_id') == ApCommercialMasters::TIPO_OPERACION_COMERCIAL),
+        Rule::requiredIf(fn() => $this->input('currency_type_id') == ApMasters::TIPO_OPERACION_COMERCIAL),
         'nullable',
         'integer',
         'exists:type_currency,id',
@@ -212,7 +212,7 @@ class StoreApModelsVnRequest extends StoreRequest
       'type_operation_id' => [
         'required',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
     ];
   }

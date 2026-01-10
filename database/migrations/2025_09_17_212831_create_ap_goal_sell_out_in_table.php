@@ -19,7 +19,7 @@ return new class extends Migration {
       $table->foreignId('brand_id')
         ->constrained('ap_vehicle_brand');
       $table->foreignId('shop_id')
-        ->constrained('ap_commercial_masters');
+        ->constrained('ap_masters');
       $table->timestamps();
       $table->softDeletes();
     });

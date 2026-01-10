@@ -13,24 +13,24 @@ return new class extends Migration {
     Schema::create('ap_vehicle_purchase_order', function (Blueprint $table) {
       $table->id();
 
-//      VEHICLE
+      //      VEHICLE
       $table->string('vin');
       $table->integer('year');
       $table->string('engine_number');
       $table->foreignId('ap_models_vn_id')
         ->constrained('ap_models_vn')->onDelete('cascade');
       $table->foreignId('vehicle_color_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->foreignId('supplier_order_type_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->foreignId('engine_type_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->foreignId('ap_vehicle_status_id')
         ->constrained('ap_vehicle_status')->onDelete('cascade');
       $table->integer('sede_id');
       $table->foreign('sede_id')->references('id')->on('config_sede');
 
-//      INVOICE
+      //      INVOICE
       $table->string('invoice_series');
       $table->string('invoice_number');
       $table->date('emission_date');
@@ -41,9 +41,9 @@ return new class extends Migration {
       $table->decimal('total');
       $table->foreignId('supplier_id')->constrained('business_partners');
       $table->foreignId('currency_id')->constrained('type_currency');
-      $table->foreignId('exchange_rate_id')->constrained('ap_commercial_masters');
+      $table->foreignId('exchange_rate_id')->constrained('ap_masters');
 
-//      GUIDE
+      //      GUIDE
       $table->string('number');
       $table->string('number_guide');
       $table->foreignId('warehouse_id')->constrained('warehouse');

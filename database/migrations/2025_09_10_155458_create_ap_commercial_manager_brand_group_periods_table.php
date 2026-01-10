@@ -34,7 +34,7 @@ return new class extends Migration {
         ->cascadeOnDelete();
 
       $table->foreign('brand_group_id', 'fk_mgr_brandgroup')
-        ->references('id')->on('ap_commercial_masters')
+        ->references('id')->on('ap_masters')
         ->cascadeOnUpdate()
         ->restrictOnDelete();
     });

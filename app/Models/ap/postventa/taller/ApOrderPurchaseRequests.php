@@ -66,6 +66,11 @@ class ApOrderPurchaseRequests extends Model
     });
   }
 
+  // SUPPLY TYPE CONSTANTS
+  const STOCK = 'STOCK';
+  const LIMA = 'LIMA';
+  const IMPORTACION = 'IMPORTACION';
+
   public function apOrderQuotation(): BelongsTo
   {
     return $this->belongsTo(ApOrderQuotations::class, 'ap_order_quotation_id');

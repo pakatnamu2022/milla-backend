@@ -8,7 +8,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\OpportunityAction;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\PotentialBuyers;
 use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
 use Exception;
@@ -137,7 +137,7 @@ class OpportunityService extends BaseService implements BaseServiceInterface
     try {
       $opportunity = $this->find($id);
       if ($opportunity->is_closed) throw new Exception('La oportunidad ya está cerrada');
-      $status = ApCommercialMasters::where('code', Opportunity::CLOSED)->whereNull('deleted_at')->first();
+      $status = ApMasters::where('code', Opportunity::CLOSED)->whereNull('deleted_at')->first();
       $opportunity->update(['opportunity_status_id' => $status->id, 'comment' => $message]);
       DB::commit();
       return new OpportunityResource($opportunity);

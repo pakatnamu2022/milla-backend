@@ -3,7 +3,7 @@
 namespace App\Http\Requests\ap\compras;
 
 use App\Http\Requests\StoreRequest;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\Warehouse;
 use Illuminate\Validation\Rule;
 
@@ -14,7 +14,7 @@ class StorePurchaseOrderRequest extends StoreRequest
   {
     if (!$this->has('type_operation_id')) {
       $this->merge([
-        'type_operation_id' => ApCommercialMasters::TIPO_OPERACION_COMERCIAL,
+        'type_operation_id' => ApMasters::TIPO_OPERACION_COMERCIAL,
       ]);
     }
   }
@@ -36,15 +36,15 @@ class StorePurchaseOrderRequest extends StoreRequest
       'year' => ['required', 'integer', 'min:1900', 'max:2100'],
       'engine_number' => ['required', 'string', 'max:30', Rule::unique('ap_vehicles', 'engine_number')->whereNull('deleted_at')->where('status', 1)],
       'ap_models_vn_id' => ['required', 'integer', Rule::exists('ap_models_vn', 'id')->where('status', 1)->whereNull('deleted_at')],
-      'vehicle_color_id' => ['required', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'COLOR_VEHICULO')->where('status', 1)->whereNull('deleted_at')],
-      'engine_type_id' => ['required', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'TIPO_MOTOR')->where('status', 1)->whereNull('deleted_at')],
+      'vehicle_color_id' => ['required', 'integer', Rule::exists('ap_masters', 'id')->where('type', 'COLOR_VEHICULO')->where('status', 1)->whereNull('deleted_at')],
+      'engine_type_id' => ['required', 'integer', Rule::exists('ap_masters', 'id')->where('type', 'TIPO_MOTOR')->where('status', 1)->whereNull('deleted_at')],
     ] : [
       'vin' => ['nullable', 'string', 'max:17'],
       'year' => ['nullable', 'integer', 'min:1900', 'max:2100'],
       'engine_number' => ['nullable', 'string', 'max:30'],
       'ap_models_vn_id' => ['nullable', 'integer', Rule::exists('ap_models_vn', 'id')->where('status', 1)->whereNull('deleted_at')],
-      'vehicle_color_id' => ['nullable', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'COLOR_VEHICULO')->where('status', 1)->whereNull('deleted_at')],
-      'engine_type_id' => ['nullable', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'TIPO_MOTOR')->where('status', 1)->whereNull('deleted_at')],
+      'vehicle_color_id' => ['nullable', 'integer', Rule::exists('ap_masters', 'id')->where('type', 'COLOR_VEHICULO')->where('status', 1)->whereNull('deleted_at')],
+      'engine_type_id' => ['nullable', 'integer', Rule::exists('ap_masters', 'id')->where('type', 'TIPO_MOTOR')->where('status', 1)->whereNull('deleted_at')],
     ];
 
     return array_merge($vehicleRules, [
@@ -64,7 +64,7 @@ class StorePurchaseOrderRequest extends StoreRequest
 
       // Relaciones
       'sede_id' => ['required', 'integer', Rule::exists('config_sede', 'id')->where('status', 1)->whereNull('deleted_at')],
-      'supplier_order_type_id' => ['sometimes', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'TIPO_PEDIDO_PROVEEDOR')->where('status', 1)->whereNull('deleted_at')],
+      'supplier_order_type_id' => ['sometimes', 'integer', Rule::exists('ap_masters', 'id')->where('type', 'TIPO_PEDIDO_PROVEEDOR')->where('status', 1)->whereNull('deleted_at')],
       'supplier_id' => ['required', 'integer', Rule::exists('business_partners', 'id')->where('status_ap', 1)->whereNull('deleted_at')],
       'currency_id' => ['required', 'integer', Rule::exists('type_currency', 'id')->where('status', 1)->whereNull('deleted_at')],
       'warehouse_id' => ['required', 'integer', Rule::exists('warehouse', 'id')->where('type', Warehouse::REAL)->where('status', 1)->whereNull('deleted_at')],
@@ -73,7 +73,7 @@ class StorePurchaseOrderRequest extends StoreRequest
       'vehicle_movement_id' => ['nullable', 'integer', Rule::exists('ap_vehicle_movement', 'id')->whereNull('deleted_at')],
 
       // Tipo de Operación (opcional)
-      'type_operation_id' => ['required', 'integer', Rule::exists('ap_commercial_masters', 'id')->where('type', 'TIPO_OPERACION')->where('status', 1)->whereNull('deleted_at')],
+      'type_operation_id' => ['required', 'integer', Rule::exists('ap_masters', 'id')->where('type', 'TIPO_OPERACION')->where('status', 1)->whereNull('deleted_at')],
 
       'payment_terms' => ['nullable', 'string', 'max:100'],
 

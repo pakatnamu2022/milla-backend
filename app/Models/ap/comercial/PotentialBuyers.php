@@ -3,7 +3,7 @@
 namespace App\Models\ap\comercial;
 
 use App\Http\Traits\Reportable;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
@@ -49,7 +49,7 @@ class PotentialBuyers extends Model
     'sede_id' => '=',
     'vehicle_brand_id' => '=',
     'document_type_id' => '=',
-    'created_at' => 'date_btw',
+    'created_at' => 'date_between',
     'type' => '=',
     'income_sector_id' => '=',
     'area_id' => '=',
@@ -113,7 +113,7 @@ class PotentialBuyers extends Model
 
   public function documentType(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'document_type_id');
+    return $this->belongsTo(ApMasters::class, 'document_type_id');
   }
 
   public function sede(): BelongsTo
@@ -123,12 +123,12 @@ class PotentialBuyers extends Model
 
   public function area(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'area_id');
+    return $this->belongsTo(ApMasters::class, 'area_id');
   }
 
   public function incomeSector(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'income_sector_id');
+    return $this->belongsTo(ApMasters::class, 'income_sector_id');
   }
 
   public function worker(): BelongsTo

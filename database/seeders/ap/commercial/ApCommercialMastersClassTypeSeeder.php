@@ -13,7 +13,7 @@ class ApCommercialMastersClassTypeSeeder extends Seeder
   /**
    * Run the database seeds.
    *
-   * Crea los registros de tipo CLASS_TYPE en ap_commercial_masters
+   * Crea los registros de tipo CLASS_TYPE en ap_masters
    * para clasificar marcas y clases de artículos
    */
   public function run(): void
@@ -38,7 +38,7 @@ class ApCommercialMastersClassTypeSeeder extends Seeder
     ];
 
     foreach ($classTypes as $classType) {
-      DB::table('ap_commercial_masters')->updateOrInsert(
+      DB::table('ap_masters')->updateOrInsert(
         [
           'type' => $classType['type'],
           'code' => $classType['code'],

@@ -3,7 +3,7 @@
 namespace App\Imports\ap\comercial;
 
 use App\Http\Utils\Constants;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
 use App\Models\gp\gestionhumana\personal\Worker;
@@ -138,9 +138,9 @@ class PotentialBuyersSocialNetworksImport implements ToModel, WithHeadingRow, Wi
       '*.campaign' => 'nullable|string|max:50',
       '*.sede_id' => 'required|exists:sedes,id',
       '*.vehicle_brand_id' => 'nullable|exists:ap_vehicle_brands,id',
-      '*.document_type_id' => 'required|exists:ap_commercial_masters,id',
-      '*.income_sector_id' => 'nullable|exists:ap_commercial_masters,id',
-      '*.area_id' => 'nullable|exists:ap_commercial_masters,id',
+      '*.document_type_id' => 'required|exists:ap_masters,id',
+      '*.income_sector_id' => 'nullable|exists:ap_masters,id',
+      '*.area_id' => 'nullable|exists:ap_masters,id',
       '*.type' => 'nullable|in:VISITA,LEADS',
     ];
   }
@@ -173,8 +173,8 @@ class PotentialBuyersSocialNetworksImport implements ToModel, WithHeadingRow, Wi
     $documentTypeMap = [
       'DNI' => Constants::TYPE_DOCUMENT_DNI_ID,
       'RUC' => Constants::TYPE_DOCUMENT_RUC_ID,
-//      'CE' => Constants::TYPE_DOCUMENT_CE_ID, // Carnet de extranjería
-//      'PASAPORTE' => Constants::TYPE_DOCUMENT_PASAPORTE_ID,
+      //      'CE' => Constants::TYPE_DOCUMENT_CE_ID, // Carnet de extranjería
+      //      'PASAPORTE' => Constants::TYPE_DOCUMENT_PASAPORTE_ID,
     ];
 
     $documentTypeUpper = strtoupper(trim($documentType));
@@ -184,7 +184,7 @@ class PotentialBuyersSocialNetworksImport implements ToModel, WithHeadingRow, Wi
       return null;
     }
 
-    $master = ApCommercialMasters::where('type', 'TIPO_DOCUMENTO')
+    $master = ApMasters::where('type', 'TIPO_DOCUMENTO')
       ->where('id', $id_document)
       ->first();
 

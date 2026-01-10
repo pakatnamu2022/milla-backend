@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApFamilies;
 use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Database\Eloquent\Model;
@@ -89,17 +89,17 @@ class Opportunity extends Model
 
   public function opportunityType(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'opportunity_type_id');
+    return $this->belongsTo(ApMasters::class, 'opportunity_type_id');
   }
 
   public function clientStatus(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'client_status_id');
+    return $this->belongsTo(ApMasters::class, 'client_status_id');
   }
 
   public function opportunityStatus(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'opportunity_status_id');
+    return $this->belongsTo(ApMasters::class, 'opportunity_status_id');
   }
 
   public function actions(): HasMany

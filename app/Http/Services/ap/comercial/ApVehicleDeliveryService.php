@@ -7,7 +7,7 @@ use App\Http\Resources\ap\comercial\ShippingGuidesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
@@ -244,7 +244,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         $userSeriesAssignment = UserSeriesAssignment::where('worker_id', $userId)
           ->whereHas('voucher', function ($query) use ($sedeId) {
             $query->where('type_receipt_id', AssignSalesSeries::GUIA_REMISION)
-              ->where('type_operation_id', ApCommercialMasters::TIPO_OPERACION_COMERCIAL)
+              ->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL)
               ->where('sede_id', $sedeId)
               ->where('status', true);
           })

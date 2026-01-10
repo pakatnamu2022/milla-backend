@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\maestroGeneral;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
@@ -72,7 +72,7 @@ class Warehouse extends Model
 
   public function typeOperation(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'type_operation_id');
+    return $this->belongsTo(ApMasters::class, 'type_operation_id');
   }
 
   public function articleClass(): BelongsTo

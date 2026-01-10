@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\configuracionComercial\vehiculo;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehiclePurchaseOrder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -36,7 +36,7 @@ class VehicleAccessory extends Model
 
   public function accessory()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'accessory_id');
+    return $this->belongsTo(ApMasters::class, 'accessory_id');
   }
 
   public function vehiclePurchaseOrder()

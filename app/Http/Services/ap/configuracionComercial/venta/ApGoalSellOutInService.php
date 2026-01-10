@@ -57,7 +57,7 @@ class ApGoalSellOutInService extends BaseService implements BaseServiceInterface
   public function getGoalReport($year, $month)
   {
     $data = DB::table('ap_goal_sell_out_in as goals')
-      ->join('ap_commercial_masters as shops', 'goals.shop_id', '=', 'shops.id')
+      ->join('ap_masters as shops', 'goals.shop_id', '=', 'shops.id')
       ->join('ap_vehicle_brand as brands', 'goals.brand_id', '=', 'brands.id')
       ->select(
         'shops.description as shop_name',
@@ -166,9 +166,18 @@ class ApGoalSellOutInService extends BaseService implements BaseServiceInterface
   private function getMonthName($month)
   {
     $months = [
-      1 => 'ENERO', 2 => 'FEBRERO', 3 => 'MARZO', 4 => 'ABRIL',
-      5 => 'MAYO', 6 => 'JUNIO', 7 => 'JULIO', 8 => 'AGOSTO',
-      9 => 'SETIEMBRE', 10 => 'OCTUBRE', 11 => 'NOVIEMBRE', 12 => 'DICIEMBRE'
+      1 => 'ENERO',
+      2 => 'FEBRERO',
+      3 => 'MARZO',
+      4 => 'ABRIL',
+      5 => 'MAYO',
+      6 => 'JUNIO',
+      7 => 'JULIO',
+      8 => 'AGOSTO',
+      9 => 'SETIEMBRE',
+      10 => 'OCTUBRE',
+      11 => 'NOVIEMBRE',
+      12 => 'DICIEMBRE'
     ];
 
     return $months[$month] ?? 'DESCONOCIDO';

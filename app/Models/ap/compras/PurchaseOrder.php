@@ -3,7 +3,7 @@
 namespace App\Models\ap\compras;
 
 use App\Http\Traits\Reportable;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
@@ -94,6 +94,11 @@ class PurchaseOrder extends BaseModel
     'total',
   ];
 
+  // SUPPLY TYPE CONSTANTS
+  const STOCK = 'STOCK';
+  const LIMA = 'LIMA';
+  const IMPORTACION = 'IMPORTACION';
+
   // Relaciones
   public function supplier(): BelongsTo
   {
@@ -142,7 +147,7 @@ class PurchaseOrder extends BaseModel
 
   public function supplierOrderType(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'supplier_order_type_id');
+    return $this->belongsTo(ApMasters::class, 'supplier_order_type_id');
   }
 
   public function sede(): BelongsTo

@@ -23,7 +23,7 @@ class UpdateWorkOrderItemRequest extends StoreRequest
       'type_planning_id' => [
         'nullable',
         'integer',
-        Rule::exists('ap_post_venta_masters', 'id')
+        Rule::exists('ap_masters', 'id')
           ->where('type', 'TIPO_PLANIFICACION'),
       ],
       'description' => [

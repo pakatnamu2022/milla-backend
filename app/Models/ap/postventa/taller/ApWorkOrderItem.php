@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\postventa\taller;
 
-use App\Models\ap\ApPostVentaMasters;
+use App\Models\ap\ApMasters;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -50,6 +50,6 @@ class ApWorkOrderItem extends Model
 
   public function typePlanning(): BelongsTo
   {
-    return $this->belongsTo(ApPostVentaMasters::class, 'type_planning_id');
+    return $this->belongsTo(ApMasters::class, 'type_planning_id');
   }
 }

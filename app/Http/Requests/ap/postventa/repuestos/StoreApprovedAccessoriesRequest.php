@@ -29,7 +29,7 @@ class StoreApprovedAccessoriesRequest extends StoreRequest
       'description' => ['required', 'string'],
       'price' => ['required', 'numeric'],
       'type_currency_id' => ['required', 'exists:type_currency,id'],
-      'body_type_id' => ['required', 'exists:ap_commercial_masters,id']
+      'body_type_id' => ['required', 'exists:ap_masters,id']
     ];
   }
 

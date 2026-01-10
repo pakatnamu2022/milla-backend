@@ -5,7 +5,7 @@ namespace App\Http\Requests\ap;
 use App\Http\Requests\StoreRequest;
 use Illuminate\Validation\Rule;
 
-class StoreApPostVentaMastersRequest extends StoreRequest
+class StoreApMastersRequest extends StoreRequest
 {
   public function rules(): array
   {
@@ -14,15 +14,16 @@ class StoreApPostVentaMastersRequest extends StoreRequest
         'nullable',
         'string',
         'max:50',
-        Rule::unique('ap_post_venta_masters', 'code')
+        Rule::unique('ap_masters', 'code')
           ->where('type', $this->type)
+          ->whereNotIn('type', ['TIPO_DOCUMENTO'])
           ->whereNull('deleted_at'),
       ],
       'description' => [
         'required',
         'string',
         'max:255',
-        Rule::unique('ap_post_venta_masters', 'description')
+        Rule::unique('ap_masters', 'description')
           ->where('type', $this->type)
           ->whereNull('deleted_at'),
       ],

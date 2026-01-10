@@ -38,7 +38,7 @@ class UpdateWorkOrderRequest extends StoreRequest
         'sometimes',
         'required',
         'integer',
-        Rule::exists('ap_post_venta_masters', 'id')
+        Rule::exists('ap_masters', 'id')
           ->where('type', 'WORK_ORDER_STATUS'),
       ],
       'sede_id' => [
@@ -162,7 +162,7 @@ class UpdateWorkOrderRequest extends StoreRequest
       'items.*.type_planning_id' => [
         'required_with:items',
         'integer',
-        Rule::exists('ap_post_venta_masters', 'id')
+        Rule::exists('ap_masters', 'id')
           ->where('type', 'TIPO_PLANIFICACION'),
       ],
       'items.*.description' => [

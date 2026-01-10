@@ -16,7 +16,7 @@ return new class extends Migration {
       $table->string('account_number', 50)->unique()->nullable();
       $table->string('cci', 50)->unique()->nullable();
       $table->foreignId('bank_id')
-        ->constrained('ap_commercial_masters');
+        ->constrained('ap_masters');
       $table->foreignId('currency_id')
         ->constrained('type_currency');
       $table->foreignId('company_branch_id')

@@ -11,9 +11,9 @@ class StoreOpportunityRequest extends StoreRequest
     return [
       'client_id' => 'required|integer|exists:business_partners,id',
       'family_id' => 'required|integer|exists:ap_families,id',
-      'opportunity_type_id' => 'required|integer|exists:ap_commercial_masters,id',
-      'client_status_id' => 'required|integer|exists:ap_commercial_masters,id',
-      'opportunity_status_id' => 'required|integer|exists:ap_commercial_masters,id',
+      'opportunity_type_id' => 'required|integer|exists:ap_masters,id',
+      'client_status_id' => 'required|integer|exists:ap_masters,id',
+      'opportunity_status_id' => 'required|integer|exists:ap_masters,id',
       'lead_id' => 'required|integer|exists:potential_buyers,id',
     ];
   }

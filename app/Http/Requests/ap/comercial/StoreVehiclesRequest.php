@@ -14,13 +14,13 @@ class StoreVehiclesRequest extends StoreRequest
       'year' => 'required|integer|min:1900|max:' . ((int)date('Y') + 2),
       'engine_number' => 'required|string|max:50|unique:ap_vehicles,engine_number',
       'ap_models_vn_id' => 'required|integer|exists:ap_models_vn,id',
-      'vehicle_color_id' => 'required|integer|exists:ap_commercial_masters,id',
-      'supplier_order_type_id' => 'sometimes|nullable|integer|exists:ap_commercial_masters,id',
-      'engine_type_id' => 'required|integer|exists:ap_commercial_masters,id',
+      'vehicle_color_id' => 'required|integer|exists:ap_masters,id',
+      'supplier_order_type_id' => 'sometimes|nullable|integer|exists:ap_masters,id',
+      'engine_type_id' => 'required|integer|exists:ap_masters,id',
       'ap_vehicle_status_id' => 'sometimes|integer|exists:ap_vehicle_status,id',
       'sede_id' => 'required|integer|exists:config_sede,id',
       'warehouse_physical_id' => 'sometimes|nullable|integer|exists:warehouse,id',
-      'type_operation_id' => 'sometimes|nullable|integer|exists:ap_commercial_masters,id',
+      'type_operation_id' => 'sometimes|nullable|integer|exists:ap_masters,id',
       'customer_id' => 'sometimes|nullable|integer|exists:business_partners,id',
     ];
   }

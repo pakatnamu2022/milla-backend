@@ -20,7 +20,7 @@ return new class extends Migration {
       $table->foreignId('type_currency_id')
         ->constrained('type_currency')->onDelete('cascade');
       $table->foreignId('body_type_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->timestamps();
       $table->softDeletes();
     });

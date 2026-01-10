@@ -22,7 +22,7 @@ return new class extends Migration {
         'RETURN_OUT',            // Devolución a proveedor (salida)
       ])->change()->comment('Type of inventory movement');
       $table->foreignId('reason_in_out_id')->nullable()->after('warehouse_destination_id')
-        ->constrained('ap_post_venta_masters')->comment('Reason for adjustment in/out');
+        ->constrained('ap_masters')->comment('Reason for adjustment in/out');
     });
   }
 

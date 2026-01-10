@@ -2,7 +2,7 @@
 
 namespace Database\Seeders\ap\commercial;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use Illuminate\Database\Seeder;
 
 /**
@@ -12,7 +12,7 @@ class OpportunityStatusSeeder extends Seeder
 {
   public function run(): void
   {
-    ApCommercialMasters::where('type', 'OPPORTUNITY_STATUS')->delete();
+    ApMasters::where('type', 'OPPORTUNITY_STATUS')->delete();
 
     $data = [
       ['description' => 'FRIO', 'type' => 'OPPORTUNITY_STATUS', 'code' => 'COLD'],
@@ -23,7 +23,7 @@ class OpportunityStatusSeeder extends Seeder
     ];
 
     foreach ($data as $item) {
-      ApCommercialMasters::firstOrCreate([
+      ApMasters::firstOrCreate([
         'description' => $item['description'],
         'type' => $item['type'],
       ], [

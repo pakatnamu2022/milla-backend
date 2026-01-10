@@ -20,7 +20,7 @@ return new class extends Migration {
       $table->foreignId('work_order_id')->comment('Orden de trabajo principal')
         ->constrained('ap_work_orders')->onDelete('cascade');
 
-      $table->foreignId('type_planning_id')->constrained('ap_post_venta_masters')->onDelete('cascade');
+      $table->foreignId('type_planning_id')->constrained('ap_masters')->onDelete('cascade');
       $table->text('description')->comment('Descripción del trabajo a realizar');
       $table->timestamps();
       $table->softDeletes();
