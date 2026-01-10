@@ -14,7 +14,6 @@ use App\Jobs\ProcessEstablishments;
 use App\Jobs\UpdateEstablishments;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
-use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PotentialBuyers;
 use Carbon\Carbon;
@@ -275,7 +274,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
   {
     $businessPartner = $this->find($id);
     if (!$businessPartner->status_ap) throw new Exception('El socio comercial no es un cliente activo');
-    $statusIds = ApCommercialMasters::where('type', 'OPPORTUNITY_STATUS')->whereIn('code', Opportunity::OPEN_STATUS_CODES)->pluck('id')->toArray();
+    $statusIds = ApMasters::where('type', 'OPPORTUNITY_STATUS')->whereIn('code', Opportunity::OPEN_STATUS_CODES)->pluck('id')->toArray();
     $opportunities = Opportunity::where('client_id', $businessPartner->id)
       ->whereIn('opportunity_status_id', $statusIds)
       ->with('family.brand')
