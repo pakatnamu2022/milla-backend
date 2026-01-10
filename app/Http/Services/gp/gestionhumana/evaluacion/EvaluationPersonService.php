@@ -4,9 +4,11 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonResource;
 use App\Http\Services\BaseService;
+use App\Jobs\UpdateEvaluationDashboards;
 use App\Jobs\UpdateEvaluationPersonDashboardsChunk;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationDashboard;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
@@ -131,6 +133,9 @@ class EvaluationPersonService extends BaseService
 
     $this->recalculatePersonResults($evaluationPerson->evaluation_id, $evaluationPerson->person_id);
     UpdateEvaluationPersonDashboardsChunk::dispatch($evaluationPerson->evaluation_id, [$evaluationPerson->person_id]);
+
+    // Check if all EvaluationPerson records are now completed and trigger full recalculation if so
+    $this->checkAndTriggerFullRecalculation($evaluationPerson->evaluation_id);
 
     return new EvaluationPersonResource($evaluationPerson);
   }
@@ -438,5 +443,42 @@ class EvaluationPersonService extends BaseService
       DB::rollBack();
       throw new Exception("Error al ejecutar la prueba: " . $e->getMessage());
     }
+  }
+
+  /**
+   * Trigger dashboard recalculation with throttling to prevent duplicate dispatches
+   * Uses database locking and 1-minute throttling for frequent updates
+   */
+  private function checkAndTriggerFullRecalculation($evaluationId)
+  {
+    // Use transaction with locking to prevent duplicates
+    return DB::transaction(function () use ($evaluationId) {
+      // Lock the dashboard row for update
+      $dashboard = EvaluationDashboard::where('evaluation_id', $evaluationId)
+        ->lockForUpdate()
+        ->first();
+
+      // Check if dashboard update was already queued recently (within 1 minute)
+      // This throttling prevents spam when multiple updates happen simultaneously
+      $recentlyQueued = $dashboard &&
+        $dashboard->full_recalculation_queued_at &&
+        $dashboard->full_recalculation_queued_at->gt(now()->subMinute());
+
+      if ($recentlyQueued) {
+        return false; // Already queued recently, skip to avoid spam
+      }
+
+      // Mark as queued before dispatching
+      EvaluationDashboard::updateOrCreate(
+        ['evaluation_id' => $evaluationId],
+        ['full_recalculation_queued_at' => now()]
+      );
+
+      // Dispatch the dashboard update job (only general dashboard, not individual person dashboards)
+      UpdateEvaluationDashboards::dispatch($evaluationId, false)
+        ->onQueue('evaluation-dashboards');
+
+      return true; // Successfully dispatched
+    });
   }
 }

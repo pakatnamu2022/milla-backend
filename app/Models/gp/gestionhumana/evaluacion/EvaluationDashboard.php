@@ -24,6 +24,7 @@ class EvaluationDashboard extends Model
     'executive_summary',
     'results_stats',
     'last_calculated_at',
+    'full_recalculation_queued_at',
   ];
 
   protected $casts = [
@@ -37,6 +38,7 @@ class EvaluationDashboard extends Model
     'executive_summary' => 'json',
     'results_stats' => 'json',
     'last_calculated_at' => 'datetime',
+    'full_recalculation_queued_at' => 'datetime',
   ];
 
   public function evaluation()
