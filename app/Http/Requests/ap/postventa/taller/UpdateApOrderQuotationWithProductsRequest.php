@@ -58,7 +58,7 @@ class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
       'details.*.total_amount' => [
         'required',
         'numeric',
-        'min:0',
+        'min:1',
       ],
       'details.*.observations' => [
         'nullable',
@@ -130,7 +130,7 @@ class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
 
       'details.*.total_amount.required' => 'El monto total es obligatorio en todos los detalles.',
       'details.*.total_amount.numeric' => 'El monto total debe ser un número.',
-      'details.*.total_amount.min' => 'El monto total no puede ser negativo.',
+      'details.*.total_amount.min' => 'El monto total no puede ser menor a 1.',
 
       'details.*.observations.string' => 'Las observaciones deben ser una cadena de texto.',
 
