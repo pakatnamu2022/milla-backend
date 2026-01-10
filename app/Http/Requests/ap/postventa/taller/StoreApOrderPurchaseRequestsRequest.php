@@ -3,6 +3,8 @@
 namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use Illuminate\Contracts\Validation\Validator;
 
 class StoreApOrderPurchaseRequestsRequest extends StoreRequest
 {
@@ -36,6 +38,11 @@ class StoreApOrderPurchaseRequestsRequest extends StoreRequest
         'sometimes',
         'required',
         'in:pending,approved,rejected',
+      ],
+      'supply_type' => [
+        'required',
+        'string',
+        'in:STOCK,LIMA,IMPORTACION',
       ],
 
       // Details validation
@@ -85,6 +92,8 @@ class StoreApOrderPurchaseRequestsRequest extends StoreRequest
 
       'status.required' => 'El estado es obligatorio.',
       'status.in' => 'El estado debe ser: pending, approved o rejected.',
+      'supply_type' => 'El tipo de suministro es obligatorio.',
+      'supply_type.in' => 'El tipo de suministro debe ser: STOCK, LIMA o IMPORTACION.',
 
       // Details messages
       'details.required' => 'Los detalles de la solicitud son obligatorios.',
@@ -103,5 +112,69 @@ class StoreApOrderPurchaseRequestsRequest extends StoreRequest
 
       'details.*.requested_delivery_date.date' => 'La fecha de entrega solicitada debe ser una fecha válida.',
     ];
+  }
+
+  protected function withValidator(Validator $validator): void
+  {
+    $validator->after(function ($validator) {
+      $details = $this->input('details', []);
+
+      if (empty($details)) {
+        return;
+      }
+
+      $productIds = collect($details)->pluck('product_id')->filter();
+      $duplicates = $productIds->duplicates()->values();
+
+      if ($duplicates->isNotEmpty()) {
+        $validator->errors()->add(
+          'details',
+          'Se han detectado productos duplicados. Los productos con ID: ' . $duplicates->implode(', ') . ' deben ser consolidados en un solo item.'
+        );
+      }
+
+      // Validar stock según supply_type
+      $supplyType = $this->input('supply_type');
+
+      if ($supplyType === 'STOCK') {
+        // Validar que los productos tengan stock disponible en cualquier sede
+        foreach ($details as $index => $detail) {
+          $productId = $detail['product_id'] ?? null;
+
+          if (!$productId) {
+            continue;
+          }
+
+          $totalStock = ProductWarehouseStock::where('product_id', $productId)
+            ->sum('quantity');
+
+          if ($totalStock <= 0) {
+            $validator->errors()->add(
+              "details.{$index}.product_id",
+              "El producto seleccionado no tiene stock disponible en ninguna sede. Para tipo de suministro STOCK, el producto debe tener stock disponible."
+            );
+          }
+        }
+      } elseif (in_array($supplyType, ['LIMA', 'IMPORTACION'])) {
+        // Validar que los productos NO tengan stock (debe ser 0)
+        foreach ($details as $index => $detail) {
+          $productId = $detail['product_id'] ?? null;
+
+          if (!$productId) {
+            continue;
+          }
+
+          $totalStock = ProductWarehouseStock::where('product_id', $productId)
+            ->sum('quantity');
+
+          if ($totalStock > 0) {
+            $validator->errors()->add(
+              "details.{$index}.product_id",
+              "El producto seleccionado tiene stock disponible ({$totalStock} unidades). Para tipo de suministro {$supplyType}, el producto no debe tener stock en ninguna sede."
+            );
+          }
+        }
+      }
+    });
   }
 }

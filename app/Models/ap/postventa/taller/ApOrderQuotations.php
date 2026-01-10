@@ -59,7 +59,7 @@ class ApOrderQuotations extends Model
     'discard_reason_id' => '=',
     'status' => '=',
     'sede_id' => '=',
-    'supply_type' => '=',
+    'supply_type' => 'in',
   ];
 
   const sorts = [

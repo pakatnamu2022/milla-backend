@@ -27,7 +27,8 @@ class ApOrderPurchaseRequests extends Model
     'notified_at',
     'observations',
     'status',
-    'requested_by'
+    'requested_by',
+    'supply_type'
   ];
 
   const filters = [
@@ -36,6 +37,7 @@ class ApOrderPurchaseRequests extends Model
     'purchase_order_id' => '=',
     'warehouse_id' => '=',
     'requested_date' => 'between',
+    'supply_type' => 'in',
   ];
 
   const sorts = [
