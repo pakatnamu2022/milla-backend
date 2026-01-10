@@ -156,6 +156,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'validity_days' => $validation_days,
         'exchange_rate' => $exchangeRate->rate,
         'currency_id' => $data['currency_id'],
+        'supply_type' => $data['supply_type'] ?? null,
       ];
 
       // Create quotation
