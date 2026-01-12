@@ -220,13 +220,13 @@ class EvaluationPersonService extends BaseService
 
         // Determinar si debe marcarse como evaluado:
         // Solo si tiene resultado Y la meta es mayor a 0 (meta = 0 requiere validación manual)
-        $shouldBeEvaluated = $result > 0 && $goal > 0;
+//        $shouldBeEvaluated = $result > 0 && $goal > 0;
 
         // Actualizar los valores calculados
         $evaluationPerson->update([
           'compliance' => round($compliance, 2),
           'qualification' => round($qualification, 2),
-          'wasEvaluated' => $shouldBeEvaluated,
+//          'wasEvaluated' => $shouldBeEvaluated,
         ]);
       }
     }
