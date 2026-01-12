@@ -50,6 +50,7 @@ use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationDetailsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationsController;
+use App\Http\Controllers\ap\postventa\taller\ApSupplierOrderController;
 use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
 use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderAssignOperatorController;
@@ -1140,6 +1141,17 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('orderPurchaseRequests/pending-details', [ApOrderPurchaseRequestsController::class, 'getPendingDetails']);
       Route::patch('orderPurchaseRequests/details/{id}/reject', [ApOrderPurchaseRequestsController::class, 'rejectDetail']);
       Route::apiResource('orderPurchaseRequests', ApOrderPurchaseRequestsController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Supplier Orders - Órdenes de Proveedor
+      Route::put('supplierOrders/{id}/mark-as-taken', [ApSupplierOrderController::class, 'markAsTaken']);
+      Route::put('supplierOrders/{id}/update-status', [ApSupplierOrderController::class, 'updateStatus']);
+      Route::apiResource('supplierOrders', ApSupplierOrderController::class)->only([
         'index',
         'show',
         'store',

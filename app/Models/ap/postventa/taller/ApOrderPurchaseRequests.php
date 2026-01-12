@@ -9,6 +9,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/*
+  Modelo para las solicitudes de compra
+*/
+
 class ApOrderPurchaseRequests extends Model
 {
   use softDeletes;

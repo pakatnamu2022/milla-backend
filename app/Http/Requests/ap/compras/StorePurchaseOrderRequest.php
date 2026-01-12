@@ -79,7 +79,7 @@ class StorePurchaseOrderRequest extends StoreRequest
 
       'notes' => ['nullable', 'string', 'max:1000'],
 
-      'request_detail_ids' => ['nullable', 'array'],
+      'ap_supplier_order_id' => ['nullable', 'integer', 'exists:ap_supplier_order,id'],
 
       // Items de la Orden de Compra
       'items' => ['required', 'array', 'min:1'],
@@ -137,6 +137,7 @@ class StorePurchaseOrderRequest extends StoreRequest
   public function messages()
   {
     return [
+      'ap_supplier_order_id.exists' => 'La orden de proveedor relacionada no es válida',
       'items.required' => 'Debe agregar al menos un item a la orden de compra',
       'items.min' => 'Debe agregar al menos un item a la orden de compra',
       'due_date.after_or_equal' => 'La fecha de vencimiento debe ser igual o posterior a la fecha de emisión',
