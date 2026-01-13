@@ -35,6 +35,8 @@ class OpportunityResource extends JsonResource
       'client_status' => $this->clientStatus?->description,
       'opportunity_status' => $this->opportunityStatus?->description,
       'actions' => OpportunityActionResource::collection($this->actions),
+      'lead' => new PotentialBuyersResource($this->lead),
+      'created_at' => $this->created_at,
     ];
   }
 }
