@@ -182,7 +182,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
 
         // Validar stock de productos si no es un anticipo
-        $this->validateQuotationStock($quotation);
+        $this->validateQuotationStock($quotation, $data['is_advance_payment']);
       }
 
       /**
@@ -1612,11 +1612,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // No lanzar excepción para evitar que falle la creación del documento
     }
   }
-  
-  private function validateQuotationStock(ApOrderQuotations $quotation): void
+
+  private function validateQuotationStock(ApOrderQuotations $quotation, int $is_advance_payment = 0): void
   {
     // Si es un anticipo, no validamos stock
-    if ($quotation->is_advance_payment == 1) {
+    if ($is_advance_payment == 1) {
       return;
     }
 
