@@ -14,13 +14,19 @@ class UpdateEvaluationDashboards implements ShouldQueue
   use Queueable;
 
   protected $evaluationId;
+  protected $updatePersonDashboards;
 
   /**
    * Create a new job instance.
+   *
+   * @param int|null $evaluationId
+   * @param bool $updatePersonDashboards If false, only updates the evaluation dashboard (not individual person dashboards)
    */
-  public function __construct($evaluationId = null)
+  public function __construct($evaluationId = null, $updatePersonDashboards = true)
   {
     $this->evaluationId = $evaluationId;
+    $this->updatePersonDashboards = $updatePersonDashboards;
+    $this->onQueue('evaluation-dashboards');
   }
 
   /**
@@ -38,7 +44,16 @@ class UpdateEvaluationDashboards implements ShouldQueue
 
     foreach ($evaluations as $evaluation) {
       $this->updateEvaluationDashboard($evaluation);
-      $this->updatePersonDashboards($evaluation);
+
+      // Only update person dashboards if explicitly requested
+      if ($this->updatePersonDashboards) {
+        $this->updatePersonDashboards($evaluation);
+      }
+
+      // Clear the queued flag after successful completion
+      $evaluation->dashboard()->update([
+        'full_recalculation_queued_at' => null
+      ]);
     }
   }
 
