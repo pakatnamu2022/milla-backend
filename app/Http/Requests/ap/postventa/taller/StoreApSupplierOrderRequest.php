@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\taller\ApSupplierOrder;
 use Illuminate\Contracts\Validation\Validator;
 
@@ -178,6 +179,30 @@ class StoreApSupplierOrderRequest extends StoreRequest
             "details.{$index}.total",
             "El total debe ser igual a precio unitario x cantidad. Esperado: {$expectedTotal}, recibido: {$total}"
           );
+        }
+      }
+
+      // Validar stock según supply_type
+      $supplyType = $this->input('supply_type');
+
+      if (in_array($supplyType, ['LIMA', 'IMPORTACION'])) {
+        // Validar que los productos NO tengan stock (debe ser 0)
+        foreach ($details as $index => $detail) {
+          $productId = $detail['product_id'] ?? null;
+
+          if (!$productId) {
+            continue;
+          }
+
+          $totalStock = ProductWarehouseStock::where('product_id', $productId)
+            ->sum('quantity');
+
+          if ($totalStock > 0) {
+            $validator->errors()->add(
+              "details.{$index}.product_id",
+              "El producto seleccionado tiene stock disponible ({$totalStock} unidades). Para tipo de suministro {$supplyType}, el producto no debe tener stock en ninguna sede."
+            );
+          }
         }
       }
     });
