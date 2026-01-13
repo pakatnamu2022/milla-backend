@@ -40,6 +40,7 @@ class PotentialBuyers extends Model
     'use',
     'comment',
     'user_id',
+    'reason_discarding_id',
     'created_at',
     'updated_at',
   ];
@@ -146,6 +147,11 @@ class PotentialBuyers extends Model
     return $this->hasOne(Opportunity::class, 'lead_id');
   }
 
+  public function reasonDiscarding(): BelongsTo
+  {
+    return $this->belongsTo(ApMasters::class, 'reason_discarding_id');
+  }
+
   // ← CONFIGURACIÓN DEL REPORTE CON FORMATO SOLICITADO
   protected $reportColumns = [
     'registration_date' => [
@@ -227,7 +233,7 @@ class PotentialBuyers extends Model
       'accessor' => 'getOpportunityStatusNameAttribute'
     ],
     'attention_description' => [
-      'label' => 'Descripción de la Atención',
+      'label' => 'Descripción de la Atención / Descarte',
       'formatter' => null,
       'width' => 40,
       'accessor' => 'getAttentionDescriptionAttribute'
@@ -258,6 +264,7 @@ class PotentialBuyers extends Model
     'sede.district',
     'opportunity.opportunityStatus',
     'opportunity.actions',
+    'reasonDiscarding',
   ];
 
   public function getAdvisorFullNameAttribute()
@@ -290,9 +297,16 @@ class PotentialBuyers extends Model
 
   public function getAttentionDescriptionAttribute()
   {
+    // Si el estado es DESCARTADO, mostrar el motivo de descarte
+    if ($this->use == self::DISCARTED) {
+      return $this->reasonDiscarding ? $this->reasonDiscarding->description : 'DESCARTADO - Sin motivo especificado';
+    }
+
+    // Si está atendido, mostrar la última descripción de las acciones de la oportunidad
     if (!$this->opportunity || !$this->opportunity->actions || $this->opportunity->actions->isEmpty()) {
       return null;
     }
+
     // Retornar la última descripción
     $lastAction = $this->opportunity->actions->sortByDesc('datetime')->first();
     return $lastAction ? $lastAction->description : null;

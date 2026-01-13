@@ -5,6 +5,7 @@ namespace App\Http\Services\gp\gestionsistema;
 use App\Http\Resources\gp\gestionsistema\PermissionResource;
 use App\Http\Resources\gp\gestionsistema\ViewResource;
 use App\Http\Services\BaseService;
+use App\Models\gp\gestionsistema\Permission;
 use App\Models\gp\gestionsistema\RolePermission;
 use App\Models\gp\gestionsistema\View;
 use Exception;
@@ -55,9 +56,51 @@ class ViewService extends BaseService
   public function update($data)
   {
     $view = $this->find($data['id']);
+
+    // Detectar si el route cambió
+    $oldRoute = $view->route;
+    $newRoute = $data['route'] ?? $oldRoute;
+
+    // Si el route cambió, actualizar los permisos relacionados
+    if ($oldRoute !== $newRoute && !empty($oldRoute) && !empty($newRoute)) {
+      $this->updateRelatedPermissions($oldRoute, $newRoute, $view->id);
+    }
+
     $data = $this->enrichViewData($data);
     $view->update($data);
     return new ViewResource($view);
+  }
+
+  /**
+   * Actualiza los permisos relacionados cuando el route de una vista cambia
+   *
+   * @param string $oldRoute El route anterior (ej: "orden-compra-producto")
+   * @param string $newRoute El nuevo route (ej: "factura-compra")
+   * @param int $vistaId El ID de la vista
+   */
+  private function updateRelatedPermissions(string $oldRoute, string $newRoute, int $vistaId): void
+  {
+    // Buscar todos los permisos que empiecen con el route antiguo
+    $permissions = Permission::where('vista_id', $vistaId)
+      ->where('code', 'like', $oldRoute . '.%')
+      ->get();
+
+    foreach ($permissions as $permission) {
+      // Extraer la acción del código (ej: "orden-compra-producto.view" -> "view")
+      $parts = explode('.', $permission->code);
+      $action = end($parts);
+
+      // Crear el nuevo código con el nuevo route
+      $newCode = $newRoute . '.' . $action;
+
+      // Actualizar el código del permiso
+      $permission->code = $newCode;
+
+      // Actualizar el módulo también (algunos sistemas lo usan)
+      $permission->module = $newRoute;
+
+      $permission->save();
+    }
   }
 
   public function destroy($id)
