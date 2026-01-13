@@ -124,4 +124,21 @@ class ProductsController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Assign product to warehouse with zero stock
+   */
+  public function assignToWarehouse(Request $request)
+  {
+    try {
+      $request->validate([
+        'product_id' => 'required|exists:products,id',
+        'warehouse_id' => 'required|exists:warehouse,id',
+      ]);
+
+      return $this->success($this->service->assignToWarehouse($request->all()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

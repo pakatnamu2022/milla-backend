@@ -123,42 +123,11 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
       }
 
-      // Extract items
-      $items = $data['items'] ?? null;
-      unset($data['items']);
-
       // Update work order
       $workOrder->update($data);
 
-      // Update items if provided
-      if ($items !== null) {
-        // Get existing item IDs from request
-        $requestItemIds = collect($items)->pluck('id')->filter()->toArray();
-
-        // Delete items that are not in the request
-        ApWorkOrderItem::where('work_order_id', $workOrder->id)
-          ->whereNotIn('id', $requestItemIds)
-          ->delete();
-
-        // Update or create items
-        foreach ($items as $itemData) {
-          if (isset($itemData['id'])) {
-            // Update existing item
-            $item = ApWorkOrderItem::find($itemData['id']);
-            if ($item && $item->work_order_id == $workOrder->id) {
-              $item->update($itemData);
-            }
-          } else {
-            // Create new item
-            $itemData['work_order_id'] = $workOrder->id;
-            ApWorkOrderItem::create($itemData);
-          }
-        }
-      }
-
       // Reload relations
       $workOrder->load([
-        'fuelLevel',
         'appointmentPlanning',
         'vehicle',
         'status',

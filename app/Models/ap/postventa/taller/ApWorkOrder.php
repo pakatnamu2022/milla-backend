@@ -51,8 +51,8 @@ class ApWorkOrder extends Model
   ];
 
   protected $casts = [
-    'opening_date' => 'datetime',
-    'estimated_delivery_date' => 'datetime',
+    'opening_date' => 'date',
+    'estimated_delivery_date' => 'date',
     'actual_delivery_date' => 'datetime',
     'diagnosis_date' => 'datetime',
     'is_invoiced' => 'boolean',

@@ -195,7 +195,8 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       ->where('expiration_date', '>=', now())
       ->with([
         'details' => function ($query) {
-          $query->where('status', 'pending');
+          $query->where('status', 'pending')
+            ->where('item_type', 'PRODUCT');
         },
         'details.product',
         'vehicle',
@@ -204,10 +205,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       ])
       ->latest('created_at')
       ->first();
-
-    if (!$quotation) {
-      throw new Exception('No se encontró una cotización vigente para este vehículo');
-    }
 
     return $quotation;
   }
@@ -251,7 +248,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         if ($stock->available_quantity < $detail->quantity) {
           throw new Exception(
             "Stock insuficiente para: {$detail->product->name}. " .
-              "Disponible: {$stock->available_quantity}, Requerido: {$detail->quantity}"
+            "Disponible: {$stock->available_quantity}, Requerido: {$detail->quantity}"
           );
         }
       }

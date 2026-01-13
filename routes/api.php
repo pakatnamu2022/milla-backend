@@ -1000,6 +1000,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('products/low-stock', [ProductsController::class, 'lowStock']);
       Route::get('products/featured', [ProductsController::class, 'featured']);
       Route::post('products/{id}/update-stock', [ProductsController::class, 'updateStock']);
+      Route::post('products/assign-to-warehouse', [ProductsController::class, 'assignToWarehouse']);
       Route::apiResource('products', ProductsController::class)->only([
         'index',
         'show',
