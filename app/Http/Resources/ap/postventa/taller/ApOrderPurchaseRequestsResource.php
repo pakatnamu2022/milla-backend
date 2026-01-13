@@ -33,6 +33,7 @@ class ApOrderPurchaseRequestsResource extends JsonResource
       'created_at' => $this->created_at,
       'updated_at' => $this->updated_at,
       'requested_by' => $this->requestedBy->name,
+      'supply_type' => $this->supply_type,
 
       // Relationships
       'ap_order_quotation' => new ApOrderQuotationsResource($this->whenLoaded('apOrderQuotation')),

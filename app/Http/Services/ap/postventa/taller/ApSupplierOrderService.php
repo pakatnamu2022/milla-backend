@@ -115,6 +115,7 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
   {
     $apSupplierOrder = $this->find($id);
     $apSupplierOrder->load([
+      'apPurchaseOrder',
       'supplier',
       'sede',
       'warehouse',
@@ -184,6 +185,19 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
     }
 
     DB::transaction(function () use ($supplierOrder) {
+      // Get linked request detail IDs before deleting
+      $requestDetailIds = $supplierOrder->requestDetails()->pluck('ap_order_purchase_request_details.id')->toArray();
+
+      // Revert status of linked purchase request details back to 'pending'
+      if (!empty($requestDetailIds)) {
+        DB::table('ap_order_purchase_request_details')
+          ->whereIn('id', $requestDetailIds)
+          ->update(['status' => 'pending']);
+
+        // Detach the relationship
+        $supplierOrder->requestDetails()->detach();
+      }
+
       // Delete details (cascade will handle this, but explicit deletion is clearer)
       ApSupplierOrderDetails::where('ap_supplier_order_id', $supplierOrder->id)->delete();
 

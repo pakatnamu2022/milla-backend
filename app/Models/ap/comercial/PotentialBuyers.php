@@ -154,10 +154,10 @@ class PotentialBuyers extends Model
 
   // ← CONFIGURACIÓN DEL REPORTE CON FORMATO SOLICITADO
   protected $reportColumns = [
-    'registration_date' => [
-      'label' => 'Fecha de Registro',
-      'formatter' => 'date:d/m/Y',
-      'width' => 20,
+    'created_at' => [
+      'label' => 'Fecha y Hora de Registro',
+      'formatter' => 'date:d/m/Y H:i',
+      'width' => 25,
     ],
     'sede.abreviatura' => [
       'label' => 'Sede',
@@ -238,10 +238,10 @@ class PotentialBuyers extends Model
       'width' => 40,
       'accessor' => 'getAttentionDescriptionAttribute'
     ],
-    'created_at' => [
-      'label' => 'Fecha y Hora de Registro',
-      'formatter' => 'date:d/m/Y H:i',
-      'width' => 25,
+    'registration_date' => [
+      'label' => 'Fecha Lead / Visita',
+      'formatter' => 'date:d/m/Y',
+      'width' => 20,
     ],
     'attention_updated_at' => [
       'label' => 'Fecha y Hora de Atención',
