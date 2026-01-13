@@ -92,7 +92,14 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
   public function show($id)
   {
-    return new ApOrderPurchaseRequestsResource($this->find($id));
+    $orderPurchaseRequest = $this->find($id);
+    $orderPurchaseRequest->load([
+      'apOrderQuotation',
+      'purchaseOrder',
+      'warehouse',
+      'details.product'
+    ]);
+    return new ApOrderPurchaseRequestsResource($orderPurchaseRequest);
   }
 
   public function update(mixed $data)
@@ -144,8 +151,14 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
     $purchaseRequest = $this->find($id);
 
     DB::transaction(function () use ($purchaseRequest) {
-      // Delete details (cascade will handle this, but explicit deletion is clearer)
-      ApOrderPurchaseRequestDetails::where('order_purchase_request_id', $purchaseRequest->id)->delete();
+      //verificamos si ap_order_quotation_id esta seteado para liberar la cotizacion
+      if ($purchaseRequest->ap_order_quotation_id) {
+        $quotation = ApOrderQuotations::find($purchaseRequest->ap_order_quotation_id);
+        if ($quotation) {
+          $quotation->is_take = false;
+          $quotation->save();
+        }
+      }
 
       // Delete purchase request
       $purchaseRequest->delete();
@@ -251,6 +264,7 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
           'product_id' => $detail->product_id,
           'product_name' => $detail->product->name ?? null,
           'product_code' => $detail->product->code ?? null,
+          'unit_measurement_id' => $detail->product->unit_measurement_id ?? null,
           'quantity' => $detail->quantity,
           'notes' => $detail->notes,
           'requested_delivery_date' => $detail->requested_delivery_date,
