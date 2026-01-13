@@ -13,6 +13,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/*
+  Modelo para las cotizaciones
+*/
+
 class ApOrderQuotations extends Model
 {
   use softDeletes;
@@ -59,7 +63,7 @@ class ApOrderQuotations extends Model
     'discard_reason_id' => '=',
     'status' => '=',
     'sede_id' => '=',
-    'supply_type' => '=',
+    'supply_type' => 'in',
   ];
 
   const sorts = [

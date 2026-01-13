@@ -282,4 +282,48 @@ class ProductsService extends BaseService implements BaseServiceInterface
 
     return ProductsResource::collection($products);
   }
+
+  /**
+   * Assign product to warehouse with zero stock
+   * This is useful when a product was created without warehouse assignment
+   * and needs to be added to a warehouse later
+   */
+  public function assignToWarehouse(Mixed $data)
+  {
+    DB::beginTransaction();
+    try {
+      $product = $this->find($data['product_id']);
+
+      // Check if product is already in this warehouse
+      $existingStock = ProductWarehouseStock::where('product_id', $data['product_id'])
+        ->where('warehouse_id', $data['warehouse_id'])
+        ->first();
+
+      if ($existingStock) {
+        throw new Exception('El producto ya está asignado a este almacén');
+      }
+
+      // Create warehouse stock record with zero stock
+      $warehouseStock = ProductWarehouseStock::create([
+        'product_id' => $data['product_id'],
+        'warehouse_id' => $data['warehouse_id'],
+        'quantity' => 0,
+        'quantity_in_transit' => 0,
+        'quantity_pending_credit_note' => 0,
+        'reserved_quantity' => 0,
+        'available_quantity' => 0,
+        'minimum_stock' => 0,
+        'maximum_stock' => 0,
+      ]);
+
+      DB::commit();
+      return [
+        'message' => 'Producto asignado al almacén exitosamente',
+        'warehouse_stock' => $warehouseStock->load('warehouse')
+      ];
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
 }

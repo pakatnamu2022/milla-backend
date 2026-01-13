@@ -10,15 +10,17 @@ use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\VehicleAccessory;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
-use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
 use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
+
+/*
+  Modelo para las órdenes de compra
+*/
 
 class PurchaseOrder extends BaseModel
 {
@@ -178,45 +180,6 @@ class PurchaseOrder extends BaseModel
   public function accessories(): HasMany
   {
     return $this->hasMany(VehicleAccessory::class, 'vehicle_purchase_order_id');
-  }
-
-  /**
-   * Relación con los detalles de solicitudes de compra
-   */
-  public function requestDetails(): BelongsToMany
-  {
-    return $this->belongsToMany(
-      ApOrderPurchaseRequestDetails::class,
-      'ap_order_purchase_request_detail_purchase_order',
-      'purchase_order_id',
-      'ap_order_purchase_request_detail_id'
-    )->withTimestamps();
-  }
-
-  /**
-   * Obtener usuarios únicos que solicitaron productos en esta orden de compra
-   * Para notificarles cuando lleguen los productos
-   */
-  public function getUsersToNotify()
-  {
-    return $this->requestDetails()
-      ->with('orderPurchaseRequest.requestedBy.person')
-      ->get()
-      ->pluck('orderPurchaseRequest')
-      ->unique('id')
-      ->filter()
-      ->map(function ($request) {
-        return [
-          'request_id' => $request->id,
-          'request_number' => $request->request_number,
-          'user_id' => $request->requested_by,
-          'user_name' => $request->requestedBy?->person?->nombre_completo ?? 'Usuario',
-          'email' => $request->requestedBy?->person?->email2,
-        ];
-      })
-      ->whereNotNull('email')
-      ->unique('email')
-      ->values();
   }
 
   /**

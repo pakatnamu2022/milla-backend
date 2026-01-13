@@ -5,7 +5,6 @@ namespace App\Http\Requests\ap\postventa\taller;
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use Illuminate\Contracts\Validation\Validator;
-use Illuminate\Validation\ValidationException;
 
 class StoreApOrderQuotationWithProductsRequest extends StoreRequest
 {
