@@ -40,7 +40,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     public ?int $shippingGuideId = null
   )
   {
-    $this->onQueue('sync');
+    $this->onQueue('shipping_guides');
   }
 
   /**

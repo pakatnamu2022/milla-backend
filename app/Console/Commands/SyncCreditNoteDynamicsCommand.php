@@ -2,12 +2,14 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Commands\Concerns\ValidatesPendingJobs;
 use App\Jobs\SyncCreditNoteDynamicsJob;
 use App\Models\ap\compras\PurchaseOrder;
 use Illuminate\Console\Command;
 
 class SyncCreditNoteDynamicsCommand extends Command
 {
+  use ValidatesPendingJobs;
   /**
    * The name and signature of the console command.
    *
@@ -82,6 +84,11 @@ class SyncCreditNoteDynamicsCommand extends Command
    */
   protected function syncAllPurchaseOrders(): int
   {
+    // Validar límite de jobs pendientes antes de despachar
+    if (!$this->canDispatchMoreJobs(SyncCreditNoteDynamicsJob::class)) {
+      return Command::SUCCESS;
+    }
+
     $limit = (int) $this->option('limit');
 
     $purchaseOrders = PurchaseOrder::where(function ($query) {
