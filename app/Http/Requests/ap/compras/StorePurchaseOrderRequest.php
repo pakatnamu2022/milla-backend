@@ -15,6 +15,7 @@ class StorePurchaseOrderRequest extends StoreRequest
     if (!$this->has('type_operation_id')) {
       $this->merge([
         'type_operation_id' => ApMasters::TIPO_OPERACION_COMERCIAL,
+        'created_by' => auth()->id(),
       ]);
     }
   }
@@ -80,6 +81,8 @@ class StorePurchaseOrderRequest extends StoreRequest
       'notes' => ['nullable', 'string', 'max:1000'],
 
       'ap_supplier_order_id' => ['nullable', 'integer', 'exists:ap_supplier_order,id'],
+
+      'created_by' => ['required', 'integer', Rule::exists('usr_users', 'id')->where('status_deleted', 1)],
 
       // Items de la Orden de Compra
       'items' => ['required', 'array', 'min:1'],

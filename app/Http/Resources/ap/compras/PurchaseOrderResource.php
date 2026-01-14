@@ -70,6 +70,8 @@ class PurchaseOrderResource extends JsonResource
       'has_receptions' => $this->hasActiveReceptions(),
       'notes' => $this->notes,
 
+      'creator' => $this->creator,
+
       // Fechas
       'migrated_at' => $this->migrated_at?->format('Y-m-d H:i:s'),
       'created_at' => $this->created_at?->format('Y-m-d H:i:s'),

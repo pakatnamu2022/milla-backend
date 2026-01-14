@@ -13,6 +13,7 @@ use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\Sede;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
@@ -60,6 +61,7 @@ class PurchaseOrder extends BaseModel
     'migrated_at',
     'payment_terms',
     'notes',
+    'created_by',
   ];
 
   protected $casts = [
@@ -105,6 +107,11 @@ class PurchaseOrder extends BaseModel
   public function supplier(): BelongsTo
   {
     return $this->belongsTo(BusinessPartners::class, 'supplier_id');
+  }
+
+  public function creator(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'created_by');
   }
 
   public function currency(): BelongsTo
