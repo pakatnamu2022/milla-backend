@@ -6,9 +6,14 @@ use App\Exports\GeneralExport;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\Exception;
 
 class ExportService
 {
+  /**
+   * @throws Exception
+   * @throws \PhpOffice\PhpSpreadsheet\Writer\Exception
+   */
   public function exportToExcel($modelClass, $options = [])
   {
     $model = app($modelClass);
@@ -155,8 +160,7 @@ class ExportService
               // y dejamos que el BaseService lo maneje
               continue;
             }
-          }
-          // Si el parámetro existe en el request
+          } // Si el parámetro existe en el request
           elseif ($request->filled($filterKey)) {
             $value = $request->get($filterKey);
 

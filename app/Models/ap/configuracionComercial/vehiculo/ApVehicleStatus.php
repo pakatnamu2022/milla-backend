@@ -41,6 +41,37 @@ class ApVehicleStatus extends Model
   const VENDIDO_ENTREGADO = 6;
   const FACTURADO = 7;
 
+  const array STATUS = [
+    self::PEDIDO_VN => 'PEDIDO VN',
+    self::VEHICULO_EN_TRAVESIA => 'VEHICULO EN TRAVESIA',
+    self::VEHICULO_TRANSITO_DEVUELTO => 'VEHICULO TRANSITO DEVUELTO',
+    self::VENDIDO_NO_ENTREGADO => 'VENDIDO NO ENTREGADO',
+    self::INVENTARIO_VN => 'INVENTARIO VN',
+    self::VENDIDO_ENTREGADO => 'VENDIDO ENTREGADO',
+    self::FACTURADO => 'FACTURADO',
+  ];
+
+  const array STATUS_ID = [
+    'PEDIDO VN' => self::PEDIDO_VN,
+    'VEHICULO EN TRAVESIA' => self::VEHICULO_EN_TRAVESIA,
+    'VEHICULO TRANSITO DEVUELTO' => self::VEHICULO_TRANSITO_DEVUELTO,
+    'VENDIDO NO ENTREGADO' => self::VENDIDO_NO_ENTREGADO,
+    'INVENTARIO VN' => self::INVENTARIO_VN,
+    'VENDIDO ENTREGADO' => self::VENDIDO_ENTREGADO,
+    'FACTURADO' => self::FACTURADO,
+  ];
+
+  const array ALL_STATUS = [
+    self::PEDIDO_VN,
+    self::VEHICULO_EN_TRAVESIA,
+    self::VEHICULO_TRANSITO_DEVUELTO,
+    self::VENDIDO_NO_ENTREGADO,
+    self::INVENTARIO_VN,
+    self::VENDIDO_ENTREGADO,
+    self::FACTURADO,
+  ];
+
+
   public function setCodeAttribute($value)
   {
     $this->attributes['code'] = Str::upper(Str::ascii($value));
