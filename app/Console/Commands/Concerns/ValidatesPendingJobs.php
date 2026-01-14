@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands\Concerns;
 
-use Illuminate\Support\Facades\DB;
+use App\Models\Job;
 
 trait ValidatesPendingJobs
 {
@@ -10,6 +10,17 @@ trait ValidatesPendingJobs
    * Número máximo de jobs pendientes permitidos del mismo tipo
    */
   protected int $maxPendingJobs = 10;
+
+  /**
+   * Mapeo de clases de jobs a sus colas correspondientes
+   */
+  protected array $jobQueueMapping = [
+    'App\Jobs\SyncInvoiceDynamicsJob' => 'invoice_sync',
+    'App\Jobs\SyncCreditNoteDynamicsJob' => 'credit_note_sync',
+    'App\Jobs\SyncSalesDocumentJob' => 'electronic_documents',
+    'App\Jobs\VerifyAndMigratePurchaseOrderJob' => 'purchase_orders',
+    'App\Jobs\VerifyAndMigrateShippingGuideJob' => 'shipping_guides',
+  ];
 
   /**
    * Verifica si hay espacio para despachar más jobs del tipo especificado
@@ -38,10 +49,16 @@ trait ValidatesPendingJobs
    */
   protected function getPendingJobsCount(string $jobClass): int
   {
-    // Contar jobs en la tabla 'jobs' que contengan la clase especificada
-    return DB::table('jobs')
-      ->where('payload', 'like', '%' . addslashes($jobClass) . '%')
-      ->count();
+    // Obtener el nombre de la cola para este job
+    $queueName = $this->jobQueueMapping[$jobClass] ?? null;
+
+    // Si el job tiene una cola específica, contar por cola (más eficiente)
+    if ($queueName) {
+      return Job::inQueue($queueName)->count();
+    }
+
+    // Fallback: contar por clase si no se encuentra la cola
+    return Job::ofClass($jobClass)->count();
   }
 
   /**

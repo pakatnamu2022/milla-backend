@@ -31,7 +31,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
     public ?int $purchaseOrderId = null
   )
   {
-    $this->onQueue('sync');
+    $this->onQueue('purchase_orders');
   }
 
   /**
