@@ -29,6 +29,8 @@ class ApSupplierOrder extends Model
     'order_date',
     'order_number',
     'supply_type',
+    'net_amount',
+    'tax_amount',
     'total_amount',
     'exchange_rate',
     'is_take',

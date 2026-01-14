@@ -6,6 +6,16 @@ use App\Http\Requests\StoreRequest;
 
 class StoreWorkOrderLabourRequest extends StoreRequest
 {
+  protected function prepareForValidation()
+  {
+    // Convertir worker_id = 0 a null
+    if ($this->has('worker_id') && $this->worker_id == 0) {
+      $this->merge([
+        'worker_id' => null,
+      ]);
+    }
+  }
+
   public function rules(): array
   {
     return [
@@ -57,7 +67,7 @@ class StoreWorkOrderLabourRequest extends StoreRequest
         'exists:ap_work_orders,id',
       ],
       'worker_id' => [
-        'required',
+        'nullable',
         'integer',
         'exists:rrhh_persona,id',
       ],
@@ -88,7 +98,6 @@ class StoreWorkOrderLabourRequest extends StoreRequest
       'work_order_id.integer' => 'La orden de trabajo debe ser un entero.',
       'work_order_id.exists' => 'La orden de trabajo seleccionada no existe.',
 
-      'worker_id.required' => 'El trabajador es obligatorio.',
       'worker_id.integer' => 'El trabajador debe ser un entero.',
       'worker_id.exists' => 'El trabajador seleccionado no existe.',
 

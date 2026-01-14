@@ -115,6 +115,7 @@ use App\Http\Controllers\gp\maestroGeneral\SunatConceptsController;
 use App\Http\Controllers\gp\tics\EquipmentController;
 use App\Http\Controllers\gp\tics\EquipmentTypeController;
 use App\Http\Controllers\tp\comercial\TpTravelPhotoController;
+
 //TP - Controller
 use App\Http\Controllers\tp\comercial\TravelControlController;
 
@@ -148,8 +149,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   ]);
 
 // TP - COMERCIAL - CONTROL VIAJES
-  Route::group(['prefix' => 'tp/comercial'], function(){
-    Route::apiResource('control-travel', TravelControlController::class )->only([
+  Route::group(['prefix' => 'tp/comercial'], function () {
+    Route::apiResource('control-travel', TravelControlController::class)->only([
       'index',
       'show',
       'store',
@@ -168,33 +169,33 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('control-travel/{id}/records', [TravelControlController::class, 'driverRecords'])->name('control-travel.records');
 
     Route::get('control-travel/filters/states', [TravelControlController::class, 'availableStates'])->name('control-travel.states');
-  
+
     Route::get('control-travel/filters/drivers', [TravelControlController::class, 'activeDrivers'])->name('control-travel.drivers');
-    
+
     Route::get('control-travel/filters/vehicles', [TravelControlController::class, 'activeVehicles'])->name('control-travel.vehicles');
 
     Route::get('control-travel/validate-mileage/{vehicle_id}', [TravelControlController::class, 'validateMileage'])->name('control-travel.validate-km');
 
-    Route::prefix('control-travel/{id}')->group(function(){
-      
+    Route::prefix('control-travel/{id}')->group(function () {
+
       Route::post('/photos', [TpTravelPhotoController::class, 'store'])
-              ->name('control-travel.photos.store');
+        ->name('control-travel.photos.store');
 
       Route::get('/photos', [TpTravelPhotoController::class, 'index'])
-              ->name('control-travel.photos.index');
+        ->name('control-travel.photos.index');
 
       Route::get('/photos/statistics', [TpTravelPhotoController::class, 'photoStatistics'])
-              ->name('control-travel.photos.statistics');
+        ->name('control-travel.photos.statistics');
 
     });
-      Route::prefix('photos')->group(function(){
+    Route::prefix('photos')->group(function () {
 
-        Route::get('/{id}', [TpTravelPhotoController::class, 'show'])
-              ->name('photos.show');
-   
-        Route::delete('/{id}', [TpTravelPhotoController::class, 'destroy'])
-              ->name('photos.destroy');
-      });
+      Route::get('/{id}', [TpTravelPhotoController::class, 'show'])
+        ->name('photos.show');
+
+      Route::delete('/{id}', [TpTravelPhotoController::class, 'destroy'])
+        ->name('photos.destroy');
+    });
   });
 
   //    SYSTEM
@@ -1066,7 +1067,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Work Orders - Órdenes de Trabajo
-      Route::post('workOrders/{id}/calculate-totals', [WorkOrderController::class, 'calculateTotals']);
       Route::get('workOrders/{id}/payment-summary', [WorkOrderController::class, 'getPaymentSummary']);
       Route::apiResource('workOrders', WorkOrderController::class)->only([
         'index',
@@ -1102,7 +1102,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
-      Route::get('workOrderParts/quotation-by-vehicle/{vehicle_id}', [ApWorkOrderPartsController::class, 'getQuotationByVehicle']);
       Route::post('workOrderParts/store-bulk-from-quotation', [ApWorkOrderPartsController::class, 'storeBulkFromQuotation']);
 
       // Work Order Labour - Mano de Obra de Órdenes de Trabajo

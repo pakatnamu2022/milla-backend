@@ -60,6 +60,12 @@ class UpdateWorkOrderLabourRequest extends StoreRequest
         'integer',
         'exists:ap_work_orders,id',
       ],
+      'worker_id' => [
+        'sometimes',
+        'nullable',
+        'integer',
+        'exists:rrhh_persona,id',
+      ],
       'group_number' => [
         'sometimes',
         'integer',

@@ -110,7 +110,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
   public function show($id)
   {
-    return new WorkOrderResource($this->find($id));
+    $workOrder = $this->find($id);
+    $workOrder->load('items', 'orderQuotation');
+    return new WorkOrderResource($workOrder);
   }
 
   public function update(mixed $data)
@@ -186,49 +188,25 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Calculate and update totals
-   */
-  public function calculateTotals($workOrderId)
-  {
-    $workOrder = $this->find($workOrderId);
-    $workOrder->calculateTotals();
-
-    return new WorkOrderResource($workOrder->fresh([
-      'fuelLevel',
-      'appointmentPlanning',
-      'vehicle',
-      'status',
-      'advisor',
-      'sede',
-      'creator',
-      'items.typePlanning'
-    ]));
-  }
-
-  /**
    * Get payment summary for a work order
    * Returns consolidated payment information including labour, parts and advances
-   * Optionally filters by group_number
+   * Parts cost is taken from the associated order quotation total
    */
   public function getPaymentSummary($workOrderId, $groupNumber = 1)
   {
-    $workOrder = ApWorkOrder::with(['labours', 'parts', 'advancesWorkOrder'])
+    $workOrder = ApWorkOrder::with(['labours', 'advancesWorkOrder', 'orderQuotation'])
       ->findOrFail($workOrderId);
 
-    // Filter labours and parts by group_number if provided
+    // Filter labours by group_number if provided
     $labours = $groupNumber !== null
       ? $workOrder->labours->where('group_number', $groupNumber)
       : $workOrder->labours;
 
-    $parts = $groupNumber !== null
-      ? $workOrder->parts->where('group_number', $groupNumber)
-      : $workOrder->parts;
-
     // Calculate total labour cost
     $totalLabourCost = $labours->sum('total_cost') ?? 0;
 
-    // Calculate total parts cost
-    $totalPartsCost = $parts->sum('total_amount') ?? 0;
+    // Get total parts cost from order quotation total_amount
+    $totalPartsCost = $workOrder->orderQuotation?->total_amount ?? 0;
 
     // Calculate total advances
     $totalAdvances = $workOrder->advancesWorkOrder->sum('total') ?? 0;

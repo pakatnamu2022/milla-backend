@@ -184,32 +184,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
   }
 
   /**
-   * Obtener cotización activa por vehicle_id
-   * Retorna la cotización vigente (expiration_date no vencida)
-   * Solo retorna productos con status = 'pending'
-   */
-  public function getQuotationByVehicle($vehicleId)
-  {
-    $quotation = ApOrderQuotations::where('vehicle_id', $vehicleId)
-      ->where('area_id', ApMasters::AREA_TALLER_ID) // Área de Taller
-      ->where('expiration_date', '>=', now())
-      ->with([
-        'details' => function ($query) {
-          $query->where('status', 'pending')
-            ->where('item_type', 'PRODUCT');
-        },
-        'details.product',
-        'vehicle',
-        'sede',
-        'createdBy'
-      ])
-      ->latest('created_at')
-      ->first();
-
-    return $quotation;
-  }
-
-  /**
    * Guardar masivamente repuestos desde una cotización
    * Valida stock de cada producto antes de guardar
    * Marca solo los detalles seleccionados como 'taken'
@@ -242,7 +216,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         $stock = $stockService->getStock($detail->product_id, $warehouseId);
 
         if (!$stock) {
-          throw new Exception("No se encontró registro de stock para el producto: {$detail->product->name}");
+          throw new Exception("No se encontró registro de stock para el producto: {$detail->product->name} en el almacén seleccionado");
         }
 
         if ($stock->available_quantity < $detail->quantity) {

@@ -65,15 +65,6 @@ class WorkOrderController extends Controller
     }
   }
 
-  public function calculateTotals($id)
-  {
-    try {
-      return $this->success($this->service->calculateTotals($id));
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
   public function getPaymentSummary($id, Request $request)
   {
     try {

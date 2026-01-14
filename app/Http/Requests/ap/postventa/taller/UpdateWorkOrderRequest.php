@@ -10,6 +10,12 @@ class UpdateWorkOrderRequest extends StoreRequest
   public function rules(): array
   {
     return [
+      'order_quotation_id' => [
+        'sometimes',
+        'nullable',
+        'integer',
+        'exists:ap_order_quotations,id',
+      ],
       'appointment_planning_id' => [
         'sometimes',
         'nullable',

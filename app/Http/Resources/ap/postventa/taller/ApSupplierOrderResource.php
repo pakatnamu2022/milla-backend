@@ -31,6 +31,8 @@ class ApSupplierOrderResource extends JsonResource
       'order_date' => $this->order_date,
       'order_number' => $this->order_number,
       'supply_type' => $this->supply_type,
+      'net_amount' => $this->net_amount,
+      'tax_amount' => $this->tax_amount,
       'total_amount' => $this->total_amount,
       'is_take' => $this->is_take,
       'status' => $this->status,
@@ -46,6 +48,21 @@ class ApSupplierOrderResource extends JsonResource
       'type_currency' => new TypeCurrencyResource($this->whenLoaded('typeCurrency')),
       'created_by_user' => new UserCompleteResource($this->whenLoaded('createdBy')),
       'details' => ApSupplierOrderDetailsResource::collection($this->whenLoaded('details')),
+      'purchase_requests' => $this->when($this->relationLoaded('requestDetails'), function () {
+        return $this->requestDetails
+          ->pluck('orderPurchaseRequest')
+          ->unique('id')
+          ->filter()
+          ->map(function ($request) {
+            return [
+              'id' => $request->id,
+              'request_number' => $request->request_number,
+              'requested_by' => $request->requested_by,
+              'requested_by_name' => $request->requestedBy?->person?->nombre_completo ?? null,
+            ];
+          })
+          ->values();
+      }),
     ];
   }
 }

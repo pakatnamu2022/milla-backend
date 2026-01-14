@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\ApSupplierOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Constants;
 use App\Models\ap\postventa\taller\ApSupplierOrder;
 use App\Models\ap\postventa\taller\ApSupplierOrderDetails;
 use App\Models\gp\maestroGeneral\ExchangeRate;
@@ -74,14 +75,20 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
       $details = $data['details'] ?? [];
       unset($data['details']);
 
-      // Calculate total_amount from details
-      $totalAmount = 0;
+      // Calculate net_amount from details
+      $netAmount = 0;
       if (!empty($details)) {
         foreach ($details as $detail) {
-          $totalAmount += $detail['total'] ?? 0;
+          $netAmount += $detail['total'] ?? 0;
         }
       }
-      $data['total_amount'] = $totalAmount;
+      $data['net_amount'] = $netAmount;
+
+      // Calculate tax_amount based on net_amount using VAT_TAX (18%)
+      $data['tax_amount'] = round($netAmount * (Constants::VAT_TAX / 100), 2);
+
+      // Calculate total_amount (net_amount + tax_amount)
+      $data['total_amount'] = round($netAmount + $data['tax_amount'], 2);
 
       // Create supplier order
       $supplierOrder = ApSupplierOrder::create($data);
@@ -122,6 +129,7 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
       'typeCurrency',
       'createdBy',
       'details.product',
+      'requestDetails.orderPurchaseRequest.requestedBy.person',
     ]);
     return new ApSupplierOrderResource($apSupplierOrder);
   }
@@ -139,14 +147,20 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
       $details = $data['details'] ?? null;
       unset($data['details']);
 
-      // Update details if provided and recalculate total_amount
+      // Update details if provided and recalculate amounts
       if ($details !== null) {
-        // Calculate new total_amount from details
-        $totalAmount = 0;
+        // Calculate new net_amount from details
+        $netAmount = 0;
         foreach ($details as $detail) {
-          $totalAmount += $detail['total'] ?? 0;
+          $netAmount += $detail['total'] ?? 0;
         }
-        $data['total_amount'] = $totalAmount;
+        $data['net_amount'] = $netAmount;
+
+        // Calculate tax_amount based on net_amount using VAT_TAX (18%)
+        $data['tax_amount'] = round($netAmount * (Constants::VAT_TAX / 100), 2);
+
+        // Calculate total_amount (net_amount + tax_amount)
+        $data['total_amount'] = round($netAmount + $data['tax_amount'], 2);
 
         // Delete existing details
         ApSupplierOrderDetails::where('ap_supplier_order_id', $supplierOrder->id)->delete();

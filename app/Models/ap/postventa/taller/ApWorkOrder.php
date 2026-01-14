@@ -24,6 +24,7 @@ class ApWorkOrder extends Model
   protected $fillable = [
     'correlative',
     'appointment_planning_id',
+    'order_quotation_id',
     'vehicle_id',
     'vehicle_plate',
     'vehicle_vin',
@@ -71,6 +72,7 @@ class ApWorkOrder extends Model
     'search' => ['correlative', 'vehicle_plate', 'vehicle_vin', 'observations'],
     'correlative' => '=',
     'appointment_planning_id' => '=',
+    'order_quotation_id' => '=',
     'vehicle_id' => '=',
     'vehicle_plate' => 'like',
     'vehicle_vin' => 'like',
@@ -131,6 +133,11 @@ class ApWorkOrder extends Model
   public function appointmentPlanning(): BelongsTo
   {
     return $this->belongsTo(AppointmentPlanning::class, 'appointment_planning_id');
+  }
+
+  public function orderQuotation(): BelongsTo
+  {
+    return $this->belongsTo(ApOrderQuotations::class, 'order_quotation_id');
   }
 
   public function vehicle(): BelongsTo

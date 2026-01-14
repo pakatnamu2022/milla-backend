@@ -2,7 +2,7 @@
 
 namespace App\Http\Resources\ap\postventa\taller;
 
-use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnResource;
+use App\Http\Resources\ap\comercial\VehiclesResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -13,15 +13,10 @@ class WorkOrderResource extends JsonResource
     return [
       'id' => $this->id,
       'correlative' => $this->correlative,
+      'order_quotation_id' => $this->order_quotation_id,
       'appointment_planning_id' => $this->appointment_planning_id,
       'vehicle_id' => $this->vehicle_id,
-      'vehicle' => $this->vehicle ? [
-        'id' => $this->vehicle->id,
-        'plate' => $this->vehicle->plate,
-        'vin' => $this->vehicle->vin,
-        'model' => new ApModelsVnResource($this->vehicle->model),
-        'year' => $this->vehicle->year,
-      ] : null,
+      'vehicle' => new VehiclesResource($this->vehicle),
       'vehicle_plate' => $this->vehicle_plate,
       'vehicle_vin' => $this->vehicle_vin,
       'mileage' => $this->vehicleInspection->mileage ?? null,
@@ -52,7 +47,8 @@ class WorkOrderResource extends JsonResource
       'creator_name' => $this->creator ? $this->creator->name : null,
       'is_inspection_completed' => !!$this->vehicleInspection,
       'vehicle_inspection' => new ApVehicleInspectionResource($this->whenLoaded('vehicleInspection')),
-      'items' => WorkOrderItemResource::collection($this->whenLoaded('items'))
+      'items' => WorkOrderItemResource::collection($this->whenLoaded('items')),
+      'order_quotation' => new ApOrderQuotationsResource($this->whenLoaded('orderQuotation')),
     ];
   }
 }

@@ -107,6 +107,10 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
     return DB::transaction(function () use ($data) {
       $purchaseRequest = $this->find($data['id']);
 
+      if ($purchaseRequest->ap_order_quotation_id) {
+        throw new Exception("No se puede modificar una solicitud de compra asociada a una cotización.");
+      }
+
       // Extract details from data
       $details = $data['details'] ?? null;
       unset($data['details']);
