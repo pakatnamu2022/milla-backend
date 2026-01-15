@@ -972,6 +972,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/by-campaign', [DashboardComercialController::class, 'getTotalsByCampaign']);
         Route::get('/for-sales-manager-stats', [DashboardComercialController::class, 'getStatsForSalesManager']);
         Route::get('/for-sales-manager-details', [DashboardComercialController::class, 'getDetailsForSalesManager']);
+        Route::get('/for-sales-manager-export', [DashboardComercialController::class, 'exportStatsForSalesManager']);
       });
     });
 
