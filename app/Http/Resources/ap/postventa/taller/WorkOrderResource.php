@@ -3,6 +3,7 @@
 namespace App\Http\Resources\ap\postventa\taller;
 
 use App\Http\Resources\ap\comercial\VehiclesResource;
+use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -46,9 +47,12 @@ class WorkOrderResource extends JsonResource
       'created_by' => $this->created_by,
       'creator_name' => $this->creator ? $this->creator->name : null,
       'is_inspection_completed' => !!$this->vehicleInspection,
+      'labours' => WorkOrderLabourResource::collection($this->whenLoaded('labours')),
+      'parts' => ApWorkOrderPartsResource::collection($this->whenLoaded('parts')),
       'vehicle_inspection' => new ApVehicleInspectionResource($this->whenLoaded('vehicleInspection')),
       'items' => WorkOrderItemResource::collection($this->whenLoaded('items')),
       'order_quotation' => new ApOrderQuotationsResource($this->whenLoaded('orderQuotation')),
+      'advances' => ElectronicDocumentResource::collection($this->whenLoaded('advancesWorkOrder')),
     ];
   }
 }

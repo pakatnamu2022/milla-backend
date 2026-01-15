@@ -24,6 +24,7 @@ class ApWorkOrder extends Model
   protected $fillable = [
     'correlative',
     'appointment_planning_id',
+    'vehicle_inspection_id',
     'order_quotation_id',
     'vehicle_id',
     'vehicle_plate',
@@ -72,6 +73,7 @@ class ApWorkOrder extends Model
     'search' => ['correlative', 'vehicle_plate', 'vehicle_vin', 'observations'],
     'correlative' => '=',
     'appointment_planning_id' => '=',
+    'vehicle_inspection_id' => '=',
     'order_quotation_id' => '=',
     'vehicle_id' => '=',
     'vehicle_plate' => 'like',
@@ -190,6 +192,11 @@ class ApWorkOrder extends Model
     return $this->hasMany(ApWorkOrderParts::class, 'work_order_id');
   }
 
+//  public function apVehicleInspection(): BelongsTo
+//  {
+//    return $this->belongsTo(ApVehicleInspection::class, 'vehicle_inspection_id');
+//  }
+
   // Helper methods
   public function calculateTotals(): void
   {
@@ -200,7 +207,7 @@ class ApWorkOrder extends Model
 
   public function advancesWorkOrder(): HasMany
   {
-    return $this->hasMany(ElectronicDocument::class, 'work_orders_id')
+    return $this->hasMany(ElectronicDocument::class, 'work_order_id')
       ->where('is_advance_payment', true);
   }
 }

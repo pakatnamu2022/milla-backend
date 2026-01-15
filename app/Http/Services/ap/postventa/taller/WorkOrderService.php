@@ -111,7 +111,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   public function show($id)
   {
     $workOrder = $this->find($id);
-    $workOrder->load('items', 'orderQuotation');
+    $workOrder->load('items', 'orderQuotation', 'labours', 'parts', 'advancesWorkOrder');
     return new WorkOrderResource($workOrder);
   }
 
@@ -194,7 +194,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
    */
   public function getPaymentSummary($workOrderId, $groupNumber = 1)
   {
-    $workOrder = ApWorkOrder::with(['labours', 'advancesWorkOrder', 'orderQuotation'])
+    $workOrder = ApWorkOrder::with(['labours', 'advancesWorkOrder', 'parts'])
       ->findOrFail($workOrderId);
 
     // Filter labours by group_number if provided
@@ -202,11 +202,16 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       ? $workOrder->labours->where('group_number', $groupNumber)
       : $workOrder->labours;
 
+    // Filter parts by group_number if provided
+    $parts = $groupNumber !== null
+      ? $workOrder->parts->where('group_number', $groupNumber)
+      : $workOrder->parts;
+
     // Calculate total labour cost
     $totalLabourCost = $labours->sum('total_cost') ?? 0;
 
     // Get total parts cost from order quotation total_amount
-    $totalPartsCost = $workOrder->orderQuotation?->total_amount ?? 0;
+    $totalPartsCost = $parts->sum('total_amount') ?? 0;
 
     // Calculate total advances
     $totalAdvances = $workOrder->advancesWorkOrder->sum('total') ?? 0;
@@ -233,8 +238,66 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'total_amount' => (float)$totalAmount,
         'total_advances' => (float)$totalAdvances,
         'remaining_balance' => (float)$remainingBalance,
-      ],
-      'advances' => ElectronicDocumentResource::collection($workOrder->advancesWorkOrder),
+      ]
     ]);
+  }
+
+  public function getPreLiquidationPdf($id)
+  {
+    $workOrder = $this->find($id);
+    $workOrder->load([
+      'vehicle.customer',
+      'vehicle.model',
+      'sede',
+      'advisor',
+      'labours.worker',
+      'parts.product',
+      'advancesWorkOrder',
+      'vehicleInspection'
+    ]);
+
+    $client = $workOrder->vehicle->customer;
+    $vehicle = $workOrder->vehicle;
+
+    // Calcular totales de mano de obra
+    $totalLabourCost = $workOrder->labours->sum('total_cost') ?? 0;
+
+    // Calcular totales de repuestos
+    $totalPartsCost = $workOrder->parts->sum('total_amount') ?? 0;
+
+    // Calcular totales generales
+    $subtotal = $totalLabourCost + $totalPartsCost;
+    $discountAmount = $workOrder->discount_amount ?? 0;
+    $taxAmount = $workOrder->tax_amount ?? 0;
+    $totalAmount = $subtotal - $discountAmount + $taxAmount;
+
+    // Calcular anticipos y saldo
+    $totalAdvances = $workOrder->advancesWorkOrder->sum('total') ?? 0;
+    $remainingBalance = $totalAmount - $totalAdvances;
+
+    $data = [
+      'workOrder' => $workOrder,
+      'client' => $client,
+      'vehicle' => $vehicle,
+      'labours' => $workOrder->labours,
+      'parts' => $workOrder->parts,
+      'advances' => $workOrder->advancesWorkOrder,
+      'totals' => [
+        'labour_cost' => $totalLabourCost,
+        'parts_cost' => $totalPartsCost,
+        'subtotal' => $subtotal,
+        'discount_amount' => $discountAmount,
+        'tax_amount' => $taxAmount,
+        'total_amount' => $totalAmount,
+        'total_advances' => $totalAdvances,
+        'remaining_balance' => $remainingBalance,
+      ]
+    ];
+
+    // Generar PDF
+    $pdf = \PDF::loadView('reports.ap.postventa.taller.pre-liquidation-work-order', $data);
+    $pdf->setPaper('a4', 'portrait');
+
+    return $pdf->stream("pre-liquidacion-{$workOrder->correlative}.pdf");
   }
 }

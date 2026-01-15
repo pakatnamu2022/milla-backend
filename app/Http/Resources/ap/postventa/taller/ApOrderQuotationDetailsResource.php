@@ -36,6 +36,7 @@ class ApOrderQuotationDetailsResource extends JsonResource
       // Relationships
       'order_quotation' => new ApOrderQuotationsResource($this->whenLoaded('orderQuotation')),
       'product' => new ProductsResource($this->whenLoaded('product')),
+      'status' => $this->status,
     ];
   }
 }

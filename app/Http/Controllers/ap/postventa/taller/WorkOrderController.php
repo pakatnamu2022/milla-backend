@@ -7,6 +7,7 @@ use App\Http\Requests\ap\postventa\taller\IndexWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\StoreWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderRequest;
 use App\Http\Services\ap\postventa\taller\WorkOrderService;
+use Exception;
 use Illuminate\Http\Request;
 
 class WorkOrderController extends Controller
@@ -72,6 +73,18 @@ class WorkOrderController extends Controller
       return $this->service->getPaymentSummary($id, $groupNumber);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
+    }
+  }
+
+  public function getPreLiquidationPdf($id)
+  {
+    try {
+      return $this->service->getPreLiquidationPdf($id);
+    } catch (Exception $e) {
+      return response()->json([
+        'message' => 'Error al generar el preliquidación',
+        'error' => $e->getMessage()
+      ], 500);
     }
   }
 }

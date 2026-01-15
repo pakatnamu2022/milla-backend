@@ -79,4 +79,17 @@ class ApWorkOrderPartsController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Realizar la salida de almacén para un repuesto específico
+   * POST /api/ap/postventa/workOrderParts/{id}/warehouse-output
+   */
+  public function warehouseOutput($id)
+  {
+    try {
+      return $this->success($this->service->warehouseOutput($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

@@ -69,38 +69,7 @@ class StoreApWorkOrderPartsRequest extends StoreRequest
       ],
     ];
   }
-
-  public function withValidator(Validator $validator): void
-  {
-    $validator->after(function (Validator $validator) {
-      $productId = $this->input('product_id');
-      $warehouseId = $this->input('warehouse_id');
-      $quantityUsed = $this->input('quantity_used');
-
-      if ($productId && $warehouseId && $quantityUsed) {
-        // Verificar stock disponible
-        $stock = ProductWarehouseStock::where('product_id', $productId)
-          ->where('warehouse_id', $warehouseId)
-          ->first();
-
-        if (!$stock) {
-          $validator->errors()->add(
-            'product_id',
-            'El producto no tiene stock registrado en el almacén seleccionado.'
-          );
-          return;
-        }
-
-        if ($stock->available_quantity < $quantityUsed) {
-          $validator->errors()->add(
-            'quantity_used',
-            "Stock insuficiente. Disponible: {$stock->available_quantity}, Solicitado: {$quantityUsed}"
-          );
-        }
-      }
-    });
-  }
-
+  
   public function messages(): array
   {
     return [
