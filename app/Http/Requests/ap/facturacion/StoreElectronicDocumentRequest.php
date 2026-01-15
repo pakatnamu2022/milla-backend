@@ -234,7 +234,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
         Rule::exists('ap_order_quotations', 'id')
           ->whereNull('deleted_at')
       ],
-      'work_orders_id' => [
+      'work_order_id' => [
         'nullable',
         'integer',
         Rule::exists('ap_work_orders', 'id')

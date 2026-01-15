@@ -72,10 +72,6 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
     return DB::transaction(function () use ($data) {
       $workOrderLabour = $this->find($data['id']);
 
-      if (auth()->check()) {
-        $data['worker_id'] = auth()->user()->person->id;
-      }
-
       // Calcular el costo total automáticamente si se actualizan time_spent u hourly_rate
       if (isset($data['time_spent']) || isset($data['hourly_rate'])) {
         // Obtener time_spent en formato decimal

@@ -35,6 +35,7 @@ class ApOrderQuotationDetails extends Model
     'search' => ['description', 'observations'],
     'order_quotation_id' => '=',
     'item_type' => '=',
+    'status' => '=',
   ];
 
   const sorts = [

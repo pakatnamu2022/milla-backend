@@ -15,9 +15,11 @@ class StorePurchaseOrderRequest extends StoreRequest
     if (!$this->has('type_operation_id')) {
       $this->merge([
         'type_operation_id' => ApMasters::TIPO_OPERACION_COMERCIAL,
-        'created_by' => auth()->id(),
       ]);
     }
+    $this->merge([
+      'created_by' => auth()->id(),
+    ]);
   }
 
   public function rules(): array
