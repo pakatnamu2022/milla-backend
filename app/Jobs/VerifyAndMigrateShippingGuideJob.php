@@ -40,7 +40,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     public ?int $shippingGuideId = null
   )
   {
-    $this->onQueue('sync');
+    $this->onQueue('shipping_guides');
   }
 
   /**
@@ -76,7 +76,10 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
       VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
       VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
-    ])->get();
+    ])
+      ->where('aceptada_por_sunat', 1)
+      ->whereNull('deleted_at')
+      ->get();
 
     foreach ($pendingGuides as $guide) {
       try {

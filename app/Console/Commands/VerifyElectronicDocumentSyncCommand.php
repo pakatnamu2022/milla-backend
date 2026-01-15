@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Commands\Concerns\ValidatesPendingJobs;
 use App\Http\Services\DatabaseSyncService;
 use App\Jobs\SyncSalesDocumentJob;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 
 class VerifyElectronicDocumentSyncCommand extends Command
 {
+  use ValidatesPendingJobs;
   /**
    * The name and signature of the console command.
    *
@@ -74,6 +76,11 @@ class VerifyElectronicDocumentSyncCommand extends Command
    */
   private function processAllPendingDocuments(bool $useSync): int
   {
+    // Validar límite de jobs pendientes antes de despachar (solo si usa cola)
+    if (!$useSync && !$this->canDispatchMoreJobs(SyncSalesDocumentJob::class)) {
+      return 0;
+    }
+
     $pendingDocuments = $this->getPendingDocuments();
 
     if ($pendingDocuments->isEmpty()) {

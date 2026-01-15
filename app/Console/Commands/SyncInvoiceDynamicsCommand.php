@@ -2,12 +2,14 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Commands\Concerns\ValidatesPendingJobs;
 use App\Jobs\SyncInvoiceDynamicsJob;
 use App\Models\ap\compras\PurchaseOrder;
 use Illuminate\Console\Command;
 
 class SyncInvoiceDynamicsCommand extends Command
 {
+  use ValidatesPendingJobs;
   /**
    * The name and signature of the console command.
    *
@@ -78,6 +80,11 @@ class SyncInvoiceDynamicsCommand extends Command
    */
   protected function syncAllPurchaseOrders(): int
   {
+    // Validar límite de jobs pendientes antes de despachar
+    if (!$this->canDispatchMoreJobs(SyncInvoiceDynamicsJob::class)) {
+      return Command::SUCCESS;
+    }
+
     $limit = (int) $this->option('limit');
 
     // Obtener OCs que:

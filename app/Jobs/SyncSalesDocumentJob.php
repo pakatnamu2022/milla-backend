@@ -31,7 +31,7 @@ class SyncSalesDocumentJob implements ShouldQueue
     public int $electronicDocumentId
   )
   {
-    $this->onQueue('sync');
+    $this->onQueue('electronic_documents');
   }
 
   /**

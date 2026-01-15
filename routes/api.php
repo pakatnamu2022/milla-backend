@@ -114,6 +114,7 @@ use App\Http\Controllers\gp\maestroGeneral\SedeController;
 use App\Http\Controllers\gp\maestroGeneral\SunatConceptsController;
 use App\Http\Controllers\gp\tics\EquipmentController;
 use App\Http\Controllers\gp\tics\EquipmentTypeController;
+use App\Http\Controllers\JobStatusController;
 use App\Http\Controllers\tp\comercial\TpTravelPhotoController;
 
 //TP - Controller
@@ -158,43 +159,22 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       'destroy'
     ]);
     Route::post('control-travel/{id}/state', [TravelControlController::class, 'changeState'])->name('control-travel.change-state');
-
     Route::post('control-travel/{id}/start', [TravelControlController::class, 'startRoute'])->name('control-travel.start');
-
     Route::post('control-travel/{id}/end', [TravelControlController::class, 'endRoute'])->name('control-travel.end');
-
-
     Route::post('control-travel/{id}/fuel', [TravelControlController::class, 'fuelRecord'])->name('control-travel.fuel-record');
-
     Route::get('control-travel/{id}/records', [TravelControlController::class, 'driverRecords'])->name('control-travel.records');
-
     Route::get('control-travel/filters/states', [TravelControlController::class, 'availableStates'])->name('control-travel.states');
-
     Route::get('control-travel/filters/drivers', [TravelControlController::class, 'activeDrivers'])->name('control-travel.drivers');
-
     Route::get('control-travel/filters/vehicles', [TravelControlController::class, 'activeVehicles'])->name('control-travel.vehicles');
-
     Route::get('control-travel/validate-mileage/{vehicle_id}', [TravelControlController::class, 'validateMileage'])->name('control-travel.validate-km');
-
     Route::prefix('control-travel/{id}')->group(function () {
-
-      Route::post('/photos', [TpTravelPhotoController::class, 'store'])
-        ->name('control-travel.photos.store');
-
-      Route::get('/photos', [TpTravelPhotoController::class, 'index'])
-        ->name('control-travel.photos.index');
-
-      Route::get('/photos/statistics', [TpTravelPhotoController::class, 'photoStatistics'])
-        ->name('control-travel.photos.statistics');
-
+      Route::post('/photos', [TpTravelPhotoController::class, 'store'])->name('control-travel.photos.store');
+      Route::get('/photos', [TpTravelPhotoController::class, 'index'])->name('control-travel.photos.index');
+      Route::get('/photos/statistics', [TpTravelPhotoController::class, 'photoStatistics'])->name('control-travel.photos.statistics');
     });
     Route::prefix('photos')->group(function () {
-
-      Route::get('/{id}', [TpTravelPhotoController::class, 'show'])
-        ->name('photos.show');
-
-      Route::delete('/{id}', [TpTravelPhotoController::class, 'destroy'])
-        ->name('photos.destroy');
+      Route::get('/{id}', [TpTravelPhotoController::class, 'show'])->name('photos.show');
+      Route::delete('/{id}', [TpTravelPhotoController::class, 'destroy'])->name('photos.destroy');
     });
   });
 
@@ -1357,5 +1337,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     // Hotel Agreements
     Route::get('hotel-agreements/active', [HotelAgreementController::class, 'active']);
     Route::apiResource('hotel-agreements', HotelAgreementController::class);
+
+    // Job Status - Monitoreo de jobs en cola
+    Route::get('jobs/status', [JobStatusController::class, 'index'])->name('jobs.status');
+    Route::get('jobs/status/{jobType}', [JobStatusController::class, 'show'])->name('jobs.status.show');
   });
 });

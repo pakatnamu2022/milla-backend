@@ -31,7 +31,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
     public ?int $purchaseOrderId = null
   )
   {
-    $this->onQueue('sync');
+    $this->onQueue('purchase_orders');
   }
 
   /**
@@ -61,7 +61,9 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       'pending',
       'in_progress',
       'failed'
-    ])->get();
+    ])
+      ->whereNull('deleted_at')
+      ->get();
 
     foreach ($pendingOrders as $order) {
       try {

@@ -27,7 +27,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
     public ?int $purchaseOrderId = null
   )
   {
-    $this->onQueue('sync');
+    $this->onQueue('invoice_sync');
   }
 
   /**
