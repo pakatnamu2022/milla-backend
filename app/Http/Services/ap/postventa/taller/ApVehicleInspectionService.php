@@ -6,8 +6,10 @@ use App\Http\Resources\ap\postventa\taller\ApVehicleInspectionResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Utils\Helpers;
+use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\taller\ApVehicleInspection;
 use App\Models\ap\postventa\taller\ApVehicleInspectionDamages;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\gestionhumana\personal\WorkerSignature;
 use App\Models\gp\gestionsistema\DigitalFile;
 use Illuminate\Http\Request;
@@ -77,6 +79,13 @@ class ApVehicleInspectionService extends BaseService
       // Crear la inspección
       $inspection = ApVehicleInspection::create($data);
 
+      //Actualizamos en work_order_id el id de la inspección creada
+      $workOrder = ApWorkOrder::findOrFail($data['work_order_id']);
+      $workOrder->update([
+        'vehicle_inspection_id' => $inspection->id,
+        'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
+      ]);
+
       // Procesar y guardar firmas si existen
       if ($customerSignature) {
         $this->processSignature($inspection, $customerSignature, 'customer');
@@ -85,12 +94,6 @@ class ApVehicleInspectionService extends BaseService
       // Procesar y crear los daños con sus imágenes
       if (!empty($damages)) {
         $this->processDamages($inspection, $damages);
-      }
-
-      // Marcar la planificación de cita como tomada si se proporcionó
-      if (isset($data['appointment_planning_id']) && $data['appointment_planning_id']) {
-        $inspection->workOrder->appointmentPlanning->is_taken = true;
-        $inspection->workOrder->appointmentPlanning->save();
       }
 
       DB::commit();
@@ -108,23 +111,6 @@ class ApVehicleInspectionService extends BaseService
   public function show($id)
   {
     return new ApVehicleInspectionResource($this->find($id));
-  }
-
-  public function getByWorkOrder($workOrderId)
-  {
-    $inspection = ApVehicleInspection::with([
-      'damages',
-      'workOrder',
-      'inspectionBy'
-    ])->where('work_order_id', $workOrderId)->first();
-
-    if (!$inspection) {
-      return response()->json([
-        'message' => 'No se encontró inspección para esta orden de trabajo'
-      ], 404);
-    }
-
-    return new ApVehicleInspectionResource($inspection);
   }
 
   public function destroy(int $id)

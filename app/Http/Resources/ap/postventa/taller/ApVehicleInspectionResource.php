@@ -17,7 +17,9 @@ class ApVehicleInspectionResource extends JsonResource
   {
     return [
       'id' => $this->id,
-      'work_order_id' => $this->work_order_id,
+      'vehicle_plate' => $this->workOrder?->vehicle->plate,
+      'vehicle_vin' => $this->workOrder?->vehicle->vin,
+      'work_order_correlative' => $this->workOrder ? $this->workOrder->correlative : null,
       'mileage' => $this->mileage,
       'fuel_level' => $this->fuel_level,
       'oil_level' => $this->oil_level,
@@ -43,14 +45,13 @@ class ApVehicleInspectionResource extends JsonResource
       'fluid_caps' => $this->fluid_caps,
       'tool_kit' => $this->tool_kit,
       'jack_and_lever' => $this->jack_and_lever,
-      'inspection_date' => $this->inspection_date,
+      'inspection_date' => $this->inspection_date->format('Y-m-d'),
       'general_observations' => $this->general_observations,
       'inspected_by' => $this->inspected_by,
       'inspected_by_name' => $this->inspectionBy ? $this->inspectionBy->name : null,
       'customer_signature_url' => $this->customer_signature_url,
       // Relationships
       'damages' => ApVehicleInspectionDamagesResource::collection($this->whenLoaded('damages')),
-      'work_order' => $this->whenLoaded('workOrder'),
     ];
   }
 }

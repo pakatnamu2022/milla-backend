@@ -5,6 +5,7 @@ namespace App\Models\ap\postventa\taller;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
@@ -27,6 +28,7 @@ class ApWorkOrder extends Model
     'vehicle_inspection_id',
     'order_quotation_id',
     'vehicle_id',
+    'currency_id',
     'vehicle_plate',
     'vehicle_vin',
     'status_id',
@@ -147,6 +149,11 @@ class ApWorkOrder extends Model
     return $this->belongsTo(Vehicles::class, 'vehicle_id');
   }
 
+  public function currency(): BelongsTo
+  {
+    return $this->belongsTo(TypeCurrency::class, 'currency_id');
+  }
+
   public function status(): BelongsTo
   {
     return $this->belongsTo(ApMasters::class, 'status_id');
@@ -177,11 +184,6 @@ class ApWorkOrder extends Model
     return $this->hasMany(ApWorkOrderPlanning::class, 'work_order_id');
   }
 
-  public function vehicleInspection(): HasOne
-  {
-    return $this->hasOne(ApVehicleInspection::class, 'work_order_id');
-  }
-
   public function labours(): HasMany
   {
     return $this->hasMany(WorkOrderLabour::class, 'work_order_id');
@@ -192,10 +194,10 @@ class ApWorkOrder extends Model
     return $this->hasMany(ApWorkOrderParts::class, 'work_order_id');
   }
 
-//  public function apVehicleInspection(): BelongsTo
-//  {
-//    return $this->belongsTo(ApVehicleInspection::class, 'vehicle_inspection_id');
-//  }
+  public function vehicleInspection(): BelongsTo
+  {
+    return $this->belongsTo(ApVehicleInspection::class, 'vehicle_inspection_id');
+  }
 
   // Helper methods
   public function calculateTotals(): void

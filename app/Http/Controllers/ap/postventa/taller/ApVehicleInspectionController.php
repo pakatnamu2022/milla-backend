@@ -84,21 +84,6 @@ class ApVehicleInspectionController extends Controller
   }
 
   /**
-   * Get inspection by work order ID.
-   */
-  public function getByWorkOrder($workOrderId)
-  {
-    try {
-      return $this->service->getByWorkOrder($workOrderId);
-    } catch (Exception $e) {
-      return response()->json([
-        'message' => 'Error al obtener la inspección vehicular',
-        'error' => $e->getMessage()
-      ], 500);
-    }
-  }
-
-  /**
    * Remove the specified resource from storage.
    */
   public function destroy($id)

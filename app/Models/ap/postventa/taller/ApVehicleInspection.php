@@ -5,6 +5,7 @@ namespace App\Models\ap\postventa\taller;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ApVehicleInspection extends Model
@@ -14,7 +15,6 @@ class ApVehicleInspection extends Model
   protected $table = 'ap_vehicle_inspection';
 
   protected $fillable = [
-    'work_order_id',
     'inspection_date',
     'mileage',
     'fuel_level',
@@ -73,8 +73,7 @@ class ApVehicleInspection extends Model
   ];
 
   const filters = [
-    'search' => ['general_observations'],
-    'work_order_id' => '=',
+    'search' => ['general_observations', 'workOrder.vehicle.plate'],
     'fuel_level' => 'between',
     'inspected_by' => '=',
   ];
@@ -106,13 +105,13 @@ class ApVehicleInspection extends Model
     return $this->hasMany(ApVehicleInspectionDamages::class, 'vehicle_inspection_id');
   }
 
-  public function workOrder()
-  {
-    return $this->belongsTo(ApWorkOrder::class, 'work_order_id');
-  }
-
   public function inspectionBy(): BelongsTo
   {
     return $this->belongsTo(User::class, 'inspected_by');
+  }
+
+  public function workOrder(): HasOne
+  {
+    return $this->hasOne(ApWorkOrder::class, 'vehicle_inspection_id');
   }
 }
