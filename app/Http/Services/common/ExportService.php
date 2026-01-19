@@ -199,6 +199,14 @@ class ExportService
                 'operator' => 'in',
                 'value' => is_array($value) ? $value : [$value]
               ];
+            } elseif ($filterOperator === 'custom') {
+              // Para filtros custom, pasar el valor directamente
+              // El modelo manejará la lógica especial en getReportData
+              $filters[] = [
+                'column' => $filterKey,
+                'operator' => 'custom',
+                'value' => $value
+              ];
             } else {
               // Para operadores como '=', '>', '<', '>=', '<=', '!='
               $filters[] = [
