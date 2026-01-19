@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ap\comercial\ExportVehiclesSalesRequest;
 use App\Http\Requests\ap\comercial\IndexVehiclesRequest;
 use App\Http\Requests\ap\comercial\StoreVehiclesRequest;
 use App\Http\Requests\ap\comercial\UpdateVehiclesRequest;
@@ -26,10 +27,10 @@ class VehiclesController extends Controller
 
   /**
    * Export vehicles data
-   * @param Request $request
+   * @param ExportVehiclesSalesRequest $request
    * @return JsonResponse
    */
-  public function exportSales(Request $request)
+  public function exportSales(ExportVehiclesSalesRequest $request)
   {
     try {
       return $this->service->exportSales($request);

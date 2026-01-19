@@ -3,17 +3,25 @@
 namespace App\Http\Services\Dashboard\ap\comercial;
 
 use App\Http\Resources\ap\comercial\PotentialBuyersResource;
+use App\Http\Services\common\ExportService;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PotentialBuyers;
 use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
 use App\Models\gp\gestionhumana\personal\Worker;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 
 class DashboardComercialService
 {
+  protected $exportService;
+
+  public function __construct(ExportService $exportService)
+  {
+    $this->exportService = $exportService;
+  }
   public function getTotalsByDateRangeTotal($dateFrom, $dateTo, $type)
   {
     // Total de visitas (todos los registros en el rango)
@@ -618,11 +626,16 @@ class DashboardComercialService
 
   /**
    * Obtiene IDs de asesores asignados a un jefe en un rango de fechas
+   * Considera tres niveles:
+   * 1. Asesores directos
+   * 2. Asesores de jefes asignados
+   * 3. Asesores por grupos de marcas (commercialManagerBrandGroup)
    */
   private function getAssignedAdvisorsForManager($bossId, $dateFrom, $dateTo)
   {
     $periods = $this->generatePeriods($dateFrom, $dateTo);
 
+    // Obtener trabajadores asignados directamente al boss_id
     $query = ApAssignmentLeadership::where('boss_id', $bossId)
       ->where('status', 1);
 
@@ -635,7 +648,113 @@ class DashboardComercialService
       }
     });
 
-    $workerIds = $query->distinct()
+    $directWorkerIds = $query->distinct()
+      ->pluck('worker_id')
+      ->toArray();
+
+    $allAdvisorIds = [];
+
+    // Si hay trabajadores asignados directamente
+    if (!empty($directWorkerIds)) {
+      // Verificar si estos trabajadores tienen asesores asignados (son jefes)
+      $bossWorkerIds = ApAssignmentLeadership::whereIn('boss_id', $directWorkerIds)
+        ->where('status', 1)
+        ->where(function ($q) use ($periods) {
+          foreach ($periods as $period) {
+            $q->orWhere(function ($subQuery) use ($period) {
+              $subQuery->where('year', $period['year'])
+                ->where('month', $period['month']);
+            });
+          }
+        })
+        ->distinct()
+        ->pluck('boss_id')
+        ->toArray();
+
+      // Separar trabajadores directos en asesores y jefes
+      $directAdvisorIds = array_diff($directWorkerIds, $bossWorkerIds);
+      $directBossIds = array_intersect($directWorkerIds, $bossWorkerIds);
+
+      // Obtener asesores de los jefes asignados
+      $advisorsOfBosses = [];
+      if (!empty($directBossIds)) {
+        $advisorsOfBosses = ApAssignmentLeadership::whereIn('boss_id', $directBossIds)
+          ->where('status', 1)
+          ->where(function ($q) use ($periods) {
+            foreach ($periods as $period) {
+              $q->orWhere(function ($subQuery) use ($period) {
+                $subQuery->where('year', $period['year'])
+                  ->where('month', $period['month']);
+              });
+            }
+          })
+          ->distinct()
+          ->pluck('worker_id')
+          ->toArray();
+      }
+
+      // Combinar asesores directos con asesores de jefes
+      $allAdvisorIds = array_unique(array_merge($directAdvisorIds, $advisorsOfBosses));
+    }
+
+    // Si no hay asesores por asignación directa, verificar si es gerente comercial con grupos de marcas
+    if (empty($allAdvisorIds)) {
+      $advisorsByBrandGroup = $this->getAdvisorsByBrandGroup($bossId, $periods);
+      $allAdvisorIds = array_merge($allAdvisorIds, $advisorsByBrandGroup);
+    }
+
+    return array_unique($allAdvisorIds);
+  }
+
+  /**
+   * Obtiene IDs de asesores asignados a un gerente comercial mediante grupos de marcas
+   */
+  private function getAdvisorsByBrandGroup($managerId, $periods)
+  {
+    // Paso 1: Obtener brand_group_ids del gerente comercial
+    $brandGroupIds = DB::table('ap_commercial_manager_brand_group_periods')
+      ->where('commercial_manager_id', $managerId)
+      ->where('status', 1)
+      ->where(function ($q) use ($periods) {
+        foreach ($periods as $period) {
+          $q->orWhere(function ($subQuery) use ($period) {
+            $subQuery->where('year', $period['year'])
+              ->where('month', $period['month']);
+          });
+        }
+      })
+      ->distinct()
+      ->pluck('brand_group_id')
+      ->toArray();
+
+    if (empty($brandGroupIds)) {
+      return [];
+    }
+
+    // Paso 2: Obtener brand_ids de esos grupos
+    $brandIds = DB::table('ap_vehicle_brand')
+      ->whereIn('group_id', $brandGroupIds)
+      ->where('status', 1)
+      ->pluck('id')
+      ->toArray();
+
+    if (empty($brandIds)) {
+      return [];
+    }
+
+    // Paso 3: Obtener worker_ids asignados a esas marcas en el período
+    $workerIds = DB::table('ap_assign_brand_consultant')
+      ->whereIn('brand_id', $brandIds)
+      ->where('status', 1)
+      ->where(function ($q) use ($periods) {
+        foreach ($periods as $period) {
+          $q->orWhere(function ($subQuery) use ($period) {
+            $subQuery->where('year', $period['year'])
+              ->where('month', $period['month']);
+          });
+        }
+      })
+      ->distinct()
       ->pluck('worker_id')
       ->toArray();
 
@@ -821,5 +940,68 @@ class DashboardComercialService
     }
 
     return $totals;
+  }
+
+  /**
+   * Exporta los datos de PotentialBuyers filtrados por jefe de ventas
+   *
+   * @param Request $request
+   * @return mixed
+   * @throws Exception
+   */
+  public function exportStatsForSalesManager(Request $request)
+  {
+    // Validar parámetros requeridos
+    $dateFrom = $request->input('date_from');
+    $dateTo = $request->input('date_to');
+    $type = $request->input('type');
+    $bossId = $request->input('boss_id') ?? auth()->user()->partner_id;
+
+    if (!$dateFrom || !$dateTo || !$type) {
+      throw new Exception("Los parámetros date_from, date_to y type son requeridos para la exportación");
+    }
+
+    // Obtener asesores asignados
+    $advisorIds = $this->getAssignedAdvisorsForManager($bossId, $dateFrom, $dateTo);
+
+    if (empty($advisorIds)) {
+      throw new Exception("No hay asesores asignados para el jefe de ventas con ID {$bossId} en el período especificado.");
+    }
+
+    // Construir filtros base
+    $filters = [
+      'created_at' => ['from' => $dateFrom, 'to' => $dateTo],
+      'type' => $type,
+      'worker_id' => $advisorIds,
+    ];
+
+    // Agregar filtro de worker_id si se especifica en el request
+    if ($request->filled('worker_id')) {
+      $workerId = $request->input('worker_id');
+      if (in_array($workerId, $advisorIds)) {
+        $filters['worker_id'] = [$workerId];
+      } else {
+        throw new Exception("El worker_id especificado no está asignado a este jefe de ventas");
+      }
+    }
+
+    // Obtener información del jefe
+    $managerInfo = $this->getManagerInfo($bossId);
+
+    // Preparar opciones para la exportación
+    $options = [
+      'title' => 'Reporte Leads - ' . $managerInfo['boss_name'],
+      'filters' => $filters,
+      'columns' => $request->get('columns'),
+      'context' => ['type' => $type],
+    ];
+
+    // Exportar usando el servicio de exportación
+    $format = $request->get('format', 'excel');
+    if ($format === 'pdf') {
+      return $this->exportService->exportToPdf(PotentialBuyers::class, $options);
+    } else {
+      return $this->exportService->exportToExcel(PotentialBuyers::class, $options);
+    }
   }
 }

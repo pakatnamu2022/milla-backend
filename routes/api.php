@@ -921,7 +921,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::delete('receivingChecklist/byShippingGuide/{shippingGuideId}', [ApReceivingChecklistController::class, 'destroyByShippingGuide']);
 
       // Vehicles
-      Route::get('vehicles/export/sales', [VehiclesController::class, 'exportSales']);
+      Route::post('vehicles/export/sales', [VehiclesController::class, 'exportSales']);
       Route::get('vehicles/costs', [VehiclesController::class, 'getCostsData']);
       Route::get('vehicles/{id}/invoices', [VehiclesController::class, 'getInvoices']);
       Route::get('vehicles/{id}/client-debt-info', [VehiclesController::class, 'getVehicleClientDebtInfo']);
@@ -972,6 +972,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/by-campaign', [DashboardComercialController::class, 'getTotalsByCampaign']);
         Route::get('/for-sales-manager-stats', [DashboardComercialController::class, 'getStatsForSalesManager']);
         Route::get('/for-sales-manager-details', [DashboardComercialController::class, 'getDetailsForSalesManager']);
+        Route::get('/for-sales-manager-export', [DashboardComercialController::class, 'exportStatsForSalesManager']);
       });
     });
 

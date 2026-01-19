@@ -39,11 +39,21 @@ class EquipmentTypeService extends BaseService
 
     public function update($data)
     {
-        $equipment = EquipmentType::find($data['id']);
-        if (!$equipment) {
-            throw new Exception('Equipo no encontrado');
+        $equipmentType = EquipmentType::find($data['id']);
+        if (!$equipmentType) {
+            throw new Exception('Tipo de Equipo no encontrado');
         }
-        $equipment->update($data);
-        return new EquipmentResource($equipment);
+        $equipmentType->update($data);
+        return new EquipmentTypeResource($equipmentType);
+    }
+
+    public function destroy($id)
+    {
+        $equipmentType = EquipmentType::find($id);
+        if (!$equipmentType) {
+            throw new Exception('Tipo de Equipo no encontrado');
+        }
+        $equipmentType->update(['status_deleted' => 0]);
+        return response()->json(['message' => 'Tipo de Equipo eliminado exitosamente']);
     }
 }

@@ -233,4 +233,22 @@ class DashboardComercialController extends Controller
       $request->worker_id
     ));
   }
+
+  public function exportStatsForSalesManager(Request $request)
+  {
+    $request->validate([
+      'date_from' => 'required|date|date_format:Y-m-d',
+      'date_to' => 'required|date|date_format:Y-m-d|after_or_equal:date_from',
+      'type' => 'required|in:VISITA,LEADS',
+      'boss_id' => 'nullable|integer|exists:rrhh_persona,id',
+      'worker_id' => 'nullable|integer|exists:rrhh_persona,id',
+      'format' => 'nullable|in:excel,pdf',
+    ]);
+
+    try {
+      return $this->dashboardService->exportStatsForSalesManager($request);
+    } catch (\Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }
