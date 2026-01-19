@@ -384,13 +384,6 @@ class PotentialBuyers extends Model
     // Si hay boss_id, obtener los asesores asignados y filtrar
     if ($bossId) {
       $advisorIds = $this->getAssignedAdvisorsForManager($bossId, $dateFrom, $dateTo);
-      \Log::info('PotentialBuyers::getReportData - Asesores encontrados:', [
-        'boss_id' => $bossId,
-        'dateFrom' => $dateFrom,
-        'dateTo' => $dateTo,
-        'advisorIds' => $advisorIds,
-        'count' => count($advisorIds)
-      ]);
       if (!empty($advisorIds)) {
         $query->whereIn('worker_id', $advisorIds);
       } else {
