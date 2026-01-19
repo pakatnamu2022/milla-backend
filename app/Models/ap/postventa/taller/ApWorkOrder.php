@@ -12,7 +12,6 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -51,6 +50,7 @@ class ApWorkOrder extends Model
     'is_recall',
     'description_recall',
     'type_recall',
+    'has_invoice_generated',
     'created_by',
   ];
 
@@ -62,6 +62,7 @@ class ApWorkOrder extends Model
     'is_invoiced' => 'boolean',
     'is_guarantee' => 'boolean',
     'is_recall' => 'boolean',
+    'has_invoice_generated' => 'boolean',
     'total_labor_cost' => 'decimal:2',
     'total_parts_cost' => 'decimal:2',
     'subtotal' => 'decimal:2',
@@ -149,7 +150,7 @@ class ApWorkOrder extends Model
     return $this->belongsTo(Vehicles::class, 'vehicle_id');
   }
 
-  public function currency(): BelongsTo
+  public function typeCurrency(): BelongsTo
   {
     return $this->belongsTo(TypeCurrency::class, 'currency_id');
   }

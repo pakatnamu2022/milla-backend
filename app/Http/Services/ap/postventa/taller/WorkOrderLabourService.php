@@ -5,6 +5,9 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\WorkOrderLabourResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\ApMasters;
+use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,10 +43,40 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         ? floatval($data['time_spent'])
         : $this->timeToDecimal($data['time_spent']);
 
+      // obtenemos la OT y validamos que exista
+      $workOrder = ApWorkOrder::find($data['work_order_id']);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+        throw new Exception('No se puede agregar mano de obra a una orden de trabajo cerrada');
+      }
+
+      if ($workOrder->order_quotation_id) {
+        $orderQuotation = $workOrder->orderQuotation;
+        if ($orderQuotation->currency_id === $workOrder->currency_id) { // MISMA MONEDA
+          $factor = 1;
+        } else {
+          if ($workOrder->currency_id === TypeCurrency::PEN_ID) { //SI LA OT ESTA EN SOLES SE ENTIENDE QUE LA COTIZACION ESTA EN DOLARES
+            $factor = $orderQuotation->exchange_rate;
+          } else if ($workOrder->currency_id === TypeCurrency::USD_ID) { //SI LA OT ESTA EN DOLARES SE ENTIENDE QUE LA COTIZACION ESTA EN SOLES
+            $factor = 1;
+          } else {
+            throw new Exception('Moneda no soportada para la cotización de la orden de trabajo');
+          }
+        }
+      } else {
+        $factor = 1;
+      }
+
       // Calcular el costo total automáticamente
       if (isset($data['time_spent']) && isset($data['hourly_rate'])) {
-        $data['total_cost'] = $timeSpentDecimal * floatval($data['hourly_rate']);
+        $data['total_cost'] = $timeSpentDecimal * floatval($data['hourly_rate']) * $factor;
       }
+      $data['hourly_rate'] = floatval($data['hourly_rate']) * $factor;
+      $data['time_spent'] = $timeSpentDecimal;
 
       $workOrderLabour = WorkOrderLabour::create($data);
       return new WorkOrderLabourResource($workOrderLabour->load(['worker', 'workOrder']));

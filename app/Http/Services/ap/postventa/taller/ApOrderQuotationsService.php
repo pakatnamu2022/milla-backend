@@ -248,7 +248,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       }
 
       if ($quotation->status !== ApOrderQuotations::STATUS_APERTURADO) {
-        throw new Exception('Solo se pueden eliminar cotizaciones en estado "Aperturado".');
+        throw new Exception('Solo se pueden editar cotizaciones en estado "Aperturado".');
       }
 
       if ($quotation->has_invoice_generated) {
@@ -257,6 +257,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       if ($vehicle->customer_id === null) {
         throw new Exception('El vehículo debe estar asociado a un "TITULAR" para actualizar una cotización');
+      }
+
+      // Validar cambio de moneda si existen pagos registrados
+      if ($quotation->has_invoice_generated && $quotation->currency_id !== $data['currency_id']) {
+        throw new Exception('No se puede cambiar el tipo de moneda porque ya existen pagos registrados para esta cotización.');
       }
 
       // Calculate validity days

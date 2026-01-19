@@ -133,7 +133,7 @@ class ApOrderQuotations extends Model
     return $this->belongsTo(ApMasters::class, 'area_id');
   }
 
-  public function currency(): BelongsTo
+  public function typeCurrency(): BelongsTo
   {
     return $this->belongsTo(TypeCurrency::class, 'currency_id');
   }

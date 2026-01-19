@@ -8,9 +8,14 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\taller\AppointmentPlanning;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderItem;
+use App\Models\ap\postventa\taller\ApWorkOrderParts;
+use App\Models\ap\postventa\taller\WorkOrderLabour;
+use App\Models\gp\maestroGeneral\ExchangeRate;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -125,8 +130,18 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
       }
 
+      // Detectar si cambió el tipo de moneda
+      $oldCurrencyId = $workOrder->currency_id;
+      $newCurrencyId = $data['currency_id'] ?? $oldCurrencyId;
+      $currencyChanged = $oldCurrencyId !== null && $newCurrencyId !== null && $oldCurrencyId != $newCurrencyId;
+
       // Update work order
       $workOrder->update($data);
+
+      // Si cambió el tipo de moneda, recalcular labours y parts
+      if ($currencyChanged) {
+        $this->recalculateCurrencyChange($workOrder, $oldCurrencyId, $newCurrencyId);
+      }
 
       // Reload relations
       $workOrder->load([
@@ -299,5 +314,138 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $pdf->setPaper('a4', 'portrait');
 
     return $pdf->stream("pre-liquidacion-{$workOrder->correlative}.pdf");
+  }
+
+  /**
+   * Recalcula los valores de labours y parts cuando cambia el tipo de moneda de la OT
+   * Si la OT tiene cotización asociada: usa el tipo de cambio de la cotización
+   * Si no tiene cotización: usa el tipo de cambio actual de la fecha
+   *
+   * @param ApWorkOrder $workOrder
+   * @param int $oldCurrencyId
+   * @param int $newCurrencyId
+   * @return void
+   * @throws Exception
+   */
+  private function recalculateCurrencyChange(ApWorkOrder $workOrder, int $oldCurrencyId, int $newCurrencyId): void
+  {
+    // Obtener el factor de conversión
+    $factor = $this->getConversionFactor($workOrder, $oldCurrencyId, $newCurrencyId);
+
+    // Recalcular labours
+    $this->recalculateLabours($workOrder->id, $factor);
+
+    // Recalcular parts
+    $this->recalculateParts($workOrder->id, $factor);
+  }
+
+  /**
+   * Obtiene el factor de conversión según la moneda y si tiene cotización
+   *
+   * @param ApWorkOrder $workOrder
+   * @param int $oldCurrencyId
+   * @param int $newCurrencyId
+   * @return float
+   * @throws Exception
+   */
+  private function getConversionFactor(ApWorkOrder $workOrder, int $oldCurrencyId, int $newCurrencyId): float
+  {
+    // Obtener el tipo de cambio
+    $exchangeRate = $this->getExchangeRate($workOrder);
+
+    // De soles a dólares: dividir por tipo de cambio
+    if ($oldCurrencyId === TypeCurrency::PEN_ID && $newCurrencyId === TypeCurrency::USD_ID) {
+      return 1 / $exchangeRate;
+    }
+
+    // De dólares a soles: multiplicar por tipo de cambio
+    if ($oldCurrencyId === TypeCurrency::USD_ID && $newCurrencyId === TypeCurrency::PEN_ID) {
+      return $exchangeRate;
+    }
+
+    // Si son la misma moneda o no reconocida, no hay conversión
+    return 1;
+  }
+
+  /**
+   * Obtiene el tipo de cambio a usar
+   * Si la OT tiene cotización: usa el exchange_rate de la cotización
+   * Si no tiene cotización: usa el tipo de cambio actual
+   *
+   * @param ApWorkOrder $workOrder
+   * @return float
+   * @throws Exception
+   */
+  private function getExchangeRate(ApWorkOrder $workOrder): float
+  {
+    // Si tiene cotización asociada, usar su tipo de cambio
+    if ($workOrder->order_quotation_id) {
+      $quotation = $workOrder->orderQuotation;
+      if ($quotation && $quotation->exchange_rate) {
+        return (float)$quotation->exchange_rate;
+      }
+    }
+
+    // Si no tiene cotización, usar el tipo de cambio actual
+    $today = Carbon::now()->format('Y-m-d');
+    $exchangeRate = ExchangeRate::where('date', $today)
+      ->where('type', ExchangeRate::TYPE_VENTA)
+      ->first();
+
+    if (!$exchangeRate) {
+      throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy: ' . $today);
+    }
+
+    return (float)$exchangeRate->rate;
+  }
+
+  /**
+   * Recalcula los valores de mano de obra con el factor de conversión
+   *
+   * @param int $workOrderId
+   * @param float $factor
+   * @return void
+   */
+  private function recalculateLabours(int $workOrderId, float $factor): void
+  {
+    $labours = WorkOrderLabour::where('work_order_id', $workOrderId)->get();
+
+    foreach ($labours as $labour) {
+      $newHourlyRate = $labour->hourly_rate * $factor;
+      $newTotalCost = $labour->total_cost * $factor;
+
+      $labour->update([
+        'hourly_rate' => round($newHourlyRate, 2),
+        'total_cost' => round($newTotalCost, 2),
+      ]);
+    }
+  }
+
+  /**
+   * Recalcula los valores de repuestos con el factor de conversión
+   *
+   * @param int $workOrderId
+   * @param float $factor
+   * @return void
+   */
+  private function recalculateParts(int $workOrderId, float $factor): void
+  {
+    $parts = ApWorkOrderParts::where('work_order_id', $workOrderId)->get();
+
+    foreach ($parts as $part) {
+      $newUnitCost = $part->unit_cost * $factor;
+      $newUnitPrice = $part->unit_price * $factor;
+      $newSubtotal = $part->subtotal * $factor;
+      $newTaxAmount = $part->tax_amount * $factor;
+      $newTotalAmount = $part->total_amount * $factor;
+
+      $part->update([
+        'unit_cost' => round($newUnitCost, 2),
+        'unit_price' => round($newUnitPrice, 2),
+        'subtotal' => round($newSubtotal, 2),
+        'tax_amount' => round($newTaxAmount, 2),
+        'total_amount' => round($newTotalAmount, 2),
+      ]);
+    }
   }
 }
