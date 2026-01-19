@@ -1048,8 +1048,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Work Orders - Órdenes de Trabajo
-      Route::post('workOrders/{id}/calculate-totals', [WorkOrderController::class, 'calculateTotals']);
       Route::get('workOrders/{id}/payment-summary', [WorkOrderController::class, 'getPaymentSummary']);
+      Route::get('workOrders/{id}/pre-liquidation', [WorkOrderController::class, 'getPreLiquidationPdf']);
       Route::apiResource('workOrders', WorkOrderController::class)->only([
         'index',
         'show',
@@ -1084,8 +1084,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
-      Route::get('workOrderParts/quotation-by-vehicle/{vehicle_id}', [ApWorkOrderPartsController::class, 'getQuotationByVehicle']);
       Route::post('workOrderParts/store-bulk-from-quotation', [ApWorkOrderPartsController::class, 'storeBulkFromQuotation']);
+      Route::post('workOrderParts/{id}/warehouse-output', [ApWorkOrderPartsController::class, 'warehouseOutput']);
 
       // Work Order Labour - Mano de Obra de Órdenes de Trabajo
       Route::apiResource('workOrderLabour', WorkOrderLabourController::class)->only([

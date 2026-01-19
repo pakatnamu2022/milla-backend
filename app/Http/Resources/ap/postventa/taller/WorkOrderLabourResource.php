@@ -17,14 +17,7 @@ class WorkOrderLabourResource extends JsonResource
       'hourly_rate' => $this->hourly_rate,
       'total_cost' => $this->total_cost,
       'worker_id' => $this->worker_id,
-      'worker' => $this->whenLoaded('worker', function () {
-        return [
-          'id' => $this->worker->id,
-          'worker_id' => $this->worker->worker_id,
-          'full_name' => $this->worker->full_name,
-        ];
-      }),
-      'worker_full_name' => $this->worker->nombre_completo,
+      'worker_full_name' => $this->worker ? $this->worker->nombre_completo : null,
       'work_order_id' => $this->work_order_id,
       'work_order' => $this->whenLoaded('workOrder', function () {
         return [

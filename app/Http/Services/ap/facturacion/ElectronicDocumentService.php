@@ -186,6 +186,42 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       /**
+       * Validar que un anticipo no sea por 0 soles
+       */
+      if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
+        $total = (float)($data['total'] ?? 0);
+        if ($total <= 0) {
+          throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
+        }
+
+        // Validar que la suma de anticipos no exceda el monto de la cotización
+        if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
+          $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+
+          // Sumar todos los anticipos aceptados por SUNAT para esta cotización
+          $totalAnticiposExistentes = ElectronicDocument::where('order_quotation_id', $data['order_quotation_id'])
+            ->where('is_advance_payment', 1)
+            ->where('aceptada_por_sunat', true)
+            ->where('anulado', false)
+            ->whereNull('deleted_at')
+            ->sum('total');
+
+          // Sumar el nuevo anticipo
+          $totalAnticiposConNuevo = $totalAnticiposExistentes + $total;
+
+          // Validar que no exceda el total de la cotización
+          if ($totalAnticiposConNuevo > $quotation->total_amount) {
+            throw new Exception(sprintf(
+              'La suma de anticipos (%.2f) excede el monto total de la cotización (%.2f). Ya hay %.2f en anticipos existentes.',
+              $totalAnticiposConNuevo,
+              $quotation->total_amount,
+              $totalAnticiposExistentes
+            ));
+          }
+        }
+      }
+
+      /**
        * Validar que la serie sea correcta
        */
       if (!ElectronicDocument::validateSerie($data['sunat_concept_document_type_id'], $data['serie'])) {

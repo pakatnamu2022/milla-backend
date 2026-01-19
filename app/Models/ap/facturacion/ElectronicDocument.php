@@ -47,7 +47,7 @@ class ElectronicDocument extends BaseModel
     'client_id',
     'purchase_request_quote_id',
     'order_quotation_id',
-    'work_orders_id',
+    'work_order_id',
     'credit_note_id',
     'debit_note_id',
     'sunat_concept_identity_document_type_id',
@@ -171,7 +171,7 @@ class ElectronicDocument extends BaseModel
     'ap_vehicle_movement_id' => '=',
     'purchase_request_quote_id' => '=',
     'order_quotation_id' => '=',
-    'work_orders_id' => '=',
+    'work_order_id' => '=',
     'cliente_numero_de_documento' => '=',
     'sunat_concept_currency_id' => '=',
     'status' => '=',
@@ -611,6 +611,6 @@ class ElectronicDocument extends BaseModel
 
   public function workOrder(): HasOne
   {
-    return $this->hasOne(ApWorkOrder::class, 'id', 'work_orders_id');
+    return $this->hasOne(ApWorkOrder::class, 'id', 'work_order_id');
   }
 }

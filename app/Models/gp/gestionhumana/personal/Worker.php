@@ -28,6 +28,7 @@ class Worker extends BaseModel
     'email',
     'email2',
     'email3',
+    'tel_referencia_3',
   ];
 
   const filters = [

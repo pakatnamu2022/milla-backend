@@ -66,20 +66,6 @@ class ApWorkOrderPartsController extends Controller
   }
 
   /**
-   * Obtener cotización activa por vehicle_id
-   * GET /api/ap-work-order-parts/quotation-by-vehicle/{vehicle_id}
-   */
-  public function getQuotationByVehicle($vehicleId)
-  {
-    try {
-      $quotation = $this->service->getQuotationByVehicle($vehicleId);
-      return $this->success($quotation);
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
-  /**
    * Guardar masivamente repuestos desde una cotización
    * POST /api/ap-work-order-parts/store-bulk-from-quotation
    * Body: { quotation_id, work_order_id, warehouse_id, group_number, quotation_detail_ids[] }
@@ -89,6 +75,19 @@ class ApWorkOrderPartsController extends Controller
     try {
       $validated = $request->validated();
       return $this->success($this->service->storeBulkFromQuotation($validated));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Realizar la salida de almacén para un repuesto específico
+   * POST /api/ap/postventa/workOrderParts/{id}/warehouse-output
+   */
+  public function warehouseOutput($id)
+  {
+    try {
+      return $this->success($this->service->warehouseOutput($id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
