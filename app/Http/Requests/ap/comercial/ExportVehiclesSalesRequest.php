@@ -2,18 +2,11 @@
 
 namespace App\Http\Requests\ap\comercial;
 
+use App\Http\Requests\IndexRequest;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
-use Illuminate\Foundation\Http\FormRequest;
 
-class ExportVehiclesSalesRequest extends FormRequest
+class ExportVehiclesSalesRequest extends IndexRequest
 {
-  /**
-   * Determine if the user is authorized to make this request.
-   */
-  public function authorize(): bool
-  {
-    return true;
-  }
 
   /**
    * Get the validation rules that apply to the request.
