@@ -33,8 +33,11 @@ class ApOrderQuotationsResource extends JsonResource
       'currency_id' => $this->currency_id,
       'type_currency' => $this->typeCurrency,
       'exchange_rate' => (float)$this->exchange_rate,
+      'op_gravada' => (float)($this->subtotal - $this->discount_amount),
       'details' => ApOrderQuotationDetailsResource::collection($this->details),
-      'advances' => ElectronicDocumentResource::collection($this->whenLoaded('advancesOrderQuotation')),
+      'advances' => ElectronicDocumentResource::collection(
+        $this->whenLoaded('advancesOrderQuotation', fn() => $this->advancesOrderQuotation->filter(fn($advance) => $advance->aceptada_por_sunat == 1))
+      ),
       'created_by' => $this->created_by,
       'created_by_name' => $this->createdBy ? $this->createdBy->name : null,
       'is_take' => (bool)$this->is_take,

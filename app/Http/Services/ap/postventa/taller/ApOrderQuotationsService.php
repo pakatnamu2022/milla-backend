@@ -9,9 +9,7 @@ use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Models\ap\comercial\Vehicles;
-use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
-use App\Models\gp\gestionsistema\DigitalFile;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -131,13 +129,19 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       foreach ($data['details'] as $detail) {
         $itemSubtotal = $detail['quantity'] * $detail['unit_price'];
-        $itemDiscount = isset($detail['discount']) ? ($itemSubtotal * $detail['discount'] / 100) : 0;
+        // Calcular el descuento basándose en el total_amount ya redondeado para evitar diferencias de centavos
+        $itemDiscount = $itemSubtotal - $detail['total_amount'];
 
         $subtotal += $itemSubtotal;
         $discount_amount += $itemDiscount;
       }
 
-      $total_amount = $subtotal - $discount_amount;
+      $subtotal_after_discount = $subtotal - $discount_amount;
+      $igv_amount = $subtotal_after_discount * (Constants::VAT_TAX / 100);
+      $total_amount = $subtotal_after_discount + $igv_amount;
+
+      // Calculate discount percentage based on total discount amount and subtotal
+      $discount_percentage = $subtotal > 0 ? ($discount_amount / $subtotal) * 100 : 0;
 
       // Prepare quotation data
       $quotationData = [
@@ -150,8 +154,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'created_by' => $data['created_by'],
         'quotation_number' => $this->generateNextQuotationNumber(),
         'subtotal' => $subtotal,
+        'discount_percentage' => $discount_percentage,
         'discount_amount' => $discount_amount,
-        'tax_amount' => Constants::VAT_TAX,
+        'tax_amount' => $igv_amount,
         'total_amount' => $total_amount,
         'validity_days' => $validation_days,
         'exchange_rate' => $exchangeRate->rate,
@@ -171,7 +176,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'quantity' => $detail['quantity'],
           'unit_measure' => $detail['unit_measure'],
           'unit_price' => $detail['unit_price'],
-          'discount' => $detail['discount'] ?? 0,
+          'discount_percentage' => $detail['discount_percentage'] ?? 0,
           'total_amount' => $detail['total_amount'],
           'observations' => $detail['observations'] ?? null,
           'retail_price_external' => $detail['retail_price_external'] ?? null,
@@ -275,13 +280,19 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       foreach ($data['details'] as $detail) {
         $itemSubtotal = $detail['quantity'] * $detail['unit_price'];
-        $itemDiscount = isset($detail['discount']) ? ($itemSubtotal * $detail['discount'] / 100) : 0;
+        // Calcular el descuento basándose en el total_amount ya redondeado para evitar diferencias de centavos
+        $itemDiscount = $itemSubtotal - $detail['total_amount'];
 
         $subtotal += $itemSubtotal;
         $discount_amount += $itemDiscount;
       }
 
-      $total_amount = $subtotal - $discount_amount;
+      $subtotal_after_discount = $subtotal - $discount_amount;
+      $igv_amount = $subtotal_after_discount * (Constants::VAT_TAX / 100);
+      $total_amount = $subtotal_after_discount + $igv_amount;
+
+      // Calculate discount percentage based on total discount amount and subtotal
+      $discount_percentage = $subtotal > 0 ? ($discount_amount / $subtotal) * 100 : 0;
 
       // Update quotation data
       $quotation->update([
@@ -292,8 +303,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'expiration_date' => $data['expiration_date'],
         'observations' => $data['observations'] ?? null,
         'subtotal' => $subtotal,
+        'discount_percentage' => $discount_percentage,
         'discount_amount' => $discount_amount,
-        'tax_amount' => Constants::VAT_TAX,
+        'tax_amount' => $igv_amount,
         'total_amount' => $total_amount,
         'validity_days' => $validation_days,
         'currency_id' => $data['currency_id'],
@@ -312,7 +324,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'quantity' => $detail['quantity'],
           'unit_measure' => $detail['unit_measure'],
           'unit_price' => $detail['unit_price'],
-          'discount' => $detail['discount'] ?? 0,
+          'discount_percentage' => $detail['discount_percentage'] ?? $detail['discount'] ?? 0,
           'total_amount' => $detail['total_amount'],
           'observations' => $detail['observations'] ?? null,
           'retail_price_external' => $detail['retail_price_external'] ?? null,
@@ -505,7 +517,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'observations' => $detail->observations ?? '',
         'quantity' => $detail->quantity,
         'unit_price' => $detail->unit_price,
-        'discount' => $detail->discount,
+        'discount' => $detail->discount_percentage,
         'total_amount' => $detail->total_amount,
         'item_type' => $detail->item_type,
       ];
@@ -514,7 +526,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     // Calcular totales según el parámetro with_labor
     $totalLabor = $quotation->details->where('item_type', 'labor')->sum('total_amount');
     $totalParts = $quotation->details->where('item_type', 'part')->sum('total_amount');
-    $totalDiscounts = $quotation->details->sum('discount');
+    $totalDiscounts = $quotation->details->sum('discount_percentage');
 
     // Recalcular subtotal y total si no se incluye mano de obra
     $subtotal = $quotation->subtotal;
@@ -569,6 +581,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'observations' => $quotation->observations ?? '',
       'validity_days' => $quotation->validity_days,
       'show_codes' => $showCodes,
+      'sede_name' => $quotation->sede ? $quotation->sede->abreviatura : 'N/A',
+      'type_currency' => $quotation->typeCurrency,
     ];
 
     // Datos del cliente
@@ -631,31 +645,17 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'observations' => $detail->observations ?? '',
         'quantity' => $detail->quantity,
         'unit_price' => $detail->unit_price,
-        'discount' => $detail->discount,
+        'discount' => $detail->discount_percentage,
         'total_amount' => $detail->total_amount,
         'item_type' => $detail->item_type,
       ];
     });
 
-    // Calcular totales solo con repuestos
-    $totalParts = $repuestosDetails->sum('total_amount');
-    $totalDiscounts = $repuestosDetails->sum(function ($detail) {
-      return ($detail->quantity * $detail->unit_price) * ($detail->discount / 100);
-    });
-
-    // Calcular subtotal con repuestos
-    $subtotal = $repuestosDetails->sum(function ($detail) {
-      return $detail->quantity * $detail->unit_price;
-    });
-
-    // Total después de descuentos
-    $total_amount = $subtotal - $totalDiscounts;
-
-    $data['total_parts'] = $totalParts;
-    $data['total_discounts'] = $totalDiscounts;
-    $data['subtotal'] = $subtotal;
+    $data['op_gravada'] = $quotation->subtotal - $quotation->discount_amount;
+    $data['total_discounts'] = $quotation->discount_amount;
+    $data['subtotal'] = $quotation->subtotal;
     $data['tax_amount'] = $quotation->tax_amount;
-    $data['total_amount'] = $total_amount;
+    $data['total_amount'] = $quotation->total_amount;
 
     // Convertir firma del cliente a base64 si existe
     $customerSignature = null;
