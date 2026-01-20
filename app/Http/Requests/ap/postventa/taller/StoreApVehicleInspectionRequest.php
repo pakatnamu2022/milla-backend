@@ -4,6 +4,7 @@ namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\postventa\taller\ApVehicleInspection;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use Illuminate\Validation\Validator;
 
 class StoreApVehicleInspectionRequest extends StoreRequest
@@ -85,9 +86,17 @@ class StoreApVehicleInspectionRequest extends StoreRequest
       $workOrderId = $this->input('work_order_id');
 
       if ($workOrderId) {
-        $existingInspection = ApVehicleInspection::where('work_order_id', $workOrderId)->first();
+        $existingWorkOrder = ApWorkOrder::find($workOrderId);
 
-        if ($existingInspection) {
+        if (!$existingWorkOrder) {
+          $validator->errors()->add(
+            'work_order_id',
+            'La orden de trabajo no existe o ya fue eliminada.'
+          );
+          return;
+        }
+
+        if ($existingWorkOrder->vehicleInspection) {
           $validator->errors()->add(
             'work_order_id',
             'Esta orden de trabajo ya tiene una inspección vehicular registrada.'

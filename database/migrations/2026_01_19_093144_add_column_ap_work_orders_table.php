@@ -11,7 +11,7 @@ return new class extends Migration {
   public function up(): void
   {
     Schema::table('ap_work_orders', function (Blueprint $table) {
-      $table->foreignId('currency_id')->nullable()->after('vehicle_id')->default(3)->constrained('type_currency')->onUpdate('cascade')->onDelete('set null');
+      $table->boolean('has_invoice_generated')->default(false)->after('type_recall')->comment('Indica si se ha generado una factura para esta orden de trabajo');
     });
   }
 
@@ -21,8 +21,7 @@ return new class extends Migration {
   public function down(): void
   {
     Schema::table('ap_work_orders', function (Blueprint $table) {
-      $table->dropForeign(['currency_id']);
-      $table->dropColumn('currency_id');
+      $table->dropColumn('has_invoice_generated');
     });
   }
 };

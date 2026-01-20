@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 
 use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseStockResource;
 use App\Http\Services\BaseService;
+use App\Models\ap\compras\PurchaseOrderItem;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use Illuminate\Http\Request;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
@@ -598,6 +599,7 @@ class ProductWarehouseStockService extends BaseService
   /**
    * Get stock by multiple product IDs across all warehouses
    * Returns stock information grouped by product
+   * Includes pricing information per warehouse: last purchase price, public sale price, minimum sale price
    *
    * @param array $productIds Array of product IDs
    * @return array
@@ -608,6 +610,12 @@ class ProductWarehouseStockService extends BaseService
     $stocks = ProductWarehouseStock::whereIn('product_id', $productIds)
       ->with(['product', 'warehouse'])
       ->get();
+
+    // Get warehouse IDs from stocks
+    $warehouseIds = $stocks->pluck('warehouse_id')->unique()->toArray();
+
+    // Get last purchase prices for all products by warehouse
+    $lastPurchasePricesByWarehouse = $this->getLastPurchasePricesByWarehouse($productIds, $warehouseIds);
 
     // Group by product_id
     $result = [];
@@ -635,9 +643,14 @@ class ProductWarehouseStockService extends BaseService
       $totalInTransit = $productStocks->sum('quantity_in_transit');
       $totalAvailable = $productStocks->sum('available_quantity');
 
-      // Build warehouses array
+      // Build warehouses array with pricing per warehouse
       $warehouses = [];
       foreach ($productStocks as $stock) {
+        // Get pricing for this specific product-warehouse combination
+        $lastPurchasePrice = $lastPurchasePricesByWarehouse[$productId][$stock->warehouse_id] ?? 0;
+        $publicSalePrice = $this->calculatePublicSalePrice($lastPurchasePrice);
+        $minimumSalePrice = $this->calculateMinimumSalePrice($publicSalePrice);
+
         $warehouses[] = [
           'warehouse_id' => $stock->warehouse_id,
           'warehouse_name' => $stock->warehouse?->description,
@@ -651,6 +664,9 @@ class ProductWarehouseStockService extends BaseService
           'is_low_stock' => $stock->is_low_stock,
           'is_out_of_stock' => $stock->is_out_of_stock,
           'last_movement_date' => $stock->last_movement_date?->format('Y-m-d H:i:s'),
+          'last_purchase_price' => (float)$lastPurchasePrice,
+          'public_sale_price' => (float)$publicSalePrice,
+          'minimum_sale_price' => (float)$minimumSalePrice,
         ];
       }
 
@@ -666,5 +682,74 @@ class ProductWarehouseStockService extends BaseService
     }
 
     return $result;
+  }
+
+  /**
+   * Get last purchase prices for multiple products grouped by warehouse
+   * Searches in PurchaseOrderItem for the most recent purchase of each product per warehouse
+   *
+   * @param array $productIds
+   * @param array $warehouseIds
+   * @return array [product_id => [warehouse_id => last_purchase_price]]
+   */
+  private function getLastPurchasePricesByWarehouse(array $productIds, array $warehouseIds): array
+  {
+    $prices = [];
+
+    // Initialize the array structure
+    foreach ($productIds as $productId) {
+      $prices[$productId] = [];
+    }
+
+    // Get last purchase order items for each product-warehouse combination
+    $lastPurchaseItems = PurchaseOrderItem::whereIn('product_id', $productIds)
+      ->whereHas('purchaseOrder', function ($query) use ($warehouseIds) {
+        $query->whereIn('warehouse_id', $warehouseIds);
+      })
+      ->with(['purchaseOrder:id,warehouse_id'])
+      ->orderBy('created_at', 'desc')
+      ->get();
+
+    // Group by product_id and warehouse_id, keeping only the most recent
+    foreach ($lastPurchaseItems as $item) {
+      $productId = $item->product_id;
+      $warehouseId = $item->purchaseOrder?->warehouse_id;
+
+      if ($warehouseId && !isset($prices[$productId][$warehouseId])) {
+        $prices[$productId][$warehouseId] = (float)$item->unit_price;
+      }
+    }
+
+    return $prices;
+  }
+
+  /**
+   * Calculate public sale price (last purchase price + 30%)
+   *
+   * @param float $lastPurchasePrice
+   * @return float
+   */
+  private function calculatePublicSalePrice(float $lastPurchasePrice): float
+  {
+    if ($lastPurchasePrice <= 0) {
+      return 0;
+    }
+
+    return round($lastPurchasePrice * 1.30, 2);
+  }
+
+  /**
+   * Calculate minimum sale price (public sale price - 5%)
+   *
+   * @param float $publicSalePrice
+   * @return float
+   */
+  private function calculateMinimumSalePrice(float $publicSalePrice): float
+  {
+    if ($publicSalePrice <= 0) {
+      return 0;
+    }
+
+    return round($publicSalePrice * 0.95, 2);
   }
 }

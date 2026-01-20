@@ -22,7 +22,7 @@ class ApOrderQuotationDetails extends Model
     'quantity',
     'unit_measure',
     'unit_price',
-    'discount',
+    'discount_percentage',
     'total_amount',
     'observations',
     'retail_price_external',

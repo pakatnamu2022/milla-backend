@@ -9,10 +9,11 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseReceptionDetail;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
-use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
 use Exception;
 use Illuminate\Http\Request;
@@ -48,18 +49,23 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
   /**
    * Calcular precios y totales automáticamente basándose en el último movimiento del producto
+   * Aplica factor de tipo de cambio si la OT tiene cotización con moneda diferente
    */
   private function calculatePricesAndTotals(array &$data): void
   {
     $productId = $data['product_id'];
     $quantity = $data['quantity_used'];
     $discountPercentage = $data['discount_percentage'] ?? 0;
+    $workOrderId = $data['work_order_id'];
 
     // Obtener el producto
     $product = Products::find($productId);
     if (!$product) {
       throw new Exception('Producto no encontrado');
     }
+
+    // Calcular factor de tipo de cambio basándose en la OT y cotización
+    $factor = $this->calculateExchangeRateFactor($workOrderId);
 
     // Si no se proporciona unit_cost, obtener el último costo de compra
     if (!isset($data['unit_cost']) || $data['unit_cost'] === null) {
@@ -82,17 +88,19 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $data['unit_price'] = $product->sale_price ?? 0;
     }
 
-    // Calcular subtotal (precio unitario * cantidad)
-    if (!isset($data['subtotal']) || $data['subtotal'] === null) {
-      $subtotalBase = $data['unit_price'] * $quantity;
+    // Aplicar factor de tipo de cambio a los precios unitarios
+    $data['unit_cost'] = floatval($data['unit_cost']) * $factor;
+    $data['unit_price'] = floatval($data['unit_price']) * $factor;
 
-      // Aplicar descuento al subtotal
-      if ($discountPercentage > 0) {
-        $discountAmount = $subtotalBase * ($discountPercentage / 100);
-        $data['subtotal'] = $subtotalBase - $discountAmount;
-      } else {
-        $data['subtotal'] = $subtotalBase;
-      }
+    // Calcular subtotal (precio unitario * cantidad)
+    $subtotalBase = $data['unit_price'] * $quantity;
+
+    // Aplicar descuento al subtotal
+    if ($discountPercentage > 0) {
+      $discountAmount = $subtotalBase * ($discountPercentage / 100);
+      $data['subtotal'] = $subtotalBase - $discountAmount;
+    } else {
+      $data['subtotal'] = $subtotalBase;
     }
 
     // Calcular tax_amount basándose en el tax_rate del producto
@@ -106,9 +114,53 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     $data['tax_amount'] = 0;
 
     // Calcular total_amount
-    if (!isset($data['total_amount']) || $data['total_amount'] === null) {
-      $data['total_amount'] = $data['subtotal'] + $data['tax_amount'];
+    $data['total_amount'] = $data['subtotal'] + $data['tax_amount'];
+  }
+
+  /**
+   * Calcular el factor de tipo de cambio basándose en la OT y su cotización
+   * Si la OT tiene cotización con moneda diferente, aplicar el tipo de cambio
+   *
+   * @param int $workOrderId
+   * @return float
+   * @throws Exception
+   */
+  private function calculateExchangeRateFactor(int $workOrderId): float
+  {
+    $workOrder = ApWorkOrder::find($workOrderId);
+
+    if (!$workOrder) {
+      throw new Exception('Orden de trabajo no encontrada');
     }
+
+    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+      throw new Exception('No se puede agregar repuestos a una orden de trabajo cerrada');
+    }
+
+    // Si la OT tiene cotización asociada, calcular el factor
+    if ($workOrder->order_quotation_id) {
+      $orderQuotation = $workOrder->orderQuotation;
+
+      if ($orderQuotation->currency_id === $workOrder->currency_id) {
+        // Misma moneda, no hay conversión
+        return 1;
+      } else {
+        if ($workOrder->currency_id === TypeCurrency::PEN_ID) {
+          // Si la OT está en soles, la cotización está en dólares
+          // Multiplicar por el tipo de cambio para convertir a soles
+          return $orderQuotation->exchange_rate;
+        } else if ($workOrder->currency_id === TypeCurrency::USD_ID) {
+          // Si la OT está en dólares, la cotización está en soles
+          // No hay conversión necesaria
+          return 1;
+        } else {
+          throw new Exception('Moneda no soportada para la cotización de la orden de trabajo');
+        }
+      }
+    }
+
+    // Sin cotización, factor = 1
+    return 1;
   }
 
   public function store(mixed $data)

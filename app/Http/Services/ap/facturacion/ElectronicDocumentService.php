@@ -19,7 +19,9 @@ use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -185,6 +187,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $this->validateQuotationStock($quotation, $data['is_advance_payment']);
       }
 
+      // Validar orden de trabajo si viene work_order_id
+      if (isset($data['work_order_id']) && $data['work_order_id']) {
+        $this->validateWorkOrderInvoice($data);
+      }
+
       /**
        * Validar que un anticipo no sea por 0 soles
        */
@@ -293,6 +300,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Marcar cotización con has_invoice_generated si viene order_quotation_id
       if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
         $this->updateQuotationInvoiceStatus($data['order_quotation_id']);
+      }
+
+      // Marcar orden de trabajo con has_invoice_generated si viene work_order_id
+      // Si is_advance_payment = 0 (venta interna), cerrar la OT
+      if (isset($data['work_order_id']) && $data['work_order_id']) {
+        $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
+        $this->updateWorkOrderInvoiceStatus($data['work_order_id'], $isAdvancePayment);
       }
 
       DB::commit();
@@ -1689,6 +1703,132 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if (!$stock || $stock->available_quantity < $detail->quantity) {
         throw new Exception('No hay stock suficiente para el producto: ' . $detail->product->description);
       }
+    }
+  }
+
+  /**
+   * Validate work order invoice constraints
+   * - Work order must have at least labours or parts to invoice
+   * - Invoice amount cannot exceed work order total
+   * - Currency must be consistent with previous invoices
+   * - Advance payment cannot be 0
+   *
+   * @param array $data
+   * @return void
+   * @throws Exception
+   */
+  private function validateWorkOrderInvoice(array $data): void
+  {
+    $workOrderId = $data['work_order_id'];
+    $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
+    $newTotal = (float)($data['total'] ?? 0);
+    $currencyId = $data['sunat_concept_currency_id'] ?? null;
+
+    $workOrder = ApWorkOrder::with(['labours', 'parts', 'advancesWorkOrder'])->find($workOrderId);
+
+    if (!$workOrder) {
+      throw new Exception('Orden de trabajo no encontrada.');
+    }
+
+    // Calculate work order totals (based on getPaymentSummary logic)
+    $totalLabourCost = $workOrder->labours->sum('total_cost') ?? 0;
+    $totalPartsCost = $workOrder->parts->sum('total_amount') ?? 0;
+    $workOrderTotal = $totalLabourCost + $totalPartsCost;
+
+    // Validate that work order has at least labours or parts to invoice
+    if ($workOrderTotal <= 0) {
+      throw new Exception('La orden de trabajo no tiene mano de obra ni repuestos para facturar.');
+    }
+
+    // Calculate total already invoiced (accepted documents, not cancelled)
+    $totalInvoiced = ElectronicDocument::where('work_order_id', $workOrderId)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', false)
+      ->whereNull('deleted_at')
+      ->sum('total');
+
+    // Calculate total with new invoice
+    $totalWithNewInvoice = $totalInvoiced + $newTotal;
+
+    // Validate that invoice does not exceed work order total
+    if ($totalWithNewInvoice > $workOrderTotal) {
+      throw new Exception(sprintf(
+        'El monto total a facturar (%.2f) excede el monto de la orden de trabajo (%.2f). Ya hay %.2f facturado.',
+        $totalWithNewInvoice,
+        $workOrderTotal,
+        $totalInvoiced
+      ));
+    }
+
+    // Validate currency consistency with previous invoices
+    $firstInvoice = ElectronicDocument::where('work_order_id', $workOrderId)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', false)
+      ->whereNull('deleted_at')
+      ->orderBy('created_at', 'asc')
+      ->first();
+
+    if ($firstInvoice && $currencyId && $firstInvoice->sunat_concept_currency_id != $currencyId) {
+      throw new Exception('El tipo de moneda debe ser el mismo que la primera factura emitida para esta orden de trabajo.');
+    }
+
+    // Validate advance payment is not 0
+    if ($isAdvancePayment && $newTotal <= 0) {
+      throw new Exception('Un anticipo no puede ser por 0. El total debe ser mayor a 0.');
+    }
+
+    // Validate advance payments don't exceed work order total
+    if ($isAdvancePayment) {
+      $totalAdvances = ElectronicDocument::where('work_order_id', $workOrderId)
+        ->where('is_advance_payment', 1)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', false)
+        ->whereNull('deleted_at')
+        ->sum('total');
+
+      $totalAdvancesWithNew = $totalAdvances + $newTotal;
+
+      if ($totalAdvancesWithNew > $workOrderTotal) {
+        throw new Exception(sprintf(
+          'La suma de anticipos (%.2f) excede el monto total de la orden de trabajo (%.2f). Ya hay %.2f en anticipos existentes.',
+          $totalAdvancesWithNew,
+          $workOrderTotal,
+          $totalAdvances
+        ));
+      }
+    }
+  }
+
+  /**
+   * Update work order invoice status
+   * Marks has_invoice_generated = true when a document is created
+   * If is_advance_payment = false (venta interna), close the work order
+   *
+   * @param int $workOrderId
+   * @param bool $isAdvancePayment
+   * @return void
+   */
+  private function updateWorkOrderInvoiceStatus(int $workOrderId, bool $isAdvancePayment = true): void
+  {
+    try {
+      $workOrder = ApWorkOrder::find($workOrderId);
+
+      if (!$workOrder) {
+        return;
+      }
+
+      // Siempre marcar que se generó factura
+      $workOrder->update(['has_invoice_generated' => true]);
+
+      // Si no es anticipo (es venta interna), cerrar la orden de trabajo
+      if (!$isAdvancePayment) {
+        $workOrder->update(['status_id' => ApMasters::CLOSED_WORK_ORDER_ID]);
+      }
+    } catch (Exception $e) {
+      Log::error('Error updating work order invoice status', [
+        'work_order_id' => $workOrderId,
+        'error' => $e->getMessage(),
+      ]);
     }
   }
 }

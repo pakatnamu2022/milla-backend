@@ -49,9 +49,17 @@ class ApMasters extends Model
   const string CLASS_TYPE_VEHICLE_CODE = '0';
   const string CLASS_TYPE_CAMION_CODE = '1';
 
-  const int OPENING_WORK_ORDER_ID = 884; // Estado "Aperturada" para Orden de Trabajo
-  const int AREA_TALLER_ID = 881; // Área Taller
-  const int AREA_MESON_ID = 882; // Área Mesón
+  // ESTADOS DE ORDEN DE TRABAJO
+  const int OPENING_WORK_ORDER_ID = 884;
+  const int RECEIVED_WORK_ORDER_ID = 889;
+  const int AT_WORK_WORK_ORDER_ID = 890;
+  const int FINISHED_WORK_ORDER_ID = 891;
+  const int CLOSED_WORK_ORDER_ID = 892;
+  const int CANCELED_WORK_ORDER_ID = 893;
+
+  // IDS DE AREAS
+  const int AREA_TALLER_ID = 881;
+  const int AREA_MESON_ID = 882;
 
   public function setCodeAttribute($value)
   {

@@ -18,6 +18,7 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
       'sede_id' => ['required', 'integer', 'exists:config_sede,id'],
       'quotation_date' => ['required', 'date'],
       'expiration_date' => ['nullable', 'date', 'after_or_equal:quotation_date'],
+      'collection_date' => ['nullable', 'date'],
       'observations' => ['nullable', 'string'],
       'supply_type' => ['required', 'string', 'in:STOCK,LIMA,IMPORTACION'],
 
@@ -48,7 +49,7 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
         'numeric',
         'min:0',
       ],
-      'details.*.discount' => [
+      'details.*.discount_percentage' => [
         'nullable',
         'numeric',
         'min:0',
@@ -123,9 +124,9 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
       'details.*.unit_price.numeric' => 'El precio unitario debe ser un número.',
       'details.*.unit_price.min' => 'El precio unitario no puede ser negativo.',
 
-      'details.*.discount.numeric' => 'El porcentaje de descuento debe ser un número.',
-      'details.*.discount.min' => 'El porcentaje de descuento no puede ser negativo.',
-      'details.*.discount.max' => 'El porcentaje de descuento no puede ser mayor a 100.',
+      'details.*.discount_percentage.numeric' => 'El porcentaje de descuento debe ser un número.',
+      'details.*.discount_percentage.min' => 'El porcentaje de descuento no puede ser negativo.',
+      'details.*.discount_percentage.max' => 'El porcentaje de descuento no puede ser mayor a 100.',
 
       'details.*.total_amount.required' => 'El monto total es obligatorio en todos los detalles.',
       'details.*.total_amount.numeric' => 'El monto total debe ser un número.',

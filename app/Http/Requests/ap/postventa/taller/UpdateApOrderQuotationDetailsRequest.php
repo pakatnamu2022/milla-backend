@@ -55,7 +55,7 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
         'numeric',
         'min:0',
       ],
-      'discount' => [
+      'discount_percentage' => [
         'sometimes',
         'nullable',
         'numeric',
@@ -108,9 +108,9 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
       'unit_price.numeric' => 'El precio unitario debe ser un número.',
       'unit_price.min' => 'El precio unitario no puede ser negativo.',
 
-      'discount.numeric' => 'El porcentaje de descuento debe ser un número.',
-      'discount.min' => 'El porcentaje de descuento no puede ser negativo.',
-      'discount.max' => 'El porcentaje de descuento no puede ser mayor a 100.',
+      'discount_percentage.numeric' => 'El porcentaje de descuento debe ser un número.',
+      'discount_percentage.min' => 'El porcentaje de descuento no puede ser negativo.',
+      'discount_percentage.max' => 'El porcentaje de descuento no puede ser mayor a 100.',
 
       'total_amount.required' => 'El monto total es obligatorio.',
       'total_amount.numeric' => 'El monto total debe ser un número.',
