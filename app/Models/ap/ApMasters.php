@@ -58,6 +58,8 @@ class ApMasters extends Model
   const int CANCELED_WORK_ORDER_ID = 893;
 
   // IDS DE AREAS
+  const int AREA_POSTVENTA_ID = 825;
+  const int AREA_COMERCIAL_ID = 826;
   const int AREA_TALLER_ID = 881;
   const int AREA_MESON_ID = 882;
 
