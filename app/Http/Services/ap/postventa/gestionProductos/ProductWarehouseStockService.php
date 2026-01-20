@@ -724,7 +724,9 @@ class ProductWarehouseStockService extends BaseService
   }
 
   /**
-   * Calculate public sale price (last purchase price + 30%)
+   * Calculate public sale price
+   * Formula: (purchase price * 1.05 freight commission) + 30% margin
+   * Example: 150 * 1.05 = 157.5, 157.5 * 0.30 = 47.25, 157.5 + 47.25 = 204.75
    *
    * @param float $lastPurchasePrice
    * @return float
@@ -735,7 +737,10 @@ class ProductWarehouseStockService extends BaseService
       return 0;
     }
 
-    return round($lastPurchasePrice * 1.30, 2);
+    $priceWithFreight = $lastPurchasePrice * 1.05;
+    $margin = $priceWithFreight * 0.30;
+
+    return round($priceWithFreight + $margin, 2);
   }
 
   /**
