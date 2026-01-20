@@ -162,6 +162,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'exchange_rate' => $exchangeRate->rate,
         'currency_id' => $data['currency_id'],
         'supply_type' => $data['supply_type'] ?? null,
+        'collection_date' => $data['collection_date'] ?? null,
       ];
 
       // Create quotation
@@ -310,6 +311,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'validity_days' => $validation_days,
         'currency_id' => $data['currency_id'],
         'exchange_rate' => $exchangeRate->rate,
+        'collection_date' => $data['collection_date'] ?? null,
       ]);
 
       // Delete existing details

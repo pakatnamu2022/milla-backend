@@ -18,6 +18,7 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
       'sede_id' => ['required', 'integer', 'exists:config_sede,id'],
       'quotation_date' => ['required', 'date'],
       'expiration_date' => ['nullable', 'date', 'after_or_equal:quotation_date'],
+      'collection_date' => ['nullable', 'date'],
       'observations' => ['nullable', 'string'],
       'supply_type' => ['required', 'string', 'in:STOCK,LIMA,IMPORTACION'],
 
