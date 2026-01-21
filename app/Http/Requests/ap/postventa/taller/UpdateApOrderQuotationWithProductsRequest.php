@@ -9,6 +9,13 @@ use Illuminate\Validation\ValidationException;
 
 class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
 {
+  protected function prepareForValidation(): void
+  {
+    if ($this->has('vehicle_id') && $this->vehicle_id === '') {
+      $this->merge(['vehicle_id' => null]);
+    }
+  }
+
   public function rules(): array
   {
     return [

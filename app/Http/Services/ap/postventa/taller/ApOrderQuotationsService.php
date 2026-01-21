@@ -141,7 +141,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // Prepare quotation data
       $quotationData = [
         'area_id' => $data['area_id'],
-        'vehicle_id' => $data['vehicle_id'],
+        'vehicle_id' => $data['vehicle_id'] ?? null,
         'client_id' => $data['client_id'],
         'sede_id' => $data['sede_id'],
         'quotation_date' => $data['quotation_date'],
@@ -237,7 +237,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   {
     return DB::transaction(function () use ($data) {
       $quotation = $this->find($data['id']);
-      $vehicle = Vehicles::find($data['vehicle_id']);
+      $vehicleId = $data['vehicle_id'] ?? null;
+      $vehicle = $vehicleId ? Vehicles::find($vehicleId) : null;
       $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
 
       $exchangeRate = ExchangeRate::where('date', $date)->first();
@@ -257,7 +258,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede actualizar una cotización que ya tiene una factura generada.');
       }
 
-      if ($vehicle->customer_id === null) {
+      if ($vehicle && $vehicle->customer_id === null) {
         throw new Exception('El vehículo debe estar asociado a un "TITULAR" para actualizar una cotización');
       }
 
@@ -294,7 +295,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // Update quotation data
       $quotation->update([
         'area_id' => $data['area_id'],
-        'vehicle_id' => $data['vehicle_id'],
+        'vehicle_id' => $vehicleId,
         'client_id' => $data['client_id'],
         'sede_id' => $data['sede_id'],
         'quotation_date' => $data['quotation_date'],
