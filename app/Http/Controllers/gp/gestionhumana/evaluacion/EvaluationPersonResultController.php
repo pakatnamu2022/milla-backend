@@ -134,4 +134,17 @@ class EvaluationPersonResultController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Obtiene todos los líderes con su estado de evaluación
+   */
+  public function getLeadersEvaluationStatus(int $evaluationId)
+  {
+    try {
+      $data = $this->service->getLeadersWithEvaluationStatus($evaluationId);
+      return $this->success($data);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

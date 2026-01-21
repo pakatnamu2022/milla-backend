@@ -10,64 +10,64 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AccountantDistrictAssignment extends BaseModel
 {
-    use SoftDeletes;
+  use SoftDeletes;
 
-    protected $table = 'gh_accountant_district_assignments';
+  protected $table = 'gh_accountant_district_assignments';
 
-    protected $fillable = [
-        'worker_id',
-        'district_id',
-    ];
+  protected $fillable = [
+    'worker_id',
+    'district_id',
+  ];
 
-    const filters = [
-        'worker_id' => '=',
-        'district_id' => 'in',
-        'search' => ['worker.nombre_completo', 'district.name'],
-    ];
+  const filters = [
+    'worker_id' => '=',
+    'district_id' => 'in',
+    'search' => ['worker.nombre_completo', 'district.name'],
+  ];
 
-    const sorts = [
-        'id',
-        'created_at',
-        'updated_at',
-    ];
+  const sorts = [
+    'id',
+    'created_at',
+    'updated_at',
+  ];
 
-    /**
-     * Relationship with Worker (Accountant)
-     */
-    public function worker(): BelongsTo
-    {
-        return $this->belongsTo(Worker::class, 'worker_id');
-    }
+  /**
+   * Relationship with Worker (Accountant)
+   */
+  public function worker(): BelongsTo
+  {
+    return $this->belongsTo(Worker::class, 'worker_id');
+  }
 
-    /**
-     * Relationship with District
-     */
-    public function district(): BelongsTo
-    {
-        return $this->belongsTo(District::class);
-    }
+  /**
+   * Relationship with District
+   */
+  public function district(): BelongsTo
+  {
+    return $this->belongsTo(District::class);
+  }
 
-    /**
-     * Scope to filter by worker
-     */
-    public function scopeByWorker($query, int $workerId)
-    {
-        return $query->where('worker_id', $workerId);
-    }
+  /**
+   * Scope to filter by worker
+   */
+  public function scopeByWorker($query, int $workerId)
+  {
+    return $query->where('worker_id', $workerId);
+  }
 
-    /**
-     * Scope to filter by district
-     */
-    public function scopeByDistrict($query, int $districtId)
-    {
-        return $query->where('district_id', $districtId);
-    }
+  /**
+   * Scope to filter by district
+   */
+  public function scopeByDistrict($query, int $districtId)
+  {
+    return $query->where('district_id', $districtId);
+  }
 
-    /**
-     * Scope to filter by multiple districts
-     */
-    public function scopeByDistricts($query, array $districtIds)
-    {
-        return $query->whereIn('district_id', $districtIds);
-    }
+  /**
+   * Scope to filter by multiple districts
+   */
+  public function scopeByDistricts($query, array $districtIds)
+  {
+    return $query->whereIn('district_id', $districtIds);
+  }
 }

@@ -3,34 +3,37 @@
 namespace App\Http\Requests\gp\gestionhumana;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\gp\gestionhumana\AccountantDistrictAssignment;
 
 class StoreAccountantDistrictAssignmentRequest extends StoreRequest
 {
-    public function rules(): array
-    {
-        return [
-            'worker_id' => ['required', 'integer', 'exists:rrhh_persona,id'],
-            'district_id' => ['required', 'integer', 'exists:district,id'],
-        ];
-    }
+  public function rules(): array
+  {
+    return [
+      'worker_id' => ['required', 'integer', 'exists:rrhh_persona,id'],
+      'district_id' => ['required', 'integer', 'exists:district,id'],
+    ];
+  }
 
-    public function messages(): array
-    {
-        return [
-            'worker_id.required' => 'El trabajador es requerido.',
-            'worker_id.integer' => 'El ID del trabajador debe ser un número entero.',
-            'worker_id.exists' => 'El trabajador seleccionado no existe.',
-            'district_id.required' => 'El distrito es requerido.',
-            'district_id.integer' => 'El ID del distrito debe ser un número entero.',
-            'district_id.exists' => 'El distrito seleccionado no existe.',
-        ];
-    }
+  public function withValidator($validator)
+  {
+    $validator->after(function ($validator) {
+      $workerId = $this->input('worker_id');
+      $districtId = $this->input('district_id');
 
-    public function attributes(): array
-    {
-        return [
-            'worker_id' => 'Trabajador',
-            'district_id' => 'Distrito',
-        ];
-    }
+      $exists = AccountantDistrictAssignment::where('worker_id', $workerId)->where('district_id', $districtId)->exists();
+
+      if ($exists) {
+        $validator->errors()->add('worker_id', 'El trabajador ya está asignado a este distrito.');
+      }
+    });
+  }
+
+  public function attributes(): array
+  {
+    return [
+      'worker_id' => 'Trabajador',
+      'district_id' => 'Distrito',
+    ];
+  }
 }
