@@ -20,6 +20,11 @@ class EvaluationPersonResultController extends Controller
     $this->service = $service;
   }
 
+  /**
+   * Display a listing of evaluation person results
+   * @param IndexEvaluationPersonResultRequest $request
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function index(IndexEvaluationPersonResultRequest $request)
   {
     try {
@@ -29,6 +34,12 @@ class EvaluationPersonResultController extends Controller
     }
   }
 
+  /**
+   * Obtiene las evaluaciones asignadas a una persona para ser evaluada
+   * @param Request $request
+   * @param int $id
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function getEvaluationsByPersonToEvaluate(Request $request, int $id)
   {
     try {
@@ -51,6 +62,11 @@ class EvaluationPersonResultController extends Controller
     }
   }
 
+  /**
+   * Obtiene el resultado de evaluación de una persona para una evaluación específica
+   * @param PersonEvaluationRequest $request
+   * @return \App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonResultResource|\Illuminate\Http\JsonResponse
+   */
   public function getByPersonAndEvaluation(PersonEvaluationRequest $request)
   {
     try {
@@ -60,6 +76,11 @@ class EvaluationPersonResultController extends Controller
     }
   }
 
+  /**
+   * Almacena un resultado de evaluación de una persona
+   * @param StoreEvaluationPersonResultRequest $request
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function store(StoreEvaluationPersonResultRequest $request)
   {
     try {
@@ -69,6 +90,11 @@ class EvaluationPersonResultController extends Controller
     }
   }
 
+  /**
+   * Almacena múltiples resultados de evaluación de una persona
+   * @param $id
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function storeMany($id)
   {
     try {
@@ -78,6 +104,11 @@ class EvaluationPersonResultController extends Controller
     }
   }
 
+  /**
+   * Muestra un resultado de evaluación de una persona
+   * @param int $id
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function show(int $id)
   {
     try {
@@ -87,6 +118,12 @@ class EvaluationPersonResultController extends Controller
     }
   }
 
+  /**
+   * Actualiza un resultado de evaluación de una persona
+   * @param UpdateEvaluationPersonResultRequest $request
+   * @param int $id
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function update(UpdateEvaluationPersonResultRequest $request, int $id)
   {
     try {
@@ -98,6 +135,11 @@ class EvaluationPersonResultController extends Controller
     }
   }
 
+  /**
+   * Elimina un resultado de evaluación de una persona
+   * @param int $id
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function destroy(int $id)
   {
     try {
@@ -107,6 +149,11 @@ class EvaluationPersonResultController extends Controller
     }
   }
 
+  /**
+   * Exporta los resultados de la evaluación
+   * @param Request $request
+   * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\Response|\Symfony\Component\HttpFoundation\BinaryFileResponse
+   */
   public function export(Request $request)
   {
     try {
@@ -116,6 +163,12 @@ class EvaluationPersonResultController extends Controller
     }
   }
 
+  /**
+   * Regenera la evaluación de una persona
+   * @param int $personId
+   * @param int $evaluationId
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function regenerate(int $personId, int $evaluationId)
   {
     try {
@@ -125,11 +178,31 @@ class EvaluationPersonResultController extends Controller
     }
   }
 
+  /**
+   * Obtiene todos los jefes asociados a una evaluación
+   * @param int $evaluationId
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function getBossesByEvaluation(int $evaluationId)
   {
     try {
       $bosses = $this->service->getBossesByEvaluation($evaluationId);
       return $this->success(WorkerResource::collection($bosses));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Obtiene los líderes con el estado de evaluación para una evaluación específica
+   * @param int $evaluationId
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function getLeadersEvaluationStatus(int $evaluationId)
+  {
+    try {
+      $data = $this->service->getLeadersWithEvaluationStatus($evaluationId);
+      return $this->success($data);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
