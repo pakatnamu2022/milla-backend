@@ -85,6 +85,7 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonDetailContr
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonResultController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailController;
+use App\Http\Controllers\gp\gestionhumana\AccountantDistrictAssignmentController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\ExpenseTypeController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\HotelAgreementController;
@@ -362,6 +363,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         ]);
       });
 
+      // Accountant District Assignments
+      Route::apiResource('accountant-district-assignments', AccountantDistrictAssignmentController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
       //    PERFORMANCE EVALUATION
       Route::group(['prefix' => 'performanceEvaluation'], function () {
         //        METRICS
@@ -499,6 +509,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::group(['prefix' => 'evaluation/notifications'], function () {
           Route::post('/send-opened', [EvaluationNotificationController::class, 'sendEvaluationOpened']); // Notifica apertura de evaluación - Correo 1
           Route::post('/send-reminders', [EvaluationNotificationController::class, 'sendReminders']); // Es correo de recordatorio - Correo 2
+          Route::post('/send-reminder-to-leader', [EvaluationNotificationController::class, 'sendReminderToLeader']); // Envía recordatorio a un líder específico
           Route::post('/send-closed', [EvaluationNotificationController::class, 'sendEvaluationClosed']); // Notifica cierre de evaluación - Correo 3
           Route::post('/send-hr-summary', [EvaluationNotificationController::class, 'sendHrSummary']);
           Route::get('/pending-status', [EvaluationNotificationController::class, 'getPendingStatus']);

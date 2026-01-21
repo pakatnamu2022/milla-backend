@@ -24,6 +24,8 @@ class EvaluationPersonResultResource extends JsonResource
       'id' => $this->id,
       'person_id' => $this->person_id,
       'evaluation_id' => $this->evaluation_id,
+      'supervisor_id' => $this->person?->supervisor_id,
+      'supervisor' => $this->person?->supervisor ? new WorkerResource($this->person?->supervisor) : null,
       'person' => $this->showExtra ? (new WorkerResource($this->person))->showExtra() : new WorkerResource($this->person),
       'competencesPercentage' => round($this->competencesPercentage, 2),
       'objectivesPercentage' => round($this->objectivesPercentage, 2),
