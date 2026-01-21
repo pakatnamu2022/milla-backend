@@ -26,7 +26,7 @@ class ApOrderQuotationDetailsResource extends JsonResource
       'quantity' => $this->quantity ?? 0,
       'unit_measure' => $this->unit_measure ?? '',
       'unit_price' => $this->unit_price ?? 0,
-      'discount' => $this->discount ?? 0,
+      'discount_percentage' => $this->discount_percentage ?? 0,
       'total_amount' => $this->total_amount ?? 0,
       'observations' => $this->observations,
       'retail_price_external' => $this->retail_price_external,

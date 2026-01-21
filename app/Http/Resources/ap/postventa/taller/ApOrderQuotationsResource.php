@@ -29,11 +29,16 @@ class ApOrderQuotationsResource extends JsonResource
       'validity_days' => $this->validity_days,
       'quotation_date' => $this->quotation_date,
       'expiration_date' => $this->expiration_date,
+      'collection_date' => $this->collection_date,
       'observations' => $this->observations,
       'currency_id' => $this->currency_id,
-      'currency' => $this->currency,
+      'type_currency' => $this->typeCurrency,
+      'exchange_rate' => (float)$this->exchange_rate,
+      'op_gravada' => (float)($this->subtotal - $this->discount_amount),
       'details' => ApOrderQuotationDetailsResource::collection($this->details),
-      'advances' => ElectronicDocumentResource::collection($this->whenLoaded('advancesOrderQuotation')),
+      'advances' => ElectronicDocumentResource::collection(
+        $this->whenLoaded('advancesOrderQuotation')
+      ),
       'created_by' => $this->created_by,
       'created_by_name' => $this->createdBy ? $this->createdBy->name : null,
       'is_take' => (bool)$this->is_take,

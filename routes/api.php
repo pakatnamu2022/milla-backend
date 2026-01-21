@@ -1143,7 +1143,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Vehicle Inspections - Inspecciones Vehiculares
-      Route::get('vehicleInspections/by-work-order/{workOrderId}', [ApVehicleInspectionController::class, 'getByWorkOrder']);
       Route::get('vehicleInspections/{id}/reception-report', [ApVehicleInspectionController::class, 'generateReceptionReport']);
       Route::apiResource('vehicleInspections', ApVehicleInspectionController::class)->only([
         'index',

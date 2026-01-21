@@ -332,7 +332,7 @@
       <td class="customer-right">
         <div><strong>{{ $quotation['customer_name'] }}</strong></div>
         <div>{{ $quotation['customer_address'] }}</div>
-        <div>{{ $quotation['customer_document'] }} {{ $quotation['customer_district'] }}</div>
+        <div>{{ $quotation['customer_document'] }}</div>
       </td>
     </tr>
   </table>
@@ -357,7 +357,9 @@
   </tr>
   <tr>
     <td class="label-cell">Asesor:</td>
-    <td colspan="3">{{ $quotation['advisor_name'] }}</td>
+    <td>{{ $quotation['advisor_name'] }}</td>
+    <td class="label-cell">Sucursal Venta:</td>
+    <td>{{ $quotation['sede_name'] }}</td>
   </tr>
   <tr>
     <td class="label-cell">Estado:</td>
@@ -403,7 +405,7 @@
     <th style="width: 15%;">Observ.</th>
     <th style="width: 10%;">Tpo./Cant.</th>
     <th style="width: 12%;">P.Hora/PVP</th>
-    <th style="width: 8%;">Dto.</th>
+    <th style="width: 8%;">% Dto.</th>
     <th style="width: 10%;">Imp.Neto</th>
   </tr>
   </thead>
@@ -428,38 +430,43 @@
 <div class="totals-section">
   <table>
     <tr>
-      <td class="label-total">Total Recambios:</td>
-      <td class="value-total">S/ {{ number_format($quotation['total_parts'], 2) }}</td>
+      <td class="label-total">Subtotal:</td>
+      <td
+        class="value-total">{{$quotation['type_currency']->symbol}} {{ number_format($quotation['subtotal'], 2) }}</td>
     </tr>
     <tr>
       <td class="label-total">Total Dtos.:</td>
-      <td class="value-total">S/ {{ number_format($quotation['total_discounts'], 2) }}</td>
+      <td
+        class="value-total">{{$quotation['type_currency']->symbol}} {{ number_format($quotation['total_discounts'], 2) }}</td>
     </tr>
     <tr>
-      <td class="label-total">Base Propuesta:</td>
-      <td class="value-total">S/ {{ number_format($quotation['subtotal'], 2) }}</td>
+      <td class="label-total">OP. Gravadas:</td>
+      <td
+        class="value-total">{{$quotation['type_currency']->symbol}} {{ number_format($quotation['op_gravada'], 2) }}</td>
     </tr>
     <tr>
-      <td class="label-total">IGV 18.00%:</td>
-      <td class="value-total">S/ {{ number_format($quotation['subtotal'] * 0.18, 2) }}</td>
+      <td class="label-total">IGV 18%:</td>
+      <td
+        class="value-total">{{$quotation['type_currency']->symbol}} {{ number_format($quotation['tax_amount'], 2) }}</td>
     </tr>
     <tr>
-      <td class="label-total">Total Propuesta:</td>
-      <td class="value-total">PEN {{ number_format($quotation['total_amount'], 2) }}</td>
+      <td class="label-total">Total:</td>
+      <td
+        class="value-total">{{$quotation['type_currency']->code}} {{ number_format($quotation['total_amount'], 2) }}</td>
     </tr>
   </table>
 </div>
 
 <!-- Sección de Firma del Cliente -->
 @if(isset($quotation['customer_signature']) && $quotation['customer_signature'])
-<div class="signature-section" style="text-align: center;">
-  <div class="signature-box">
-    <img src="{{ $quotation['customer_signature'] }}" alt="Firma Cliente" class="signature-img">
-    <div class="signature-line"></div>
-    FIRMA DEL CLIENTE<br>
-    {{ $quotation['customer_name'] }}
+  <div class="signature-section" style="text-align: center;">
+    <div class="signature-box">
+      <img src="{{ $quotation['customer_signature'] }}" alt="Firma Cliente" class="signature-img">
+      <div class="signature-line"></div>
+      FIRMA DEL CLIENTE<br>
+      {{ $quotation['customer_name'] }}
+    </div>
   </div>
-</div>
 @endif
 
 <!-- Sección IMPORTANTE -->

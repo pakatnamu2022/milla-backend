@@ -26,7 +26,7 @@ class WorkOrderPlanningSessionService
       throw new Exception('Ya existe una sesión activa. Debe pausarla o completarla antes de iniciar una nueva.');
     }
 
-    $session = $planning->startSession($notes);
+    $planning->startSession($notes);
 
     return new WorkOrderPlanningResource($planning->fresh(['worker', 'workOrder', 'sessions']));
   }

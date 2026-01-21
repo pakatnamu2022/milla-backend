@@ -40,6 +40,11 @@ class UpdateWorkOrderRequest extends StoreRequest
         'string',
         'max:50',
       ],
+      'currency_id' => [
+        'sometimes',
+        'integer',
+        'exists:type_currency,id',
+      ],
       'status_id' => [
         'sometimes',
         'required',
@@ -164,6 +169,9 @@ class UpdateWorkOrderRequest extends StoreRequest
 
       'vehicle_vin.string' => 'El VIN debe ser una cadena de texto.',
       'vehicle_vin.max' => 'El VIN no debe exceder los 50 caracteres.',
+
+      'currency_id.integer' => 'La moneda debe ser un entero.',
+      'currency_id.exists' => 'La moneda seleccionada no es válida.',
 
       'status_id.required' => 'El estado es obligatorio.',
       'status_id.integer' => 'El estado debe ser un entero.',

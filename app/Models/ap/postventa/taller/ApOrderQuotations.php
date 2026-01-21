@@ -35,6 +35,7 @@ class ApOrderQuotations extends Model
     'validity_days',
     'quotation_date',
     'expiration_date',
+    'collection_date',
     'observations',
     'created_by',
     'is_take',
@@ -77,6 +78,7 @@ class ApOrderQuotations extends Model
   protected $casts = [
     'quotation_date' => 'datetime',
     'expiration_date' => 'datetime',
+    'collection_date' => 'datetime',
     'discarded_at' => 'datetime',
     'has_invoice_generated' => 'boolean',
     'is_fully_paid' => 'boolean',
@@ -133,7 +135,7 @@ class ApOrderQuotations extends Model
     return $this->belongsTo(ApMasters::class, 'area_id');
   }
 
-  public function currency(): BelongsTo
+  public function typeCurrency(): BelongsTo
   {
     return $this->belongsTo(TypeCurrency::class, 'currency_id');
   }

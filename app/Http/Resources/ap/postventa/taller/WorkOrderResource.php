@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\postventa\taller;
 
+use App\Http\Resources\ap\ApMastersResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use Illuminate\Http\Request;
@@ -20,6 +21,8 @@ class WorkOrderResource extends JsonResource
       'vehicle' => new VehiclesResource($this->vehicle),
       'vehicle_plate' => $this->vehicle_plate,
       'vehicle_vin' => $this->vehicle_vin,
+      'currency_id' => $this->currency_id,
+      'type_currency' => $this->typeCurrency,
       'mileage' => $this->vehicleInspection->mileage ?? null,
       'status_id' => $this->status_id,
       'status_name' => $this->status ? $this->status->description : null,
@@ -53,6 +56,7 @@ class WorkOrderResource extends JsonResource
       'items' => WorkOrderItemResource::collection($this->whenLoaded('items')),
       'order_quotation' => new ApOrderQuotationsResource($this->whenLoaded('orderQuotation')),
       'advances' => ElectronicDocumentResource::collection($this->whenLoaded('advancesWorkOrder')),
+      'status' => new ApMastersResource($this->status)
     ];
   }
 }

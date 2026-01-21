@@ -5,13 +5,13 @@ namespace App\Models\ap\postventa\taller;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -27,6 +27,7 @@ class ApWorkOrder extends Model
     'vehicle_inspection_id',
     'order_quotation_id',
     'vehicle_id',
+    'currency_id',
     'vehicle_plate',
     'vehicle_vin',
     'status_id',
@@ -49,6 +50,7 @@ class ApWorkOrder extends Model
     'is_recall',
     'description_recall',
     'type_recall',
+    'has_invoice_generated',
     'created_by',
   ];
 
@@ -60,6 +62,7 @@ class ApWorkOrder extends Model
     'is_invoiced' => 'boolean',
     'is_guarantee' => 'boolean',
     'is_recall' => 'boolean',
+    'has_invoice_generated' => 'boolean',
     'total_labor_cost' => 'decimal:2',
     'total_parts_cost' => 'decimal:2',
     'subtotal' => 'decimal:2',
@@ -147,6 +150,11 @@ class ApWorkOrder extends Model
     return $this->belongsTo(Vehicles::class, 'vehicle_id');
   }
 
+  public function typeCurrency(): BelongsTo
+  {
+    return $this->belongsTo(TypeCurrency::class, 'currency_id');
+  }
+
   public function status(): BelongsTo
   {
     return $this->belongsTo(ApMasters::class, 'status_id');
@@ -177,11 +185,6 @@ class ApWorkOrder extends Model
     return $this->hasMany(ApWorkOrderPlanning::class, 'work_order_id');
   }
 
-  public function vehicleInspection(): HasOne
-  {
-    return $this->hasOne(ApVehicleInspection::class, 'work_order_id');
-  }
-
   public function labours(): HasMany
   {
     return $this->hasMany(WorkOrderLabour::class, 'work_order_id');
@@ -192,10 +195,10 @@ class ApWorkOrder extends Model
     return $this->hasMany(ApWorkOrderParts::class, 'work_order_id');
   }
 
-//  public function apVehicleInspection(): BelongsTo
-//  {
-//    return $this->belongsTo(ApVehicleInspection::class, 'vehicle_inspection_id');
-//  }
+  public function vehicleInspection(): BelongsTo
+  {
+    return $this->belongsTo(ApVehicleInspection::class, 'vehicle_inspection_id');
+  }
 
   // Helper methods
   public function calculateTotals(): void

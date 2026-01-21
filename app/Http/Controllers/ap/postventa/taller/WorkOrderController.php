@@ -31,7 +31,7 @@ class WorkOrderController extends Controller
   public function store(StoreWorkOrderRequest $request)
   {
     try {
-      return $this->success($this->service->store($request->all()));
+      return $this->success($this->service->store($request->validated()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -49,7 +49,7 @@ class WorkOrderController extends Controller
   public function update(UpdateWorkOrderRequest $request, $id)
   {
     try {
-      $data = $request->all();
+      $data = $request->validated();
       $data['id'] = $id;
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {
