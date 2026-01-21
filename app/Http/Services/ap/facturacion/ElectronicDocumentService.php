@@ -1629,30 +1629,28 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Marcar que se generó factura
       $quotation->update(['has_invoice_generated' => true]);
 
-      // Calcular total pagado (solo documentos aceptados por SUNAT que NO sean anticipos)
+      // Calcular total pagado (suma de todos los documentos aceptados por SUNAT)
+      // Incluye anticipos + facturas de regularización/venta directa
       $totalPaid = ElectronicDocument::where('order_quotation_id', $quotationId)
-        ->where('status', ElectronicDocument::STATUS_ACCEPTED)
         ->where('aceptada_por_sunat', true)
-        ->where('is_advance_payment', 0)  // Excluir anticipos
+        ->where('anulado', false)
         ->whereNull('deleted_at')
         ->sum('total');
 
-      // Si el total pagado >= total de la cotización, marcar como totalmente pagado
-      if ($totalPaid >= $quotation->total_amount) {
-        $quotation->update(['is_fully_paid' => true]);
+      // Verificar si existe al menos una venta interna (is_advance_payment = 0) aceptada por SUNAT
+      // La venta interna es el documento que cierra la operación (puede ser por 0 o mayor)
+      $hasInternalSale = ElectronicDocument::where('order_quotation_id', $quotationId)
+        ->where('is_advance_payment', 0)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', false)
+        ->whereNull('deleted_at')
+        ->exists();
 
-        Log::info('Quotation marked as fully paid', [
-          'quotation_id' => $quotationId,
-          'quotation_total' => $quotation->total_amount,
-          'total_paid' => $totalPaid,
-        ]);
-      } else {
-        Log::info('Quotation invoice generated but not fully paid', [
-          'quotation_id' => $quotationId,
-          'quotation_total' => $quotation->total_amount,
-          'total_paid' => $totalPaid,
-          'remaining' => $quotation->total_amount - $totalPaid,
-        ]);
+      // Marcar como totalmente pagado solo si:
+      // 1. El total pagado >= total de la cotización
+      // 2. Existe al menos una venta interna (is_advance_payment = 0) aceptada por SUNAT
+      if ($totalPaid >= $quotation->total_amount && $hasInternalSale) {
+        $quotation->update(['is_fully_paid' => true]);
       }
     } catch (Exception $e) {
       Log::error('Error updating quotation invoice status', [

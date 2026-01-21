@@ -3,6 +3,7 @@
 namespace App\Models\ap\postventa\taller;
 
 use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -25,6 +26,7 @@ class ApOrderQuotations extends Model
 
   protected $fillable = [
     'vehicle_id',
+    'client_id',
     'sede_id',
     'quotation_number',
     'subtotal',
@@ -138,6 +140,11 @@ class ApOrderQuotations extends Model
   public function typeCurrency(): BelongsTo
   {
     return $this->belongsTo(TypeCurrency::class, 'currency_id');
+  }
+
+  public function client(): BelongsTo
+  {
+    return $this->belongsTo(BusinessPartners::class, 'client_id');
   }
 
   public function details()
