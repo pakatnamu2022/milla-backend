@@ -333,6 +333,8 @@
         <div><strong>{{ $quotation['customer_name'] }}</strong></div>
         <div>{{ $quotation['customer_address'] }}</div>
         <div>{{ $quotation['customer_document'] }}</div>
+        <div>{{ $quotation['customer_email'] }}</div>
+        <div>{{ $quotation['customer_phone'] }}</div>
       </td>
     </tr>
   </table>

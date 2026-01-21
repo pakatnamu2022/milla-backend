@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\maestroGeneral;
 use App\Http\Resources\ap\maestroGeneral\WarehouseResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\gestionsistema\UserSede;
@@ -92,6 +93,28 @@ class WarehouseService extends BaseService implements BaseServiceInterface
       ->where('status', 1)
       ->when($articleClassId, fn($q) => $q->where('article_class_id', $articleClassId))
       ->when($onlyPhysical, fn($q) => $q->where('is_physical_warehouse', 1))
+      ->orderBy('dyn_code', 'asc')
+      ->get();
+
+    return WarehouseResource::collection($warehouses);
+  }
+
+  public function getMyPhysicalWarehouses()
+  {
+    $userId = Auth::id();
+
+    $sedeIds = UserSede::where('user_id', $userId)
+      ->where('status', true)
+      ->pluck('sede_id');
+
+    if ($sedeIds->isEmpty()) {
+      throw new Exception('El usuario no tiene sedes asignadas');
+    }
+
+    $warehouses = Warehouse::whereIn('sede_id', $sedeIds)
+      ->where('is_physical_warehouse', 1)
+      ->where('type_operation_id', ApMasters::TIPO_OPERACION_POSTVENTA)
+      ->where('status', 1)
       ->orderBy('dyn_code', 'asc')
       ->get();
 

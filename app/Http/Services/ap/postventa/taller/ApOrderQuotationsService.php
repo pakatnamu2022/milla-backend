@@ -102,16 +102,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   public function storeWithProducts(mixed $data)
   {
     return DB::transaction(function () use ($data) {
-      $vehicle = Vehicles::find($data['vehicle_id']);
       $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
 
       $exchangeRate = ExchangeRate::where('date', $date)->first();
       if (!$exchangeRate) {
         throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
-      }
-
-      if ($vehicle->customer_id === null) {
-        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
       }
 
       if (auth()->check()) {
@@ -147,6 +142,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $quotationData = [
         'area_id' => $data['area_id'],
         'vehicle_id' => $data['vehicle_id'],
+        'client_id' => $data['client_id'],
         'sede_id' => $data['sede_id'],
         'quotation_date' => $data['quotation_date'],
         'expiration_date' => $data['expiration_date'],
@@ -299,6 +295,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $quotation->update([
         'area_id' => $data['area_id'],
         'vehicle_id' => $data['vehicle_id'],
+        'client_id' => $data['client_id'],
         'sede_id' => $data['sede_id'],
         'quotation_date' => $data['quotation_date'],
         'expiration_date' => $data['expiration_date'],
@@ -588,22 +585,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     ];
 
     // Datos del cliente
-    if ($quotation->vehicle && $quotation->vehicle->customer) {
-      $customer = $quotation->vehicle->customer;
-      $data['customer_name'] = $customer->full_name;
-      $data['customer_document'] = $customer->num_doc ?? 'N/A';
-      $data['customer_address'] = $customer->direction ?? 'N/A';
-      $data['customer_district'] = $customer->district ? $customer->district->name : 'N/A';
-      $data['customer_email'] = $customer->email ?? 'N/A';
-      $data['customer_phone'] = $customer->phone ?? 'N/A';
-    } else {
-      $data['customer_name'] = 'N/A';
-      $data['customer_document'] = 'N/A';
-      $data['customer_address'] = 'N/A';
-      $data['customer_district'] = 'N/A';
-      $data['customer_email'] = 'N/A';
-      $data['customer_phone'] = 'N/A';
-    }
+    $data['customer_name'] = $quotation->client->full_name ?? 'N/A';
+    $data['customer_document'] = $quotation->client->num_doc ?? 'N/A';
+    $data['customer_address'] = $quotation->client->direction ?? 'N/A';
+    $data['customer_district'] = $quotation->client->district ? $quotation->client->district->name : 'N/A';
+    $data['customer_email'] = $quotation->client->email ?? 'N/A';
+    $data['customer_phone'] = $quotation->client->phone ?? 'N/A';
 
     // Datos del asesor
     if ($quotation->createdBy) {
