@@ -46,6 +46,15 @@ class WarehouseController extends Controller
     }
   }
 
+  public function getMyPhysicalWarehouses()
+  {
+    try {
+      return $this->success($this->service->getMyPhysicalWarehouses());
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function store(StoreWarehouseRequest $request)
   {
     try {

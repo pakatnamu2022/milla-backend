@@ -791,6 +791,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       Route::get('warehouse/by-model-sede', [WarehouseController::class, 'getWarehousesByModelAndSede']);
       Route::get('warehouse/warehouses-by-company', [WarehouseController::class, 'getWarehousesByCompany']);
+      Route::get('warehouse/my-physical-warehouses', [WarehouseController::class, 'getMyPhysicalWarehouses']);
       Route::apiResource('warehouse', WarehouseController::class)->only([
         'index',
         'show',

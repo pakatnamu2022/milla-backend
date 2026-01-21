@@ -16,9 +16,9 @@ class ApOrderQuotationsResource extends JsonResource
     return [
       'id' => $this->id,
       'vehicle_id' => $this->vehicle_id,
+      'client_id' => $this->client_id,
       'sede_id' => $this->sede_id,
       'plate' => $this->vehicle ? $this->vehicle->plate : "-",
-      'customer' => $this->vehicle ? $this->vehicle->customer->full_name : "-",
       'vehicle' => new VehiclesResource($this->vehicle),
       'quotation_number' => $this->quotation_number,
       'subtotal' => (float)$this->subtotal,
@@ -35,10 +35,6 @@ class ApOrderQuotationsResource extends JsonResource
       'type_currency' => $this->typeCurrency,
       'exchange_rate' => (float)$this->exchange_rate,
       'op_gravada' => (float)($this->subtotal - $this->discount_amount),
-      'details' => ApOrderQuotationDetailsResource::collection($this->details),
-      'advances' => ElectronicDocumentResource::collection(
-        $this->whenLoaded('advancesOrderQuotation')
-      ),
       'created_by' => $this->created_by,
       'created_by_name' => $this->createdBy ? $this->createdBy->name : null,
       'is_take' => (bool)$this->is_take,
@@ -56,6 +52,13 @@ class ApOrderQuotationsResource extends JsonResource
       'discarded_at' => $this->discarded_at ? $this->discarded_at->format('Y-m-d') : null,
       'supply_type' => $this->supply_type,
       'status' => $this->status,
+
+      // Relations
+      'details' => ApOrderQuotationDetailsResource::collection($this->details),
+      'advances' => ElectronicDocumentResource::collection(
+        $this->whenLoaded('advancesOrderQuotation', fn() => $this->advancesOrderQuotation->filter(fn($advance) => $advance->aceptada_por_sunat == 1))
+      ),
+      'client' => $this->client,
     ];
   }
 

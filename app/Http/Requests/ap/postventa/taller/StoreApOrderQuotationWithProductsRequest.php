@@ -8,13 +8,21 @@ use Illuminate\Contracts\Validation\Validator;
 
 class StoreApOrderQuotationWithProductsRequest extends StoreRequest
 {
+  protected function prepareForValidation(): void
+  {
+    if ($this->has('vehicle_id') && $this->vehicle_id === '') {
+      $this->merge(['vehicle_id' => null]);
+    }
+  }
+
   public function rules(): array
   {
     return [
       // Quotation fields
       'currency_id' => ['required', 'integer', 'exists:type_currency,id'],
       'area_id' => ['required', 'integer', 'exists:ap_masters,id'],
-      'vehicle_id' => ['required', 'integer', 'exists:ap_vehicles,id'],
+      'client_id' => ['required', 'integer', 'exists:business_partners,id'],
+      'vehicle_id' => ['nullable', 'integer', 'exists:ap_vehicles,id'],
       'sede_id' => ['required', 'integer', 'exists:config_sede,id'],
       'quotation_date' => ['required', 'date'],
       'expiration_date' => ['nullable', 'date', 'after_or_equal:quotation_date'],
@@ -91,8 +99,9 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
       'currency_id.exists' => 'La moneda no existe.',
       'area_id.required' => 'Área de postventa es obligatoria.',
       'area_id.exists' => 'El área de postventa no existe.',
-      'vehicle_id.required' => 'Vehículo asociado es obligatorio.',
-      'vehicle_id.exists' => 'El vehículo asociado no existe.',
+      'client_id.required' => 'El cliente es obligatorio.',
+      'client_id.exists' => 'El cliente no existe.',
+      'vehicle_id.exists' => 'El vehículo no existe.',
       'sede_id.required' => 'La sede es obligatoria.',
       'sede_id.exists' => 'La sede no existe.',
       'quotation_date.required' => 'La fecha de cotización es obligatoria.',
