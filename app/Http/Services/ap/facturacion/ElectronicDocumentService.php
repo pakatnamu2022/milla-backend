@@ -11,6 +11,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Jobs\SyncSalesDocumentJob;
 use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
@@ -227,6 +228,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           }
         }
       }
+
+      /**
+       * Validar que para venta interna (is_advance_payment = 0) la suma de anticipos + monto factura = total entidad
+       */
+      $this->validateInternalSaleTotal($data);
 
       /**
        * Validar que la serie sea correcta
@@ -1794,6 +1800,89 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $totalAdvances
         ));
       }
+    }
+  }
+
+  /**
+   * Validate internal sale total
+   * When is_advance_payment = 0, validates that sum of advances + current invoice equals the total amount
+   *
+   * @param array $data
+   * @return void
+   * @throws Exception
+   */
+  private function validateInternalSaleTotal(array $data): void
+  {
+    $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
+
+    // Only validate for internal sales (is_advance_payment = 0)
+    if ($isAdvancePayment) {
+      return;
+    }
+
+    $newTotal = (float)($data['total'] ?? 0);
+    $entityTotal = 0;
+    $entityName = '';
+    $entityId = null;
+    $entityField = null;
+
+    // Determine which entity we're working with
+    if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
+      $entityField = 'order_quotation_id';
+      $entityId = $data['order_quotation_id'];
+      $quotation = ApOrderQuotations::find($entityId);
+      if ($quotation) {
+        $entityTotal = (float)$quotation->total_amount;
+        $entityName = 'cotización';
+      }
+    } elseif (isset($data['work_order_id']) && $data['work_order_id']) {
+      $entityField = 'work_order_id';
+      $entityId = $data['work_order_id'];
+      $workOrder = ApWorkOrder::with(['labours', 'parts'])->find($entityId);
+      if ($workOrder) {
+        $totalLabourCost = $workOrder->labours->sum('total_cost') ?? 0;
+        $totalPartsCost = $workOrder->parts->sum('total_amount') ?? 0;
+        $entityTotal = $totalLabourCost + $totalPartsCost;
+        $entityName = 'orden de trabajo';
+      }
+    } elseif (isset($data['purchase_request_quote_id']) && $data['purchase_request_quote_id']) {
+      $entityField = 'purchase_request_quote_id';
+      $entityId = $data['purchase_request_quote_id'];
+      $purchaseRequestQuote = PurchaseRequestQuote::find($entityId);
+      if ($purchaseRequestQuote) {
+        $entityTotal = (float)$purchaseRequestQuote->doc_sale_price;
+        $entityName = 'solicitud de cotización';
+      }
+    }
+
+    // If no entity found, skip validation
+    if (!$entityId || !$entityField || $entityTotal <= 0) {
+      return;
+    }
+
+    // Calculate total advances already accepted by SUNAT
+    $totalAdvances = ElectronicDocument::where($entityField, $entityId)
+      ->where('is_advance_payment', 1)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', false)
+      ->whereNull('deleted_at')
+      ->sum('total');
+
+    // Calculate expected total (advances + current invoice)
+    // Round to 2 decimals to ensure exact comparison
+    $totalWithNewInvoice = round($totalAdvances + $newTotal, 2);
+    $entityTotal = round($entityTotal, 2);
+
+    // Validate that sum equals entity total (exact match required)
+    if ($totalWithNewInvoice != $entityTotal) {
+      throw new Exception(sprintf(
+        'La suma de anticipos (%.2f) más el monto de esta factura (%.2f) debe ser igual al monto total de la %s (%.2f). Total actual: %.2f',
+        $totalAdvances,
+        $newTotal,
+        $entityName,
+        $entityTotal,
+        $totalWithNewInvoice
+      ));
     }
   }
 
