@@ -160,41 +160,4 @@ class UpdateApSupplierOrderRequest extends StoreRequest
       'details.*.total.min' => 'El total debe ser mayor o igual a 0.',
     ];
   }
-
-  protected function withValidator(Validator $validator): void
-  {
-    $validator->after(function ($validator) {
-      $details = $this->input('details', []);
-
-      if (empty($details)) {
-        return;
-      }
-
-      // Check for duplicate products
-      $productIds = collect($details)->pluck('product_id')->filter();
-      $duplicates = $productIds->duplicates()->values();
-
-      if ($duplicates->isNotEmpty()) {
-        $validator->errors()->add(
-          'details',
-          'Se han detectado productos duplicados. Los productos con ID: ' . $duplicates->implode(', ') . ' deben ser consolidados en un solo item.'
-        );
-      }
-
-      // Validate that unit_price * quantity = total for each detail
-      foreach ($details as $index => $detail) {
-        $unitPrice = $detail['unit_price'] ?? 0;
-        $quantity = $detail['quantity'] ?? 0;
-        $total = $detail['total'] ?? 0;
-        $expectedTotal = round($unitPrice * $quantity, 2);
-
-        if (abs($expectedTotal - $total) > 0.01) {
-          $validator->errors()->add(
-            "details.{$index}.total",
-            "El total debe ser igual a precio unitario x cantidad. Esperado: {$expectedTotal}, recibido: {$total}"
-          );
-        }
-      }
-    });
-  }
 }
