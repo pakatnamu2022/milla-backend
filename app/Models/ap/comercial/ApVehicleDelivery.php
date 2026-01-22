@@ -42,7 +42,7 @@ class ApVehicleDelivery extends Model
     'search' => ['vehicle.vin', 'advisor.nombre_completo'],
     'vehicle_id',
     'scheduled_delivery_date',
-    'real_delivery_date',
+    'real_delivery_date' => 'date_between',
     'advisor_id',
     'sede_id',
     'status_delivery',
