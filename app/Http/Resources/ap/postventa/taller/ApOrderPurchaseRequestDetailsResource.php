@@ -22,6 +22,8 @@ class ApOrderPurchaseRequestDetailsResource extends JsonResource
       'quantity' => $this->quantity,
       'notes' => $this->notes,
       'requested_delivery_date' => $this->requested_delivery_date,
+      'status' => $this->status,
+      'has_supplier_order' => $this->supplierOrders()->exists(),
       'created_at' => $this->created_at,
       'updated_at' => $this->updated_at,
 
