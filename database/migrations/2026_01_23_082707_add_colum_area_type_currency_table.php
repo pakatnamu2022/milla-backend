@@ -11,8 +11,8 @@ return new class extends Migration {
   public function up(): void
   {
     Schema::table('type_currency', function (Blueprint $table) {
-      $table->foreignId('area_id')->default(826)->after('symbol')->constrained('ap_masters')->onDelete('restrict');
-      $table->dropUnique('type_currency_codigo_unique');
+      $table->boolean('enable_commercial')->default(false)->after('status');
+      $table->boolean('enable_after_sales')->default(false)->after('enable_commercial');
     });
   }
 
@@ -22,9 +22,8 @@ return new class extends Migration {
   public function down(): void
   {
     Schema::table('type_currency', function (Blueprint $table) {
-      $table->dropForeign(['area_id']);
-      $table->dropColumn('area_id');
-      $table->unique('code', 'type_currency_codigo_unique');
+      $table->dropColumn('enable_commercial');
+      $table->dropColumn('enable_after_sales');
     });
   }
 };

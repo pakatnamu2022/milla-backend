@@ -2,7 +2,6 @@
 
 namespace App\Models\ap\maestroGeneral;
 
-use App\Models\ap\ApMasters;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -18,13 +17,22 @@ class TypeCurrency extends Model
     'code',
     'name',
     'symbol',
-    'area_id',
     'status',
+    'enable_commercial',
+    'enable_after_sales',
+  ];
+
+  protected $casts = [
+    'status' => 'boolean',
+    'enable_commercial' => 'boolean',
+    'enable_after_sales' => 'boolean',
   ];
 
   const filters = [
     'search' => ['code', 'name'],
     'status' => '=',
+    'enable_commercial' => '=',
+    'enable_after_sales' => '=',
   ];
 
   const sorts = [
@@ -51,10 +59,5 @@ class TypeCurrency extends Model
   public function setSymbolAttribute($value)
   {
     $this->attributes['symbol'] = Str::upper(Str::ascii($value));
-  }
-
-  public function area()
-  {
-    return $this->belongsTo(ApMasters::class, 'area_id');
   }
 }
