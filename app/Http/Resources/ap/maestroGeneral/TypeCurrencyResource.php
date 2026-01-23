@@ -15,6 +15,7 @@ class TypeCurrencyResource extends JsonResource
       'code' => $this->code,
       'name' => $this->name,
       'symbol' => $this->symbol,
+      'area_id' => $this->area_id,
       'status' => $this->status,
       'current_exchange_rate' => $this->getCurrentExchangeRate()
     ];
