@@ -372,27 +372,29 @@
 </table>
 
 <!-- Sección 2: Datos del Vehículo -->
-<table class="data-section">
-  <tr>
-    <td colspan="4" class="section-header">DATOS DEL VEHÍCULO</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Placa:</td>
-    <td>{{ $quotation['vehicle_plate'] }}</td>
-    <td class="label-cell">Nº Chasis:</td>
-    <td>{{ $quotation['vehicle_vin'] }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Modelo:</td>
-    <td colspan="3">{{ $quotation['vehicle_brand'] }} {{ $quotation['vehicle_model'] }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Color:</td>
-    <td>{{ $quotation['vehicle_color'] }}</td>
-    <td class="label-cell">Nº Motor:</td>
-    <td>{{ $quotation['vehicle_engine'] }}</td>
-  </tr>
-</table>
+@if(isset($quotation['vehicle_plate']) && $quotation['vehicle_plate'] && $quotation['vehicle_plate'] !== 'N/A')
+  <table class="data-section">
+    <tr>
+      <td colspan="4" class="section-header">DATOS DEL VEHÍCULO</td>
+    </tr>
+    <tr>
+      <td class="label-cell">Placa:</td>
+      <td>{{ $quotation['vehicle_plate'] }}</td>
+      <td class="label-cell">Nº Chasis:</td>
+      <td>{{ $quotation['vehicle_vin'] }}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">Modelo:</td>
+      <td colspan="3">{{ $quotation['vehicle_brand'] }} {{ $quotation['vehicle_model'] }}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">Color:</td>
+      <td>{{ $quotation['vehicle_color'] }}</td>
+      <td class="label-cell">Nº Motor:</td>
+      <td>{{ $quotation['vehicle_engine'] }}</td>
+    </tr>
+  </table>
+@endif
 
 <!-- Sección 3: Detalle de la Cotización -->
 <table class="details-table">
