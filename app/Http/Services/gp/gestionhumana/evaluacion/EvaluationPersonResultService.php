@@ -949,4 +949,130 @@ class EvaluationPersonResultService extends BaseService
 
     return $bosses;
   }
+
+  /**
+   * Obtiene todos los líderes con su estado de evaluación
+   * Retorna información sobre si cada líder completó todas sus evaluaciones
+   *
+   * @param int $evaluationId
+   * @return array
+   */
+  public function getLeadersWithEvaluationStatus(int $evaluationId)
+  {
+    // Validar que existe la evaluación
+    $evaluation = Evaluation::findOrFail($evaluationId);
+
+    // Obtener todos los person_ids únicos que son jefes en esta evaluación
+    $leaderPersonIds = EvaluationPerson::where('evaluation_id', $evaluationId)
+      ->whereNotNull('chief_id')
+      ->pluck('chief_id')
+      ->unique()
+      ->values();
+
+    if ($leaderPersonIds->isEmpty()) {
+      return [
+        'evaluation' => [
+          'id' => $evaluation->id,
+          'name' => $evaluation->name,
+          'status' => $evaluation->status,
+          'start_date' => $evaluation->start_date,
+          'end_date' => $evaluation->end_date,
+        ],
+        'leaders' => [],
+        'summary' => [
+          'total_leaders' => 0,
+          'completed' => 0,
+          'in_progress' => 0,
+          'not_started' => 0,
+          'completion_percentage' => 0,
+        ]
+      ];
+    }
+
+    // Obtener los resultados de evaluación de estos líderes
+    $leadersResults = EvaluationPersonResult::with([
+      'person.position.hierarchicalCategory',
+      'person.position.area',
+      'person.sede',
+      'dashboard'
+    ])
+      ->where('evaluation_id', $evaluationId)
+      ->whereIn('person_id', $leaderPersonIds)
+      ->get();
+
+    // Calcular resumen
+    $totalLeaders = $leadersResults->count();
+    $completed = 0;
+    $inProgress = 0;
+    $notStarted = 0;
+
+    // Mapear los datos de cada líder
+    $leadersData = $leadersResults->map(function ($result) use (&$completed, &$inProgress, &$notStarted) {
+      $isCompleted = $result->is_completed;
+      $completionPercentage = $result->completion_percentage;
+      $progressStatus = $result->progress_status;
+
+      // Contar estados
+      if ($isCompleted) {
+        $completed++;
+      } elseif ($completionPercentage > 0) {
+        $inProgress++;
+      } else {
+        $notStarted++;
+      }
+
+      // Obtener información de cuántos colaboradores tiene a cargo
+      $subordinatesCount = EvaluationPerson::where('evaluation_id', $result->evaluation_id)
+        ->where('chief_id', $result->person_id)
+        ->distinct('person_id')
+        ->count('person_id');
+
+      return [
+        'person_id' => $result->person_id,
+        'name' => $result->name,
+        'dni' => $result->dni,
+        'position' => $result->position,
+        'area' => $result->area,
+        'sede' => $result->sede,
+        'hierarchical_category' => $result->hierarchical_category,
+        'evaluation_status' => [
+          'is_completed' => $isCompleted,
+          'completion_percentage' => round($completionPercentage * 100, 2),
+          'progress_status' => $progressStatus,
+          'progress_status_label' => $this->getStatusLabel($progressStatus),
+          'objectives_result' => round($result->objectivesResult, 2),
+          'competences_result' => round($result->competencesResult, 2),
+          'final_result' => round($result->result, 2),
+        ],
+        'team_info' => [
+          'subordinates_count' => $subordinatesCount,
+        ],
+        'last_updated' => $result->updated_at,
+      ];
+    });
+
+    // Ordenar: primero los no completados, luego por nombre
+    $leadersData = $leadersData->sortBy([
+      fn($a, $b) => $b['evaluation_status']['is_completed'] <=> $a['evaluation_status']['is_completed'],
+      fn($a, $b) => $a['name'] <=> $b['name']
+    ])->values();
+
+    return [
+      'evaluation' => [
+        'id' => $evaluation->id,
+        'name' => $evaluation->name,
+        'status' => $evaluation->status,
+        'start_date' => $evaluation->start_date,
+        'end_date' => $evaluation->end_date,
+      ],
+      'leaders' => $leadersData,
+      'summary' => [
+        'total_leaders' => $totalLeaders,
+        'completed' => $completed,
+        'in_progress' => $inProgress,
+        'not_started' => $notStarted,
+        'completion_percentage' => $totalLeaders > 0 ? round(($completed / $totalLeaders) * 100, 2) : 0,
+      ]
+    ];
+  }
 }

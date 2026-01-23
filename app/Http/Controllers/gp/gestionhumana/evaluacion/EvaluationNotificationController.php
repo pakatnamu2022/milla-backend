@@ -251,6 +251,47 @@ class EvaluationNotificationController extends Controller
   }
 
   /**
+   * Envía recordatorio a un líder específico
+   */
+  public function sendReminderToLeader(Request $request): JsonResponse
+  {
+    $validator = Validator::make($request->all(), [
+      'evaluation_id' => 'required|integer|exists:gh_evaluation,id',
+      'leader_id' => 'required|integer|exists:gh_worker,id'
+    ]);
+
+    if ($validator->fails()) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Datos de entrada inválidos',
+        'errors' => $validator->errors()
+      ], 422);
+    }
+
+    try {
+      $evaluationId = $request->input('evaluation_id');
+      $leaderId = $request->input('leader_id');
+
+      $result = $this->notificationService->sendReminderToSingleLeader($evaluationId, $leaderId);
+
+      return response()->json([
+        'success' => $result['success'],
+        'message' => $result['success']
+          ? 'Recordatorio enviado correctamente al líder'
+          : 'Error al enviar recordatorio: ' . ($result['error'] ?? 'Error desconocido'),
+        'data' => $result['result']
+      ], $result['success'] ? 200 : 400);
+
+    } catch (\Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error interno del servidor',
+        'error' => $e->getMessage()
+      ], 500);
+    }
+  }
+
+  /**
    * Prueba el servicio de correos con un correo específico
    */
   public function testReminder(Request $request): JsonResponse

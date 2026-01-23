@@ -17,6 +17,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class VehiclesService extends BaseService implements BaseServiceInterface
@@ -38,8 +39,8 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     return $this->getFilteredResults(
       Vehicles::class,
       $request,
-      Vehicles::$filters,
-      Vehicles::$sorts,
+      Vehicles::filters,
+      Vehicles::sorts,
       VehiclesResource::class
     );
   }
