@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\maestroGeneral;
 
+use App\Models\ap\ApMasters;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -17,6 +18,7 @@ class TypeCurrency extends Model
     'code',
     'name',
     'symbol',
+    'area_id',
     'status',
   ];
 
@@ -49,5 +51,10 @@ class TypeCurrency extends Model
   public function setSymbolAttribute($value)
   {
     $this->attributes['symbol'] = Str::upper(Str::ascii($value));
+  }
+
+  public function area()
+  {
+    return $this->belongsTo(ApMasters::class, 'area_id');
   }
 }

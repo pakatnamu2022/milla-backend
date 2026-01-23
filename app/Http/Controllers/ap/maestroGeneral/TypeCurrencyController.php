@@ -30,7 +30,7 @@ class TypeCurrencyController extends Controller
   public function store(StoreTypeCurrencyRequest $request)
   {
     try {
-      return $this->success($this->service->store($request->all()));
+      return $this->success($this->service->store($request->validated()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -48,7 +48,7 @@ class TypeCurrencyController extends Controller
   public function update(UpdateTypeCurrencyRequest $request, $id)
   {
     try {
-      $data = $request->all();
+      $data = $request->validated();
       $data['id'] = $id;
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {
