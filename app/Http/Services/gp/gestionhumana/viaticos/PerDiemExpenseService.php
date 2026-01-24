@@ -73,14 +73,9 @@ class PerDiemExpenseService extends BaseService
       if (in_array($data['expense_type_id'], [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
         $hotelReservation = $request->hotelReservation()->with('hotelAgreement')->first();
 
-        // If no hotel reservation exists, meals cannot be expensed
-        if (!$hotelReservation) {
-          throw new Exception('No se puede agregar un gasto de comida porque la solicitud no tiene una reserva de hotel registrada.');
-        }
-
         // If hotel agreement exists, check if meal is included
-        if ($hotelReservation->hotelAgreement) {
-          $agreement = $hotelReservation->hotelAgreement;
+        if ($hotelReservation?->hotelAgreement) {
+          $agreement = $hotelReservation?->hotelAgreement;
 
           if ($data['expense_type_id'] === ExpenseType::BREAKFAST_ID && $agreement->includes_breakfast) {
             throw new Exception('No se puede agregar un gasto de desayuno porque el hotel ya lo incluye.');
