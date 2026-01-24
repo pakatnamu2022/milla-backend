@@ -24,7 +24,7 @@ class ApMasters extends Model
   ];
 
   const filters = [
-    'search' => ['code', 'description'],
+    'search' => ['code', 'description', 'type'],
     'type' => 'in_or_equal',
     'status' => '=',
     'open_opportunity_status' => 'accessor_bool',
