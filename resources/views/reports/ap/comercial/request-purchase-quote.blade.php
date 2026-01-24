@@ -434,7 +434,7 @@
     </li>
     <li>Manifesto que los datos consignados son exactos y se ajustan fielmente a la realidad.</li>
   </ol>
-  </div>
+</div>
 
 <!-- Footer con marcas -->
 <table style="border: none; border-top: 1px solid #000; margin-top: 15px; padding-top: 10px;">
@@ -496,25 +496,28 @@
   <!-- Tabla de cuentas bancarias -->
   <table style="font-size: 10px;">
     <thead>
-      <tr style="background-color: #e0e0e0;">
-        <th style="padding: 4px; text-align: center; font-weight: bold;">Banco</th>
-        <th style="padding: 4px; text-align: center; font-weight: bold;">Número de Cuenta</th>
-        <th style="padding: 4px; text-align: center; font-weight: bold;">Moneda</th>
-      </tr>
+    <tr style="background-color: #e0e0e0;">
+      <th style="padding: 4px; text-align: center; font-weight: bold;">Banco</th>
+      <th style="padding: 4px; text-align: center; font-weight: bold;">Número de Cuenta</th>
+      <th style="padding: 4px; text-align: center; font-weight: bold;">Moneda</th>
+    </tr>
     </thead>
     <tbody>
-      @foreach($banks as $bank)
-        <tr>
-          <td style="padding: 4px; text-align: left;">{{ $bank->bank->description ?? '-' }}</td>
-          <td style="padding: 4px; text-align: center; font-family: 'Courier New', monospace; font-weight: bold;">{{ $bank->account_number }}</td>
-          <td style="padding: 4px; text-align: center;">{{ $bank->currency->name ?? '-' }}</td>
-        </tr>
-      @endforeach
+    @foreach($banks as $bank)
+      <tr>
+        <td style="padding: 4px; text-align: left;">{{ $bank->bank->description ?? '-' }}</td>
+        <td
+          style="padding: 4px; text-align: center; font-family: 'Courier New', monospace; font-weight: bold;">{{ $bank->account_number }}</td>
+        <td style="padding: 4px; text-align: center;">{{ $bank->currency->name ?? '-' }}</td>
+      </tr>
+    @endforeach
     </tbody>
   </table>
 
   <div style="margin-top: 20px; padding: 15px; background-color: #f5f5f5; border-left: 4px solid #333;">
-    <p style="font-size: 10px; margin: 0; line-height: 1.5;"><strong>Importante:</strong> Realizar depósitos únicamente en las cuentas indicadas. Una vez realizado el depósito, enviar el comprobante de pago para procesar su solicitud.</p>
+    <p style="font-size: 10px; margin: 0; line-height: 1.5;"><strong>Importante:</strong> Realizar depósitos únicamente
+      en las cuentas indicadas. Una vez realizado el depósito, enviar el comprobante de pago para procesar su solicitud.
+    </p>
   </div>
 @endif
 </body>
