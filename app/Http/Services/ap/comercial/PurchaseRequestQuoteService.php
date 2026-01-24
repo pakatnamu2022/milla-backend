@@ -317,7 +317,17 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       ? 'COTIZACIÓN'
       : 'SOLICITUD DE COMPRA';
 
-    $pdf = PDF::loadView('reports.ap.comercial.request-purchase-quote', ['quote' => $dataArray]);
+    // Obtener bancos filtrados por sede_id con account_number
+    $banks = \App\Models\ap\configuracionComercial\venta\ApBank::with(['bank', 'currency'])
+      ->where('sede_id', $purchaseRequestQuote->sede_id)
+      ->where('status', 1)
+      ->whereNotNull('account_number')
+      ->where('account_number', '!=', '')
+      ->orderBy('bank_id')
+      ->orderBy('currency_id')
+      ->get();
+
+    $pdf = PDF::loadView('reports.ap.comercial.request-purchase-quote', ['quote' => $dataArray, 'banks' => $banks]);
 
     // Configurar PDF
     $pdf->setOptions([

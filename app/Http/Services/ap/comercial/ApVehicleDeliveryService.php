@@ -59,7 +59,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     return $vehicleDelivery;
   }
 
-  public function store(mixed $data)
+  public function store(mixed $data): ApVehicleDeliveryResource
   {
     try {
       DB::transaction(function () use ($data) {

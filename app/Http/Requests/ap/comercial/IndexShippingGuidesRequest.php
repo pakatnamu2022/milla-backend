@@ -9,7 +9,8 @@ class IndexShippingGuidesRequest extends IndexRequest
   public function rules(): array
   {
     return [
-      //
+      'issue_date' => 'nullable|array|min:2|max:2',
+      'issue_date.*' => 'nullable|date',
     ];
   }
 }
