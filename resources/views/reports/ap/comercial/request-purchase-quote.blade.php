@@ -434,12 +434,7 @@
     </li>
     <li>Manifesto que los datos consignados son exactos y se ajustan fielmente a la realidad.</li>
   </ol>
-  <div style="margin-top: 10px;">
-    <strong>Números de cuenta BCP:</strong> (305-2041120-0-42 MN / 305-2041105-0-39 MN) (305-2035096-1-39 MN /
-    305-2035097-1-49 ME)<br>
-    <strong>BBVA CONTINENTAL:</strong> Código de Recaudo (Soles): 9600 | Código de Recaudo (Dólares): 9601
   </div>
-</div>
 
 <!-- Footer con marcas -->
 <table style="border: none; border-top: 1px solid #000; margin-top: 15px; padding-top: 10px;">
@@ -468,5 +463,59 @@
     </td>
   </tr>
 </table>
+
+@if(isset($banks) && $banks->count() > 0)
+  <!-- Nueva página para cuentas bancarias -->
+  <div style="page-break-before: always;"></div>
+
+  <div class="watermark">PAKATNAMU</div>
+
+  <!-- Encabezado en página de cuentas -->
+  <table style="margin-bottom: 15px;">
+    <tr>
+      <td style="width: 15%; text-align: center; vertical-align: middle; border: none;">
+        <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="AP Logo" style="max-width: 80px; height: auto;">
+      </td>
+      <td style="width: 70%; vertical-align: middle; padding: 5px; border: none;">
+        <div style="font-size: 14px; font-weight: bold; margin-bottom: 5px;">AP AUTOMOTORES PAKATNAMU SAC</div>
+        <div style="font-size: 8px; line-height: 1.3;">
+          www.automotorespakatnamu.com<br>
+          CAR. A PIMENTEL KM 5 - PIMENTEL - CHICLAYO - LAMBAYEQUE<br>
+          Tel: (044) 123-4567 | Email: ventas@automotoraspakatnamu.com
+        </div>
+      </td>
+      <td style="width: 15%; text-align: center; vertical-align: middle; border: none;">
+        <img src="{{ getBase64Image('images/ap/derco.jpg') }}" alt="Derco Logo" style="max-width: 100px; height: auto;">
+      </td>
+    </tr>
+  </table>
+
+  <!-- Título de sección -->
+  <div class="title">CUENTAS BANCARIAS PARA DEPÓSITOS</div>
+
+  <!-- Tabla de cuentas bancarias -->
+  <table style="font-size: 10px;">
+    <thead>
+      <tr style="background-color: #e0e0e0;">
+        <th style="padding: 4px; text-align: center; font-weight: bold;">Banco</th>
+        <th style="padding: 4px; text-align: center; font-weight: bold;">Número de Cuenta</th>
+        <th style="padding: 4px; text-align: center; font-weight: bold;">Moneda</th>
+      </tr>
+    </thead>
+    <tbody>
+      @foreach($banks as $bank)
+        <tr>
+          <td style="padding: 4px; text-align: left;">{{ $bank->bank->description ?? '-' }}</td>
+          <td style="padding: 4px; text-align: center; font-family: 'Courier New', monospace; font-weight: bold;">{{ $bank->account_number }}</td>
+          <td style="padding: 4px; text-align: center;">{{ $bank->currency->name ?? '-' }}</td>
+        </tr>
+      @endforeach
+    </tbody>
+  </table>
+
+  <div style="margin-top: 20px; padding: 15px; background-color: #f5f5f5; border-left: 4px solid #333;">
+    <p style="font-size: 10px; margin: 0; line-height: 1.5;"><strong>Importante:</strong> Realizar depósitos únicamente en las cuentas indicadas. Una vez realizado el depósito, enviar el comprobante de pago para procesar su solicitud.</p>
+  </div>
+@endif
 </body>
 </html>
