@@ -18,11 +18,21 @@ class TypeCurrency extends Model
     'name',
     'symbol',
     'status',
+    'enable_commercial',
+    'enable_after_sales',
+  ];
+
+  protected $casts = [
+    'status' => 'boolean',
+    'enable_commercial' => 'boolean',
+    'enable_after_sales' => 'boolean',
   ];
 
   const filters = [
     'search' => ['code', 'name'],
     'status' => '=',
+    'enable_commercial' => '=',
+    'enable_after_sales' => '=',
   ];
 
   const sorts = [

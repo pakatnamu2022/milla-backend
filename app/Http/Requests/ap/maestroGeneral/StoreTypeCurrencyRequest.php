@@ -28,6 +28,14 @@ class StoreTypeCurrencyRequest extends StoreRequest
         'max:5',
         Rule::unique('type_currency', 'symbol')->whereNull('deleted_at'),
       ],
+      'enable_after_sales' => [
+        'nullable',
+        'boolean',
+      ],
+      'enable_commercial' => [
+        'nullable',
+        'boolean',
+      ],
     ];
   }
 
