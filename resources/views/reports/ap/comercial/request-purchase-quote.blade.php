@@ -188,7 +188,7 @@
   </tr>
   <tr>
     <td class="label">Razón Social</td>
-    <td colspan="5">{{ $quote['client_name'] ?? '' }}</td>
+    <td colspan="5">{{ $quote['holder'] ?? '' }}</td>
     <td class="label">RUC</td>
     <td>{{ $quote['num_doc_client'] ?? '' }}</td>
   </tr>
