@@ -90,4 +90,17 @@ class ApOrderPurchaseRequestsController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Descargar PDF de la solicitud de compra
+   * GET /api/ap/postVenta/orderPurchaseRequests/{id}/pdf
+   */
+  public function downloadPDF($id)
+  {
+    try {
+      return $this->service->generatePurchaseRequestPDF($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

@@ -566,7 +566,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'vehicle.color',
       'vehicle.customer.district',
       'createdBy',
-      'details.product'
+      'details.product',
+      'advancesOrderQuotation'
     ])->find($id);
 
     if (!$quotation) {
@@ -646,6 +647,15 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $data['subtotal'] = $quotation->subtotal;
     $data['tax_amount'] = $quotation->tax_amount;
     $data['total_amount'] = $quotation->total_amount;
+
+    // Calcular pagos realizados (anticipos no anulados)
+    $totalPagado = $quotation->advancesOrderQuotation
+      ->where('anulado', false)
+      ->where('aceptada_por_sunat', 1)
+      ->sum('total');
+
+    $data['total_pagado'] = $totalPagado;
+    $data['saldo_pendiente'] = $quotation->total_amount - $totalPagado;
 
     // Convertir firma del cliente a base64 si existe
     $customerSignature = null;

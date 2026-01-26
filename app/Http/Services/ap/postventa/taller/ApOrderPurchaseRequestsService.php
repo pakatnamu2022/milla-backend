@@ -10,6 +10,7 @@ use App\Models\ap\postventa\taller\ApOrderPurchaseRequests;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -153,6 +154,24 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
   public function destroy($id)
   {
     $purchaseRequest = $this->find($id);
+
+    // Verificar si tiene pedidos de proveedor asociados
+    $supplierOrderNumbers = $purchaseRequest->details()
+      ->with('supplierOrders')
+      ->get()
+      ->pluck('supplierOrders')
+      ->flatten()
+      ->unique('id')
+      ->pluck('order_number')
+      ->values()
+      ->toArray();
+
+    if (!empty($supplierOrderNumbers)) {
+      throw new Exception(
+        "No se puede eliminar la solicitud de compra porque está asociada a los siguientes pedidos de proveedor: " .
+        implode(', ', $supplierOrderNumbers)
+      );
+    }
 
     DB::transaction(function () use ($purchaseRequest) {
       //verificamos si ap_order_quotation_id esta seteado para liberar la cotizacion
@@ -307,5 +326,149 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       'message' => 'Detalle de solicitud rechazado correctamente',
       'data' => $detail
     ]);
+  }
+
+  /**
+   * Genera el PDF de la solicitud de compra
+   * Si está asociada a una cotización, toma los precios de ella
+   * Si no, muestra guiones "-"
+   * @param int $id
+   * @return \Illuminate\Http\Response
+   * @throws Exception
+   */
+  public function generatePurchaseRequestPDF(int $id)
+  {
+    $purchaseRequest = ApOrderPurchaseRequests::with([
+      'apOrderQuotation.client.district',
+      'apOrderQuotation.details.product',
+      'apOrderQuotation.typeCurrency',
+      'apOrderQuotation.createdBy.person',
+      'apOrderQuotation.vehicle.model.family.brand',
+      'warehouse',
+      'requestedBy.person',
+      'details.product'
+    ])->find($id);
+
+    if (!$purchaseRequest) {
+      throw new Exception('Solicitud de compra no encontrada');
+    }
+
+    $quotation = $purchaseRequest->apOrderQuotation;
+    $hasQuotation = $quotation !== null;
+
+    // Datos base de la solicitud
+    $data = [
+      'request_number' => $purchaseRequest->request_number,
+      'requested_date' => $purchaseRequest->requested_date ?? $purchaseRequest->created_at,
+      'delivery_date' => '-',
+      'work_order_number' => '-',
+      'has_quotation' => $hasQuotation,
+    ];
+
+    // Datos del proveedor/cliente
+    if ($hasQuotation && $quotation->client) {
+      $client = $quotation->client;
+      $data['supplier_name'] = $client->full_name ?? '-';
+      $data['supplier_ruc'] = $client->num_doc ?? '-';
+      $data['supplier_address'] = $client->direction ?? '-';
+      $data['supplier_ubigeo'] = $client->ubigeo ?? '-';
+      $data['supplier_city'] = $client->district ? $client->district->name . ' - ' . ($client->district->province->name ?? '') : '-';
+      $data['supplier_phone'] = $client->phone ?? '-';
+      $data['supplier_email'] = $client->email ?? '-';
+    } else {
+      $data['supplier_name'] = '-';
+      $data['supplier_ruc'] = '-';
+      $data['supplier_address'] = '-';
+      $data['supplier_ubigeo'] = '-';
+      $data['supplier_city'] = '-';
+      $data['supplier_phone'] = '-';
+      $data['supplier_email'] = '-';
+    }
+
+    // Datos del vendedor/asesor
+    if ($hasQuotation && $quotation->createdBy && $quotation->createdBy->person) {
+      $data['advisor_name'] = $quotation->createdBy->id . ' - ' . ($quotation->createdBy->person->nombre_completo ?? '-');
+    } elseif ($purchaseRequest->requestedBy && $purchaseRequest->requestedBy->person) {
+      $data['advisor_name'] = $purchaseRequest->requestedBy->id . ' - ' . ($purchaseRequest->requestedBy->person->nombre_completo ?? '-');
+    } else {
+      $data['advisor_name'] = '-';
+    }
+
+    // Datos del almacén
+    $data['warehouse_name'] = $purchaseRequest->warehouse
+      ? $purchaseRequest->warehouse->id . ' - ' . $purchaseRequest->warehouse->description
+      : '-';
+
+    // Datos del vehículo
+    if ($hasQuotation && $quotation->vehicle) {
+      $vehicle = $quotation->vehicle;
+      $data['vehicle_plate'] = $vehicle->plate ?? '-';
+      $data['vehicle_vin'] = $vehicle->vin ?? '-';
+      $data['vehicle_model'] = $vehicle->model
+        ? ($vehicle->model->family->brand->name ?? '') . ' ' . ($vehicle->model->version ?? '')
+        : '-';
+    } else {
+      $data['vehicle_plate'] = '-';
+      $data['vehicle_vin'] = '-';
+      $data['vehicle_model'] = '-';
+    }
+
+    // Forma de pago (si hay cotización)
+    $data['payment_method'] = '-';
+
+    // Preparar detalles con precios de la cotización
+    $details = [];
+    $total = 0;
+
+    foreach ($purchaseRequest->details as $detail) {
+      $product = $detail->product;
+      $code = $product ? $product->code : '-';
+      $description = $product ? $product->name : '-';
+      $quantity = $detail->quantity;
+
+      // Buscar precio en la cotización si existe
+      $price = '-';
+      $discount = '-';
+      $lineTotal = '-';
+      $procedure = 'CENTRAL';
+
+      if ($hasQuotation) {
+        $quotationDetail = $quotation->details
+          ->where('product_id', $detail->product_id)
+          ->first();
+
+        if ($quotationDetail) {
+          $price = $quotationDetail->unit_price;
+          $discount = $quotationDetail->discount_percentage > 0 ? $quotationDetail->discount_percentage : '';
+          $lineTotal = $quotationDetail->total_amount;
+          $total += $lineTotal;
+        }
+      }
+
+      $details[] = [
+        'code' => $code,
+        'description' => $description,
+        'procedure' => $procedure,
+        'quantity' => number_format($quantity, 2),
+        'price' => is_numeric($price) ? number_format($price, 2) : $price,
+        'discount' => is_numeric($discount) ? number_format($discount, 2) : $discount,
+        'total' => is_numeric($lineTotal) ? number_format($lineTotal, 2) : $lineTotal,
+      ];
+    }
+
+    $data['details'] = $details;
+    $data['total'] = $hasQuotation ? number_format($total, 2) : '-';
+    $data['observations'] = $purchaseRequest->observations ?? '';
+
+    // Generar PDF
+    $pdf = Pdf::loadView('reports.ap.postventa.taller.order-purchase-request', [
+      'purchaseRequest' => $data
+    ]);
+
+    $pdf->setPaper('a4', 'portrait');
+
+    $fileName = 'Solicitud_Compra_' . $purchaseRequest->request_number . '.pdf';
+
+    return $pdf->download($fileName);
   }
 }
