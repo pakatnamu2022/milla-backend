@@ -103,19 +103,22 @@ class HierarchicalCategory extends BaseModel
     )->where('rrhh_persona.status_id', 22)->where('rrhh_persona.status_deleted', 1)->where('rrhh_persona.b_empleado', 1);
   }
 
-  public static function whereAllPersonsHaveJefe(bool $hasObjectives)
+  public static function whereAllPersonsHaveJefe(bool $hasObjectives, $cutOffDate = null)
   {
     $categories = self::where('excluded_from_evaluation', false)
       ->when($hasObjectives === true, function ($q) {
         $q->where('hasObjectives', true);
       })
       ->with([
-        'positions' => function ($q) {
-          $q->with(['persons' => function ($q2) {
+        'positions' => function ($q) use ($cutOffDate) {
+          $q->with(['persons' => function ($q2) use ($cutOffDate) {
             $q2->where('status_deleted', 1)
               ->where('b_empleado', 1)
               ->where('status_id', Constants::WORKER_ACTIVE)
               ->whereDoesntHave('evaluationDetails')
+              ->when($cutOffDate, function ($q3) use ($cutOffDate) {
+                $q3->where('fecha_inicio', '<=', $cutOffDate);
+              })
               ->with([
                 'evaluator' => function ($qb) {
                   $qb->with('position');

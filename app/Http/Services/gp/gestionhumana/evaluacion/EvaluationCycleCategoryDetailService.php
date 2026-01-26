@@ -51,7 +51,7 @@ class EvaluationCycleCategoryDetailService extends BaseService
     $cycle = $this->evaluationCycleService->find($cycleId);
 
     $listAllInValidatedCategories = HierarchicalCategory::whereAllPersonsHaveJefe
-    ($cycle->typeEvaluation == 0)
+    ($cycle->typeEvaluation == 0, $cycle->cut_off_date)
       ->filter(fn($category) => !$category->pass)
       ->pluck('id');
 
