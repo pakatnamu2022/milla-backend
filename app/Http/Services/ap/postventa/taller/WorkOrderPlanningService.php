@@ -52,7 +52,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     }
 
     if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-      throw new Exception('No se puede agregar mano de obra a una orden de trabajo cerrada');
+      throw new Exception('No se puede agregar planificación a una orden de trabajo cerrada');
     }
 
     // Calcular planned_end_datetime si es necesario
