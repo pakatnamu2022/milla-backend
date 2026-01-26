@@ -1797,12 +1797,17 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       throw new Exception('No se encontró la planilla de movilidad');
     }
 
+    // Sort expenses by date and group by date for subtotals
+    $sortedExpenses = $mobilityExpenses->sortBy('expense_date')->values();
+    $groupedExpenses = $sortedExpenses->groupBy('expense_date');
+
     // Calculate total
     $totalAmount = $mobilityExpenses->sum('receipt_amount');
 
     $pdf = PDF::loadView('reports.gp.gestionhumana.viaticos.mobility-payroll', [
       'mobilityPayroll' => $mobilityPayroll,
-      'expenses' => $mobilityExpenses,
+      'expenses' => $sortedExpenses,
+      'groupedExpenses' => $groupedExpenses,
       'totalAmount' => $totalAmount,
       'perDiemRequest' => $perDiemRequest,
     ]);

@@ -53,25 +53,29 @@
       width: 30%;
     }
 
-    table {
+    table.detail-table {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 15px;
     }
 
-    table, th, td {
+    table.detail-table, table.detail-table th, table.detail-table td {
       border: 1px solid #000;
     }
 
-    td, th {
-      padding: 6px 8px;
-      vertical-align: top;
+    table.detail-table td, table.detail-table th {
+      padding: 4px 6px;
+      vertical-align: middle;
     }
 
-    th {
+    table.detail-table th {
       background-color: #e0e0e0;
       font-weight: bold;
       text-align: center;
+      font-size: 8px;
+    }
+
+    .group-header {
       font-size: 9px;
     }
 
@@ -83,9 +87,16 @@
       text-align: right;
     }
 
-    .total-row {
-      background-color: #f5f5f5;
+    .subtotal-row {
+      background-color: #f0f0f0;
       font-weight: bold;
+      font-size: 9px;
+    }
+
+    .total-row {
+      background-color: #e0e0e0;
+      font-weight: bold;
+      font-size: 10px;
     }
 
     .footer-section {
@@ -106,12 +117,18 @@
       margin: 0 auto;
       padding-top: 5px;
     }
+
+    .note {
+      font-size: 8px;
+      margin-top: 10px;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
 
 <div class="title">
-  PLANILLA DE GASTOS DE MOVILIDAD
+  PLANILLA POR GASTOS DE MOVILIDAD - POR TRABAJADOR
 </div>
 
 <!-- Header Information -->
@@ -120,68 +137,76 @@
     <tr>
       <td class="label">DOCUMENTO:</td>
       <td class="value">{{ $mobilityPayroll->serie }}-{{ $mobilityPayroll->correlative }}</td>
-      <td class="label">PERÍODO:</td>
+      <td class="label">PERIODO:</td>
       <td class="value">{{ $mobilityPayroll->period }}</td>
     </tr>
     <tr>
-      <td class="label">TRABAJADOR:</td>
-      <td class="value" colspan="3">{{ $mobilityPayroll->worker->nombre_completo ?? 'N/A' }}</td>
-    </tr>
-    <tr>
-      <td class="label">DNI/RUC:</td>
-      <td class="value">{{ $mobilityPayroll->num_doc }}</td>
-      <td class="label">SEDE:</td>
-      <td class="value">{{ $mobilityPayroll->sede->abreviatura ?? 'N/A' }}</td>
+      <td class="label">FECHA DE EMISION:</td>
+      <td
+        class="value">{{ $mobilityPayroll->created_at ? \Carbon\Carbon::parse($mobilityPayroll->created_at)->format('d/m/Y') : now()->format('d/m/Y') }}</td>
+      <td class="label"></td>
+      <td class="value"></td>
     </tr>
     <tr>
       <td class="label">EMPRESA:</td>
-      <td class="value" colspan="3">{{ $mobilityPayroll->company_name }}</td>
+      <td class="value">{{ $mobilityPayroll->company_name }}</td>
+      <td class="label">SEDE:</td>
+      <td class="value">{{ $mobilityPayroll->sede->abreviatura ?? 'N/A' }}</td>
     </tr>
     @if($mobilityPayroll->address)
-    <tr>
-      <td class="label">DIRECCIÓN:</td>
-      <td class="value" colspan="3">{{ $mobilityPayroll->address }}</td>
-    </tr>
+      <tr>
+        <td class="label">DIRECCION:</td>
+        <td class="value" colspan="3">{{ $mobilityPayroll->address }}</td>
+      </tr>
     @endif
+  </table>
+
+  <table class="header-table">
+    <tr>
+      <td class="label">TRABAJADOR:</td>
+      <td class="value">{{ $mobilityPayroll->worker->nombre_completo ?? 'N/A' }}</td>
+      <td class="label">DNI:</td>
+      <td class="value">{{ $mobilityPayroll->worker->vat }}</td>
+    </tr>
   </table>
 </div>
 
 <!-- Expense Details Table -->
-<table>
+<table class="detail-table">
   <thead>
   <tr>
-    <th style="width: 8%;">N°</th>
-    <th style="width: 12%;">FECHA</th>
-    <th style="width: 25%;">TIPO GASTO</th>
-    <th style="width: 12%;">TIPO COMP.</th>
-    <th style="width: 15%;">N° COMP.</th>
-    <th style="width: 13%;">IMPORTE</th>
-    <th style="width: 15%;">OBSERVACIÓN</th>
+    <th colspan="3" class="group-header">Fecha de Gasto (**)</th>
+    <th colspan="2" class="group-header">Desplazamiento (**)</th>
+    <th colspan="2" class="group-header">Montos gastados por (**)</th>
+  </tr>
+  <tr>
+    <th style="width: 8%;">Dia</th>
+    <th style="width: 8%;">Mes</th>
+    <th style="width: 8%;">Año</th>
+    <th style="width: 25%;">Motivo</th>
+    <th style="width: 21%;">Destino</th>
+    <th style="width: 15%;">Importe</th>
+    <th style="width: 15%;">Firma</th>
   </tr>
   </thead>
   <tbody>
-  @php $counter = 1; @endphp
-  @foreach($expenses as $expense)
-    <tr>
-      <td class="text-center">{{ $counter++ }}</td>
-      <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('d/m/Y') }}</td>
-      <td>{{ $expense->expenseType->name ?? 'N/A' }}</td>
-      <td class="text-center">
-        @if($expense->receipt_type === 'invoice')
-          Factura
-        @elseif($expense->receipt_type === 'boleta')
-          Boleta
-        @elseif($expense->receipt_type === 'ticket')
-          Ticket
-        @elseif($expense->receipt_type === 'no_receipt')
-          Sin Comp.
-        @else
-          {{ $expense->receipt_type }}
-        @endif
-      </td>
-      <td class="text-center">{{ $expense->receipt_number ?? '-' }}</td>
-      <td class="text-right">S/ {{ number_format($expense->receipt_amount, 2) }}</td>
-      <td>{{ $expense->notes ?? '-' }}</td>
+  @foreach($groupedExpenses as $date => $dateExpenses)
+    @foreach($dateExpenses as $expense)
+      <tr>
+        <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('d') }}</td>
+        <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('m') }}</td>
+        <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('Y') }}</td>
+        <td>{{ $expense->expenseType->name ?? 'N/A' }}</td>
+        <td>{{ $expense->notes ?? '-' }}</td>
+        <td class="text-right">S/ {{ number_format($expense->receipt_amount, 2) }}</td>
+        <td></td>
+      </tr>
+    @endforeach
+    <!-- Subtotal per date -->
+    <tr class="subtotal-row">
+      <td colspan="5" class="text-right">Subtotal {{ \Carbon\Carbon::parse($date)->format('d/m/Y') }}:</td>
+      <td class="text-right">S/ {{ number_format($dateExpenses->sum('receipt_amount'), 2) }}</td>
+      <td></td>
     </tr>
   @endforeach
 
@@ -194,18 +219,12 @@
   </tbody>
 </table>
 
+<p class="note">(**) Datos obligatorios</p>
+
 <!-- Footer -->
 <div class="footer-section">
   <p>Total de gastos: {{ $expenses->count() }}</p>
   <p>Importe total: S/ {{ number_format($totalAmount, 2) }}</p>
-</div>
-
-<!-- Signature Section -->
-<div class="signature-section">
-  <br><br><br>
-  <div class="signature-line">
-    Firma del Trabajador
-  </div>
 </div>
 
 </body>
