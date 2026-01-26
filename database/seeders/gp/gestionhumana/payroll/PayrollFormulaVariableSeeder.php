@@ -22,7 +22,7 @@ class PayrollFormulaVariableSeeder extends Seeder
         'name' => 'Minimum Wage',
         'description' => 'Peru minimum wage (RMV)',
         'type' => 'FIXED',
-        'value' => 1025.0000,
+        'value' => 1125.0000,
         'source_field' => null,
         'formula' => null,
         'active' => true,

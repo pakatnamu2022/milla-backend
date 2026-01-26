@@ -102,6 +102,7 @@ use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableControll
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollPeriodController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkTypeController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkTypeSegmentController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\AreaController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
@@ -1366,6 +1367,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::group(['prefix' => 'gp/gh/payroll'], function () {
     // Work Types
     Route::apiResource('work-types', PayrollWorkTypeController::class);
+
+    // Work Type Segments
+    Route::prefix('work-types/{workTypeId}/segments')->group(function () {
+      Route::get('/', [PayrollWorkTypeSegmentController::class, 'index']);
+      Route::post('/', [PayrollWorkTypeSegmentController::class, 'store']);
+      Route::put('/{id}', [PayrollWorkTypeSegmentController::class, 'update']);
+      Route::delete('/{id}', [PayrollWorkTypeSegmentController::class, 'destroy']);
+    });
 
     // Formula Variables
     Route::apiResource('formula-variables', PayrollFormulaVariableController::class);

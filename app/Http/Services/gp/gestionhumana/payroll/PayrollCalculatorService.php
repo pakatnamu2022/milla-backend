@@ -157,14 +157,22 @@ class PayrollCalculatorService extends BaseService
     }
 
     // Get worker's schedules for this period
-    $schedules = PayrollSchedule::with(['workType'])
+    $schedules = PayrollSchedule::with(['workType.segments'])
       ->where('period_id', $period->id)
       ->where('worker_id', $workerId)
       ->where('status', PayrollSchedule::STATUS_WORKED)
       ->get();
 
-    // Calculate hours summary
-    $hoursSummary = $this->calculateHoursSummary($schedules);
+    // Calculate segmented hours
+    $segmentedHours = $this->calculateSegmentedHours($schedules);
+
+    // Calculate worker rates
+    $sueldo = (float) ($worker->sueldo ?? 0);
+    $dailyRate = $sueldo / 30;
+    $hourlyRate = $dailyRate / 8;
+
+    // Calculate segmented earnings
+    $segmentedEarnings = $this->calculateSegmentedEarnings($segmentedHours, $hourlyRate);
 
     // Get or create calculation
     $calculation = PayrollCalculation::updateOrCreate(
@@ -175,13 +183,13 @@ class PayrollCalculatorService extends BaseService
       [
         'company_id' => $worker->sede->empresa_id ?? null,
         'sede_id' => $worker->sede_id,
-        'total_normal_hours' => $hoursSummary['normal_hours'],
-        'total_extra_hours_25' => $hoursSummary['extra_hours_25'],
-        'total_extra_hours_35' => $hoursSummary['extra_hours_35'],
-        'total_night_hours' => $hoursSummary['night_hours'],
-        'total_holiday_hours' => $hoursSummary['holiday_hours'],
-        'days_worked' => $hoursSummary['days_worked'],
-        'days_absent' => $hoursSummary['days_absent'],
+        'total_normal_hours' => $segmentedHours['total_worked_hours'],
+        'total_extra_hours_25' => 0, // Deprecated with segments
+        'total_extra_hours_35' => 0, // Deprecated with segments
+        'total_night_hours' => $segmentedHours['by_work_type']['NT']['net_hours'] ?? 0,
+        'total_holiday_hours' => 0,
+        'days_worked' => $segmentedHours['days_worked'],
+        'days_absent' => $segmentedHours['days_absent'],
         'status' => PayrollCalculation::STATUS_DRAFT,
         'calculated_at' => now(),
         'calculated_by' => auth()->id(),
@@ -191,8 +199,11 @@ class PayrollCalculatorService extends BaseService
     // Delete existing details
     $calculation->details()->delete();
 
-    // Build variables for formula evaluation
-    $variables = $this->buildVariables($worker, $hoursSummary, $formulaVariables);
+    // Build variables for formula evaluation (merge with segmented variables)
+    $variables = array_merge(
+      $this->buildVariables($worker, $segmentedHours, $formulaVariables),
+      $segmentedEarnings['variables']
+    );
 
     // Calculate each concept
     $totalEarnings = 0;
@@ -336,16 +347,185 @@ class PayrollCalculatorService extends BaseService
       'HOURLY_RATE' => round($hourlyRate, 4),
 
       // Hours worked
-      'NORMAL_HOURS' => $hoursSummary['normal_hours'],
-      'EXTRA_HOURS_25' => $hoursSummary['extra_hours_25'],
-      'EXTRA_HOURS_35' => $hoursSummary['extra_hours_35'],
-      'NIGHT_HOURS' => $hoursSummary['night_hours'],
-      'HOLIDAY_HOURS' => $hoursSummary['holiday_hours'],
+      'NORMAL_HOURS' => $hoursSummary['normal_hours'] ?? 0,
+      'EXTRA_HOURS_25' => $hoursSummary['extra_hours_25'] ?? 0,
+      'EXTRA_HOURS_35' => $hoursSummary['extra_hours_35'] ?? 0,
+      'NIGHT_HOURS' => $hoursSummary['night_hours'] ?? 0,
+      'HOLIDAY_HOURS' => $hoursSummary['holiday_hours'] ?? 0,
 
       // Days
-      'DAYS_WORKED' => $hoursSummary['days_worked'],
-      'DAYS_ABSENT' => $hoursSummary['days_absent'],
+      'DAYS_WORKED' => $hoursSummary['days_worked'] ?? 0,
+      'DAYS_ABSENT' => $hoursSummary['days_absent'] ?? 0,
     ]);
+  }
+
+  /**
+   * Calculate hours using segment-based approach
+   *
+   * @param \Illuminate\Support\Collection $schedules Worker's schedules for the period
+   * @return array Segmented hours breakdown
+   */
+  protected function calculateSegmentedHours($schedules): array
+  {
+    $result = [
+      'by_work_type' => [], // Detailed breakdown per work type
+      'total_worked_hours' => 0,
+      'total_break_hours' => 0,
+      'days_worked' => 0,
+    ];
+
+    foreach ($schedules as $schedule) {
+      $workType = $schedule->workType;
+      $hoursWorked = (float) $schedule->hours_worked;
+      $extraHours = (float) $schedule->extra_hours;
+      $totalHours = $hoursWorked + $extraHours;
+
+      // Initialize work type data if not exists
+      if (!isset($result['by_work_type'][$workType->code])) {
+        $result['by_work_type'][$workType->code] = [
+          'total_hours' => 0,
+          'break_hours' => 0,
+          'net_hours' => 0,
+          'nocturnal_base' => (float) $workType->nocturnal_base_multiplier,
+          'segments' => [],
+        ];
+      }
+
+      // Get segments ordered
+      $segments = $workType->segments;
+
+      if ($segments->isEmpty()) {
+        // Legacy mode: no segments defined, use simple multiplier
+        $result['by_work_type'][$workType->code]['total_hours'] += $totalHours;
+        $result['by_work_type'][$workType->code]['net_hours'] += $totalHours;
+        $result['total_worked_hours'] += $totalHours;
+        $result['days_worked']++;
+        continue;
+      }
+
+      // Segment-based calculation
+      $remainingHours = $totalHours;
+      $dailyBreakHours = 0;
+
+      foreach ($segments as $segment) {
+        if ($remainingHours <= 0 && $segment->isWork()) {
+          break; // No more hours to allocate for work segments
+        }
+
+        if ($segment->isWork()) {
+          $segmentDuration = min($remainingHours, (float) $segment->duration_hours);
+
+          // Calculate effective multiplier (nocturnal base × segment multiplier)
+          $effectiveMultiplier = $workType->nocturnal_base_multiplier * $segment->multiplier;
+
+          $result['by_work_type'][$workType->code]['segments'][] = [
+            'order' => $segment->segment_order,
+            'type' => 'WORK',
+            'duration' => $segmentDuration,
+            'segment_multiplier' => (float) $segment->multiplier,
+            'nocturnal_base' => (float) $workType->nocturnal_base_multiplier,
+            'effective_multiplier' => $effectiveMultiplier,
+            'description' => $segment->description,
+          ];
+
+          $remainingHours -= $segmentDuration;
+
+        } elseif ($segment->isBreak()) {
+          // Break deduction
+          $breakDuration = (float) $segment->duration_hours;
+          $dailyBreakHours += $breakDuration;
+
+          $result['by_work_type'][$workType->code]['segments'][] = [
+            'order' => $segment->segment_order,
+            'type' => 'BREAK',
+            'duration' => $breakDuration,
+            'deduction_hours' => $breakDuration,
+            'description' => $segment->description,
+          ];
+        }
+      }
+
+      // Handle extra hours beyond configured segments
+      if ($remainingHours > 0) {
+        // Extra hours beyond shift use the last work segment's multiplier
+        $workSegments = collect($result['by_work_type'][$workType->code]['segments'])
+          ->where('type', 'WORK');
+
+        $lastWorkSegment = $workSegments->last();
+        $extraMultiplier = $lastWorkSegment['effective_multiplier'] ?? 1.35;
+
+        $result['by_work_type'][$workType->code]['segments'][] = [
+          'order' => 999,
+          'type' => 'EXTRA',
+          'duration' => $remainingHours,
+          'effective_multiplier' => $extraMultiplier,
+          'description' => 'Extra hours beyond configured segments',
+        ];
+      }
+
+      // Update totals for this work type
+      $result['by_work_type'][$workType->code]['total_hours'] += $totalHours;
+      $result['by_work_type'][$workType->code]['break_hours'] += $dailyBreakHours;
+      $result['by_work_type'][$workType->code]['net_hours'] += ($totalHours - $dailyBreakHours);
+
+      $result['total_worked_hours'] += ($totalHours - $dailyBreakHours);
+      $result['total_break_hours'] += $dailyBreakHours;
+      $result['days_worked']++;
+    }
+
+    $result['days_absent'] = max(0, 30 - $result['days_worked']);
+
+    return $result;
+  }
+
+  /**
+   * Calculate earnings from segmented hours breakdown
+   *
+   * @param array $segmentedHours Result from calculateSegmentedHours()
+   * @param float $hourlyRate Worker's hourly rate
+   * @return array Earnings breakdown and variables for formulas
+   */
+  protected function calculateSegmentedEarnings(array $segmentedHours, float $hourlyRate): array
+  {
+    $earnings = [];
+    $variables = [];
+    $totalEarnings = 0;
+
+    foreach ($segmentedHours['by_work_type'] as $workTypeCode => $workTypeData) {
+      if (empty($workTypeData['segments'])) {
+        // Legacy calculation - should not happen with current seeder
+        continue;
+      }
+
+      // Segment-based calculation
+      $workTypeTotal = 0;
+
+      foreach ($workTypeData['segments'] as $segment) {
+        if ($segment['type'] === 'WORK' || $segment['type'] === 'EXTRA') {
+          $segmentEarning = $segment['duration'] * $hourlyRate * $segment['effective_multiplier'];
+          $workTypeTotal += $segmentEarning;
+        } elseif ($segment['type'] === 'BREAK') {
+          // Break deduction
+          $breakDeduction = $segment['duration'] * $hourlyRate;
+          $workTypeTotal -= $breakDeduction;
+        }
+      }
+
+      $earnings[$workTypeCode] = $workTypeTotal;
+      $variables["{$workTypeCode}_HOURS"] = $workTypeData['net_hours'];
+      $variables["{$workTypeCode}_EARNINGS"] = round($workTypeTotal, 2);
+      $totalEarnings += $workTypeTotal;
+    }
+
+    $variables['SEGMENTED_TOTAL_EARNINGS'] = round($totalEarnings, 2);
+    $variables['TOTAL_WORKED_HOURS'] = $segmentedHours['total_worked_hours'];
+    $variables['TOTAL_BREAK_HOURS'] = $segmentedHours['total_break_hours'];
+
+    return [
+      'earnings' => $earnings,
+      'variables' => $variables,
+      'total' => $totalEarnings,
+    ];
   }
 
   /**

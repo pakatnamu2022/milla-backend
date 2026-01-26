@@ -18,6 +18,9 @@ class PayrollWorkType extends BaseModel
     'description',
     'multiplier',
     'base_hours',
+    'shift_start_time',
+    'shift_duration_hours',
+    'nocturnal_base_multiplier',
     'is_extra_hours',
     'is_night_shift',
     'is_holiday',
@@ -29,6 +32,9 @@ class PayrollWorkType extends BaseModel
   protected $casts = [
     'multiplier' => 'decimal:4',
     'base_hours' => 'integer',
+    'shift_start_time' => 'datetime',
+    'shift_duration_hours' => 'decimal:2',
+    'nocturnal_base_multiplier' => 'decimal:4',
     'is_extra_hours' => 'boolean',
     'is_night_shift' => 'boolean',
     'is_holiday' => 'boolean',
@@ -84,5 +90,21 @@ class PayrollWorkType extends BaseModel
   public function scopeNightShift($query)
   {
     return $query->where('is_night_shift', true);
+  }
+
+  /**
+   * Get all segments for this work type
+   */
+  public function segments(): HasMany
+  {
+    return $this->hasMany(PayrollWorkTypeSegment::class, 'work_type_id')->ordered();
+  }
+
+  /**
+   * Get total shift duration from segments
+   */
+  public function getTotalSegmentDuration(): float
+  {
+    return $this->segments->sum('duration_hours');
   }
 }

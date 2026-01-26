@@ -4,6 +4,7 @@ namespace App\Http\Controllers\gp\gestionhumana\payroll;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\payroll\StorePayrollPeriodRequest;
+use App\Http\Requests\gp\gestionhumana\payroll\UpdatePayrollPeriodRequest;
 use App\Http\Services\gp\gestionhumana\payroll\PayrollPeriodService;
 use Exception;
 use Illuminate\Http\Request;
@@ -56,10 +57,10 @@ class PayrollPeriodController extends Controller
   /**
    * Update the specified period
    */
-  public function update(Request $request, int $id)
+  public function update(UpdatePayrollPeriodRequest $request, int $id)
   {
     try {
-      $data = $request->only(['payment_date', 'status']);
+      $data = $request->validated();
       $data['id'] = $id;
       return $this->success($this->service->update($data));
     } catch (Exception $e) {
