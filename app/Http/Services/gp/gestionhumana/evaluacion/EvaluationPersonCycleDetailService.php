@@ -140,7 +140,7 @@ class EvaluationPersonCycleDetailService extends BaseService
               'objective' => $objective->name,
               'goal' => $goal,
               'weight' => $weight,
-              'metric' => $objective->metric->name,
+              'metric' => $objective->metric->name ?? throw new Exception('El objetivo ' . $objective->name . ' no tiene una métrica asignada.'),
               'end_date_objectives' => $lastCycle->end_date_objectives,
             ];
             EvaluationPersonCycleDetail::create($data);
@@ -507,6 +507,9 @@ class EvaluationPersonCycleDetailService extends BaseService
       'objective' => $objective->name,
       'goal' => $goal,
       'weight' => $weight,
+      'metric' => $objective->metric->name ?? throw new Exception('El objetivo ' . $objective->name . ' no tiene una métrica asignada.'),
+      'end_date_objectives' => $cycle->end_date_objectives,
+      'isAscending' => $objective->isAscending,
     ];
 
     EvaluationPersonCycleDetail::create($data);

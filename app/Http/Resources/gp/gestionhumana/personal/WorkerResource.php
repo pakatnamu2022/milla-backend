@@ -23,6 +23,7 @@ class WorkerResource extends JsonResource
 
     $response = [
       'id' => $this->id,
+      'supervisor_id' => $this->supervisor_id,
       'name' => $this->nombre_completo,
       'document' => $this->vat,
       'sede' => $this->sede?->abreviatura,

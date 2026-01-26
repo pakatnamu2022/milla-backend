@@ -25,6 +25,7 @@ class Worker extends BaseModel
     'nombre_completo',
     'sede_id',
     'jefe_id',
+    'supervisor_id',
     'email',
     'email2',
     'email3',
@@ -32,6 +33,7 @@ class Worker extends BaseModel
   ];
 
   const filters = [
+    'id' => '=',
     'search' => ['nombre_completo', 'vat'],
     'vat' => 'like',
     'sede.empresa_id' => '=',
