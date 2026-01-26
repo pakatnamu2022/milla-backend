@@ -81,7 +81,7 @@ class ApWorkOrder extends Model
     'vehicle_id' => '=',
     'vehicle_plate' => 'like',
     'vehicle_vin' => 'like',
-    'status_id' => '=',
+    'status_id' => 'in_or_equal',
     'advisor_id' => '=',
     'sede_id' => '=',
     'opening_date' => 'date_between',
@@ -210,7 +210,6 @@ class ApWorkOrder extends Model
 
   public function advancesWorkOrder(): HasMany
   {
-    return $this->hasMany(ElectronicDocument::class, 'work_order_id')
-      ->where('is_advance_payment', true);
+    return $this->hasMany(ElectronicDocument::class, 'work_order_id');
   }
 }
