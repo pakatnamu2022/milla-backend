@@ -130,6 +130,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
       }
 
+      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+        throw new Exception('No se puede modificar una orden de trabajo cerrada');
+      }
+
       // Detectar si cambió el tipo de moneda
       $oldCurrencyId = $workOrder->currency_id;
       $newCurrencyId = $data['currency_id'] ?? $oldCurrencyId;
@@ -161,6 +165,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   public function destroy($id)
   {
     $workOrder = $this->find($id);
+
+    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+      throw new Exception('No se puede eliminar una orden de trabajo cerrada');
+    }
 
     if ($workOrder->appointment_planning_id !== null) {
       $appointmentPlanning = AppointmentPlanning::find($workOrder->appointment_planning_id);

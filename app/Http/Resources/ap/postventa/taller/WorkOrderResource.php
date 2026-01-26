@@ -55,7 +55,9 @@ class WorkOrderResource extends JsonResource
       'vehicle_inspection' => new ApVehicleInspectionResource($this->whenLoaded('vehicleInspection')),
       'items' => WorkOrderItemResource::collection($this->whenLoaded('items')),
       'order_quotation' => new ApOrderQuotationsResource($this->whenLoaded('orderQuotation')),
-      'advances' => ElectronicDocumentResource::collection($this->whenLoaded('advancesWorkOrder')),
+      'advances' => ElectronicDocumentResource::collection(
+        $this->whenLoaded('advancesWorkOrder', fn() => $this->advancesWorkOrder->filter(fn($advance) => $advance->aceptada_por_sunat == 1))
+      ),
       'status' => new ApMastersResource($this->status)
     ];
   }
