@@ -84,11 +84,6 @@
       text-align: left;
     }
 
-    .company-name {
-      font-weight: bold;
-      font-size: 11px;
-      margin-bottom: 3px;
-    }
 
     .quotation-info {
       margin-bottom: 10px;
@@ -164,32 +159,6 @@
       text-align: left;
     }
 
-    .totals-section {
-      margin-top: 10px;
-      margin-bottom: 10px;
-      text-align: right;
-    }
-
-    .totals-section table {
-      width: 50%;
-      margin-left: auto;
-      border-collapse: collapse;
-      font-size: 9px;
-    }
-
-    .totals-section td {
-      padding: 3px 8px;
-      border: none;
-    }
-
-    .totals-section .label-total {
-      font-weight: bold;
-      text-align: left;
-    }
-
-    .totals-section .value-total {
-      text-align: right;
-    }
 
     .important-section {
       margin-top: 15px;
@@ -218,59 +187,6 @@
       margin-bottom: 3px;
     }
 
-    .cards-section {
-      margin-top: 15px;
-      margin-bottom: 15px;
-    }
-
-    .section-title {
-      font-weight: bold;
-      font-size: 11px;
-      margin-bottom: 10px;
-      text-align: center;
-      text-decoration: underline;
-    }
-
-    .cards-container {
-      display: table;
-      width: 100%;
-      table-layout: fixed;
-    }
-
-    .card {
-      display: table-cell;
-      width: 25%;
-      padding: 8px;
-      border: 1px solid #000;
-      vertical-align: top;
-      font-size: 8px;
-    }
-
-    .card-header {
-      font-weight: bold;
-      font-size: 9px;
-      margin-bottom: 5px;
-      text-align: center;
-      border-bottom: 1px solid #ccc;
-      padding-bottom: 3px;
-    }
-
-    .card-content {
-      line-height: 1.4;
-    }
-
-    .card-content div {
-      margin-bottom: 3px;
-    }
-
-    .card-content-header {
-      text-align: center;
-      font-weight: bold
-    }
-
-    .card-label {
-      font-weight: bold;
-    }
 
     .signature-section {
       margin-top: 30px;
@@ -371,30 +287,6 @@
   </tr>
 </table>
 
-<!-- Sección 2: Datos del Vehículo -->
-@if(isset($quotation['vehicle_plate']) && $quotation['vehicle_plate'] && $quotation['vehicle_plate'] !== 'N/A')
-  <table class="data-section">
-    <tr>
-      <td colspan="4" class="section-header">DATOS DEL VEHÍCULO</td>
-    </tr>
-    <tr>
-      <td class="label-cell">Placa:</td>
-      <td>{{ $quotation['vehicle_plate'] }}</td>
-      <td class="label-cell">Nº Chasis:</td>
-      <td>{{ $quotation['vehicle_vin'] }}</td>
-    </tr>
-    <tr>
-      <td class="label-cell">Modelo:</td>
-      <td colspan="3">{{ $quotation['vehicle_brand'] }} {{ $quotation['vehicle_model'] }}</td>
-    </tr>
-    <tr>
-      <td class="label-cell">Color:</td>
-      <td>{{ $quotation['vehicle_color'] }}</td>
-      <td class="label-cell">Nº Motor:</td>
-      <td>{{ $quotation['vehicle_engine'] }}</td>
-    </tr>
-  </table>
-@endif
 
 <!-- Sección 3: Detalle de la Cotización -->
 <table class="details-table">
@@ -430,35 +322,105 @@
   </tbody>
 </table>
 
-<!-- Totales -->
-<div class="totals-section">
-  <table>
-    <tr>
-      <td class="label-total">Subtotal:</td>
-      <td
-        class="value-total">{{$quotation['type_currency']->symbol}} {{ number_format($quotation['subtotal'], 2) }}</td>
-    </tr>
-    <tr>
-      <td class="label-total">Total Dtos.:</td>
-      <td
-        class="value-total">{{$quotation['type_currency']->symbol}} {{ number_format($quotation['total_discounts'], 2) }}</td>
-    </tr>
-    <tr>
-      <td class="label-total">OP. Gravadas:</td>
-      <td
-        class="value-total">{{$quotation['type_currency']->symbol}} {{ number_format($quotation['op_gravada'], 2) }}</td>
-    </tr>
-    <tr>
-      <td class="label-total">IGV 18%:</td>
-      <td
-        class="value-total">{{$quotation['type_currency']->symbol}} {{ number_format($quotation['tax_amount'], 2) }}</td>
-    </tr>
-    <tr>
-      <td class="label-total">Total:</td>
-      <td
-        class="value-total">{{$quotation['type_currency']->code}} {{ number_format($quotation['total_amount'], 2) }}</td>
-    </tr>
-  </table>
+<!-- Sección de Vehículo y Totales en la misma fila -->
+<div style="width: 100%; display: table; margin-bottom: 10px;">
+  @if(isset($quotation['vehicle_plate']) && $quotation['vehicle_plate'] && $quotation['vehicle_plate'] !== 'N/A')
+    <!-- Datos del Vehículo (Izquierda) -->
+    <div style="display: table-cell; width: 50%; vertical-align: top; padding-right: 10px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+        <tr>
+          <td colspan="4"
+              style="font-weight: bold; padding: 5px; border: 1px solid #000;">
+            DATOS DEL VEHÍCULO
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" style="font-weight: bold; width: 30%; padding: 5px; border: 1px solid #000;">Placa:</td>
+          <td colspan="1" style="padding: 5px; border: 1px solid #000;">{{ $quotation['vehicle_plate'] }}</td>
+          <td colspan="1" style="font-weight: bold; padding: 5px; border: 1px solid #000;">Nº Chasis:</td>
+          <td colspan="1" style="padding: 5px; border: 1px solid #000;">{{ $quotation['vehicle_vin'] }}</td>
+        </tr>
+        <tr>
+          <td colspan="1" style="font-weight: bold; padding: 5px; border: 1px solid #000;">Nº Motor:</td>
+          <td colspan="3" style="padding: 5px; border: 1px solid #000;">{{ $quotation['vehicle_engine'] }}</td>
+        </tr>
+        <tr>
+          <td colspan="1" style="font-weight: bold; padding: 5px; border: 1px solid #000;">Modelo:</td>
+          <td colspan="3"
+              style="padding: 5px; border: 1px solid #000;">{{ $quotation['vehicle_brand'] }} {{ $quotation['vehicle_model'] }}</td>
+        </tr>
+        <tr>
+          <td colspan="1" style="font-weight: bold; padding: 5px; border: 1px solid #000;">Color:</td>
+          <td colspan="3" style="padding: 5px; border: 1px solid #000;">{{ $quotation['vehicle_color'] }}</td>
+        </tr>
+      </table>
+    </div>
+  @else
+    <!-- Espacio vacío (Izquierda) cuando no hay vehículo -->
+    <div style="display: table-cell; width: 50%; vertical-align: top; padding-right: 10px;">
+      &nbsp;
+    </div>
+  @endif
+
+  <!-- Totales (Derecha) -->
+  <div style="display: table-cell; width: 50%; vertical-align: top; padding-left: 10px;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+      <tr>
+        <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">Subtotal:</td>
+        <td style="text-align: right; padding: 5px; border: 1px solid #000;">
+          {{$quotation['type_currency']->symbol}} {{ number_format($quotation['subtotal'], 2) }}
+        </td>
+      </tr>
+      <tr>
+        <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">Total Dtos.:</td>
+        <td style="text-align: right; padding: 5px; border: 1px solid #000;">
+          {{$quotation['type_currency']->symbol}} {{ number_format($quotation['total_discounts'], 2) }}
+        </td>
+      </tr>
+      <tr>
+        <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">OP. Gravadas:</td>
+        <td style="text-align: right; padding: 5px; border: 1px solid #000;">
+          {{$quotation['type_currency']->symbol}} {{ number_format($quotation['op_gravada'], 2) }}
+        </td>
+      </tr>
+      <tr>
+        <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">IGV 18%:</td>
+        <td style="text-align: right; padding: 5px; border: 1px solid #000;">
+          {{$quotation['type_currency']->symbol}} {{ number_format($quotation['tax_amount'], 2) }}
+        </td>
+      </tr>
+      <tr>
+        <td
+          style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000; background-color: #f0f0f0;">
+          Total:
+        </td>
+        <td
+          style="text-align: right; padding: 5px; border: 1px solid #000; background-color: #f0f0f0; font-weight: bold;">
+          {{$quotation['type_currency']->code}} {{ number_format($quotation['total_amount'], 2) }}
+        </td>
+      </tr>
+      @if($quotation['total_pagado'] > 0)
+        <tr>
+          <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">
+            A Cuenta:
+          </td>
+          <td style="text-align: right; padding: 5px; border: 1px solid #000;">
+            {{$quotation['type_currency']->code}} {{ number_format($quotation['total_pagado'], 2) }}
+          </td>
+        </tr>
+        <tr>
+          <td
+            style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000; background-color: #f0f0f0;">
+            Saldo Pendiente:
+          </td>
+          <td
+            style="text-align: right; padding: 5px; border: 1px solid #000; background-color: #f0f0f0; font-weight: bold;">
+            {{$quotation['type_currency']->code}} {{ number_format($quotation['saldo_pendiente'], 2) }}
+          </td>
+        </tr>
+      @endif
+    </table>
+  </div>
 </div>
 
 <!-- Sección de Firma del Cliente -->
@@ -477,160 +439,8 @@
 <div class="important-section">
   <div class="important-title">IMPORTANTE</div>
   <div class="important-content">
-    <ol>
-      <li>LOS PRECIOS MOSTRADOS SON EN SOLES E INCLUYEN IGV.</li>
-      <li>AQUELLOS REPUESTOS QUE SEAN MATERIA DE IMPORTACIÓN, SERÁN ENTREGADOS EN PLAZO MÍNIMO DE 90 A 120 DÍAS
-        NATURALES (SUJETO A STOCK DE FÁBRICA). EL CUAL SE EMPIEZA A COMPUTAR DESDE EL DÍA SIGUIENTE DE APROBADO Y
-        ABONADO (100%) POR DEL CLIENTE.
-      </li>
-      <li>AQUELLOS REPUESTOS QUE SE ENCUENTREN EN STOCK Y SEA NECESARIO OBTENER DEL ALMACÉN LIMA, SERÁN ENTREGADOS EN
-        PLAZO MÍNIMO DE 04 DÍAS NATURALES, EL CUAL SE EMPIEZA A COMPUTAR DESDE EL DÍA SIGUIENTE DE APROBADO Y PAGADO
-        (50% O 100%) POR EL CLIENTE.
-      </li>
-      <li>
-        STOCK DISPONIBLE DE REPUESTOS PUEDE VARIAR SEGÚN EL TIEMPO DE CONFIRMACIÓN DE COMPRA DE LOS MISMOS.
-      </li>
-      <li>UNA VEZ APROBADO Y GENERADO EL PEDIDO, NO SE ACEPTAN CAMBIOS NI DEVOLUCIONES.</li>
-      <li>EL CLIENTE FIRMA EN SEÑAL DE CONFORMIDAD CON LO COTIZADO Y ASUME LA ACEPTACIÓN DE LAS OBSERVACIONES ACERCA DE
-        DISPONIBILIDAD Y PENALIDADES. SE PRECISA QUE EN EL SIGUIENTE CASO QUE EL RECIBA EL REPUESTO SOLICITADO EN
-        ALMACENES DE API (STOCK) Y EN ALMACENES LIMA, E INCURRA EN ALGUNA DEVOLUCIÓN QUE PUEDA GENERAR TRÁMITES
-        ADMINISTRATIVOS ADICIONALES, EL CLIENTE FIRMANTE ACEPTA LA CANCELACIÓN DE MÍNIMO S/25.00 O EL 15% DEL VALOR
-        TOTAL.
-      </li>
-      <li>
-        COTIZACIÓN VÁLIDA PARA 04 DÍAS NATURALES.
-      </li>
-    </ol>
-  </div>
-</div>
-
-<!-- Sección CUENTA AP -->
-<div class="cards-section">
-  <div class="section-title">CUENTAS AP</div>
-  <div class="cards-container">
-    <div class="card">
-      <div class="card-header">CHICLAYO</div>
-      <div class="card-content">
-        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
-        <div><span class="card-label">SOLES:</span> 305-2041106-0-39</div>
-        <div><span class="card-label">CCI:</span> 002-305-002041106039-13</div>
-        <div><span class="card-label">DÓLARES:</span> 305-2032097-1-49</div>
-        <div><span class="card-label">CCI:</span> 002-305-002032097149-10</div>
-        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
-        <div><span class="card-label">SOLES:</span> 0011-0279-0100020589</div>
-        <div><span class="card-label">CCI:</span> 011279000100020589­76</div>
-        <div><span class="card-label">DÓLARES:</span> 0011-0279-0100020597</div>
-        <div><span class="card-label">CCI:</span> 011279000100020597­79</div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header">PIURA</div>
-      <div class="card-content">
-        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
-        <div><span class="card-label">SOLES:</span> 475-2660047-0-39</div>
-        <div><span class="card-label">CCI:</span> 002-475-002660047039-22</div>
-        <div><span class="card-label">DÓLARES:</span> 475-2573597-1-16</div>
-        <div><span class="card-label">CCI:</span> 002-475-002573597116-27</div>
-        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
-        <div><span class="card-label">SOLES:</span> 0011-0267-0100130672</div>
-        <div><span class="card-label">CCI:</span> 011267000100130672­27</div>
-        <div><span class="card-label">DÓLARES:</span> 0011-0267-0100130680</div>
-        <div><span class="card-label">CCI:</span> 011267000100130680­20</div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header">CAJAMARCA</div>
-      <div class="card-content">
-        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
-        <div><span class="card-label">SOLES:</span> 245-2661107-0-14</div>
-        <div><span class="card-label">CCI:</span> 002-245-002661107014-90</div>
-        <div><span class="card-label">DÓLARES:</span> 245-2663485-1-44</div>
-        <div><span class="card-label">CCI:</span> 002-245-002663485144-93</div>
-        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
-        <div><span class="card-label">SOLES:</span> 0011-0277-0100080793</div>
-        <div><span class="card-label">CCI:</span> 011277000100080793­11</div>
-        <div><span class="card-label">DÓLARES:</span> 0011-0277-0100080807</div>
-        <div><span class="card-label">CCI:</span> 011277 000100080807­19</div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header">JAÉN</div>
-      <div class="card-content">
-        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
-        <div><span class="card-label">SOLES:</span> 395-5394658-0-80</div>
-        <div><span class="card-label">CCI:</span> 002-395-005394558080-20</div>
-        <div><span class="card-label">DÓLARES:</span> 395-2415578-1-84</div>
-        <div><span class="card-label">CCI:</span> 002-395-002415578184-22</div>
-        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
-        <div><span class="card-label">SOLES:</span> 0011-0409-0100005801</div>
-        <div><span class="card-label">CCI:</span> 011409000100005801­04</div>
-        <div><span class="card-label">DÓLARES:</span> 0011-0409-0100005828</div>
-        <div><span class="card-label">CCI:</span> 011409000100005828­07</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Sección UBÍCANOS EN -->
-<div class="cards-section">
-  <div class="section-title">UBÍCANOS EN</div>
-  <div class="cards-container">
-    <div class="card">
-      <div class="card-header">CHICLAYO</div>
-      <div class="card-content">
-        <div><span class="card-label">Dirección:</span></div>
-        <div>CAR. PANAMERICANA NORTE #1006 - CHICLAYO - LAMBAYEQUE (COSTADO DEL COLEGIO SANTO TORIBIO DE MOGROVEJO,
-          CRUCE CON AV. LEGUÍA)
-        </div>
-        <div><span class="card-label">CITAS TALLER:</span> 944 296 593</div>
-        <div><span class="card-label">REPUESTOS:</span> 943 856 726</div>
-        <div><span class="card-label">Horario:</span></div>
-        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM
-          SÁBADOS: 8:00 AM A 6:00 PM
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header">PIURA</div>
-      <div class="card-content">
-        <div><span class="card-label">Dirección:</span></div>
-        <div>AV. SÁNCHEZ CERRO MZA. 248 LOTE. 2 DPTO. B Z.I. INDUSTRIAL I – PIURA (COSTADO DE LA FERRETERÍA "MARTÍN")
-        </div>
-        <div><span class="card-label">CITAS TALLER:</span> 932 049 710</div>
-        <div><span class="card-label">REPUESTOS:</span> 950 122 002</div>
-        <div><span class="card-label">Horario:</span></div>
-        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM
-          SÁBADOS: 8:00 AM A 6:00 PM
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header">CAJAMARCA</div>
-      <div class="card-content">
-        <div><span class="card-label">Dirección:</span></div>
-        <div>MZA. B LOTE. 19 OTR. EL BOSQUE III ETAPA – CAJAMARCA (FRENTE A LA EX UGEL)
-        </div>
-        <div><span class="card-label">CITAS TALLER:</span> 950 118 892</div>
-        <div><span class="card-label">REPUESTOS:</span> 950 118 181</div>
-        <div><span class="card-label">Horario:</span></div>
-        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM
-          SÁBADOS: 8:00 AM A 6:00 PM
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header">JAÉN</div>
-      <div class="card-content">
-        <div><span class="card-label">Dirección:</span></div>
-        <div>AV. PAKAMUROS #2485 INT. B (CARRETERA SAN IGNACIO - LINDEROS) CAJAMARCA – JAÉN</div>
-        <div><span class="card-label">CITAS TALLER:</span> 944 296 503</div>
-        <div><span class="card-label">REPUESTOS:</span> 982 940 771</div>
-        <div><span class="card-label">Horario:</span></div>
-        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM
-          SÁBADOS: 8:00 AM A 6:00 PM
-        </div>
-      </div>
-    </div>
+    STOCK SUJETO A VARIACIÓN SIN PREVIO AVISO. LA IMPORTACIÓN Y EL TIEMPO DE ATENCIÓN DEPENDE DEL STOCK EN
+    FÁBRICA. TIEMPO DE IMPORTACIÓN 30 DÍAS ÚTILES.
   </div>
 </div>
 </body>
