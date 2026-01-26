@@ -6,7 +6,7 @@ use App\Models\gp\gestionhumana\payroll\PayrollFormulaVariable;
 use Illuminate\Database\Seeder;
 
 /**
- * php artisan db:seed --class="Database\Seeders\gp\gestionhumana\payroll\PayrollFormulaVariableSeeder
+ * php artisan db:seed --class="Database\Seeders\gp\gestionhumana\payroll\PayrollFormulaVariableSeeder"
  */
 class PayrollFormulaVariableSeeder extends Seeder
 {

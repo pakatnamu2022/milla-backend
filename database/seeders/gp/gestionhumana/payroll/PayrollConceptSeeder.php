@@ -5,6 +5,9 @@ namespace Database\Seeders\gp\gestionhumana\payroll;
 use App\Models\gp\gestionhumana\payroll\PayrollConcept;
 use Illuminate\Database\Seeder;
 
+/**
+ * php artisan db:seed --class="Database\Seeders\gp\gestionhumana\payroll\PayrollConceptSeeder"
+ */
 class PayrollConceptSeeder extends Seeder
 {
   /**

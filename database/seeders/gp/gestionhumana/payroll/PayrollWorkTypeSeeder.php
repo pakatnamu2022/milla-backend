@@ -6,7 +6,7 @@ use App\Models\gp\gestionhumana\payroll\PayrollWorkType;
 use Illuminate\Database\Seeder;
 
 /**
- * php artisan db:seed --class="Database\Seeders\gp\gestionhumana\payroll\PayrollWorkTypeSeeder
+ * php artisan db:seed --class="Database\Seeders\gp\gestionhumana\payroll\PayrollWorkTypeSeeder"
  */
 class PayrollWorkTypeSeeder extends Seeder
 {
