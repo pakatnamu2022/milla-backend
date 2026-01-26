@@ -96,6 +96,12 @@ use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemExpenseController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemPolicyController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRateController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRequestController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollCalculationController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollConceptController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollPeriodController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkTypeController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\AreaController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
@@ -1354,5 +1360,37 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     // Job Status - Monitoreo de jobs en cola
     Route::get('jobs/status', [JobStatusController::class, 'index'])->name('jobs.status');
     Route::get('jobs/status/{jobType}', [JobStatusController::class, 'show'])->name('jobs.status.show');
+  });
+
+  // GP - Gestión Humana - Payroll (Nómina) Routes
+  Route::group(['prefix' => 'gp/gh/payroll'], function () {
+    // Work Types
+    Route::apiResource('work-types', PayrollWorkTypeController::class);
+
+    // Formula Variables
+    Route::apiResource('formula-variables', PayrollFormulaVariableController::class);
+
+    // Concepts
+    Route::post('concepts/{id}/test-formula', [PayrollConceptController::class, 'testFormula']);
+    Route::apiResource('concepts', PayrollConceptController::class);
+
+    // Periods
+    Route::get('periods/current', [PayrollPeriodController::class, 'current']);
+    Route::post('periods/{id}/close', [PayrollPeriodController::class, 'close']);
+    Route::apiResource('periods', PayrollPeriodController::class);
+
+    // Schedules
+    Route::post('schedules/bulk', [PayrollScheduleController::class, 'storeBulk']);
+    Route::get('schedules/summary/{periodId}', [PayrollScheduleController::class, 'summary']);
+    Route::apiResource('schedules', PayrollScheduleController::class);
+
+    // Calculations
+    Route::post('calculations/calculate', [PayrollCalculationController::class, 'calculate']);
+    Route::post('calculations/approve-all', [PayrollCalculationController::class, 'approveAll']);
+    Route::post('calculations/{id}/approve', [PayrollCalculationController::class, 'approve']);
+    Route::get('calculations/summary/{periodId}', [PayrollCalculationController::class, 'summary']);
+    Route::get('calculations/export', [PayrollCalculationController::class, 'export']);
+    Route::get('calculations/{id}/payslip', [PayrollCalculationController::class, 'payslip']);
+    Route::apiResource('calculations', PayrollCalculationController::class)->only(['index', 'show']);
   });
 });
