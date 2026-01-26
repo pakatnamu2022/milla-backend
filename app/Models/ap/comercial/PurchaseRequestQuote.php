@@ -63,7 +63,8 @@ class PurchaseRequestQuote extends Model
     'sede_id' => '=',
     'has_vehicle' => 'accessor',
     'status' => '=',
-    'is_paid' => 'accessor'
+    'is_paid' => 'accessor',
+    'created_at' => 'date_between',
   ];
 
   const sorts = [

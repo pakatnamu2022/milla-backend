@@ -25,7 +25,9 @@ class SunatConcepts extends Model
     'iso_code',
     'symbol',
     'percentage',
-    'status'
+    'status',
+    'enable_commercial',
+    'enable_after_sales',
   ];
 
   // Tipos actuales (de SunatConceptsSeeder original)
@@ -64,6 +66,8 @@ class SunatConcepts extends Model
     'search' => ['code_nubefact', 'description', 'type'],
     'type' => 'in',
     'status' => '=',
+    'enable_commercial' => '=',
+    'enable_after_sales' => '=',
   ];
 
   const sorts = [

@@ -815,25 +815,18 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     if ($hasMealTypes) {
       $hotelReservation = $request->hotelReservation()->with('hotelAgreement')->first();
 
-      // If no hotel reservation but meal types exist, throw exception
-      if ($request->days_count > 1) {
-        if (!$hotelReservation) {
-          throw new Exception('No se pueden obtener tipos de gasto de comidas porque la solicitud no tiene una reserva de hotel registrada.');
+      // If hotel exists with agreement, remove meals that are included
+      if ($request->days_count > 1 && $hotelReservation?->hotelAgreement) {
+        $agreement = $hotelReservation->hotelAgreement;
+
+        if ($agreement->includes_breakfast) {
+          $finalExpenseTypeIds = array_diff($finalExpenseTypeIds, [ExpenseType::BREAKFAST_ID]);
         }
-
-        // If hotel exists with agreement, remove meals that are included
-        if ($hotelReservation->hotelAgreement) {
-          $agreement = $hotelReservation->hotelAgreement;
-
-          if ($agreement->includes_breakfast) {
-            $finalExpenseTypeIds = array_diff($finalExpenseTypeIds, [ExpenseType::BREAKFAST_ID]);
-          }
-          if ($agreement->includes_lunch) {
-            $finalExpenseTypeIds = array_diff($finalExpenseTypeIds, [ExpenseType::LUNCH_ID]);
-          }
-          if ($agreement->includes_dinner) {
-            $finalExpenseTypeIds = array_diff($finalExpenseTypeIds, [ExpenseType::DINNER_ID]);
-          }
+        if ($agreement->includes_lunch) {
+          $finalExpenseTypeIds = array_diff($finalExpenseTypeIds, [ExpenseType::LUNCH_ID]);
+        }
+        if ($agreement->includes_dinner) {
+          $finalExpenseTypeIds = array_diff($finalExpenseTypeIds, [ExpenseType::DINNER_ID]);
         }
       }
     }
