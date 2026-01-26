@@ -58,6 +58,8 @@ class PurchaseOrderResource extends JsonResource
       'supplier_order_type_id' => $this->supplier_order_type_id,
       'currency_id' => $this->currency_id,
       'warehouse_id' => $this->warehouse_id,
+      'created_by' => $this->created_by,
+      'created_by_name' => $this->creator->name ?? '',
 
       // Estados
       'resent' => (bool)$this->resent,
