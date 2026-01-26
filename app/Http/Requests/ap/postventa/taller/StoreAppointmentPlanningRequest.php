@@ -59,7 +59,7 @@ class StoreAppointmentPlanningRequest extends StoreRequest
         'required',
         'integer',
         Rule::exists('ap_masters', 'id')
-          ->where('type', 'TIPO_OPERACION'),
+          ->where('type', 'TIPO_OPERACION_CITA'),
       ],
       'type_planning_id' => [
         'required',
