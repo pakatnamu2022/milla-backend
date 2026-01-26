@@ -10,7 +10,9 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use App\Models\gp\gestionhumana\personal\Worker;
 use Exception;
@@ -59,6 +61,10 @@ class EvaluationPersonCycleDetailService extends BaseService
 
   public function storeByCategoryAndCycle(int $cycleId, int $categoryId)
   {
+    // 0. PRIMERO: Limpiar registros huérfanos del ciclo completo antes de crear nuevos
+    // Esto asegura que no haya EvaluationPersonResult/CompetenceDetail apuntando a detalles eliminados
+    $this->cleanupOrphanedEvaluationRecords($cycleId);
+
     $lastCycle = EvaluationCycle::where('id', $cycleId)->orderBy('id', 'desc')->first();
     $category = HierarchicalCategory::find($categoryId);
     $positions = $category->children()->pluck('position_id')->toArray();
@@ -166,6 +172,19 @@ class EvaluationPersonCycleDetailService extends BaseService
   public function regenerateForPerson(int $cycleId, int $personId)
   {
     return DB::transaction(function () use ($cycleId, $personId) {
+      // 0. PRIMERO: Limpiar todos los registros huérfanos de esta persona en este ciclo
+      // Esto incluye EvaluationPersonResult y EvaluationPersonCompetenceDetail que puedan
+      // estar apuntando a EvaluationPersonCycleDetail ya eliminados
+      $evaluationIds = Evaluation::where('cycle_id', $cycleId)->pluck('id');
+      foreach ($evaluationIds as $evaluationId) {
+        EvaluationPersonResult::where('evaluation_id', $evaluationId)
+          ->where('person_id', $personId)
+          ->delete();
+        EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
+          ->where('person_id', $personId)
+          ->delete();
+      }
+
       // 1. Buscar el ciclo y validar que existe
       $cycle = EvaluationCycle::find($cycleId);
       if (!$cycle) {
@@ -195,10 +214,15 @@ class EvaluationPersonCycleDetailService extends BaseService
         throw new Exception('No se encontró el evaluador con ID ' . $evaluatorId . ' para la persona ' . $person->nombre_completo);
       }
 
-      // 5. Eliminar los personCycleDetail existentes de esa persona en ese ciclo
-      EvaluationPersonCycleDetail::where('person_id', $personId)
+      // 5. Obtener los personCycleDetail existentes de esa persona en ese ciclo (incluyendo eliminados)
+      $existingDetails = EvaluationPersonCycleDetail::where('person_id', $personId)
         ->where('cycle_id', $cycleId)
-        ->delete();
+        ->get();
+
+      // 5.1. Eliminar los personCycleDetail existentes (si quedan algunos activos)
+      foreach ($existingDetails as $detail) {
+        $detail->delete();
+      }
 
       // 6. Obtener los objetivos de la categoría jerárquica
       $objectives = $hierarchicalCategory->objectives()->get();
@@ -344,7 +368,11 @@ class EvaluationPersonCycleDetailService extends BaseService
         $stillValid = $this->validatePersonForCycle($person, $cycle, $validPositions);
 
         if (!$stillValid) {
-          // Persona ya no cumple criterios: eliminar todos sus detalles
+          // Persona ya no cumple criterios: eliminar todos sus detalles y evaluaciones asociadas
+          // 1. Limpiar evaluaciones asociadas antes de eliminar
+          $this->cleanupAssociatedEvaluationsForPerson($personId, $personDetails);
+
+          // 2. Ahora sí eliminar los EvaluationPersonCycleDetail (los EvaluationPerson se eliminan por CASCADE)
           foreach ($personDetails as $detail) {
             $detail->delete();
             $removedCount++;
@@ -364,11 +392,121 @@ class EvaluationPersonCycleDetailService extends BaseService
       ];
     }
 
+    // Después de todas las validaciones, limpiar registros huérfanos que puedan haber quedado
+    $orphanedCount = $this->cleanupOrphanedEvaluationRecords($cycleId);
+
     return [
       'cycle_id' => $cycleId,
       'message' => 'Revalidación completada',
-      'results' => $results
+      'results' => $results,
+      'orphaned_records_cleaned' => $orphanedCount
     ];
+  }
+
+  /**
+   * Limpia todos los registros huérfanos de evaluaciones en un ciclo
+   * Encuentra EvaluationPerson que apuntan a EvaluationPersonCycleDetail eliminados
+   * y los actualiza para que apunten a los nuevos activos (preservando evaluaciones existentes)
+   *
+   * @param int $cycleId
+   * @return int Cantidad de registros actualizados/limpiados
+   */
+  private function cleanupOrphanedEvaluationRecords(int $cycleId)
+  {
+    $cleanedCount = 0;
+
+    // 1. Obtener todas las evaluaciones de este ciclo
+    $evaluationIds = Evaluation::where('cycle_id', $cycleId)->pluck('id');
+
+    foreach ($evaluationIds as $evaluationId) {
+      // 2. Encontrar EvaluationPerson que apunten a EvaluationPersonCycleDetail eliminados
+      $orphanedEvalPersons = DB::table('gh_evaluation_person as ep')
+        ->leftJoin('gh_evaluation_person_cycle_detail as pcd', 'ep.person_cycle_detail_id', '=', 'pcd.id')
+        ->where('ep.evaluation_id', $evaluationId)
+        ->where(function($query) {
+          $query->whereNotNull('pcd.deleted_at')  // detail está eliminado
+                ->orWhereNull('pcd.id');           // detail no existe
+        })
+        ->whereNull('ep.deleted_at')  // pero EvaluationPerson está activo
+        ->select('ep.id', 'ep.person_id', 'ep.person_cycle_detail_id', 'pcd.person_id as pcd_person_id', 'pcd.cycle_id', 'pcd.objective_id')
+        ->get();
+
+      foreach ($orphanedEvalPersons as $orphaned) {
+        // 3. Obtener el detail eliminado para saber qué buscar
+        $oldDetail = DB::table('gh_evaluation_person_cycle_detail')
+          ->where('id', $orphaned->person_cycle_detail_id)
+          ->first();
+
+        // Si el detail no existe en absoluto, no podemos mapear -> eliminar
+        if (!$oldDetail) {
+          EvaluationPerson::where('id', $orphaned->id)->delete();
+          $cleanedCount++;
+          continue;
+        }
+
+        // 4. Buscar el EvaluationPersonCycleDetail ACTIVO correspondiente
+        // Emparejamos por person_id, cycle_id y objective_id del detail eliminado
+        $newDetail = EvaluationPersonCycleDetail::where('person_id', $oldDetail->person_id)
+          ->where('cycle_id', $oldDetail->cycle_id)
+          ->where('objective_id', $oldDetail->objective_id)
+          ->whereNull('deleted_at')
+          ->first();
+
+        if ($newDetail) {
+          // OPCIÓN 1: Actualizar la referencia (preserva la evaluación existente)
+          EvaluationPerson::where('id', $orphaned->id)
+            ->update(['person_cycle_detail_id' => $newDetail->id]);
+          $cleanedCount++;
+        } else {
+          // OPCIÓN 2: Si no existe un detail activo correspondiente, eliminar el huérfano
+          // (esto significa que el objetivo fue removido completamente de la persona)
+          EvaluationPerson::where('id', $orphaned->id)->delete();
+          $cleanedCount++;
+        }
+      }
+
+      // 3. Obtener todos los person_id únicos en EvaluationPersonResult de esta evaluación
+      $personIdsInResults = EvaluationPersonResult::where('evaluation_id', $evaluationId)
+        ->pluck('person_id')
+        ->unique();
+
+      foreach ($personIdsInResults as $personId) {
+        // 4. Verificar si existe un EvaluationPersonCycleDetail activo para esta persona en este ciclo
+        $hasActiveDetail = EvaluationPersonCycleDetail::where('person_id', $personId)
+          ->where('cycle_id', $cycleId)
+          ->whereNull('deleted_at')
+          ->exists();
+
+        // 5. Si no existe, eliminar los registros huérfanos
+        if (!$hasActiveDetail) {
+          EvaluationPersonResult::where('evaluation_id', $evaluationId)
+            ->where('person_id', $personId)
+            ->delete();
+          $cleanedCount++;
+        }
+      }
+
+      // 6. Hacer lo mismo para EvaluationPersonCompetenceDetail
+      $personIdsInCompetence = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
+        ->pluck('person_id')
+        ->unique();
+
+      foreach ($personIdsInCompetence as $personId) {
+        $hasActiveDetail = EvaluationPersonCycleDetail::where('person_id', $personId)
+          ->where('cycle_id', $cycleId)
+          ->whereNull('deleted_at')
+          ->exists();
+
+        if (!$hasActiveDetail) {
+          EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
+            ->where('person_id', $personId)
+            ->delete();
+          $cleanedCount++;
+        }
+      }
+    }
+
+    return $cleanedCount;
   }
 
   /**
@@ -394,6 +532,31 @@ class EvaluationPersonCycleDetailService extends BaseService
 
     // Validación 4: Debe tener status_id = 22
     if ($person->status_id != 22) {
+      return false;
+    }
+
+    // Validacion 5: Si el typeEvaluation del ciclo es 0, debe tener objetivos la categoria de la persona
+    if ($cycle->typeEvaluation == Evaluation::EVALUATION_TYPE_OBJECTIVES) {
+      $hierarchicalCategory = $person->position?->hierarchicalCategory;
+      if (!$hierarchicalCategory || $hierarchicalCategory->objectives()->count() == 0) {
+        return false;
+      }
+    }
+
+    // Validación 6: si el typeEvaluacion del ciclo es diferente de 0, debe tener objetivos y competencias
+    if ($cycle->typeEvaluation != Evaluation::EVALUATION_TYPE_OBJECTIVES) {
+      $hierarchicalCategory = $person->position?->hierarchicalCategory;
+      if (
+        !$hierarchicalCategory ||
+        $hierarchicalCategory->objectives()->count() == 0 ||
+        $hierarchicalCategory->competencies()->count() == 0
+      ) {
+        return false;
+      }
+    }
+
+    // Validación 7: Debe tener un evaluador asignado (supervisor_id o jefe_id)
+    if (!$person->supervisor_id) {
       return false;
     }
 
@@ -423,7 +586,8 @@ class EvaluationPersonCycleDetailService extends BaseService
         // Objetivo nuevo para esta persona: crear detalle
         $this->createPersonObjectiveDetail($person, $cycle, $category, $objective, $currentObjectives);
       } elseif (!$categoryObjective && $existingDetail) {
-        // Objetivo ya no válido: eliminar detalle
+        // Objetivo ya no válido: limpiar evaluaciones asociadas y eliminar detalle
+        $this->cleanupAssociatedEvaluations($existingDetail);
         $existingDetail->delete();
       } elseif ($existingDetail) {
         // Objetivo existente: actualizar información básica de la persona por si cambió
@@ -435,6 +599,7 @@ class EvaluationPersonCycleDetailService extends BaseService
     $currentObjectiveIds = $currentObjectives->pluck('id')->toArray();
     foreach ($existingDetails as $detail) {
       if (!in_array($detail->objective_id, $currentObjectiveIds)) {
+        $this->cleanupAssociatedEvaluations($detail);
         $detail->delete();
       }
     }
@@ -630,10 +795,88 @@ class EvaluationPersonCycleDetailService extends BaseService
     $personCycleDetail = $this->find($id);
     DB::transaction(function () use ($personCycleDetail) {
       $clone = $personCycleDetail->replicate();
+
+      // Limpiar evaluaciones asociadas antes de eliminar
+      $this->cleanupAssociatedEvaluations($personCycleDetail);
+
       $personCycleDetail->delete();
       $this->recalculateWeights($clone->id, $clone);
     });
     return response()->json(['message' => 'Detalle de Ciclo Persona eliminado correctamente']);
+  }
+
+  /**
+   * Limpia todas las evaluaciones asociadas a un EvaluationPersonCycleDetail antes de eliminarlo
+   * Esto previene datos huérfanos en EvaluationPersonResult y EvaluationPersonCompetenceDetail
+   *
+   * @param EvaluationPersonCycleDetail $detail
+   * @return void
+   */
+  private function cleanupAssociatedEvaluations(EvaluationPersonCycleDetail $detail)
+  {
+    // Buscar directamente por person_id y cycle_id, sin depender de EvaluationPerson
+    // porque este puede estar eliminado o no encontrarse por soft deletes
+
+    // 1. Obtener todas las evaluaciones de este ciclo
+    $evaluationIds = Evaluation::where('cycle_id', $detail->cycle_id)
+      ->pluck('id');
+
+    // 2. Eliminar los registros de esta persona en esas evaluaciones
+    foreach ($evaluationIds as $evaluationId) {
+      // IMPORTANTE: Eliminar también EvaluationPerson porque el CASCADE no funciona con SoftDeletes
+      EvaluationPerson::where('person_cycle_detail_id', $detail->id)
+        ->where('evaluation_id', $evaluationId)
+        ->delete();
+
+      // Eliminar EvaluationPersonResult de esta persona en esta evaluación
+      EvaluationPersonResult::where('evaluation_id', $evaluationId)
+        ->where('person_id', $detail->person_id)
+        ->delete();
+
+      // Eliminar EvaluationPersonCompetenceDetail de esta persona en esta evaluación
+      EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
+        ->where('person_id', $detail->person_id)
+        ->delete();
+    }
+  }
+
+  /**
+   * Limpia todas las evaluaciones asociadas a múltiples EvaluationPersonCycleDetail
+   *
+   * @param int $personId
+   * @param \Illuminate\Support\Collection $details
+   * @return void
+   */
+  private function cleanupAssociatedEvaluationsForPerson(int $personId, $details)
+  {
+    // Buscar directamente por person_id y cycle_id, sin depender de EvaluationPerson
+    // porque este puede estar eliminado o no encontrarse por soft deletes
+
+    // 1. Obtener los cycle_ids únicos de los details
+    $cycleIds = $details->pluck('cycle_id')->unique();
+    $detailIds = $details->pluck('id');
+
+    // 2. Obtener todas las evaluaciones de estos ciclos
+    $evaluationIds = Evaluation::whereIn('cycle_id', $cycleIds)
+      ->pluck('id');
+
+    // 3. Eliminar los registros de esta persona en esas evaluaciones
+    foreach ($evaluationIds as $evaluationId) {
+      // IMPORTANTE: Eliminar EvaluationPerson de estos details porque CASCADE no funciona con SoftDeletes
+      EvaluationPerson::whereIn('person_cycle_detail_id', $detailIds)
+        ->where('evaluation_id', $evaluationId)
+        ->delete();
+
+      // Eliminar EvaluationPersonResult de esta persona en esta evaluación
+      EvaluationPersonResult::where('evaluation_id', $evaluationId)
+        ->where('person_id', $personId)
+        ->delete();
+
+      // Eliminar EvaluationPersonCompetenceDetail de esta persona en esta evaluación
+      EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
+        ->where('person_id', $personId)
+        ->delete();
+    }
   }
 
   /**

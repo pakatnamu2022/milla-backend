@@ -26,6 +26,7 @@ class Worker extends BaseModel
     'sede_id',
     'jefe_id',
     'supervisor_id',
+    'fecha_inicio',
     'email',
     'email2',
     'email3',
