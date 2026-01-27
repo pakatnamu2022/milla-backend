@@ -144,18 +144,19 @@
     .company-info-table td {
       padding: 2px 5px;
       font-size: 9px;
-      border: 1px solid #8888bb;
     }
 
     .company-info-table .info-label {
       font-weight: bold;
       width: 25%;
       color: #1a1a6e;
+      border: none;
     }
 
     .company-info-table .info-value {
       width: 75%;
       font-size: 8px;
+      border: 1px solid #8888bb;
     }
 
     /* Emission info and logo */
@@ -207,30 +208,38 @@
     }
 
     .period-table {
-      width: 40%;
+      width: 90%;
       border-collapse: collapse;
     }
 
     .period-table td {
-      padding: 3px 5px;
+      padding: 2px 5px;
       font-size: 9px;
     }
 
     .period-label {
       font-weight: bold;
       color: #1a1a6e;
+      width: 25%;
+      border: none;
+      white-space: nowrap;
     }
 
     .period-value {
       border: 1px solid #8888bb;
-      min-width: 80px;
-      padding: 3px 8px;
+      width: 75%;
+      padding: 2px 5px;
     }
 
     /* Worker info */
+    .worker-section-divider {
+      border-top: 1px solid #8888bb;
+      margin: 0;
+      padding: 0;
+    }
+
     .worker-section {
       margin-bottom: 8px;
-      border-top: 1px solid #8888bb;
       padding: 5px 0;
     }
 
@@ -385,14 +394,21 @@
 
       <!-- Period -->
       <div class="period-row">
-        <table class="period-table">
-          <tr>
-            <td class="period-label">PERIODO</td>
-            <td class="period-value">{{ $periodFormatted }}</td>
-          </tr>
-        </table>
+        <div style="width: 55%;">
+          <table class="period-table">
+            <tr>
+              <td class="period-label">PERIODO</td>
+              <td class="period-value">{{ $periodFormatted }}</td>
+            </tr>
+          </table>
+        </div>
       </div>
+    </div>
 
+    <!-- Worker Section Divider (full width border) -->
+    <div class="worker-section-divider"></div>
+
+    <div class="inner-content">
       <!-- Worker Data -->
       <div class="worker-section">
         <div class="worker-section-title" style="width: 70%; margin-left: auto; margin-right: auto;">Datos del
