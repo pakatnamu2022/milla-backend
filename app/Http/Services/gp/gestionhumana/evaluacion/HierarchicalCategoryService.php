@@ -27,7 +27,7 @@ class HierarchicalCategoryService extends BaseService
   {
     $cycle = EvaluationCycle::findOrFail($idCycle);
     $hasObjectives = $cycle->typeEvaluation == 0;
-    $hierarchicalCategories = HierarchicalCategory::whereAllPersonsHaveJefe($hasObjectives);
+    $hierarchicalCategories = HierarchicalCategory::whereAllPersonsHaveJefe($hasObjectives, $cycle->cut_off_date);
     return HierarchicalCategoryResource::collection($hierarchicalCategories);
   }
 
