@@ -440,8 +440,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       } elseif ($data['status'] === PerDiemApproval::APPROVED) {
         // Check if all approvals are approved
         $allApproved = $request->approvals()
-          ->where('status', '!=', PerDiemApproval::APPROVED)
-          ->count() === 0;
+            ->where('status', '!=', PerDiemApproval::APPROVED)
+            ->count() === 0;
 
         if ($allApproved) {
           // All approvers approved, update request status to approved
@@ -1484,7 +1484,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   private function generateBudgets(
     PerDiemRequest $request,
     Collection     $rates,
-  ): float {
+  ): float
+  {
     $totalBudget = 0;
     $daysCount = $request->days_count;
     $withActive = $request->with_active;
@@ -1529,7 +1530,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     PerDiemRequest $request,
     PerDiemRate    $mealsRate,
     int            $daysCount,
-  ): float {
+  ): float
+  {
     $totalMealsDaily = $mealsRate->daily_amount;
     // Create breakfast budget if not included in hotel
 
@@ -1573,7 +1575,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     PerDiemRequest $request,
     PerDiemRate    $rate,
     int            $daysCount
-  ): float {
+  ): float
+  {
     $total = $rate->daily_amount * $daysCount;
 
     $request->budgets()->create([
@@ -1813,7 +1816,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       'dpi' => 96,
     ]);
 
-    $pdf->setPaper('A4', 'portrait');
+    $pdf->setPaper('A4', 'landscape');// para ponerlo en vertical: portrait
 
     return $pdf;
   }

@@ -13,12 +13,23 @@
   $emissionDate = $mobilityPayroll->created_at ? \Carbon\Carbon::parse($mobilityPayroll->created_at)->format('d/m/Y') : now()->format('d/m/Y');
   $emissionTime = $mobilityPayroll->created_at ? \Carbon\Carbon::parse($mobilityPayroll->created_at)->format('H:i') : now()->format('H:i');
 
+  // Format period in Spanish (e.g., "Enero del 2026")
+  $periodFormatted = $mobilityPayroll->period;
+  if (preg_match('/^(\d{2})\/\s*(\d{4})$/', trim($mobilityPayroll->period), $matches)) {
+    $monthNumber = (int)$matches[1];
+    $year = $matches[2];
+    $months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    if ($monthNumber >= 1 && $monthNumber <= 12) {
+      $periodFormatted = $months[$monthNumber - 1] . ' del ' . $year;
+    }
+  }
+
   // Calculate total rows needed to fill the table (minimum 15 rows for appearance)
   $totalExpenseRows = $expenses->count();
   $minRows = 15;
   $emptyRows = max(0, $minRows - $totalExpenseRows);
 @endphp
-<!doctype html>
+  <!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -53,26 +64,41 @@
       color: #1a1a6e;
     }
 
-    /* Document number box - top right */
-    .doc-number-box {
-      position: absolute;
-      top: 10px;
-      right: 15px;
-      border: 2px solid #cc0000;
-      padding: 6px 12px;
-      text-align: center;
+    /* Title table with document number */
+    .title-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 8px;
     }
 
-    .doc-number-box .doc-number {
+    .title-table td {
+      border: 1px solid #8888bb;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    .title-cell {
+      text-align: center;
+      width: 70%;
+      color: #1a1a6e;
+    }
+
+    .doc-number-cell {
+      text-align: center;
+      width: 30%;
+    }
+
+    .doc-number-red {
+      color: #cc0000;
       font-size: 14px;
       font-weight: bold;
-      color: #cc0000;
     }
 
-    .doc-number-box .doc-suffix {
+    .doc-suffix-blue {
+      color: #1a1a6e;
       font-size: 10px;
       font-weight: bold;
-      color: #cc0000;
     }
 
     /* Header layout using table */
@@ -276,16 +302,16 @@
 
 <div class="main-container">
 
-  <!-- Document number box top right -->
-  <div class="doc-number-box">
-    <span class="doc-number">N.° {{ $correlativeFormatted }}</span>
-    <span class="doc-suffix">&nbsp;&nbsp;- APCHI</span>
-  </div>
-
-  <!-- Title -->
-  <div class="title">
-    PLANILLA POR GASTO DE MOVILIDAD - POR TRABAJADOR
-  </div>
+  <!-- Title and Document Number Table -->
+  <table class="title-table">
+    <tr>
+      <td class="title-cell">PLANILLA POR GASTO DE MOVILIDAD - POR TRABAJADOR</td>
+      <td class="doc-number-cell">
+        <span class="doc-number-red">N.° {{ $correlativeFormatted }}</span>
+        <span class="doc-suffix-blue"> - APCHI</span>
+      </td>
+    </tr>
+  </table>
 
   <!-- Header: Company info left, Emission + Logo right -->
   <table class="header-layout">
@@ -315,7 +341,6 @@
             </td>
             <td rowspan="2" class="logo-cell">
               <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="AP Logo"><br>
-              <div class="logo-text">AUTOMOTORES<br>PAKATNAMU SAC</div>
             </td>
           </tr>
           <tr>
@@ -334,20 +359,25 @@
     <table class="period-table">
       <tr>
         <td class="period-label">PERIODO</td>
-        <td class="period-value">{{ $mobilityPayroll->period }}</td>
+        <td class="period-value">{{ $periodFormatted }}</td>
       </tr>
     </table>
   </div>
 
   <!-- Worker Data -->
   <div class="worker-section">
-    <div class="worker-section-title">Datos del Trabajador</div>
-    <table class="worker-table">
+    <div class="worker-section-title" style="width: 70%; margin-left: auto; margin-right: auto;">Datos del Trabajador
+    </div>
+    <table class="worker-table" style="width: 70%; margin-left: auto; margin-right: auto;">
       <tr>
-        <td class="worker-label">Nombres y Apellidos</td>
-        <td class="worker-value">{{ $mobilityPayroll->worker->nombre_completo ?? 'N/A' }}</td>
-        <td class="worker-label" style="width: 40px;">D.N.I.</td>
-        <td class="worker-value" style="width: 100px;">{{ $mobilityPayroll->worker->vat ?? '' }}</td>
+        <td class="worker-label" style="width: 25%; white-space: nowrap;">Nombres y Apellidos</td>
+        <td class="worker-value"
+            style="width: 75%; text-align: left;">{{ $mobilityPayroll->worker->nombre_completo ?? 'N/A' }}</td>
+      </tr>
+      <tr>
+        <td class="worker-label" style="width: 25%;">D.N.I.</td>
+        <td class="worker-value"
+            style="width: 75%;">{{ $mobilityPayroll->worker->vat ?? '' }}</td>
       </tr>
     </table>
   </div>
@@ -357,18 +387,18 @@
     <thead>
     <tr>
       <th colspan="3">Fecha del Gasto (**)</th>
-      <th rowspan="2" style="width: 22%;">Motivo</th>
-      <th colspan="1">Desplazamiento (**)</th>
-      <th colspan="2">Montos gastados por (**):</th>
-      <th rowspan="2" style="width: 8%;">Firma</th>
+      <th colspan="2">Desplazamiento (**)</th>
+      <th colspan="3">Montos gastados por (**):</th>
     </tr>
     <tr>
       <th style="width: 6%;">Día</th>
       <th style="width: 6%;">Mes</th>
       <th style="width: 6%;">Año</th>
-      <th style="width: 18%;">Destino</th>
+      <th style="width: 15%;">Motivo</th>
+      <th style="width: 20%;">Destino</th>
       <th style="width: 9%;">Viaje</th>
       <th style="width: 9%;">día</th>
+      <th style="width: 8%;">Firma</th>
     </tr>
     </thead>
     <tbody>
@@ -385,20 +415,6 @@
       </tr>
     @endforeach
 
-    {{-- Empty rows to fill the table --}}
-    @for($i = 0; $i < $emptyRows; $i++)
-      <tr>
-        <td>&nbsp;</td>
-        <td>&nbsp;</td>
-        <td>&nbsp;</td>
-        <td>&nbsp;</td>
-        <td>&nbsp;</td>
-        <td>&nbsp;</td>
-        <td>&nbsp;</td>
-        <td>&nbsp;</td>
-      </tr>
-    @endfor
-
     <!-- Total Row -->
     <tr class="total-row">
       <td colspan="5" class="text-center">Total</td>
@@ -412,7 +428,8 @@
 
 <!-- Base Legal -->
 <div class="base-legal">
-  Base Legal: Inciso a1) del artículo 37° del TUO de la Ley de Impuestos a la Renta e Inciso V) del artículo 21° del Reglamento de la Ley del Impuesto a la Renta.
+  Base Legal: Inciso a1) del artículo 37° del TUO de la Ley de Impuestos a la Renta e Inciso V) del artículo 21° del
+  Reglamento de la Ley del Impuesto a la Renta.
 </div>
 
 </body>
