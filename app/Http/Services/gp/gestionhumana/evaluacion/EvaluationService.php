@@ -7,6 +7,7 @@ use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Resources\gp\gestionsistema\PositionResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
+use App\Jobs\UpdateEvaluationDashboards;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationDashboard;
@@ -691,6 +692,14 @@ class EvaluationService extends BaseService
         $stats['competences_created'] = $this->createCompetencesForSpecificPersons($evaluation, $personsToAdd);
       }
     }
+
+    // Resetear dashboards para que reflejen las nuevas personas
+    EvaluationDashboard::where('evaluation_id', $evaluation->id)->get()->each->resetStats();
+    EvaluationPersonDashboard::where('evaluation_id', $evaluation->id)->delete();
+
+    // Disparar job para regenerar dashboards automáticamente
+    UpdateEvaluationDashboards::dispatch($evaluation->id, true)
+      ->onQueue('evaluation-dashboards');
 
     return [
       'message' => empty($personsAddedDetails) ? 'No hay participantes faltantes que agregar' : 'Participantes faltantes agregados exitosamente',
