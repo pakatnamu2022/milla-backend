@@ -7,6 +7,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequests;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
@@ -199,6 +200,9 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
    */
   private function validateProductsInWarehouse(array $details, int $warehouseId): void
   {
+    $warehouse = Warehouse::find($warehouseId);
+    $warehouseName = $warehouse ? $warehouse->description : "ID: {$warehouseId}";
+
     foreach ($details as $detail) {
       $productId = $detail['product_id'] ?? null;
 
@@ -217,7 +221,7 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
         $productName = $product ? $product->name : "ID: {$productId}";
 
         throw new Exception(
-          "El producto '{$productName}' no está registrado en este almacén. " .
+          "El producto '{$productName}' no está asignado al almacén '{$warehouseName}'. " .
           "Por favor, registre el producto en el almacén antes de crear la solicitud de compra."
         );
       }
