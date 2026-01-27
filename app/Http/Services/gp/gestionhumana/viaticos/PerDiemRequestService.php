@@ -1734,7 +1734,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'serie' => $serie,
           'correlative' => $correlative,
           'period' => $period,
-          'sede_id' => $perDiemRequest->employee->sede_id ?? null,
+          'sede_id' => $sedeId,
         ]);
 
         // Update all mobility expenses with the payroll ID
@@ -1802,11 +1802,15 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     // Calculate total
     $totalAmount = $mobilityExpenses->sum('receipt_amount');
 
+    //Generamos la abreviatura de la sede
+    $abbreviationSede = 'AP' . substr(($mobilityPayroll->sede->district->name ?? '000'), 0, 3);
+
     $pdf = PDF::loadView('reports.gp.gestionhumana.viaticos.mobility-payroll', [
       'mobilityPayroll' => $mobilityPayroll,
       'expenses' => $sortedExpenses,
       'totalAmount' => $totalAmount,
       'perDiemRequest' => $perDiemRequest,
+      'abbreviationSede' => $abbreviationSede,
     ]);
 
     $pdf->setOptions([

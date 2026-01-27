@@ -24,6 +24,11 @@
     }
   }
 
+  // Group expenses by date
+  $expensesByDate = $expenses->groupBy(function($expense) {
+    return \Carbon\Carbon::parse($expense->expense_date)->format('Y-m-d');
+  });
+
   // Calculate total rows needed to fill the table (minimum 15 rows for appearance)
   $totalExpenseRows = $expenses->count();
   $minRows = 15;
@@ -50,7 +55,7 @@
     }
 
     .main-container {
-      border: 2px solid #1a1a6e;
+      border: 1px solid #1a1a6e;
       padding: 15px 20px 10px 20px;
       position: relative;
     }
@@ -80,13 +85,14 @@
 
     .title-cell {
       text-align: center;
-      width: 70%;
+      width: 75%;
       color: #1a1a6e;
+      padding-right: 20px;
     }
 
     .doc-number-cell {
       text-align: center;
-      width: 30%;
+      width: 25%;
     }
 
     .doc-number-red {
@@ -160,26 +166,29 @@
     }
 
     /* Emission info and logo */
-    .emission-logo-table {
+    .emission-info-table {
       width: 100%;
       border-collapse: collapse;
     }
 
-    .emission-logo-table td {
+    .emission-info-table td {
       padding: 2px 5px;
       font-size: 9px;
       vertical-align: middle;
     }
 
     .emission-label {
-      font-size: 8px;
+      font-weight: bold;
       color: #1a1a6e;
+      width: 40%;
+      border: none;
+      white-space: nowrap;
     }
 
     .emission-value {
       border: 1px solid #8888bb;
       padding: 2px 5px;
-      min-width: 60px;
+      width: 60%;
       font-size: 8px;
     }
 
@@ -327,9 +336,7 @@
       font-size: 7px;
       color: #1a1a6e;
       margin-top: 8px;
-      padding: 4px 5px;
-      background-color: #e8e8f0;
-      border: 1px solid #8888bb;
+      padding: 4px 4px;
     }
   </style>
 </head>
@@ -343,7 +350,7 @@
       <td class="title-cell">PLANILLA POR GASTO DE MOVILIDAD - POR TRABAJADOR</td>
       <td class="doc-number-cell">
         <span class="doc-number-red">N.° {{ $correlativeFormatted }}</span>
-        <span class="doc-suffix-blue"> - APCHI</span>
+        <span class="doc-suffix-blue"> - {{ $abbreviationSede }}</span>
       </td>
     </tr>
   </table>
@@ -371,20 +378,24 @@
             </table>
           </td>
           <td class="header-right">
-            <table class="emission-logo-table">
+            <table style="width: 100%; border-collapse: collapse;">
               <tr>
-                <td>
-                  <span class="emission-label">Fecha de Emisión</span><br>
-                  <span class="emission-value">{{ $emissionDate }}</span>
+                <td style="width: 60%; vertical-align: top;">
+                  <table class="emission-info-table">
+                    <tr>
+                      <td class="emission-label">Fecha de Emisión</td>
+                      <td class="emission-value">{{ $emissionDate }}</td>
+                    </tr>
+                    <tr>
+                      <td class="emission-label">Hora de Emisión</td>
+                      <td class="emission-value">{{ $emissionTime }}</td>
+                    </tr>
+                  </table>
                 </td>
-                <td rowspan="2" class="logo-cell">
-                  <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="AP Logo"><br>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <span class="emission-label">Hora de Emisión</span><br>
-                  <span class="emission-value">{{ $emissionTime }}</span>
+                <td style="width: 40%; vertical-align: top;">
+                  <div class="logo-cell">
+                    <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="AP Logo">
+                  </div>
                 </td>
               </tr>
             </table>
@@ -449,16 +460,34 @@
       </tr>
       </thead>
       <tbody>
-      @foreach($expenses as $expense)
-        <tr>
-          <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('d') }}</td>
-          <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('m') }}</td>
-          <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('Y') }}</td>
-          <td>{{ $expense->description ?? $expense->expenseType->name ?? '' }}</td>
-          <td>{{ $expense->notes ?? '' }}</td>
-          <td class="text-right">{{ number_format($expense->receipt_amount, 2) }}</td>
-          <td class="text-right"></td>
-          <td></td>
+      @foreach($expensesByDate as $date => $dateExpenses)
+        @php
+          $dateFormatted = \Carbon\Carbon::parse($date);
+          $subtotal = $dateExpenses->sum('receipt_amount');
+        @endphp
+        @foreach($dateExpenses as $expense)
+          <tr>
+            <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('d') }}</td>
+            <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('m') }}</td>
+            <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('Y') }}</td>
+            <td>{{ $expense->reason ?? '' }}</td>
+            <td>{{ $expense->notes ?? '' }}</td>
+            <td class="text-right">{{ number_format($expense->receipt_amount, 2) }}</td>
+            <td class="text-right"></td>
+            <td></td>
+          </tr>
+        @endforeach
+        <!-- Subtotal Row for each date -->
+        <tr style="background-color: #e8e8f0;">
+          <td class="text-center" style="font-weight: bold; font-size: 8px;"></td>
+          <td class="text-center" style="font-weight: bold; font-size: 8px;"></td>
+          <td class="text-center" style="font-weight: bold; font-size: 8px;"></td>
+          <td style="font-weight: bold; font-size: 8px;"></td>
+          <td class="text-right" style="font-weight: bold; font-size: 8px; padding-right: 8px;">
+            Subtotal {{ $dateFormatted->format('d/m/Y') }}</td>
+          <td class="text-right" style="font-weight: bold; font-size: 8px;"></td>
+          <td class="text-right" style="font-weight: bold; font-size: 8px;">{{ number_format($subtotal, 2) }}</td>
+          <td style="font-weight: bold; font-size: 8px;"></td>
         </tr>
       @endforeach
 

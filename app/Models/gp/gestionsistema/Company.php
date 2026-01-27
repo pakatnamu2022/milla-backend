@@ -10,6 +10,8 @@ class Company extends BaseModel
 {
   use HasFactory;
 
+  protected $table = "companies";
+
   protected $fillable = [
     'name',
     'abbreviation',
@@ -54,7 +56,7 @@ class Company extends BaseModel
   ];
 
   const TEST_DYNAMICS = 'CTEST';
-  
+
   const AP_DYNAMICS = 'CTEST';
   const TP_DYNAMICS = 'GPTRP';
 
