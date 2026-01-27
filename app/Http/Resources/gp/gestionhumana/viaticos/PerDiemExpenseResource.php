@@ -25,6 +25,7 @@ class PerDiemExpenseResource extends JsonResource
       'receipt_number' => $this->receipt_number,
       'receipt_path' => $this->receipt_path,
       'notes' => $this->notes,
+      'reason' => $this->reason,
       'business_name' => $this->business_name,
       'ruc' => $this->ruc,
       'is_company_expense' => (bool)$this->is_company_expense,

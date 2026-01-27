@@ -178,6 +178,7 @@ class PerDiemExpenseService extends BaseService
         'receipt_type' => $data['receipt_type'] ?? null,
         'receipt_number' => $data['receipt_number'] ?? null,
         'notes' => $data['notes'] ?? null,
+        'reason' => $data['reason'] ?? null,
         'is_company_expense' => false,
         'ruc' => $data['ruc'] ?? null,
         'business_name' => $data['business_name'] ?? null,
@@ -359,6 +360,7 @@ class PerDiemExpenseService extends BaseService
         'receipt_type' => $data['receipt_type'] ?? $expense->receipt_type,
         'receipt_number' => $data['receipt_number'] ?? $expense->receipt_number,
         'notes' => $data['notes'] ?? $expense->notes,
+        'reason' => $data['reason'] ?? $expense->reason,
         'ruc' => $data['ruc'] ?? $expense->ruc,
         'business_name' => $data['business_name'] ?? $expense->business_name,
       ]);
