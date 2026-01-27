@@ -68,7 +68,7 @@
     .title-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 8px;
+      margin-bottom: 0;
     }
 
     .title-table td {
@@ -99,6 +99,18 @@
       color: #1a1a6e;
       font-size: 10px;
       font-weight: bold;
+    }
+
+    /* Wrapper section with vertical borders */
+    .content-wrapper {
+      border-left: 1px solid #8888bb;
+      border-right: 1px solid #8888bb;
+      padding: 0;
+    }
+
+    /* Inner content padding (except detail table) */
+    .inner-content {
+      padding: 8px;
     }
 
     /* Header layout using table */
@@ -218,8 +230,8 @@
     /* Worker info */
     .worker-section {
       margin-bottom: 8px;
-      border: 1px solid #8888bb;
-      padding: 5px 8px;
+      border-top: 1px solid #8888bb;
+      padding: 5px 0;
     }
 
     .worker-section-title {
@@ -255,6 +267,8 @@
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 0;
+      border-left: none;
+      border-right: none;
     }
 
     table.detail-table th,
@@ -263,6 +277,18 @@
       padding: 3px 4px;
       vertical-align: middle;
       font-size: 8px;
+    }
+
+    /* Remove left border from first column */
+    table.detail-table th:first-child,
+    table.detail-table td:first-child {
+      border-left: none;
+    }
+
+    /* Remove right border from last column */
+    table.detail-table th:last-child,
+    table.detail-table td:last-child {
+      border-right: none;
     }
 
     table.detail-table th {
@@ -313,116 +339,122 @@
     </tr>
   </table>
 
-  <!-- Header: Company info left, Emission + Logo right -->
-  <table class="header-layout">
-    <tr>
-      <td class="header-left">
-        <table class="company-info-table">
+  <!-- Content Wrapper with vertical borders -->
+  <div class="content-wrapper">
+    <div class="inner-content">
+      <!-- Header: Company info left, Emission + Logo right -->
+      <table class="header-layout">
+        <tr>
+          <td class="header-left">
+            <table class="company-info-table">
+              <tr>
+                <td class="info-label">Razón Social</td>
+                <td class="info-value">{{ $mobilityPayroll->company_name }}</td>
+              </tr>
+              <tr>
+                <td class="info-label">RUC</td>
+                <td class="info-value">{{ $mobilityPayroll->num_doc }}</td>
+              </tr>
+              <tr>
+                <td class="info-label">Dirección</td>
+                <td class="info-value">{{ $mobilityPayroll->address }}</td>
+              </tr>
+            </table>
+          </td>
+          <td class="header-right">
+            <table class="emission-logo-table">
+              <tr>
+                <td>
+                  <span class="emission-label">Fecha de Emisión</span><br>
+                  <span class="emission-value">{{ $emissionDate }}</span>
+                </td>
+                <td rowspan="2" class="logo-cell">
+                  <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="AP Logo"><br>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="emission-label">Hora de Emisión</span><br>
+                  <span class="emission-value">{{ $emissionTime }}</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Period -->
+      <div class="period-row">
+        <table class="period-table">
           <tr>
-            <td class="info-label">Razón Social</td>
-            <td class="info-value">{{ $mobilityPayroll->company_name }}</td>
-          </tr>
-          <tr>
-            <td class="info-label">RUC</td>
-            <td class="info-value">{{ $mobilityPayroll->num_doc }}</td>
-          </tr>
-          <tr>
-            <td class="info-label">Dirección</td>
-            <td class="info-value">{{ $mobilityPayroll->address }}</td>
+            <td class="period-label">PERIODO</td>
+            <td class="period-value">{{ $periodFormatted }}</td>
           </tr>
         </table>
-      </td>
-      <td class="header-right">
-        <table class="emission-logo-table">
+      </div>
+
+      <!-- Worker Data -->
+      <div class="worker-section">
+        <div class="worker-section-title" style="width: 70%; margin-left: auto; margin-right: auto;">Datos del
+          Trabajador
+        </div>
+        <table class="worker-table" style="width: 70%; margin-left: auto; margin-right: auto;">
           <tr>
-            <td>
-              <span class="emission-label">Fecha de Emisión</span><br>
-              <span class="emission-value">{{ $emissionDate }}</span>
-            </td>
-            <td rowspan="2" class="logo-cell">
-              <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="AP Logo"><br>
-            </td>
+            <td class="worker-label" style="width: 25%; white-space: nowrap;">Nombres y Apellidos</td>
+            <td class="worker-value"
+                style="width: 75%; text-align: left;">{{ $mobilityPayroll->worker->nombre_completo ?? 'N/A' }}</td>
           </tr>
           <tr>
-            <td>
-              <span class="emission-label">Hora de Emisión</span><br>
-              <span class="emission-value">{{ $emissionTime }}</span>
-            </td>
+            <td class="worker-label" style="width: 25%;">D.N.I.</td>
+            <td class="worker-value"
+                style="width: 75%;">{{ $mobilityPayroll->worker->vat ?? '' }}</td>
           </tr>
         </table>
-      </td>
-    </tr>
-  </table>
-
-  <!-- Period -->
-  <div class="period-row">
-    <table class="period-table">
-      <tr>
-        <td class="period-label">PERIODO</td>
-        <td class="period-value">{{ $periodFormatted }}</td>
-      </tr>
-    </table>
-  </div>
-
-  <!-- Worker Data -->
-  <div class="worker-section">
-    <div class="worker-section-title" style="width: 70%; margin-left: auto; margin-right: auto;">Datos del Trabajador
+      </div>
     </div>
-    <table class="worker-table" style="width: 70%; margin-left: auto; margin-right: auto;">
-      <tr>
-        <td class="worker-label" style="width: 25%; white-space: nowrap;">Nombres y Apellidos</td>
-        <td class="worker-value"
-            style="width: 75%; text-align: left;">{{ $mobilityPayroll->worker->nombre_completo ?? 'N/A' }}</td>
-      </tr>
-      <tr>
-        <td class="worker-label" style="width: 25%;">D.N.I.</td>
-        <td class="worker-value"
-            style="width: 75%;">{{ $mobilityPayroll->worker->vat ?? '' }}</td>
-      </tr>
-    </table>
-  </div>
 
-  <!-- Expense Details Table -->
-  <table class="detail-table">
-    <thead>
-    <tr>
-      <th colspan="3">Fecha del Gasto (**)</th>
-      <th colspan="2">Desplazamiento (**)</th>
-      <th colspan="3">Montos gastados por (**):</th>
-    </tr>
-    <tr>
-      <th style="width: 6%;">Día</th>
-      <th style="width: 6%;">Mes</th>
-      <th style="width: 6%;">Año</th>
-      <th style="width: 15%;">Motivo</th>
-      <th style="width: 20%;">Destino</th>
-      <th style="width: 9%;">Viaje</th>
-      <th style="width: 9%;">día</th>
-      <th style="width: 8%;">Firma</th>
-    </tr>
-    </thead>
-    <tbody>
-    @foreach($expenses as $expense)
+    <!-- Expense Details Table -->
+    <table class="detail-table">
+      <thead>
       <tr>
-        <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('d') }}</td>
-        <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('m') }}</td>
-        <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('Y') }}</td>
-        <td>{{ $expense->description ?? $expense->expenseType->name ?? '' }}</td>
-        <td>{{ $expense->notes ?? '' }}</td>
-        <td class="text-right">{{ number_format($expense->receipt_amount, 2) }}</td>
-        <td class="text-right"></td>
+        <th colspan="3">Fecha del Gasto (**)</th>
+        <th colspan="2">Desplazamiento (**)</th>
+        <th colspan="3">Montos gastados por (**):</th>
+      </tr>
+      <tr>
+        <th style="width: 6%;">Día</th>
+        <th style="width: 6%;">Mes</th>
+        <th style="width: 6%;">Año</th>
+        <th style="width: 15%;">Motivo</th>
+        <th style="width: 20%;">Destino</th>
+        <th style="width: 9%;">Viaje</th>
+        <th style="width: 9%;">día</th>
+        <th style="width: 8%;">Firma</th>
+      </tr>
+      </thead>
+      <tbody>
+      @foreach($expenses as $expense)
+        <tr>
+          <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('d') }}</td>
+          <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('m') }}</td>
+          <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('Y') }}</td>
+          <td>{{ $expense->description ?? $expense->expenseType->name ?? '' }}</td>
+          <td>{{ $expense->notes ?? '' }}</td>
+          <td class="text-right">{{ number_format($expense->receipt_amount, 2) }}</td>
+          <td class="text-right"></td>
+          <td></td>
+        </tr>
+      @endforeach
+
+      <!-- Total Row -->
+      <tr class="total-row">
+        <td colspan="5" class="text-center">Total</td>
+        <td class="text-right" colspan="2">S/ {{ number_format($totalAmount, 2) }}</td>
         <td></td>
       </tr>
-    @endforeach
-
-    <!-- Total Row -->
-    <tr class="total-row">
-      <td colspan="5" class="text-center">Total</td>
-      <td class="text-right" colspan="2">S/ {{ number_format($totalAmount, 2) }}</td>
-      <td></td>
-    </tr>
-    </tbody>
-  </table>
+      </tbody>
+    </table>
+  </div>
 
 </div>
 
