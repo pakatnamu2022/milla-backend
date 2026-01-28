@@ -82,6 +82,11 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
           $netAmount += $detail['total'] ?? 0;
         }
       }
+
+      if ($netAmount <= 0) {
+        throw new Exception('El monto neto de la orden de compra no puede ser cero.');
+      }
+
       $data['net_amount'] = $netAmount;
 
       // Calculate tax_amount based on net_amount using VAT_TAX (18%)
