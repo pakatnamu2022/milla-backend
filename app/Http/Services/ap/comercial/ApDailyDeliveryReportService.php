@@ -149,7 +149,7 @@ class ApDailyDeliveryReportService
       ->join('ap_models_vn', 'ap_vehicles.ap_models_vn_id', '=', 'ap_models_vn.id')
       ->join('ap_class_article', 'ap_models_vn.class_id', '=', 'ap_class_article.id')
       ->leftJoin('ap_families', 'ap_models_vn.family_id', '=', 'ap_families.id')
-      ->leftJoin('ap_vehicle_brand', 'ap_families.marca_id', '=', 'ap_vehicle_brand.id')
+      ->leftJoin('ap_vehicle_brand', 'ap_families.brand_id', '=', 'ap_vehicle_brand.id')
       ->whereBetween('ap_purchase_order.emission_date', [$fechaInicio, $fechaFin])
       ->where('ap_purchase_order.status', true)
       ->whereNull('ap_purchase_order.deleted_at')
