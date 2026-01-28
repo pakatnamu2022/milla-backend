@@ -10,6 +10,7 @@ use App\Models\ap\configuracionComercial\venta\ApCommercialManagerBrandGroup;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -22,7 +23,7 @@ class ApDailyDeliveryReportService
    * @param string $fechaFin Fecha fin en formato Y-m-d
    * @return array
    */
-  public function generate(string $fechaInicio, string $fechaFin): array
+  public function generate(string $fechaInicio, string $fechaFin)
   {
     $carbonInicio = Carbon::parse($fechaInicio);
     $carbonFin = Carbon::parse($fechaFin);
@@ -33,10 +34,14 @@ class ApDailyDeliveryReportService
     $vehiclesWithDelivery = $this->getDeliveredVehicles($fechaInicio, $fechaFin);
 
     // Paso 2: Obtener IDs de cotizaciones facturadas
-    $invoicedQuoteIds = $this->getInvoicedQuoteIds($vehiclesWithDelivery->pluck('quote_id'));
+    $invoicedQuoteIds = $this->getInvoicedQuoteIds();
 
     // Paso 3: Construir resumen por clase de artículo
     $summary = $this->buildSummaryByArticleClass($vehiclesWithDelivery, $invoicedQuoteIds);
+
+
+    return $summary;
+
 
     // Paso 4: Construir desglose por asesores
     $advisors = $this->buildAdvisorBreakdown($vehiclesWithDelivery, $invoicedQuoteIds);
@@ -144,20 +149,16 @@ class ApDailyDeliveryReportService
    * @param Collection $quoteIds
    * @return Collection
    */
-  protected function getInvoicedQuoteIds(Collection $quoteIds): Collection
+  protected function getInvoicedQuoteIds(): Collection
   {
-    if ($quoteIds->isEmpty()) {
-      return collect([]);
-    }
-
-    return ElectronicDocument::whereIn('purchase_request_quote_id', $quoteIds)
-      ->where('is_advance_payment', false)
+    return ElectronicDocument::where('is_advance_payment', false)
       ->where('aceptada_por_sunat', true)
       ->where('anulado', false)
       ->whereIn('sunat_concept_document_type_id', [
         SunatConcepts::ID_FACTURA_ELECTRONICA,
         SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA,
       ])
+      ->where('origin_module', 'comercial')
       ->whereNull('deleted_at')
       ->distinct()
       ->pluck('purchase_request_quote_id');
