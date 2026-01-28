@@ -47,8 +47,7 @@ class InventoryMovement extends Model
     'search' => ['movement_number', 'user.name', 'warehouse.dyn_code', 'warehouseDestination.dyn_code'],
     'movement_type' => 'in',
     'movement_date' => 'between',
-    'warehouse_id' => '=',
-    'warehouse_destination_id' => '=',
+    'warehouse_id' => 'scope',
     'status' => '=',
     'user_id' => '=',
     'reason_in_out_id' => '=',
@@ -208,7 +207,18 @@ class InventoryMovement extends Model
 
   public function scopeByWarehouse($query, $warehouseId)
   {
-    return $query->where('warehouse_id', $warehouseId);
+    return $query->where(function ($q) use ($warehouseId) {
+      $q->where('warehouse_id', $warehouseId)
+        ->orWhere('warehouse_destination_id', $warehouseId);
+    });
+  }
+
+  public function scopeWarehouseId($query, $warehouseId)
+  {
+    return $query->where(function ($q) use ($warehouseId) {
+      $q->where('warehouse_id', $warehouseId)
+        ->orWhere('warehouse_destination_id', $warehouseId);
+    });
   }
 
   public function scopeInbound($query)

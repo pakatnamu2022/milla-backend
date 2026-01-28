@@ -94,6 +94,10 @@ class StoreApSupplierOrderRequest extends StoreRequest
   public function messages(): array
   {
     return [
+      'order_number.required' => 'El número de orden es obligatorio.',
+      'order_number.string' => 'El número de orden debe ser una cadena de texto.',
+      'order_number.unique' => 'El número de orden ya existe.',
+      
       'supplier_id.required' => 'El proveedor es obligatorio.',
       'supplier_id.integer' => 'El proveedor debe ser un entero.',
       'supplier_id.exists' => 'El proveedor seleccionado no es válido.',

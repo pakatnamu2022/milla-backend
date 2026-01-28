@@ -6,6 +6,8 @@ use App\Http\Resources\ap\compras\PurchaseOrderResource;
 use App\Http\Services\ap\comercial\VehiclesService;
 use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
 use App\Http\Services\BaseService;
+use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\ap\postventa\gestionProductos\Products;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
@@ -662,6 +664,8 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
   {
     $stockService = new ProductWarehouseStockService();
     $missingProducts = [];
+    $warehouse = Warehouse::find($warehouseId);
+    $warehouseName = $warehouse ? $warehouse->description : "ID: {$warehouseId}";
 
     foreach ($items as $item) {
       // Only validate items with product_id (skip vehicles or items without product)
@@ -669,16 +673,18 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         $stock = $stockService->getStock($item['product_id'], $warehouseId);
 
         if (!$stock) {
-          $missingProducts[] = "Producto ID {$item['product_id']}";
+          $product = Products::find($item['product_id']);
+          $productName = $product ? $product->name : "ID: {$item['product_id']}";
+          $missingProducts[] = $productName;
         }
       }
     }
 
     if (!empty($missingProducts)) {
       throw new Exception(
-        'Los siguientes productos no están registrados en el almacén seleccionado. ' .
-        'Debe registrarlos primero en product_warehouse_stock: ' .
-        implode(', ', $missingProducts)
+        'Los siguientes productos no están asignados al almacén "' . $warehouseName . '": ' .
+        implode(', ', $missingProducts) . '. ' .
+        'Por favor, registre estos productos en el almacén antes de continuar.'
       );
     }
   }
