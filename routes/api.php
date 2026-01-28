@@ -195,6 +195,18 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::delete('/{id}', [TpTravelPhotoController::class, 'destroy'])
               ->name('photos.destroy');
       });
+      
+      Route::group(['prefix' => 'freight'], function (){
+        Route::apiResource('control-freight', OpFreightController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy'
+          ]);
+          Route::get('control-freight/form/data', [OpFreightController::class, 'getFormData']);
+          Route::get('control-freight/customers/search', [OpFreightController::class, 'searchCustomers']);
+      });
   });
 
   //    SYSTEM
