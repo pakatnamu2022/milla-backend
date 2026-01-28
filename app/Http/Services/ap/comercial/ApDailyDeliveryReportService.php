@@ -2,7 +2,7 @@
 
 namespace App\Http\Services\ap\comercial;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
 use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
@@ -265,12 +265,12 @@ class ApDailyDeliveryReportService
   protected function buildHierarchyTree(int $year, int $month, Collection $vehicles, Collection $invoicedQuoteIds): array
   {
     // Obtener IDs de tipos de clase
-    $vehicleTypeId = ApCommercialMasters::ofType('CLASS_TYPE')
-      ->where('code', ApCommercialMasters::CLASS_TYPE_VEHICLE_CODE)
+    $vehicleTypeId = ApMasters::ofType('CLASS_TYPE')
+      ->where('code', ApMasters::CLASS_TYPE_VEHICLE_CODE)
       ->value('id');
 
-    $camionTypeId = ApCommercialMasters::ofType('CLASS_TYPE')
-      ->where('code', ApCommercialMasters::CLASS_TYPE_CAMION_CODE)
+    $camionTypeId = ApMasters::ofType('CLASS_TYPE')
+      ->where('code', ApMasters::CLASS_TYPE_CAMION_CODE)
       ->value('id');
 
     $vehiclesCamiones = $vehicles->filter(function ($v) use ($camionTypeId) {
@@ -1029,12 +1029,12 @@ class ApDailyDeliveryReportService
   protected function buildBrandReport(int $year, int $month, Collection $vehicles, Collection $invoicedQuoteIds, string $fechaInicio, string $fechaFin): array
   {
     // Obtener IDs de tipos de clase
-    $vehicleTypeId = ApCommercialMasters::ofType('CLASS_TYPE')
-      ->where('code', ApCommercialMasters::CLASS_TYPE_VEHICLE_CODE)
+    $vehicleTypeId = ApMasters::ofType('CLASS_TYPE')
+      ->where('code', ApMasters::CLASS_TYPE_VEHICLE_CODE)
       ->value('id');
 
-    $camionTypeId = ApCommercialMasters::ofType('CLASS_TYPE')
-      ->where('code', ApCommercialMasters::CLASS_TYPE_CAMION_CODE)
+    $camionTypeId = ApMasters::ofType('CLASS_TYPE')
+      ->where('code', ApMasters::CLASS_TYPE_CAMION_CODE)
       ->value('id');
 
     // Obtener compras del rango de fechas
@@ -1131,7 +1131,7 @@ class ApDailyDeliveryReportService
     $sections = [];
 
     // Obtener grupos de marcas ordenados (type es GRUPO_MARCAS, no BRAND_GROUP)
-    $brandGroups = ApCommercialMasters::where('type', 'GRUPO_MARCAS')
+    $brandGroups = ApMasters::where('type', 'GRUPO_MARCAS')
       ->whereIn('description', ['CHINA', 'TRADICIONAL', 'INCHCAPE'])
       ->orderByRaw("FIELD(description, 'CHINA', 'TRADICIONAL', 'INCHCAPE')")
       ->get();
@@ -1235,7 +1235,7 @@ class ApDailyDeliveryReportService
     $totalFacturadas = $vehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
     // Obtener el grupo de JAC CAMIONES
-    $jacCamionesGroup = ApCommercialMasters::where('type', 'GRUPO_MARCAS')
+    $jacCamionesGroup = ApMasters::where('type', 'GRUPO_MARCAS')
       ->where('description', 'CHINA')
       ->first();
 
@@ -1368,7 +1368,7 @@ class ApDailyDeliveryReportService
   {
     $assignments = DB::table('ap_assign_company_branch_period')
       ->join('config_sede', 'ap_assign_company_branch_period.sede_id', '=', 'config_sede.id')
-      ->leftJoin('ap_commercial_masters as shop', 'config_sede.shop_id', '=', 'shop.id')
+      ->leftJoin('ap_masters as shop', 'config_sede.shop_id', '=', 'shop.id')
       ->where('ap_assign_company_branch_period.year', $year)
       ->where('ap_assign_company_branch_period.month', $month)
       ->select([
@@ -1396,7 +1396,7 @@ class ApDailyDeliveryReportService
   {
     $shops = DB::table('ap_assign_company_branch_period')
       ->join('config_sede', 'ap_assign_company_branch_period.sede_id', '=', 'config_sede.id')
-      ->leftJoin('ap_commercial_masters as shop', 'config_sede.shop_id', '=', 'shop.id')
+      ->leftJoin('ap_masters as shop', 'config_sede.shop_id', '=', 'shop.id')
       ->where('ap_assign_company_branch_period.year', $year)
       ->where('ap_assign_company_branch_period.month', $month)
       ->whereNotNull('shop.id')
@@ -1577,5 +1577,4 @@ class ApDailyDeliveryReportService
 
     return $brands;
   }
-
 }

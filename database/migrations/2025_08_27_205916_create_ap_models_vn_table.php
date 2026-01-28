@@ -53,19 +53,19 @@ return new class extends Migration {
         ->cascadeOnUpdate()
         ->restrictOnDelete();
       $table->foreignId('vehicle_type_id')
-        ->constrained('ap_commercial_masters')
+        ->constrained('ap_masters')
         ->cascadeOnUpdate()
         ->restrictOnDelete();
       $table->foreignId('body_type_id')
-        ->constrained('ap_commercial_masters')
+        ->constrained('ap_masters')
         ->cascadeOnUpdate()
         ->restrictOnDelete();
       $table->foreignId('traction_type_id')
-        ->constrained('ap_commercial_masters')
+        ->constrained('ap_masters')
         ->cascadeOnUpdate()
         ->restrictOnDelete();
       $table->foreignId('transmission_id')
-        ->constrained('ap_commercial_masters')
+        ->constrained('ap_masters')
         ->cascadeOnUpdate()
         ->restrictOnDelete();
       $table->foreignId('currency_type_id')

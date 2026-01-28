@@ -34,6 +34,18 @@ class UpdateTypeCurrencyRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('typeCurrency')),
       ],
+      'status' => [
+        'nullable',
+        'boolean',
+      ],
+      'enable_after_sales' => [
+        'nullable',
+        'boolean',
+      ],
+      'enable_commercial' => [
+        'nullable',
+        'boolean',
+      ],
     ];
   }
 

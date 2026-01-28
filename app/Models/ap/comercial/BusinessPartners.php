@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TaxClassTypes;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\gestionsistema\District;
@@ -201,7 +201,7 @@ class BusinessPartners extends Model
 
   public function origin()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'origin_id');
+    return $this->belongsTo(ApMasters::class, 'origin_id');
   }
 
   public function taxClassType()
@@ -216,7 +216,7 @@ class BusinessPartners extends Model
 
   public function typePerson()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'type_person_id');
+    return $this->belongsTo(ApMasters::class, 'type_person_id');
   }
 
   public function district()
@@ -226,27 +226,27 @@ class BusinessPartners extends Model
 
   public function documentType()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'document_type_id');
+    return $this->belongsTo(ApMasters::class, 'document_type_id');
   }
 
   public function personSegment()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'person_segment_id');
+    return $this->belongsTo(ApMasters::class, 'person_segment_id');
   }
 
   public function maritalStatus()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'marital_status_id');
+    return $this->belongsTo(ApMasters::class, 'marital_status_id');
   }
 
   public function gender()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'gender_id');
+    return $this->belongsTo(ApMasters::class, 'gender_id');
   }
 
   public function activityEconomic()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'activity_economic_id');
+    return $this->belongsTo(ApMasters::class, 'activity_economic_id');
   }
 
   public function company()

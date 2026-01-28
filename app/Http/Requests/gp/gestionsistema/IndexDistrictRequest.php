@@ -9,7 +9,8 @@ class IndexDistrictRequest extends IndexRequest
   public function rules(): array
   {
     return [
-      'all' => 'string|in:true,false',
+      'all' => 'nullable|string|in:true,false',
+      'has_sede' => 'nullable|integer:|in:1,0',
     ];
   }
 }

@@ -188,7 +188,7 @@ class EvaluationNotificationService
           'evaluation_url' => config('app.frontend_url') . '/perfil/equipo',
           'additional_notes' => $this->generateAdditionalNotes($evaluation),
           'send_date' => now()->format('d/m/Y H:i'),
-          'company_name' => 'Grupo Pakana',
+          'company_name' => 'Grupo Pakatnamu',
           'contact_info' => 'rrhh@grupopakatnamu.com'
         ]
       ];
@@ -639,6 +639,62 @@ class EvaluationNotificationService
   }
 
   /**
+   * Envía recordatorio a un líder específico
+   */
+  public function sendReminderToSingleLeader(int $evaluationId, int $leaderId): array
+  {
+    try {
+      $evaluation = Evaluation::find($evaluationId);
+
+      if (!$evaluation) {
+        return [
+          'success' => false,
+          'error' => 'Evaluación no encontrada',
+          'result' => null
+        ];
+      }
+
+      $leader = Worker::find($leaderId);
+
+      if (!$leader || !$leader->email2) {
+        return [
+          'success' => false,
+          'error' => 'Líder no encontrado o no tiene email configurado',
+          'result' => null
+        ];
+      }
+
+      // Obtener evaluaciones pendientes para este líder específico
+      $leadersWithPending = $this->getLeadersWithPendingEvaluations($evaluation);
+
+      if (!isset($leadersWithPending[$leaderId])) {
+        return [
+          'success' => false,
+          'error' => 'El líder no tiene evaluaciones pendientes para esta evaluación',
+          'result' => null
+        ];
+      }
+
+      $pendingData = $leadersWithPending[$leaderId];
+
+      // Enviar el recordatorio
+      $result = $this->sendReminderToLeader($evaluation, $leader, $pendingData);
+
+      return [
+        'success' => $result['sent'],
+        'result' => $result
+      ];
+
+    } catch (\Exception $e) {
+      return [
+        'success' => false,
+        'error' => $e->getMessage(),
+        'result' => null
+      ];
+    }
+  }
+
+  /**
    * Envía un resumen de evaluaciones pendientes a RRHH
    */
   public function sendSummaryToHR(int $evaluationId = null): array
@@ -697,7 +753,7 @@ class EvaluationNotificationService
           'conclusions' => $totalPendingEvaluations > 0
             ? "Se han identificado {$totalPendingEvaluations} evaluaciones pendientes que requieren seguimiento."
             : "Todas las evaluaciones están al día.",
-          'company_name' => 'Grupo Pakana',
+          'company_name' => 'Grupo Pakatnamu',
           'contact_info' => 'sistema@grupopakatnamu.com'
         ]
       ];

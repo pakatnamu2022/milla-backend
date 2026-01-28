@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\configuracionComercial\venta;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\Sede;
@@ -46,7 +46,7 @@ class ApBank extends BaseModel
 
   public function bank(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'bank_id');
+    return $this->belongsTo(ApMasters::class, 'bank_id');
   }
 
   public function currency(): BelongsTo

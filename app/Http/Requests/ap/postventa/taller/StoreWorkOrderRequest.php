@@ -10,6 +10,11 @@ class StoreWorkOrderRequest extends StoreRequest
   public function rules(): array
   {
     return [
+      'vehicle_inspection_id' => [
+        'nullable',
+        'integer',
+        'exists:ap_vehicle_inspection,id',
+      ],
       'appointment_planning_id' => [
         'nullable',
         'integer',
@@ -19,6 +24,11 @@ class StoreWorkOrderRequest extends StoreRequest
         'required',
         'integer',
         'exists:ap_vehicles,id',
+      ],
+      'currency_id' => [
+        'required',
+        'integer',
+        'exists:type_currency,id',
       ],
       'vehicle_plate' => [
         'nullable',
@@ -123,7 +133,7 @@ class StoreWorkOrderRequest extends StoreRequest
       'items.*.type_planning_id' => [
         'required_with:items',
         'integer',
-        Rule::exists('ap_post_venta_masters', 'id')
+        Rule::exists('ap_masters', 'id')
           ->where('type', 'TIPO_PLANIFICACION'),
       ],
       'items.*.description' => [
@@ -142,6 +152,10 @@ class StoreWorkOrderRequest extends StoreRequest
       'vehicle_id.required' => 'El vehículo es obligatorio.',
       'vehicle_id.integer' => 'El vehículo debe ser un entero.',
       'vehicle_id.exists' => 'El vehículo seleccionado no es válido.',
+
+      'currency_id.required' => 'La moneda es obligatoria.',
+      'currency_id.integer' => 'La moneda debe ser un entero.',
+      'currency_id.exists' => 'La moneda seleccionada no es válida.',
 
       'vehicle_plate.string' => 'La placa debe ser una cadena de texto.',
       'vehicle_plate.max' => 'La placa no debe exceder los 20 caracteres.',

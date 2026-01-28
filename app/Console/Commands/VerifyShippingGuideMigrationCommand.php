@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Commands\Concerns\ValidatesPendingJobs;
 use App\Http\Services\DatabaseSyncService;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\comercial\ShippingGuides;
@@ -9,6 +10,7 @@ use Illuminate\Console\Command;
 
 class VerifyShippingGuideMigrationCommand extends Command
 {
+  use ValidatesPendingJobs;
   /**
    * The name and signature of the console command.
    *
@@ -66,6 +68,11 @@ class VerifyShippingGuideMigrationCommand extends Command
     }
 
     if ($all) {
+      // Validar límite de jobs pendientes antes de despachar (solo si usa cola)
+      if (!$useSync && !$this->canDispatchMoreJobs(VerifyAndMigrateShippingGuideJob::class)) {
+        return 0;
+      }
+
       // Verificar todas las guías pendientes (limitado por --limit)
       $limit = (int) $this->option('limit');
       $pendingGuides = ShippingGuides::whereIn('migration_status', [

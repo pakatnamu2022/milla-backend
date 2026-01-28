@@ -32,7 +32,7 @@ class StoreApAccountingAccountPlanRequest extends StoreRequest
       'accounting_type_id' => [
         'required',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
     ];
   }

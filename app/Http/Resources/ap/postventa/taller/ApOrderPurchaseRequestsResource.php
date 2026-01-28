@@ -30,8 +30,11 @@ class ApOrderPurchaseRequestsResource extends JsonResource
       'notified_at' => $this->notified_at,
       'observations' => $this->observations,
       'status' => $this->status,
+      'supplier_order_numbers' => $this->getSupplierOrderNumbers(),
       'created_at' => $this->created_at,
       'updated_at' => $this->updated_at,
+      'requested_by' => $this->requestedBy ? $this->requestedBy->name : null,
+      'supply_type' => $this->supply_type,
 
       // Relationships
       'ap_order_quotation' => new ApOrderQuotationsResource($this->whenLoaded('apOrderQuotation')),
@@ -39,5 +42,22 @@ class ApOrderPurchaseRequestsResource extends JsonResource
       'warehouse' => new WarehouseResource($this->whenLoaded('warehouse')),
       'details' => ApOrderPurchaseRequestDetailsResource::collection($this->whenLoaded('details')),
     ];
+  }
+
+  /**
+   * Get supplier order numbers associated with this purchase request
+   */
+  private function getSupplierOrderNumbers(): array
+  {
+    // Get all unique supplier orders through the details
+    return $this->details()
+      ->with('supplierOrders')
+      ->get()
+      ->pluck('supplierOrders')
+      ->flatten()
+      ->unique('id')
+      ->pluck('order_number')
+      ->values()
+      ->toArray();
   }
 }

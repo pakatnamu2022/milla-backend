@@ -31,6 +31,13 @@ trait Reportable
         return $query->whereIn($column, is_array($value) ? $value : [$value]);
       case 'between':
         return $query->whereBetween($column, $value);
+      case 'date_btw':
+      case 'date_between':
+        if (is_array($value) && count($value) === 2) {
+          return $query->whereDate($column, '>=', $value[0])
+            ->whereDate($column, '<=', $value[1]);
+        }
+        return $query;
       case '>=':
         return $query->where($column, '>=', $value);
       case '<=':

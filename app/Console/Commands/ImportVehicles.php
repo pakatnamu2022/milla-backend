@@ -99,10 +99,10 @@ class ImportVehicles extends Command
                     'family_id' => 'required|integer|exists:ap_families,id',
                     'class_id' => 'required|integer|exists:ap_class_article,id',
                     'fuel_id' => 'required|integer|exists:ap_fuel_type,id',
-                    'vehicle_type_id' => 'required|integer|exists:ap_commercial_masters,id',
-                    'body_type_id' => 'required|integer|exists:ap_commercial_masters,id',
-                    'traction_type_id' => 'required|integer|exists:ap_commercial_masters,id',
-                    'transmission_id' => 'required|integer|exists:ap_commercial_masters,id',
+                    'vehicle_type_id' => 'required|integer|exists:ap_masters,id',
+                    'body_type_id' => 'required|integer|exists:ap_masters,id',
+                    'traction_type_id' => 'required|integer|exists:ap_masters,id',
+                    'transmission_id' => 'required|integer|exists:ap_masters,id',
                     'currency_type_id' => 'required|integer|exists:type_currency,id',
                 ]);
 
@@ -119,7 +119,6 @@ class ImportVehicles extends Command
                 // Llamar al servicio para guardar el vehículo
                 $this->service->store($vehicleData);
                 $success++;
-
             } catch (\Exception $e) {
                 $errors[] = [
                     'row' => $index + 1,

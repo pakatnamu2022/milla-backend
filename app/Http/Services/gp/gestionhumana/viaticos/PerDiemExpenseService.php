@@ -73,14 +73,9 @@ class PerDiemExpenseService extends BaseService
       if (in_array($data['expense_type_id'], [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
         $hotelReservation = $request->hotelReservation()->with('hotelAgreement')->first();
 
-        // If no hotel reservation exists, meals cannot be expensed
-        if (!$hotelReservation) {
-          throw new Exception('No se puede agregar un gasto de comida porque la solicitud no tiene una reserva de hotel registrada.');
-        }
-
         // If hotel agreement exists, check if meal is included
-        if ($hotelReservation->hotelAgreement) {
-          $agreement = $hotelReservation->hotelAgreement;
+        if ($hotelReservation?->hotelAgreement) {
+          $agreement = $hotelReservation?->hotelAgreement;
 
           if ($data['expense_type_id'] === ExpenseType::BREAKFAST_ID && $agreement->includes_breakfast) {
             throw new Exception('No se puede agregar un gasto de desayuno porque el hotel ya lo incluye.');
@@ -183,6 +178,7 @@ class PerDiemExpenseService extends BaseService
         'receipt_type' => $data['receipt_type'] ?? null,
         'receipt_number' => $data['receipt_number'] ?? null,
         'notes' => $data['notes'] ?? null,
+        'reason' => $data['reason'] ?? null,
         'is_company_expense' => false,
         'ruc' => $data['ruc'] ?? null,
         'business_name' => $data['business_name'] ?? null,
@@ -364,6 +360,7 @@ class PerDiemExpenseService extends BaseService
         'receipt_type' => $data['receipt_type'] ?? $expense->receipt_type,
         'receipt_number' => $data['receipt_number'] ?? $expense->receipt_number,
         'notes' => $data['notes'] ?? $expense->notes,
+        'reason' => $data['reason'] ?? $expense->reason,
         'ruc' => $data['ruc'] ?? $expense->ruc,
         'business_name' => $data['business_name'] ?? $expense->business_name,
       ]);

@@ -22,7 +22,7 @@ class ApOrderQuotationDetails extends Model
     'quantity',
     'unit_measure',
     'unit_price',
-    'discount',
+    'discount_percentage',
     'total_amount',
     'observations',
     'retail_price_external',
@@ -35,6 +35,7 @@ class ApOrderQuotationDetails extends Model
     'search' => ['description', 'observations'],
     'order_quotation_id' => '=',
     'item_type' => '=',
+    'status' => '=',
   ];
 
   const sorts = [
@@ -44,6 +45,13 @@ class ApOrderQuotationDetails extends Model
     'total_amount',
     'created_at',
   ];
+
+  public function setDescriptionAttribute($value): void
+  {
+    if ($value) {
+      $this->attributes['description'] = strtoupper($value);
+    }
+  }
 
   public function orderQuotation(): BelongsTo
   {

@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\postventa\gestionProductos;
 
-use App\Models\ap\ApPostVentaMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -118,7 +118,7 @@ class InventoryMovement extends Model
 
   public function reasonInOut(): BelongsTo
   {
-    return $this->belongsTo(ApPostVentaMasters::class, 'reason_in_out_id');
+    return $this->belongsTo(ApMasters::class, 'reason_in_out_id');
   }
 
   public function details(): HasMany

@@ -24,7 +24,7 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
     public ?int $purchaseOrderId = null
   )
   {
-    $this->onQueue('sync');
+    $this->onQueue('credit_note_sync');
   }
 
   /**

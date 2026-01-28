@@ -22,8 +22,8 @@ class UpdateAssignSalesSeriesRequest extends StoreRequest
       ],
       'type' => ['nullable', 'in:PURCHASE,SALE,OTHERS'],
       'correlative_start' => ['nullable', 'integer', 'min:1'],
-      'type_receipt_id' => ['nullable', 'exists:ap_commercial_masters,id'],
-      'type_operation_id' => ['nullable', 'exists:ap_commercial_masters,id'],
+      'type_receipt_id' => ['nullable', 'exists:ap_masters,id'],
+      'type_operation_id' => ['nullable', 'exists:ap_masters,id'],
       'sede_id' => ['nullable', 'exists:config_sede,id'],
       'status' => ['nullable', 'boolean'],
       'is_advance' => ['nullable', 'boolean'],
@@ -85,7 +85,6 @@ class UpdateAssignSalesSeriesRequest extends StoreRequest
           );
         }
       }
-
     });
   }
 

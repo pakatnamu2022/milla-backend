@@ -1,7 +1,6 @@
 <?php
 
-use App\Http\Controllers\ap\ApCommercialMastersController;
-use App\Http\Controllers\ap\ApPostVentaMastersController;
+use App\Http\Controllers\ap\ApMastersController;
 use App\Http\Controllers\GeneralMaster\GeneralMasterController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
@@ -51,6 +50,7 @@ use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationDetailsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationsController;
+use App\Http\Controllers\ap\postventa\taller\ApSupplierOrderController;
 use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
 use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderAssignOperatorController;
@@ -85,6 +85,7 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonDetailContr
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonResultController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailController;
+use App\Http\Controllers\gp\gestionhumana\AccountantDistrictAssignmentController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\ExpenseTypeController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\HotelAgreementController;
@@ -95,6 +96,13 @@ use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemExpenseController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemPolicyController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRateController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRequestController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollCalculationController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollConceptController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollPeriodController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkTypeController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkTypeSegmentController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\AreaController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
@@ -114,7 +122,9 @@ use App\Http\Controllers\gp\maestroGeneral\SedeController;
 use App\Http\Controllers\gp\maestroGeneral\SunatConceptsController;
 use App\Http\Controllers\gp\tics\EquipmentController;
 use App\Http\Controllers\gp\tics\EquipmentTypeController;
+use App\Http\Controllers\JobStatusController;
 use App\Http\Controllers\tp\comercial\TpTravelPhotoController;
+
 //TP - Controller
 use App\Http\Controllers\tp\comercial\TravelControlController;
 
@@ -148,8 +158,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   ]);
 
 // TP - COMERCIAL - CONTROL VIAJES
-  Route::group(['prefix' => 'tp/comercial'], function(){
-    Route::apiResource('control-travel', TravelControlController::class )->only([
+  Route::group(['prefix' => 'tp/comercial'], function () {
+    Route::apiResource('control-travel', TravelControlController::class)->only([
       'index',
       'show',
       'store',
@@ -157,46 +167,25 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       'destroy'
     ]);
     Route::post('control-travel/{id}/state', [TravelControlController::class, 'changeState'])->name('control-travel.change-state');
-
     Route::post('control-travel/{id}/start', [TravelControlController::class, 'startRoute'])->name('control-travel.start');
-
     Route::post('control-travel/{id}/end', [TravelControlController::class, 'endRoute'])->name('control-travel.end');
-
-
     Route::post('control-travel/{id}/fuel', [TravelControlController::class, 'fuelRecord'])->name('control-travel.fuel-record');
-
     Route::get('control-travel/{id}/records', [TravelControlController::class, 'driverRecords'])->name('control-travel.records');
-
     Route::get('control-travel/filters/states', [TravelControlController::class, 'availableStates'])->name('control-travel.states');
-  
     Route::get('control-travel/filters/drivers', [TravelControlController::class, 'activeDrivers'])->name('control-travel.drivers');
-    
     Route::get('control-travel/filters/vehicles', [TravelControlController::class, 'activeVehicles'])->name('control-travel.vehicles');
-
     Route::get('control-travel/validate-mileage/{vehicle_id}', [TravelControlController::class, 'validateMileage'])->name('control-travel.validate-km');
-
-    Route::prefix('control-travel/{id}')->group(function(){
-      
-      Route::post('/photos', [TpTravelPhotoController::class, 'store'])
-              ->name('control-travel.photos.store');
-
-      Route::get('/photos', [TpTravelPhotoController::class, 'index'])
-              ->name('control-travel.photos.index');
-
-      Route::get('/photos/statistics', [TpTravelPhotoController::class, 'photoStatistics'])
-              ->name('control-travel.photos.statistics');
-
+    Route::prefix('control-travel/{id}')->group(function () {
+      Route::post('/photos', [TpTravelPhotoController::class, 'store'])->name('control-travel.photos.store');
+      Route::get('/photos', [TpTravelPhotoController::class, 'index'])->name('control-travel.photos.index');
+      Route::get('/photos/statistics', [TpTravelPhotoController::class, 'photoStatistics'])->name('control-travel.photos.statistics');
     });
-      Route::prefix('photos')->group(function(){
-
-        Route::get('/{id}', [TpTravelPhotoController::class, 'show'])
-              ->name('photos.show');
-   
-        Route::delete('/{id}', [TpTravelPhotoController::class, 'destroy'])
-              ->name('photos.destroy');
-      });
+    Route::prefix('photos')->group(function () {
+      Route::get('/{id}', [TpTravelPhotoController::class, 'show'])->name('photos.show');
+      Route::delete('/{id}', [TpTravelPhotoController::class, 'destroy'])->name('photos.destroy');
       
-      Route::group(['prefix' => 'freight'], function (){
+    });
+    Route::group(['prefix' => 'freight'], function (){
         Route::apiResource('control-freight', OpFreightController::class)->only([
             'index',
             'show',
@@ -207,6 +196,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
           Route::get('control-freight/form/data', [OpFreightController::class, 'getFormData']);
           Route::get('control-freight/customers/search', [OpFreightController::class, 'searchCustomers']);
       });
+
   });
 
   //    SYSTEM
@@ -393,6 +383,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         ]);
       });
 
+      // Accountant District Assignments
+      Route::apiResource('accountant-district-assignments', AccountantDistrictAssignmentController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
       //    PERFORMANCE EVALUATION
       Route::group(['prefix' => 'performanceEvaluation'], function () {
         //        METRICS
@@ -530,6 +529,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::group(['prefix' => 'evaluation/notifications'], function () {
           Route::post('/send-opened', [EvaluationNotificationController::class, 'sendEvaluationOpened']); // Notifica apertura de evaluación - Correo 1
           Route::post('/send-reminders', [EvaluationNotificationController::class, 'sendReminders']); // Es correo de recordatorio - Correo 2
+          Route::post('/send-reminder-to-leader', [EvaluationNotificationController::class, 'sendReminderToLeader']); // Envía recordatorio a un líder específico
           Route::post('/send-closed', [EvaluationNotificationController::class, 'sendEvaluationClosed']); // Notifica cierre de evaluación - Correo 3
           Route::post('/send-hr-summary', [EvaluationNotificationController::class, 'sendHrSummary']);
           Route::get('/pending-status', [EvaluationNotificationController::class, 'getPendingStatus']);
@@ -561,6 +561,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('personResult/getByPersonAndEvaluation', [EvaluationPersonResultController::class, 'getByPersonAndEvaluation']);
         Route::get('personResult/evaluations-to-evaluate/{id}', [EvaluationPersonResultController::class, 'getEvaluationsByPersonToEvaluate']);
         Route::get('personResult/evaluation/{evaluation_id}/bosses', [EvaluationPersonResultController::class, 'getBossesByEvaluation']);
+        Route::get('personResult/evaluation/{evaluation_id}/leaders-status', [EvaluationPersonResultController::class, 'getLeadersEvaluationStatus']);
         Route::get('leader-dashboard/{evaluation_id}', [EvaluationPersonResultController::class, 'getLeaderDashboard']);
         Route::post('personResult/regenerate/{personId}/{evaluationId}', [EvaluationPersonResultController::class, 'regenerate']);
         Route::apiResource('personResult', EvaluationPersonResultController::class)->only([
@@ -625,17 +626,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
    */
   Route::group(['prefix' => 'ap'], function () {
     // Maestros Comercial
-    Route::get('commercialMasters/types', [ApCommercialMastersController::class, 'getTypes']);
-    Route::apiResource('commercialMasters', ApCommercialMastersController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    // Maestros Post Venta
-    Route::apiResource('postVentaMasters', ApPostVentaMastersController::class)->only([
+    Route::get('apMasters/types', [ApMastersController::class, 'getTypes']);
+    Route::apiResource('apMasters', ApMastersController::class)->only([
       'index',
       'show',
       'store',
@@ -819,6 +811,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       Route::get('warehouse/by-model-sede', [WarehouseController::class, 'getWarehousesByModelAndSede']);
       Route::get('warehouse/warehouses-by-company', [WarehouseController::class, 'getWarehousesByCompany']);
+      Route::get('warehouse/my-physical-warehouses', [WarehouseController::class, 'getMyPhysicalWarehouses']);
       Route::apiResource('warehouse', WarehouseController::class)->only([
         'index',
         'show',
@@ -961,7 +954,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::delete('receivingChecklist/byShippingGuide/{shippingGuideId}', [ApReceivingChecklistController::class, 'destroyByShippingGuide']);
 
       // Vehicles
-      Route::get('vehicles/export/sales', [VehiclesController::class, 'exportSales']);
+      Route::post('vehicles/export/sales', [VehiclesController::class, 'exportSales']);
       Route::get('vehicles/costs', [VehiclesController::class, 'getCostsData']);
       Route::get('vehicles/{id}/invoices', [VehiclesController::class, 'getInvoices']);
       Route::get('vehicles/{id}/client-debt-info', [VehiclesController::class, 'getVehicleClientDebtInfo']);
@@ -1012,6 +1005,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/by-campaign', [DashboardComercialController::class, 'getTotalsByCampaign']);
         Route::get('/for-sales-manager-stats', [DashboardComercialController::class, 'getStatsForSalesManager']);
         Route::get('/for-sales-manager-details', [DashboardComercialController::class, 'getDetailsForSalesManager']);
+        Route::get('/for-sales-manager-export', [DashboardComercialController::class, 'exportStatsForSalesManager']);
       });
     });
 
@@ -1021,6 +1015,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('products/low-stock', [ProductsController::class, 'lowStock']);
       Route::get('products/featured', [ProductsController::class, 'featured']);
       Route::post('products/{id}/update-stock', [ProductsController::class, 'updateStock']);
+      Route::post('products/assign-to-warehouse', [ProductsController::class, 'assignToWarehouse']);
       Route::apiResource('products', ProductsController::class)->only([
         'index',
         'show',
@@ -1055,8 +1050,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Product Warehouse Stock - Stock de Productos por Almacén
-      Route::get('productWarehouseStock/warehouse-stock-with-transit', [ProductWarehouseStockController::class, 'getWarehouseStockWithTransit']);
-
+      Route::apiResource('productWarehouseStock', ProductWarehouseStockController::class)->only([
+        'index',
+      ]);
+      Route::post('productWarehouseStock/by-product-ids', [ProductWarehouseStockController::class, 'getStockByProductIds']);
       // Transfer Receptions - Recepciones de Transferencias
       Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
         'index',
@@ -1084,8 +1081,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Work Orders - Órdenes de Trabajo
-      Route::post('workOrders/{id}/calculate-totals', [WorkOrderController::class, 'calculateTotals']);
       Route::get('workOrders/{id}/payment-summary', [WorkOrderController::class, 'getPaymentSummary']);
+      Route::get('workOrders/{id}/pre-liquidation', [WorkOrderController::class, 'getPreLiquidationPdf']);
       Route::apiResource('workOrders', WorkOrderController::class)->only([
         'index',
         'show',
@@ -1120,8 +1117,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
-      Route::get('workOrderParts/quotation-by-vehicle/{vehicle_id}', [ApWorkOrderPartsController::class, 'getQuotationByVehicle']);
       Route::post('workOrderParts/store-bulk-from-quotation', [ApWorkOrderPartsController::class, 'storeBulkFromQuotation']);
+      Route::post('workOrderParts/{id}/warehouse-output', [ApWorkOrderPartsController::class, 'warehouseOutput']);
 
       // Work Order Labour - Mano de Obra de Órdenes de Trabajo
       Route::apiResource('workOrderLabour', WorkOrderLabourController::class)->only([
@@ -1134,8 +1131,11 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Work Order Quotations - Cotizaciones de Órdenes de Trabajo
       Route::get('orderQuotations/{id}/pdf', [ApOrderQuotationsController::class, 'downloadPDF']);
+      Route::get('orderQuotations/{id}/pdf-repuesto', [ApOrderQuotationsController::class, 'downloadRepuestoPDF']);
       Route::post('orderQuotations/with-products', [ApOrderQuotationsController::class, 'storeWithProducts']);
       Route::put('orderQuotations/{id}/with-products', [ApOrderQuotationsController::class, 'updateWithProducts']);
+      Route::put('orderQuotations/{id}/discard', [ApOrderQuotationsController::class, 'discard']);
+      Route::put('orderQuotations/{id}/confirm', [ApOrderQuotationsController::class, 'confirm']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',
@@ -1155,6 +1155,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Order Purchase Requests - Solicitudes de Compra de Órdenes
       Route::get('orderPurchaseRequests/pending-details', [ApOrderPurchaseRequestsController::class, 'getPendingDetails']);
+      Route::get('orderPurchaseRequests/{id}/pdf', [ApOrderPurchaseRequestsController::class, 'downloadPDF']);
       Route::patch('orderPurchaseRequests/details/{id}/reject', [ApOrderPurchaseRequestsController::class, 'rejectDetail']);
       Route::apiResource('orderPurchaseRequests', ApOrderPurchaseRequestsController::class)->only([
         'index',
@@ -1164,8 +1165,18 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
+      // Supplier Orders - Órdenes de Proveedor
+      Route::put('supplierOrders/{id}/mark-as-taken', [ApSupplierOrderController::class, 'markAsTaken']);
+      Route::put('supplierOrders/{id}/update-status', [ApSupplierOrderController::class, 'updateStatus']);
+      Route::apiResource('supplierOrders', ApSupplierOrderController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
       // Vehicle Inspections - Inspecciones Vehiculares
-      Route::get('vehicleInspections/by-work-order/{workOrderId}', [ApVehicleInspectionController::class, 'getByWorkOrder']);
       Route::get('vehicleInspections/{id}/reception-report', [ApVehicleInspectionController::class, 'generateReceptionReport']);
       Route::apiResource('vehicleInspections', ApVehicleInspectionController::class)->only([
         'index',
@@ -1360,5 +1371,49 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     // Hotel Agreements
     Route::get('hotel-agreements/active', [HotelAgreementController::class, 'active']);
     Route::apiResource('hotel-agreements', HotelAgreementController::class);
+
+    // Job Status - Monitoreo de jobs en cola
+    Route::get('jobs/status', [JobStatusController::class, 'index'])->name('jobs.status');
+    Route::get('jobs/status/{jobType}', [JobStatusController::class, 'show'])->name('jobs.status.show');
+  });
+
+  // GP - Gestión Humana - Payroll (Nómina) Routes
+  Route::group(['prefix' => 'gp/gh/payroll'], function () {
+    // Work Types
+    Route::apiResource('work-types', PayrollWorkTypeController::class);
+
+    // Work Type Segments
+    Route::prefix('work-types/{workTypeId}/segments')->group(function () {
+      Route::get('/', [PayrollWorkTypeSegmentController::class, 'index']);
+      Route::post('/', [PayrollWorkTypeSegmentController::class, 'store']);
+      Route::put('/{id}', [PayrollWorkTypeSegmentController::class, 'update']);
+      Route::delete('/{id}', [PayrollWorkTypeSegmentController::class, 'destroy']);
+    });
+
+    // Formula Variables
+    Route::apiResource('formula-variables', PayrollFormulaVariableController::class);
+
+    // Concepts
+    Route::post('concepts/{id}/test-formula', [PayrollConceptController::class, 'testFormula']);
+    Route::apiResource('concepts', PayrollConceptController::class);
+
+    // Periods
+    Route::get('periods/current', [PayrollPeriodController::class, 'current']);
+    Route::post('periods/{id}/close', [PayrollPeriodController::class, 'close']);
+    Route::apiResource('periods', PayrollPeriodController::class);
+
+    // Schedules
+    Route::post('schedules/bulk', [PayrollScheduleController::class, 'storeBulk']);
+    Route::get('schedules/summary/{periodId}', [PayrollScheduleController::class, 'summary']);
+    Route::apiResource('schedules', PayrollScheduleController::class);
+
+    // Calculations
+    Route::post('calculations/calculate', [PayrollCalculationController::class, 'calculate']);
+    Route::post('calculations/approve-all', [PayrollCalculationController::class, 'approveAll']);
+    Route::post('calculations/{id}/approve', [PayrollCalculationController::class, 'approve']);
+    Route::get('calculations/summary/{periodId}', [PayrollCalculationController::class, 'summary']);
+    Route::get('calculations/export', [PayrollCalculationController::class, 'export']);
+    Route::get('calculations/{id}/payslip', [PayrollCalculationController::class, 'payslip']);
+    Route::apiResource('calculations', PayrollCalculationController::class)->only(['index', 'show']);
   });
 });

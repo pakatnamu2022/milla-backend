@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
@@ -52,10 +52,10 @@ return [
         'Nombre' => fn($data) => $data['full_name'] ?? '',
         'NombreCorto' => fn($data) => substr($data['full_name'] ?? '', 0, 50),
         'full_name' => 'RazonSocial',
-        'TipoDocumento' => fn($data) => ApCommercialMasters::find($data['document_type_id'])?->description ?? '',
+        'TipoDocumento' => fn($data) => ApMasters::find($data['document_type_id'])?->description ?? '',
         'ClaseCliente' => fn($data) => TaxClassTypes::find($data['tax_class_type_id'])?->dyn_code ?? '',
         'num_doc' => 'NumeroDocumento',
-        'Contribuyente' => fn($data) => ApCommercialMasters::find($data['type_person_id'])?->code ?? '01',
+        'Contribuyente' => fn($data) => ApMasters::find($data['type_person_id'])?->code ?? '01',
         'ApellidoPaterno' => fn($data) => $data['paternal_surname'] ?? '',
         'ApellidoMaterno' => fn($data) => $data['maternal_surname'] ?: '',
         'PrimerNombre' => fn($data) => $data['first_name'] ?? '',
@@ -109,9 +109,9 @@ return [
         'ClaseId' => fn($data) => substr(TaxClassTypes::find($data['supplier_tax_class_id'])?->dyn_code ?? '', 0, 50),
         'CondicionPagoId' => fn($data) => 'CONTADO',
         'DireccionId' => fn($data) => 'FISCAL',
-        'TipoDocumentoId' => fn($data) => substr(ApCommercialMasters::find($data['document_type_id'])?->description ?? '', 0, 50),
+        'TipoDocumentoId' => fn($data) => substr(ApMasters::find($data['document_type_id'])?->description ?? '', 0, 50),
         'NumeroDocumento' => fn($data) => substr($data['num_doc'], 0, 50),
-        'TipoContribuyenteId' => fn($data) => substr(ApCommercialMasters::find($data['type_person_id'])?->code ?? '01', 0, 50),
+        'TipoContribuyenteId' => fn($data) => substr(ApMasters::find($data['type_person_id'])?->code ?? '01', 0, 50),
         'RazonSocial' => fn($data) => substr($data['full_name'], 0, 200),
         'NombreComercial' => fn($data) => substr($data['full_name'], 0, 200),
         'ApellidoPaterno' => fn($data) => substr($data['paternal_surname'] ?? '', 0, 50),

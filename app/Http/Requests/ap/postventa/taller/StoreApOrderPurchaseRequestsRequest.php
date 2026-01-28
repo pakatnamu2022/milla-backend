@@ -3,6 +3,8 @@
 namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use Illuminate\Contracts\Validation\Validator;
 
 class StoreApOrderPurchaseRequestsRequest extends StoreRequest
 {
@@ -36,6 +38,11 @@ class StoreApOrderPurchaseRequestsRequest extends StoreRequest
         'sometimes',
         'required',
         'in:pending,approved,rejected',
+      ],
+      'supply_type' => [
+        'required',
+        'string',
+        'in:STOCK,LIMA,IMPORTACION',
       ],
 
       // Details validation
@@ -85,6 +92,8 @@ class StoreApOrderPurchaseRequestsRequest extends StoreRequest
 
       'status.required' => 'El estado es obligatorio.',
       'status.in' => 'El estado debe ser: pending, approved o rejected.',
+      'supply_type' => 'El tipo de suministro es obligatorio.',
+      'supply_type.in' => 'El tipo de suministro debe ser: STOCK, LIMA o IMPORTACION.',
 
       // Details messages
       'details.required' => 'Los detalles de la solicitud son obligatorios.',

@@ -12,7 +12,7 @@ return new class extends Migration {
   {
     Schema::table('ap_vehicle_brand', function (Blueprint $table) {
       $table->dropColumn('is_commercial');
-      $table->foreignId('type_operation_id')->nullable()->after('logo_min')->constrained('ap_commercial_masters')->onDelete('set null');
+      $table->foreignId('type_operation_id')->nullable()->after('logo_min')->constrained('ap_masters')->onDelete('set null');
     });
   }
 

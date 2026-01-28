@@ -19,13 +19,13 @@ return new class extends Migration {
       $table->foreignId('ap_models_vn_id')
         ->constrained('ap_models_vn')->onDelete('cascade');
       $table->foreignId('vehicle_color_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->foreignId('engine_type_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
       $table->foreignId('ap_vehicle_status_id')
         ->constrained('ap_vehicle_status')->onDelete('cascade');
       $table->foreignId('type_operation_id')
-        ->constrained('ap_commercial_masters')->onDelete('cascade');
+        ->constrained('ap_masters')->onDelete('cascade');
 
       $table->foreignId('warehouse_physical_id')->nullable()->constrained('warehouse');
 

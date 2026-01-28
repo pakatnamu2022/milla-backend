@@ -11,13 +11,18 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Jobs\SyncSalesDocumentJob;
 use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -172,6 +177,63 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       );
       $data['numero'] = $nextNumberData['number'];
 
+      // Validar que si la cotización status = Aperturado
+      if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
+        $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+        if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+          throw new Exception('No se puede generar un documento electrónico para una cotización descartada.');
+        }
+
+        // Validar stock de productos si no es un anticipo
+        $this->validateQuotationStock($quotation, $data['is_advance_payment']);
+      }
+
+      // Validar orden de trabajo si viene work_order_id
+      if (isset($data['work_order_id']) && $data['work_order_id']) {
+        $this->validateWorkOrderInvoice($data);
+      }
+
+      /**
+       * Validar que un anticipo no sea por 0 soles
+       */
+      if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
+        $total = (float)($data['total'] ?? 0);
+        if ($total <= 0) {
+          throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
+        }
+
+        // Validar que la suma de anticipos no exceda el monto de la cotización
+        if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
+          $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+
+          // Sumar todos los anticipos aceptados por SUNAT para esta cotización
+          $totalAnticiposExistentes = ElectronicDocument::where('order_quotation_id', $data['order_quotation_id'])
+            ->where('is_advance_payment', 1)
+            ->where('aceptada_por_sunat', true)
+            ->where('anulado', false)
+            ->whereNull('deleted_at')
+            ->sum('total');
+
+          // Sumar el nuevo anticipo
+          $totalAnticiposConNuevo = $totalAnticiposExistentes + $total;
+
+          // Validar que no exceda el total de la cotización
+          if ($totalAnticiposConNuevo > $quotation->total_amount) {
+            throw new Exception(sprintf(
+              'La suma de anticipos (%.2f) excede el monto total de la cotización (%.2f). Ya hay %.2f en anticipos existentes.',
+              $totalAnticiposConNuevo,
+              $quotation->total_amount,
+              $totalAnticiposExistentes
+            ));
+          }
+        }
+      }
+
+      /**
+       * Validar que para venta interna (is_advance_payment = 0) la suma de anticipos + monto factura = total entidad
+       */
+      $this->validateInternalSaleTotal($data);
+
       /**
        * Validar que la serie sea correcta
        */
@@ -244,6 +306,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Marcar cotización con has_invoice_generated si viene order_quotation_id
       if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
         $this->updateQuotationInvoiceStatus($data['order_quotation_id']);
+      }
+
+      // Marcar orden de trabajo con has_invoice_generated si viene work_order_id
+      // Si is_advance_payment = 0 (venta interna), cerrar la OT
+      if (isset($data['work_order_id']) && $data['work_order_id']) {
+        $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
+        $this->updateWorkOrderInvoiceStatus($data['work_order_id'], $isAdvancePayment);
       }
 
       DB::commit();
@@ -1566,30 +1635,28 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Marcar que se generó factura
       $quotation->update(['has_invoice_generated' => true]);
 
-      // Calcular total pagado (solo documentos aceptados por SUNAT que NO sean anticipos)
+      // Calcular total pagado (suma de todos los documentos aceptados por SUNAT)
+      // Incluye anticipos + facturas de regularización/venta directa
       $totalPaid = ElectronicDocument::where('order_quotation_id', $quotationId)
-        ->where('status', ElectronicDocument::STATUS_ACCEPTED)
         ->where('aceptada_por_sunat', true)
-        ->where('is_advance_payment', 0)  // Excluir anticipos
+        ->where('anulado', false)
         ->whereNull('deleted_at')
         ->sum('total');
 
-      // Si el total pagado >= total de la cotización, marcar como totalmente pagado
-      if ($totalPaid >= $quotation->total_amount) {
-        $quotation->update(['is_fully_paid' => true]);
+      // Verificar si existe al menos una venta interna (is_advance_payment = 0) aceptada por SUNAT
+      // La venta interna es el documento que cierra la operación (puede ser por 0 o mayor)
+      $hasInternalSale = ElectronicDocument::where('order_quotation_id', $quotationId)
+        ->where('is_advance_payment', 0)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', false)
+        ->whereNull('deleted_at')
+        ->exists();
 
-        Log::info('Quotation marked as fully paid', [
-          'quotation_id' => $quotationId,
-          'quotation_total' => $quotation->total_amount,
-          'total_paid' => $totalPaid,
-        ]);
-      } else {
-        Log::info('Quotation invoice generated but not fully paid', [
-          'quotation_id' => $quotationId,
-          'quotation_total' => $quotation->total_amount,
-          'total_paid' => $totalPaid,
-          'remaining' => $quotation->total_amount - $totalPaid,
-        ]);
+      // Marcar como totalmente pagado solo si:
+      // 1. El total pagado >= total de la cotización
+      // 2. Existe al menos una venta interna (is_advance_payment = 0) aceptada por SUNAT
+      if ($totalPaid >= $quotation->total_amount && $hasInternalSale) {
+        $quotation->update(['is_fully_paid' => true]);
       }
     } catch (Exception $e) {
       Log::error('Error updating quotation invoice status', [
@@ -1597,6 +1664,258 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'error' => $e->getMessage(),
       ]);
       // No lanzar excepción para evitar que falle la creación del documento
+    }
+  }
+
+  private function validateQuotationStock(ApOrderQuotations $quotation, int $is_advance_payment = 0): void
+  {
+    // Si es un anticipo, no validamos stock
+    if ($is_advance_payment == 1) {
+      return;
+    }
+
+    // Get warehouse from sede
+    $warehouse = Warehouse::where('sede_id', $quotation->sede_id)
+      ->where('is_physical_warehouse', 1)
+      ->where('status', 1)
+      ->first();
+
+    if (!$warehouse) {
+      throw new Exception('No se encontró un almacén físico activo para la sede seleccionada.');
+    }
+
+    // Get all product details from quotation
+    $productDetails = $quotation->details->where('item_type', 'PRODUCT');
+
+    if ($productDetails->isEmpty()) {
+      throw new Exception('La cotización no tiene productos para validar stock.');
+    }
+
+    // Check stock for each product
+    foreach ($productDetails as $detail) {
+      // Skip if no product_id
+      if (!$detail->product_id) {
+        continue;
+      }
+
+      // Get stock for this product in this warehouse
+      $stock = ProductWarehouseStock::where('warehouse_id', $warehouse->id)
+        ->where('product_id', $detail->product_id)
+        ->first();
+
+      // If no stock record found or insufficient available quantity, throw exception
+      if (!$stock || $stock->available_quantity < $detail->quantity) {
+        throw new Exception('No hay stock suficiente para el producto: ' . $detail->product->description);
+      }
+    }
+  }
+
+  /**
+   * Validate work order invoice constraints
+   * - Work order must have at least labours or parts to invoice
+   * - Invoice amount cannot exceed work order total
+   * - Currency must be consistent with previous invoices
+   * - Advance payment cannot be 0
+   *
+   * @param array $data
+   * @return void
+   * @throws Exception
+   */
+  private function validateWorkOrderInvoice(array $data): void
+  {
+    $workOrderId = $data['work_order_id'];
+    $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
+    $newTotal = (float)($data['total'] ?? 0);
+    $currencyId = $data['sunat_concept_currency_id'] ?? null;
+
+    $workOrder = ApWorkOrder::with(['labours', 'parts', 'advancesWorkOrder'])->find($workOrderId);
+
+    if (!$workOrder) {
+      throw new Exception('Orden de trabajo no encontrada.');
+    }
+
+    // Calculate work order totals (based on getPaymentSummary logic)
+    $totalLabourCost = $workOrder->labours->sum('total_cost') ?? 0;
+    $totalPartsCost = $workOrder->parts->sum('total_amount') ?? 0;
+    $workOrderTotal = $totalLabourCost + $totalPartsCost;
+
+    // Validate that work order has at least labours or parts to invoice
+    if ($workOrderTotal <= 0) {
+      throw new Exception('La orden de trabajo no tiene mano de obra ni repuestos para facturar.');
+    }
+
+    // Calculate total already invoiced (accepted documents, not cancelled)
+    $totalInvoiced = ElectronicDocument::where('work_order_id', $workOrderId)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', false)
+      ->whereNull('deleted_at')
+      ->sum('total');
+
+    // Calculate total with new invoice
+    $totalWithNewInvoice = $totalInvoiced + $newTotal;
+
+    // Validate that invoice does not exceed work order total
+    if ($totalWithNewInvoice > $workOrderTotal) {
+      throw new Exception(sprintf(
+        'El monto total a facturar (%.2f) excede el monto de la orden de trabajo (%.2f). Ya hay %.2f facturado.',
+        $totalWithNewInvoice,
+        $workOrderTotal,
+        $totalInvoiced
+      ));
+    }
+
+    // Validate currency consistency with previous invoices
+    $firstInvoice = ElectronicDocument::where('work_order_id', $workOrderId)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', false)
+      ->whereNull('deleted_at')
+      ->orderBy('created_at', 'asc')
+      ->first();
+
+    if ($firstInvoice && $currencyId && $firstInvoice->sunat_concept_currency_id != $currencyId) {
+      throw new Exception('El tipo de moneda debe ser el mismo que la primera factura emitida para esta orden de trabajo.');
+    }
+
+    // Validate advance payment is not 0
+    if ($isAdvancePayment && $newTotal <= 0) {
+      throw new Exception('Un anticipo no puede ser por 0. El total debe ser mayor a 0.');
+    }
+
+    // Validate advance payments don't exceed work order total
+    if ($isAdvancePayment) {
+      $totalAdvances = ElectronicDocument::where('work_order_id', $workOrderId)
+        ->where('is_advance_payment', 1)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', false)
+        ->whereNull('deleted_at')
+        ->sum('total');
+
+      $totalAdvancesWithNew = $totalAdvances + $newTotal;
+
+      if ($totalAdvancesWithNew > $workOrderTotal) {
+        throw new Exception(sprintf(
+          'La suma de anticipos (%.2f) excede el monto total de la orden de trabajo (%.2f). Ya hay %.2f en anticipos existentes.',
+          $totalAdvancesWithNew,
+          $workOrderTotal,
+          $totalAdvances
+        ));
+      }
+    }
+  }
+
+  /**
+   * Validate internal sale total
+   * When is_advance_payment = 0, validates that sum of advances + current invoice equals the total amount
+   *
+   * @param array $data
+   * @return void
+   * @throws Exception
+   */
+  private function validateInternalSaleTotal(array $data): void
+  {
+    $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
+
+    // Only validate for internal sales (is_advance_payment = 0)
+    if ($isAdvancePayment) {
+      return;
+    }
+
+    $newTotal = (float)($data['total'] ?? 0);
+    $entityTotal = 0;
+    $entityName = '';
+    $entityId = null;
+    $entityField = null;
+
+    // Determine which entity we're working with
+    if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
+      $entityField = 'order_quotation_id';
+      $entityId = $data['order_quotation_id'];
+      $quotation = ApOrderQuotations::find($entityId);
+      if ($quotation) {
+        $entityTotal = (float)$quotation->total_amount;
+        $entityName = 'cotización';
+      }
+    } elseif (isset($data['work_order_id']) && $data['work_order_id']) {
+      $entityField = 'work_order_id';
+      $entityId = $data['work_order_id'];
+      $workOrder = ApWorkOrder::with(['labours', 'parts'])->find($entityId);
+      if ($workOrder) {
+        $totalLabourCost = $workOrder->labours->sum('total_cost') ?? 0;
+        $totalPartsCost = $workOrder->parts->sum('total_amount') ?? 0;
+        $entityTotal = $totalLabourCost + $totalPartsCost;
+        $entityName = 'orden de trabajo';
+      }
+    } elseif (isset($data['purchase_request_quote_id']) && $data['purchase_request_quote_id']) {
+      $entityField = 'purchase_request_quote_id';
+      $entityId = $data['purchase_request_quote_id'];
+      $purchaseRequestQuote = PurchaseRequestQuote::find($entityId);
+      if ($purchaseRequestQuote) {
+        $entityTotal = (float)$purchaseRequestQuote->doc_sale_price;
+        $entityName = 'solicitud de cotización';
+      }
+    }
+
+    // If no entity found, skip validation
+    if (!$entityId || !$entityField || $entityTotal <= 0) {
+      return;
+    }
+
+    // Calculate total advances already accepted by SUNAT
+    $totalAdvances = ElectronicDocument::where($entityField, $entityId)
+      ->where('is_advance_payment', 1)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', false)
+      ->whereNull('deleted_at')
+      ->sum('total');
+
+    // Calculate expected total (advances + current invoice)
+    // Round to 2 decimals to ensure exact comparison
+    $totalWithNewInvoice = round($totalAdvances + $newTotal, 2);
+    $entityTotal = round($entityTotal, 2);
+
+    // Validate that sum equals entity total (exact match required)
+    if ($totalWithNewInvoice != $entityTotal) {
+      throw new Exception(sprintf(
+        'La suma de anticipos (%.2f) más el monto de esta factura (%.2f) debe ser igual al monto total de la %s (%.2f). Total actual: %.2f',
+        $totalAdvances,
+        $newTotal,
+        $entityName,
+        $entityTotal,
+        $totalWithNewInvoice
+      ));
+    }
+  }
+
+  /**
+   * Update work order invoice status
+   * Marks has_invoice_generated = true when a document is created
+   * If is_advance_payment = false (venta interna), close the work order
+   *
+   * @param int $workOrderId
+   * @param bool $isAdvancePayment
+   * @return void
+   */
+  private function updateWorkOrderInvoiceStatus(int $workOrderId, bool $isAdvancePayment = true): void
+  {
+    try {
+      $workOrder = ApWorkOrder::find($workOrderId);
+
+      if (!$workOrder) {
+        return;
+      }
+
+      // Siempre marcar que se generó factura
+      $workOrder->update(['has_invoice_generated' => true]);
+
+      // Si no es anticipo (es venta interna), cerrar la orden de trabajo
+      if (!$isAdvancePayment) {
+        $workOrder->update(['status_id' => ApMasters::CLOSED_WORK_ORDER_ID]);
+      }
+    } catch (Exception $e) {
+      Log::error('Error updating work order invoice status', [
+        'work_order_id' => $workOrderId,
+        'error' => $e->getMessage(),
+      ]);
     }
   }
 }

@@ -2,7 +2,7 @@
 
 namespace Database\Seeders\ap\commercial;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\maestroGeneral\TaxClassTypes;
 use App\Models\gp\gestionsistema\Company;
@@ -19,13 +19,13 @@ class BusinessPartnersTestSeeder extends Seeder
     $taxClassType = TaxClassTypes::first();
 
     // Obtener masters necesarios
-    $origin = ApCommercialMasters::where('type', 'ORIGIN')->first();
-    $typePerson = ApCommercialMasters::where('type', 'TYPE_PERSON')->first();
-    $documentType = ApCommercialMasters::where('type', 'TYPE_DOCUMENT')->first();
-    $personSegment = ApCommercialMasters::where('type', 'PERSON_SEGMENT')->first();
-    $activityEconomic = ApCommercialMasters::where('type', 'ACTIVITY_ECONOMIC')->first();
-    $gender = ApCommercialMasters::where('type', 'GENDER')->first();
-    $typeRoad = ApCommercialMasters::where('type', 'TYPE_ROAD')->first();
+    $origin = ApMasters::where('type', 'ORIGIN')->first();
+    $typePerson = ApMasters::where('type', 'TYPE_PERSON')->first();
+    $documentType = ApMasters::where('type', 'TYPE_DOCUMENT')->first();
+    $personSegment = ApMasters::where('type', 'PERSON_SEGMENT')->first();
+    $activityEconomic = ApMasters::where('type', 'ACTIVITY_ECONOMIC')->first();
+    $gender = ApMasters::where('type', 'GENDER')->first();
+    $typeRoad = ApMasters::where('type', 'TYPE_ROAD')->first();
 
     if (!$company || !$district || !$taxClassType) {
       $this->command->error('❌ Faltan datos base (Company, District, TaxClassTypes). No se pueden crear clientes de prueba.');
@@ -33,13 +33,13 @@ class BusinessPartnersTestSeeder extends Seeder
     }
 
     if (!$origin || !$typePerson || !$documentType || !$personSegment || !$activityEconomic) {
-      $this->command->error('❌ Faltan masters de ApCommercialMasters necesarios.');
+      $this->command->error('❌ Faltan masters de ApMasters necesarios.');
       return;
     }
 
     // Crear TYPE_ROAD si no existe
     if (!$typeRoad) {
-      $typeRoad = ApCommercialMasters::create([
+      $typeRoad = ApMasters::create([
         'description' => 'AVENIDA',
         'type' => 'TYPE_ROAD',
       ]);

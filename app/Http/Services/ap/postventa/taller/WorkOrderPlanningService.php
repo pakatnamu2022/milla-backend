@@ -5,6 +5,8 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\WorkOrderPlanningResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\ApMasters;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderPlanning;
 use Carbon\Carbon;
 use Exception;
@@ -41,6 +43,17 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
   {
     // Establecer valor por defecto para type si no se envía
     $data['type'] = $data['type'] ?? 'internal';
+
+    // obtenemos la OT y validamos que exista
+    $workOrder = ApWorkOrder::find($data['work_order_id']);
+
+    if (!$workOrder) {
+      throw new Exception('Orden de trabajo no encontrada');
+    }
+
+    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+      throw new Exception('No se puede agregar planificación a una orden de trabajo cerrada');
+    }
 
     // Calcular planned_end_datetime si es necesario
     $data = $this->calculatePlannedEndDatetime($data);

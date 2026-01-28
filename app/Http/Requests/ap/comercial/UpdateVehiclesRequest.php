@@ -32,9 +32,9 @@ class UpdateVehiclesRequest extends StoreRequest
           ->whereNull('deleted_at')
       ],
       'ap_models_vn_id' => 'sometimes|required|integer|exists:ap_models_vn,id',
-      'vehicle_color_id' => 'sometimes|required|integer|exists:ap_commercial_masters,id',
-      'supplier_order_type_id' => 'sometimes|nullable|integer|exists:ap_commercial_masters,id',
-      'engine_type_id' => 'sometimes|required|integer|exists:ap_commercial_masters,id',
+      'vehicle_color_id' => 'sometimes|required|integer|exists:ap_masters,id',
+      'supplier_order_type_id' => 'sometimes|nullable|integer|exists:ap_masters,id',
+      'engine_type_id' => 'sometimes|required|integer|exists:ap_masters,id',
       'ap_vehicle_status_id' => 'sometimes|integer|exists:ap_vehicle_status,id',
       'sede_id' => 'sometimes|required|integer|exists:config_sede,id',
       'warehouse_physical_id' => 'sometimes|nullable|integer|exists:warehouse,id',

@@ -9,7 +9,7 @@ class UpdateApCommercialManagerBrandGroupRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'brand_group_id' => 'required|exists:ap_commercial_masters,id',
+      'brand_group_id' => 'required|exists:ap_masters,id',
       'commercial_managers' => 'nullable|array',
       'commercial_managers.*' => 'integer|exists:rrhh_persona,id',
       'year' => 'required|integer|digits:4',

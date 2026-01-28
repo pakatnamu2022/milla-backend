@@ -31,7 +31,7 @@ class UpdateApprovedAccessoriesRequest extends StoreRequest
       'price' => ['sometimes', 'numeric'],
       'status' => ['sometimes', 'boolean'],
       'type_currency_id' => ['sometimes', 'exists:type_currency,id'],
-      'body_type_id' => ['sometimes', 'exists:ap_commercial_masters,id']
+      'body_type_id' => ['sometimes', 'exists:ap_masters,id']
     ];
   }
 

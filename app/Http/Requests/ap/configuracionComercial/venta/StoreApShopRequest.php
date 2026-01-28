@@ -14,7 +14,7 @@ class StoreApShopRequest extends StoreRequest
         'required',
         'string',
         'max:100',
-        Rule::unique('ap_commercial_masters', 'description')
+        Rule::unique('ap_masters', 'description')
           ->where('type', $this->type)
           ->whereNull('deleted_at'),
       ],

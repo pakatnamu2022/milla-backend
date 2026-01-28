@@ -3,11 +3,14 @@
 namespace App\Models\ap\comercial;
 
 use App\Http\Traits\Reportable;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
+use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
+use App\Models\ap\configuracionComercial\venta\ApCommercialManagerBrandGroup;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -40,6 +43,7 @@ class PotentialBuyers extends Model
     'use',
     'comment',
     'user_id',
+    'reason_discarding_id',
     'created_at',
     'updated_at',
   ];
@@ -49,7 +53,7 @@ class PotentialBuyers extends Model
     'sede_id' => '=',
     'vehicle_brand_id' => '=',
     'document_type_id' => '=',
-    'created_at' => 'date_btw',
+    'created_at' => 'date_between',
     'type' => '=',
     'income_sector_id' => '=',
     'area_id' => '=',
@@ -57,6 +61,7 @@ class PotentialBuyers extends Model
     'status_num_doc' => '=',
     'use' => '=',
     'registration_date' => 'date_between',
+    'boss_id' => 'custom',
   ];
 
   const CREATED = 0;
@@ -113,7 +118,7 @@ class PotentialBuyers extends Model
 
   public function documentType(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'document_type_id');
+    return $this->belongsTo(ApMasters::class, 'document_type_id');
   }
 
   public function sede(): BelongsTo
@@ -123,12 +128,12 @@ class PotentialBuyers extends Model
 
   public function area(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'area_id');
+    return $this->belongsTo(ApMasters::class, 'area_id');
   }
 
   public function incomeSector(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'income_sector_id');
+    return $this->belongsTo(ApMasters::class, 'income_sector_id');
   }
 
   public function worker(): BelongsTo
@@ -146,12 +151,17 @@ class PotentialBuyers extends Model
     return $this->hasOne(Opportunity::class, 'lead_id');
   }
 
+  public function reasonDiscarding(): BelongsTo
+  {
+    return $this->belongsTo(ApMasters::class, 'reason_discarding_id');
+  }
+
   // ← CONFIGURACIÓN DEL REPORTE CON FORMATO SOLICITADO
   protected $reportColumns = [
-    'registration_date' => [
-      'label' => 'Fecha de Registro',
-      'formatter' => 'date:d/m/Y',
-      'width' => 20,
+    'created_at' => [
+      'label' => 'Fecha y Hora de Registro',
+      'formatter' => 'date:d/m/Y H:i',
+      'width' => 25,
     ],
     'sede.abreviatura' => [
       'label' => 'Sede',
@@ -227,15 +237,15 @@ class PotentialBuyers extends Model
       'accessor' => 'getOpportunityStatusNameAttribute'
     ],
     'attention_description' => [
-      'label' => 'Descripción de la Atención',
+      'label' => 'Descripción de la Atención / Descarte',
       'formatter' => null,
       'width' => 40,
       'accessor' => 'getAttentionDescriptionAttribute'
     ],
-    'created_at' => [
-      'label' => 'Fecha y Hora de Registro',
-      'formatter' => 'date:d/m/Y H:i',
-      'width' => 25,
+    'registration_date' => [
+      'label' => 'Fecha Lead / Visita',
+      'formatter' => 'date:d/m/Y',
+      'width' => 20,
     ],
     'attention_updated_at' => [
       'label' => 'Fecha y Hora de Atención',
@@ -258,6 +268,7 @@ class PotentialBuyers extends Model
     'sede.district',
     'opportunity.opportunityStatus',
     'opportunity.actions',
+    'reasonDiscarding',
   ];
 
   public function getAdvisorFullNameAttribute()
@@ -290,9 +301,16 @@ class PotentialBuyers extends Model
 
   public function getAttentionDescriptionAttribute()
   {
+    // Si el estado es DESCARTADO, mostrar el motivo de descarte
+    if ($this->use == self::DISCARTED) {
+      return $this->reasonDiscarding ? $this->reasonDiscarding->description : 'DESCARTADO - Sin motivo especificado';
+    }
+
+    // Si está atendido, mostrar la última descripción de las acciones de la oportunidad
     if (!$this->opportunity || !$this->opportunity->actions || $this->opportunity->actions->isEmpty()) {
       return null;
     }
+
     // Retornar la última descripción
     $lastAction = $this->opportunity->actions->sortByDesc('datetime')->first();
     return $lastAction ? $lastAction->description : null;
@@ -323,5 +341,236 @@ class PotentialBuyers extends Model
     }
 
     return $columns;
+  }
+
+  /**
+   * Sobrescribe getReportData para manejar filtro especial boss_id
+   * Cuando se pasa boss_id, filtra por los asesores asignados a ese jefe
+   */
+  public function getReportData($filters = [], $columns = null)
+  {
+    $query = $this->newQuery();
+
+    // Cargar relaciones si están definidas
+    $relations = $this->getReportRelations();
+    if (!empty($relations)) {
+      $query->with($relations);
+    }
+
+    // Extraer boss_id y date_from/date_to de los filtros para el filtro especial
+    $bossId = null;
+    $dateFrom = null;
+    $dateTo = null;
+    $remainingFilters = [];
+
+    foreach ($filters as $filter) {
+      if ($filter['column'] === 'boss_id') {
+        $bossId = $filter['value'];
+      } elseif ($filter['column'] === 'created_at') {
+        if ($filter['operator'] === '>=') {
+          $dateFrom = $filter['value'];
+        } elseif ($filter['operator'] === '<=') {
+          $dateTo = $filter['value'];
+        } elseif ($filter['operator'] === 'date_between' && is_array($filter['value'])) {
+          $dateFrom = $filter['value'][0];
+          $dateTo = $filter['value'][1];
+        }
+        $remainingFilters[] = $filter;
+      } else {
+        $remainingFilters[] = $filter;
+      }
+    }
+
+    // Si hay boss_id, obtener los asesores asignados y filtrar
+    if ($bossId) {
+      $advisorIds = $this->getAssignedAdvisorsForManager($bossId, $dateFrom, $dateTo);
+      if (!empty($advisorIds)) {
+        $query->whereIn('worker_id', $advisorIds);
+      } else {
+        // Si no hay asesores asignados, no mostrar ningún registro
+        $query->whereRaw('1 = 0');
+      }
+    }
+
+    // Aplicar los demás filtros normalmente
+    foreach ($remainingFilters as $filter) {
+      $query = $this->applyReportFilter($query, $filter);
+    }
+
+    return $query->get();
+  }
+
+  /**
+   * Obtiene IDs de asesores asignados a un jefe en un rango de fechas
+   * Considera tres niveles:
+   * 1. Asesores directos
+   * 2. Asesores de jefes asignados
+   * 3. Asesores por grupos de marcas (commercialManagerBrandGroup)
+   */
+  private function getAssignedAdvisorsForManager($bossId, $dateFrom, $dateTo)
+  {
+    $periods = $this->generatePeriods($dateFrom, $dateTo);
+
+    // Obtener trabajadores asignados directamente al boss_id
+    $query = ApAssignmentLeadership::where('boss_id', $bossId)
+      ->where('status', 1);
+
+    $query->where(function ($q) use ($periods) {
+      foreach ($periods as $period) {
+        $q->orWhere(function ($subQuery) use ($period) {
+          $subQuery->where('year', $period['year'])
+            ->where('month', $period['month']);
+        });
+      }
+    });
+
+    $directWorkerIds = $query->distinct()
+      ->pluck('worker_id')
+      ->toArray();
+
+    $allAdvisorIds = [];
+
+    // Si hay trabajadores asignados directamente
+    if (!empty($directWorkerIds)) {
+      // Verificar si estos trabajadores tienen asesores asignados (son jefes)
+      $bossWorkerIds = ApAssignmentLeadership::whereIn('boss_id', $directWorkerIds)
+        ->where('status', 1)
+        ->where(function ($q) use ($periods) {
+          foreach ($periods as $period) {
+            $q->orWhere(function ($subQuery) use ($period) {
+              $subQuery->where('year', $period['year'])
+                ->where('month', $period['month']);
+            });
+          }
+        })
+        ->distinct()
+        ->pluck('boss_id')
+        ->toArray();
+
+      // Separar trabajadores directos en asesores y jefes
+      $directAdvisorIds = array_diff($directWorkerIds, $bossWorkerIds);
+      $directBossIds = array_intersect($directWorkerIds, $bossWorkerIds);
+
+      // Obtener asesores de los jefes asignados
+      $advisorsOfBosses = [];
+      if (!empty($directBossIds)) {
+        $advisorsOfBosses = ApAssignmentLeadership::whereIn('boss_id', $directBossIds)
+          ->where('status', 1)
+          ->where(function ($q) use ($periods) {
+            foreach ($periods as $period) {
+              $q->orWhere(function ($subQuery) use ($period) {
+                $subQuery->where('year', $period['year'])
+                  ->where('month', $period['month']);
+              });
+            }
+          })
+          ->distinct()
+          ->pluck('worker_id')
+          ->toArray();
+      }
+
+      // Combinar asesores directos con asesores de jefes
+      $allAdvisorIds = array_unique(array_merge($directAdvisorIds, $advisorsOfBosses));
+    }
+
+    // Si no hay asesores por asignación directa, verificar si es gerente comercial con grupos de marcas
+    if (empty($allAdvisorIds)) {
+      $advisorsByBrandGroup = $this->getAdvisorsByBrandGroup($bossId, $periods);
+      $allAdvisorIds = array_merge($allAdvisorIds, $advisorsByBrandGroup);
+    }
+
+    return array_unique($allAdvisorIds);
+  }
+
+  /**
+   * Obtiene IDs de asesores asignados a un gerente comercial mediante grupos de marcas
+   */
+  private function getAdvisorsByBrandGroup($managerId, $periods)
+  {
+    // Paso 1: Obtener brand_group_ids del gerente comercial
+    $brandGroupIds = ApCommercialManagerBrandGroup::where('worker_id', $managerId)
+      ->where('status', 1)
+      ->where(function ($q) use ($periods) {
+        foreach ($periods as $period) {
+          $q->orWhere(function ($subQuery) use ($period) {
+            $subQuery->where('year', $period['year'])
+              ->where('month', $period['month']);
+          });
+        }
+      })
+      ->distinct()
+      ->pluck('brand_group_id')
+      ->toArray();
+
+    if (empty($brandGroupIds)) {
+      return [];
+    }
+
+    // Paso 2: Obtener jefes asignados a esos grupos de marcas
+    $bossIds = ApCommercialManagerBrandGroup::whereIn('brand_group_id', $brandGroupIds)
+      ->where('worker_id', '!=', $managerId)
+      ->where('status', 1)
+      ->where(function ($q) use ($periods) {
+        foreach ($periods as $period) {
+          $q->orWhere(function ($subQuery) use ($period) {
+            $subQuery->where('year', $period['year'])
+              ->where('month', $period['month']);
+          });
+        }
+      })
+      ->distinct()
+      ->pluck('worker_id')
+      ->toArray();
+
+    if (empty($bossIds)) {
+      return [];
+    }
+
+    // Paso 3: Obtener asesores de cada jefe
+    $advisorIds = ApAssignmentLeadership::whereIn('boss_id', $bossIds)
+      ->where('status', 1)
+      ->where(function ($q) use ($periods) {
+        foreach ($periods as $period) {
+          $q->orWhere(function ($subQuery) use ($period) {
+            $subQuery->where('year', $period['year'])
+              ->where('month', $period['month']);
+          });
+        }
+      })
+      ->distinct()
+      ->pluck('worker_id')
+      ->toArray();
+
+    return $advisorIds;
+  }
+
+  /**
+   * Genera lista de períodos (año, mes) dentro del rango de fechas
+   */
+  private function generatePeriods($dateFrom, $dateTo)
+  {
+    $periods = [];
+
+    if (!$dateFrom || !$dateTo) {
+      // Si no hay fechas, usar el mes actual
+      $periods[] = [
+        'year' => (int)date('Y'),
+        'month' => (int)date('m')
+      ];
+      return $periods;
+    }
+
+    $start = Carbon::parse($dateFrom);
+    $end = Carbon::parse($dateTo);
+
+    while ($start <= $end) {
+      $periods[] = [
+        'year' => $start->year,
+        'month' => $start->month
+      ];
+      $start->addMonth();
+    }
+
+    return $periods;
   }
 }

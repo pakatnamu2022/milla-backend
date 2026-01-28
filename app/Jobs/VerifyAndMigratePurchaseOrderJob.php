@@ -11,6 +11,7 @@ use App\Http\Services\DatabaseSyncService;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\gp\gestionsistema\Company;
+use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -31,13 +32,14 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
     public ?int $purchaseOrderId = null
   )
   {
-    $this->onQueue('sync');
+    $this->onQueue('purchase_orders');
   }
 
   /**
    * Execute the job.
    * Si se proporciona un ID, procesa solo esa OC
    * Si no, procesa todas las OCs no migradas
+   * @throws Exception
    */
   public function handle(DatabaseSyncService $syncService): void
   {
@@ -47,7 +49,8 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       } else {
         $this->processAllPendingPurchaseOrders($syncService);
       }
-    } catch (\Exception $e) {
+    } catch (Exception $e) {
+      Log::error('Error en VerifyAndMigratePurchaseOrderJob: ' . $e->getMessage());
       throw $e;
     }
   }
@@ -60,13 +63,16 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
     $pendingOrders = PurchaseOrder::whereIn('migration_status', [
       'pending',
       'in_progress',
-      'failed'
-    ])->get();
+//      'failed'
+    ])
+      ->whereNull('deleted_at')
+      ->get();
 
     foreach ($pendingOrders as $order) {
       try {
         $this->processPurchaseOrder($order->id, $syncService);
-      } catch (\Exception $e) {
+      } catch (Exception $e) {
+        Log::error("Error al procesar orden de compra ID {$order->id}: " . $e->getMessage());
         continue;
       }
     }
@@ -109,13 +115,9 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
   {
     $supplier = $purchaseOrder->supplier;
 
-    Log::info('Verificando proveedor para OC: ' . $purchaseOrder->number);
-
     if (!$supplier) {
       return;
     }
-
-    Log::info('Proveedor encontrado: ' . $supplier->num_doc);
 
     // Obtener o crear log para el proveedor
     $supplierLog = $this->getOrCreateLog(
@@ -125,25 +127,17 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       $supplier->num_doc
     );
 
-    Log::info('Log de proveedor obtenido: ' . $supplierLog->id);
-
     $supplierAddressLog = $this->getOrCreateLog(
       $purchaseOrder->id,
       VehiclePurchaseOrderMigrationLog::STEP_SUPPLIER_ADDRESS,
       VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_SUPPLIER_ADDRESS],
       $supplier->num_doc
     );
-
-    Log::info('Log de dirección de proveedor obtenido: ' . $supplierAddressLog->id);
-
     // Si ya está completado, no hacer nada
     if ($supplierLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED &&
       $supplierAddressLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-      Log::info('Proveedor y dirección ya están completados en el log');
       return;
     }
-
-    Log::info('Verificando existencia del proveedor en la BD intermedia');
 
     // Verificar en la BD intermedia
     $existingSupplier = DB::connection('dbtp')
@@ -152,41 +146,26 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       ->where('NumeroDocumento', $supplier->num_doc)
       ->first();
 
-    Log::info('Existencia del proveedor: ' . ($existingSupplier ? 'Sí' : 'No'));
-
     if (!$existingSupplier) {
-      Log::info('Proveedor no existe en la BD intermedia, intentando sincronizar');
       // No existe, intentar sincronizar
       try {
-        Log::info('Iniciando sincronización del proveedor: ' . $supplier->num_doc);
         $supplierLog->markAsInProgress();
-        Log::info('Datos del proveedor a sincronizar: ' . json_encode($supplier->toArray()));
         $syncService->sync('business_partners_ap_supplier', $supplier->toArray());
-        Log::info('Sincronización del proveedor completada: ' . $supplier->num_doc);
         $supplierLog->updateProcesoEstado(0);
-
-        Log::info('Iniciando sincronización de la dirección del proveedor: ' . $supplier->num_doc);
-
         $supplierAddressLog->markAsInProgress();
-        Log::info('Datos de la dirección del proveedor a sincronizar: ' . json_encode($supplier->toArray()));
         $syncService->sync('business_partners_directions_ap_supplier', $supplier->toArray());
-        Log::info('Sincronización de la dirección del proveedor completada: ' . $supplier->num_doc);
         $supplierAddressLog->updateProcesoEstado(0);
-        Log::info('Proveedor y dirección sincronizados correctamente');
 
-      } catch (\Exception $e) {
+      } catch (Exception $e) {
         Log::error('Error al sincronizar proveedor: ' . $e->getMessage());
         $supplierLog->markAsFailed("Error al sincronizar proveedor: {$e->getMessage()}");
       }
     } else {
-      Log::info('Proveedor ya existe en la BD intermedia, actualizando estado del log');
       // Existe, actualizar el estado del log
       $supplierLog->updateProcesoEstado(
         $existingSupplier->ProcesoEstado ?? 0,
         $existingSupplier->ProcesoError ?? null
       );
-
-      Log::info('Verificando existencia de la dirección del proveedor en la BD intermedia');
 
       // Verificar dirección
       $existingAddress = DB::connection('dbtp')
@@ -194,8 +173,6 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         ->where('EmpresaId', Company::AP_DYNAMICS)
         ->where('Proveedor', $supplier->num_doc)
         ->first();
-
-      Log::info('Existencia de la dirección del proveedor: ' . ($existingAddress ? 'Sí' : 'No'));
 
       if ($existingAddress) {
         $supplierAddressLog->updateProcesoEstado(
@@ -241,7 +218,8 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       try {
         $articleLog->markAsInProgress();
         SyncArticleJob::dispatch($model->id);
-      } catch (\Exception $e) {
+      } catch (Exception $e) {
+        Log::error('Error al despachar job de artículo: ' . $e->getMessage());
         $articleLog->markAsFailed("Error al despachar job de artículo: {$e->getMessage()}");
       }
     } else {
@@ -314,7 +292,8 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         $purchaseOrderDetailLog->markAsInProgress();
         $syncService->sync('ap_purchase_order_item', $resourceDataPurchaseOrderDetail);
         $purchaseOrderDetailLog->updateProcesoEstado(0);
-      } catch (\Exception $e) {
+      } catch (Exception $e) {
+        Log::error('Error al sincronizar orden de compra: ' . $e->getMessage());
         $purchaseOrderLog->markAsFailed("Error al sincronizar orden de compra: {$e->getMessage()}");
       }
     } else {
@@ -416,7 +395,8 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         $syncService->sync('ap_vehicle_purchase_order_reception_det_s', $receptionSerialData, 'create');
         $receptionSerialLog->updateProcesoEstado(0);
 
-      } catch (\Exception $e) {
+      } catch (Exception $e) {
+        Log::error('Error al sincronizar recepción: ' . $e->getMessage());
         $receptionLog->markAsFailed("Error al sincronizar recepción: {$e->getMessage()}");
       }
     } else {

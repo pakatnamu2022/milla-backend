@@ -13,6 +13,7 @@ use App\Models\ap\compras\PurchaseOrderItem;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
+use App\Models\ap\postventa\taller\ApSupplierOrder;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -392,20 +393,26 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
    */
   protected function notifyRequestUsers(PurchaseOrder $purchaseOrder): void
   {
-    $requestDetailsCount = $purchaseOrder->requestDetails()->count();
+    $apSupplierOrder = ApSupplierOrder::where('ap_purchase_order_id', $purchaseOrder->id)->first();
+
+    if (!$apSupplierOrder) {
+      return;
+    }
+
+    $requestDetailsCount = $apSupplierOrder->requestDetails()->count();
 
     if ($requestDetailsCount === 0) {
       return;
     }
 
     // Obtener usuarios únicos a notificar con sus correos
-    $usersToNotify = $purchaseOrder->getUsersToNotify();
+    $usersToNotify = $apSupplierOrder->getUsersToNotify();
 
     if ($usersToNotify->isEmpty()) {
       return;
     }
 
-    $purchaseOrder->requestDetails()->update(['status' => 'received']);
+    $apSupplierOrder->requestDetails()->update(['status' => 'received']);
 
     $emailService = new EmailService();
 

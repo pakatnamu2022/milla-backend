@@ -62,4 +62,14 @@ class ApOrderPurchaseRequestDetails extends Model
       'purchase_order_id'
     )->withTimestamps();
   }
+
+  public function supplierOrders(): BelongsToMany
+  {
+    return $this->belongsToMany(
+      ApSupplierOrder::class,
+      'ap_order_purchase_request_detail_supplier_order',
+      'ap_order_purchase_request_detail_id',
+      'ap_supplier_order_id'
+    )->withTimestamps();
+  }
 }

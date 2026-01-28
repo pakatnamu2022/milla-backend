@@ -2,7 +2,7 @@
 
 namespace Database\Seeders\ap\commercial;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use Illuminate\Database\Seeder;
 
 class ApCommercialMastersMinimalSeeder extends Seeder
@@ -36,7 +36,7 @@ class ApCommercialMastersMinimalSeeder extends Seeder
     ];
 
     foreach ($data as $item) {
-      ApCommercialMasters::firstOrCreate([
+      ApMasters::firstOrCreate([
         'description' => $item['description'],
         'type' => $item['type'],
       ], [
@@ -44,6 +44,6 @@ class ApCommercialMastersMinimalSeeder extends Seeder
       ]);
     }
 
-    $this->command->info('✅ Maestros mínimos de ApCommercialMasters creados!');
+    $this->command->info('✅ Maestros mínimos de ApMasters creados!');
   }
 }

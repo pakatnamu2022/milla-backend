@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\postventa\taller;
 
+use App\Models\ap\ApMasters;
 use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -112,6 +113,10 @@ class ApWorkOrderPlanning extends Model
       throw new \Exception('Ya existe una sesión activa. Debe finalizarla antes de iniciar una nueva.');
     }
 
+    $workOrder = $this->workOrder;
+    $workOrder->status_id = ApMasters::AT_WORK_WORK_ORDER_ID;
+    $workOrder->save();
+
     $session = new ApWorkOrderPlanningSession([
       'work_order_planning_id' => $this->id,
       'start_datetime' => now(),
@@ -161,5 +166,32 @@ class ApWorkOrderPlanning extends Model
     $this->actual_end_datetime = now();
     $this->status = 'completed';
     $this->save();
+
+    // Verificar si todos los trabajos de la orden están completados
+    $this->checkAndUpdateWorkOrderStatus();
+  }
+
+  /**
+   * Verifica si todos los plannings de la orden de trabajo están completados
+   * y actualiza el estado de la orden a FINISHED si es así
+   */
+  protected function checkAndUpdateWorkOrderStatus(): void
+  {
+    $workOrder = $this->workOrder;
+
+    if (!$workOrder) {
+      return;
+    }
+
+    // Contar plannings pendientes o en progreso
+    $pendingPlannings = $workOrder->plannings()
+      ->where('status', '!=', 'completed')
+      ->count();
+
+    // Si no hay plannings pendientes, marcar la orden como terminada
+    if ($pendingPlannings === 0) {
+      $workOrder->status_id = ApMasters::FINISHED_WORK_ORDER_ID;
+      $workOrder->save();
+    }
   }
 }

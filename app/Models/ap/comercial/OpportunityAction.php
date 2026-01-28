@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -47,11 +47,11 @@ class OpportunityAction extends Model
 
   public function actionType()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'action_type_id');
+    return $this->belongsTo(ApMasters::class, 'action_type_id');
   }
 
   public function actionContactType()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'action_contact_type_id');
+    return $this->belongsTo(ApMasters::class, 'action_contact_type_id');
   }
 }

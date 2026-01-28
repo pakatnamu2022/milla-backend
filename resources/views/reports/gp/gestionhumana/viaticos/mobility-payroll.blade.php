@@ -1,4 +1,40 @@
-<!doctype html>
+@php
+  function getBase64Image($path) {
+    $fullPath = public_path($path);
+    if (!file_exists($fullPath)) {
+      return '';
+    }
+    $imageData = base64_encode(file_get_contents($fullPath));
+    $mimeType = mime_content_type($fullPath);
+    return "data:{$mimeType};base64,{$imageData}";
+  }
+
+  $correlativeFormatted = str_pad($mobilityPayroll->correlative, 6, '0', STR_PAD_LEFT);
+  $emissionDate = $mobilityPayroll->created_at ? \Carbon\Carbon::parse($mobilityPayroll->created_at)->format('d/m/Y') : now()->format('d/m/Y');
+  $emissionTime = $mobilityPayroll->created_at ? \Carbon\Carbon::parse($mobilityPayroll->created_at)->format('H:i') : now()->format('H:i');
+
+  // Format period in Spanish (e.g., "Enero del 2026")
+  $periodFormatted = $mobilityPayroll->period;
+  if (preg_match('/^(\d{2})\/\s*(\d{4})$/', trim($mobilityPayroll->period), $matches)) {
+    $monthNumber = (int)$matches[1];
+    $year = $matches[2];
+    $months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    if ($monthNumber >= 1 && $monthNumber <= 12) {
+      $periodFormatted = $months[$monthNumber - 1] . ' del ' . $year;
+    }
+  }
+
+  // Group expenses by date
+  $expensesByDate = $expenses->groupBy(function($expense) {
+    return \Carbon\Carbon::parse($expense->expense_date)->format('Y-m-d');
+  });
+
+  // Calculate total rows needed to fill the table (minimum 15 rows for appearance)
+  $totalExpenseRows = $expenses->count();
+  $minRows = 15;
+  $emptyRows = max(0, $minRows - $totalExpenseRows);
+@endphp
+  <!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -14,65 +50,270 @@
     body {
       font-family: Arial, sans-serif;
       font-size: 10px;
-      padding: 30px;
+      padding: 20px 25px;
+      color: #1a1a6e;
     }
 
+    .main-container {
+      border: 1px solid #1a1a6e;
+      padding: 15px 20px 10px 20px;
+      position: relative;
+    }
+
+    /* Title */
     .title {
-      background-color: #e0e0e0;
-      padding: 10px;
+      font-size: 13px;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 10px;
+      color: #1a1a6e;
+    }
+
+    /* Title table with document number */
+    .title-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 0;
+    }
+
+    .title-table td {
+      border: 1px solid #8888bb;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    .title-cell {
+      text-align: center;
+      width: 75%;
+      color: #1a1a6e;
+      padding-right: 20px;
+    }
+
+    .doc-number-cell {
+      text-align: center;
+      width: 25%;
+    }
+
+    .doc-number-red {
+      color: #cc0000;
       font-size: 14px;
       font-weight: bold;
-      text-align: center;
-      margin-bottom: 20px;
-      border: 1px solid #000;
     }
 
-    .header-section {
-      margin-bottom: 20px;
-    }
-
-    .header-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 15px;
-    }
-
-    .header-table td {
-      border: 1px solid #000;
-      padding: 5px 8px;
-      font-size: 9px;
-    }
-
-    .header-table .label {
+    .doc-suffix-blue {
+      color: #1a1a6e;
+      font-size: 10px;
       font-weight: bold;
-      background-color: #f0f0f0;
-      width: 20%;
     }
 
-    .header-table .value {
-      width: 30%;
+    /* Wrapper section with vertical borders */
+    .content-wrapper {
+      border-left: 1px solid #8888bb;
+      border-right: 1px solid #8888bb;
+      padding: 0;
     }
 
-    table {
+    /* Inner content padding (except detail table) */
+    .inner-content {
+      padding: 8px;
+    }
+
+    /* Header layout using table */
+    .header-layout {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 15px;
+      margin-bottom: 8px;
+      margin-top: 5px;
     }
 
-    table, th, td {
-      border: 1px solid #000;
-    }
-
-    td, th {
-      padding: 6px 8px;
+    .header-layout td {
       vertical-align: top;
+      padding: 0;
     }
 
-    th {
-      background-color: #e0e0e0;
+    .header-left {
+      width: 55%;
+    }
+
+    .header-right {
+      width: 45%;
+      text-align: right;
+    }
+
+    /* Company info */
+    .company-info-table {
+      width: 90%;
+      border-collapse: collapse;
+    }
+
+    .company-info-table td {
+      padding: 2px 5px;
+      font-size: 9px;
+    }
+
+    .company-info-table .info-label {
+      font-weight: bold;
+      width: 25%;
+      color: #1a1a6e;
+      border: none;
+    }
+
+    .company-info-table .info-value {
+      width: 75%;
+      font-size: 8px;
+      border: 1px solid #8888bb;
+    }
+
+    /* Emission info and logo */
+    .emission-info-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .emission-info-table td {
+      padding: 2px 5px;
+      font-size: 9px;
+      vertical-align: middle;
+    }
+
+    .emission-label {
+      font-weight: bold;
+      color: #1a1a6e;
+      width: 40%;
+      border: none;
+      white-space: nowrap;
+    }
+
+    .emission-value {
+      border: 1px solid #8888bb;
+      padding: 2px 5px;
+      width: 60%;
+      font-size: 8px;
+    }
+
+    .logo-cell {
+      text-align: center;
+      vertical-align: middle;
+      padding: 5px;
+    }
+
+    .logo-cell img {
+      max-width: 120px;
+      height: auto;
+    }
+
+    .logo-text {
+      font-size: 11px;
+      font-weight: bold;
+      color: #1a1a6e;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    /* Period */
+    .period-row {
+      margin-bottom: 8px;
+    }
+
+    .period-table {
+      width: 90%;
+      border-collapse: collapse;
+    }
+
+    .period-table td {
+      padding: 2px 5px;
+      font-size: 9px;
+    }
+
+    .period-label {
+      font-weight: bold;
+      color: #1a1a6e;
+      width: 25%;
+      border: none;
+      white-space: nowrap;
+    }
+
+    .period-value {
+      border: 1px solid #8888bb;
+      width: 75%;
+      padding: 2px 5px;
+    }
+
+    /* Worker info */
+    .worker-section-divider {
+      border-top: 1px solid #8888bb;
+      margin: 0;
+      padding: 0;
+    }
+
+    .worker-section {
+      margin-bottom: 8px;
+      padding: 5px 0;
+    }
+
+    .worker-section-title {
+      font-weight: bold;
+      font-size: 9px;
+      color: #1a1a6e;
+      margin-bottom: 2px;
+    }
+
+    .worker-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .worker-table td {
+      padding: 2px 5px;
+      font-size: 9px;
+    }
+
+    .worker-label {
+      font-weight: bold;
+      color: #1a1a6e;
+    }
+
+    .worker-value {
+      border: 1px solid #8888bb;
+      min-width: 150px;
+      padding: 2px 8px;
+    }
+
+    /* Detail table */
+    table.detail-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 0;
+      border-left: none;
+      border-right: none;
+    }
+
+    table.detail-table th,
+    table.detail-table td {
+      border: 1px solid #8888bb;
+      padding: 3px 4px;
+      vertical-align: middle;
+      font-size: 8px;
+    }
+
+    /* Remove left border from first column */
+    table.detail-table th:first-child,
+    table.detail-table td:first-child {
+      border-left: none;
+    }
+
+    /* Remove right border from last column */
+    table.detail-table th:last-child,
+    table.detail-table td:last-child {
+      border-right: none;
+    }
+
+    table.detail-table th {
+      background-color: #c8c8e8;
       font-weight: bold;
       text-align: center;
-      font-size: 9px;
+      color: #1a1a6e;
     }
 
     .text-center {
@@ -83,129 +324,189 @@
       text-align: right;
     }
 
-    .total-row {
-      background-color: #f5f5f5;
+    /* Total row */
+    .total-row td {
       font-weight: bold;
+      font-size: 9px;
+      padding: 4px 6px;
     }
 
-    .footer-section {
-      margin-top: 30px;
-      text-align: right;
-      font-weight: bold;
-      font-size: 11px;
-    }
-
-    .signature-section {
-      margin-top: 50px;
-      text-align: center;
-    }
-
-    .signature-line {
-      border-top: 1px solid #000;
-      width: 250px;
-      margin: 0 auto;
-      padding-top: 5px;
+    /* Base Legal footer */
+    .base-legal {
+      font-size: 7px;
+      color: #1a1a6e;
+      margin-top: 8px;
+      padding: 4px 4px;
     }
   </style>
 </head>
 <body>
 
-<div class="title">
-  PLANILLA DE GASTOS DE MOVILIDAD
-</div>
+<div class="main-container">
 
-<!-- Header Information -->
-<div class="header-section">
-  <table class="header-table">
+  <!-- Title and Document Number Table -->
+  <table class="title-table">
     <tr>
-      <td class="label">DOCUMENTO:</td>
-      <td class="value">{{ $mobilityPayroll->serie }}-{{ $mobilityPayroll->correlative }}</td>
-      <td class="label">PERÍODO:</td>
-      <td class="value">{{ $mobilityPayroll->period }}</td>
-    </tr>
-    <tr>
-      <td class="label">TRABAJADOR:</td>
-      <td class="value" colspan="3">{{ $mobilityPayroll->worker->nombre_completo ?? 'N/A' }}</td>
-    </tr>
-    <tr>
-      <td class="label">DNI/RUC:</td>
-      <td class="value">{{ $mobilityPayroll->num_doc }}</td>
-      <td class="label">SEDE:</td>
-      <td class="value">{{ $mobilityPayroll->sede->abreviatura ?? 'N/A' }}</td>
-    </tr>
-    <tr>
-      <td class="label">EMPRESA:</td>
-      <td class="value" colspan="3">{{ $mobilityPayroll->company_name }}</td>
-    </tr>
-    @if($mobilityPayroll->address)
-    <tr>
-      <td class="label">DIRECCIÓN:</td>
-      <td class="value" colspan="3">{{ $mobilityPayroll->address }}</td>
-    </tr>
-    @endif
-  </table>
-</div>
-
-<!-- Expense Details Table -->
-<table>
-  <thead>
-  <tr>
-    <th style="width: 8%;">N°</th>
-    <th style="width: 12%;">FECHA</th>
-    <th style="width: 25%;">TIPO GASTO</th>
-    <th style="width: 12%;">TIPO COMP.</th>
-    <th style="width: 15%;">N° COMP.</th>
-    <th style="width: 13%;">IMPORTE</th>
-    <th style="width: 15%;">OBSERVACIÓN</th>
-  </tr>
-  </thead>
-  <tbody>
-  @php $counter = 1; @endphp
-  @foreach($expenses as $expense)
-    <tr>
-      <td class="text-center">{{ $counter++ }}</td>
-      <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('d/m/Y') }}</td>
-      <td>{{ $expense->expenseType->name ?? 'N/A' }}</td>
-      <td class="text-center">
-        @if($expense->receipt_type === 'invoice')
-          Factura
-        @elseif($expense->receipt_type === 'boleta')
-          Boleta
-        @elseif($expense->receipt_type === 'ticket')
-          Ticket
-        @elseif($expense->receipt_type === 'no_receipt')
-          Sin Comp.
-        @else
-          {{ $expense->receipt_type }}
-        @endif
+      <td class="title-cell">PLANILLA POR GASTO DE MOVILIDAD - POR TRABAJADOR</td>
+      <td class="doc-number-cell">
+        <span class="doc-number-red">N.° {{ $correlativeFormatted }}</span>
+        <span class="doc-suffix-blue"> - {{ $abbreviationSede }}</span>
       </td>
-      <td class="text-center">{{ $expense->receipt_number ?? '-' }}</td>
-      <td class="text-right">S/ {{ number_format($expense->receipt_amount, 2) }}</td>
-      <td>{{ $expense->notes ?? '-' }}</td>
     </tr>
-  @endforeach
+  </table>
 
-  <!-- Total Row -->
-  <tr class="total-row">
-    <td colspan="5" class="text-right">TOTAL:</td>
-    <td class="text-right">S/ {{ number_format($totalAmount, 2) }}</td>
-    <td></td>
-  </tr>
-  </tbody>
-</table>
+  <!-- Content Wrapper with vertical borders -->
+  <div class="content-wrapper">
+    <div class="inner-content">
+      <!-- Header: Company info left, Emission + Logo right -->
+      <table class="header-layout">
+        <tr>
+          <td class="header-left">
+            <table class="company-info-table">
+              <tr>
+                <td class="info-label">Razón Social</td>
+                <td class="info-value">{{ $mobilityPayroll->company_name }}</td>
+              </tr>
+              <tr>
+                <td class="info-label">RUC</td>
+                <td class="info-value">{{ $mobilityPayroll->num_doc }}</td>
+              </tr>
+              <tr>
+                <td class="info-label">Dirección</td>
+                <td class="info-value">{{ $mobilityPayroll->address }}</td>
+              </tr>
+            </table>
+          </td>
+          <td class="header-right">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="width: 60%; vertical-align: top;">
+                  <table class="emission-info-table">
+                    <tr>
+                      <td class="emission-label">Fecha de Emisión</td>
+                      <td class="emission-value">{{ $emissionDate }}</td>
+                    </tr>
+                    <tr>
+                      <td class="emission-label">Hora de Emisión</td>
+                      <td class="emission-value">{{ $emissionTime }}</td>
+                    </tr>
+                  </table>
+                </td>
+                <td style="width: 40%; vertical-align: top;">
+                  <div class="logo-cell">
+                    <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="AP Logo">
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
 
-<!-- Footer -->
-<div class="footer-section">
-  <p>Total de gastos: {{ $expenses->count() }}</p>
-  <p>Importe total: S/ {{ number_format($totalAmount, 2) }}</p>
+      <!-- Period -->
+      <div class="period-row">
+        <div style="width: 55%;">
+          <table class="period-table">
+            <tr>
+              <td class="period-label">PERIODO</td>
+              <td class="period-value">{{ $periodFormatted }}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Worker Section Divider (full width border) -->
+    <div class="worker-section-divider"></div>
+
+    <div class="inner-content">
+      <!-- Worker Data -->
+      <div class="worker-section">
+        <div class="worker-section-title" style="width: 70%; margin-left: auto; margin-right: auto;">Datos del
+          Trabajador
+        </div>
+        <table class="worker-table" style="width: 70%; margin-left: auto; margin-right: auto;">
+          <tr>
+            <td class="worker-label" style="width: 25%; white-space: nowrap;">Nombres y Apellidos</td>
+            <td class="worker-value"
+                style="width: 75%; text-align: left;">{{ $mobilityPayroll->worker->nombre_completo ?? 'N/A' }}</td>
+          </tr>
+          <tr>
+            <td class="worker-label" style="width: 25%;">D.N.I.</td>
+            <td class="worker-value"
+                style="width: 75%;">{{ $mobilityPayroll->worker->vat ?? '' }}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Expense Details Table -->
+    <table class="detail-table">
+      <thead>
+      <tr>
+        <th colspan="3">Fecha del Gasto (**)</th>
+        <th colspan="2">Desplazamiento (**)</th>
+        <th colspan="3">Montos gastados por (**):</th>
+      </tr>
+      <tr>
+        <th style="width: 6%;">Día</th>
+        <th style="width: 6%;">Mes</th>
+        <th style="width: 6%;">Año</th>
+        <th style="width: 15%;">Motivo</th>
+        <th style="width: 20%;">Destino</th>
+        <th style="width: 9%;">Viaje</th>
+        <th style="width: 9%;">día</th>
+        <th style="width: 8%;">Firma</th>
+      </tr>
+      </thead>
+      <tbody>
+      @foreach($expensesByDate as $date => $dateExpenses)
+        @php
+          $dateFormatted = \Carbon\Carbon::parse($date);
+          $subtotal = $dateExpenses->sum('receipt_amount');
+        @endphp
+        @foreach($dateExpenses as $expense)
+          <tr>
+            <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('d') }}</td>
+            <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('m') }}</td>
+            <td class="text-center">{{ \Carbon\Carbon::parse($expense->expense_date)->format('Y') }}</td>
+            <td>{{ $expense->reason ?? '' }}</td>
+            <td>{{ $expense->notes ?? '' }}</td>
+            <td class="text-right">{{ number_format($expense->receipt_amount, 2) }}</td>
+            <td class="text-right"></td>
+            <td></td>
+          </tr>
+        @endforeach
+        <!-- Subtotal Row for each date -->
+        <tr style="background-color: #e8e8f0;">
+          <td class="text-center" style="font-weight: bold; font-size: 8px;"></td>
+          <td class="text-center" style="font-weight: bold; font-size: 8px;"></td>
+          <td class="text-center" style="font-weight: bold; font-size: 8px;"></td>
+          <td style="font-weight: bold; font-size: 8px;"></td>
+          <td class="text-right" style="font-weight: bold; font-size: 8px; padding-right: 8px;">
+            Subtotal {{ $dateFormatted->format('d/m/Y') }}</td>
+          <td class="text-right" style="font-weight: bold; font-size: 8px;"></td>
+          <td class="text-right" style="font-weight: bold; font-size: 8px;">{{ number_format($subtotal, 2) }}</td>
+          <td style="font-weight: bold; font-size: 8px;"></td>
+        </tr>
+      @endforeach
+
+      <!-- Total Row -->
+      <tr class="total-row">
+        <td colspan="5" class="text-center">Total</td>
+        <td class="text-right" colspan="2">S/ {{ number_format($totalAmount, 2) }}</td>
+        <td></td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+
 </div>
 
-<!-- Signature Section -->
-<div class="signature-section">
-  <br><br><br>
-  <div class="signature-line">
-    Firma del Trabajador
-  </div>
+<!-- Base Legal -->
+<div class="base-legal">
+  Base Legal: Inciso a1) del artículo 37° del TUO de la Ley de Impuestos a la Renta e Inciso V) del artículo 21° del
+  Reglamento de la Ley del Impuesto a la Renta.
 </div>
 
 </body>

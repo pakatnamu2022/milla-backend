@@ -108,7 +108,7 @@ class ShippingGuides extends Model
     'search' => ['document_number', 'plate', 'driver_name', 'documentSeries.series'],
     'document_type',
     'issuer_type',
-    'issue_date',
+    'issue_date' => 'date_between',
     'requires_sunat',
     'is_sunat_registered',
     'vehicle_movement_id',
@@ -336,7 +336,7 @@ class ShippingGuides extends Model
   {
     return $this->aceptada_por_sunat === true;
   }
-  
+
   public static function generateNextCorrelative(int $documentSeriesId, int $correlativeStart = 1): array
   {
     // Buscar el último correlativo usado para esta serie

@@ -7,12 +7,13 @@ use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
-use App\Models\ap\ApPostVentaMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseReceptionDetail;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
-use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
 use Exception;
 use Illuminate\Http\Request;
@@ -48,18 +49,23 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
   /**
    * Calcular precios y totales automáticamente basándose en el último movimiento del producto
+   * Aplica factor de tipo de cambio si la OT tiene cotización con moneda diferente
    */
   private function calculatePricesAndTotals(array &$data): void
   {
     $productId = $data['product_id'];
     $quantity = $data['quantity_used'];
     $discountPercentage = $data['discount_percentage'] ?? 0;
+    $workOrderId = $data['work_order_id'];
 
     // Obtener el producto
     $product = Products::find($productId);
     if (!$product) {
       throw new Exception('Producto no encontrado');
     }
+
+    // Calcular factor de tipo de cambio basándose en la OT y cotización
+    $factor = $this->calculateExchangeRateFactor($workOrderId);
 
     // Si no se proporciona unit_cost, obtener el último costo de compra
     if (!isset($data['unit_cost']) || $data['unit_cost'] === null) {
@@ -82,32 +88,79 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $data['unit_price'] = $product->sale_price ?? 0;
     }
 
-    // Calcular subtotal (precio unitario * cantidad)
-    if (!isset($data['subtotal']) || $data['subtotal'] === null) {
-      $subtotalBase = $data['unit_price'] * $quantity;
+    // Aplicar factor de tipo de cambio a los precios unitarios
+    $data['unit_cost'] = floatval($data['unit_cost']) * $factor;
+    $data['unit_price'] = floatval($data['unit_price']) * $factor;
 
-      // Aplicar descuento al subtotal
-      if ($discountPercentage > 0) {
-        $discountAmount = $subtotalBase * ($discountPercentage / 100);
-        $data['subtotal'] = $subtotalBase - $discountAmount;
-      } else {
-        $data['subtotal'] = $subtotalBase;
-      }
+    // Calcular subtotal (precio unitario * cantidad)
+    $subtotalBase = $data['unit_price'] * $quantity;
+
+    // Aplicar descuento al subtotal
+    if ($discountPercentage > 0) {
+      $discountAmount = $subtotalBase * ($discountPercentage / 100);
+      $data['subtotal'] = $subtotalBase - $discountAmount;
+    } else {
+      $data['subtotal'] = $subtotalBase;
     }
 
     // Calcular tax_amount basándose en el tax_rate del producto
-    if (!isset($data['tax_amount']) || $data['tax_amount'] === null) {
-      if ($product->is_taxable && $product->tax_rate) {
-        $data['tax_amount'] = $data['subtotal'] * ($product->tax_rate / 100);
+//    if (!isset($data['tax_amount']) || $data['tax_amount'] === null) {
+//      if ($product->is_taxable && $product->tax_rate) {
+//        $data['tax_amount'] = $data['subtotal'] * ($product->tax_rate / 100);
+//      } else {
+//        $data['tax_amount'] = 0;
+//      }
+//    }
+    $data['tax_amount'] = 0;
+
+    // Calcular total_amount
+    $data['total_amount'] = $data['subtotal'] + $data['tax_amount'];
+  }
+
+  /**
+   * Calcular el factor de tipo de cambio basándose en la OT y su cotización
+   * Si la OT tiene cotización con moneda diferente, aplicar el tipo de cambio
+   *
+   * @param int $workOrderId
+   * @return float
+   * @throws Exception
+   */
+  private function calculateExchangeRateFactor(int $workOrderId): float
+  {
+    $workOrder = ApWorkOrder::find($workOrderId);
+
+    if (!$workOrder) {
+      throw new Exception('Orden de trabajo no encontrada');
+    }
+
+    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+      throw new Exception('No se puede agregar repuestos a una orden de trabajo cerrada');
+    }
+
+    // Si la OT tiene cotización asociada, calcular el factor
+    if ($workOrder->order_quotation_id) {
+      $orderQuotation = $workOrder->orderQuotation;
+
+      if ($orderQuotation->currency_id === $workOrder->currency_id) {
+        // Misma moneda, no hay conversión
+        return 1;
       } else {
-        $data['tax_amount'] = 0;
+        if ($workOrder->currency_id === TypeCurrency::PEN_ID) {
+          // Si la OT está en soles, la cotización está en dólares
+          // Multiplicar por el tipo de cambio para convertir a soles
+          return $orderQuotation->exchange_rate;
+        } else if ($workOrder->currency_id === TypeCurrency::USD_ID) {
+          // Si la OT está en dólares, la cotización está en soles
+          // No hay conversión necesaria
+          return 1;
+        } else {
+          throw new Exception('Moneda no soportada para la cotización de la orden de trabajo');
+        }
       }
     }
 
-    // Calcular total_amount
-    if (!isset($data['total_amount']) || $data['total_amount'] === null) {
-      $data['total_amount'] = $data['subtotal'] + $data['tax_amount'];
-    }
+    // Sin cotización, factor = 1
+    return 1;
   }
 
   public function store(mixed $data)
@@ -121,12 +174,8 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       // Calcular precios y totales automáticamente
       $this->calculatePricesAndTotals($data);
 
-      // Create work order part
+      // Create work order part (sin descontar stock, eso se hace en warehouseOutput)
       $workOrderPart = ApWorkOrderParts::create($data);
-
-      // Crear movimiento de inventario de salida (descarga de stock directamente)
-      $inventoryMovementService = new InventoryMovementService();
-      $inventoryMovementService->createWorkOrderPartOutbound($workOrderPart);
 
       return new ApWorkOrderPartsResource($workOrderPart->load([
         'workOrder',
@@ -165,15 +214,19 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     return DB::transaction(function () use ($id) {
       $workOrderPart = $this->find($id);
 
-      // Buscar el movimiento de inventario asociado a este repuesto
-      $inventoryMovement = InventoryMovement::where('reference_type', get_class($workOrderPart))
-        ->where('reference_id', $workOrderPart->id)
-        ->first();
+      // Buscamos la OT
+      $workOrder = $workOrderPart->workOrder;
+      if ($workOrder->order_quotation_id) {
+        // Si la OT está asociada a una cotización, revertimos el estado del detalle correspondiente
+        $quotationDetail = ApOrderQuotationDetails::where('order_quotation_id', $workOrder->order_quotation_id)
+          ->where('product_id', $workOrderPart->product_id)
+          ->where('quantity', $workOrderPart->quantity_used)
+          ->first();
 
-      // Si existe el movimiento, revertir el stock antes de eliminar
-      if ($inventoryMovement) {
-        $inventoryMovementService = new InventoryMovementService();
-        $inventoryMovementService->reverseStockFromMovement($inventoryMovement->id);
+        if ($quotationDetail) {
+          $quotationDetail->status = 'pending';
+          $quotationDetail->save();
+        }
       }
 
       // Eliminar el repuesto
@@ -184,38 +237,9 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
   }
 
   /**
-   * Obtener cotización activa por vehicle_id
-   * Retorna la cotización vigente (expiration_date no vencida)
-   * Solo retorna productos con status = 'pending'
-   */
-  public function getQuotationByVehicle($vehicleId)
-  {
-    $quotation = ApOrderQuotations::where('vehicle_id', $vehicleId)
-      ->where('area_id', ApPostVentaMasters::AREA_TALLER_ID) // Área de Taller
-      ->where('expiration_date', '>=', now())
-      ->with([
-        'details' => function ($query) {
-          $query->where('status', 'pending');
-        },
-        'details.product',
-        'vehicle',
-        'sede',
-        'createdBy'
-      ])
-      ->latest('created_at')
-      ->first();
-
-    if (!$quotation) {
-      throw new Exception('No se encontró una cotización vigente para este vehículo');
-    }
-
-    return $quotation;
-  }
-
-  /**
    * Guardar masivamente repuestos desde una cotización
-   * Valida stock de cada producto antes de guardar
    * Marca solo los detalles seleccionados como 'taken'
+   * La salida de almacén se realiza posteriormente con warehouseOutput
    */
   public function storeBulkFromQuotation(mixed $data)
   {
@@ -235,30 +259,8 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('No se encontraron productos seleccionados');
       }
 
-      // Validar stock para todos los productos ANTES de crear cualquier registro
-      $stockService = new ProductWarehouseStockService();
-      foreach ($quotationDetails as $detail) {
-        if (!$detail->product_id) {
-          continue; // Skip si no tiene product_id
-        }
-
-        $stock = $stockService->getStock($detail->product_id, $warehouseId);
-
-        if (!$stock) {
-          throw new Exception("No se encontró registro de stock para el producto: {$detail->product->name}");
-        }
-
-        if ($stock->available_quantity < $detail->quantity) {
-          throw new Exception(
-            "Stock insuficiente para: {$detail->product->name}. " .
-            "Disponible: {$stock->available_quantity}, Requerido: {$detail->quantity}"
-          );
-        }
-      }
-
-      // Si todas las validaciones pasaron, crear los registros
+      // Crear los registros sin validar ni descontar stock
       $createdParts = [];
-      $inventoryMovementService = new InventoryMovementService();
 
       foreach ($quotationDetails as $detail) {
         if (!$detail->product_id) {
@@ -284,11 +286,8 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
           $partData['registered_by'] = auth()->user()->id;
         }
 
-        // Crear el repuesto
+        // Crear el repuesto (sin descontar stock, eso se hace en warehouseOutput)
         $workOrderPart = ApWorkOrderParts::create($partData);
-
-        // Crear movimiento de inventario de salida
-        $inventoryMovementService->createWorkOrderPartOutbound($workOrderPart);
 
         // Cargar las relaciones necesarias
         $workOrderPart->load(['workOrder', 'product', 'warehouse']);
@@ -308,4 +307,50 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     });
   }
 
+  /**
+   * Realizar la salida de almacén para un repuesto específico
+   * Valida stock disponible y crea el movimiento de inventario
+   */
+  public function warehouseOutput(int $id)
+  {
+    return DB::transaction(function () use ($id) {
+      $workOrderPart = $this->find($id);
+
+      // Verificar que no se haya realizado ya la salida de almacén
+      $existingMovement = InventoryMovement::where('reference_type', get_class($workOrderPart))
+        ->where('reference_id', $workOrderPart->id)
+        ->first();
+
+      if ($existingMovement) {
+        throw new Exception('Ya se realizó la salida de almacén para este repuesto');
+      }
+
+      // Validar stock disponible
+      $stockService = new ProductWarehouseStockService();
+      $stock = $stockService->getStock($workOrderPart->product_id, $workOrderPart->warehouse_id);
+
+      if (!$stock) {
+        throw new Exception("No se encontró registro de stock para el producto en el almacén seleccionado");
+      }
+
+      if ($stock->available_quantity < $workOrderPart->quantity_used) {
+        throw new Exception(
+          "Stock insuficiente. Disponible: {$stock->available_quantity}, Requerido: {$workOrderPart->quantity_used}"
+        );
+      }
+
+      // Crear movimiento de inventario de salida
+      $inventoryMovementService = new InventoryMovementService();
+      $inventoryMovementService->createWorkOrderPartOutbound($workOrderPart);
+
+      return [
+        'message' => 'Salida de almacén realizada correctamente',
+        'work_order_part' => new ApWorkOrderPartsResource($workOrderPart->load([
+          'workOrder',
+          'product',
+          'warehouse'
+        ]))
+      ];
+    });
+  }
 }

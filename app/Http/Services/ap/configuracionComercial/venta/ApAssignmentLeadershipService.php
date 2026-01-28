@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\configuracionComercial\venta;
 
 use App\Http\Resources\ap\configuracionComercial\venta\ApAssignmentLeadershipResource;
+use App\Http\Resources\ap\configuracionComercial\venta\ApAssignmentLeadershipItemResource;
 use App\Http\Services\BaseService;
 use App\Http\Utils\Constants;
 use Illuminate\Http\Request;
@@ -14,19 +15,23 @@ class ApAssignmentLeadershipService extends BaseService
 {
 
   /**
-   * List all assignment records (individual assignments)
+   * List all assignment records (grouped by boss)
    */
   public function list(Request $request)
   {
-    $query = ApAssignmentLeadership::with(['boss', 'worker']);
+    // Build query with relationships and apply filters
+    $query = ApAssignmentLeadership::with(['boss.position', 'worker']);
+    $query = $this->applyFilters($query, $request, ApAssignmentLeadership::filters);
+    $query = $this->applySorting($query, $request, ApAssignmentLeadership::sorts);
 
-    return $this->getFilteredResults(
-      $query,
-      $request,
-      ApAssignmentLeadership::filters,
-      ApAssignmentLeadership::sorts,
-      ApAssignmentLeadershipResource::class,
-    );
+    // Get all records and group them
+    $allRecords = $query->get();
+    $grouped = $allRecords->groupBy('boss_id')->map(function ($items) {
+      return new ApAssignmentLeadershipResource($items);
+    })->values();
+
+    // Paginate the grouped collection
+    return $this->paginateCollection($grouped, $request);
   }
 
   /**
@@ -35,7 +40,7 @@ class ApAssignmentLeadershipService extends BaseService
   public function getGroupedByBoss(Request $request)
   {
     // Build query with relationships and apply filters
-    $query = ApAssignmentLeadership::with(['boss', 'worker']);
+    $query = ApAssignmentLeadership::with(['boss.position', 'worker']);
     $query = $this->applyFilters($query, $request, ApAssignmentLeadership::filters);
     $query = $this->applySorting($query, $request, ApAssignmentLeadership::sorts);
 

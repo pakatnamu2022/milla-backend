@@ -8,6 +8,8 @@ use App\Http\Requests\ap\postventa\taller\StoreApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\StoreApOrderQuotationWithProductsRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationWithProductsRequest;
+use App\Http\Requests\ap\postventa\taller\DiscardApOrderQuotationsRequest;
+use App\Http\Requests\ap\postventa\taller\ConfirmApOrderQuotationsRequest;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsService;
 
 class ApOrderQuotationsController extends Controller
@@ -89,9 +91,46 @@ class ApOrderQuotationsController extends Controller
   public function downloadPDF($id)
   {
     try {
-      $with_labor = request()->input('with_labor', true);
-      $with_labor = filter_var($with_labor, FILTER_VALIDATE_BOOLEAN);
-      return $this->service->generateQuotationPDF($id, $with_labor);
+      return $this->service->generateQuotationPDF($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function downloadRepuestoPDF($id)
+  {
+    try {
+      // Obtener el parámetro show_codes desde la query string (por defecto true)
+      $showCodes = request()->query('show_codes', true);
+
+      // Convertir a booleano si viene como string
+      if (is_string($showCodes)) {
+        $showCodes = filter_var($showCodes, FILTER_VALIDATE_BOOLEAN);
+      }
+
+      return $this->service->generateQuotationRepuestoPDF($id, $showCodes);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function discard(DiscardApOrderQuotationsRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->discard($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function confirm(ConfirmApOrderQuotationsRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->confirm($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

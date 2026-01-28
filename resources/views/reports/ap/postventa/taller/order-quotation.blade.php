@@ -271,6 +271,32 @@
     .card-label {
       font-weight: bold;
     }
+
+    .signature-section {
+      margin-top: 30px;
+      margin-bottom: 20px;
+    }
+
+    .signature-box {
+      display: inline-block;
+      width: 250px;
+      text-align: center;
+      font-size: 9px;
+      font-weight: bold;
+    }
+
+    .signature-img {
+      max-width: 200px;
+      max-height: 80px;
+      display: block;
+      margin: 0 auto 10px auto;
+    }
+
+    .signature-line {
+      width: 200px;
+      border-top: 2px solid #000;
+      margin: 0 auto 5px auto;
+    }
   </style>
 </head>
 <body>
@@ -401,12 +427,10 @@
 <!-- Totales -->
 <div class="totals-section">
   <table>
-    @if($quotation['with_labor'])
     <tr>
       <td class="label-total">Total M.O.:</td>
       <td class="value-total">S/ {{ number_format($quotation['total_labor'], 2) }}</td>
     </tr>
-    @endif
     <tr>
       <td class="label-total">Total Recambios:</td>
       <td class="value-total">S/ {{ number_format($quotation['total_parts'], 2) }}</td>
@@ -429,6 +453,17 @@
     </tr>
   </table>
 </div>
+
+<!-- Sección de Firma del Cliente -->
+@if(isset($quotation['customer_signature']) && $quotation['customer_signature'])
+<div class="signature-section" style="text-align: center;">
+  <div class="signature-box">
+    <img src="{{ $quotation['customer_signature'] }}" alt="Firma Cliente" class="signature-img">
+    FIRMA DEL CLIENTE<br>
+    {{ $quotation['customer_name'] }}
+  </div>
+</div>
+@endif
 
 <!-- Sección IMPORTANTE -->
 <div class="important-section">

@@ -10,6 +10,12 @@ class UpdateWorkOrderRequest extends StoreRequest
   public function rules(): array
   {
     return [
+      'order_quotation_id' => [
+        'sometimes',
+        'nullable',
+        'integer',
+        'exists:ap_order_quotations,id',
+      ],
       'appointment_planning_id' => [
         'sometimes',
         'nullable',
@@ -34,11 +40,16 @@ class UpdateWorkOrderRequest extends StoreRequest
         'string',
         'max:50',
       ],
+      'currency_id' => [
+        'sometimes',
+        'integer',
+        'exists:type_currency,id',
+      ],
       'status_id' => [
         'sometimes',
         'required',
         'integer',
-        Rule::exists('ap_post_venta_masters', 'id')
+        Rule::exists('ap_masters', 'id')
           ->where('type', 'WORK_ORDER_STATUS'),
       ],
       'sede_id' => [
@@ -56,7 +67,6 @@ class UpdateWorkOrderRequest extends StoreRequest
         'sometimes',
         'nullable',
         'date',
-        'after_or_equal:opening_date',
       ],
       'actual_delivery_date' => [
         'sometimes',
@@ -141,34 +151,6 @@ class UpdateWorkOrderRequest extends StoreRequest
         'string',
         'max:100',
       ],
-
-      // Items
-      'items' => [
-        'sometimes',
-        'nullable',
-        'array',
-      ],
-      'items.*.id' => [
-        'sometimes',
-        'nullable',
-        'integer',
-        'exists:ap_work_order_items,id',
-      ],
-      'items.*.group_number' => [
-        'required_with:items',
-        'integer',
-        'min:1',
-      ],
-      'items.*.type_planning_id' => [
-        'required_with:items',
-        'integer',
-        Rule::exists('ap_post_venta_masters', 'id')
-          ->where('type', 'TIPO_PLANIFICACION'),
-      ],
-      'items.*.description' => [
-        'required_with:items',
-        'string',
-      ],
     ];
   }
 
@@ -188,6 +170,9 @@ class UpdateWorkOrderRequest extends StoreRequest
       'vehicle_vin.string' => 'El VIN debe ser una cadena de texto.',
       'vehicle_vin.max' => 'El VIN no debe exceder los 50 caracteres.',
 
+      'currency_id.integer' => 'La moneda debe ser un entero.',
+      'currency_id.exists' => 'La moneda seleccionada no es válida.',
+
       'status_id.required' => 'El estado es obligatorio.',
       'status_id.integer' => 'El estado debe ser un entero.',
       'status_id.exists' => 'El estado seleccionado no es válido.',
@@ -200,7 +185,6 @@ class UpdateWorkOrderRequest extends StoreRequest
       'opening_date.date' => 'La fecha de apertura debe ser una fecha válida.',
 
       'estimated_delivery_date.date' => 'La fecha estimada de entrega debe ser una fecha válida.',
-      'estimated_delivery_date.after_or_equal' => 'La fecha estimada de entrega debe ser igual o posterior a la fecha de apertura.',
 
       'actual_delivery_date.date' => 'La fecha real de entrega debe ser una fecha válida.',
 
@@ -237,23 +221,6 @@ class UpdateWorkOrderRequest extends StoreRequest
       'description_recall.max' => 'La descripción del recall no debe exceder los 500 caracteres.',
       'type_recall.string' => 'El tipo de recall debe ser una cadena de texto.',
       'type_recall.max' => 'El tipo de recall no debe exceder los 100 caracteres.',
-
-      // Items
-      'items.array' => 'Los ítems deben ser un arreglo.',
-
-      'items.*.id.integer' => 'El ID del ítem debe ser un entero.',
-      'items.*.id.exists' => 'El ítem seleccionado no es válido.',
-
-      'items.*.group_number.required_with' => 'El número de grupo es obligatorio.',
-      'items.*.group_number.integer' => 'El número de grupo debe ser un entero.',
-      'items.*.group_number.min' => 'El número de grupo debe ser al menos 1.',
-
-      'items.*.type_planning_id.required_with' => 'El tipo de planificación es obligatorio.',
-      'items.*.type_planning_id.integer' => 'El tipo de planificación debe ser un entero.',
-      'items.*.type_planning_id.exists' => 'El tipo de planificación seleccionado no es válido.',
-
-      'items.*.description.required_with' => 'La descripción del ítem es obligatoria.',
-      'items.*.description.string' => 'La descripción del ítem debe ser una cadena de texto.',
     ];
   }
 }

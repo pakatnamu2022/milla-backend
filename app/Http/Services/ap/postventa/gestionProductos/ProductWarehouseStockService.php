@@ -2,14 +2,29 @@
 
 namespace App\Http\Services\ap\postventa\gestionProductos;
 
+use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseStockResource;
+use App\Http\Services\BaseService;
+use App\Models\ap\compras\PurchaseOrderItem;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
-use App\Models\ap\postventa\gestionProductos\Products;
+use Illuminate\Http\Request;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use Exception;
 use Illuminate\Support\Facades\DB;
 
-class ProductWarehouseStockService
+class ProductWarehouseStockService extends BaseService
 {
+
+  public function list(Request $request)
+  {
+    return $this->getFilteredResults(
+      ProductWarehouseStock::class,
+      $request,
+      ProductWarehouseStock::filters,
+      ProductWarehouseStock::sorts,
+      ProductWarehouseStockResource::class,
+    );
+  }
+
   /**
    * Add stock to warehouse from inventory movement
    * IMPORTANT: quantity parameter should be the actual physical quantity to add
@@ -580,99 +595,166 @@ class ProductWarehouseStockService
       throw $e;
     }
   }
-  
-  public function getWarehouseStockWithTransit($request)
+
+  /**
+   * Get stock by multiple product IDs across all warehouses
+   * Returns stock information grouped by product
+   * Includes pricing information per warehouse: last purchase price, public sale price, minimum sale price
+   *
+   * @param array $productIds Array of product IDs
+   * @return array
+   */
+  public function getStockByProductIds(array $productIds): array
   {
-    // Warehouse ID is required
-    if (!$request->has('warehouse_id')) {
-      throw new Exception('El ID del almacén es requerido');
+    // Get all stocks for the given product IDs
+    $stocks = ProductWarehouseStock::whereIn('product_id', $productIds)
+      ->with(['product', 'warehouse'])
+      ->get();
+
+    // Get warehouse IDs from stocks
+    $warehouseIds = $stocks->pluck('warehouse_id')->unique()->toArray();
+
+    // Get last purchase prices for all products by warehouse
+    $lastPurchasePricesByWarehouse = $this->getLastPurchasePricesByWarehouse($productIds, $warehouseIds);
+
+    // Group by product_id
+    $result = [];
+    foreach ($productIds as $productId) {
+      $productStocks = $stocks->where('product_id', $productId);
+
+      if ($productStocks->isEmpty()) {
+        // Product has no stock in any warehouse
+        $result[] = [
+          'product_id' => $productId,
+          'product_name' => null,
+          'warehouses' => [],
+          'total_quantity' => 0,
+          'total_quantity_in_transit' => 0,
+          'total_available_quantity' => 0,
+        ];
+        continue;
+      }
+
+      // Get product name from first stock record
+      $firstStock = $productStocks->first();
+
+      // Calculate totals
+      $totalQuantity = $productStocks->sum('quantity');
+      $totalInTransit = $productStocks->sum('quantity_in_transit');
+      $totalAvailable = $productStocks->sum('available_quantity');
+
+      // Build warehouses array with pricing per warehouse
+      $warehouses = [];
+      foreach ($productStocks as $stock) {
+        // Get pricing for this specific product-warehouse combination
+        $lastPurchasePrice = $lastPurchasePricesByWarehouse[$productId][$stock->warehouse_id] ?? 0;
+        $publicSalePrice = $this->calculatePublicSalePrice($lastPurchasePrice);
+        $minimumSalePrice = $this->calculateMinimumSalePrice($publicSalePrice);
+
+        $warehouses[] = [
+          'warehouse_id' => $stock->warehouse_id,
+          'warehouse_name' => $stock->warehouse?->description,
+          'quantity' => (float)$stock->quantity,
+          'quantity_in_transit' => (float)$stock->quantity_in_transit,
+          'reserved_quantity' => (float)$stock->reserved_quantity,
+          'available_quantity' => (float)$stock->available_quantity,
+          'minimum_stock' => (float)$stock->minimum_stock,
+          'maximum_stock' => (float)$stock->maximum_stock,
+          'stock_status' => $stock->stock_status,
+          'is_low_stock' => $stock->is_low_stock,
+          'is_out_of_stock' => $stock->is_out_of_stock,
+          'last_movement_date' => $stock->last_movement_date?->format('Y-m-d H:i:s'),
+          'last_purchase_price' => (float)$lastPurchasePrice,
+          'public_sale_price' => (float)$publicSalePrice,
+          'minimum_sale_price' => (float)$minimumSalePrice,
+        ];
+      }
+
+      $result[] = [
+        'product_id' => $productId,
+        'product_name' => $firstStock->product?->name,
+        'product_code' => $firstStock->product?->code,
+        'warehouses' => $warehouses,
+        'total_quantity' => (float)$totalQuantity,
+        'total_quantity_in_transit' => (float)$totalInTransit,
+        'total_available_quantity' => (float)$totalAvailable,
+      ];
     }
 
-    $warehouseId = $request->warehouse_id;
+    return $result;
+  }
 
-    // Base query
-    $query = ProductWarehouseStock::query()
-      ->where('warehouse_id', $warehouseId)
-      ->with(['product.category', 'warehouse']);
+  /**
+   * Get last purchase prices for multiple products grouped by warehouse
+   * Searches in PurchaseOrderItem for the most recent purchase of each product per warehouse
+   *
+   * @param array $productIds
+   * @param array $warehouseIds
+   * @return array [product_id => [warehouse_id => last_purchase_price]]
+   */
+  private function getLastPurchasePricesByWarehouse(array $productIds, array $warehouseIds): array
+  {
+    $prices = [];
 
-    // Filter by product name or code
-    if ($request->has('search')) {
-      $search = $request->search;
-      $query->whereHas('product', function ($q) use ($search) {
-        $q->where('name', 'LIKE', "%{$search}%")
-          ->orWhere('code', 'LIKE', "%{$search}%");
-      });
+    // Initialize the array structure
+    foreach ($productIds as $productId) {
+      $prices[$productId] = [];
     }
 
-    // Filter by product category
-    if ($request->has('category_id')) {
-      $query->whereHas('product', function ($q) use ($request) {
-        $q->where('category_id', $request->category_id);
-      });
-    }
+    // Get last purchase order items for each product-warehouse combination
+    $lastPurchaseItems = PurchaseOrderItem::whereIn('product_id', $productIds)
+      ->whereHas('purchaseOrder', function ($query) use ($warehouseIds) {
+        $query->whereIn('warehouse_id', $warehouseIds);
+      })
+      ->with(['purchaseOrder:id,warehouse_id'])
+      ->orderBy('created_at', 'desc')
+      ->get();
 
-    // Filter by stock status
-    if ($request->has('stock_status')) {
-      $status = $request->stock_status;
-      switch ($status) {
-        case 'OUT_OF_STOCK':
-          $query->where('quantity', '<=', 0);
-          break;
-        case 'LOW_STOCK':
-          $query->whereColumn('quantity', '<=', 'minimum_stock')
-            ->where('quantity', '>', 0);
-          break;
-        case 'NORMAL':
-          $query->whereColumn('quantity', '>', 'minimum_stock')
-            ->where(function ($q) {
-              $q->whereNull('maximum_stock')
-                ->orWhereColumn('quantity', '<', 'maximum_stock');
-            });
-          break;
-        case 'OVER_STOCK':
-          $query->whereNotNull('maximum_stock')
-            ->whereColumn('quantity', '>=', 'maximum_stock');
-          break;
+    // Group by product_id and warehouse_id, keeping only the most recent
+    foreach ($lastPurchaseItems as $item) {
+      $productId = $item->product_id;
+      $warehouseId = $item->purchaseOrder?->warehouse_id;
+
+      if ($warehouseId && !isset($prices[$productId][$warehouseId])) {
+        $prices[$productId][$warehouseId] = (float)$item->unit_price;
       }
     }
 
-    // Filter by products with stock in transit
-    if ($request->has('with_transit') && $request->with_transit == true) {
-      $query->where('quantity_in_transit', '>', 0);
+    return $prices;
+  }
+
+  /**
+   * Calculate public sale price
+   * Formula: (purchase price * 1.05 freight commission) + 30% margin
+   * Example: 150 * 1.05 = 157.5, 157.5 * 0.30 = 47.25, 157.5 + 47.25 = 204.75
+   *
+   * @param float $lastPurchasePrice
+   * @return float
+   */
+  private function calculatePublicSalePrice(float $lastPurchasePrice): float
+  {
+    if ($lastPurchasePrice <= 0) {
+      return 0;
     }
 
-    // Filter by available quantity
-    if ($request->has('has_available_stock') && $request->has_available_stock == true) {
-      $query->where('available_quantity', '>', 0);
+    $priceWithFreight = $lastPurchasePrice * 1.05;
+    $margin = $priceWithFreight * 0.30;
+
+    return round($priceWithFreight + $margin, 2);
+  }
+
+  /**
+   * Calculate minimum sale price (public sale price - 5%)
+   *
+   * @param float $publicSalePrice
+   * @return float
+   */
+  private function calculateMinimumSalePrice(float $publicSalePrice): float
+  {
+    if ($publicSalePrice <= 0) {
+      return 0;
     }
 
-    // Order by
-    // Check if specific stock ordering is requested
-    if ($request->has('order_by_stock')) {
-      $orderByStock = strtolower($request->order_by_stock);
-      if (in_array($orderByStock, ['asc', 'desc'])) {
-        $query->orderBy('quantity', $orderByStock);
-      }
-    } else {
-      // Default ordering behavior
-      $sortBy = $request->get('sort_by', 'created_at');
-      $sortDirection = $request->get('sort_direction', 'desc');
-
-      if (in_array($sortBy, ProductWarehouseStock::sorts)) {
-        $query->orderBy($sortBy, $sortDirection);
-      }
-    }
-
-    // Check if all=true to return all results without pagination
-    $all = $request->get('all', false);
-
-    if ($all == true || $all == 'true' || $all == '1') {
-      // Return all results without pagination
-      return $query->get();
-    }
-
-    // Paginate results (default behavior)
-    $perPage = $request->get('per_page', 15);
-    return $query->paginate($perPage);
+    return round($publicSalePrice * 0.95, 2);
   }
 }

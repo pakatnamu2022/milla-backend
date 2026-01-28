@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\configuracionComercial\vehiculo;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -91,22 +91,22 @@ class ApModelsVn extends Model
 
   public function vehicleType()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'vehicle_type_id');
+    return $this->belongsTo(ApMasters::class, 'vehicle_type_id');
   }
 
   public function bodyType()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'body_type_id');
+    return $this->belongsTo(ApMasters::class, 'body_type_id');
   }
 
   public function tractionType()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'traction_type_id');
+    return $this->belongsTo(ApMasters::class, 'traction_type_id');
   }
 
   public function vehicleTransmission()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'transmission_id');
+    return $this->belongsTo(ApMasters::class, 'transmission_id');
   }
 
   public function typeCurrency()
@@ -201,7 +201,7 @@ class ApModelsVn extends Model
 
   public function typeOperation()
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'type_operation_id');
+    return $this->belongsTo(ApMasters::class, 'type_operation_id');
   }
 
   /**
@@ -231,7 +231,7 @@ class ApModelsVn extends Model
       ->first();
 
     $nextNumber = $lastModel
-      ? ((int) substr($lastModel->code, -3)) + 1
+      ? ((int)substr($lastModel->code, -3)) + 1
       : 1;
 
     // Format correlative with 3 digits (001, 002, etc.)

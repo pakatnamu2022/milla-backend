@@ -3,22 +3,32 @@
 namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use Illuminate\Contracts\Validation\Validator;
-use Illuminate\Validation\ValidationException;
 
 class StoreApOrderQuotationWithProductsRequest extends StoreRequest
 {
+  protected function prepareForValidation(): void
+  {
+    if ($this->has('vehicle_id') && $this->vehicle_id === '') {
+      $this->merge(['vehicle_id' => null]);
+    }
+  }
+
   public function rules(): array
   {
     return [
       // Quotation fields
       'currency_id' => ['required', 'integer', 'exists:type_currency,id'],
-      'area_id' => ['required', 'integer', 'exists:ap_post_venta_masters,id'],
-      'vehicle_id' => ['required', 'integer', 'exists:ap_vehicles,id'],
+      'area_id' => ['required', 'integer', 'exists:ap_masters,id'],
+      'client_id' => ['required', 'integer', 'exists:business_partners,id'],
+      'vehicle_id' => ['nullable', 'integer', 'exists:ap_vehicles,id'],
       'sede_id' => ['required', 'integer', 'exists:config_sede,id'],
       'quotation_date' => ['required', 'date'],
       'expiration_date' => ['nullable', 'date', 'after_or_equal:quotation_date'],
+      'collection_date' => ['nullable', 'date'],
       'observations' => ['nullable', 'string'],
+      'supply_type' => ['required', 'string', 'in:STOCK,LIMA,IMPORTACION'],
 
       // Details array
       'details' => ['required', 'array', 'min:1'],
@@ -47,7 +57,7 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
         'numeric',
         'min:0',
       ],
-      'details.*.discount' => [
+      'details.*.discount_percentage' => [
         'nullable',
         'numeric',
         'min:0',
@@ -56,7 +66,7 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
       'details.*.total_amount' => [
         'required',
         'numeric',
-        'min:0',
+        'min:1',
       ],
       'details.*.observations' => [
         'nullable',
@@ -89,8 +99,9 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
       'currency_id.exists' => 'La moneda no existe.',
       'area_id.required' => 'Área de postventa es obligatoria.',
       'area_id.exists' => 'El área de postventa no existe.',
-      'vehicle_id.required' => 'Vehículo asociado es obligatorio.',
-      'vehicle_id.exists' => 'El vehículo asociado no existe.',
+      'client_id.required' => 'El cliente es obligatorio.',
+      'client_id.exists' => 'El cliente no existe.',
+      'vehicle_id.exists' => 'El vehículo no existe.',
       'sede_id.required' => 'La sede es obligatoria.',
       'sede_id.exists' => 'La sede no existe.',
       'quotation_date.required' => 'La fecha de cotización es obligatoria.',
@@ -122,13 +133,13 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
       'details.*.unit_price.numeric' => 'El precio unitario debe ser un número.',
       'details.*.unit_price.min' => 'El precio unitario no puede ser negativo.',
 
-      'details.*.discount.numeric' => 'El porcentaje de descuento debe ser un número.',
-      'details.*.discount.min' => 'El porcentaje de descuento no puede ser negativo.',
-      'details.*.discount.max' => 'El porcentaje de descuento no puede ser mayor a 100.',
+      'details.*.discount_percentage.numeric' => 'El porcentaje de descuento debe ser un número.',
+      'details.*.discount_percentage.min' => 'El porcentaje de descuento no puede ser negativo.',
+      'details.*.discount_percentage.max' => 'El porcentaje de descuento no puede ser mayor a 100.',
 
       'details.*.total_amount.required' => 'El monto total es obligatorio en todos los detalles.',
       'details.*.total_amount.numeric' => 'El monto total debe ser un número.',
-      'details.*.total_amount.min' => 'El monto total no puede ser negativo.',
+      'details.*.total_amount.min' => 'El monto total no puede ser menor a 1.',
 
       'details.*.observations.string' => 'Las observaciones deben ser una cadena de texto.',
 
@@ -161,6 +172,49 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
           'details',
           'Se han detectado productos duplicados. Los productos con ID: ' . $duplicates->implode(', ') . ' deben ser consolidados en un solo item.'
         );
+      }
+
+      // Validar stock según supply_type
+      $supplyType = $this->input('supply_type');
+
+      if ($supplyType === 'STOCK') {
+        // Validar que los productos tengan stock disponible en cualquier sede
+        foreach ($details as $index => $detail) {
+          $productId = $detail['product_id'] ?? null;
+
+          if (!$productId) {
+            continue;
+          }
+
+          $totalStock = ProductWarehouseStock::where('product_id', $productId)
+            ->sum('quantity');
+
+          if ($totalStock <= 0) {
+            $validator->errors()->add(
+              "details.{$index}.product_id",
+              "El producto seleccionado no tiene stock disponible en ninguna sede. Para tipo de suministro STOCK, el producto debe tener stock disponible."
+            );
+          }
+        }
+      } elseif (in_array($supplyType, ['LIMA', 'IMPORTACION'])) {
+        // Validar que los productos NO tengan stock (debe ser 0)
+        foreach ($details as $index => $detail) {
+          $productId = $detail['product_id'] ?? null;
+
+          if (!$productId) {
+            continue;
+          }
+
+          $totalStock = ProductWarehouseStock::where('product_id', $productId)
+            ->sum('quantity');
+
+          if ($totalStock > 0) {
+            $validator->errors()->add(
+              "details.{$index}.product_id",
+              "El producto seleccionado tiene stock disponible ({$totalStock} unidades). Para tipo de suministro {$supplyType}, el producto no debe tener stock en ninguna sede."
+            );
+          }
+        }
       }
     });
   }

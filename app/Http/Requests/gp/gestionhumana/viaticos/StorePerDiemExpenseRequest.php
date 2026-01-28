@@ -16,6 +16,7 @@ class StorePerDiemExpenseRequest extends StoreRequest
       'receipt_number' => ['required_if:receipt_type,invoice,ticket', 'nullable', 'string', 'max:255'],
       'receipt_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
       'notes' => ['nullable', 'string'],
+      'reason' => ['nullable', 'string', 'max:500'],
       'ruc' => ['nullable', 'required_if:receipt_type,invoice', 'string', 'max:20'],
     ];
   }
@@ -35,6 +36,8 @@ class StorePerDiemExpenseRequest extends StoreRequest
       'receipt_type.string' => 'El tipo de comprobante debe ser una cadena de texto.',
       'receipt_type.in' => 'El tipo de comprobante seleccionado no es válido.',
       'receipt_number.required_if' => 'El número de comprobante es obligatorio cuando el tipo de comprobante es factura o ticket.',
+      'reason.string' => 'El motivo debe ser una cadena de texto.',
+      'reason.max' => 'El motivo no debe exceder los 500 caracteres.',
       'ruc.required_if' => 'El RUC es obligatorio cuando el tipo de comprobante es factura.',
     ];
   }

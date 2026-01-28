@@ -9,14 +9,13 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
-use App\Http\Utils\Constants;
 use App\Jobs\VerifyAndMigratePurchaseOrderJob;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
-use App\Models\gp\maestroGeneral\Sede;
+use App\Models\ap\postventa\taller\ApSupplierOrder;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -195,6 +194,13 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       // Guardar items temporalmente
       $items = $data['items'] ?? [];
 
+      if (isset($data['ap_supplier_order_id'])) {
+        $supplierOrder = ApSupplierOrder::find($data['ap_supplier_order_id']);
+        if ($supplierOrder && !is_null($supplierOrder->ap_purchase_order_id)) {
+          throw new Exception("La orden al proveedor ya tiene una orden de compra registrada. No se puede crear otra.");
+        }
+      }
+
       // Verificar si la orden incluye un vehículo
       $hasVehicle = $this->hasVehicleInItems($items);
 
@@ -208,23 +214,29 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       $data = $this->enrichData($data);
 
       // Si type_operation_id = TIPO_OPERACION_POSTVENTA, validar que productos existan en almacén
-      if (isset($data['type_operation_id']) && $data['type_operation_id'] == ApCommercialMasters::TIPO_OPERACION_POSTVENTA) {
+      if (isset($data['type_operation_id']) && $data['type_operation_id'] == ApMasters::TIPO_OPERACION_POSTVENTA) {
         $this->validateProductsInWarehouse($items, $data['warehouse_id']);
       }
 
       // Crear la orden de compra
       $purchaseOrder = PurchaseOrder::create($data);
 
+      // si ap_supplier_order_id actualizar su ap_purchase_order_id
+      if (isset($data['ap_supplier_order_id'])) {
+        $supplierOrder = ApSupplierOrder::find($data['ap_supplier_order_id']);
+        if ($supplierOrder) {
+          $supplierOrder->update([
+            'ap_purchase_order_id' => $purchaseOrder->id,
+            'is_take' => true
+          ]);
+        }
+      }
+
       // Guardar items si existen
       $this->saveItemsIfExists($items, $purchaseOrder);
 
-      // OPCIONAL: Vincular solicitudes si se proporcionan
-      if (isset($data['request_detail_ids']) && !empty($data['request_detail_ids'])) {
-        $this->linkPurchaseRequests($purchaseOrder, $data['request_detail_ids']);
-      }
-
       // Si type_operation_id = TIPO_OPERACION_POSTVENTA, actualizar quantity_in_transit
-      if (isset($data['type_operation_id']) && $data['type_operation_id'] == ApCommercialMasters::TIPO_OPERACION_POSTVENTA) {
+      if (isset($data['type_operation_id']) && $data['type_operation_id'] == ApMasters::TIPO_OPERACION_POSTVENTA) {
         $this->updateInTransitStockOnCreate($purchaseOrder);
       }
 
@@ -262,7 +274,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       'engine_type_id' => $data['engine_type_id'],
       'sede_id' => $data['sede_id'],
       'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
-      'type_operation_id' => ApCommercialMasters::TIPO_OPERACION_COMERCIAL,
+      'type_operation_id' => ApMasters::TIPO_OPERACION_COMERCIAL,
     ];
 
     $vehicle = $vehicleService->store($vehicleData);
@@ -376,7 +388,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         $this->saveItemsIfExists($items, $purchaseOrder);
 
         // Si type_operation_id = TIPO_OPERACION_POSTVENTA, actualizar quantity_in_transit
-        if ($purchaseOrder->type_operation_id == ApCommercialMasters::TIPO_OPERACION_POSTVENTA) {
+        if ($purchaseOrder->type_operation_id == ApMasters::TIPO_OPERACION_POSTVENTA) {
           $this->updateInTransitStockOnUpdate($purchaseOrder, $oldItems, $items);
         }
       }
@@ -406,7 +418,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     $purchaseOrder = $this->find($id);
     DB::transaction(function () use ($purchaseOrder) {
       // Si type_operation_id = TIPO_OPERACION_POSTVENTA, remover quantity_in_transit antes de eliminar
-      if ($purchaseOrder->type_operation_id == ApCommercialMasters::TIPO_OPERACION_POSTVENTA) {
+      if ($purchaseOrder->type_operation_id == ApMasters::TIPO_OPERACION_POSTVENTA) {
         $this->removeInTransitStockOnDestroy($purchaseOrder);
       }
 
@@ -669,23 +681,5 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         implode(', ', $missingProducts)
       );
     }
-  }
-
-  /**
-   * OPCIONAL: Vincular solicitudes de compra a la orden de compra
-   * @param PurchaseOrder $purchaseOrder
-   * @param array $requestDetailIds IDs de ap_order_purchase_request_details
-   * @return void
-   * @throws Exception
-   */
-  protected function linkPurchaseRequests(PurchaseOrder $purchaseOrder, array $requestDetailIds): void
-  {
-    // Vincular los detalles de solicitud a la orden de compra
-    $purchaseOrder->requestDetails()->attach($requestDetailIds);
-
-    // Actualizar el status de los detalles a 'ordered'
-    DB::table('ap_order_purchase_request_details')
-      ->whereIn('id', $requestDetailIds)
-      ->update(['status' => 'ordered']);
   }
 }

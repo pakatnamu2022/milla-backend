@@ -15,7 +15,7 @@ return new class extends Migration {
       $table->string('account');
       $table->string('description');
       $table->foreignId('accounting_type_id')
-        ->constrained('ap_commercial_masters');
+        ->constrained('ap_masters');
       $table->boolean('status')->default(true);
       $table->timestamps();
       $table->softDeletes();

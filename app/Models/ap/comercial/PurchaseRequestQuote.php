@@ -2,7 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -63,7 +63,8 @@ class PurchaseRequestQuote extends Model
     'sede_id' => '=',
     'has_vehicle' => 'accessor',
     'status' => '=',
-    'is_paid' => 'accessor'
+    'is_paid' => 'accessor',
+    'created_at' => 'date_between',
   ];
 
   const sorts = [
@@ -118,7 +119,7 @@ class PurchaseRequestQuote extends Model
 
   public function vehicleColor(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'vehicle_color_id');
+    return $this->belongsTo(ApMasters::class, 'vehicle_color_id');
   }
 
   public function docTypeCurrency(): BelongsTo

@@ -18,11 +18,21 @@ class TypeCurrency extends Model
     'name',
     'symbol',
     'status',
+    'enable_commercial',
+    'enable_after_sales',
+  ];
+
+  protected $casts = [
+    'status' => 'boolean',
+    'enable_commercial' => 'boolean',
+    'enable_after_sales' => 'boolean',
   ];
 
   const filters = [
     'search' => ['code', 'name'],
     'status' => '=',
+    'enable_commercial' => '=',
+    'enable_after_sales' => '=',
   ];
 
   const sorts = [
@@ -30,11 +40,11 @@ class TypeCurrency extends Model
     'name',
   ];
 
-  const USD = 'USD';
-  const PEN = 'PEN';
+  const string USD = 'USD';
+  const string PEN = 'PEN';
 
-  const PEN_ID = 3;
-  const USD_ID = 1;
+  const int PEN_ID = 3;
+  const int USD_ID = 1;
 
   public function setCodeAttribute($value)
   {

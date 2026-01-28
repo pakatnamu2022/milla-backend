@@ -36,7 +36,7 @@ class StoreApVehicleBrandRequest extends StoreRequest
       'group_id' => [
         'required',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'logo' => [
         'nullable',
@@ -53,12 +53,12 @@ class StoreApVehicleBrandRequest extends StoreRequest
       'type_operation_id' => [
         'required',
         'integer',
-        'exists:ap_commercial_masters,id',
+        'exists:ap_masters,id',
       ],
       'type_class_id' => [
         'nullable',
         'integer',
-        Rule::exists('ap_commercial_masters', 'id')
+        Rule::exists('ap_masters', 'id')
           ->where('type', 'CLASS_TYPE')
           ->where('status', 1)
           ->whereNull('deleted_at'),

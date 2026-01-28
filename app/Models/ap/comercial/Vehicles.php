@@ -3,13 +3,13 @@
 namespace App\Models\ap\comercial;
 
 use App\Http\Traits\Reportable;
-use App\Models\ap\ApCommercialMasters;
+use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\compras\PurchaseOrder;
-use Illuminate\Database\Eloquent\Model;
+use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class Vehicles extends Model
+class Vehicles extends BaseModel
 {
   use SoftDeletes, Reportable;
 
@@ -44,12 +44,12 @@ class Vehicles extends Model
     'year' => 'integer',
   ];
 
-  public static array $filters = [
+  const array filters = [
     'search' => ['vin', 'plate', 'engine_number', 'year', 'ap_vehicle_status_id'],
     'ap_models_vn_id' => '=',
     'model.class_id' => '=',
     'warehouse_id' => '=',
-    'ap_vehicle_status_id' => 'in',
+    'ap_vehicle_status_id' => '=',
     'vehicle_color_id' => '=',
     'engine_type_id' => '=',
     'warehouse_physical_id' => '=',
@@ -66,7 +66,7 @@ class Vehicles extends Model
     'type_operation_id' => '=',
   ];
 
-  public static array $sorts = [
+  const array sorts = [
     'vin',
     'year',
     'engine_number',
@@ -96,12 +96,12 @@ class Vehicles extends Model
 
   public function color(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'vehicle_color_id');
+    return $this->belongsTo(ApMasters::class, 'vehicle_color_id');
   }
 
   public function engineType(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'engine_type_id');
+    return $this->belongsTo(ApMasters::class, 'engine_type_id');
   }
 
   public function vehicleStatus(): BelongsTo
@@ -131,7 +131,7 @@ class Vehicles extends Model
 
   public function typeOperation(): BelongsTo
   {
-    return $this->belongsTo(ApCommercialMasters::class, 'type_operation_id');
+    return $this->belongsTo(ApMasters::class, 'type_operation_id');
   }
 
   /**
