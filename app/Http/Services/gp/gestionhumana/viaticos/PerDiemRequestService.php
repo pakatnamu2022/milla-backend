@@ -1734,7 +1734,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'serie' => $serie,
           'correlative' => $correlative,
           'period' => $period,
-          'sede_id' => $perDiemRequest->employee->sede_id ?? null,
+          'sede_id' => $sedeId,
         ]);
 
         // Update all mobility expenses with the payroll ID
@@ -1751,7 +1751,6 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       // Generate and return PDF directly
       return $this->mobilityPayrollPDF($id);
-
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -1797,24 +1796,31 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       throw new Exception('No se encontró la planilla de movilidad');
     }
 
+    // Sort expenses by date
+    $sortedExpenses = $mobilityExpenses->sortBy('expense_date')->values();
+
     // Calculate total
     $totalAmount = $mobilityExpenses->sum('receipt_amount');
 
+    //Generamos la abreviatura de la sede
+    $abbreviationSede = 'AP' . substr(($mobilityPayroll->sede->district->name ?? '000'), 0, 3);
+
     $pdf = PDF::loadView('reports.gp.gestionhumana.viaticos.mobility-payroll', [
       'mobilityPayroll' => $mobilityPayroll,
-      'expenses' => $mobilityExpenses,
+      'expenses' => $sortedExpenses,
       'totalAmount' => $totalAmount,
       'perDiemRequest' => $perDiemRequest,
+      'abbreviationSede' => $abbreviationSede,
     ]);
 
     $pdf->setOptions([
       'defaultFont' => 'Arial',
       'isHtml5ParserEnabled' => true,
-      'isRemoteEnabled' => false,
+      'isRemoteEnabled' => true,
       'dpi' => 96,
     ]);
 
-    $pdf->setPaper('A4', 'portrait');
+    $pdf->setPaper('A4', 'landscape');// para ponerlo en vertical: portrait
 
     return $pdf;
   }
@@ -1865,7 +1871,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       if ($sendToEmployee) {
         $this->emailService->queue([
           'to' => $request->employee->email2,
-//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          //          'to' => "hvaldiviezos@automotorespakatnamu.com",
           'cc' => $accountantEmails,
           'subject' => 'Solicitud de Viáticos Creada - ' . $request->code,
           'template' => 'emails.per-diem-request-created-employee',
@@ -1890,7 +1896,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
         $this->emailService->queue([
           'to' => [$request->employee->boss->email2],
-//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          //          'to' => "hvaldiviezos@automotorespakatnamu.com",
           'cc' => $accountantEmails,
           'subject' => 'Nueva Solicitud de Viáticos Pendiente de Aprobación - ' . $request->code,
           'template' => 'emails.per-diem-request-created-boss',
@@ -1925,7 +1931,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       if ($sendToEmployee) {
         $this->emailService->queue([
           'to' => $request->employee->email2,
-//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          //          'to' => "hvaldiviezos@automotorespakatnamu.com",
           'cc' => $accountantEmails,
           'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
           'template' => 'emails.per-diem-request-approved',
@@ -1940,7 +1946,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       if ($sendToBoss && $request->employee->boss) {
         $this->emailService->queue([
           'to' => $request->employee->boss->email2,
-//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          //          'to' => "hvaldiviezos@automotorespakatnamu.com",
           'cc' => $accountantEmails,
           'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
           'template' => 'emails.per-diem-request-approved',
@@ -1955,7 +1961,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       if ($sendToAccounting) {
         $this->emailService->queue([
           'to' => 'ngonzalesd@grupopakatnamu.com',
-//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          //          'to' => "hvaldiviezos@automotorespakatnamu.com",
           'cc' => $accountantEmails,
           'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
           'template' => 'emails.per-diem-request-approved',
@@ -2054,7 +2060,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       if ($sendToEmployee) {
         $this->emailService->queue([
           'to' => $request->employee->email2,
-//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          //          'to' => "hvaldiviezos@automotorespakatnamu.com",
           'cc' => $accountantEmails,
           'subject' => 'Liquidación de Viáticos - ' . $request->code,
           'template' => 'emails.per-diem-request-settlement',
@@ -2069,7 +2075,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       if ($sendToBoss && $request->employee->boss) {
         $this->emailService->queue([
           'to' => $request->employee->boss->email2,
-//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          //          'to' => "hvaldiviezos@automotorespakatnamu.com",
           'cc' => $accountantEmails,
           'subject' => 'Liquidación de Viáticos - ' . $request->code,
           'template' => 'emails.per-diem-request-settlement',
@@ -2084,7 +2090,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       if ($sendToAccounting) {
         $this->emailService->queue([
           'to' => 'griojasf@automotorespakatnamu.com',
-//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          //          'to' => "hvaldiviezos@automotorespakatnamu.com",
           'cc' => $accountantEmails,
           'subject' => 'Liquidación de Viáticos - ' . $request->code,
           'template' => 'emails.per-diem-request-settlement',
@@ -2141,7 +2147,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       if ($sendToEmployee) {
         $this->emailService->queue([
           'to' => $request->employee->email2,
-//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          //          'to' => "hvaldiviezos@automotorespakatnamu.com",
           'cc' => $accountantEmails,
           'subject' => 'Liquidación de Viáticos Completada - ' . $request->code,
           'template' => 'emails.per-diem-request-settled',
@@ -2156,7 +2162,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       if ($sendToBoss && $request->employee->boss) {
         $this->emailService->queue([
           'to' => $request->employee->boss->email2,
-//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          //          'to' => "hvaldiviezos@automotorespakatnamu.com",
           'cc' => $accountantEmails,
           'subject' => 'Liquidación de Viáticos Completada - ' . $request->code,
           'template' => 'emails.per-diem-request-settled',
@@ -2205,7 +2211,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       if ($sendToEmployee) {
         $this->emailService->queue([
           'to' => $request->employee->email2,
-//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          //          'to' => "hvaldiviezos@automotorespakatnamu.com",
           'cc' => $accountantEmails,
           'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
           'template' => 'emails.per-diem-request-cancelled',
@@ -2219,7 +2225,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       if ($sendToBoss && $request->employee->boss) {
         $this->emailService->queue([
           'to' => $request->employee->boss->email2,
-//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          //          'to' => "hvaldiviezos@automotorespakatnamu.com",
           'cc' => $accountantEmails,
           'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
           'template' => 'emails.per-diem-request-cancelled',
@@ -2228,7 +2234,6 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           ]),
         ]);
       }
-
     } catch (Exception $e) {
       \Log::error('Error sending per diem request cancelled email: ' . $e->getMessage());
     }
@@ -2255,7 +2260,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       if ($sendToEmployee) {
         $this->emailService->queue([
           'to' => $request->employee->email2,
-//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          //          'to' => "hvaldiviezos@automotorespakatnamu.com",
           'cc' => $accountantEmails,
           'subject' => 'Tu Viaje Está en Progreso - ' . $request->code,
           'template' => 'emails.per-diem-in-progress',
@@ -2269,7 +2274,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       if ($sendToBoss && $request->employee->boss) {
         $this->emailService->queue([
           'to' => $request->employee->boss->email2,
-//          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          //          'to' => "hvaldiviezos@automotorespakatnamu.com",
           'cc' => $accountantEmails,
           'subject' => 'Tu Viaje Está en Progreso - ' . $request->code,
           'template' => 'emails.per-diem-in-progress',
@@ -2405,5 +2410,4 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       throw $e;
     }
   }
-
 }

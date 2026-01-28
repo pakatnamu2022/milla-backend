@@ -36,6 +36,7 @@ class PerDiemExpense extends BaseModel
     'rejected_by',
     'rejected_at',
     'rejection_reason',
+    'reason',
     'mobility_payroll_id',
   ];
 
