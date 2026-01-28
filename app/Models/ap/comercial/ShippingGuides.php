@@ -98,6 +98,7 @@ class ShippingGuides extends Model
     'is_sunat_registered' => 'boolean',
     'aceptada_por_sunat' => 'boolean',
     'status' => 'boolean',
+    'is_received' => 'boolean',
   ];
 
   // Issuer types
