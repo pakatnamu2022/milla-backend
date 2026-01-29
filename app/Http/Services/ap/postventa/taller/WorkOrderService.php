@@ -148,6 +148,23 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         $this->recalculateCurrencyChange($workOrder, $oldCurrencyId, $newCurrencyId);
       }
 
+      // Si existe $data['order_quotation_id']
+      if (isset($data['order_quotation_id'])) {
+        $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+
+        if (!$quotation) {
+          throw new Exception('Cotización no encontrada');
+        }
+
+        if ($quotation->is_take) {
+          throw new Exception('La cotización ya está tomada por otra orden de trabajo');
+        }
+
+        if ($quotation) {
+          $quotation->update(['is_take' => 1]);
+        }
+      }
+
       // Reload relations
       $workOrder->load([
         'appointmentPlanning',

@@ -1029,6 +1029,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('inventoryMovements/sales/quotation/{quotationId}', [InventoryMovementController::class, 'createSaleFromQuotation']);
       Route::get('inventoryMovements/kardex', [InventoryMovementController::class, 'getKardex']);
       Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history', [InventoryMovementController::class, 'getProductMovementHistory']);
+      Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/purchase-history', [InventoryMovementController::class, 'getProductPurchaseHistory']);
+      Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history/export', [InventoryMovementController::class, 'exportProductMovementHistory']);
+      Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/purchase-history/export', [InventoryMovementController::class, 'exportProductPurchaseHistory']);
       Route::apiResource('inventoryMovements', InventoryMovementController::class)->only([
         'index',
         'show',
