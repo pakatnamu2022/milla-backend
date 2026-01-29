@@ -29,6 +29,7 @@ class Opportunity extends Model
   ];
 
   const filters = [
+    'search' => ['client.full_name', 'client.num_doc', 'family.description'],
     'worker_id' => '=',
     'client_id' => '=',
     'family_id' => '=',
@@ -36,6 +37,9 @@ class Opportunity extends Model
     'client_status_id' => '=',
     'opportunity_status_id' => '=',
     'has_purchase_request_quote' => 'accessor_bool',
+    'opportunityType.description' => '=',
+    'date_from' => 'scope',
+    'date_to' => 'scope',
   ];
 
   const sorts = [
@@ -50,7 +54,20 @@ class Opportunity extends Model
   const WARM = 'WARM';
   const HOT = 'HOT';
 
-  const OPEN_STATUS_CODES = [self::COLD, self::WARM, self::HOT];
+  const array OPEN_STATUS_CODES = [self::COLD, self::WARM, self::HOT];
+
+  const int COLD_ID = 856;
+  const int WARM_ID = 857;
+  const int HOT_ID = 858;
+  const int SOLD_ID = 859;
+  const int CLOSED_ID = 860;
+  const array OPPORTUNITY_STATUS_ID = [
+    self::COLD_ID,
+    self::WARM_ID,
+    self::HOT_ID,
+    self::SOLD_ID,
+    self::CLOSED_ID,
+  ];
 
   public function getIsClosedAttribute(): bool
   {
@@ -60,6 +77,16 @@ class Opportunity extends Model
   public function getHasPurchaseRequestQuoteAttribute(): bool
   {
     return $this->purchaseRequestsQuote()->exists();
+  }
+
+  public function scopeDateFrom($query, $value)
+  {
+    return $query->whereDate('created_at', '>=', $value);
+  }
+
+  public function scopeDateTo($query, $value)
+  {
+    return $query->whereDate('created_at', '<=', $value);
   }
 
   public function purchaseRequestsQuote(): HasOne

@@ -10,6 +10,7 @@ use App\Models\ap\configuracionComercial\venta\ApCommercialManagerBrandGroup;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -22,7 +23,7 @@ class ApDailyDeliveryReportService
    * @param string $fechaFin Fecha fin en formato Y-m-d
    * @return array
    */
-  public function generate(string $fechaInicio, string $fechaFin): array
+  public function generate(string $fechaInicio, string $fechaFin)
   {
     $carbonInicio = Carbon::parse($fechaInicio);
     $carbonFin = Carbon::parse($fechaFin);
@@ -32,17 +33,20 @@ class ApDailyDeliveryReportService
     // Paso 1: Obtener vehículos con entrega en el rango de fechas
     $vehiclesWithDelivery = $this->getDeliveredVehicles($fechaInicio, $fechaFin);
 
-    // Paso 2: Obtener IDs de cotizaciones facturadas
-    $invoicedQuoteIds = $this->getInvoicedQuoteIds($vehiclesWithDelivery->pluck('quote_id'));
+    // Paso 2: Obtener IDs de cotizaciones facturadas en el rango de fechas
+    $invoicedQuoteIds = $this->getInvoicedQuoteIds($fechaInicio, $fechaFin);
 
     // Paso 3: Construir resumen por clase de artículo
     $summary = $this->buildSummaryByArticleClass($vehiclesWithDelivery, $invoicedQuoteIds);
 
-    // Paso 4: Construir desglose por asesores
-    $advisors = $this->buildAdvisorBreakdown($vehiclesWithDelivery, $invoicedQuoteIds);
+    // Paso 4: Calcular conteos por asesor (se usa en múltiples lugares)
+    $advisorCounts = $this->calculateAdvisorCounts($vehiclesWithDelivery, $invoicedQuoteIds);
 
-    // Paso 5: Construir árbol jerárquico
-    $hierarchy = $this->buildHierarchyTree($year, $month, $vehiclesWithDelivery, $invoicedQuoteIds);
+    // Paso 5: Construir desglose por asesores
+    $advisors = $this->buildAdvisorBreakdownFromCounts($advisorCounts);
+
+    // Paso 6: Construir árbol jerárquico
+    $hierarchy = $this->buildHierarchyTree($year, $month, $vehiclesWithDelivery, $invoicedQuoteIds, $advisorCounts);
 
     // Paso 6: Construir reporte por marcas y sedes
     $brandReport = $this->buildBrandReport($year, $month, $vehiclesWithDelivery, $invoicedQuoteIds, $fechaInicio, $fechaFin);
@@ -66,7 +70,8 @@ class ApDailyDeliveryReportService
   }
 
   /**
-   * Obtiene vehículos con entrega realizada en el rango de fechas
+   * Obtiene vehículos con entrega realizada en el rango de fechas O con facturación válida
+   * La entrega y facturación son independientes
    *
    * @param string $fechaInicio
    * @param string $fechaFin
@@ -75,18 +80,41 @@ class ApDailyDeliveryReportService
   protected function getDeliveredVehicles(string $fechaInicio, string $fechaFin): Collection
   {
     $vehicles = DB::table('ap_vehicles')
-      ->join('ap_vehicle_delivery', 'ap_vehicles.id', '=', 'ap_vehicle_delivery.vehicle_id')
+      ->leftJoin('ap_vehicle_delivery', function ($join) {
+        $join->on('ap_vehicles.id', '=', 'ap_vehicle_delivery.vehicle_id')
+          ->whereNull('ap_vehicle_delivery.deleted_at');
+      })
       ->join('purchase_request_quote', 'ap_vehicles.id', '=', 'purchase_request_quote.ap_vehicle_id')
       ->join('ap_opportunity', 'purchase_request_quote.opportunity_id', '=', 'ap_opportunity.id')
       ->join('ap_models_vn', 'ap_vehicles.ap_models_vn_id', '=', 'ap_models_vn.id')
       ->join('ap_class_article', 'ap_models_vn.class_id', '=', 'ap_class_article.id')
-      ->leftJoin('ap_familia_marca', 'ap_models_vn.family_id', '=', 'ap_familia_marca.id')
-      ->leftJoin('ap_vehicle_brand', 'ap_familia_marca.marca_id', '=', 'ap_vehicle_brand.id')
+      ->leftJoin('ap_families', 'ap_models_vn.family_id', '=', 'ap_families.id')
+      ->leftJoin('ap_vehicle_brand', 'ap_families.brand_id', '=', 'ap_vehicle_brand.id')
       ->leftJoin('config_sede', 'purchase_request_quote.sede_id', '=', 'config_sede.id')
-      ->whereBetween('ap_vehicle_delivery.real_delivery_date', [$fechaInicio, $fechaFin])
-      ->whereNotNull('ap_vehicle_delivery.real_delivery_date')
+      ->where(function ($query) use ($fechaInicio, $fechaFin) {
+        // Tiene entrega en el rango de fechas
+        $query->where(function ($q) use ($fechaInicio, $fechaFin) {
+          $q->whereBetween('ap_vehicle_delivery.real_delivery_date', [$fechaInicio, $fechaFin])
+            ->whereNotNull('ap_vehicle_delivery.real_delivery_date');
+        })
+          // O tiene factura válida en el rango de fechas (independiente de la entrega)
+          ->orWhereExists(function ($q) use ($fechaInicio, $fechaFin) {
+            $q->select(DB::raw(1))
+              ->from('ap_billing_electronic_documents')
+              ->whereColumn('ap_billing_electronic_documents.purchase_request_quote_id', 'purchase_request_quote.id')
+              ->where('ap_billing_electronic_documents.is_advance_payment', false)
+              ->where('ap_billing_electronic_documents.aceptada_por_sunat', true)
+              ->where('ap_billing_electronic_documents.anulado', false)
+              ->whereIn('ap_billing_electronic_documents.sunat_concept_document_type_id', [
+                SunatConcepts::ID_FACTURA_ELECTRONICA,
+                SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA,
+              ])
+              ->where('ap_billing_electronic_documents.origin_module', 'comercial')
+              ->whereBetween('ap_billing_electronic_documents.fecha_de_emision', [$fechaInicio, $fechaFin])
+              ->whereNull('ap_billing_electronic_documents.deleted_at');
+          });
+      })
       ->whereNull('ap_vehicles.deleted_at')
-      ->whereNull('ap_vehicle_delivery.deleted_at')
       ->whereNull('purchase_request_quote.deleted_at')
       ->select([
         'ap_vehicles.id as vehicle_id',
@@ -120,8 +148,8 @@ class ApDailyDeliveryReportService
       ->join('ap_vehicles', 'ap_vehicle_movement.ap_vehicle_id', '=', 'ap_vehicles.id')
       ->join('ap_models_vn', 'ap_vehicles.ap_models_vn_id', '=', 'ap_models_vn.id')
       ->join('ap_class_article', 'ap_models_vn.class_id', '=', 'ap_class_article.id')
-      ->leftJoin('ap_familia_marca', 'ap_models_vn.family_id', '=', 'ap_familia_marca.id')
-      ->leftJoin('ap_vehicle_brand', 'ap_familia_marca.marca_id', '=', 'ap_vehicle_brand.id')
+      ->leftJoin('ap_families', 'ap_models_vn.family_id', '=', 'ap_families.id')
+      ->leftJoin('ap_vehicle_brand', 'ap_families.brand_id', '=', 'ap_vehicle_brand.id')
       ->whereBetween('ap_purchase_order.emission_date', [$fechaInicio, $fechaFin])
       ->where('ap_purchase_order.status', true)
       ->whereNull('ap_purchase_order.deleted_at')
@@ -140,24 +168,20 @@ class ApDailyDeliveryReportService
 
   /**
    * Obtiene IDs de cotizaciones que tienen facturas válidas
+   * Sin filtro de fecha - una factura válida cuenta independientemente de cuándo se emitió
    *
-   * @param Collection $quoteIds
    * @return Collection
    */
-  protected function getInvoicedQuoteIds(Collection $quoteIds): Collection
+  protected function getInvoicedQuoteIds(): Collection
   {
-    if ($quoteIds->isEmpty()) {
-      return collect([]);
-    }
-
-    return ElectronicDocument::whereIn('purchase_request_quote_id', $quoteIds)
-      ->where('is_advance_payment', false)
+    return ElectronicDocument::where('is_advance_payment', false)
       ->where('aceptada_por_sunat', true)
       ->where('anulado', false)
       ->whereIn('sunat_concept_document_type_id', [
         SunatConcepts::ID_FACTURA_ELECTRONICA,
         SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA,
       ])
+      ->where('origin_module', 'comercial')
       ->whereNull('deleted_at')
       ->distinct()
       ->pluck('purchase_request_quote_id');
@@ -167,6 +191,7 @@ class ApDailyDeliveryReportService
    * Construye el resumen por clase de artículo (dinámico)
    *
    * Genera categorías basadas en las clases reales encontradas en los datos
+   * Las entregas y facturaciones son independientes
    *
    * @param Collection $vehicles
    * @param Collection $invoicedQuoteIds
@@ -182,7 +207,12 @@ class ApDailyDeliveryReportService
     $groupedByClass = $vehicles->groupBy('article_class_description');
 
     foreach ($groupedByClass as $className => $classVehicles) {
-      $entregas = $classVehicles->count();
+      // Entregas: solo vehículos con fecha de entrega real
+      $entregas = $classVehicles->filter(function ($vehicle) {
+        return !is_null($vehicle->real_delivery_date);
+      })->count();
+
+      // Facturadas: vehículos con factura válida (independiente de la entrega)
       $facturacion = $classVehicles->filter(function ($vehicle) use ($invoicedQuoteIds) {
         return $invoicedQuoteIds->contains($vehicle->quote_id);
       })->count();
@@ -208,7 +238,38 @@ class ApDailyDeliveryReportService
   }
 
   /**
-   * Construye el desglose por asesores
+   * Construye el desglose por asesores desde conteos pre-calculados
+   *
+   * @param array $advisorCounts
+   * @return array
+   */
+  protected function buildAdvisorBreakdownFromCounts(array $advisorCounts): array
+  {
+    $advisorStats = [];
+
+    foreach ($advisorCounts as $advisorId => $counts) {
+      $advisor = Worker::find($advisorId);
+
+      $advisorStats[] = [
+        'id' => $advisorId,
+        'name' => $advisor ? $advisor->nombre_completo : 'Desconocido',
+        'entregas' => $counts['entregas'],
+        'facturadas' => $counts['facturadas'],
+        'reporteria_dealer_portal' => null,
+      ];
+    }
+
+    // Ordenar por nombre
+    usort($advisorStats, function ($a, $b) {
+      return strcmp($a['name'], $b['name']);
+    });
+
+    return $advisorStats;
+  }
+
+  /**
+   * Construye el desglose por asesores (método legacy, no usar)
+   * Las entregas y facturaciones son independientes
    *
    * @param Collection $vehicles
    * @param Collection $invoicedQuoteIds
@@ -226,7 +287,12 @@ class ApDailyDeliveryReportService
         continue; // Skip null advisors
       }
 
-      $entregas = $advisorVehicles->count();
+      // Entregas: solo vehículos con fecha de entrega real
+      $entregas = $advisorVehicles->filter(function ($vehicle) {
+        return !is_null($vehicle->real_delivery_date);
+      })->count();
+
+      // Facturadas: vehículos con factura válida (independiente de la entrega)
       $facturacion = $advisorVehicles->filter(function ($vehicle) use ($invoicedQuoteIds) {
         return $invoicedQuoteIds->contains($vehicle->quote_id);
       })->count();
@@ -260,9 +326,10 @@ class ApDailyDeliveryReportService
    * @param int $month
    * @param Collection $vehicles
    * @param Collection $invoicedQuoteIds
+   * @param array $advisorCounts Conteos pre-calculados por asesor
    * @return array
    */
-  protected function buildHierarchyTree(int $year, int $month, Collection $vehicles, Collection $invoicedQuoteIds): array
+  protected function buildHierarchyTree(int $year, int $month, Collection $vehicles, Collection $invoicedQuoteIds, array $advisorCounts): array
   {
     // Obtener IDs de tipos de clase
     $vehicleTypeId = ApMasters::ofType('CLASS_TYPE')
@@ -295,8 +362,7 @@ class ApDailyDeliveryReportService
       ->with(['brand:id,name,group_id', 'worker:id,nombre_completo'])
       ->get();
 
-    // Calcular conteos por asesor
-    $advisorCounts = $this->calculateAdvisorCounts($vehicles, $invoicedQuoteIds);
+    // Los conteos por asesor ya vienen pre-calculados como parámetro
 
     // Construir mapa de asesor -> grupos de marcas
     $advisorBrandGroups = $this->buildAdvisorBrandGroupMap($brandAssignments);
@@ -338,7 +404,7 @@ class ApDailyDeliveryReportService
     }
 
     // ÚLTIMO NODO: Jefe CAMIONES (directo, sin gerente) - siempre mostrar
-    $node = $this->buildCamionesNode($year, $month, $vehiclesCamiones, $invoicedQuoteIds, $advisorBrands);
+    $node = $this->buildCamionesNode($year, $month, $vehiclesCamiones, $invoicedQuoteIds, $advisorBrands, $advisorCounts);
     if ($node) {
       $tree[] = $node;
     }
@@ -678,6 +744,7 @@ class ApDailyDeliveryReportService
 
   /**
    * Calcula conteos de entregas y facturación por asesor
+   * Las entregas y facturaciones son independientes
    *
    * @param Collection $vehicles
    * @param Collection $invoicedQuoteIds
@@ -693,7 +760,11 @@ class ApDailyDeliveryReportService
       }
 
       $counts[$advisorId] = [
-        'entregas' => $advisorVehicles->count(),
+        // Entregas: solo vehículos con fecha de entrega real
+        'entregas' => $advisorVehicles->filter(function ($vehicle) {
+          return !is_null($vehicle->real_delivery_date);
+        })->count(),
+        // Facturadas: vehículos con factura válida (independiente de la entrega)
         'facturadas' => $advisorVehicles->filter(function ($vehicle) use ($invoicedQuoteIds) {
           return $invoicedQuoteIds->contains($vehicle->quote_id);
         })->count(),
@@ -714,13 +785,8 @@ class ApDailyDeliveryReportService
       return null;
     }
 
-    // Filtrar vehículos de todos los grupos de este gerente
-    $groupVehicles = $allVehicles->filter(function ($v) use ($vehicleTypeId, $brandGroupIds) {
-      return $v->type_class_id == $vehicleTypeId && in_array($v->brand_group_id, $brandGroupIds);
-    });
-
-    // Recalcular conteos solo para estos grupos
-    $groupAdvisorCounts = $this->calculateAdvisorCounts($groupVehicles, $invoicedQuoteIds);
+    // Usar los conteos pre-calculados que ya vienen del parámetro
+    // NO recalcular para evitar perder datos de vehículos facturados
 
     $managerNode = [
       'id' => $managerId,
@@ -745,7 +811,7 @@ class ApDailyDeliveryReportService
       }
 
       // Construir nodo de jefe considerando TODOS los grupos del gerente
-      $jefeNode = $this->buildJefeNodeForMultipleGroups($jefeId, $brandGroupIds, $bossToWorkers, $advisorBrandGroups, $advisorBrands, $groupAdvisorCounts);
+      $jefeNode = $this->buildJefeNodeForMultipleGroups($jefeId, $brandGroupIds, $bossToWorkers, $advisorBrandGroups, $advisorBrands, $advisorCounts);
 
       if ($jefeNode && !empty($jefeNode['children'])) {
         $managerNode['children'][] = $jefeNode;
@@ -930,7 +996,7 @@ class ApDailyDeliveryReportService
    * Construye nodo para camiones (jefe directo sin gerente)
    * Siempre retorna un nodo, incluso si no hay entregas
    */
-  protected function buildCamionesNode(int $year, int $month, Collection $vehicles, Collection $invoicedQuoteIds, array $advisorBrands): ?array
+  protected function buildCamionesNode(int $year, int $month, Collection $vehicles, Collection $invoicedQuoteIds, array $advisorBrands, array $advisorCounts): ?array
   {
     // Obtener asignaciones de liderazgo
     $assignments = ApAssignmentLeadership::where('year', $year)
@@ -943,8 +1009,7 @@ class ApDailyDeliveryReportService
       return null;
     }
 
-    // Calcular conteos por asesor
-    $advisorCounts = $this->calculateAdvisorCounts($vehicles, $invoicedQuoteIds);
+    // Usar los conteos pre-calculados que vienen como parámetro
 
     // Construir mapa de jefe -> asesores
     $bossToWorkers = $assignments->groupBy('boss_id');
@@ -1084,15 +1149,16 @@ class ApDailyDeliveryReportService
 
   /**
    * Construye sección de totales generales
+   * Las entregas y facturaciones son independientes
    */
   protected function buildTotalSection(Collection $livianos, Collection $camiones, Collection $invoicedQuoteIds): array
   {
     $livianosCompras = $livianos->whereNotNull('purchase_order_id')->count();
-    $livianosEntregas = $livianos->count();
+    $livianosEntregas = $livianos->filter(fn($v) => !is_null($v->real_delivery_date))->count();
     $livianosFacturadas = $livianos->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
     $camionesCompras = $camiones->whereNotNull('purchase_order_id')->count();
-    $camionesEntregas = $camiones->count();
+    $camionesEntregas = $camiones->filter(fn($v) => !is_null($v->real_delivery_date))->count();
     $camionesFacturadas = $camiones->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
     return [
@@ -1153,6 +1219,7 @@ class ApDailyDeliveryReportService
 
   /**
    * Construye una sección de grupo de marcas con sus sedes y marcas
+   * Las entregas y facturaciones son independientes
    */
   protected function buildBrandGroupSection($brandGroup, Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders, array $brandsByShop): array
   {
@@ -1162,7 +1229,7 @@ class ApDailyDeliveryReportService
 
     // Total del grupo
     $totalCompras = $purchaseOrders->count();
-    $totalEntregas = $vehicles->count();
+    $totalEntregas = $vehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
     $totalFacturadas = $vehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
     // Por cada shop que tenga marcas asignadas
@@ -1181,7 +1248,7 @@ class ApDailyDeliveryReportService
 
       // Total por sede
       $sedeCompras = $sedePurchases->count();
-      $sedeEntregas = $sedeVehicles->count();
+      $sedeEntregas = $sedeVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
       $sedeFacturadas = $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
       $items[] = [
@@ -1199,7 +1266,7 @@ class ApDailyDeliveryReportService
         $brandPurchases = $sedePurchases->filter(fn($p) => $p->brand_id == $brandId);
 
         $brandCompras = $brandPurchases->count();
-        $brandEntregas = $brandVehicles->count();
+        $brandEntregas = $brandVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
         $brandFacturadas = $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
         $items[] = [
@@ -1224,6 +1291,7 @@ class ApDailyDeliveryReportService
 
   /**
    * Construye sección de camiones
+   * Las entregas y facturaciones son independientes
    */
   protected function buildCamionesSection(int $year, int $month, int $typeClassId, Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders): array
   {
@@ -1231,7 +1299,7 @@ class ApDailyDeliveryReportService
 
     // Total de camiones
     $totalCompras = $purchaseOrders->count();
-    $totalEntregas = $vehicles->count();
+    $totalEntregas = $vehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
     $totalFacturadas = $vehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
     // Obtener el grupo de JAC CAMIONES
@@ -1261,7 +1329,7 @@ class ApDailyDeliveryReportService
 
       // Total por sede
       $sedeCompras = $sedePurchases->count();
-      $sedeEntregas = $sedeVehicles->count();
+      $sedeEntregas = $sedeVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
       $sedeFacturadas = $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
       $items[] = [
@@ -1279,7 +1347,7 @@ class ApDailyDeliveryReportService
         $brandPurchases = $sedePurchases->filter(fn($p) => $p->brand_id == $brandId);
 
         $brandCompras = $brandPurchases->count();
-        $brandEntregas = $brandVehicles->count();
+        $brandEntregas = $brandVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
         $brandFacturadas = $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
         $items[] = [
@@ -1486,7 +1554,7 @@ class ApDailyDeliveryReportService
 
         // SECCIÓN 1: Sell Out (Entregas)
         $objetivoApEntregas = $goalsOut->where('shop_id', $shopId)->where('brand_id', $brandId)->sum('goal');
-        $resultadoEntrega = $brandVehicles->count();
+        $resultadoEntrega = $brandVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
         $cumplimientoEntrega = $objetivoApEntregas > 0 ? round(($resultadoEntrega / $objetivoApEntregas) * 100, 2) : 0;
 
         // SECCIÓN 2: Reportes (Inchcape = sell out, Dealer Portal pendiente)
