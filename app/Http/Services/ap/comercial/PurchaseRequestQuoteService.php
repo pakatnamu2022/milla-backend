@@ -27,6 +27,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\TextUI\Configuration\Constant;
 use Throwable;
+use function json_encode;
 
 class PurchaseRequestQuoteService extends BaseService implements BaseServiceInterface
 {
@@ -65,7 +66,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     }
 
     if ($worker->position->hierarchicalCategory->id === Constants::SALE_COORDINATOR_CATEGORY_ID) {
-      return PurchaseRequestQuote::where('sede_id', $worker->sede_id);
+      return PurchaseRequestQuote::where('sede_id', $user->sedes()->pluck('config_sede.id')->toArray());
     }
 
     // Buscar si el trabajador es jefe (tiene consultores asignados en ApAssignmentLeadership)

@@ -156,7 +156,7 @@
     <td colspan="1">{{ $quote['num_doc_client'] ?? '' }}</td>
   </tr>
   <tr>
-    <td class="label">Cónyuge</td>
+    <td class="label">Cónyuge / Coproprietario</td>
     <td colspan="5">{{ $quote['spouse_full_name'] ?? '' }}</td>
     <td class="label">DNI</td>
     <td>{{ $quote['spouse_num_doc'] ?? '' }}</td>
