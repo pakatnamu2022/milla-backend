@@ -43,18 +43,23 @@ class PotentialBuyersService extends BaseService
     );
   }
 
-  public function myPotentialBuyers($workerId, $requestWorkerId, $canViewAllUsers)
+  public function myPotentialBuyers(Request $request, $workerId, $requestWorkerId, $canViewAllUsers)
   {
     $workerIdToUse = $workerId;
     if ($canViewAllUsers && $requestWorkerId) {
       $workerIdToUse = $requestWorkerId;
     }
 
-    $potentialBuyers = PotentialBuyers::where('worker_id', $workerIdToUse)->where('use', PotentialBuyers::CREATED)
-      ->orderBy('registration_date', 'asc')
-      ->get();
+    $query = PotentialBuyers::where('worker_id', $workerIdToUse)
+      ->where('use', PotentialBuyers::CREATED);
 
-    return PotentialBuyersResource::collection($potentialBuyers);
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      PotentialBuyers::filters,
+      PotentialBuyers::sorts,
+      PotentialBuyersResource::class,
+    );
   }
 
   public function find($id)

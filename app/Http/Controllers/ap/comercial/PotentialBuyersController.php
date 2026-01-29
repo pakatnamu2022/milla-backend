@@ -11,6 +11,7 @@ use App\Http\Requests\ap\comercial\UpdatePotentialBuyersRequest;
 use App\Http\Services\ap\comercial\PotentialBuyersService;
 use App\Models\ap\comercial\Opportunity;
 use Illuminate\Http\Request;
+use Throwable;
 
 class PotentialBuyersController extends Controller
 {
@@ -34,8 +35,8 @@ class PotentialBuyersController extends Controller
       $canViewAllUsers = $user->can('viewAdvisors', Opportunity::class);
       $workerId = $user->partner_id;
       if (!$workerId) return $this->error('El trabajador es inválido');
-      return $this->success($this->service->myPotentialBuyers($workerId, $requestWorkerId, $canViewAllUsers));
-    } catch (\Throwable $th) {
+      return $this->service->myPotentialBuyers($request, $workerId, $requestWorkerId, $canViewAllUsers);
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
@@ -44,7 +45,7 @@ class PotentialBuyersController extends Controller
   {
     try {
       return $this->success($this->service->store($request->validated()));
-    } catch (\Throwable $th) {
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
@@ -53,7 +54,7 @@ class PotentialBuyersController extends Controller
   {
     try {
       return $this->success($this->service->show($id));
-    } catch (\Throwable $th) {
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
@@ -64,7 +65,7 @@ class PotentialBuyersController extends Controller
       $data = $request->validated();
       $data['id'] = $id;
       return $this->success($this->service->update($data));
-    } catch (\Throwable $th) {
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
@@ -73,7 +74,7 @@ class PotentialBuyersController extends Controller
   {
     try {
       return $this->success($this->service->discard($id, $request->input('comment'), $request->input('reason_discarding_id')));
-    } catch (\Throwable $th) {
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
@@ -82,7 +83,7 @@ class PotentialBuyersController extends Controller
   {
     try {
       return $this->service->destroy($id);
-    } catch (\Throwable $th) {
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
@@ -106,7 +107,7 @@ class PotentialBuyersController extends Controller
       } else {
         return $this->error($result['message'], $result);
       }
-    } catch (\Throwable $th) {
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
@@ -130,7 +131,7 @@ class PotentialBuyersController extends Controller
       } else {
         return $this->error($result['message'], $result);
       }
-    } catch (\Throwable $th) {
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
@@ -145,7 +146,7 @@ class PotentialBuyersController extends Controller
       } else {
         return $this->error($result['message'], $result);
       }
-    } catch (\Throwable $th) {
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
@@ -154,7 +155,7 @@ class PotentialBuyersController extends Controller
   {
     try {
       return $this->service->export($request);
-    } catch (\Throwable $th) {
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
