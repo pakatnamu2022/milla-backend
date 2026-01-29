@@ -442,7 +442,8 @@
     <tr>
       <td class="label-total">Base Propuesta:</td>
       <td class="value-total">
-        S/ {{ number_format($quotation['subtotal'], 2) - number_format($quotation['subtotal'] * 0.18, 2) }}</td>
+        S/ {{ number_format($quotation['subtotal'] / 1.18, 2) }}
+      </td>
     </tr>
     <tr>
       <td class="label-total">IGV 18.00%:</td>
