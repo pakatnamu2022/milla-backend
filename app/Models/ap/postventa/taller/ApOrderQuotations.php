@@ -57,7 +57,7 @@ class ApOrderQuotations extends Model
   ];
 
   const filters = [
-    'search' => ['quotation_number', 'observations', 'vehicle.customer.full_name'],
+    'search' => ['quotation_number', 'observations', 'vehicle.customer.full_name', 'client.full_name', 'vehicle.plate'],
     'vehicle_id' => '=',
     'quotation_date' => 'between',
     'is_take' => '=',

@@ -54,6 +54,10 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede agregar mano de obra a una orden de trabajo cerrada');
       }
 
+      if ($workOrder->vehicle_inspection_id === null) {
+        throw new Exception('No se puede agregar mano de obra a una orden de trabajo sin inspección de vehículo');
+      }
+
       if ($workOrder->order_quotation_id) {
         $orderQuotation = $workOrder->orderQuotation;
         if ($orderQuotation->currency_id === $workOrder->currency_id) { // MISMA MONEDA

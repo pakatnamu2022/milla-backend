@@ -117,6 +117,13 @@ class TransferReceptionService extends BaseService
         'total_quantity' => $totalQuantity,
       ]);
 
+      //marcamos la $shippingGuide como recibida
+      $shippingGuide->update([
+        'is_received' => true,
+        'received_by' => Auth::id(),
+        'received_date' => now(),
+      ]);
+
       // Create TRANSFER_IN movement for the received quantities
       $transferInMovement = InventoryMovement::create([
         'movement_number' => InventoryMovement::generateMovementNumber(),
@@ -298,6 +305,14 @@ class TransferReceptionService extends BaseService
           'status' => InventoryMovement::STATUS_IN_TRANSIT
         ]);
       }
+
+      //marcamos la $shippingGuide como no recibida
+      $shippingGuide = $reception->shippingGuide;
+      $shippingGuide->update([
+        'is_received' => false,
+        'received_by' => null,
+        'received_date' => null,
+      ]);
 
       // Delete reception (soft delete)
       $reception->delete();

@@ -41,7 +41,7 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
       $data['advisor_id'] = auth()->user()->person?->id;
     }
     $vehicle = isset($data['ap_vehicle_id']) ? Vehicles::find($data['ap_vehicle_id']) : null;
-    
+
     if ($vehicle === null) {
       throw new Exception('Vehículo no encontrado');
     }
@@ -233,6 +233,8 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
       'client_ubigeo' => $clientUbigeo,
       'client_city' => $clientCity,
       'description' => $appointmentPlanning->description,
+      'planificacion' => $appointmentPlanning->typePlanning ? $appointmentPlanning->typePlanning->description : 'N/A',
+      'operacion' => $appointmentPlanning->typeOperationAppointment ? $appointmentPlanning->typeOperationAppointment->description : 'N/A',
     ];
 
     // Datos del vehículo si existe

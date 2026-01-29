@@ -10,16 +10,14 @@ class UpdateApOrderQuotationsRequest extends StoreRequest
   {
     return [
       'work_order_id' => ['sometimes', 'required', 'integer', 'exists:ap_work_orders,id'],
-      'quotation_number' => ['sometimes', 'required', 'string', 'max:50'],
-      'subtotal' => ['sometimes', 'required', 'numeric', 'min:0'],
-      'discount_percentage' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
-      'discount_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-      'tax_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-      'total_amount' => ['sometimes', 'required', 'numeric', 'min:0'],
-      'validity_days' => ['sometimes', 'nullable', 'integer', 'min:1'],
-      'quotation_date' => ['sometimes', 'required', 'date'],
-      'expiration_date' => ['sometimes', 'nullable', 'date', 'after_or_equal:quotation_date'],
-      'observations' => ['sometimes', 'nullable', 'string'],
+      'currency_id' => ['sometimes', 'required', 'integer', 'exists:type_currency,id'],
+      'area_id' => ['sometimes', 'integer', 'exists:ap_masters,id'],
+      'vehicle_id' => ['sometimes', 'required', 'integer', 'exists:ap_vehicles,id'],
+      'sede_id' => ['sometimes', 'required', 'integer', 'exists:config_sede,id'],
+      'client_id' => ['sometimes', 'required', 'integer', 'exists:business_partners,id'],
+      'quotation_date' => ['required', 'date'],
+      'expiration_date' => ['nullable', 'date', 'after_or_equal:quotation_date'],
+      'observations' => ['nullable', 'string'],
     ];
   }
 
@@ -28,9 +26,15 @@ class UpdateApOrderQuotationsRequest extends StoreRequest
     return [
       'work_order_id.required' => 'La orden de trabajo es obligatoria.',
       'work_order_id.exists' => 'La orden de trabajo seleccionada no es válida.',
-      'quotation_number.required' => 'El número de cotización es obligatorio.',
-      'subtotal.required' => 'El subtotal es obligatorio.',
-      'total_amount.required' => 'El total es obligatorio.',
+      'currency_id.required' => 'Moneda es obligatoria.',
+      'currency_id.exists' => 'La moneda no existe.',
+      'area_id.exists' => 'El área de postventa no existe.',
+      'vehicle_id.required' => 'Vehículo asociado es obligatorio.',
+      'vehicle_id.exists' => 'El vehículo asociado no existe.',
+      'sede_id.required' => 'La sede es obligatoria.',
+      'sede_id.exists' => 'La sede no existe.',
+      'client_id.required' => 'El cliente es obligatorio.',
+      'client_id.exists' => 'El cliente no existe.',
       'quotation_date.required' => 'La fecha de cotización es obligatoria.',
       'expiration_date.after_or_equal' => 'La fecha de expiración debe ser posterior o igual a la fecha de cotización.',
     ];

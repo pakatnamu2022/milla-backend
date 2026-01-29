@@ -87,4 +87,13 @@ class WorkOrderController extends Controller
       ], 500);
     }
   }
+
+  public function unlinkQuotation($id)
+  {
+    try {
+      return $this->success($this->service->unlinkQuotation($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

@@ -9,7 +9,6 @@ use App\Http\Requests\ap\postventa\gestionProductos\StoreTransferInventoryReques
 use App\Http\Requests\ap\postventa\gestionProductos\UpdateInventoryMovementRequest;
 use App\Http\Requests\ap\postventa\gestionProductos\UpdateTransferInventoryRequest;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
-use App\Models\ap\comercial\ShippingGuides;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -262,6 +261,90 @@ class InventoryMovementController extends Controller
         'message' => 'Movimiento de salida por venta creado exitosamente',
         'movement' => $movement,
       ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Get purchase history for a specific product in a warehouse
+   * Returns all purchases with prices to track cost variations
+   *
+   * @param int $productId Product ID
+   * @param int $warehouseId Warehouse ID
+   * @param Request $request
+   * @return JsonResponse
+   */
+  public function getProductPurchaseHistory(int $productId, int $warehouseId, Request $request): JsonResponse
+  {
+    try {
+      $request->validate([
+        'date_from' => 'sometimes|date',
+        'date_to' => 'sometimes|date|after_or_equal:date_from',
+        'search' => 'sometimes|string',
+      ]);
+
+      $history = $this->inventoryMovementService->getProductPurchaseHistory(
+        $productId,
+        $warehouseId,
+        $request
+      );
+
+      return $this->success($history);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Export movement history for a specific product in a warehouse to Excel
+   *
+   * @param int $productId Product ID
+   * @param int $warehouseId Warehouse ID
+   * @param Request $request
+   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|JsonResponse
+   */
+  public function exportProductMovementHistory(int $productId, int $warehouseId, Request $request)
+  {
+    try {
+      $request->validate([
+        'date_from' => 'sometimes|date',
+        'date_to' => 'sometimes|date|after_or_equal:date_from',
+        'movement_type' => 'sometimes|string',
+        'status' => 'sometimes|string',
+      ]);
+
+      return $this->inventoryMovementService->exportProductMovementHistory(
+        $productId,
+        $warehouseId,
+        $request
+      );
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Export purchase history for a specific product in a warehouse to Excel
+   *
+   * @param int $productId Product ID
+   * @param int $warehouseId Warehouse ID
+   * @param Request $request
+   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|JsonResponse
+   */
+  public function exportProductPurchaseHistory(int $productId, int $warehouseId, Request $request)
+  {
+    try {
+      $request->validate([
+        'date_from' => 'sometimes|date',
+        'date_to' => 'sometimes|date|after_or_equal:date_from',
+      ]);
+
+      return $this->inventoryMovementService->exportProductPurchaseHistory(
+        $productId,
+        $warehouseId,
+        $request
+      );
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
