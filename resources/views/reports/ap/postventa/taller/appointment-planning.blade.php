@@ -225,6 +225,9 @@
 
 <!-- Comentarios -->
 <div class="comments">
+  <div><strong>PLANIFICACIÓN:</strong> {{ $appointment['planificacion'] ?? '-' }}</div>
+  <div><strong>OPERACIÓN:</strong> {{ $appointment['operacion'] ?? '-' }}</div>
+  <br>
   <div class="comments-title">Comentarios / Descripción del Servicio:</div>
   <div>{{ $appointment['description'] ?? 'Sin comentarios' }}</div>
 </div>

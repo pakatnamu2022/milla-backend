@@ -7,6 +7,7 @@ use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -104,5 +105,10 @@ class AppointmentPlanning extends Model
   public function owner()
   {
     return $this->belongsTo(BusinessPartners::class, 'owner_id');
+  }
+
+  public function creator()
+  {
+    return $this->belongsTo(User::class, 'created_by');
   }
 }

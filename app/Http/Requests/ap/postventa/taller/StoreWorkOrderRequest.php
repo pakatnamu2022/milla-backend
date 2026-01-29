@@ -136,6 +136,12 @@ class StoreWorkOrderRequest extends StoreRequest
         Rule::exists('ap_masters', 'id')
           ->where('type', 'TIPO_PLANIFICACION'),
       ],
+      'items.*.type_operation_id' => [
+        'required_with:items',
+        'integer',
+        Rule::exists('ap_masters', 'id')
+          ->where('type', 'TIPO_OPERACION_CITA'),
+      ],
       'items.*.description' => [
         'required_with:items',
         'string',
@@ -214,6 +220,10 @@ class StoreWorkOrderRequest extends StoreRequest
       'items.*.type_planning_id.required_with' => 'El tipo de planificación es obligatorio.',
       'items.*.type_planning_id.integer' => 'El tipo de planificación debe ser un entero.',
       'items.*.type_planning_id.exists' => 'El tipo de planificación seleccionado no es válido.',
+
+      'items.*.type_operation_id.required_with' => 'El tipo de operación es obligatorio.',
+      'items.*.type_operation_id.integer' => 'El tipo de operación debe ser un entero.',
+      'items.*.type_operation_id.exists' => 'El tipo de operación seleccionado no es válido.',
 
       'items.*.description.required_with' => 'La descripción del ítem es obligatoria.',
       'items.*.description.string' => 'La descripción del ítem debe ser una cadena de texto.',
