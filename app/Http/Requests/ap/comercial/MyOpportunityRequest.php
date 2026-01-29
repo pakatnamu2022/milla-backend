@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ap\comercial;
 
 use App\Http\Requests\IndexRequest;
+use App\Models\ap\comercial\Opportunity;
 use Illuminate\Validation\Rule;
 
 class MyOpportunityRequest extends IndexRequest
@@ -16,7 +17,12 @@ class MyOpportunityRequest extends IndexRequest
         'nullable',
         'integer',
         Rule::exists('ap_opportunity', 'id')->whereNull('deleted_at'),
-      ]
+      ],
+      'opportunity_status_id' => [
+        'nullable',
+        'integer',
+        Rule::in(Opportunity::OPPORTUNITY_STATUS_ID)
+      ],
     ];
   }
 

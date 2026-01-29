@@ -6,6 +6,7 @@ use App\Http\Resources\ap\comercial\OpportunityActionResource;
 use App\Http\Resources\ap\comercial\OpportunityResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Constants;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\OpportunityAction;
 use App\Models\ap\ApMasters;
@@ -162,44 +163,13 @@ class OpportunityService extends BaseService implements BaseServiceInterface
     $query = Opportunity::whereIn('worker_id', $accessibleWorkerIds)
       ->with(['worker', 'client', 'family', 'opportunityType', 'clientStatus', 'opportunityStatus']);
 
-    // Filtros opcionales
-    if ($request->has('opportunity_status_id')) {
-      $query->where('opportunity_status_id', $request->opportunity_status_id);
-    }
-
-    if ($request->has('family_id')) {
-      $query->where('family_id', $request->family_id);
-    }
-
-    if ($request->has('date_from')) {
-      $query->whereDate('created_at', '>=', $request->date_from);
-    }
-
-    if ($request->has('date_to')) {
-      $query->whereDate('created_at', '<=', $request->date_to);
-    }
-
-    if ($request->has('has_purchase_request_quote')) {
-      $excludedOpportunityId = $request->opportunity_id;
-      // si es un accessor no se puede filtrar en la consulta SQL: guardar el filtro y aplicarlo después
-      $filterHasPRQ = null;
-      if ($request->has('has_purchase_request_quote')) {
-        $filterHasPRQ = (bool)$request->has_purchase_request_quote;
-      }
-
-      $opportunities = $query->orderBy('created_at', 'desc')->get();
-
-      if (!is_null($filterHasPRQ)) {
-        $opportunities = $opportunities->filter(function ($op) use ($filterHasPRQ, $excludedOpportunityId) {
-          return $excludedOpportunityId && $op->id == $excludedOpportunityId || $op->has_purchase_request_quote === $filterHasPRQ;
-        })->values();
-      }
-
-      return OpportunityResource::collection($opportunities);
-    }
-
-    $opportunities = $query->orderBy('created_at', 'desc')->get();
-    return OpportunityResource::collection($opportunities);
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      Opportunity::filters,
+      Opportunity::sorts,
+      OpportunityResource::class,
+    );
   }
 
   /**

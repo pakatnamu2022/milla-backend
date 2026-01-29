@@ -29,6 +29,7 @@ class Opportunity extends Model
   ];
 
   const filters = [
+    'search' => ['client.full_name', 'client.num_doc', 'family.description'],
     'worker_id' => '=',
     'client_id' => '=',
     'family_id' => '=',
@@ -37,6 +38,8 @@ class Opportunity extends Model
     'opportunity_status_id' => '=',
     'has_purchase_request_quote' => 'accessor_bool',
     'opportunityType.description' => '=',
+    'date_from' => 'scope',
+    'date_to' => 'scope',
   ];
 
   const sorts = [
@@ -74,6 +77,16 @@ class Opportunity extends Model
   public function getHasPurchaseRequestQuoteAttribute(): bool
   {
     return $this->purchaseRequestsQuote()->exists();
+  }
+
+  public function scopeDateFrom($query, $value)
+  {
+    return $query->whereDate('created_at', '>=', $value);
+  }
+
+  public function scopeDateTo($query, $value)
+  {
+    return $query->whereDate('created_at', '<=', $value);
   }
 
   public function purchaseRequestsQuote(): HasOne
