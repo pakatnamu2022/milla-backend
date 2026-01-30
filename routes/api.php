@@ -198,6 +198,17 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
           Route::get('control-freight/customers/search', [OpFreightController::class, 'searchCustomers']);
       });
 
+    Route::group(['prefix' => 'goal'], function() {
+        Route::apiResource('control-goal', OpGoalTravelController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+      });
+
   });
 
   //    SYSTEM
