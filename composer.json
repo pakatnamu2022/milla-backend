@@ -12,6 +12,7 @@
     "php": "^8.3",
     "barryvdh/laravel-dompdf": "^3.1",
     "dedoc/scramble": "^0.12.35",
+    "intervention/image-laravel": "^1.5",
     "laravel-lang/common": "^6.7",
     "laravel-lang/publisher": "^16.6",
     "laravel/framework": "^12.0",
