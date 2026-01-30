@@ -166,6 +166,19 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
   public function store(mixed $data)
   {
     return DB::transaction(function () use ($data) {
+      $workOrder = ApWorkOrder::find($data['work_order_id']);
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+        throw new Exception('No se puede agregar repuestos a una orden de trabajo cerrada');
+      }
+
+      if ($workOrder->vehicle_inspection_id === null) {
+        throw new Exception('No se puede agregar repuestos a una orden de trabajo sin inspección vehicular');
+      }
+
       // Set registered_by
       if (auth()->check()) {
         $data['registered_by'] = auth()->user()->id;

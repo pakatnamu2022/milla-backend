@@ -84,4 +84,5 @@ class Warehouse extends Model
   {
     return $this->belongsTo(Warehouse::class, 'parent_warehouse_id');
   }
+  
 }

@@ -441,7 +441,9 @@
     </tr>
     <tr>
       <td class="label-total">Base Propuesta:</td>
-      <td class="value-total">S/ {{ number_format($quotation['subtotal'], 2) }}</td>
+      <td class="value-total">
+        S/ {{ number_format($quotation['subtotal'] / 1.18, 2) }}
+      </td>
     </tr>
     <tr>
       <td class="label-total">IGV 18.00%:</td>
@@ -456,13 +458,13 @@
 
 <!-- Sección de Firma del Cliente -->
 @if(isset($quotation['customer_signature']) && $quotation['customer_signature'])
-<div class="signature-section" style="text-align: center;">
-  <div class="signature-box">
-    <img src="{{ $quotation['customer_signature'] }}" alt="Firma Cliente" class="signature-img">
-    FIRMA DEL CLIENTE<br>
-    {{ $quotation['customer_name'] }}
+  <div class="signature-section" style="text-align: center;">
+    <div class="signature-box">
+      <img src="{{ $quotation['customer_signature'] }}" alt="Firma Cliente" class="signature-img">
+      FIRMA DEL CLIENTE<br>
+      {{ $quotation['customer_name'] }}
+    </div>
   </div>
-</div>
 @endif
 
 <!-- Sección IMPORTANTE -->

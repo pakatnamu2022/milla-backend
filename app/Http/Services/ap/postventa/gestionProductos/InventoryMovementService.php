@@ -2,12 +2,15 @@
 
 namespace App\Http\Services\ap\postventa\gestionProductos;
 
+use App\Exports\GeneralExport;
 use App\Http\Resources\ap\postventa\gestionProductos\InventoryMovementResource;
 use App\Http\Services\BaseService;
 use App\Models\ap\comercial\BusinessPartners;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\compras\PurchaseReception;
+use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
@@ -91,8 +94,6 @@ class InventoryMovementService extends BaseService
             'quantity' => $quantityReceived,
             'unit_cost' => $detail->unit_cost ?? 0,
             'total_cost' => $quantityReceived * ($detail->unit_cost ?? 0),
-            'batch_number' => $detail->batch_number,
-            'expiration_date' => $detail->expiration_date,
             'notes' => $detail->reception_type === 'ORDERED'
               ? "Item de - {$detail->product->name}"
               : "{$detail->reception_type} - {$detail->product->name}",
@@ -194,8 +195,6 @@ class InventoryMovementService extends BaseService
           'quantity' => $detail['quantity'],
           'unit_cost' => $detail['unit_cost'] ?? 0,
           'total_cost' => $detail['quantity'] * ($detail['unit_cost'] ?? 0),
-          'batch_number' => $detail['batch_number'] ?? null,
-          'expiration_date' => $detail['expiration_date'] ?? null,
           'notes' => $detail['notes'] ?? null,
         ]);
 
@@ -420,8 +419,6 @@ class InventoryMovementService extends BaseService
           'quantity' => $detail['quantity'],
           'unit_cost' => $detail['unit_cost'] ?? 0,
           'total_cost' => $detail['quantity'] * ($detail['unit_cost'] ?? 0),
-          'batch_number' => $detail['batch_number'] ?? null,
-          'expiration_date' => $detail['expiration_date'] ?? null,
           'notes' => $notes,
         ]);
 
@@ -1099,5 +1096,382 @@ class InventoryMovementService extends BaseService
       DB::rollBack();
       throw $e;
     }
+  }
+
+  /**
+   * Get purchase history for a specific product in a warehouse
+   * Returns all purchase receptions with their prices for a product
+   *
+   * @param int $productId Product ID
+   * @param int $warehouseId Warehouse ID
+   * @param Request $request Request with date filters (date_from, date_to)
+   * @return array
+   */
+  public function getProductPurchaseHistory(int $productId, int $warehouseId, Request $request): array
+  {
+    // Validate product exists
+    $product = Products::find($productId);
+    if (!$product) {
+      throw new Exception('Producto no encontrado');
+    }
+
+    // Validate warehouse exists
+    $warehouse = Warehouse::find($warehouseId);
+    if (!$warehouse) {
+      throw new Exception('Almacén no encontrado');
+    }
+
+    // Build query for purchase reception details
+    $query = PurchaseReceptionDetail::query()
+      ->where('product_id', $productId)
+      ->whereHas('reception', function ($q) use ($warehouseId, $request) {
+        $q->where('warehouse_id', $warehouseId)
+          ->whereIn('status', ['APPROVED', 'PENDING_REVIEW']);
+
+        // Apply date filters on reception_date
+        if ($request->has('date_from')) {
+          $q->where('reception_date', '>=', $request->date_from);
+        }
+        if ($request->has('date_to')) {
+          $q->where('reception_date', '<=', $request->date_to);
+        }
+        if ($request->has('search')) {
+          $search = $request->search;
+          $q->where(function ($subQ) use ($search) {
+            $subQ->where('reception_number', 'LIKE', "%{$search}%")
+              ->orWhereHas('purchaseOrder', function ($poQ) use ($search) {
+                $poQ->where('number', 'LIKE', "%{$search}%")
+                  ->orWhere('invoice_number', 'LIKE', "%{$search}%");
+              });
+          });
+        }
+      })
+      ->with([
+        'reception' => function ($q) {
+          $q->with([
+            'purchaseOrder' => function ($q) {
+              $q->with(['supplier:id,full_name,num_doc', 'currency:id,name,symbol']);
+            },
+            'receivedByUser:id,name'
+          ]);
+        },
+        'purchaseOrderItem:id,unit_price,quantity,total',
+        'product:id,name,code,dyn_code'
+      ])
+      ->orderBy('created_at', 'desc');
+
+    // Get all results
+    $receptionDetails = $query->get();
+
+    // Transform results to show purchase history
+    $purchaseHistory = $receptionDetails->map(function ($detail) {
+      $reception = $detail->reception;
+      $purchaseOrder = $reception?->purchaseOrder;
+      $orderItem = $detail->purchaseOrderItem;
+
+      return [
+        'id' => $detail->id,
+        'reception_id' => $reception?->id,
+        'reception_number' => $reception?->reception_number,
+        'reception_date' => $reception?->reception_date?->format('Y-m-d'),
+        'purchase_order' => [
+          'id' => $purchaseOrder?->id,
+          'number' => $purchaseOrder?->number,
+          'emission_date' => $purchaseOrder?->emission_date?->format('Y-m-d'),
+          'invoice_series' => $purchaseOrder?->invoice_series,
+          'invoice_number' => $purchaseOrder?->invoice_number,
+        ],
+        'supplier' => [
+          'id' => $purchaseOrder?->supplier?->id,
+          'name' => $purchaseOrder?->supplier?->full_name,
+          'document' => $purchaseOrder?->supplier?->num_doc,
+        ],
+        'currency' => [
+          'id' => $purchaseOrder?->currency?->id,
+          'name' => $purchaseOrder?->currency?->name,
+          'symbol' => $purchaseOrder?->currency?->symbol,
+        ],
+        'unit_price' => $orderItem?->unit_price ?? 0,
+        'quantity_ordered' => $orderItem?->quantity ?? 0,
+        'quantity_received' => $detail->quantity_received,
+        'total_line' => $orderItem?->total ?? ($detail->quantity_received * ($orderItem?->unit_price ?? 0)),
+        'reception_type' => $detail->reception_type,
+        'received_by' => $reception?->receivedByUser?->name,
+        'notes' => $detail->notes,
+      ];
+    });
+
+    // Calculate summary statistics
+    $totalQuantity = $purchaseHistory->sum('quantity_received');
+    $totalAmount = $purchaseHistory->sum('total_line');
+    $averagePrice = $totalQuantity > 0 ? round($totalAmount / $totalQuantity, 2) : 0;
+    $minPrice = $purchaseHistory->min('unit_price') ?? 0;
+    $maxPrice = $purchaseHistory->max('unit_price') ?? 0;
+
+    return [
+      'product' => [
+        'id' => $product->id,
+        'name' => $product->name,
+        'code' => $product->code,
+        'dyn_code' => $product->dyn_code,
+      ],
+      'warehouse' => [
+        'id' => $warehouse->id,
+        'name' => $warehouse->name,
+      ],
+      'summary' => [
+        'total_purchases' => $purchaseHistory->count(),
+        'total_quantity' => $totalQuantity,
+        'total_amount' => $totalAmount,
+        'average_price' => $averagePrice,
+        'min_price' => $minPrice,
+        'max_price' => $maxPrice,
+      ],
+      'purchases' => $purchaseHistory->values(),
+    ];
+  }
+
+  /**
+   * Export movement history for a specific product in a warehouse to Excel
+   *
+   * @param int $productId Product ID
+   * @param int $warehouseId Warehouse ID
+   * @param Request $request Request with date filters (date_from, date_to)
+   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
+   */
+  public function exportProductMovementHistory(int $productId, int $warehouseId, Request $request)
+  {
+    // Validate product exists
+    $product = Products::find($productId);
+    if (!$product) {
+      throw new Exception('Producto no encontrado');
+    }
+
+    // Validate warehouse exists
+    $warehouse = Warehouse::find($warehouseId);
+    if (!$warehouse) {
+      throw new Exception('Almacén no encontrado');
+    }
+
+    // Base query: get all movements that have details for this product in this warehouse
+    $query = InventoryMovement::query()
+      ->whereHas('details', function ($q) use ($productId) {
+        $q->where('product_id', $productId);
+      })
+      ->where(function ($q) use ($warehouseId) {
+        $q->where('warehouse_id', $warehouseId)
+          ->orWhere('warehouse_destination_id', $warehouseId);
+      })
+      ->with([
+        'details' => function ($q) use ($productId) {
+          $q->where('product_id', $productId)
+            ->with('product');
+        },
+        'warehouse',
+        'warehouseDestination',
+        'user',
+        'reasonInOut',
+        'reference'
+      ]);
+
+    // Apply date range filter if provided
+    if ($request->has('date_from')) {
+      $query->where('movement_date', '>=', $request->date_from);
+    }
+
+    if ($request->has('date_to')) {
+      $query->where('movement_date', '<=', $request->date_to);
+    }
+
+    // Apply movement type filter if provided
+    if ($request->has('movement_type')) {
+      $query->where('movement_type', $request->movement_type);
+    }
+
+    // Apply status filter if provided
+    if ($request->has('status')) {
+      $query->where('status', $request->status);
+    }
+
+    // Get all movements ordered chronologically
+    $allMovements = $query->orderBy('movement_date', 'asc')
+      ->orderBy('created_at', 'asc')
+      ->get();
+
+    // Calculate quantity_in, quantity_out, and running balance for each movement
+    $runningBalance = 0;
+    $currentStock = $this->stockService->getStock($productId, $warehouseId);
+
+    if ($allMovements->isNotEmpty() && $currentStock) {
+      $totalIn = 0;
+      $totalOut = 0;
+
+      foreach ($allMovements as $movement) {
+        $quantity = $movement->details->first()->quantity ?? 0;
+
+        if ($movement->is_inbound) {
+          $totalIn += $quantity;
+        } else {
+          $totalOut += $quantity;
+        }
+      }
+
+      $runningBalance = $currentStock->quantity - ($totalIn - $totalOut);
+    }
+
+    // Transform data for export
+    $exportData = $allMovements->map(function ($movement) use (&$runningBalance) {
+      $quantity = $movement->details->first()->quantity ?? 0;
+      $quantityIn = 0;
+      $quantityOut = 0;
+
+      if ($movement->is_inbound) {
+        $quantityIn = $quantity;
+        $runningBalance += $quantity;
+      } else {
+        $quantityOut = $quantity;
+        $runningBalance -= $quantity;
+      }
+
+      return [
+        'movement_date' => $movement->movement_date?->format('Y-m-d'),
+        'movement_number' => $movement->movement_number,
+        'movement_type' => InventoryMovement::getMovementTypeLabel($movement->movement_type),
+        'warehouse' => $movement->warehouse?->description,
+        'warehouse_destination' => $movement->warehouseDestination?->description,
+        'quantity_in' => $quantityIn,
+        'quantity_out' => $quantityOut,
+        'balance' => $runningBalance,
+        'status' => InventoryMovement::getStatusLabel($movement->status),
+        'reason' => $movement->reasonInOut?->name,
+        'user' => $movement->user?->name,
+        'notes' => $movement->notes,
+      ];
+    });
+
+    // Define columns for export
+    $columns = [
+      'movement_date' => ['label' => 'Fecha', 'formatter' => 'date'],
+      'movement_number' => ['label' => 'Nº Movimiento'],
+      'movement_type' => ['label' => 'Tipo'],
+      'warehouse' => ['label' => 'Almacén Origen'],
+      'warehouse_destination' => ['label' => 'Almacén Destino'],
+      'quantity_in' => ['label' => 'Entrada', 'formatter' => 'number'],
+      'quantity_out' => ['label' => 'Salida', 'formatter' => 'number'],
+      'balance' => ['label' => 'Saldo', 'formatter' => 'number'],
+      'status' => ['label' => 'Estado'],
+      'reason' => ['label' => 'Motivo'],
+      'user' => ['label' => 'Usuario'],
+      'notes' => ['label' => 'Notas'],
+    ];
+
+    $title = "Historial_{$product->code}_{$warehouse->name}";
+    $filename = \Str::slug($title) . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+
+    $export = new GeneralExport($exportData, $columns, $title);
+
+    return Excel::download($export, $filename);
+  }
+
+  /**
+   * Export purchase history for a specific product in a warehouse to Excel
+   *
+   * @param int $productId Product ID
+   * @param int $warehouseId Warehouse ID
+   * @param Request $request Request with date filters (date_from, date_to)
+   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
+   */
+  public function exportProductPurchaseHistory(int $productId, int $warehouseId, Request $request)
+  {
+    // Validate product exists
+    $product = Products::find($productId);
+    if (!$product) {
+      throw new Exception('Producto no encontrado');
+    }
+
+    // Validate warehouse exists
+    $warehouse = Warehouse::find($warehouseId);
+    if (!$warehouse) {
+      throw new Exception('Almacén no encontrado');
+    }
+
+    // Build query for purchase reception details
+    $query = PurchaseReceptionDetail::query()
+      ->where('product_id', $productId)
+      ->whereHas('reception', function ($q) use ($warehouseId, $request) {
+        $q->where('warehouse_id', $warehouseId)
+          ->whereIn('status', ['APPROVED', 'PENDING_REVIEW']);
+
+        if ($request->has('date_from')) {
+          $q->where('reception_date', '>=', $request->date_from);
+        }
+        if ($request->has('date_to')) {
+          $q->where('reception_date', '<=', $request->date_to);
+        }
+      })
+      ->with([
+        'reception' => function ($q) {
+          $q->with([
+            'purchaseOrder' => function ($q) {
+              $q->with(['supplier:id,full_name,num_doc', 'currency:id,name,symbol']);
+            },
+            'receivedByUser:id,name'
+          ]);
+        },
+        'purchaseOrderItem:id,unit_price,quantity,total',
+        'product:id,name,code,dyn_code'
+      ])
+      ->orderBy('created_at', 'desc');
+
+    $receptionDetails = $query->get();
+
+    // Transform data for export
+    $exportData = $receptionDetails->map(function ($detail) {
+      $reception = $detail->reception;
+      $purchaseOrder = $reception?->purchaseOrder;
+      $orderItem = $detail->purchaseOrderItem;
+
+      return [
+        'reception_date' => $reception?->reception_date?->format('Y-m-d'),
+        'reception_number' => $reception?->reception_number,
+        'purchase_order_number' => $purchaseOrder?->number,
+        'invoice_number' => $purchaseOrder?->invoice_series . '-' . $purchaseOrder?->invoice_number,
+        'supplier_name' => $purchaseOrder?->supplier?->full_name,
+        'supplier_doc' => $purchaseOrder?->supplier?->num_doc,
+        'currency' => $purchaseOrder?->currency?->symbol,
+        'unit_price' => $orderItem?->unit_price ?? 0,
+        'quantity_ordered' => $orderItem?->quantity ?? 0,
+        'quantity_received' => $detail->quantity_received,
+        'total_line' => $orderItem?->total ?? ($detail->quantity_received * ($orderItem?->unit_price ?? 0)),
+        'reception_type' => $detail->reception_type,
+        'received_by' => $reception?->receivedByUser?->name,
+        'notes' => $detail->notes,
+      ];
+    });
+
+    // Define columns for export
+    $columns = [
+      'reception_date' => ['label' => 'Fecha Recepción', 'formatter' => 'date'],
+      'reception_number' => ['label' => 'Nº Recepción'],
+      'purchase_order_number' => ['label' => 'Nº Orden Compra'],
+      'invoice_number' => ['label' => 'Nº Factura'],
+      'supplier_name' => ['label' => 'Proveedor'],
+      'supplier_doc' => ['label' => 'RUC/DNI'],
+      'currency' => ['label' => 'Moneda'],
+      'unit_price' => ['label' => 'Precio Unit.', 'formatter' => 'currency'],
+      'quantity_ordered' => ['label' => 'Cant. Ordenada', 'formatter' => 'number'],
+      'quantity_received' => ['label' => 'Cant. Recibida', 'formatter' => 'number'],
+      'total_line' => ['label' => 'Total', 'formatter' => 'currency'],
+      'reception_type' => ['label' => 'Tipo Recepción'],
+      'received_by' => ['label' => 'Recibido Por'],
+      'notes' => ['label' => 'Notas'],
+    ];
+
+    $title = "Compras_{$product->code}_{$warehouse->name}";
+    $filename = \Str::slug($title) . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+
+    $export = new GeneralExport($exportData, $columns, $title);
+
+    return Excel::download($export, $filename);
   }
 }

@@ -70,11 +70,39 @@ class InventoryMovement extends Model
   const TYPE_RETURN_IN = 'RETURN_IN';
   const TYPE_RETURN_OUT = 'RETURN_OUT';
 
+  public static function getMovementTypeLabel($type): string
+  {
+    $labels = [
+      self::TYPE_PURCHASE_RECEPTION => 'Recepción de Compra',
+      self::TYPE_SALE => 'Venta',
+      self::TYPE_ADJUSTMENT_IN => 'Ajuste Positivo',
+      self::TYPE_ADJUSTMENT_OUT => 'Ajuste Negativo',
+      self::TYPE_TRANSFER_OUT => 'Transferencia Salida',
+      self::TYPE_TRANSFER_IN => 'Transferencia Entrada',
+      self::TYPE_RETURN_IN => 'Devolución Entrada',
+      self::TYPE_RETURN_OUT => 'Devolución Salida',
+    ];
+
+    return $labels[$type] ?? $type;
+  }
+
   // Status
   const STATUS_DRAFT = 'DRAFT';
   const STATUS_APPROVED = 'APPROVED';
   const STATUS_IN_TRANSIT = 'IN_TRANSIT';
   const STATUS_CANCELLED = 'CANCELLED';
+
+  public static function getStatusLabel($status): string
+  {
+    $labels = [
+      self::STATUS_DRAFT => 'Borrador',
+      self::STATUS_APPROVED => 'Aprobado',
+      self::STATUS_IN_TRANSIT => 'En Tránsito',
+      self::STATUS_CANCELLED => 'Cancelado',
+    ];
+
+    return $labels[$status] ?? $status;
+  }
 
   // Boot method
   protected static function boot()

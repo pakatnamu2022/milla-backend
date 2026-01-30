@@ -18,6 +18,7 @@ class ApWorkOrderItem extends Model
     'group_number',
     'work_order_id',
     'type_planning_id',
+    'type_operation_id',
     'description',
   ];
 
@@ -51,5 +52,10 @@ class ApWorkOrderItem extends Model
   public function typePlanning(): BelongsTo
   {
     return $this->belongsTo(ApMasters::class, 'type_planning_id');
+  }
+
+  public function typeOperation(): BelongsTo
+  {
+    return $this->belongsTo(ApMasters::class, 'type_operation_id');
   }
 }

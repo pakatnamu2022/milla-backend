@@ -115,7 +115,7 @@ class OpportunityController extends Controller
       $workerId = $user->partner_id;
       if (!$workerId) return $this->error('El trabajador es inválido');
 
-      return $this->success($this->service->getMyOpportunities($request, $workerId, $requestWorkerId, $canViewAllUsers));
+      return $this->service->getMyOpportunities($request, $workerId, $requestWorkerId, $canViewAllUsers);
 
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());

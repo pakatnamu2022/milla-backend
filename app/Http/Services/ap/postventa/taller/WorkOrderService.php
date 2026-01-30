@@ -9,6 +9,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\AppointmentPlanning;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderItem;
@@ -147,6 +148,23 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         $this->recalculateCurrencyChange($workOrder, $oldCurrencyId, $newCurrencyId);
       }
 
+      // Si existe $data['order_quotation_id']
+      if (isset($data['order_quotation_id'])) {
+        $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+
+        if (!$quotation) {
+          throw new Exception('Cotización no encontrada');
+        }
+
+        if ($quotation->is_take) {
+          throw new Exception('La cotización ya está tomada por otra orden de trabajo');
+        }
+
+        if ($quotation) {
+          $quotation->update(['is_take' => 1]);
+        }
+      }
+
       // Reload relations
       $workOrder->load([
         'appointmentPlanning',
@@ -188,9 +206,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     return response()->json(['message' => 'Orden de trabajo eliminada correctamente']);
   }
 
-  /**
-   * Genera el siguiente correlativo para una orden de trabajo en formato OT-YYYY-MM-XXXX
-   */
   private function generateCorrelative(): string
   {
     $year = date('Y');
@@ -210,11 +225,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     return "OT-{$year}-{$month}-{$newNumber}";
   }
 
-  /**
-   * Get payment summary for a work order
-   * Returns consolidated payment information including labour, parts and advances
-   * Parts cost is taken from the associated order quotation total
-   */
   public function getPaymentSummary($workOrderId, $groupNumber = 1)
   {
     $workOrder = ApWorkOrder::with(['labours', 'advancesWorkOrder', 'parts'])
@@ -324,17 +334,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     return $pdf->stream("pre-liquidacion-{$workOrder->correlative}.pdf");
   }
 
-  /**
-   * Recalcula los valores de labours y parts cuando cambia el tipo de moneda de la OT
-   * Si la OT tiene cotización asociada: usa el tipo de cambio de la cotización
-   * Si no tiene cotización: usa el tipo de cambio actual de la fecha
-   *
-   * @param ApWorkOrder $workOrder
-   * @param int $oldCurrencyId
-   * @param int $newCurrencyId
-   * @return void
-   * @throws Exception
-   */
   private function recalculateCurrencyChange(ApWorkOrder $workOrder, int $oldCurrencyId, int $newCurrencyId): void
   {
     // Obtener el factor de conversión
@@ -347,15 +346,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $this->recalculateParts($workOrder->id, $factor);
   }
 
-  /**
-   * Obtiene el factor de conversión según la moneda y si tiene cotización
-   *
-   * @param ApWorkOrder $workOrder
-   * @param int $oldCurrencyId
-   * @param int $newCurrencyId
-   * @return float
-   * @throws Exception
-   */
   private function getConversionFactor(ApWorkOrder $workOrder, int $oldCurrencyId, int $newCurrencyId): float
   {
     // Obtener el tipo de cambio
@@ -375,15 +365,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     return 1;
   }
 
-  /**
-   * Obtiene el tipo de cambio a usar
-   * Si la OT tiene cotización: usa el exchange_rate de la cotización
-   * Si no tiene cotización: usa el tipo de cambio actual
-   *
-   * @param ApWorkOrder $workOrder
-   * @return float
-   * @throws Exception
-   */
   private function getExchangeRate(ApWorkOrder $workOrder): float
   {
     // Si tiene cotización asociada, usar su tipo de cambio
@@ -407,13 +388,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     return (float)$exchangeRate->rate;
   }
 
-  /**
-   * Recalcula los valores de mano de obra con el factor de conversión
-   *
-   * @param int $workOrderId
-   * @param float $factor
-   * @return void
-   */
   private function recalculateLabours(int $workOrderId, float $factor): void
   {
     $labours = WorkOrderLabour::where('work_order_id', $workOrderId)->get();
@@ -429,13 +403,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     }
   }
 
-  /**
-   * Recalcula los valores de repuestos con el factor de conversión
-   *
-   * @param int $workOrderId
-   * @param float $factor
-   * @return void
-   */
   private function recalculateParts(int $workOrderId, float $factor): void
   {
     $parts = ApWorkOrderParts::where('work_order_id', $workOrderId)->get();
@@ -455,5 +422,39 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'total_amount' => round($newTotalAmount, 2),
       ]);
     }
+  }
+
+  public function unlinkQuotation(int $id): WorkOrderResource
+  {
+    return DB::transaction(function () use ($id) {
+      $workOrder = $this->find($id);
+
+      if ($workOrder->order_quotation_id === null) {
+        throw new Exception('La orden de trabajo no tiene cotización asociada');
+      }
+
+      // Obtener la cotización antes de desasociar
+      $quotation = ApOrderQuotations::find($workOrder->order_quotation_id);
+
+      // Desasociar la cotización de la orden de trabajo
+      $workOrder->update(['order_quotation_id' => null]);
+
+      // Marcar la cotización como no tomada para que esté disponible
+      if ($quotation) {
+        $quotation->update(['is_take' => 0]);
+      }
+
+      $workOrder->load([
+        'appointmentPlanning',
+        'vehicle',
+        'status',
+        'advisor',
+        'sede',
+        'creator',
+        'items.typePlanning'
+      ]);
+
+      return new WorkOrderResource($workOrder);
+    });
   }
 }
