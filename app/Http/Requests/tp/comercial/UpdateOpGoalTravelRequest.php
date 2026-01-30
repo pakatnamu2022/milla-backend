@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\tp\comercial;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\StoreRequest;
 
-class UpdateOpGoalTravelRequest extends FormRequest
+class UpdateOpGoalTravelRequest extends StoreRequest
 {
     /**
      * Determine if the user is authorized to make this request.
