@@ -11,7 +11,7 @@ class UpdatePhoneLineRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -22,7 +22,11 @@ class UpdatePhoneLineRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'telephone_account_id' => 'sometimes|required|exists:telephone_account,id',
+            'telephone_plan_id' => 'sometimes|required|exists:telephone_plan,id',
+            'line_number' => 'sometimes|required|string|max:255',
+            'status' => 'nullable|string|max:50',
+            'is_active' => 'nullable|boolean',
         ];
     }
 }

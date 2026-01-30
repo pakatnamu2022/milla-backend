@@ -53,12 +53,21 @@ class PhoneLine extends BaseModel
   }
 
   /**
-   * Relación muchos a muchos con trabajadores
+   * Relación muchos a muchos con trabajadores usando modelo pivot
    */
   public function workers()
   {
     return $this->belongsToMany(Worker::class, 'phone_line_worker', 'phone_line_id', 'worker_id')
+      ->using(PhoneLineWorker::class)
       ->withPivot('assigned_at')
       ->withTimestamps();
+  }
+
+  /**
+   * Relación con las asignaciones de trabajadores (modelo pivot)
+   */
+  public function assignments()
+  {
+    return $this->hasMany(PhoneLineWorker::class, 'phone_line_id');
   }
 }

@@ -3,64 +3,57 @@
 namespace App\Http\Controllers\gp\tics;
 
 use App\Http\Controllers\Controller;
-use App\Models\gp\tics\TelephoneAccount;
-use Illuminate\Http\Request;
+use App\Http\Requests\gp\tics\IndexTelephoneAccountRequest;
+use App\Http\Requests\gp\tics\StoreTelephoneAccountRequest;
+use App\Http\Requests\gp\tics\UpdateTelephoneAccountRequest;
+use App\Http\Services\gp\tics\TelephoneAccountService;
 
 class TelephoneAccountController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    protected TelephoneAccountService $service;
+
+    public function __construct(TelephoneAccountService $service)
     {
-        //
+        $this->service = $service;
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function index(IndexTelephoneAccountRequest $request)
     {
-        //
+        return $this->service->list($request);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function store(StoreTelephoneAccountRequest $request)
     {
-        //
+        $data = $request->validated();
+        return response()->json($this->service->store($data));
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(TelephoneAccount $telephoneAccount)
+    public function show($id)
     {
-        //
+        try {
+            return response()->json($this->service->show($id));
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        }
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(TelephoneAccount $telephoneAccount)
+    public function update(UpdateTelephoneAccountRequest $request, $id)
     {
-        //
+        try {
+            $data = $request->validated();
+            $data['id'] = $id;
+            return response()->json($this->service->update($data));
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, TelephoneAccount $telephoneAccount)
+    public function destroy($id)
     {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(TelephoneAccount $telephoneAccount)
-    {
-        //
+        try {
+            return $this->service->destroy($id);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        }
     }
 }

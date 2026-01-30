@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\gp\tics;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\gp\tics\IndexPhoneLineRequest;
+use App\Http\Requests\gp\tics\StorePhoneLineRequest;
+use App\Http\Requests\gp\tics\UpdatePhoneLineRequest;
 use App\Http\Services\gp\tics\PhoneLineService;
-use App\Models\gp\tics\PhoneLine;
 use Illuminate\Http\Request;
 use Throwable;
 
@@ -16,60 +18,45 @@ class PhoneLineController extends Controller
     {
         $this->service = $service;
     }
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+
+    public function index(IndexPhoneLineRequest $request)
     {
-        //
+        return $this->service->list($request);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function store(StorePhoneLineRequest $request)
     {
-        //
+        $data = $request->validated();
+        return response()->json($this->service->store($data));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function show($id)
     {
-        //
+        try {
+            return response()->json($this->service->show($id));
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        }
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(PhoneLine $phoneLine)
+    public function update(UpdatePhoneLineRequest $request, $id)
     {
-        //
+        try {
+            $data = $request->validated();
+            $data['id'] = $id;
+            return response()->json($this->service->update($data));
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        }
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(PhoneLine $phoneLine)
+    public function destroy($id)
     {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, PhoneLine $phoneLine)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PhoneLine $phoneLine)
-    {
-        //
+        try {
+            return $this->service->destroy($id);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        }
     }
 
     /**

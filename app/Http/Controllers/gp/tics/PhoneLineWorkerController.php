@@ -3,26 +3,26 @@
 namespace App\Http\Controllers\gp\tics;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\gp\tics\IndexTelephonePlanRequest;
-use App\Http\Requests\gp\tics\StoreTelephonePlanRequest;
-use App\Http\Requests\gp\tics\UpdateTelephonePlanRequest;
-use App\Http\Services\gp\tics\TelephonePlanService;
+use App\Http\Requests\gp\tics\IndexPhoneLineWorkerRequest;
+use App\Http\Requests\gp\tics\StorePhoneLineWorkerRequest;
+use App\Http\Requests\gp\tics\UpdatePhoneLineWorkerRequest;
+use App\Http\Services\gp\tics\PhoneLineWorkerService;
 
-class TelephonePlanController extends Controller
+class PhoneLineWorkerController extends Controller
 {
-    protected TelephonePlanService $service;
+    protected PhoneLineWorkerService $service;
 
-    public function __construct(TelephonePlanService $service)
+    public function __construct(PhoneLineWorkerService $service)
     {
         $this->service = $service;
     }
 
-    public function index(IndexTelephonePlanRequest $request)
+    public function index(IndexPhoneLineWorkerRequest $request)
     {
         return $this->service->list($request);
     }
 
-    public function store(StoreTelephonePlanRequest $request)
+    public function store(StorePhoneLineWorkerRequest $request)
     {
         $data = $request->validated();
         return response()->json($this->service->store($data));
@@ -37,7 +37,7 @@ class TelephonePlanController extends Controller
         }
     }
 
-    public function update(UpdateTelephonePlanRequest $request, $id)
+    public function update(UpdatePhoneLineWorkerRequest $request, $id)
     {
         try {
             $data = $request->validated();

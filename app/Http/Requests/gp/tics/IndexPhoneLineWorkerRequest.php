@@ -4,7 +4,7 @@ namespace App\Http\Requests\gp\tics;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreTelephoneAccountRequest extends FormRequest
+class IndexPhoneLineWorkerRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -22,8 +22,7 @@ class StoreTelephoneAccountRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'company_id' => 'required|exists:companies,id',
-            'account_number' => 'required|string|max:255',
+            //
         ];
     }
 }

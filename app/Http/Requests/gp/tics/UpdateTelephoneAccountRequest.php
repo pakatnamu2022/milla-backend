@@ -11,7 +11,7 @@ class UpdateTelephoneAccountRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -22,7 +22,8 @@ class UpdateTelephoneAccountRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'company_id' => 'sometimes|required|exists:companies,id',
+            'account_number' => 'sometimes|required|string|max:255',
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\gp\tics;
 
+use App\Http\Resources\gp\tics\PhoneLineResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Imports\gp\tics\PhoneLineImport;
@@ -10,12 +11,58 @@ use App\Models\gp\tics\PhoneLine;
 use App\Models\gp\tics\TelephoneAccount;
 use App\Models\gp\tics\TelephonePlan;
 use Exception;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
 class PhoneLineService extends BaseService implements BaseServiceInterface
 {
+    public function list(Request $request)
+    {
+        return $this->getFilteredResults(
+            PhoneLine::query(),
+            $request,
+            PhoneLine::filters,
+            PhoneLine::sorts,
+            PhoneLineResource::class,
+        );
+    }
+
+    public function store($data)
+    {
+        $phoneLine = PhoneLine::create($data);
+        return new PhoneLineResource(PhoneLine::find($phoneLine->id));
+    }
+
+    public function find($id)
+    {
+        $phoneLine = PhoneLine::where('id', $id)->first();
+        if (!$phoneLine) {
+            throw new Exception('Línea telefónica no encontrada');
+        }
+        return $phoneLine;
+    }
+
+    public function show($id)
+    {
+        return new PhoneLineResource($this->find($id));
+    }
+
+    public function update($data)
+    {
+        $phoneLine = $this->find($data['id']);
+        $phoneLine->update($data);
+        return new PhoneLineResource($phoneLine);
+    }
+
+    public function destroy($id)
+    {
+        $phoneLine = $this->find($id);
+        $phoneLine->delete();
+        return response()->json(['message' => 'Línea telefónica eliminada correctamente']);
+    }
+
     /**
      * Importar líneas telefónicas desde un archivo Excel
      * Formato esperado: RUC | RAZON | CUENTA | LINEA | PLAN
