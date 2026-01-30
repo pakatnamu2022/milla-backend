@@ -10,6 +10,11 @@ class UpdateWorkOrderRequest extends StoreRequest
   public function rules(): array
   {
     return [
+      'vehicle_inspection_id' => [
+        'nullable',
+        'integer',
+        'exists:ap_vehicle_inspection,id',
+      ],
       'order_quotation_id' => [
         'sometimes',
         'nullable',
@@ -157,6 +162,9 @@ class UpdateWorkOrderRequest extends StoreRequest
   public function messages(): array
   {
     return [
+      'vehicle_inspection_id.integer' => 'La inspección del vehículo debe ser un entero.',
+      'vehicle_inspection_id.exists' => 'La inspección del vehículo seleccionada no es válida.',
+      
       'appointment_planning_id.integer' => 'La cita debe ser un entero.',
       'appointment_planning_id.exists' => 'La cita seleccionada no es válida.',
 
