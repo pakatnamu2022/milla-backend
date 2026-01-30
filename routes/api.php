@@ -115,6 +115,7 @@ use App\Http\Controllers\gp\gestionsistema\ProvinceController;
 use App\Http\Controllers\gp\gestionsistema\RoleController;
 use App\Http\Controllers\gp\gestionsistema\TypeOnboardingController;
 use App\Http\Controllers\gp\gestionsistema\UserController;
+use App\Http\Controllers\gp\gestionsistema\UserRoleController;
 use App\Http\Controllers\gp\gestionsistema\UserSedeController;
 use App\Http\Controllers\gp\gestionsistema\ViewController;
 use App\Http\Controllers\gp\maestroGeneral\ExchangeRateController;
@@ -246,6 +247,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('role/{id}/users', [RoleController::class, 'users'])->name('role.users');
     Route::post('/roles/{role_id}/access', [AccessController::class, 'storeMany']);
 
+    // USER-ROLE ASSIGNMENT
+    Route::get('user-role/user/{userId}/roles', [UserRoleController::class, 'rolesByUser'])->name('user-role.roles-by-user');
+    Route::get('user-role/role/{roleId}/users', [UserRoleController::class, 'usersByRole'])->name('user-role.users-by-role');
+    Route::apiResource('user-role', UserRoleController::class)->only([
+      'index',
+      'show',
+      'update'
+    ]);
 
     //        VIEWS
     Route::get('view/with-permissions', [ViewController::class, 'viewsWithPermissions'])->name('view.with-permissions');
