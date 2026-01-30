@@ -102,6 +102,13 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Create work order
       $workOrder = ApWorkOrder::create($data);
 
+      // If existe $data['vehicle_inspection_id']
+      if (isset($data['vehicle_inspection_id'])) {
+        $workOrder->update([
+          'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
+        ]);
+      }
+
       // Create items
       if (!empty($items)) {
         foreach ($items as $item) {
@@ -163,6 +170,13 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         if ($quotation) {
           $quotation->update(['is_take' => 1]);
         }
+      }
+
+      // If existe $data['vehicle_inspection_id']
+      if (isset($data['vehicle_inspection_id'])) {
+        $workOrder->update([
+          'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
+        ]);
       }
 
       // Reload relations

@@ -17,6 +17,7 @@ class WorkOrderResource extends JsonResource
       'correlative' => $this->correlative,
       'order_quotation_id' => $this->order_quotation_id,
       'appointment_planning_id' => $this->appointment_planning_id,
+      'vehicle_inspection_id' => $this->vehicle_inspection_id,
       'vehicle_id' => $this->vehicle_id,
       'vehicle' => new VehiclesResource($this->vehicle),
       'vehicle_plate' => $this->vehicle_plate,

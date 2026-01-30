@@ -3,6 +3,7 @@
 namespace App\Http\Resources\ap\postventa\taller;
 
 use App\Http\Resources\gp\gestionsistema\UserResource;
+use App\Models\ap\comercial\Vehicles;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -17,6 +18,7 @@ class ApVehicleInspectionResource extends JsonResource
   {
     return [
       'id' => $this->id,
+      'vehicle_id' => $this->workOrder?->vehicle_id,
       'vehicle_plate' => $this->workOrder?->vehicle->plate,
       'vehicle_vin' => $this->workOrder?->vehicle->vin,
       'work_order_correlative' => $this->workOrder ? $this->workOrder->correlative : null,
