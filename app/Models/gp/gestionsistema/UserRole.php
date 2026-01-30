@@ -11,6 +11,18 @@ class UserRole extends BaseModel
 
   protected $fillable = ['id', 'role_id', 'user_id', 'status_deleted'];
 
+  const filters = [
+    'search' => [],
+    'role_id' => '=',
+    'user_id' => '=',
+  ];
+
+  const sorts = [
+    'id' => 'asc',
+    'role_id' => 'asc',
+    'user_id' => 'asc',
+  ];
+
   public function user()
   {
     return $this->hasOne(User::class, 'id', 'user_id');
