@@ -18,20 +18,39 @@ class OpGoalTravel extends Model
         'status_deleted'
     ];
 
+    protected $casts = [
+        'fecha' => 'date',
+    ];
+
     const filters = [
-        'id' => '=',
+        'search' => ['meta_conductor', 'meta_vehiculo', 'total'],
+        'status_deleted' => '=',
         'fecha' => '=',
-        'total' => '=',
         'meta_conductor' => '=',
         'meta_vehiculo' => '=',
+        'total' => '=',
         'total_unidades' => '=',
+        'year' => 'accessor',
+        'month' => 'accessor',
     ];
 
     const sorts = [
-        'id' => 'asc',
-        'fecha' => 'asc',
-        'meta_conductor' => 'asc',
-        'meta_vehiculo' => 'asc',
-        'total_unidades' => 'asc'
+        'id',
+        'fecha',
+        'meta_conductor',
+        'meta_vehiculo',
+        'total_unidades',
+        'total',
+        'created_at',
+        'updated_at'
     ];
+
+    public function getYearAttribute()
+    {
+        return $this->fecha ? $this->fecha->year : null;
+    }
+    public function getMonthAttribute()
+    {
+        return $this->fecha ? $this->fecha->month : null;
+    }
 }
