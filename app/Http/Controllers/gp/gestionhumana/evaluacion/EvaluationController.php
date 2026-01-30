@@ -118,8 +118,7 @@ class EvaluationController extends Controller
         $this->evaluationPersonService->recalculateAllResults($id);
 
         // 2. Disparar actualización completa de dashboards (general + individuales)
-        UpdateEvaluationDashboards::dispatch($id, true)
-          ->onQueue('evaluation-dashboards');
+        UpdateEvaluationDashboards::dispatchSync($id, true);
       }
 
       $showExtra = $request->input('show_extra', 1);

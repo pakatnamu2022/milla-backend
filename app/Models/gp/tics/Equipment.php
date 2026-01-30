@@ -2,7 +2,6 @@
 
 namespace App\Models\gp\tics;
 
-
 use App\Models\BaseModel;
 use App\Models\gp\gestionsistema\Status;
 use App\Models\gp\maestroGeneral\Sede;
