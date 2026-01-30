@@ -4,7 +4,6 @@ namespace App\Http\Controllers\gp\gestionsistema;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionsistema\IndexUserRoleRequest;
-use App\Http\Requests\gp\gestionsistema\StoreUserRoleRequest;
 use App\Http\Requests\gp\gestionsistema\UpdateUserRoleRequest;
 use App\Http\Services\gp\gestionsistema\UserRoleService;
 use Illuminate\Http\JsonResponse;
@@ -27,20 +26,6 @@ class UserRoleController extends Controller
   {
     try {
       return $this->service->list($request);
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
-  /**
-   * Store a newly created resource in storage.
-   * @param StoreUserRoleRequest $request
-   * @return JsonResponse
-   */
-  public function store(StoreUserRoleRequest $request)
-  {
-    try {
-      return $this->success($this->service->store($request->validated()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -72,20 +57,6 @@ class UserRoleController extends Controller
       $data = $request->validated();
       $data['id'] = $id;
       return $this->success($this->service->update($data));
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
-  /**
-   * Remove the specified resource from storage.
-   * @param int $id
-   * @return JsonResponse
-   */
-  public function destroy(int $id)
-  {
-    try {
-      return $this->service->destroy($id);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

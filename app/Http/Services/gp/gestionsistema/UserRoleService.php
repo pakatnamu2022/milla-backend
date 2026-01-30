@@ -45,28 +45,6 @@ class UserRoleService extends BaseService
   }
 
   /**
-   * @param $data
-   * @return UserRoleResource
-   * @throws Exception
-   */
-  public function store($data): UserRoleResource
-  {
-    // Verificar si ya existe una asignación activa del rol al usuario
-    $existingUserRole = UserRole::where('user_id', $data['user_id'])
-      ->where('role_id', $data['role_id'])
-      ->where('status_deleted', 1)
-      ->first();
-
-    if ($existingUserRole) {
-      throw new Exception('El usuario ya tiene este rol asignado');
-    }
-
-    $data['status_deleted'] = 1;
-    $userRole = UserRole::create($data);
-    return new UserRoleResource(UserRole::find($userRole->id));
-  }
-
-  /**
    * @param $id
    * @return UserRoleResource
    * @throws Exception
@@ -83,39 +61,32 @@ class UserRoleService extends BaseService
    */
   public function update($data): UserRoleResource
   {
-    $userRole = $this->find($data['id']);
+    // El ID ahora representa el user_id, no el id de UserRole
+    $userId = $data['id'];
 
-    // Si se intenta cambiar el rol o usuario, verificar que no exista duplicado
-    if (isset($data['role_id']) || isset($data['user_id'])) {
-      $userId = $data['user_id'] ?? $userRole->user_id;
-      $roleId = $data['role_id'] ?? $userRole->role_id;
-
-      $existingUserRole = UserRole::where('user_id', $userId)
-        ->where('role_id', $roleId)
-        ->where('status_deleted', 1)
-        ->where('id', '!=', $data['id'])
-        ->first();
-
-      if ($existingUserRole) {
-        throw new Exception('El usuario ya tiene este rol asignado');
-      }
+    // Verificar que role_id esté presente
+    if (!isset($data['role_id'])) {
+      throw new Exception('El role_id es requerido');
     }
 
-    $userRole->update($data);
-    return new UserRoleResource($userRole);
-  }
+    // Buscar si el usuario ya tiene un rol asignado
+    $userRole = UserRole::where('user_id', $userId)
+      ->where('status_deleted', 1)
+      ->first();
 
-  /**
-   * @param $id
-   * @return JsonResponse
-   * @throws Exception
-   */
-  public function destroy($id): JsonResponse
-  {
-    $userRole = $this->find($id);
-    $userRole->status_deleted = 0;
-    $userRole->save();
-    return response()->json(['message' => 'Asignación de rol eliminada correctamente']);
+    if ($userRole) {
+      // Si ya tiene un rol, actualizarlo
+      $userRole->update(['role_id' => $data['role_id']]);
+      return new UserRoleResource($userRole->fresh(['role', 'user']));
+    } else {
+      // Si no tiene rol, crear uno nuevo
+      $newUserRole = UserRole::create([
+        'user_id' => $userId,
+        'role_id' => $data['role_id'],
+        'status_deleted' => 1
+      ]);
+      return new UserRoleResource($newUserRole->load(['role', 'user']));
+    }
   }
 
   /**
