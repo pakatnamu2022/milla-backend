@@ -22,8 +22,20 @@ class PhoneLineWorkerService extends BaseService implements BaseServiceInterface
     );
   }
 
+  public function history($phoneLineId)
+  {
+    $assignments = PhoneLineWorker::where('phone_line_id', $phoneLineId)
+      ->orderBy('assigned_at', 'desc')
+      ->get();
+    return PhoneLineWorkerResource::collection($assignments);
+  }
+
   public function store($data)
   {
+    PhoneLineWorker::where('phone_line_id', $data['phone_line_id'])
+      ->where('active', true)
+      ->update(['active' => false]);
+
     $phoneLineWorker = PhoneLineWorker::create($data);
     return new PhoneLineWorkerResource(PhoneLineWorker::find($phoneLineWorker->id));
   }

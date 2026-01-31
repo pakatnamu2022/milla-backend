@@ -27,6 +27,15 @@ class PhoneLineWorkerController extends Controller
     }
   }
 
+  public function history($phoneLineId)
+  {
+    try {
+      return $this->success($this->service->history($phoneLineId));
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
   public function store(StorePhoneLineWorkerRequest $request)
   {
     try {

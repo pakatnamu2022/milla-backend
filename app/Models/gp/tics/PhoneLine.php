@@ -71,4 +71,9 @@ class PhoneLine extends BaseModel
   {
     return $this->hasMany(PhoneLineWorker::class, 'phone_line_id');
   }
+
+  public function activeAssignment()
+  {
+    return $this->hasOne(PhoneLineWorker::class, 'phone_line_id')->where('active', true);
+  }
 }

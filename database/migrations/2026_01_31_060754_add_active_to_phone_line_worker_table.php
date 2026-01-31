@@ -11,9 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('equipment_assigment', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+        Schema::table('phone_line_worker', function (Blueprint $table) {
+            $table->boolean('active')->default(true)->after('assigned_at')->comment('Estado activo de la asignación');
         });
     }
 
@@ -22,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('equipment_assigment');
+        Schema::table('phone_line_worker', function (Blueprint $table) {
+            $table->dropColumn('active');
+        });
     }
 };

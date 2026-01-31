@@ -13,7 +13,7 @@ class PhoneLineResource extends JsonResource
       'id' => $this->id,
       'line_number' => $this->line_number,
       'company' => $this->telephoneAccount?->company?->name,
-      'assignments' => $this->assignments ? PhoneLineWorkerResource::collection($this->assignments) : null,
+      'active_assignment' => $this->activeAssignment ? new PhoneLineWorkerResource($this->activeAssignment) : null,
 //      'status' => $this->status,
       'is_active' => (bool)$this->is_active,
       'telephone_account_id' => $this->telephone_account_id,

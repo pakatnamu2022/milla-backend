@@ -16,10 +16,12 @@ class PhoneLineWorker extends BaseModel
     'phone_line_id',
     'worker_id',
     'assigned_at',
+    'active',
   ];
 
   protected $casts = [
     'assigned_at' => 'datetime',
+    'active' => 'boolean',
   ];
 
   const filters = [

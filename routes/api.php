@@ -343,6 +343,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       //    PHONE LINE WORKERS (ASSIGNMENTS)
+      Route::get('phoneLineWorker/history/{phoneLineId}', [PhoneLineWorkerController::class, 'history']);
       Route::apiResource('phoneLineWorker', PhoneLineWorkerController::class)->only([
         'index',
         'show',
