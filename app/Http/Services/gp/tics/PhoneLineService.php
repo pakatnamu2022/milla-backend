@@ -146,7 +146,7 @@ class PhoneLineService extends BaseService implements BaseServiceInterface
           );
 
           // Buscar o crear la línea telefónica
-          $phoneLine = PhoneLine::where('line_number', $lineNumber)->first();
+          $phoneLine = PhoneLine::withTrashed()->where('line_number', $lineNumber)->first();
 
           if ($phoneLine) {
             // Actualizar la línea existente
@@ -155,6 +155,7 @@ class PhoneLineService extends BaseService implements BaseServiceInterface
               'telephone_plan_id' => $telephonePlan->id,
               'status' => 'active',
               'is_active' => true,
+              'deleted_at' => null, // Reactivar si estaba eliminada
             ]);
             $updated++;
           } else {

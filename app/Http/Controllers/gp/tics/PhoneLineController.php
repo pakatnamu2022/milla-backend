@@ -76,9 +76,9 @@ class PhoneLineController extends Controller
       $result = $this->service->importFromExcel($request->file('file'));
 
       if ($result['success']) {
-        return $this->success($result, $result['message']);
+        return $this->success($result);
       } else {
-        return $this->error($result['message'], $result);
+        return $this->error($result['message']);
       }
     } catch (Throwable $th) {
       return $this->error($th->getMessage());

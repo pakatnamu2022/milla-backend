@@ -18,6 +18,7 @@ class PhoneLine extends BaseModel
     'line_number',
     'status',
     'is_active',
+    'deleted_at'
   ];
 
   const filters = [

@@ -11,14 +11,14 @@ class PhoneLineResource extends JsonResource
   {
     return [
       'id' => $this->id,
-      'number' => $this->number,
-      'status' => $this->status,
-      'is_active' => $this->is_active,
+      'line_number' => $this->line_number,
+      'company' => $this->telephoneAccount?->company?->name,
+      'assignments' => $this->assignments ? PhoneLineWorkerResource::collection($this->assignments) : null,
+//      'status' => $this->status,
+      'is_active' => (bool)$this->is_active,
       'telephone_account_id' => $this->telephone_account_id,
       'telephone_plan_id' => $this->telephone_plan_id,
-      'company_id' => $this->company_id,
-      'created_at' => $this->created_at,
-      'updated_at' => $this->updated_at,
+      'company_id' => $this->telephoneAccount?->company_id,
     ];
   }
 }
