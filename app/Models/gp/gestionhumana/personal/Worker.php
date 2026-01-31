@@ -150,7 +150,6 @@ class Worker extends BaseModel
   public function phoneLines()
   {
     return $this->belongsToMany(PhoneLine::class, 'phone_line_worker', 'worker_id', 'phone_line_id')
-      ->using(PhoneLineWorker::class)
       ->withPivot('assigned_at')
       ->withTimestamps();
   }

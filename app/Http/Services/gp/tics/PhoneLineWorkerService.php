@@ -11,48 +11,48 @@ use Illuminate\Http\Request;
 
 class PhoneLineWorkerService extends BaseService implements BaseServiceInterface
 {
-    public function list(Request $request)
-    {
-        return $this->getFilteredResults(
-            PhoneLineWorker::query(),
-            $request,
-            PhoneLineWorker::filters,
-            PhoneLineWorker::sorts,
-            PhoneLineWorkerResource::class,
-        );
-    }
+  public function list(Request $request)
+  {
+    return $this->getFilteredResults(
+      PhoneLineWorker::query(),
+      $request,
+      PhoneLineWorker::filters,
+      PhoneLineWorker::sorts,
+      PhoneLineWorkerResource::class,
+    );
+  }
 
-    public function store($data)
-    {
-        $phoneLineWorker = PhoneLineWorker::create($data);
-        return new PhoneLineWorkerResource(PhoneLineWorker::find($phoneLineWorker->id));
-    }
+  public function store($data)
+  {
+    $phoneLineWorker = PhoneLineWorker::create($data);
+    return new PhoneLineWorkerResource(PhoneLineWorker::find($phoneLineWorker->id));
+  }
 
-    public function find($id)
-    {
-        $phoneLineWorker = PhoneLineWorker::where('id', $id)->first();
-        if (!$phoneLineWorker) {
-            throw new Exception('Asignación de línea telefónica no encontrada');
-        }
-        return $phoneLineWorker;
+  public function find($id)
+  {
+    $phoneLineWorker = PhoneLineWorker::where('id', $id)->first();
+    if (!$phoneLineWorker) {
+      throw new Exception('Asignación de línea telefónica no encontrada');
     }
+    return $phoneLineWorker;
+  }
 
-    public function show($id)
-    {
-        return new PhoneLineWorkerResource($this->find($id));
-    }
+  public function show($id)
+  {
+    return new PhoneLineWorkerResource($this->find($id));
+  }
 
-    public function update($data)
-    {
-        $phoneLineWorker = $this->find($data['id']);
-        $phoneLineWorker->update($data);
-        return new PhoneLineWorkerResource($phoneLineWorker);
-    }
+  public function update($data)
+  {
+    $phoneLineWorker = $this->find($data['id']);
+    $phoneLineWorker->update($data);
+    return new PhoneLineWorkerResource($phoneLineWorker);
+  }
 
-    public function destroy($id)
-    {
-        $phoneLineWorker = $this->find($id);
-        $phoneLineWorker->delete();
-        return response()->json(['message' => 'Asignación eliminada correctamente']);
-    }
+  public function destroy($id)
+  {
+    $phoneLineWorker = $this->find($id);
+    $phoneLineWorker->delete();
+    return response()->json(['message' => 'Asignación eliminada correctamente']);
+  }
 }
