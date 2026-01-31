@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\ApReceivingChecklistResource;
+use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\EmailService;
 use App\Jobs\SyncShippingGuideJob;
@@ -235,6 +236,36 @@ class ApReceivingChecklistService extends BaseService
       DB::rollBack();
       throw new Exception($e->getMessage());
     }
+  }
+
+  public function getVehicleByShippingGuide($shippingGuideId): VehiclesResource
+  {
+    $shippingGuide = ShippingGuides::with([
+      'vehicleMovement.vehicle' => function ($query) {
+        $query->with([
+          'model.family.brand',
+          'color',
+          'engineType',
+          'vehicleStatus',
+          'warehouse.sede',
+          'warehousePhysical.sede',
+          'customer',
+          'vehicleMovements'
+        ]);
+      }
+    ])->find($shippingGuideId);
+
+    if (!$shippingGuide) {
+      throw new Exception('Guía de envío no encontrada');
+    }
+
+    $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+
+    if (!$vehicle) {
+      throw new Exception('Vehículo no encontrado para esta guía de envío');
+    }
+
+    return new VehiclesResource($vehicle);
   }
 
   /**

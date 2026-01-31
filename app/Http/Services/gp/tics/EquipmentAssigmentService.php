@@ -34,9 +34,18 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
       $items = $data['items'] ?? [];
       unset($data['items']);
 
+//      FOR WORKER
       EquipmentAssigment::where('persona_id', $data['persona_id'])
-        ->where('status_deleted', false)
-        ->update(['status_deleted' => true, 'unassigned_at' => now()]);
+        ->where('status_deleted', true)
+        ->update(['status_deleted' => false, 'unassigned_at' => now()]);
+
+//      FOR EQUIPMENT
+      EquipmentAssigment::where('status_deleted', true)
+        ->whereHas('items', function ($query) use ($items) {
+          $equipmentIds = collect($items)->pluck('equipo_id')->toArray();
+          $query->whereIn('equipo_id', $equipmentIds);
+        })
+        ->update(['status_deleted' => false, 'unassigned_at' => now()]);
 
       $assignment = EquipmentAssigment::create($data);
 
@@ -157,7 +166,7 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
       ->whereHas('items', function ($query) use ($equipoId) {
         $query->where('equipo_id', $equipoId);
       })
-      ->orderBy('fecha', 'desc')
+      ->orderBy('status_deleted', 'desc')
       ->get();
 
     return EquipmentAssigmentResource::collection($assignments);

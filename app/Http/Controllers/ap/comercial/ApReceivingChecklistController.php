@@ -65,4 +65,16 @@ class ApReceivingChecklistController extends Controller
       return response()->json(['error' => $e->getMessage()], 500);
     }
   }
+
+  /**
+   * Get the vehicle associated with a shipping guide
+   */
+  public function getVehicleByShippingGuide($shippingGuideId): JsonResponse
+  {
+    try {
+      return $this->success($this->service->getVehicleByShippingGuide($shippingGuideId));
+    } catch (Exception $e) {
+      return response()->json(['error' => $e->getMessage()], 500);
+    }
+  }
 }
