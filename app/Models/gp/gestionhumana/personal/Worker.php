@@ -11,6 +11,8 @@ use App\Models\gp\gestionsistema\Status;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetail;
 use App\Models\gp\maestroGeneral\Sede;
+use App\Models\gp\tics\PhoneLine;
+use App\Models\gp\tics\PhoneLineWorker;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -140,5 +142,23 @@ class Worker extends BaseModel
   public function user()
   {
     return $this->hasOne(User::class, 'partner_id', 'id');
+  }
+
+  /**
+   * Relación muchos a muchos con líneas telefónicas usando modelo pivot
+   */
+  public function phoneLines()
+  {
+    return $this->belongsToMany(PhoneLine::class, 'phone_line_worker', 'worker_id', 'phone_line_id')
+      ->withPivot('assigned_at')
+      ->withTimestamps();
+  }
+
+  /**
+   * Relación con las asignaciones de líneas telefónicas (modelo pivot)
+   */
+  public function phoneLineAssignments()
+  {
+    return $this->hasMany(PhoneLineWorker::class, 'worker_id');
   }
 }

@@ -27,7 +27,7 @@ class UserResource extends JsonResource
       'partner_id' => $this->partner_id,
       'name' => $this->name,
       'username' => $this->username,
-      'email' => $this->person->email,
+      'email' => $this->person?->email,
       'foto_adjunto' => $photoBase64,
       'position' => $this->person?->position?->name,
       'empresa' => $this->person?->sede?->company?->abbreviation,
