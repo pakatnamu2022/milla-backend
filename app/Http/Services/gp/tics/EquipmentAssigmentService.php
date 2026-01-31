@@ -32,6 +32,10 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
       $items = $data['items'] ?? [];
       unset($data['items']);
 
+      EquipmentAssigment::where('persona_id', $data['persona_id'])
+        ->where('status_deleted', false)
+        ->update(['status_deleted' => true, 'unassigned_at' => now()]);
+
       $assignment = EquipmentAssigment::create($data);
 
       foreach ($items as $item) {

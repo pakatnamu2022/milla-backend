@@ -34,7 +34,7 @@ class PhoneLineWorkerService extends BaseService implements BaseServiceInterface
   {
     PhoneLineWorker::where('phone_line_id', $data['phone_line_id'])
       ->where('active', true)
-      ->update(['active' => false, '']);
+      ->update(['active' => false, 'unassigned_at' => now()]);
 
     $phoneLineWorker = PhoneLineWorker::create($data);
     return new PhoneLineWorkerResource(PhoneLineWorker::find($phoneLineWorker->id));

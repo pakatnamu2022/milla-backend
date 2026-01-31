@@ -17,6 +17,7 @@ class EquipmentAssigment extends BaseModel
     'write_id',
     'conformidad',
     'fecha_conformidad',
+    'unassigned_at',
   ];
 
   const filters = [

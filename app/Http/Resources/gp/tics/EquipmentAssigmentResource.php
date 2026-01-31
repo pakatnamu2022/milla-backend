@@ -19,6 +19,7 @@ class EquipmentAssigmentResource extends JsonResource
       'write_id' => $this->write_id,
       'conformidad' => $this->conformidad,
       'fecha_conformidad' => $this->fecha_conformidad,
+      'unassigned_at' => $this->unassigned_at,
       'items' => EquipmentItemAssigmentResource::collection($this->whenLoaded('items')),
       'created_at' => $this->created_at,
       'updated_at' => $this->updated_at,

@@ -17,10 +17,12 @@ class PhoneLineWorker extends BaseModel
     'worker_id',
     'assigned_at',
     'active',
+    'unassigned_at',
   ];
 
   protected $casts = [
     'assigned_at' => 'datetime',
+    'unassigned_at' => 'datetime',
     'active' => 'boolean',
   ];
 
