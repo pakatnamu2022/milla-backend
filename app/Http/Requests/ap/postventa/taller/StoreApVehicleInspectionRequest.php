@@ -41,6 +41,10 @@ class StoreApVehicleInspectionRequest extends StoreRequest
       'jack_and_lever' => 'nullable|boolean',
       'general_observations' => 'nullable|string',
       'customer_signature' => 'required|string|regex:/^data:image\/[a-z+]+;base64,/',
+      'photo_front' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+      'photo_back' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+      'photo_left' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+      'photo_right' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
 
       // Damages array
       'damages' => 'nullable|array',

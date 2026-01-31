@@ -7,6 +7,7 @@ use App\Http\Requests\ap\postventa\taller\IndexApVehicleInspectionRequest;
 use App\Http\Requests\ap\postventa\taller\StoreApVehicleInspectionRequest;
 use App\Http\Services\ap\postventa\taller\ApVehicleInspectionService;
 use Exception;
+use Illuminate\Support\Facades\Log;
 
 class ApVehicleInspectionController extends Controller
 {
@@ -58,6 +59,17 @@ class ApVehicleInspectionController extends Controller
 
         $data['damages'] = $damages;
       }
+
+      // Procesar las fotos del vehículo si existen el front, back, left, right
+      $data['photos_inspection'] = [
+        'photo_front' => $request->hasFile('photo_front') ? $request->file('photo_front') : null,
+        'photo_back' => $request->hasFile('photo_back') ? $request->file('photo_back') : null,
+        'photo_left' => $request->hasFile('photo_left') ? $request->file('photo_left') : null,
+        'photo_right' => $request->hasFile('photo_right') ? $request->file('photo_right') : null,
+      ];
+
+      Log::info(gettype($data['damages']), $data['damages']);
+      Log::info(gettype($data['photos_inspection']), $data['photos_inspection']);
 
       return $this->service->store($data);
     } catch (Exception $e) {
