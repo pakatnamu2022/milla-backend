@@ -2,27 +2,29 @@
 
 namespace App\Http\Requests\gp\tics;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\StoreRequest;
 
-class StoreEquipmentAssigmentRequest extends FormRequest
+class StoreEquipmentAssigmentRequest extends StoreRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return false;
-    }
+  public function prepareForValidation()
+  {
+    return $this->merge([
+      'fecha' => $this->fecha ?? now()->toDateString(),
+    ]);
+  }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
-    public function rules(): array
-    {
-        return [
-            //
-        ];
-    }
+  public function rules(): array
+  {
+    return [
+      'persona_id' => 'required|exists:rrhh_persona,id',
+      'fecha' => 'required|date',
+      'status_id' => 'nullable|integer',
+      'conformidad' => 'nullable|string',
+      'fecha_conformidad' => 'nullable|date',
+      'items' => 'required|array|min:1',
+      'items.*.equipo_id' => 'required|exists:help_equipos,id',
+      'items.*.observacion' => 'nullable|string',
+      'items.*.status_id' => 'nullable|integer',
+    ];
+  }
 }

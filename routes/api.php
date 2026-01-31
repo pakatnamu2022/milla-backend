@@ -121,6 +121,7 @@ use App\Http\Controllers\gp\gestionsistema\ViewController;
 use App\Http\Controllers\gp\maestroGeneral\ExchangeRateController;
 use App\Http\Controllers\gp\maestroGeneral\SedeController;
 use App\Http\Controllers\gp\maestroGeneral\SunatConceptsController;
+use App\Http\Controllers\gp\tics\EquipmentAssigmentController;
 use App\Http\Controllers\gp\tics\EquipmentController;
 use App\Http\Controllers\gp\tics\EquipmentTypeController;
 use App\Http\Controllers\gp\tics\PhoneLineController;
@@ -335,6 +336,17 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       //    PHONE LINES
       Route::post('phoneLine/import', [PhoneLineController::class, 'import']);
       Route::apiResource('phoneLine', PhoneLineController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      //    EQUIPMENT ASSIGNMENTS
+      Route::get('equipmentAssigment/history/worker/{personaId}', [EquipmentAssigmentController::class, 'historyByWorker']);
+      Route::get('equipmentAssigment/history/equipment/{equipoId}', [EquipmentAssigmentController::class, 'historyByEquipment']);
+      Route::apiResource('equipmentAssigment', EquipmentAssigmentController::class)->only([
         'index',
         'show',
         'store',

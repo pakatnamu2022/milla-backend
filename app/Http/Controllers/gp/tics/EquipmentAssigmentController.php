@@ -3,64 +3,83 @@
 namespace App\Http\Controllers\gp\tics;
 
 use App\Http\Controllers\Controller;
-use App\Models\gp\tics\EquipmentAssigment;
-use Illuminate\Http\Request;
+use App\Http\Requests\gp\tics\IndexEquipmentAssigmentRequest;
+use App\Http\Requests\gp\tics\StoreEquipmentAssigmentRequest;
+use App\Http\Requests\gp\tics\UpdateEquipmentAssigmentRequest;
+use App\Http\Services\gp\tics\EquipmentAssigmentService;
+use Throwable;
 
 class EquipmentAssigmentController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+  protected EquipmentAssigmentService $service;
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+  public function __construct(EquipmentAssigmentService $service)
+  {
+    $this->service = $service;
+  }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
+  public function index(IndexEquipmentAssigmentRequest $request)
+  {
+    try {
+      return $this->service->list($request);
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
     }
+  }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(EquipmentAssigment $equipmentAssigment)
-    {
-        //
+  public function store(StoreEquipmentAssigmentRequest $request)
+  {
+    try {
+      return $this->success($this->service->store($request->validated()));
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
     }
+  }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(EquipmentAssigment $equipmentAssigment)
-    {
-        //
+  public function show($id)
+  {
+    try {
+      return $this->success($this->service->show($id));
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
     }
+  }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, EquipmentAssigment $equipmentAssigment)
-    {
-        //
+  public function update(UpdateEquipmentAssigmentRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->update($data));
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
     }
+  }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(EquipmentAssigment $equipmentAssigment)
-    {
-        //
+  public function destroy($id)
+  {
+    try {
+      return $this->service->destroy($id);
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
     }
+  }
+
+  public function historyByWorker($personaId)
+  {
+    try {
+      return $this->success($this->service->historyByWorker($personaId));
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function historyByEquipment($equipoId)
+  {
+    try {
+      return $this->success($this->service->historyByEquipment($equipoId));
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }
