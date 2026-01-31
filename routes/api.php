@@ -121,8 +121,13 @@ use App\Http\Controllers\gp\gestionsistema\ViewController;
 use App\Http\Controllers\gp\maestroGeneral\ExchangeRateController;
 use App\Http\Controllers\gp\maestroGeneral\SedeController;
 use App\Http\Controllers\gp\maestroGeneral\SunatConceptsController;
+use App\Http\Controllers\gp\tics\EquipmentAssigmentController;
 use App\Http\Controllers\gp\tics\EquipmentController;
 use App\Http\Controllers\gp\tics\EquipmentTypeController;
+use App\Http\Controllers\gp\tics\PhoneLineController;
+use App\Http\Controllers\gp\tics\PhoneLineWorkerController;
+use App\Http\Controllers\gp\tics\TelephoneAccountController;
+use App\Http\Controllers\gp\tics\TelephonePlanController;
 use App\Http\Controllers\JobStatusController;
 use App\Http\Controllers\tp\comercial\TpTravelPhotoController;
 
@@ -303,6 +308,57 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       //    TYPE EQUIPMENTS
       Route::apiResource('equipmentType', EquipmentTypeController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      //    TELEPHONE PLANS
+      Route::apiResource('telephonePlan', TelephonePlanController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      //    TELEPHONE ACCOUNTS
+      Route::apiResource('telephoneAccount', TelephoneAccountController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      //    PHONE LINES
+      Route::post('phoneLine/import', [PhoneLineController::class, 'import']);
+      Route::apiResource('phoneLine', PhoneLineController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      //    EQUIPMENT ASSIGNMENTS
+      Route::get('equipmentAssigment/history/worker/{personaId}', [EquipmentAssigmentController::class, 'historyByWorker']);
+      Route::get('equipmentAssigment/history/equipment/{equipoId}', [EquipmentAssigmentController::class, 'historyByEquipment']);
+      Route::put('equipmentAssigment/{id}/confirm', [EquipmentAssigmentController::class, 'confirm']);
+      Route::post('equipmentAssigment/{id}/unassign', [EquipmentAssigmentController::class, 'unassign']);
+      Route::apiResource('equipmentAssigment', EquipmentAssigmentController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      //    PHONE LINE WORKERS (ASSIGNMENTS)
+      Route::get('phoneLineWorker/history/{phoneLineId}', [PhoneLineWorkerController::class, 'history']);
+      Route::apiResource('phoneLineWorker', PhoneLineWorkerController::class)->only([
         'index',
         'show',
         'store',
