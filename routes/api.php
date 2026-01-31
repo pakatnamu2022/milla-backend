@@ -1028,6 +1028,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('receivingChecklist', [ApReceivingChecklistController::class, 'index']);
       Route::put('receivingChecklist/{id}', [ApReceivingChecklistController::class, 'update']);
       Route::delete('receivingChecklist/byShippingGuide/{shippingGuideId}', [ApReceivingChecklistController::class, 'destroyByShippingGuide']);
+      Route::get('receivingChecklist/byShippingGuide/{shippingGuideId}/vehicle', [ApReceivingChecklistController::class, 'getVehicleByShippingGuide']);
 
       // Vehicles
       Route::post('vehicles/export/sales', [VehiclesController::class, 'exportSales']);
