@@ -18,6 +18,10 @@ class EquipmentAssigment extends BaseModel
     'conformidad',
     'fecha_conformidad',
     'unassigned_at',
+    'observacion',
+    'observacion_unassign',
+    'pdf_path',
+    'pdf_unassign_path',
   ];
 
   const filters = [

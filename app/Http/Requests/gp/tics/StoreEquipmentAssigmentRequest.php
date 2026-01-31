@@ -18,13 +18,10 @@ class StoreEquipmentAssigmentRequest extends StoreRequest
     return [
       'persona_id' => 'required|exists:rrhh_persona,id',
       'fecha' => 'required|date',
-      'status_id' => 'nullable|integer',
-      'conformidad' => 'nullable|string',
-      'fecha_conformidad' => 'nullable|date',
+      'observacion' => 'nullable|string',
       'items' => 'required|array|min:1',
       'items.*.equipo_id' => 'required|exists:help_equipos,id',
       'items.*.observacion' => 'nullable|string',
-      'items.*.status_id' => 'nullable|integer',
     ];
   }
 }

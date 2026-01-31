@@ -7,9 +7,11 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\gp\tics\EquipmentAssigment;
 use App\Models\gp\tics\EquipmentItemAssigment;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class EquipmentAssigmentService extends BaseService implements BaseServiceInterface
 {
@@ -43,9 +45,46 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
         EquipmentItemAssigment::create($item);
       }
 
-      return new EquipmentAssigmentResource(
-        EquipmentAssigment::with(['worker', 'items.equipment.equipmentType'])->find($assignment->id)
-      );
+      $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'items.equipment.equipmentType'])->find($assignment->id);
+
+      $pdfPath = $this->generateAssignmentPdf($assignment);
+      $assignment->update(['pdf_path' => $pdfPath]);
+
+      return new EquipmentAssigmentResource($assignment);
+    });
+  }
+
+  public function confirm($id)
+  {
+    $assignment = $this->find($id);
+
+    $assignment->update([
+      'conformidad' => true,
+      'fecha_conformidad' => now(),
+    ]);
+
+    return new EquipmentAssigmentResource(
+      EquipmentAssigment::with(['worker', 'items.equipment.equipmentType'])->find($assignment->id)
+    );
+  }
+
+  public function unassign($id, $data)
+  {
+    return DB::transaction(function () use ($id, $data) {
+      $assignment = $this->find($id);
+
+      $assignment->update([
+        'status_deleted' => true,
+        'unassigned_at' => $data['fecha'],
+        'observacion_unassign' => $data['observacion_unassign'],
+      ]);
+
+      $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'items.equipment.equipmentType'])->find($assignment->id);
+
+      $pdfPath = $this->generateUnassignmentPdf($assignment);
+      $assignment->update(['pdf_unassign_path' => $pdfPath]);
+
+      return new EquipmentAssigmentResource($assignment);
     });
   }
 
@@ -122,5 +161,27 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
       ->get();
 
     return EquipmentAssigmentResource::collection($assignments);
+  }
+
+  private function generateAssignmentPdf(EquipmentAssigment $assignment): string
+  {
+    $pdf = Pdf::loadView('exports.equipment-assignment', compact('assignment'));
+    $filename = "assignment_{$assignment->id}_{$assignment->fecha}.pdf";
+    $path = "equipment-assignments/{$filename}";
+
+    Storage::disk('local')->put($path, $pdf->output());
+
+    return $path;
+  }
+
+  private function generateUnassignmentPdf(EquipmentAssigment $assignment): string
+  {
+    $pdf = Pdf::loadView('exports.equipment-unassignment', compact('assignment'));
+    $filename = "unassignment_{$assignment->id}_{$assignment->unassigned_at}.pdf";
+    $path = "equipment-assignments/{$filename}";
+
+    Storage::disk('local')->put($path, $pdf->output());
+
+    return $path;
   }
 }

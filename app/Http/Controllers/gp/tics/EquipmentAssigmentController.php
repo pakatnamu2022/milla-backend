@@ -5,6 +5,7 @@ namespace App\Http\Controllers\gp\tics;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\tics\IndexEquipmentAssigmentRequest;
 use App\Http\Requests\gp\tics\StoreEquipmentAssigmentRequest;
+use App\Http\Requests\gp\tics\UnassignEquipmentRequest;
 use App\Http\Requests\gp\tics\UpdateEquipmentAssigmentRequest;
 use App\Http\Services\gp\tics\EquipmentAssigmentService;
 use Throwable;
@@ -60,6 +61,24 @@ class EquipmentAssigmentController extends Controller
   {
     try {
       return $this->service->destroy($id);
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function confirm($id)
+  {
+    try {
+      return $this->success($this->service->confirm($id));
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function unassign(UnassignEquipmentRequest $request, $id)
+  {
+    try {
+      return $this->success($this->service->unassign($id, $request->validated()));
     } catch (Throwable $e) {
       return $this->error($e->getMessage());
     }
