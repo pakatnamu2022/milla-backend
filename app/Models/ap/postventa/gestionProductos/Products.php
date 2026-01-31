@@ -3,6 +3,7 @@
 namespace App\Models\ap\postventa\gestionProductos;
 
 use App\Models\ap\ApMasters;
+use App\Models\ap\compras\PurchaseOrderItem;
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\ap\maestroGeneral\UnitMeasurement;
@@ -125,6 +126,18 @@ class Products extends Model
   public function warehouseStocks(): HasMany
   {
     return $this->hasMany(ProductWarehouseStock::class, 'product_id');
+  }
+
+  // Relationship with purchase order items
+  public function purchaseOrderItems(): HasMany
+  {
+    return $this->hasMany(PurchaseOrderItem::class, 'product_id');
+  }
+
+  // Check if product has any purchase order
+  public function hasPurchaseOrder(): bool
+  {
+    return $this->purchaseOrderItems()->exists();
   }
 
   // Get stock for a specific warehouse

@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\postventa\taller;
 
 use App\Http\Resources\ap\postventa\taller\ApOrderPurchaseRequestsResource;
 use App\Http\Services\BaseService;
+use App\Http\Utils\Constants;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequests;
@@ -461,8 +462,29 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
     }
 
     $data['details'] = $details;
-    $data['total'] = $hasQuotation ? number_format($total, 2) : '-';
     $data['observations'] = $purchaseRequest->observations ?? '';
+
+    // Obtener símbolo de moneda
+    $currencySymbol = '';
+    if ($hasQuotation && $quotation->typeCurrency) {
+      $currencySymbol = $quotation->typeCurrency->symbol ?? '';
+    }
+    $data['currency_symbol'] = $currencySymbol;
+
+    // Calcular subtotal, IGV y total
+    if ($hasQuotation && $total > 0) {
+      $igvRate = Constants::VAT_TAX / 100;
+      $igv = $total * $igvRate;
+      $totalWithIgv = $total + $igv;
+
+      $data['subtotal'] = number_format($total, 2);
+      $data['igv'] = number_format($igv, 2);
+      $data['total'] = number_format($totalWithIgv, 2);
+    } else {
+      $data['subtotal'] = '-';
+      $data['igv'] = '-';
+      $data['total'] = '-';
+    }
 
     // Generar PDF
     $pdf = Pdf::loadView('reports.ap.postventa.taller.order-purchase-request', [

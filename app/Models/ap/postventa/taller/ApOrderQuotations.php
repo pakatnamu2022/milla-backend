@@ -67,6 +67,7 @@ class ApOrderQuotations extends Model
     'status' => '=',
     'sede_id' => '=',
     'supply_type' => 'in',
+    'has_invoice_generated' => '=',
   ];
 
   const sorts = [

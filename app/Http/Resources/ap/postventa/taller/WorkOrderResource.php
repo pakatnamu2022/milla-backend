@@ -51,6 +51,11 @@ class WorkOrderResource extends JsonResource
       'created_by' => $this->created_by,
       'creator_name' => $this->creator ? $this->creator->name : null,
       'is_inspection_completed' => !!$this->vehicleInspection,
+      'allow_remove_associated_quote' => (bool)$this->allow_remove_associated_quote,
+      'allow_editing_inspection' => (bool)$this->allow_editing_inspection,
+      'status' => new ApMastersResource($this->status),
+
+      // Loaded Relationships
       'labours' => WorkOrderLabourResource::collection($this->whenLoaded('labours')),
       'parts' => ApWorkOrderPartsResource::collection($this->whenLoaded('parts')),
       'vehicle_inspection' => new ApVehicleInspectionResource($this->whenLoaded('vehicleInspection')),
@@ -58,8 +63,7 @@ class WorkOrderResource extends JsonResource
       'order_quotation' => new ApOrderQuotationsResource($this->whenLoaded('orderQuotation')),
       'advances' => ElectronicDocumentResource::collection(
         $this->whenLoaded('advancesWorkOrder', fn() => $this->advancesWorkOrder->filter(fn($advance) => $advance->aceptada_por_sunat == 1))
-      ),
-      'status' => new ApMastersResource($this->status)
+      )
     ];
   }
 }

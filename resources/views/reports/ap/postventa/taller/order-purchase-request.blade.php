@@ -364,15 +364,35 @@
   </div>
 </div>
 
-<!-- Seccion de Total -->
-<div class="total-section">
-  <table>
-    <tr class="total-row">
-      <td style="width: 80%;"></td>
-      <td class="total-label" style="width: 10%;">TOTAL</td>
-      <td class="total-value" style="width: 10%;">{{ $purchaseRequest['total'] }}</td>
-    </tr>
-  </table>
+<!-- Seccion de Totales -->
+<div style="width: 100%; display: table; margin-top: 10px;">
+  <!-- Espacio vacío (Izquierda) -->
+  <div style="display: table-cell; width: 50%; vertical-align: top;">
+    &nbsp;
+  </div>
+  <!-- Totales (Derecha) -->
+  <div style="display: table-cell; width: 50%; vertical-align: top; padding-left: 10px;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+      <tr>
+        <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">Subtotal:</td>
+        <td style="text-align: right; padding: 5px; border: 1px solid #000;">
+          {{ $purchaseRequest['currency_symbol'] }} {{ $purchaseRequest['subtotal'] }}
+        </td>
+      </tr>
+      <tr>
+        <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">IGV 18%:</td>
+        <td style="text-align: right; padding: 5px; border: 1px solid #000;">
+          {{ $purchaseRequest['currency_symbol'] }} {{ $purchaseRequest['igv'] }}
+        </td>
+      </tr>
+      <tr>
+        <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000; background-color: #f0f0f0;">Total:</td>
+        <td style="text-align: right; padding: 5px; border: 1px solid #000; background-color: #f0f0f0; font-weight: bold;">
+          {{ $purchaseRequest['currency_symbol'] }} {{ $purchaseRequest['total'] }}
+        </td>
+      </tr>
+    </table>
+  </div>
 </div>
 
 </body>
