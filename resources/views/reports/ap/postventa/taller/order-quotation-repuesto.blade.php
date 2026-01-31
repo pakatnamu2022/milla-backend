@@ -189,8 +189,8 @@
 
 
     .signature-section {
-      margin-top: 30px;
-      margin-bottom: 20px;
+      margin-top: 40px;
+      margin-bottom: 25px;
     }
 
     .signature-box {
@@ -322,6 +322,9 @@
   </tbody>
 </table>
 
+<!-- Pie de página fijo -->
+<div style="position: fixed; bottom: 20px; left: 20px; right: 20px; background-color: #fff;">
+
 <!-- Sección de Vehículo y Totales en la misma fila -->
 <div style="width: 100%; display: table; margin-bottom: 10px;">
   @if(isset($quotation['vehicle_plate']) && $quotation['vehicle_plate'] && $quotation['vehicle_plate'] !== 'N/A')
@@ -425,7 +428,7 @@
 
 <!-- Sección de Firma del Cliente -->
 @if(isset($quotation['customer_signature']) && $quotation['customer_signature'])
-  <div class="signature-section" style="text-align: center;">
+  <div class="signature-section" style="text-align: center; margin-top: 15px;">
     <div class="signature-box">
       <img src="{{ $quotation['customer_signature'] }}" alt="Firma Cliente" class="signature-img">
       <div class="signature-line"></div>
@@ -436,12 +439,14 @@
 @endif
 
 <!-- Sección IMPORTANTE -->
-<div class="important-section">
+<div class="important-section" style="margin-top: 15px;">
   <div class="important-title">IMPORTANTE</div>
   <div class="important-content">
     STOCK SUJETO A VARIACIÓN SIN PREVIO AVISO. LA IMPORTACIÓN Y EL TIEMPO DE ATENCIÓN DEPENDE DEL STOCK EN
     FÁBRICA. TIEMPO DE IMPORTACIÓN 30 DÍAS ÚTILES.
   </div>
 </div>
+
+</div><!-- Fin pie de página fijo -->
 </body>
 </html>

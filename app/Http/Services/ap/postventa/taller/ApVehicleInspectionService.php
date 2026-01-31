@@ -116,6 +116,28 @@ class ApVehicleInspectionService extends BaseService
     return new ApVehicleInspectionResource($this->find($id));
   }
 
+  public function update(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $inspection = $this->find($data['id']);
+      $workOrder = ApWorkOrder::findOrFail($data['work_order_id']);
+
+      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+        throw new Exception('No se puede modificar una orden de trabajo cerrada');
+      }
+
+      // Update allow_editing_inspection to true to allow editing
+      $workOrder->update([
+        'allow_editing_inspection' => false,
+      ]);
+
+      // Update the inspection
+      $inspection->update($data);
+
+      return new ApVehicleInspectionResource($inspection);
+    });
+  }
+
   public function destroy(int $id)
   {
     try {

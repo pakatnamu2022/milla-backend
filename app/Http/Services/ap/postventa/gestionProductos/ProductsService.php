@@ -137,6 +137,13 @@ class ProductsService extends BaseService implements BaseServiceInterface
     try {
       $product = $this->find($data['id']);
 
+      // Verificar si el producto tiene una orden de compra/factura registrada
+      if ($product->hasPurchaseOrder()) {
+        throw new Exception(
+          'No se puede editar el producto porque tiene una factura a proveedor registrada.'
+        );
+      }
+
       // If dyn_code is being updated, append the correlative
       if (isset($data['dyn_code']) && $data['dyn_code'] !== $product->code) {
         // Remove 'X' placeholders
