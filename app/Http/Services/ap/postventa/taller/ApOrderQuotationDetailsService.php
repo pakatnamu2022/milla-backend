@@ -46,7 +46,7 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
     return DB::transaction(function () use ($data) {
       // Set created_at
       if (auth()->check()) {
-        $data['created_at'] = auth()->user()->id;
+        $data['created_by'] = auth()->user()->id;
       }
 
       // Create quotation detail
