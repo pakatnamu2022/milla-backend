@@ -40,4 +40,12 @@ class ApReceivingChecklist extends Model
   {
     return $this->belongsTo(ShippingGuides::class, 'shipping_guide_id');
   }
+
+  /**
+   * Obtiene el vehículo asociado a través de shipping_guide -> vehicleMovement -> vehicle
+   */
+  public function getVehicleAttribute(): ?Vehicles
+  {
+    return $this->shipping_guide?->vehicleMovement?->vehicle;
+  }
 }
