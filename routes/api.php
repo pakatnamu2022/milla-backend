@@ -1319,6 +1319,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('electronic-documents/{id}/logs', [ElectronicDocumentController::class, 'logs']);
       Route::get('electronic-documents/{id}/history', [ElectronicDocumentController::class, 'history']);
 
+      // Report
+      Route::get('electronic-documents-report', [ElectronicDocumentController::class, 'report']);
+
       // CRUD de Documentos Electrónicos
       Route::apiResource('electronic-documents', ElectronicDocumentController::class);
 

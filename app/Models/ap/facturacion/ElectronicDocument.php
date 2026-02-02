@@ -2,8 +2,8 @@
 
 namespace App\Models\ap\facturacion;
 
-use App\Http\Services\ap\comercial\OpportunityService;
 use App\Http\Services\BaseService;
+use App\Http\Traits\Reportable;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PurchaseRequestQuote;
@@ -28,7 +28,7 @@ use function json_decode;
 
 class ElectronicDocument extends BaseModel
 {
-  use SoftDeletes;
+  use SoftDeletes, Reportable;
 
   protected $table = 'ap_billing_electronic_documents';
 
@@ -613,4 +613,187 @@ class ElectronicDocument extends BaseModel
   {
     return $this->hasOne(ApWorkOrder::class, 'id', 'work_order_id');
   }
+
+  /**
+   * Columnas para reportes con Reportable trait
+   */
+  protected $reportColumns = [
+    'id' => [
+      'label' => 'ID',
+      'formatter' => null,
+    ],
+    'full_number' => [
+      'label' => 'NÚMERO DOCUMENTO',
+      'formatter' => null,
+    ],
+    'documentType.description' => [
+      'label' => 'TIPO DOCUMENTO',
+      'formatter' => null,
+    ],
+    'fecha_de_emision' => [
+      'label' => 'FECHA EMISIÓN',
+      'formatter' => 'date',
+    ],
+    'fecha_de_vencimiento' => [
+      'label' => 'FECHA VENCIMIENTO',
+      'formatter' => 'date',
+    ],
+    'cliente_numero_de_documento' => [
+      'label' => 'NRO DOCUMENTO CLIENTE',
+      'formatter' => null,
+    ],
+    'identityDocumentType.description' => [
+      'label' => 'TIPO DOC. CLIENTE',
+      'formatter' => null,
+    ],
+    'cliente_denominacion' => [
+      'label' => 'CLIENTE',
+      'formatter' => null,
+    ],
+    'cliente_direccion' => [
+      'label' => 'DIRECCIÓN CLIENTE',
+      'formatter' => null,
+    ],
+    'cliente_email' => [
+      'label' => 'EMAIL CLIENTE',
+      'formatter' => null,
+    ],
+    'currency.description' => [
+      'label' => 'MONEDA',
+      'formatter' => null,
+    ],
+    'tipo_de_cambio' => [
+      'label' => 'TIPO CAMBIO',
+      'formatter' => null,
+    ],
+    'total_gravada' => [
+      'label' => 'TOTAL GRAVADA',
+      'formatter' => null,
+    ],
+    'total_inafecta' => [
+      'label' => 'TOTAL INAFECTA',
+      'formatter' => null,
+    ],
+    'total_exonerada' => [
+      'label' => 'TOTAL EXONERADA',
+      'formatter' => null,
+    ],
+    'total_igv' => [
+      'label' => 'TOTAL IGV',
+      'formatter' => null,
+    ],
+    'total' => [
+      'label' => 'TOTAL',
+      'formatter' => null,
+    ],
+    'status' => [
+      'label' => 'ESTADO',
+      'formatter' => null,
+    ],
+    'aceptada_por_sunat' => [
+      'label' => 'ACEPTADA SUNAT',
+      'formatter' => 'boolean',
+    ],
+    'purchaseRequestQuote.internal_code' => [
+      'label' => 'CÓDIGO COTIZACIÓN',
+      'formatter' => null,
+    ],
+    'purchaseRequestQuote.opportunity.opportunity_code' => [
+      'label' => 'CÓDIGO OPORTUNIDAD',
+      'formatter' => null,
+    ],
+    'purchaseRequestQuote.opportunity.worker.nombre_completo' => [
+      'label' => 'ASESOR',
+      'formatter' => null,
+    ],
+    'vehicle.vin' => [
+      'label' => 'VIN',
+      'formatter' => null,
+    ],
+    'vehicle.plate' => [
+      'label' => 'PLACA',
+      'formatter' => null,
+    ],
+    'vehicle.engine_number' => [
+      'label' => 'NRO MOTOR',
+      'formatter' => null,
+    ],
+    'vehicle.year' => [
+      'label' => 'AÑO',
+      'formatter' => null,
+    ],
+    'vehicle.model.family.brand.name' => [
+      'label' => 'MARCA',
+      'formatter' => null,
+    ],
+    'vehicle.model.family.description' => [
+      'label' => 'MODELO',
+      'formatter' => null,
+    ],
+    'vehicle.model.version' => [
+      'label' => 'VERSIÓN',
+      'formatter' => null,
+    ],
+    'vehicle.color.description' => [
+      'label' => 'COLOR',
+      'formatter' => null,
+    ],
+    'vehicleMovement.vehicle.warehousePhysical.dyn_code' => [
+      'label' => 'ALMACÉN',
+      'formatter' => null,
+    ],
+    'vehicleMovement.vehicle.warehousePhysical.description' => [
+      'label' => 'DESCRIPCIÓN ALMACÉN',
+      'formatter' => null,
+    ],
+    'seriesModel.sede.suc_abrev' => [
+      'label' => 'SEDE',
+      'formatter' => null,
+    ],
+    'seriesModel.sede.shop.description' => [
+      'label' => 'TIENDA',
+      'formatter' => null,
+    ],
+    'orderQuotation.code' => [
+      'label' => 'CÓDIGO COTIZACIÓN POSVENTA',
+      'formatter' => null,
+    ],
+    'workOrder.workorder_number' => [
+      'label' => 'ORDEN DE TRABAJO',
+      'formatter' => null,
+    ],
+    'condiciones_de_pago' => [
+      'label' => 'CONDICIONES DE PAGO',
+      'formatter' => null,
+    ],
+    'observaciones' => [
+      'label' => 'OBSERVACIONES',
+      'formatter' => null,
+    ],
+    'creator.name' => [
+      'label' => 'CREADO POR',
+      'formatter' => null,
+    ],
+    'created_at' => [
+      'label' => 'FECHA CREACIÓN',
+      'formatter' => 'datetime',
+    ],
+  ];
+
+  /**
+   * Relaciones a cargar para reportes
+   */
+  protected $reportRelations = [
+    'documentType',
+    'identityDocumentType',
+    'currency',
+    'seriesModel.sede.shop',
+    'purchaseRequestQuote.opportunity.worker',
+    'vehicle.model.family.brand',
+    'vehicle.color',
+    'vehicleMovement.vehicle.warehousePhysical',
+    'orderQuotation',
+    'workOrder',
+    'creator',
+  ];
 }
