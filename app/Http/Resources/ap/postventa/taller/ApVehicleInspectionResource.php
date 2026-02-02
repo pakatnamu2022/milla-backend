@@ -3,6 +3,7 @@
 namespace App\Http\Resources\ap\postventa\taller;
 
 use App\Http\Resources\gp\gestionsistema\UserResource;
+use App\Models\ap\comercial\Vehicles;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -17,6 +18,7 @@ class ApVehicleInspectionResource extends JsonResource
   {
     return [
       'id' => $this->id,
+      'vehicle_id' => $this->workOrder?->vehicle_id,
       'vehicle_plate' => $this->workOrder?->vehicle->plate,
       'vehicle_vin' => $this->workOrder?->vehicle->vin,
       'work_order_correlative' => $this->workOrder ? $this->workOrder->correlative : null,
@@ -50,6 +52,11 @@ class ApVehicleInspectionResource extends JsonResource
       'inspected_by' => $this->inspected_by,
       'inspected_by_name' => $this->inspectionBy ? $this->inspectionBy->name : null,
       'customer_signature_url' => $this->customer_signature_url,
+      'photo_front_url' => $this->photo_front_url,
+      'photo_back_url' => $this->photo_back_url,
+      'photo_left_url' => $this->photo_left_url,
+      'photo_right_url' => $this->photo_right_url,
+      
       // Relationships
       'damages' => ApVehicleInspectionDamagesResource::collection($this->whenLoaded('damages')),
     ];

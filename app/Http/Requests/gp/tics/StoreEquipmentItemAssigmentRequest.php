@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Requests;
+namespace App\Http\Requests\gp\tics;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreUserRoleRequest extends FormRequest
+class StoreEquipmentItemAssigmentRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.

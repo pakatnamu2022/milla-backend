@@ -115,13 +115,19 @@ use App\Http\Controllers\gp\gestionsistema\ProvinceController;
 use App\Http\Controllers\gp\gestionsistema\RoleController;
 use App\Http\Controllers\gp\gestionsistema\TypeOnboardingController;
 use App\Http\Controllers\gp\gestionsistema\UserController;
+use App\Http\Controllers\gp\gestionsistema\UserRoleController;
 use App\Http\Controllers\gp\gestionsistema\UserSedeController;
 use App\Http\Controllers\gp\gestionsistema\ViewController;
 use App\Http\Controllers\gp\maestroGeneral\ExchangeRateController;
 use App\Http\Controllers\gp\maestroGeneral\SedeController;
 use App\Http\Controllers\gp\maestroGeneral\SunatConceptsController;
+use App\Http\Controllers\gp\tics\EquipmentAssigmentController;
 use App\Http\Controllers\gp\tics\EquipmentController;
 use App\Http\Controllers\gp\tics\EquipmentTypeController;
+use App\Http\Controllers\gp\tics\PhoneLineController;
+use App\Http\Controllers\gp\tics\PhoneLineWorkerController;
+use App\Http\Controllers\gp\tics\TelephoneAccountController;
+use App\Http\Controllers\gp\tics\TelephonePlanController;
 use App\Http\Controllers\JobStatusController;
 use App\Http\Controllers\tp\comercial\TpTravelPhotoController;
 
@@ -183,30 +189,30 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::prefix('photos')->group(function () {
       Route::get('/{id}', [TpTravelPhotoController::class, 'show'])->name('photos.show');
       Route::delete('/{id}', [TpTravelPhotoController::class, 'destroy'])->name('photos.destroy');
-      
+
     });
-    Route::group(['prefix' => 'freight'], function (){
-        Route::apiResource('control-freight', OpFreightController::class)->only([
-            'index',
-            'show',
-            'store',
-            'update',
-            'destroy'
-          ]);
-          Route::get('control-freight/form/data', [OpFreightController::class, 'getFormData']);
-          Route::get('control-freight/customers/search', [OpFreightController::class, 'searchCustomers']);
-      });
+    Route::group(['prefix' => 'freight'], function () {
+      Route::apiResource('control-freight', OpFreightController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+      Route::get('control-freight/form/data', [OpFreightController::class, 'getFormData']);
+      Route::get('control-freight/customers/search', [OpFreightController::class, 'searchCustomers']);
+    });
 
-    Route::group(['prefix' => 'goal'], function() {
-        Route::apiResource('control-goal', OpGoalTravelController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+    Route::group(['prefix' => 'goal'], function () {
+      Route::apiResource('control-goal', OpGoalTravelController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
 
-      });
+    });
 
       Route::group(['prefix' => 'opVehicleAssignment'], function (){
         Route::apiResource('control-vehicleAssignment', OpVehicleAssignmentController::class)->only([
@@ -259,6 +265,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('role/{id}/users', [RoleController::class, 'users'])->name('role.users');
     Route::post('/roles/{role_id}/access', [AccessController::class, 'storeMany']);
 
+    // USER-ROLE ASSIGNMENT
+    Route::get('user-role/user/{userId}/roles', [UserRoleController::class, 'rolesByUser'])->name('user-role.roles-by-user');
+    Route::get('user-role/role/{roleId}/users', [UserRoleController::class, 'usersByRole'])->name('user-role.users-by-role');
+    Route::apiResource('user-role', UserRoleController::class)->only([
+      'index',
+      'show',
+      'update'
+    ]);
 
     //        VIEWS
     Route::get('view/with-permissions', [ViewController::class, 'viewsWithPermissions'])->name('view.with-permissions');
@@ -307,6 +321,57 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       //    TYPE EQUIPMENTS
       Route::apiResource('equipmentType', EquipmentTypeController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      //    TELEPHONE PLANS
+      Route::apiResource('telephonePlan', TelephonePlanController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      //    TELEPHONE ACCOUNTS
+      Route::apiResource('telephoneAccount', TelephoneAccountController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      //    PHONE LINES
+      Route::post('phoneLine/import', [PhoneLineController::class, 'import']);
+      Route::apiResource('phoneLine', PhoneLineController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      //    EQUIPMENT ASSIGNMENTS
+      Route::get('equipmentAssigment/history/worker/{personaId}', [EquipmentAssigmentController::class, 'historyByWorker']);
+      Route::get('equipmentAssigment/history/equipment/{equipoId}', [EquipmentAssigmentController::class, 'historyByEquipment']);
+      Route::put('equipmentAssigment/{id}/confirm', [EquipmentAssigmentController::class, 'confirm']);
+      Route::post('equipmentAssigment/{id}/unassign', [EquipmentAssigmentController::class, 'unassign']);
+      Route::apiResource('equipmentAssigment', EquipmentAssigmentController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      //    PHONE LINE WORKERS (ASSIGNMENTS)
+      Route::get('phoneLineWorker/history/{phoneLineId}', [PhoneLineWorkerController::class, 'history']);
+      Route::apiResource('phoneLineWorker', PhoneLineWorkerController::class)->only([
         'index',
         'show',
         'store',
@@ -976,6 +1041,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('receivingChecklist', [ApReceivingChecklistController::class, 'index']);
       Route::put('receivingChecklist/{id}', [ApReceivingChecklistController::class, 'update']);
       Route::delete('receivingChecklist/byShippingGuide/{shippingGuideId}', [ApReceivingChecklistController::class, 'destroyByShippingGuide']);
+      Route::get('receivingChecklist/byShippingGuide/{shippingGuideId}/vehicle', [ApReceivingChecklistController::class, 'getVehicleByShippingGuide']);
 
       // Vehicles
       Route::post('vehicles/export/sales', [VehiclesController::class, 'exportSales']);
@@ -1111,6 +1177,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('workOrders/{id}/payment-summary', [WorkOrderController::class, 'getPaymentSummary']);
       Route::get('workOrders/{id}/pre-liquidation', [WorkOrderController::class, 'getPreLiquidationPdf']);
       Route::patch('workOrders/{id}/unlink-quotation', [WorkOrderController::class, 'unlinkQuotation']);
+      Route::patch('workOrders/{id}/authorization', [WorkOrderController::class, 'authorization']);
       Route::apiResource('workOrders', WorkOrderController::class)->only([
         'index',
         'show',
@@ -1210,6 +1277,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'index',
         'show',
         'store',
+        'update',
         'destroy'
       ]);
 

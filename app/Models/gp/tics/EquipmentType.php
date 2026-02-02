@@ -8,30 +8,29 @@ class EquipmentType extends BaseModel
 {
 //    use LogsActivity;
 
-    protected $table = "help_tipo_equipo";
-    protected $primaryKey = 'id';
+  protected $table = "help_tipo_equipo";
+  protected $primaryKey = 'id';
 
-    protected $fillable = [
-        'equipo',
-        'name',
-        'status_deleted'
-    ];
+  protected $fillable = [
+    'name',
+    'status_deleted'
+  ];
 
-    const filters = [
-        'id' => '=',
-        'search' => ['equipo'],
-        'status_deleted' => '='
-    ];
+  const filters = [
+    'id' => '=',
+    'search' => ['name'],
+    'status_deleted' => '='
+  ];
 
-    const sorts = [
-        'id',
-        'equipo',
-        'status_deleted'
-    ];
+  const sorts = [
+    'id',
+    'name',
+    'status_deleted'
+  ];
 
-    public function equipments()
-    {
-        return $this->hasMany(Equipment::class, 'tipo_equipo_id', 'id');
-    }
+  public function equipments()
+  {
+    return $this->hasMany(Equipment::class, 'tipo_equipo_id', 'id');
+  }
 
 }

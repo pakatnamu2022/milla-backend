@@ -1,17 +1,17 @@
 <?php
 
-namespace App\Http\Requests;
+namespace App\Http\Requests\gp\tics;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class UpdateUserRoleRequest extends FormRequest
+class StoreTelephoneAccountRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -22,7 +22,8 @@ class UpdateUserRoleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'company_id' => 'required|exists:companies,id',
+            'account_number' => 'required|string|max:255',
         ];
     }
 }

@@ -102,6 +102,13 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Create work order
       $workOrder = ApWorkOrder::create($data);
 
+      // If existe $data['vehicle_inspection_id']
+      if (isset($data['vehicle_inspection_id'])) {
+        $workOrder->update([
+          'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
+        ]);
+      }
+
       // Create items
       if (!empty($items)) {
         foreach ($items as $item) {
@@ -125,11 +132,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   {
     return DB::transaction(function () use ($data) {
       $workOrder = $this->find($data['id']);
-      $vehicle = Vehicles::find($data['vehicle_id']);
-
-      if ($vehicle->customer_id === null) {
-        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
-      }
 
       if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
         throw new Exception('No se puede modificar una orden de trabajo cerrada');
@@ -164,6 +166,43 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           $quotation->update(['is_take' => 1]);
         }
       }
+
+      // If existe $data['vehicle_inspection_id']
+      if (isset($data['vehicle_inspection_id'])) {
+        $workOrder->update([
+          'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
+        ]);
+      }
+
+      // Reload relations
+      $workOrder->load([
+        'appointmentPlanning',
+        'vehicle',
+        'status',
+        'advisor',
+        'sede',
+        'creator',
+        'items.typePlanning'
+      ]);
+
+      return new WorkOrderResource($workOrder);
+    });
+  }
+
+  public function authorization(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $workOrder = $this->find($data['id']);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+        throw new Exception('No se puede modificar una orden de trabajo cerrada');
+      }
+      // Update work order
+      $workOrder->update($data);
 
       // Reload relations
       $workOrder->load([
@@ -441,8 +480,15 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       // Marcar la cotización como no tomada para que esté disponible
       if ($quotation) {
-        $quotation->update(['is_take' => 0]);
+        $quotation->update([
+          'is_take' => 0
+        ]);
       }
+
+      // Actualizar allow_remove_associated_quote a false
+      $workOrder->update([
+        'allow_remove_associated_quote' => false
+      ]);
 
       $workOrder->load([
         'appointmentPlanning',

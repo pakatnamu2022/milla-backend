@@ -51,6 +51,8 @@ class ApWorkOrder extends Model
     'description_recall',
     'type_recall',
     'has_invoice_generated',
+    'allow_remove_associated_quote',
+    'allow_editing_inspection',
     'created_by',
   ];
 
@@ -70,6 +72,8 @@ class ApWorkOrder extends Model
     'discount_amount' => 'decimal:2',
     'tax_amount' => 'decimal:2',
     'final_amount' => 'decimal:2',
+    'allow_remove_associated_quote' => 'boolean',
+    'allow_editing_inspection' => 'boolean',
   ];
 
   const filters = [

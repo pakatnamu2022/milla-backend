@@ -6,6 +6,7 @@ use App\Http\Resources\ap\postventa\taller\ApVehicleInspectionResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Utils\Helpers;
+use App\Jobs\ProcessDamageImagesJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\taller\ApVehicleInspection;
 use App\Models\ap\postventa\taller\ApVehicleInspectionDamages;
@@ -22,10 +23,7 @@ class ApVehicleInspectionService extends BaseService
   protected DigitalFileService $digitalFileService;
 
   // Configuración de rutas para archivos
-  private const FILE_PATHS = [
-    'damage_photo' => '/ap/postventa/taller/inspecciones/danos/',
-    'customer_signature' => '/ap/postventa/taller/inspecciones/firmas-cliente/',
-  ];
+  private const FILE_PATH_CUSTOMER_SIGNATURE = '/ap/postventa/taller/inspecciones/firmas-cliente/';
 
   public function __construct(DigitalFileService $digitalFileService)
   {
@@ -88,12 +86,17 @@ class ApVehicleInspectionService extends BaseService
 
       // Procesar y guardar firmas si existen
       if ($customerSignature) {
-        $this->processSignature($inspection, $customerSignature, 'customer');
+        $this->processSignature($inspection, $customerSignature);
+      }
+
+      // Procesar imagenes de front, back, left y right
+      if (isset($data['photos_inspection'])) {
+        $this->processPhotosInspection($inspection, $data['photos_inspection'], 'photo_inspection');
       }
 
       // Procesar y crear los daños con sus imágenes
       if (!empty($damages)) {
-        $this->processDamages($inspection, $damages);
+        $this->processDamages($inspection, $damages, 'damage_photo');
       }
 
       DB::commit();
@@ -111,6 +114,28 @@ class ApVehicleInspectionService extends BaseService
   public function show($id)
   {
     return new ApVehicleInspectionResource($this->find($id));
+  }
+
+  public function update(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $inspection = $this->find($data['id']);
+      $workOrder = ApWorkOrder::findOrFail($data['work_order_id']);
+
+      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+        throw new Exception('No se puede modificar una orden de trabajo cerrada');
+      }
+
+      // Update allow_editing_inspection to true to allow editing
+      $workOrder->update([
+        'allow_editing_inspection' => false,
+      ]);
+
+      // Update the inspection
+      $inspection->update($data);
+
+      return new ApVehicleInspectionResource($inspection);
+    });
   }
 
   public function destroy(int $id)
@@ -139,10 +164,13 @@ class ApVehicleInspectionService extends BaseService
   }
 
   /**
-   * Procesa y crea los daños con sus imágenes
+   * Procesa y crea los daños con sus imágenes.
+   * Las imágenes se procesan en background para respuesta inmediata.
    */
-  private function processDamages($inspection, array $damages): void
+  private function processDamages($inspection, array $damages, string $type): void
   {
+    $pendingImages = [];
+
     foreach ($damages as $damageData) {
       $photoFile = null;
 
@@ -152,24 +180,81 @@ class ApVehicleInspectionService extends BaseService
         unset($damageData['photo']);
       }
 
-      // Crear el daño
+      // Crear el daño (sin foto inicialmente)
       $damage = new ApVehicleInspectionDamages($damageData);
       $damage->vehicle_inspection_id = $inspection->id;
-
-      // Si hay foto, subirla
-      if ($photoFile) {
-        $path = self::FILE_PATHS['damage_photo'];
-        $model = $damage->getTable();
-
-        // Subir archivo usando DigitalFileService
-        $digitalFile = $this->digitalFileService->store($photoFile, $path, 'public', $model);
-
-        // Asignar la URL al daño
-        $damage->photo_url = $digitalFile->url;
-      }
-
       $damage->save();
+
+      // Si hay foto, guardarla temporalmente para procesar en background
+      if ($photoFile) {
+        $tempPath = $this->saveToTemp($photoFile);
+        $pendingImages[] = [
+          'damage_id' => $damage->id,
+          'temp_path' => $tempPath,
+          'original_name' => $photoFile->getClientOriginalName(),
+        ];
+      }
     }
+
+    // Despachar Job para procesar imágenes en background
+    if (!empty($pendingImages)) {
+      ProcessDamageImagesJob::dispatch($pendingImages, [
+        'quality' => 75,
+        'maxWidth' => 1920,
+        'maxHeight' => 1080,
+      ], $type);
+    }
+  }
+
+  /**
+   * Procesa imagenes de front, back, left y right
+   * Las imágenes se procesan en background para respuesta inmediata.
+   */
+  private function processPhotosInspection($inspection, array $photosInspection, string $type): void
+  {
+    $pendingImages = [];
+    $photoTypes = ['photo_front', 'photo_back', 'photo_left', 'photo_right'];
+
+    foreach ($photoTypes as $photoType) {
+      if (isset($photosInspection[$photoType]) && $photosInspection[$photoType] instanceof UploadedFile) {
+        $photoFile = $photosInspection[$photoType];
+
+        // Guardar temporalmente para procesar en background
+        $tempPath = $this->saveToTemp($photoFile);
+        $pendingImages[] = [
+          'ap_vehicle_inspection_id' => $inspection->id,
+          'photo_type' => $photoType,
+          'temp_path' => $tempPath,
+          'original_name' => $photoFile->getClientOriginalName(),
+        ];
+      }
+    }
+
+    // Despachar Job para procesar imágenes en background
+    if (!empty($pendingImages)) {
+      ProcessDamageImagesJob::dispatch($pendingImages, [
+        'quality' => 75,
+        'maxWidth' => 1920,
+        'maxHeight' => 1080,
+      ], $type);
+    }
+  }
+
+  /**
+   * Guarda un archivo en directorio temporal para procesamiento en background.
+   */
+  private function saveToTemp(UploadedFile $file): string
+  {
+    $tempDir = storage_path('app/temp/vehicle_inspection');
+
+    if (!is_dir($tempDir)) {
+      mkdir($tempDir, 0755, true);
+    }
+
+    $tempPath = $tempDir . '/' . uniqid('damage_') . '_' . $file->getClientOriginalName();
+    $file->move($tempDir, basename($tempPath));
+
+    return $tempPath;
   }
 
   /**
@@ -210,15 +295,15 @@ class ApVehicleInspectionService extends BaseService
   /**
    * Procesa una firma en base64 y la guarda en Digital Ocean
    */
-  private function processSignature($inspection, string $base64Signature, string $type): void
+  private function processSignature($inspection, string $base64Signature): void
   {
     // Convertir base64 a UploadedFile con recorte automático
-    $signatureFile = Helpers::base64ToUploadedFile($base64Signature, "{$type}_signature.png");
+    $signatureFile = Helpers::base64ToUploadedFile($base64Signature, 'customer_signature.png', true);
 
     // Determinar la ruta y campo según el tipo
-    $path = self::FILE_PATHS["{$type}_signature"];
+    $path = self::FILE_PATH_CUSTOMER_SIGNATURE;
     $model = $inspection->getTable();
-    $fieldName = "{$type}_signature_url";
+    $fieldName = "customer_signature_url";
 
     // Subir archivo usando DigitalFileService
     $digitalFile = $this->digitalFileService->store($signatureFile, $path, 'public', $model);
