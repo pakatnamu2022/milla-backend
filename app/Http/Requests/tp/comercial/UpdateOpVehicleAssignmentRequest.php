@@ -4,7 +4,7 @@ namespace App\Http\Requests\tp\comercial;
 
 use App\Http\Requests\StoreRequest;
 
-class UpdateOpGoalTravelRequest extends StoreRequest
+class UpdateOpVehicleAssignmentRequest extends StoreRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -22,8 +22,8 @@ class UpdateOpGoalTravelRequest extends StoreRequest
     public function rules(): array
     {
         return [
-            'date' => 'required|date',
-            'total' => 'required|numeric|min:0'
+            'vehicle' => 'required|exists:op_vehiculo,id',
+            'driver' => 'required|exists:rrhh_persona,id'
         ];
     }
 }

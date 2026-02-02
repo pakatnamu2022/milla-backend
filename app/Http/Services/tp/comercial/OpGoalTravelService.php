@@ -11,73 +11,85 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Throwable;
 
 class OpGoalTravelService extends BaseService
 {
     public function list(Request $request)
     {
-        return $this->getFilteredGoalTravel($request);
+        $query = OpGoalTravel::query();
+        if ($request->has('status_id')) {
+            $statusId = $request->input('status_id');
+            
+            switch ($statusId) {
+                case '0':
+                    $query->where('status_deleted', 0);
+                    break;
+                case '1':
+                    $query->where('status_deleted', 1);
+                    break;
+                case 'all':
+                    break;
+                default:
+                    $query->where('status_deleted', 1);
+            }
+        } else {
+            $query->where('status_deleted', 1);
+        }
+
+        $availableYears = $this->getAvailableYears();
+
+        $response = $this->getFilteredResults(
+            $query,
+            $request,
+            OpGoalTravel::filters,
+            OpGoalTravel::sorts,
+            OpGoalTravelResource::class
+        );
+
+        if($response instanceof JsonResponse){
+            $data = $response->getData(true);
+
+
+            $data['available_years'] = $availableYears;
+
+            return response()->json($data);
+        }
+
+        return $response;
     }
-
-    private function getFilteredGoalTravel($request)
+    private function getAvailableYears()
     {
-        try{
+        try {
 
-            $query = OpGoalTravel::where('status_deleted', 1);
+            $years = OpGoalTravel::where('status_deleted', 1)
+                    ->get()
+                    ->map(function($item){
+                        if($item->fecha && !is_null($item->fecha)){
+                            try{
 
-            if($request->has('status_id') && $request->input('status_id') !== 'all'){
-                $statusId = $request->input('status_id');
+                                return $item->fecha->year;
 
-                if($statusId === '1' || $statusId === '0'){
-                    $query->where('status_deleted', $statusId);
-                }
-            }
+                            }catch(Exception $e){
+                                return null;
+                            }
+                        }
 
-            if($request->has('search') && !empty($request->input('search'))){
-                $searchTerm = $request->input('search');
+                        return null;
+                    })
+                    ->filter()
+                    ->unique()
+                    ->sortDesc()
+                    ->values()
+                    ->toArray();
 
-                $query->where(function($q) use ($searchTerm){
-                    $q->where('meta_conductor', 'like', "%{$searchTerm}%")
-                    ->orWhere('meta_vehiculo', 'like' , "%{$searchTerm}%")
-                    ->orWhere('total', 'like', "%{$searchTerm}%");
-                });
-
-            }
-
-            $query->orderBy('id', 'desc');
-            $query->orderBy('fecha', 'desc');
-
-            $perPage = $request->input('per_page', 10);
-            $page = $request->input('page', 1);
-            $paginated = $query->paginate($perPage, ['*'], 'page', $page);
-
-            return [
-                'data' => OpGoalTravelResource::collection($paginated->items()),
-                'links' => [
-                    'first' => $paginated->url(1),
-                    'last' => $paginated->url($paginated->lastPage()),
-                    'prev' => $paginated->previousPageUrl(),
-                    'next' => $paginated->nextPageUrl(),
-                ],
-                'meta' => [
-                    'current_page' => $paginated->currentPage(),
-                    'from' => $paginated->firstItem(),
-                    'to' => $paginated->lastItem(),
-                    'per_page' => $paginated->perPage(),
-                    'total' => $paginated->total(),
-                    'last_page' => $paginated->lastPage(),
-                ]
-                ];
-
-
-        }catch(Throwable $th){
-            Log::error('Error in getFilteredGoalTravel:', [
-                'error' => $th->getMessage(),
-                'trace' => $th->getTraceAsString(),
-                'request' => $request->all()
-            ]);
-            throw new Exception("Error al filtrar meta de viajes: " . $th->getMessage());
+        return $years;
+        
+        } catch (\Exception $e) {
+            Log::error('Error getting available years: ' . $e->getMessage());
+            return [];
         }
     }
 
