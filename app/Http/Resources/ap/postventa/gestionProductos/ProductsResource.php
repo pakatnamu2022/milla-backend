@@ -3,7 +3,6 @@
 namespace App\Http\Resources\ap\postventa\gestionProductos;
 
 use App\Http\Resources\ap\ApMastersResource;
-use App\Http\Resources\ap\ApPostVentaMastersResource;
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApVehicleBrandResource;
 use App\Http\Resources\ap\maestroGeneral\UnitMeasurementResource;
 use App\Http\Resources\ap\maestroGeneral\WarehouseResource;
@@ -54,6 +53,9 @@ class ProductsResource extends JsonResource
       'category' => new ApMastersResource($this->whenLoaded('category')),
       'brand' => new ApVehicleBrandResource($this->whenLoaded('brand')),
       'unit_measurement' => new UnitMeasurementResource($this->whenLoaded('unitMeasurement')),
+
+      // Purchase order status
+      'has_purchase_order' => $this->hasPurchaseOrder(),
     ];
   }
 }

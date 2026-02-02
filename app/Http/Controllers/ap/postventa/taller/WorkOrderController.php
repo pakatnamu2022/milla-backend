@@ -96,4 +96,20 @@ class WorkOrderController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function authorization(Request $request, $id)
+  {
+    try {
+      $data = $request->validate(
+        [
+          'allow_remove_associated_quote' => 'sometimes|required|boolean:',
+          'allow_editing_inspection' => 'sometimes|required|boolean'
+        ]
+      );
+      $data['id'] = $id;
+      return $this->success($this->service->authorization($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

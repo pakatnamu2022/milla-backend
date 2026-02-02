@@ -35,9 +35,49 @@ class PurchaseReceptionDetail extends Model
     'expiration_date' => 'date',
   ];
 
+  // Reception_type
+
+  const RECEPTION_TYPE_ORDERED = 'ORDERED';
+  const RECEPTION_TYPE_BONUS = 'BONUS';
+  const RECEPTION_TYPE_GIFT = 'GIFT';
+  const RECEPTION_TYPE_SAMPLE = 'SAMPLE';
+
+  // Reason_observation
+
+  const REASON_DAMAGED = 'DAMAGED';
+  const REASON_DEFECTIVE = 'DEFECTIVE';
+  const REASON_EXPIRED = 'EXPIRED';
+  const REASON_WRONG_PRODUCT = 'WRONG_PRODUCT';
+  const REASON_WRONG_QUANTITY = 'WRONG_QUANTITY';
+  const REASON_POOR_QUALITY = 'POOR_QUALITY';
+  const REASON_OTHER = 'OTHER';
+
   public function setObservationNotesAttribute($value)
   {
     $this->attributes['observation_notes'] = Str::upper($value);
+  }
+
+  public static function getReceptionTypeLabel($type): string
+  {
+    return match ($type) {
+      self::RECEPTION_TYPE_ORDERED => 'Orden',
+      self::RECEPTION_TYPE_BONUS => 'Bonus',
+      self::RECEPTION_TYPE_GIFT => 'Regalo',
+      self::RECEPTION_TYPE_SAMPLE => 'Muestra',
+    };
+  }
+
+  public static function getReasonObservationLabel($reason): string
+  {
+    return match ($reason) {
+      self::REASON_DAMAGED => 'Damaged',
+      self::REASON_DEFECTIVE => 'Defective',
+      self::REASON_EXPIRED => 'Expired',
+      self::REASON_WRONG_PRODUCT => 'Wrong Product',
+      self::REASON_WRONG_QUANTITY => 'Wrong Quantity',
+      self::REASON_POOR_QUALITY => 'Poor Quality',
+      self::REASON_OTHER => 'Other',
+    };
   }
 
   // Relationships

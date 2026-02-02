@@ -122,6 +122,18 @@ return [
       'icon' => 'UserCheck',
       'policy_method' => 'assign',
     ],
+    'manage' => [
+      'label' => 'Gestionar',
+      'description' => 'Permite gestionar configuraciones avanzadas',
+      'icon' => 'Settings',
+      'policy_method' => 'manage',
+    ],
+    'receive' => [
+      'label' => 'Recepcionar',
+      'description' => 'Permite recepcionar en el sistema vehículos o activos',
+      'icon' => 'Truck',
+      'policy_method' => 'receive',
+    ],
   ],
 
   /*
