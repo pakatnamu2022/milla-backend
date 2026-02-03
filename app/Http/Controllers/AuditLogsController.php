@@ -152,7 +152,7 @@ class AuditLogsController extends Controller
         }
 
         $logType = strtoupper($matches[3]);
- 
+
         if ($type && $logType !== $type) {
           continue;
         }

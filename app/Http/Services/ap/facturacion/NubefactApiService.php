@@ -40,6 +40,8 @@ class NubefactApiService
 
     // Log temporal para debugging
     Log::info('Payload enviado a Nubefact', [
+      'endpoint' => $this->apiUrl . $endpoint,
+      'token' => $this->token,
       'document_id' => $document->id,
       'payload' => $payload,
     ]);
@@ -67,6 +69,7 @@ class NubefactApiService
         'status' => $httpStatusCode,
         'response' => $responseData,
         'endpoint' => $this->apiUrl,
+        'token' => $this->token,
       ]);
 
       if ($response->successful() && isset($responseData['aceptada_por_sunat'])) {
