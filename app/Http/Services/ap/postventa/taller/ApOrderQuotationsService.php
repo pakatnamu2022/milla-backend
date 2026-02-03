@@ -10,6 +10,7 @@ use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -520,6 +521,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'discount' => $detail->discount_percentage,
         'total_amount' => $detail->total_amount,
         'item_type' => $detail->item_type,
+        'supply_type' => $detail->supply_type,
       ];
     });
 
@@ -711,6 +713,49 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'vehicle',
         'createdBy',
         'details',
+      ]);
+
+      return new ApOrderQuotationsResource($quotation);
+    });
+  }
+
+  /**
+   * Aprueba una cotización según el cargo del usuario autenticado:
+   * - Jefe de Taller (143) → chief_approval_by
+   * - Gerente de Taller (142) → manager_approval_by
+   */
+  public function approve(int $id)
+  {
+    return DB::transaction(function () use ($id) {
+      $quotation = $this->find($id);
+      $user = auth()->user();
+
+      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+        throw new Exception('No se puede aprobar una cotización que ha sido descartada.');
+      }
+
+      $positionId = $user->person?->position?->id;
+
+      if ($positionId === Position::POSITION_JEFE_TALLER_ID) {
+        if ($quotation->chief_approval_by) {
+          throw new Exception('Esta cotización ya fue aprobada por el Jefe de Taller.');
+        }
+        $quotation->update(['chief_approval_by' => $user->id]);
+      } elseif ($positionId === Position::POSITION_GERENTE_TALLER_ID) {
+        if ($quotation->manager_approval_by) {
+          throw new Exception('Esta cotización ya fue aprobada por el Gerente de Taller.');
+        }
+        $quotation->update(['manager_approval_by' => $user->id]);
+      } else {
+        throw new Exception('Solo los Jefes de Taller o Gerentes de Taller pueden aprobar cotizaciones.');
+      }
+
+      $quotation->load([
+        'vehicle',
+        'createdBy',
+        'details',
+        'chiefApprovalBy',
+        'managerApprovalBy',
       ]);
 
       return new ApOrderQuotationsResource($quotation);

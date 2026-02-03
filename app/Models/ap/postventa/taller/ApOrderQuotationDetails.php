@@ -3,6 +3,7 @@
 namespace App\Models\ap\postventa\taller;
 
 use App\Models\ap\postventa\gestionProductos\Products;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -28,6 +29,8 @@ class ApOrderQuotationDetails extends Model
     'retail_price_external',
     'exchange_rate',
     'freight_commission',
+    'created_by',
+    'supply_type',
     'status',
   ];
 
@@ -61,5 +64,10 @@ class ApOrderQuotationDetails extends Model
   public function product(): BelongsTo
   {
     return $this->belongsTo(Products::class, 'product_id');
+  }
+
+  public function createdBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'created_by');
   }
 }
