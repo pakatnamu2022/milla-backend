@@ -49,6 +49,9 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
         $data['created_by'] = auth()->user()->id;
       }
 
+      // Calculate total_amount from percentage
+      $data['total_amount'] = $this->calculateDetailTotal($data);
+
       // Create quotation detail
       $apOrderQuotationDetails = ApOrderQuotationDetails::create($data);
 
@@ -71,6 +74,9 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
   {
     return DB::transaction(function () use ($data) {
       $apOrderQuotationDetails = $this->find($data['id']);
+
+      // Calculate total_amount from percentage
+      $data['total_amount'] = $this->calculateDetailTotal($data);
 
       // Update quotation detail
       $apOrderQuotationDetails->update($data);
@@ -103,6 +109,13 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
     return response()->json(['message' => 'Detalle de cotización eliminado correctamente.']);
   }
 
+  private function calculateDetailTotal(array $data): float
+  {
+    $subtotal = ($data['quantity'] ?? 0) * ($data['unit_price'] ?? 0);
+    $discountPercentage = $data['discount_percentage'] ?? 0;
+    return round($subtotal - ($subtotal * $discountPercentage / 100), 2);
+  }
+
   /**
    * Recalculate and update quotation totals based on all details
    *
@@ -119,11 +132,9 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
     $totalDiscountAmount = 0;
 
     foreach ($details as $detail) {
-      // Subtotal = sum of (quantity * unit_price) for all items
-      $subtotal += ($detail->quantity * $detail->unit_price);
-
-      // Total discount = sum of all discount amounts
-      $totalDiscountAmount += $detail->discount;
+      $lineSubtotal = $detail->quantity * $detail->unit_price;
+      $subtotal += $lineSubtotal;
+      $totalDiscountAmount += $lineSubtotal * ($detail->discount_percentage / 100);
     }
 
     // Calculate discount percentage

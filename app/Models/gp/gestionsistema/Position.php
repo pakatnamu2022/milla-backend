@@ -78,6 +78,8 @@ class Position extends BaseModel
     });
   }
 
+  const POSITION_JEFE_TALLER_ID = 143;
+  const POSITION_GERENTE_TALLER_ID = 142;
 
   public function setNameAttribute($value)
   {

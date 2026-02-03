@@ -135,4 +135,13 @@ class ApOrderQuotationsController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function approve($id)
+  {
+    try {
+      return $this->success($this->service->approve($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

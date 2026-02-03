@@ -32,6 +32,7 @@ class ApOrderQuotationDetailsResource extends JsonResource
       'retail_price_external' => $this->retail_price_external,
       'exchange_rate' => $this->exchange_rate,
       'freight_commission' => $this->freight_commission,
+      'supply_type' => $this->supply_type,
       'created_by' => $this->created_by,
       'created_by_name' => $this->createdBy ? $this->createdBy->name : null,
 

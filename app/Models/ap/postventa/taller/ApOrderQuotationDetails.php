@@ -30,6 +30,7 @@ class ApOrderQuotationDetails extends Model
     'exchange_rate',
     'freight_commission',
     'created_by',
+    'supply_type',
     'status',
   ];
 

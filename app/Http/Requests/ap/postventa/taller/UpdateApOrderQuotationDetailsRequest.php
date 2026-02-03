@@ -73,6 +73,11 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
         'nullable',
         'string',
       ],
+      'supply_type' => [
+        'sometimes',
+        'nullable',
+        'in:LIMA,IMPORTACION',
+      ],
     ];
   }
 
@@ -115,6 +120,8 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
       'total_amount.required' => 'El monto total es obligatorio.',
       'total_amount.numeric' => 'El monto total debe ser un número.',
       'total_amount.min' => 'El monto total no puede ser negativo.',
+
+      'supply_type.in' => 'El tipo de suministro debe ser LIMA o IMPORTADO.',
 
       'observations.string' => 'Las observaciones deben ser una cadena de texto.',
     ];
