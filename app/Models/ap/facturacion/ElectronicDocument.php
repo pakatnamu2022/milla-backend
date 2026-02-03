@@ -244,6 +244,12 @@ class ElectronicDocument extends BaseModel
     }
   }
 
+  public function getSedeIdAttribute()
+  {
+    $series = AssignSalesSeries::find($this->series_id);
+    return $series ? $series->sede_id : null;
+  }
+
   public function bank()
   {
     return $this->belongsTo(ApBank::class, 'bank_id');

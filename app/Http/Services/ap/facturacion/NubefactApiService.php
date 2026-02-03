@@ -16,9 +16,13 @@ class NubefactApiService
 
   public function __construct()
   {
-    $this->apiUrl = config('nubefact.api_url');
-    $this->token = config('nubefact.token');
-    $this->ruc = config('nubefact.ruc');
+  }
+
+  public function setApiCredentials($sedeId): void
+  {
+    $this->apiUrl = config('nubefact.' . $sedeId . '.api_url');
+    $this->token = config('nubefact.' . $sedeId . '.token');
+    $this->ruc = config('nubefact.' . $sedeId . '.ruc');
   }
 
   /**
@@ -30,6 +34,7 @@ class NubefactApiService
    */
   public function generateDocument($document): array
   {
+    $this->setApiCredentials($document->sede_id);
     $payload = $this->buildDocumentPayload($document);
     $endpoint = $this->getEndpointForDocumentType($document->documentType->code_nubefact);
 
@@ -108,6 +113,7 @@ class NubefactApiService
    */
   public function queryDocument($document): array
   {
+    $this->setApiCredentials($document->sede_id);
     $body = [
       'operacion' => 'consultar_comprobante',
       'tipo_de_comprobante' => $document->documentType->code_nubefact,
@@ -187,6 +193,7 @@ class NubefactApiService
    */
   public function cancelDocument($document, string $reason): array
   {
+    $this->setApiCredentials($document->sede_id);
     $payload = [
       'operacion' => 'generar_anulacion',
       'tipo_de_comprobante' => $document->documentType->code_nubefact,
@@ -258,6 +265,7 @@ class NubefactApiService
    */
   public function queryCancellation($document): array
   {
+    $this->setApiCredentials($document->sede_id);
     $queryParams = [
       'tipo' => $document->documentType->code_nubefact,
       'serie' => $document->serie,
@@ -325,6 +333,7 @@ class NubefactApiService
    */
   public function buildDocumentPayload($document): array
   {
+    $this->setApiCredentials($document->sede_id);
     $payload = [
       'operacion' => 'generar_comprobante',
       'tipo_de_comprobante' => $document->documentType->code_nubefact,
