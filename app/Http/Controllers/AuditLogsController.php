@@ -120,13 +120,12 @@ class AuditLogsController extends Controller
   }
 
   /**
-   * Obtener logs del sistema (laravel.log) con filtros
+   * Obtener logs del sistema para un día específico con filtros
    *
    * Query params:
+   *   day          - Día del log (Y-m-d) [obligatorio]
    *   type         - Nivel del log (DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)
    *   environment  - Entorno (local, production, etc.)
-   *   date_from    - Fecha inicial (Y-m-d)
-   *   date_to      - Fecha final (Y-m-d)
    *   search       - Palabra clave en el mensaje
    *   page         - Página actual (default 1)
    *   per_page     - Registros por página (default 50)
@@ -134,21 +133,16 @@ class AuditLogsController extends Controller
   public function logs(LogRequest $request)
   {
     try {
-      $logFile = storage_path('logs/laravel.log');
+      $logFile = storage_path('logs/laravel-' . $request->input('day') . '.log');
 
       if (!File::exists($logFile)) {
-        return $this->error('No logs found.', 404);
+        return $this->error('No hay logs para el día indicado.', 404);
       }
 
-      // Preparar filtros una sola vez antes del loop
-      $type        = $request->input('type') ? strtoupper($request->input('type')) : null;
+      $type = $request->input('type') ? strtoupper($request->input('type')) : null;
       $environment = $request->input('environment');
-      $search      = $request->input('search') ? strtolower($request->input('search')) : null;
-      // Formato string para comparación directa (evita instanciar Carbon por cada línea)
-      $dateFrom    = $request->input('date_from') ? $request->input('date_from') . ' 00:00:00' : null;
-      $dateTo      = $request->input('date_to') ? $request->input('date_to') . ' 23:59:59' : null;
+      $search = $request->input('search') ? strtolower($request->input('search')) : null;
 
-      // Leer línea por línea y filtrar al mismo tiempo
       $filteredLogs = [];
       $handle = fopen($logFile, 'r');
 
@@ -158,7 +152,7 @@ class AuditLogsController extends Controller
         }
 
         $logType = strtoupper($matches[3]);
-
+ 
         if ($type && $logType !== $type) {
           continue;
         }
@@ -167,23 +161,15 @@ class AuditLogsController extends Controller
           continue;
         }
 
-        if ($dateFrom && $matches[1] < $dateFrom) {
-          continue;
-        }
-
-        if ($dateTo && $matches[1] > $dateTo) {
-          continue;
-        }
-
         if ($search && !str_contains(strtolower($matches[4]), $search)) {
           continue;
         }
 
         $filteredLogs[] = [
-          'date'        => $matches[1],
+          'date' => $matches[1],
           'environment' => $matches[2],
-          'type'        => $logType,
-          'message'     => $matches[4],
+          'type' => $logType,
+          'message' => $matches[4],
         ];
       }
 
@@ -193,20 +179,20 @@ class AuditLogsController extends Controller
       $filteredLogs = array_reverse($filteredLogs);
 
       // Paginación
-      $perPage = (int) $request->input('per_page', 50);
-      $page    = (int) $request->input('page', 1);
-      $total   = count($filteredLogs);
+      $perPage = (int)$request->input('per_page', 50);
+      $page = (int)$request->input('page', 1);
+      $total = count($filteredLogs);
 
       $paginatedLogs = array_slice($filteredLogs, ($page - 1) * $perPage, $perPage);
 
       return $this->success([
-        'logs'            => $paginatedLogs,
+        'logs' => $paginatedLogs,
         'available_types' => ['ALERT', 'CRITICAL', 'DEBUG', 'EMERGENCY', 'ERROR', 'INFO', 'NOTICE', 'WARNING'],
         'meta' => [
-          'total'        => $total,
-          'per_page'     => $perPage,
+          'total' => $total,
+          'per_page' => $perPage,
           'current_page' => $page,
-          'last_page'    => (int) ceil($total / $perPage),
+          'last_page' => (int)ceil($total / $perPage),
         ],
       ]);
     } catch (\Throwable $th) {
