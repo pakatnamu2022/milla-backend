@@ -5,9 +5,9 @@ namespace App\Http\Controllers\ap\postventa\taller;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\postventa\taller\IndexApVehicleInspectionRequest;
 use App\Http\Requests\ap\postventa\taller\StoreApVehicleInspectionRequest;
+use App\Http\Requests\ap\postventa\taller\UpdateApVehicleInspectionRequest;
 use App\Http\Services\ap\postventa\taller\ApVehicleInspectionService;
 use Exception;
-use Illuminate\Support\Facades\Log;
 
 class ApVehicleInspectionController extends Controller
 {
@@ -68,9 +68,6 @@ class ApVehicleInspectionController extends Controller
         'photo_right' => $request->hasFile('photo_right') ? $request->file('photo_right') : null,
       ];
 
-      Log::info(gettype($data['damages']), $data['damages']);
-      Log::info(gettype($data['photos_inspection']), $data['photos_inspection']);
-
       return $this->service->store($data);
     } catch (Exception $e) {
       return response()->json([
@@ -92,6 +89,17 @@ class ApVehicleInspectionController extends Controller
         'message' => 'Error al obtener la inspección vehicular',
         'error' => $e->getMessage()
       ], 404);
+    }
+  }
+
+  public function update(UpdateApVehicleInspectionRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->update($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
   }
 

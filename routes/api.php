@@ -189,28 +189,41 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::prefix('photos')->group(function () {
       Route::get('/{id}', [TpTravelPhotoController::class, 'show'])->name('photos.show');
       Route::delete('/{id}', [TpTravelPhotoController::class, 'destroy'])->name('photos.destroy');
-      
-    });
-    Route::group(['prefix' => 'freight'], function (){
-        Route::apiResource('control-freight', OpFreightController::class)->only([
-            'index',
-            'show',
-            'store',
-            'update',
-            'destroy'
-          ]);
-          Route::get('control-freight/form/data', [OpFreightController::class, 'getFormData']);
-          Route::get('control-freight/customers/search', [OpFreightController::class, 'searchCustomers']);
-      });
 
-    Route::group(['prefix' => 'goal'], function() {
-        Route::apiResource('control-goal', OpGoalTravelController::class)->only([
+    });
+    Route::group(['prefix' => 'freight'], function () {
+      Route::apiResource('control-freight', OpFreightController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+      Route::get('control-freight/form/data', [OpFreightController::class, 'getFormData']);
+      Route::get('control-freight/customers/search', [OpFreightController::class, 'searchCustomers']);
+    });
+
+    Route::group(['prefix' => 'goal'], function () {
+      Route::apiResource('control-goal', OpGoalTravelController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+    });
+
+      Route::group(['prefix' => 'opVehicleAssignment'], function (){
+        Route::apiResource('control-vehicleAssignment', OpVehicleAssignmentController::class)->only([
           'index',
           'show',
           'store',
           'update',
           'destroy'
         ]);
+        Route::get('control-vehicleAssignment/form/data', [OpVehicleAssignmentController::class, 'getFormData']);
+        Route::get('control-vehicleAssignment/drivers/search', [OpVehicleAssignmentController::class, 'searchDrivers']);
 
       });
 
@@ -1164,6 +1177,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('workOrders/{id}/payment-summary', [WorkOrderController::class, 'getPaymentSummary']);
       Route::get('workOrders/{id}/pre-liquidation', [WorkOrderController::class, 'getPreLiquidationPdf']);
       Route::patch('workOrders/{id}/unlink-quotation', [WorkOrderController::class, 'unlinkQuotation']);
+      Route::patch('workOrders/{id}/authorization', [WorkOrderController::class, 'authorization']);
       Route::apiResource('workOrders', WorkOrderController::class)->only([
         'index',
         'show',
@@ -1263,6 +1277,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'index',
         'show',
         'store',
+        'update',
         'destroy'
       ]);
 

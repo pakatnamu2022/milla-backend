@@ -94,7 +94,7 @@ class InventoryMovementService extends BaseService
             'quantity' => $quantityReceived,
             'unit_cost' => $detail->unit_cost ?? 0,
             'total_cost' => $quantityReceived * ($detail->unit_cost ?? 0),
-            'notes' => $detail->reception_type === 'ORDERED'
+            'notes' => $detail->reception_type === PurchaseReceptionDetail::RECEPTION_TYPE_ORDERED
               ? "Item de - {$detail->product->name}"
               : "{$detail->reception_type} - {$detail->product->name}",
           ]);
@@ -1195,7 +1195,7 @@ class InventoryMovementService extends BaseService
         'quantity_ordered' => $orderItem?->quantity ?? 0,
         'quantity_received' => $detail->quantity_received,
         'total_line' => $orderItem?->total ?? ($detail->quantity_received * ($orderItem?->unit_price ?? 0)),
-        'reception_type' => $detail->reception_type,
+        'reception_type' => PurchaseReceptionDetail::getReceptionTypeLabel($detail->reception_type),
         'received_by' => $reception?->receivedByUser?->name,
         'notes' => $detail->notes,
       ];
@@ -1443,7 +1443,7 @@ class InventoryMovementService extends BaseService
         'quantity_ordered' => $orderItem?->quantity ?? 0,
         'quantity_received' => $detail->quantity_received,
         'total_line' => $orderItem?->total ?? ($detail->quantity_received * ($orderItem?->unit_price ?? 0)),
-        'reception_type' => $detail->reception_type,
+        'reception_type' => PurchaseReceptionDetail::getReceptionTypeLabel($detail->reception_type),
         'received_by' => $reception?->receivedByUser?->name,
         'notes' => $detail->notes,
       ];

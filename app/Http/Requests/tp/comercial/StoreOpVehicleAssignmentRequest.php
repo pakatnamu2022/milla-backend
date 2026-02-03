@@ -4,7 +4,7 @@ namespace App\Http\Requests\tp\comercial;
 
 use App\Http\Requests\StoreRequest;
 
-class StoreOpGoalTravelRequest extends StoreRequest
+class StoreOpVehicleAssignmentRequest extends StoreRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -22,18 +22,18 @@ class StoreOpGoalTravelRequest extends StoreRequest
     public function rules(): array
     {
         return [
-            'date' => 'required|date',
-            'total' => 'required|numeric|min:0'
+            'vehicle' => 'required|exists:op_vehiculo,id',
+            'driver' => 'required|exists:rrhh_persona,id'
         ];
     }
-
+    
     public function messages()
     {
-        return [
-            'date.required' => 'El Periodo es requerido',
-            'total.required' => 'El total de la meta es requerido',
-            'total.numeric' => 'El total de la meta debe ser un numero',
-            'total.min' => 'El total de la meta debe ser mayor o igual a 0'            
+        return[
+            'vehicle.required' => 'El Vehiculo es requerido',
+            'vehicle.exists' => 'El vehiculo seleccionado no existe',
+            'driver.required' => 'El conductor es requerido',
+            'driver.exists' => 'El conductor seleccionado no existe',
         ];
     }
 }
