@@ -1231,6 +1231,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::put('orderQuotations/{id}/with-products', [ApOrderQuotationsController::class, 'updateWithProducts']);
       Route::put('orderQuotations/{id}/discard', [ApOrderQuotationsController::class, 'discard']);
       Route::put('orderQuotations/{id}/confirm', [ApOrderQuotationsController::class, 'confirm']);
+      Route::put('orderQuotations/{id}/approve', [ApOrderQuotationsController::class, 'approve']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',
@@ -1333,6 +1334,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Migration logs and history
       Route::get('electronic-documents/{id}/logs', [ElectronicDocumentController::class, 'logs']);
       Route::get('electronic-documents/{id}/history', [ElectronicDocumentController::class, 'history']);
+
+      // Report
+      Route::get('electronic-documents-report', [ElectronicDocumentController::class, 'report']);
 
       // CRUD de Documentos Electrónicos
       Route::apiResource('electronic-documents', ElectronicDocumentController::class);

@@ -15,7 +15,7 @@ class UpdateApOrderQuotationsRequest extends StoreRequest
       'vehicle_id' => ['sometimes', 'required', 'integer', 'exists:ap_vehicles,id'],
       'sede_id' => ['sometimes', 'required', 'integer', 'exists:config_sede,id'],
       'client_id' => ['sometimes', 'required', 'integer', 'exists:business_partners,id'],
-      'quotation_date' => ['required', 'date'],
+      'quotation_date' => ['sometimes', 'required', 'date'],
       'expiration_date' => ['nullable', 'date', 'after_or_equal:quotation_date'],
       'observations' => ['nullable', 'string'],
     ];

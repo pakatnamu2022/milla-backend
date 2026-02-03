@@ -6,6 +6,15 @@ use App\Http\Requests\StoreRequest;
 
 class StoreApOrderQuotationDetailsRequest extends StoreRequest
 {
+  protected function prepareForValidation()
+  {
+    if (empty($this->supply_type)) {
+      $this->merge([
+        'supply_type' => 'M.O',
+      ]);
+    }
+  }
+
   public function rules(): array
   {
     return [
@@ -42,7 +51,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
       'unit_price' => [
         'required',
         'numeric',
-        'min:0',
+        'min:0.1',
       ],
       'discount_percentage' => [
         'nullable',
@@ -62,7 +71,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
       'retail_price_external' => [
         'nullable',
         'numeric',
-        'min:0',
+        'min:0.1',
       ],
       'exchange_rate' => [
         'nullable',
@@ -74,6 +83,10 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
         'numeric',
         'min:0',
         'max:100',
+      ],
+      'supply_type' => [
+        'nullable',
+        'in:LIMA,IMPORTACION,M.O',
       ],
     ];
   }
@@ -116,7 +129,12 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
       'total_amount.numeric' => 'El monto total debe ser un número.',
       'total_amount.min' => 'El monto total no puede ser negativo.',
 
+      'supply_type.in' => 'El tipo de suministro debe ser LIMA, IMPORTACION o M.O.',
+
       'observations.string' => 'Las observaciones deben ser una cadena de texto.',
+
+      'retail_price_external.numeric' => 'El precio minorista externo debe ser un número.',
+      'retail_price_external.min' => 'El precio no puede ser diferente de 0 y negativo.',
     ];
   }
 }
