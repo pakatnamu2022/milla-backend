@@ -11,6 +11,7 @@ use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\configuracionComercial\venta\ApBank;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
@@ -24,7 +25,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use function json_decode;
 
 class ElectronicDocument extends BaseModel
 {
@@ -95,6 +95,9 @@ class ElectronicDocument extends BaseModel
     'observaciones',
     'condiciones_de_pago',
     'medio_de_pago',
+    'bank_id',
+    'operation_number',
+    'financing_type',
     'placa_vehiculo',
     'orden_compra_servicio',
     'codigo_unico',
@@ -239,6 +242,11 @@ class ElectronicDocument extends BaseModel
     } else {
       throw new Exception("El documento no tiene asociado un movimiento de vehículo.");
     }
+  }
+
+  public function bank()
+  {
+    return $this->belongsTo(ApBank::class, 'bank_id');
   }
 
   public function seriesModel(): BelongsTo
