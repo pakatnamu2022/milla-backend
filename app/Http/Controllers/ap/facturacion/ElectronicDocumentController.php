@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ap\facturacion;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ap\facturacion\ElectronicDocumentReportRequest;
 use App\Http\Requests\ap\facturacion\IndexElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\NextCorrelativeElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\StoreCreditNoteRequest;
@@ -17,6 +18,7 @@ use App\Http\Traits\HasApiResponse;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Exception;
@@ -443,6 +445,53 @@ class ElectronicDocumentController extends Controller
           'migrated_at' => $electronicDocument->migrated_at?->format('Y-m-d H:i:s'),
         ],
         'timeline' => $timeline,
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Generate report of electronic documents
+   */
+  public function report(ElectronicDocumentReportRequest $request): JsonResponse
+  {
+    try {
+      $filters = $request->toReportFilters();
+      $model = new ElectronicDocument();
+      $data = $model->getReportData($filters);
+
+      // Transform data to include only reportColumns
+      $columns = $model->getReportableColumns();
+      $reportData = $data->map(function ($item) use ($columns) {
+        $row = [];
+        foreach ($columns as $column => $config) {
+          $value = data_get($item, $column);
+
+          // Apply formatter if specified
+          if (isset($config['formatter']) && $value !== null) {
+            switch ($config['formatter']) {
+              case 'date':
+                $value = $value instanceof Carbon ? $value->format('d/m/Y') : $value;
+                break;
+              case 'datetime':
+                $value = $value instanceof Carbon ? $value->format('d/m/Y H:i:s') : $value;
+                break;
+              case 'boolean':
+                $value = $value ? 'Sí' : 'No';
+                break;
+            }
+          }
+
+          $row[$config['label']] = $value;
+        }
+        return $row;
+      });
+
+      return $this->success([
+        'data' => $reportData,
+        'total' => $reportData->count(),
+        'columns' => array_values(array_map(fn($col) => $col['label'], $columns)),
       ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
