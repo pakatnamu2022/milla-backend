@@ -44,6 +44,7 @@ class NubefactApiService
       'token' => $this->token,
       'document_id' => $document->id,
       'payload' => $payload,
+      'sede_id' => $document->sede_id,
     ]);
 
     $logData = [
@@ -70,6 +71,7 @@ class NubefactApiService
         'response' => $responseData,
         'endpoint' => $this->apiUrl,
         'token' => $this->token,
+        'sede_id' => $document->sede_id,
       ]);
 
       if ($response->successful() && isset($responseData['aceptada_por_sunat'])) {
