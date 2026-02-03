@@ -40,6 +40,7 @@ class SnapshotCommercialManagerBrandGroupPeriods extends Command
     $assignments = DB::table('ap_commercial_manager_brand_group_periods')
       ->where('year', $previousYear)
       ->where('month', $previousMonthNumber)
+      ->where('status', true)
       ->get();
 
     if ($assignments->isEmpty()) {

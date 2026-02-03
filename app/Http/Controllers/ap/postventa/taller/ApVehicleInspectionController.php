@@ -132,4 +132,16 @@ class ApVehicleInspectionController extends Controller
       ], 500);
     }
   }
+
+  public function generateOrderReceipt($id)
+  {
+    try {
+      return $this->service->generateOrderReceipt($id);
+    } catch (Exception $e) {
+      return response()->json([
+        'message' => 'Error al generar el reporte de recepción',
+        'error' => $e->getMessage()
+      ], 500);
+    }
+  }
 }

@@ -214,18 +214,18 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     });
 
-      Route::group(['prefix' => 'opVehicleAssignment'], function (){
-        Route::apiResource('control-vehicleAssignment', OpVehicleAssignmentController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-        Route::get('control-vehicleAssignment/form/data', [OpVehicleAssignmentController::class, 'getFormData']);
-        Route::get('control-vehicleAssignment/drivers/search', [OpVehicleAssignmentController::class, 'searchDrivers']);
+    Route::group(['prefix' => 'opVehicleAssignment'], function () {
+      Route::apiResource('control-vehicleAssignment', OpVehicleAssignmentController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+      Route::get('control-vehicleAssignment/form/data', [OpVehicleAssignmentController::class, 'getFormData']);
+      Route::get('control-vehicleAssignment/drivers/search', [OpVehicleAssignmentController::class, 'searchDrivers']);
 
-      });
+    });
 
   });
 
@@ -1274,6 +1274,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Vehicle Inspections - Inspecciones Vehiculares
       Route::get('vehicleInspections/{id}/reception-report', [ApVehicleInspectionController::class, 'generateReceptionReport']);
+      Route::get('vehicleInspections/{id}/order-receipt', [ApVehicleInspectionController::class, 'generateOrderReceipt']);
       Route::apiResource('vehicleInspections', ApVehicleInspectionController::class)->only([
         'index',
         'show',
