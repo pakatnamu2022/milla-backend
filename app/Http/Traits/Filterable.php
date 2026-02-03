@@ -6,8 +6,43 @@ use App\Http\Utils\Constants;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
+/**
+ * Trait Filterable
+ *
+ * Proporciona funcionalidades avanzadas de filtrado, ordenamiento y paginación
+ * para modelos de Eloquent. Soporta múltiples tipos de filtros incluyendo:
+ * - Filtros de base de datos (columnas reales)
+ * - Filtros virtuales (alias/columnas calculadas con HAVING)
+ * - Filtros de accessors (atributos calculados filtrados en memoria)
+ * - Búsqueda en múltiples campos (incluye relaciones)
+ * - Scopes personalizados
+ * - Filtros en relaciones
+ *
+ * @package App\Http\Traits
+ */
 trait Filterable
 {
+  /**
+   * Aplica filtros a una consulta de Eloquent basándose en parámetros de la petición.
+   *
+   * Procesa un array de filtros y aplica condiciones WHERE a la consulta según los operadores especificados.
+   * Soporta filtros en columnas directas, relaciones, búsqueda en múltiples campos, y filtros especiales
+   * como virtuales, accessors y scopes.
+   *
+   * @param \Illuminate\Database\Eloquent\Builder $query La consulta de Eloquent a filtrar
+   * @param \Illuminate\Http\Request $request La petición HTTP con los parámetros de filtrado
+   * @param array $filters Array asociativo donde la clave es el nombre del filtro y el valor es el operador o configuración
+   *
+   * Estructura del array $filters:
+   * - 'columna' => 'operador' // Operadores: '=', 'like', 'between', '>', '<', '>=', '<=', 'in', 'date_between', etc.
+   * - 'search' => ['campo1', 'campo2', 'relacion.campo'] // Búsqueda en múltiples campos
+   * - 'alias_virtual' => 'virtual_bool|virtual_like|virtual_numeric' // Para columnas calculadas
+   * - 'accessor' => 'accessor_bool|accessor_like|accessor_numeric|accessor_gt|accessor_lt' // Para atributos calculados
+   * - 'campo' => 'scope' // Llama al scope dinámicamente
+   * - 'relacion.campo' => 'operador' // Filtro en relación
+   *
+   * @return \Illuminate\Database\Eloquent\Builder La consulta con los filtros aplicados
+   */
   protected function applyFilters($query, $request, $filters)
   {
     foreach ($filters as $filter => $operator) {
@@ -76,6 +111,18 @@ trait Filterable
     return $query;
   }
 
+  /**
+   * Aplica filtros a columnas virtuales (alias o calculadas) usando cláusula HAVING.
+   *
+   * Las columnas virtuales son alias definidos en SELECT que no existen físicamente en la tabla.
+   * Se filtran usando HAVING en lugar de WHERE.
+   *
+   * @param \Illuminate\Database\Eloquent\Builder $query La consulta de Eloquent
+   * @param string $alias El nombre del alias/columna virtual
+   * @param string $operator El tipo de operador virtual (virtual_bool, virtual_like, virtual_numeric)
+   * @param mixed $value El valor a filtrar
+   * @return void
+   */
   protected function applyVirtualFilter($query, $alias, $operator, $value): void
   {
     switch ($operator) {
@@ -113,7 +160,17 @@ trait Filterable
     }
   }
 
-  // 👇 NUEVO: Método para aplicar filtros de accessor
+  /**
+   * Aplica filtros a accessors de Eloquent (atributos calculados) en una colección.
+   *
+   * Los accessors son atributos calculados que no existen en la base de datos.
+   * Dado que no pueden filtrarse con SQL, este método filtra la colección en memoria.
+   *
+   * @param \Illuminate\Support\Collection $collection La colección de modelos a filtrar
+   * @param \Illuminate\Http\Request $request La petición HTTP con los parámetros de filtrado
+   * @param array $filters Array de filtros donde los operadores comienzan con 'accessor'
+   * @return \Illuminate\Support\Collection La colección filtrada y re-indexada
+   */
   protected function applyAccessorFilters($collection, $request, $filters)
   {
     foreach ($filters as $filter => $operator) {
@@ -136,7 +193,17 @@ trait Filterable
     return $collection;
   }
 
-  // 👇 NUEVO: Condiciones para filtros de accessor
+  /**
+   * Evalúa la condición de filtro para un accessor en un modelo específico.
+   *
+   * Soporta múltiples operadores: bool, like, numeric, gt, lt, gte, lte, between, in.
+   *
+   * @param mixed $item El modelo o item a evaluar
+   * @param string $filter El nombre del accessor/atributo
+   * @param string $operator El tipo de operador accessor (accessor_bool, accessor_like, etc.)
+   * @param mixed $value El valor a comparar
+   * @return bool True si el item cumple la condición, false en caso contrario
+   */
   protected function applyAccessorFilterCondition($item, $filter, $operator, $value)
   {
     $itemValue = data_get($item, $filter);
@@ -181,6 +248,18 @@ trait Filterable
     }
   }
 
+  /**
+   * Aplica una condición de filtro específica a la consulta de Eloquent.
+   *
+   * Traduce operadores de filtro a condiciones WHERE de Eloquent.
+   * Califica automáticamente las columnas con el nombre de tabla para evitar ambigüedades.
+   *
+   * @param \Illuminate\Database\Eloquent\Builder $query La consulta de Eloquent
+   * @param string $filter El nombre de la columna a filtrar
+   * @param string $operator El operador de filtrado (like, between, date_btw, >, <, >=, <=, =, in, in_or_equal)
+   * @param mixed $value El valor a filtrar (puede ser string, array, número, etc.)
+   * @return void
+   */
   protected function applyFilterCondition($query, $filter, $operator, $value)
   {
     // Obtener el alias de la tabla si existe
@@ -234,10 +313,14 @@ trait Filterable
   }
 
   /**
-   * Califica el nombre de columna con el alias de tabla si es necesario
-   * @param \Illuminate\Database\Eloquent\Builder $query
-   * @param string $column
-   * @return string
+   * Califica el nombre de columna con el alias de tabla si es necesario.
+   *
+   * Previene errores de ambigüedad cuando hay joins al prefijar columnas con el nombre de tabla.
+   * Si la columna ya contiene un punto (tabla.columna), no hace ninguna modificación.
+   *
+   * @param \Illuminate\Database\Eloquent\Builder $query La consulta de Eloquent
+   * @param string $column El nombre de la columna
+   * @return string La columna calificada en formato tabla.columna
    */
   protected function qualifyColumn($query, $column)
   {
@@ -256,6 +339,17 @@ trait Filterable
     return $table . '.' . $column;
   }
 
+  /**
+   * Aplica ordenamiento a la consulta basándose en parámetros de la petición.
+   *
+   * Lee los parámetros 'sort' (campo) y 'direction' (asc/desc) del request.
+   * Si no se especifica un campo válido, ordena por 'id' descendente por defecto.
+   *
+   * @param \Illuminate\Database\Eloquent\Builder $query La consulta de Eloquent
+   * @param \Illuminate\Http\Request $request La petición HTTP con parámetros sort y direction
+   * @param array $sorts Array de campos permitidos para ordenamiento
+   * @return \Illuminate\Database\Eloquent\Builder La consulta con el ordenamiento aplicado
+   */
   protected function applySorting($query, $request, $sorts)
   {
     $sortField = $request->query('sort');
@@ -274,7 +368,17 @@ trait Filterable
     return $query;
   }
 
-  // 👇 NUEVO: Método para ordenar por accessor
+  /**
+   * Aplica ordenamiento a una colección por un accessor (atributo calculado).
+   *
+   * Dado que los accessors no existen en la base de datos, el ordenamiento
+   * se realiza en memoria sobre la colección.
+   *
+   * @param \Illuminate\Support\Collection $collection La colección de modelos a ordenar
+   * @param \Illuminate\Http\Request $request La petición HTTP con parámetros sort y direction
+   * @param array $sorts Array de campos de ordenamiento, donde los accessors tienen valor 'accessor*'
+   * @return \Illuminate\Support\Collection La colección ordenada
+   */
   protected function applyAccessorSorting($collection, $request, $sorts)
   {
     $sortField = $request->query('sort');
@@ -289,7 +393,21 @@ trait Filterable
     return $collection;
   }
 
-  // 👇 CORREGIDO: Generar links de paginación en el formato simple
+  /**
+   * Genera los links de paginación en formato compatible con Laravel.
+   *
+   * Crea un array de links con formato similar al de Laravel paginate:
+   * - Link Previous
+   * - Links de páginas numeradas (máximo 10 páginas alrededor de la actual)
+   * - Puntos suspensivos (...) cuando hay saltos en la numeración
+   * - Link Next
+   *
+   * @param int $currentPage La página actual
+   * @param int $lastPage La última página disponible
+   * @param string $baseUrl La URL base para los links
+   * @param array $queryParams Los parámetros de query string a preservar
+   * @return array Array de links con estructura: ['url', 'label', 'active']
+   */
   protected function generatePaginationLinks($currentPage, $lastPage, $baseUrl, $queryParams)
   {
     $links = [];
@@ -361,6 +479,28 @@ trait Filterable
     return $links;
   }
 
+  /**
+   * Método principal que ejecuta filtrado, ordenamiento, paginación y transformación de recursos.
+   *
+   * Este método coordina todo el proceso de filtrado:
+   * 1. Aplica filtros de base de datos y virtuales
+   * 2. Maneja filtros y ordenamiento de accessors (en memoria)
+   * 3. Aplica paginación (manual para accessors, SQL para otros)
+   * 4. Transforma resultados usando Resource classes
+   * 5. Retorna respuesta JSON con estructura de paginación Laravel
+   *
+   * Soporta dos modos:
+   * - Paginado: Retorna data, links y meta con información de paginación
+   * - Todo (all=true): Retorna todos los resultados sin paginación
+   *
+   * @param \Illuminate\Database\Eloquent\Model|\Illuminate\Database\Eloquent\Builder $modelOrQuery Modelo o query builder
+   * @param \Illuminate\Http\Request $request La petición HTTP con parámetros de filtrado
+   * @param array $filters Array de configuración de filtros
+   * @param array $sorts Array de campos permitidos para ordenamiento
+   * @param string $resource Clase Resource para transformar los datos
+   * @param array $resourceConfig Configuración adicional para el Resource (métodos y parámetros)
+   * @return \Illuminate\Http\JsonResponse Respuesta JSON con datos paginados o completos
+   */
   protected function getFilteredResults($modelOrQuery, $request, $filters, $sorts, $resource, $resourceConfig = [])
   {
     $query = $modelOrQuery instanceof Builder ? $modelOrQuery : $modelOrQuery::query();
@@ -504,7 +644,17 @@ trait Filterable
     }
   }
 
-// 👇 NUEVO: Configurar colección de recursos
+  /**
+   * Configura una colección completa de recursos aplicando transformaciones.
+   *
+   * Mapea cada item de la colección a una instancia del Resource especificado,
+   * aplicando las configuraciones definidas.
+   *
+   * @param string $resource Clase del Resource a instanciar
+   * @param \Illuminate\Support\Collection $collection La colección de modelos
+   * @param array $config Array de configuración para aplicar a cada instancia
+   * @return \Illuminate\Support\Collection Colección de instancias Resource configuradas
+   */
   protected function configureResourceCollection($resource, $collection, $config)
   {
     return $collection->map(function ($item) use ($resource, $config) {
@@ -512,7 +662,17 @@ trait Filterable
     });
   }
 
-// 👇 NUEVO: Configurar instancia individual de recurso
+  /**
+   * Configura una instancia individual de Resource aplicando métodos dinámicamente.
+   *
+   * Permite configurar Resources llamando métodos específicos con sus parámetros.
+   * Ejemplo: ['withRelations' => ['users'], 'setFormat' => 'detailed']
+   *
+   * @param string $resource Clase del Resource a instanciar
+   * @param mixed $item El modelo o item a transformar
+   * @param array $config Array donde la clave es el método y el valor son los parámetros
+   * @return mixed Instancia del Resource configurada
+   */
   protected function configureResourceInstance($resource, $item, $config)
   {
     $resourceInstance = new $resource($item);
@@ -532,8 +692,19 @@ trait Filterable
   }
 
   /**
-   * Paginate a collection manually (useful for grouped or transformed data)
-   * Returns the same format as getFilteredResults
+   * Pagina manualmente una colección en memoria.
+   *
+   * Útil cuando ya tienes una colección procesada (agrupada, transformada, etc.)
+   * y necesitas paginarla. Retorna el mismo formato que getFilteredResults.
+   *
+   * Características:
+   * - Soporta modo all=true para retornar toda la colección
+   * - Genera links de paginación compatibles con Laravel
+   * - Incluye metadata completa (current_page, total, per_page, etc.)
+   *
+   * @param \Illuminate\Support\Collection $collection La colección a paginar
+   * @param \Illuminate\Http\Request $request La petición HTTP con parámetros page, per_page, all
+   * @return \Illuminate\Http\JsonResponse Respuesta JSON con estructura de paginación Laravel
    */
   protected function paginateCollection($collection, $request)
   {
