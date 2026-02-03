@@ -53,6 +53,8 @@ class ApOrderQuotations extends Model
     'discarded_at',
     'supply_type',
     'customer_signature_url',
+    'chief_approval_by',
+    'manager_approval_by',
     'status',
   ];
 
@@ -131,6 +133,16 @@ class ApOrderQuotations extends Model
   public function createdBy(): BelongsTo
   {
     return $this->belongsTo(User::class, 'created_by');
+  }
+
+  public function chiefApprovalBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'chief_approval_by');
+  }
+
+  public function managerApprovalBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'manager_approval_by');
   }
 
   public function Area(): BelongsTo
