@@ -3,6 +3,7 @@
 namespace App\Http\Resources\ap\facturacion;
 
 use App\Http\Resources\ap\comercial\VehicleMovementResource;
+use App\Http\Resources\ap\configuracionComercial\venta\ApBankResource;
 use App\Http\Resources\gp\maestroGeneral\SunatConceptsResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -76,6 +77,9 @@ class ElectronicDocumentResource extends JsonResource
       'sunat_concept_debit_note_type_id' => $this->sunat_concept_debit_note_type_id,
       'observaciones' => $this->observaciones,
       'condiciones_de_pago' => $this->condiciones_de_pago,
+      'bank' => $this->bank ? ApBankResource::make($this->bank) : null,
+      'operation_number' => $this->operation_number,
+      'financing_type' => $this->financing_type,
       'medio_de_pago' => $this->medio_de_pago,
       'placa_vehiculo' => $this->placa_vehiculo,
       'orden_compra_servicio' => $this->orden_compra_servicio,

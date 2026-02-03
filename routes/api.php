@@ -214,6 +214,19 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     });
 
+      Route::group(['prefix' => 'opVehicleAssignment'], function (){
+        Route::apiResource('control-vehicleAssignment', OpVehicleAssignmentController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+        Route::get('control-vehicleAssignment/form/data', [OpVehicleAssignmentController::class, 'getFormData']);
+        Route::get('control-vehicleAssignment/drivers/search', [OpVehicleAssignmentController::class, 'searchDrivers']);
+
+      });
+
   });
 
   //    SYSTEM
@@ -1321,6 +1334,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Migration logs and history
       Route::get('electronic-documents/{id}/logs', [ElectronicDocumentController::class, 'logs']);
       Route::get('electronic-documents/{id}/history', [ElectronicDocumentController::class, 'history']);
+
+      // Report
+      Route::get('electronic-documents-report', [ElectronicDocumentController::class, 'report']);
 
       // CRUD de Documentos Electrónicos
       Route::apiResource('electronic-documents', ElectronicDocumentController::class);

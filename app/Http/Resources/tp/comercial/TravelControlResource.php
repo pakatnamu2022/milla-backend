@@ -15,13 +15,20 @@ class TravelControlResource extends JsonResource
   public function toArray(Request $request): array
   {
 
-    if ($this->resource instanceof \Illuminate\Http\Resources\MissingValue) {
-      return ['error' => 'missing_value'];
-    }
+            if (!$this->resource || $this->resource instanceof \Illuminate\Http\Resources\MissingValue) {
+                Log::warning('Invalid resource in TravelControlResource', [
+                    'resource_type' => gettype($this->resource),
+                    'is_missing' => $this->resource instanceof \Illuminate\Http\Resources\MissingValue
+                ]);
+                return ['error' => 'invalid_resource', 'id' => null];
+            }
 
-    if (!$this->resource) {
-      return ['error' => 'null_resource'];
-    }
+            if (!$this->id) {
+                Log::error('TravelControlResource without ID', [
+                    'resource_data' => $this->resource->toArray()
+                ]);
+                return ['error' => 'missing_id', 'data' => $this->resource];
+            }
 
 
     $tractLoaded = $this->relationLoaded('tract');

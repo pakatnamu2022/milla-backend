@@ -3,6 +3,8 @@
 namespace App\Http\Requests\ap\facturacion;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\maestroGeneral\SunatConcepts;
@@ -41,21 +43,30 @@ class UpdateElectronicDocumentRequest extends StoreRequest
 
     // Convertir strings numéricos a integers/decimals/booleans
     $numericFields = [
+      'sunat_concept_document_type_id',
       'ap_billing_document_type_id',
       'numero',
       'sunat_concept_transaction_type_id',
       'ap_vehicle_movement_id',
+      'ap_vehicle_id',
       'client_id',
       'purchase_request_quote_id',
+      'order_quotation_id',
+      'work_order_id',
+      'sunat_concept_currency_id',
       'ap_billing_currency_id',
+      'sunat_concept_detraction_type_id',
       'ap_billing_detraction_type_id',
       'documento_que_se_modifica_tipo',
       'documento_que_se_modifica_numero',
+      'sunat_concept_credit_note_type_id',
       'ap_billing_credit_note_type_id',
+      'sunat_concept_debit_note_type_id',
       'ap_billing_debit_note_type_id',
       'percepcion_tipo',
       'retencion_tipo',
       'medio_de_pago_detraccion',
+      'bank_id',
     ];
 
     $dataToMerge = [];
@@ -97,6 +108,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
 
     // Convertir strings booleanos
     $booleanFields = [
+      'is_advance_payment',
       'detraccion',
       'enviar_automaticamente_a_la_sunat',
       'enviar_automaticamente_al_cliente',
@@ -119,6 +131,9 @@ class UpdateElectronicDocumentRequest extends StoreRequest
         }
         if (isset($item['account_plan_id'])) {
           $items[$index]['account_plan_id'] = (int)$item['account_plan_id'];
+        }
+        if (isset($item['reference_document_id'])) {
+          $items[$index]['reference_document_id'] = (int)$item['reference_document_id'];
         }
         $numericItemFields = ['cantidad', 'valor_unitario', 'precio_unitario', 'descuento', 'subtotal', 'igv', 'total'];
         foreach ($numericItemFields as $field) {
@@ -174,7 +189,15 @@ class UpdateElectronicDocumentRequest extends StoreRequest
   {
     $userId = $this->user()->id;
     return [
+      'is_advance_payment' => 'nullable|boolean',
       // Tipo de documento y serie (todos opcionales excepto validaciones de existencia)
+      'sunat_concept_document_type_id' => [
+        'nullable',
+        'integer',
+        Rule::exists('sunat_concepts', 'id')
+          ->where('type', SunatConcepts::BILLING_DOCUMENT_TYPE)
+          ->whereNull('deleted_at')->where('status', 1)
+      ],
       'ap_billing_document_type_id' => 'nullable|integer|exists:ap_billing_document_types,id',
       'series' => [
         'nullable',
@@ -201,6 +224,11 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       'origin_entity_type' => 'nullable|string|max:100',
       'origin_entity_id' => 'nullable|integer',
       'ap_vehicle_movement_id' => 'nullable|integer|exists:ap_vehicle_movement,id',
+      'ap_vehicle_id' => [
+        'nullable',
+        'integer',
+        Rule::exists('ap_vehicles', 'id')->whereNull('deleted_at')->where('status', 1),
+      ],
 
       // Datos del cliente
       'client_id' => [
@@ -215,6 +243,18 @@ class UpdateElectronicDocumentRequest extends StoreRequest
         Rule::exists('purchase_request_quote', 'id')
           ->whereNull('deleted_at')->where('status', 1)
       ],
+      'order_quotation_id' => [
+        'nullable',
+        'integer',
+        Rule::exists('ap_order_quotations', 'id')
+          ->whereNull('deleted_at')
+      ],
+      'work_order_id' => [
+        'nullable',
+        'integer',
+        Rule::exists('ap_work_orders', 'id')
+          ->whereNull('deleted_at')
+      ],
       'cliente_email_1' => 'nullable|email|max:250',
       'cliente_email_2' => 'nullable|email|max:250',
 
@@ -223,6 +263,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       'fecha_de_vencimiento' => 'nullable|date|after:fecha_de_emision',
 
       // Moneda
+      'sunat_concept_currency_id' => 'nullable|integer|exists:sunat_concepts,id',
       'ap_billing_currency_id' => 'nullable|integer|exists:ap_billing_currencies,id',
       'tipo_de_cambio' => 'nullable|numeric|min:0|max:999.999',
       'porcentaje_de_igv' => 'nullable|numeric|min:0|max:99.99',
@@ -253,6 +294,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
 
       // Detracción
       'detraccion' => 'nullable|boolean',
+      'sunat_concept_detraction_type_id' => 'nullable|integer|exists:sunat_concepts,id',
       'ap_billing_detraction_type_id' => 'nullable|integer|exists:ap_billing_detraction_types,id',
       'detraccion_total' => 'nullable|numeric|min:0',
       'detraccion_porcentaje' => 'nullable|numeric|min:0|max:100',
@@ -262,13 +304,18 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       'documento_que_se_modifica_tipo' => 'nullable|integer|between:1,2',
       'documento_que_se_modifica_serie' => 'nullable|string|size:4',
       'documento_que_se_modifica_numero' => 'nullable|integer|min:1',
+      'sunat_concept_credit_note_type_id' => 'nullable|integer|exists:sunat_concepts,id',
       'ap_billing_credit_note_type_id' => 'nullable|integer|exists:ap_billing_credit_note_types,id',
+      'sunat_concept_debit_note_type_id' => 'nullable|integer|exists:sunat_concepts,id',
       'ap_billing_debit_note_type_id' => 'nullable|integer|exists:ap_billing_debit_note_types,id',
 
       // Campos opcionales
       'observaciones' => 'nullable|string|max:1000',
       'condiciones_de_pago' => 'nullable|string|max:250',
       'medio_de_pago' => 'nullable|string|max:250',
+      'bank_id' => 'nullable|integer|exists:ap_bank,id',
+      'operation_number' => 'nullable|string|max:100',
+      'financing_type' => ['nullable', Rule::in(['CONVENIO', 'VEHICULAR', 'CONTADO'])],
       'placa_vehiculo' => 'nullable|string|max:8',
       'orden_compra_servicio' => 'nullable|string|max:20',
       'codigo_unico' => 'nullable|string|max:20',
@@ -280,6 +327,15 @@ class UpdateElectronicDocumentRequest extends StoreRequest
 
       // Items (si se envían, deben tener al menos 1 item con validaciones completas)
       'items' => 'nullable|array|min:1',
+      'items.*.reference_document_id' => [
+        'nullable',
+        'required_if:items.*.anticipo_regularizacion,true',
+        'integer',
+        Rule::exists('ap_billing_electronic_documents', 'id')
+          ->whereNull('deleted_at')
+          ->where('aceptada_por_sunat', true)
+          ->where('anulado', false)
+      ],
       'items.*.account_plan_id' => [
         'required_with:items',
         'integer',
@@ -321,6 +377,9 @@ class UpdateElectronicDocumentRequest extends StoreRequest
   public function messages(): array
   {
     return [
+      'sunat_concept_document_type_id.exists' => 'El tipo de documento seleccionado no es válido',
+      'sunat_concept_transaction_type_id.required' => 'El tipo de operación es obligatorio',
+      'sunat_concept_transaction_type_id.exists' => 'El tipo de operación seleccionado no es válido',
       'ap_billing_document_type_id.exists' => 'El tipo de documento seleccionado no es válido',
       'series.exists' => 'La serie seleccionada no es válida o no está asignada a usted',
       'total.min' => 'El total del documento debe ser al menos 0',
@@ -329,6 +388,9 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       'items.*.descripcion.required_with' => 'La descripción del item es obligatoria',
       'items.*.cantidad.required_with' => 'La cantidad del item es obligatoria',
       'items.*.cantidad.min' => 'La cantidad debe ser mayor a 0',
+      'items.*.reference_document_id.required_if' => 'Debe seleccionar el documento de anticipo que se está regularizando',
+      'items.*.reference_document_id.exists' => 'El documento de anticipo seleccionado no es válido. Verifique que el documento exista, esté aceptado por SUNAT y no esté anulado',
+      'items.*.reference_document_id.integer' => 'El documento de referencia debe ser un ID válido',
       'document_accepted' => 'No se puede editar un documento que ya fue aceptado por SUNAT',
     ];
   }
@@ -352,6 +414,30 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       }
 
       // Validar que la serie corresponda al tipo de documento (solo si ambos están presentes)
+      if ($this->has('sunat_concept_document_type_id') && $this->has('serie')) {
+        $documentTypeId = $this->input('sunat_concept_document_type_id');
+        $serie = $this->input('serie');
+        $prefix = substr($serie, 0, 1);
+
+        $validations = [
+          SunatConcepts::ID_FACTURA_ELECTRONICA => 'F', // Factura Electrónica
+          SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA => 'B', // Boleta de Venta Electrónica
+          SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA => ['F', 'B'], // Nota de Crédito Electrónica
+          SunatConcepts::ID_NOTA_DEBITO_ELECTRONICA => ['F', 'B'], // Nota de Débito Electrónica
+        ];
+
+        if (isset($validations[$documentTypeId])) {
+          $validPrefixes = (array)$validations[$documentTypeId];
+          if (!in_array($prefix, $validPrefixes)) {
+            $validator->errors()->add(
+              'serie',
+              'La serie no corresponde al tipo de documento seleccionado'
+            );
+          }
+        }
+      }
+
+      // También validar con ap_billing_document_type_id si está presente
       if ($this->has('ap_billing_document_type_id') && $this->has('serie')) {
         $documentTypeId = $this->input('ap_billing_document_type_id');
         $serie = $this->input('serie');
@@ -376,9 +462,15 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       }
 
       // Validar que si es nota de crédito/débito, tenga el documento que modifica
-      // Solo validar si se está actualizando el tipo de documento a nota de crédito/débito
-      $documentTypeId = $this->input('ap_billing_document_type_id');
-      if ($documentTypeId && in_array($documentTypeId, [3, 4])) {
+      // Validar tanto con sunat_concept_document_type_id como con ap_billing_document_type_id
+      $sunatDocTypeId = $this->input('sunat_concept_document_type_id');
+      $apDocTypeId = $this->input('ap_billing_document_type_id');
+
+      // Verificar si es nota de crédito o débito usando cualquiera de los dos campos
+      $isNotaCredito = ($sunatDocTypeId == SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA) || ($apDocTypeId == 3);
+      $isNotaDebito = ($sunatDocTypeId == SunatConcepts::ID_NOTA_DEBITO_ELECTRONICA) || ($apDocTypeId == 4);
+
+      if ($isNotaCredito || $isNotaDebito) {
         // Si se está cambiando a NC o ND, verificar que tenga los datos del documento que modifica
         $hasModifiedDoc = $this->has('documento_que_se_modifica_tipo') &&
           $this->has('documento_que_se_modifica_serie') &&
@@ -397,26 +489,27 @@ class UpdateElectronicDocumentRequest extends StoreRequest
           );
         }
 
-        // Validar tipo de nota
-        if ($documentTypeId == 3) {
-          $hasNoteType = $this->has('ap_billing_credit_note_type_id');
-          $docHasNoteType = $document && $document->ap_billing_credit_note_type_id;
+        // Validar tipo de nota de crédito
+        if ($isNotaCredito) {
+          $hasNoteType = $this->has('sunat_concept_credit_note_type_id') || $this->has('ap_billing_credit_note_type_id');
+          $docHasNoteType = $document && ($document->sunat_concept_credit_note_type_id || $document->ap_billing_credit_note_type_id);
 
           if (!$hasNoteType && !$docHasNoteType) {
             $validator->errors()->add(
-              'ap_billing_credit_note_type_id',
+              'sunat_concept_credit_note_type_id',
               'Debe especificar el tipo de nota de crédito'
             );
           }
         }
 
-        if ($documentTypeId == 4) {
-          $hasNoteType = $this->has('ap_billing_debit_note_type_id');
-          $docHasNoteType = $document && $document->ap_billing_debit_note_type_id;
+        // Validar tipo de nota de débito
+        if ($isNotaDebito) {
+          $hasNoteType = $this->has('sunat_concept_debit_note_type_id') || $this->has('ap_billing_debit_note_type_id');
+          $docHasNoteType = $document && ($document->sunat_concept_debit_note_type_id || $document->ap_billing_debit_note_type_id);
 
           if (!$hasNoteType && !$docHasNoteType) {
             $validator->errors()->add(
-              'ap_billing_debit_note_type_id',
+              'sunat_concept_debit_note_type_id',
               'Debe especificar el tipo de nota de débito'
             );
           }
@@ -425,14 +518,68 @@ class UpdateElectronicDocumentRequest extends StoreRequest
 
       // Validar que si hay detracción, tenga todos los campos necesarios
       if ($this->input('detraccion') === true) {
-        $hasDetractionType = $this->has('ap_billing_detraction_type_id');
-        $docHasDetractionType = $document && $document->ap_billing_detraction_type_id;
+        $hasDetractionType = $this->has('sunat_concept_detraction_type_id') || $this->has('ap_billing_detraction_type_id');
+        $docHasDetractionType = $document && ($document->sunat_concept_detraction_type_id || $document->ap_billing_detraction_type_id);
 
         if (!$hasDetractionType && !$docHasDetractionType) {
           $validator->errors()->add(
-            'ap_billing_detraction_type_id',
+            'sunat_concept_detraction_type_id',
             'Debe especificar el tipo de detracción'
           );
+        }
+      }
+
+      // Validar estado del vehículo si se proporciona ap_vehicle_movement_id
+      if ($this->has('ap_vehicle_movement_id') && $this->input('ap_vehicle_movement_id')) {
+        $vehicleMovement = VehicleMovement::with(['vehicle.vehicleStatus', 'vehicle.model'])
+          ->find($this->input('ap_vehicle_movement_id'));
+
+        if ($vehicleMovement && $vehicleMovement->vehicle) {
+          $vehicle = $vehicleMovement->vehicle;
+          $vehicleStatusId = $vehicle->ap_vehicle_status_id;
+          $allowedStatuses = [
+            ApVehicleStatus::VEHICULO_EN_TRAVESIA,  // Estado 2
+            ApVehicleStatus::INVENTARIO_VN,         // Estado 5
+          ];
+
+          // Validar estado del vehículo
+          if (!in_array($vehicleStatusId, $allowedStatuses)) {
+            $currentStatusName = $vehicle->vehicleStatus->description ?? 'Desconocido';
+            $validator->errors()->add(
+              'ap_vehicle_movement_id',
+              "El vehículo debe estar en estado 'En Travesía' o 'Inventario VN' para poder facturarlo. Estado actual: {$currentStatusName}"
+            );
+          }
+
+          // Validar monto contra precio del modelo del vehículo
+          if ($vehicle->model && $this->has('total')) {
+            $totalFactura = (float)$this->input('total');
+            $precioVenta = (float)$vehicle->model->sale_price;
+
+            // Obtener suma de anticipos previos para este vehículo
+            $sumaAnticipos = \DB::table('ap_billing_electronic_documents')
+              ->where('origin_module', 'comercial')
+              ->where('origin_entity_id', $vehicle->id)
+              ->where('sunat_concept_transaction_type_id', 36) // Tipo operación: Anticipos (ID del seeder)
+              ->whereNull('deleted_at')
+              ->where('anulado', false)
+              ->sum('total');
+
+            $totalConAnticipos = $totalFactura + $sumaAnticipos;
+
+            // Validar que no exceda el precio de venta del vehículo
+            if ($totalConAnticipos > $precioVenta) {
+              $validator->errors()->add(
+                'total',
+                sprintf(
+                  'El total de la factura ($%.2f) más los anticipos previos ($%.2f) excede el precio de venta del vehículo ($%.2f)',
+                  $totalFactura,
+                  $sumaAnticipos,
+                  $precioVenta
+                )
+              );
+            }
+          }
         }
       }
     });
