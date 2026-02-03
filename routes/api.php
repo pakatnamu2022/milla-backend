@@ -1377,6 +1377,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('/user/{userId}', [AuditLogsController::class, 'userLogs']);
     Route::get('/model/{model}/{id}', [AuditLogsController::class, 'modelLogs']);
     Route::get('/export', [AuditLogsController::class, 'export']);
+    Route::get('/system-logs', [AuditLogsController::class, 'logs']);
     Route::delete('/clean', [AuditLogsController::class, 'clean']);
   });
 
