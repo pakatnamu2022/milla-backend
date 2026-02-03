@@ -209,7 +209,9 @@ class TravelControlService extends BaseService
 
     $travel->update($updateData);
 
-    $travel->load(['items', 'recordsDriver']);
+    // $travel->load(['items', 'recordsDriver']);
+
+    $travel->refresh();
 
     return [
       'message' => 'Viaje actualizado correctamente',
@@ -276,8 +278,8 @@ class TravelControlService extends BaseService
         'km_inicio' => $data['mileage']
       ]);
 
-      $travel->load(['recordsDriver', 'items', 'tract', 'cart', 'customer',
-        'statusTrip', 'driver', 'expenses']);
+      // $travel->load(['recordsDriver', 'items', 'tract', 'cart', 'customer',
+      //   'statusTrip', 'driver', 'expenses']);
 
       DB::commit();
 
@@ -333,8 +335,8 @@ class TravelControlService extends BaseService
       // Actualizar vehículo usando Eloquent
       $travel->tract()->update(['kilometraje' => $data['mileage']]);
 
-      $travel->load(['recordsDriver', 'items', 'tract', 'cart', 'customer',
-        'statusTrip', 'driver', 'expenses']);
+      // $travel->load(['recordsDriver', 'items', 'tract', 'cart', 'customer',
+      //   'statusTrip', 'driver', 'expenses']);
 
       DB::commit();
 
@@ -396,8 +398,8 @@ class TravelControlService extends BaseService
         $travel->update(['estado' => 9]);
       }
 
-      $travel->load(['recordsDriver', 'items', 'tract', 'cart', 'customer',
-        'statusTrip', 'driver', 'expenses']);
+      // $travel->load(['recordsDriver', 'items', 'tract', 'cart', 'customer',
+      //   'statusTrip', 'driver', 'expenses']);
       DB::commit();
 
       return [
@@ -443,7 +445,7 @@ class TravelControlService extends BaseService
 
     $travel->update(['estado' => $mapStates[$data['state']]]);
 
-    $travel->load(['recordsDriver', 'items']);
+    // $travel->load(['recordsDriver', 'items']);
 
     return [
       'message' => 'Estado actualizado correctamente',

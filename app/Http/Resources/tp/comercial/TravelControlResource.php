@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use App\Http\Traits\HandlesMissingValue;
 use App\Models\tp\comercial\DispatchStatus;
+use Illuminate\Support\Facades\Log;
 
 class TravelControlResource extends JsonResource
 {
@@ -15,20 +16,23 @@ class TravelControlResource extends JsonResource
   public function toArray(Request $request): array
   {
 
-            if (!$this->resource || $this->resource instanceof \Illuminate\Http\Resources\MissingValue) {
-                Log::warning('Invalid resource in TravelControlResource', [
-                    'resource_type' => gettype($this->resource),
-                    'is_missing' => $this->resource instanceof \Illuminate\Http\Resources\MissingValue
-                ]);
-                return ['error' => 'invalid_resource', 'id' => null];
-            }
-
-            if (!$this->id) {
-                Log::error('TravelControlResource without ID', [
-                    'resource_data' => $this->resource->toArray()
-                ]);
-                return ['error' => 'missing_id', 'data' => $this->resource];
-            }
+      if (is_null($this->resource)) {
+        Log::error('TravelControlResource received null resource');
+        return ['error' => 'null_resource', 'id' => null];
+    }
+    
+    if ($this->resource instanceof \Illuminate\Http\Resources\MissingValue) {
+        Log::error('TravelControlResource received MissingValue');
+        return ['error' => 'missing_value', 'id' => null];
+    }
+    
+    if (!isset($this->id) || is_null($this->id)) {
+        Log::error('TravelControlResource missing ID', [
+            'resource_type' => get_class($this->resource),
+            'resource_data' => $this->resource->toArray() ?? 'No toArray'
+        ]);
+        return ['error' => 'missing_id', 'data' => $this->resource];
+    }
 
 
     $tractLoaded = $this->relationLoaded('tract');
