@@ -355,6 +355,90 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
       }
 
+      // Validar que si la cotización está cambiando y ya tiene factura, no se puede cambiar
+      if (isset($data['order_quotation_id']) && $data['order_quotation_id'] && $document->order_quotation_id && $data['order_quotation_id'] != $document->order_quotation_id) {
+        throw new Exception('No se puede cambiar la cotización de un documento que ya está asociado a una cotización');
+      }
+
+      // Validar cotización si se está agregando o si ya existe
+      if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
+        $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+        if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+          throw new Exception('No se puede asociar un documento electrónico a una cotización descartada.');
+        }
+
+        // Validar stock de productos si no es un anticipo
+        $isAdvancePayment = isset($data['is_advance_payment']) ? $data['is_advance_payment'] : $document->is_advance_payment;
+        $this->validateQuotationStock($quotation, $isAdvancePayment);
+      }
+
+      // Validar orden de trabajo si viene work_order_id
+      if (isset($data['work_order_id']) && $data['work_order_id']) {
+        // Si el documento ya tenía una work_order_id diferente, no permitir cambio
+        if ($document->work_order_id && $data['work_order_id'] != $document->work_order_id) {
+          throw new Exception('No se puede cambiar la orden de trabajo de un documento que ya está asociado a una orden');
+        }
+        $this->validateWorkOrderInvoice(array_merge($document->toArray(), $data));
+      }
+
+      // Validar anticipo si está siendo actualizado
+      if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
+        $total = isset($data['total']) ? (float)$data['total'] : (float)$document->total;
+        if ($total <= 0) {
+          throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
+        }
+
+        // Validar que la suma de anticipos no exceda el monto de la cotización
+        if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
+          $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+
+          // Sumar todos los anticipos aceptados por SUNAT para esta cotización (excluyendo el actual)
+          $totalAnticiposExistentes = ElectronicDocument::where('order_quotation_id', $data['order_quotation_id'])
+            ->where('id', '!=', $id) // Excluir el documento actual
+            ->where('is_advance_payment', 1)
+            ->where('aceptada_por_sunat', true)
+            ->where('anulado', false)
+            ->whereNull('deleted_at')
+            ->sum('total');
+
+          // Sumar el anticipo actualizado
+          $totalAnticiposConNuevo = $totalAnticiposExistentes + $total;
+
+          // Validar que no exceda el total de la cotización
+          if ($totalAnticiposConNuevo > $quotation->total_amount) {
+            throw new Exception(sprintf(
+              'La suma de anticipos (%.2f) excede el monto total de la cotización (%.2f). Ya hay %.2f en anticipos existentes.',
+              $totalAnticiposConNuevo,
+              $quotation->total_amount,
+              $totalAnticiposExistentes
+            ));
+          }
+        }
+      }
+
+      // Validar que para venta interna (is_advance_payment = 0) la suma de anticipos + monto factura = total entidad
+      if (isset($data['is_advance_payment']) || isset($data['total']) || isset($data['order_quotation_id']) || isset($data['work_order_id'])) {
+        $this->validateInternalSaleTotal(array_merge($document->toArray(), $data));
+      }
+
+      // Manejar cambios en ap_vehicle_id
+      if (isset($data['ap_vehicle_id']) && $data['ap_vehicle_id']) {
+        // Si el documento ya tiene un movimiento de vehículo, no permitir cambiar el vehículo
+        if ($document->ap_vehicle_movement_id) {
+          // Obtener el movimiento existente
+          $existingMovement = VehicleMovement::find($document->ap_vehicle_movement_id);
+
+          // Si el vehículo es diferente al actual, no permitir el cambio
+          if ($existingMovement && $existingMovement->ap_vehicle_id != $data['ap_vehicle_id']) {
+            throw new Exception('No se puede cambiar el vehículo porque ya se creó un movimiento de vehículo. Debe eliminar el documento y crear uno nuevo.');
+          }
+        } else {
+          // Si no tiene movimiento, crear uno nuevo
+          $vehicleMovement = $this->createVehicleMovement($data['ap_vehicle_id'], $document);
+          $data['ap_vehicle_movement_id'] = $vehicleMovement->id;
+        }
+      }
+
       // Actualizar datos del cliente si el client_id está cambiando
       if (isset($data['client_id']) && $data['client_id'] !== $document->client_id) {
         $client = BusinessPartners::find($data['client_id']);
@@ -392,6 +476,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $document->items()->delete();
 
         // Crear nuevos items
+        $data['items'] = collect($data['items'])->sortBy('anticipo_regularizacion')->values()->all();
         foreach ($data['items'] as $index => $itemData) {
           $itemData['line_number'] = $index + 1;
           $document->items()->create($itemData);
@@ -414,8 +499,19 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
       }
 
+      // Actualizar estado de cotización si corresponde
+      if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
+        $this->updateQuotationInvoiceStatus($data['order_quotation_id']);
+      }
+
+      // Actualizar estado de orden de trabajo si corresponde
+      if (isset($data['work_order_id']) && $data['work_order_id']) {
+        $isAdvancePayment = isset($data['is_advance_payment']) ? $data['is_advance_payment'] == 1 : $document->is_advance_payment;
+        $this->updateWorkOrderInvoiceStatus($data['work_order_id'], $isAdvancePayment);
+      }
+
       DB::commit();
-      return new ElectronicDocumentResource($document->fresh(['items', 'guides', 'installments']));
+      return new ElectronicDocumentResource($document->fresh(['items', 'guides', 'installments', 'vehicleMovement']));
     } catch (Exception $e) {
       DB::rollBack();
       Log::error('Error updating electronic document', [
