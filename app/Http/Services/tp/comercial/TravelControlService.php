@@ -21,119 +21,126 @@ use Throwable;
 class TravelControlService extends BaseService
 {
   public function list(Request $request)
-  {
-    $perPage = $request->get('per_page', 15);
-    $search = $request->get('search', '');
-    $status = $request->get('status', DispatchStatus::FILTER_ALL);
+    {
+        $perPage = $request->get('per_page', 15);
+        $search = $request->get('search', '');
+        $status = $request->get('status', DispatchStatus::FILTER_ALL);
 
-    $user = auth()->user();
-    $userRole = $user->roles()->first();
-    $userName = $user->username;
+        $user = auth()->user();
 
-    $query = TravelControl::with([
-      'driver:id,nombre_completo,vat,email',
-      'tract:id,placa,marca,modelo',
-      'cart:id,placa',
-      'customer:id,nombre_completo,vat as ruc',
-      'statusTrip:id,descripcion,color2,porcentaje,norden',
-      'items' => function ($q) {
-        $q->select('id', 'despacho_id', 'cantidad', 'idproducto', 'idorigen', 'iddestino')
-          ->with([
-            'product:id,descripcion',
-            'origin:id,descripcion',
-            'destination:id,descripcion'
-          ]);
-      },
-      'recordsDriver:id,dispatch_id,driver_id,record_type,recorded_at,recorded_mileage,notes,device_id',
-      'expenses' => function ($q) {
-        $q->where('concepto_id', 25)
-          ->select('id', 'viaje_id', 'monto', 'km_tanqueo', 'created_at');
-      }
-    ])
-      ->select([
-        'id',
-        'conductor_id',
-        'tracto_id',
-        'carreta_id',
-        'idcliente',
-        'estado',
-        'km_inicio',
-        'km_fin',
-        'fecha_viaje',
-        'observacion_comercial',
-        'proxima_prog',
-        'ubicacion',
-        'produccion',
-        'condiciones',
-        'nliquidacion',
-        'created_at',
-        'updated_at'
-      ])
-      ->whereNotIn('estado', [10])
-      ->orderBy('fecha_viaje', 'DESC');
+        if($user){
+            $workerId = $user->partner_id;
+            $worker = Worker::find($workerId);
+            if($worker){
+                $positionWorkerName = $worker->position?->name;
+                $positionWorkerId = $worker->position?->id;
 
-    if ($userRole && $userRole->id == 106) {
-      $conductor = Worker::where('vat', $userName)->first();
-      if ($conductor) {
-        $query->where('conductor_id', $conductor->id);
-      }
+                    $query = TravelControl::with([
+                    'driver:id,nombre_completo,vat,email',
+                    'tract:id,placa,marca,modelo',
+                    'cart:id,placa',
+                    'customer:id,nombre_completo,vat as ruc',
+                    'statusTrip:id,descripcion,color2,porcentaje,norden',
+                    'items' => function($q) {
+                        $q->select('id', 'despacho_id', 'cantidad', 'idproducto', 'idorigen', 'iddestino')
+                        ->with([
+                            'product:id,descripcion',
+                            'origin:id,descripcion',
+                            'destination:id,descripcion'
+                        ]);
+                    },
+                    'recordsDriver:id,dispatch_id,driver_id,record_type,recorded_at,recorded_mileage,notes,device_id',
+                    'expenses' => function($q) {
+                        $q->where('concepto_id', 25)
+                        ->select('id', 'viaje_id', 'monto', 'km_tanqueo', 'created_at');
+                    }
+                ])
+                ->select([
+                    'id',
+                    'conductor_id',
+                    'tracto_id',
+                    'carreta_id',
+                    'idcliente',
+                    'estado',
+                    'km_inicio',
+                    'km_fin',
+                    'fecha_viaje',
+                    'observacion_comercial',
+                    'proxima_prog',
+                    'ubicacion',
+                    'produccion',
+                    'condiciones',
+                    'nliquidacion',
+                    'created_at',
+                    'updated_at'
+                ])
+                ->whereNotIn('estado', [10])
+                ->orderBy('fecha_viaje', 'DESC');
+
+                if($positionWorkerId == 11 || $positionWorkerName == 'CONDUCTOR DE TRACTO CAMION'){
+                    $query->where('conductor_id', $workerId);
+                }
+                //filtro por estado
+
+                if($status !== DispatchStatus::FILTER_ALL){
+                    switch($status){
+                        case DispatchStatus::FILTER_IN_PROGRESS:
+                            $query->whereIn('estado', DispatchStatus::getInProgressStatuses())
+                                    ->whereNotNull('km_inicio');
+                            break;
+                        case DispatchStatus::FILTER_COMPLETED:
+                            $query->whereIn('estado', [DispatchStatus::STATUS_COMPLETED, 
+                            DispatchStatus::STATUS_LIQUIDATED])
+                            ->whereNotNull('km_inicio')
+                            ->whereNotNull('km_fin');
+                            break;
+                        default:
+                            $dbStatuses = DispatchStatus::fromTripStatus($status);
+                                if (!empty($dbStatuses)) {
+                                    $query->whereIn('estado', $dbStatuses);
+                                }
+                            break;
+                    }
+                }
+
+
+                if ($search) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('id', 'LIKE', "%{$search}%")
+                            ->orWhereHas('driver', function ($q2) use ($search) {
+                                $q2->where('nombre_completo', 'LIKE', "%{$search}%");
+                            })
+                            ->orWhereHas('tract', function ($q3) use ($search) {
+                                $q3->where('placa', 'LIKE', "%{$search}%");
+                            });
+                    });
+                }
+
+                // Paginación
+                $travels = $query->paginate($perPage);
+
+                // Transformar datos
+                $transformedData = TravelControlResource::collection(
+                    $travels->getCollection()->filter()
+                );
+
+                return [
+                    'data' => $transformedData,
+                    'links' => $travels->linkCollection()->toArray(),
+                    'meta' => [
+                        'current_page' => $travels->currentPage(),
+                        'from' => $travels->firstItem(),
+                        'last_page' => $travels->lastPage(),
+                        'per_page' => $travels->perPage(),
+                        'to' => $travels->lastItem(),
+                        'total' => $travels->total(),
+                    ]
+                ];
+            }
+        }
+
+        
     }
-
-    //filtro por estado
-
-    if ($status !== DispatchStatus::FILTER_ALL) {
-      switch ($status) {
-        case DispatchStatus::FILTER_IN_PROGRESS:
-          $query->whereIn('estado', DispatchStatus::getInProgressStatuses())
-            ->whereNotNull('km_inicio');
-          break;
-        case DispatchStatus::FILTER_COMPLETED:
-          $query->whereIn('estado', [DispatchStatus::STATUS_COMPLETED,
-            DispatchStatus::STATUS_LIQUIDATED])
-            ->whereNotNull('km_inicio')
-            ->whereNotNull('km_fin');
-          break;
-        default:
-          $dbStatuses = DispatchStatus::fromTripStatus($status);
-          if (!empty($dbStatuses)) {
-            $query->whereIn('estado', $dbStatuses);
-          }
-          break;
-      }
-    }
-
-
-    if ($search) {
-      $query->where(function ($q) use ($search) {
-        $q->where('id', 'LIKE', "%{$search}%")
-          ->orWhereHas('driver', function ($q2) use ($search) {
-            $q2->where('nombre_completo', 'LIKE', "%{$search}%");
-          })
-          ->orWhereHas('tract', function ($q3) use ($search) {
-            $q3->where('placa', 'LIKE', "%{$search}%");
-          });
-      });
-    }
-
-    // Paginación
-    $travels = $query->paginate($perPage);
-
-    // Transformar datos
-    $transformedData = TravelControlResource::collection($travels);
-
-    return [
-      'data' => $transformedData,
-      'links' => $travels->linkCollection()->toArray(),
-      'meta' => [
-        'current_page' => $travels->currentPage(),
-        'from' => $travels->firstItem(),
-        'last_page' => $travels->lastPage(),
-        'per_page' => $travels->perPage(),
-        'to' => $travels->lastItem(),
-        'total' => $travels->total(),
-      ]
-    ];
-  }
 
   public function store($data)
   {
