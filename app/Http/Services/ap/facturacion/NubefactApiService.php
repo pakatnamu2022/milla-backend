@@ -66,7 +66,7 @@ class NubefactApiService
       Log::info('Nubefact API Response', [
         'status' => $httpStatusCode,
         'response' => $responseData,
-        'endpoint' => $endpoint,
+        'endpoint' => $this->apiUrl,
       ]);
 
       if ($response->successful() && isset($responseData['aceptada_por_sunat'])) {

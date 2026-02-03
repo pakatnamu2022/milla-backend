@@ -6,7 +6,6 @@ use App\Http\Requests\LogRequest;
 use App\Http\Resources\AuditLogsResource;
 use App\Http\Services\AuditService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 
 class AuditLogsController extends Controller
@@ -141,61 +140,59 @@ class AuditLogsController extends Controller
         return $this->error('No logs found.', 404);
       }
 
-      $lines = explode("\n", File::get($logFile));
+      // Preparar filtros una sola vez antes del loop
+      $type        = $request->input('type') ? strtoupper($request->input('type')) : null;
+      $environment = $request->input('environment');
+      $search      = $request->input('search') ? strtolower($request->input('search')) : null;
+      // Formato string para comparación directa (evita instanciar Carbon por cada línea)
+      $dateFrom    = $request->input('date_from') ? $request->input('date_from') . ' 00:00:00' : null;
+      $dateTo      = $request->input('date_to') ? $request->input('date_to') . ' 23:59:59' : null;
 
-      // Parsear todas las líneas válidas del log
-      $allLogs = [];
-      foreach ($lines as $line) {
-        if (preg_match('/^\[(.*?)\] (.*?)\.(.*?): (.*)$/', $line, $matches)) {
-          $allLogs[] = [
-            'date'        => $matches[1],
-            'environment' => $matches[2],
-            'type'        => strtoupper($matches[3]),
-            'message'     => $matches[4],
-          ];
+      // Leer línea por línea y filtrar al mismo tiempo
+      $filteredLogs = [];
+      $handle = fopen($logFile, 'r');
+
+      while (($line = fgets($handle)) !== false) {
+        if (!preg_match('/^\[(.*?)\] (.*?)\.(.*?): (.*)$/', $line, $matches)) {
+          continue;
         }
+
+        $logType = strtoupper($matches[3]);
+
+        if ($type && $logType !== $type) {
+          continue;
+        }
+
+        if ($environment && $matches[2] !== $environment) {
+          continue;
+        }
+
+        if ($dateFrom && $matches[1] < $dateFrom) {
+          continue;
+        }
+
+        if ($dateTo && $matches[1] > $dateTo) {
+          continue;
+        }
+
+        if ($search && !str_contains(strtolower($matches[4]), $search)) {
+          continue;
+        }
+
+        $filteredLogs[] = [
+          'date'        => $matches[1],
+          'environment' => $matches[2],
+          'type'        => $logType,
+          'message'     => $matches[4],
+        ];
       }
 
-      $allLogs = array_reverse($allLogs);
+      fclose($handle);
 
-      // Tipos disponibles antes de filtrar (para que el frontend pueda mostrarlos)
-      $availableTypes = array_values(array_unique(array_column($allLogs, 'type')));
-      sort($availableTypes);
+      // Invertir para mostrar los más recientes primero
+      $filteredLogs = array_reverse($filteredLogs);
 
-      // Aplicar filtros
-      $type        = $request->input('type');
-      $environment = $request->input('environment');
-      $dateFrom    = $request->input('date_from');
-      $dateTo      = $request->input('date_to');
-      $search      = $request->input('search');
-
-      $filteredLogs = array_filter($allLogs, function ($log) use ($type, $environment, $dateFrom, $dateTo, $search) {
-        if ($type && $log['type'] !== strtoupper($type)) {
-          return false;
-        }
-
-        if ($environment && $log['environment'] !== $environment) {
-          return false;
-        }
-
-        if ($dateFrom && Carbon::parse($log['date']) < Carbon::parse($dateFrom)->startOfDay()) {
-          return false;
-        }
-
-        if ($dateTo && Carbon::parse($log['date']) > Carbon::parse($dateTo)->endOfDay()) {
-          return false;
-        }
-
-        if ($search && !str_contains(strtolower($log['message']), strtolower($search))) {
-          return false;
-        }
-
-        return true;
-      });
-
-      $filteredLogs = array_values($filteredLogs);
-
-      // Paginación manual
+      // Paginación
       $perPage = (int) $request->input('per_page', 50);
       $page    = (int) $request->input('page', 1);
       $total   = count($filteredLogs);
@@ -204,7 +201,7 @@ class AuditLogsController extends Controller
 
       return $this->success([
         'logs'            => $paginatedLogs,
-        'available_types' => $availableTypes,
+        'available_types' => ['ALERT', 'CRITICAL', 'DEBUG', 'EMERGENCY', 'ERROR', 'INFO', 'NOTICE', 'WARNING'],
         'meta' => [
           'total'        => $total,
           'per_page'     => $perPage,
