@@ -40,6 +40,7 @@ class SnapshotAssignmentLeadershipPeriods extends Command
     $assignments = DB::table('ap_assignment_leadership_periods')
       ->where('year', $previousYear)
       ->where('month', $previousMonthNumber)
+      ->where('status', true)
       ->get();
 
     if ($assignments->isEmpty()) {
