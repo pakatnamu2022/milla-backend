@@ -134,6 +134,18 @@ return [
       'icon' => 'Truck',
       'policy_method' => 'receive',
     ],
+    'bill' => [
+      'label' => 'Facturar',
+      'description' => 'Permite facturar cotizaciones o servicios',
+      'icon' => 'DollarSign',
+      'policy_method' => 'bill',
+    ],
+    'otOptions' => [
+      'label' => 'Opciones OT',
+      'description' => 'Permite acceder a opciones de órdenes de trabajo',
+      'icon' => 'Settings',
+      'policy_method' => 'otOptions',
+    ],
   ],
 
   /*

@@ -12,7 +12,7 @@ class StoreApVehicleInspectionRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'work_order_id' => 'required|exists:ap_work_orders,id',
+      'ap_work_order_id' => 'required|exists:ap_work_orders,id',
       'inspection_date' => 'required|date',
       'mileage' => 'nullable|numeric|min:0',
       'fuel_level' => 'nullable|string|min:0|max:100',
@@ -62,8 +62,8 @@ class StoreApVehicleInspectionRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'work_order_id.required' => 'La orden de trabajo es requerida',
-      'work_order_id.exists' => 'La orden de trabajo no existe',
+      'ap_work_order_id.required' => 'La orden de trabajo es requerida',
+      'ap_work_order_id.exists' => 'La orden de trabajo no existe',
       'inspection_date.required' => 'La fecha de inspección es requerida',
       'inspection_date.date' => 'La fecha de inspección no es una fecha válida',
       'customer_signature.required' => 'La firma del cliente es requerido',

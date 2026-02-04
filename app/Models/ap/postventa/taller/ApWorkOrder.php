@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -24,7 +25,6 @@ class ApWorkOrder extends Model
   protected $fillable = [
     'correlative',
     'appointment_planning_id',
-    'vehicle_inspection_id',
     'order_quotation_id',
     'vehicle_id',
     'currency_id',
@@ -80,7 +80,6 @@ class ApWorkOrder extends Model
     'search' => ['correlative', 'vehicle_plate', 'vehicle_vin', 'observations'],
     'correlative' => '=',
     'appointment_planning_id' => '=',
-    'vehicle_inspection_id' => '=',
     'order_quotation_id' => '=',
     'vehicle_id' => '=',
     'vehicle_plate' => 'like',
@@ -199,9 +198,10 @@ class ApWorkOrder extends Model
     return $this->hasMany(ApWorkOrderParts::class, 'work_order_id');
   }
 
-  public function vehicleInspection(): BelongsTo
+  public function vehicleInspection(): HasOne
   {
-    return $this->belongsTo(ApVehicleInspection::class, 'vehicle_inspection_id');
+    return $this->hasOne(ApVehicleInspection::class, 'ap_work_order_id')
+      ->where('is_cancelled', false);
   }
 
   // Helper methods

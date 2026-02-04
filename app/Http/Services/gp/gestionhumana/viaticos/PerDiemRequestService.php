@@ -1847,9 +1847,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     }
 
     // if settled is false, throw exception
-    if (!$perDiemRequest->settled) {
-      throw new Exception('La solicitud debe estar liquidada para generar la planilla de movilidad.');
-    }
+//    if (!$perDiemRequest->settled) {
+//      throw new Exception('La solicitud debe estar liquidada para generar la planilla de movilidad.');
+//    }
 
     // Get mobility expenses with mobility_payroll_id
     $mobilityExpenses = $perDiemRequest->expenses->filter(function ($expense) {

@@ -8,6 +8,7 @@ use App\Http\Requests\ap\postventa\taller\StoreApVehicleInspectionRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateApVehicleInspectionRequest;
 use App\Http\Services\ap\postventa\taller\ApVehicleInspectionService;
 use Exception;
+use Illuminate\Http\Request;
 
 class ApVehicleInspectionController extends Controller
 {
@@ -140,6 +141,34 @@ class ApVehicleInspectionController extends Controller
     } catch (Exception $e) {
       return response()->json([
         'message' => 'Error al generar el reporte de recepción',
+        'error' => $e->getMessage()
+      ], 500);
+    }
+  }
+
+  public function requestCancellation(Request $request, $id)
+  {
+    try {
+      $request->validate([
+        'cancellation_reason' => 'required|string',
+      ]);
+
+      return $this->service->requestCancellation($id, $request->cancellation_reason);
+    } catch (Exception $e) {
+      return response()->json([
+        'message' => 'Error al solicitar la anulación',
+        'error' => $e->getMessage()
+      ], 500);
+    }
+  }
+
+  public function confirmCancellation($id)
+  {
+    try {
+      return $this->service->confirmCancellation($id);
+    } catch (Exception $e) {
+      return response()->json([
+        'message' => 'Error al confirmar la anulación',
         'error' => $e->getMessage()
       ], 500);
     }

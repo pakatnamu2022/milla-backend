@@ -18,6 +18,7 @@ class ApVehicleInspectionResource extends JsonResource
   {
     return [
       'id' => $this->id,
+      'ap_work_order_id' => $this->ap_work_order_id,
       'vehicle_id' => $this->workOrder?->vehicle_id,
       'vehicle_plate' => $this->workOrder?->vehicle->plate,
       'vehicle_vin' => $this->workOrder?->vehicle->vin,
@@ -56,7 +57,17 @@ class ApVehicleInspectionResource extends JsonResource
       'photo_back_url' => $this->photo_back_url,
       'photo_left_url' => $this->photo_left_url,
       'photo_right_url' => $this->photo_right_url,
-      
+
+      // Cancellation fields
+      'is_cancelled' => $this->is_cancelled,
+      'cancellation_requested_by' => $this->cancellation_requested_by,
+      'cancellation_requested_by_name' => $this->cancellationRequestedBy ? $this->cancellationRequestedBy->name : null,
+      'cancellation_confirmed_by' => $this->cancellation_confirmed_by,
+      'cancellation_confirmed_by_name' => $this->cancellationConfirmedBy ? $this->cancellationConfirmedBy->name : null,
+      'cancellation_requested_at' => $this->cancellation_requested_at,
+      'cancellation_confirmed_at' => $this->cancellation_confirmed_at,
+      'cancellation_reason' => $this->cancellation_reason,
+
       // Relationships
       'damages' => ApVehicleInspectionDamagesResource::collection($this->whenLoaded('damages')),
     ];
