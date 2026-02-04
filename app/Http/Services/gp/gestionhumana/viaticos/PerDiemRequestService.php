@@ -98,6 +98,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       if (auth()->check()) {
         $data['employee_id'] = auth()->user()->person->id;
         $data['authorizer_id'] = auth()->user()->person->jefe_id;
+        $data['second_authorizer_id'] = auth()->user()->person->second_boss_id;
       }
 
       // Get employee's position (cargo) to obtain per_diem_category_id
@@ -145,6 +146,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'with_active' => $data['with_active'] ?? false,
         'with_request' => false,
         'authorizer_id' => $data['authorizer_id'] ?? null,
+        'second_authorizer_id' => $data['second_authorizer_id'] ?? null,
       ];
 
       // Create the request
@@ -352,7 +354,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $userId = auth()->user()->person->id;
 
     $pendingSettlements = PerDiemRequest::where('settlement_status', PerDiemRequest::SETTLEMENT_SUBMITTED)
-      ->where('authorizer_id', $userId)
+      ->where(function ($query) use ($userId) {
+        $query->where('authorizer_id', $userId)
+          ->orWhere('second_authorizer_id', $userId);
+      })
       ->orderBy('settlement_date', 'desc')
       ->get();
 
@@ -382,20 +387,81 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         throw new Exception('Solo se pueden enviar solicitudes en estado pendiente o rechazadas');
       }
 
-      // Create approval record for the employee's boss
-      if ($request->employee->jefe_id) {
-        // Check if approval already exists
-        $existingApproval = PerDiemApproval::where('per_diem_request_id', $request->id)
-          ->where('approver_id', $request->employee->jefe_id)
-          ->first();
+      // Create approval records for bosses if missing
+      $bosses = array_filter([$request->employee->jefe_id, $request->employee->second_boss_id]);
+      foreach ($bosses as $bossId) {
+        $exists = PerDiemApproval::where('per_diem_request_id', $request->id)
+          ->where('approver_id', $bossId)
+          ->exists();
 
-        if (!$existingApproval) {
+        if (!$exists) {
           PerDiemApproval::create([
             'per_diem_request_id' => $request->id,
-            'approver_id' => $request->employee->jefe_id,
+            'approver_id' => $bossId,
             'status' => PerDiemApproval::PENDING,
           ]);
         }
+      }
+
+      DB::commit();
+      return $request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category', 'approvals.approver']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Reset approvals for a per diem request.
+   * - Crea aprobaciones faltantes para jefe y segundo jefe.
+   * - Restablece aprobaciones aprobadas/rechazadas a pendiente.
+   * - Solo funciona si la solicitud no ha pasado a in_progress.
+   */
+  public function resetApprovals(int $id): PerDiemRequest
+  {
+    try {
+      DB::beginTransaction();
+
+      $request = $this->find($id);
+
+      // Solo permitir si no ha pasado a in_progress o estados posteriores
+      if (in_array($request->status, [
+        PerDiemRequest::STATUS_IN_PROGRESS,
+        PerDiemRequest::STATUS_PENDING_SETTLEMENT,
+        PerDiemRequest::STATUS_SETTLED,
+        PerDiemRequest::STATUS_CANCELLED,
+      ])) {
+        throw new Exception('No se pueden restablecer las aprobaciones una vez que la solicitud ha pasado a estado en proceso');
+      }
+
+      $employee = $request->employee;
+      $bosses = array_filter([$employee->jefe_id, $employee->second_boss_id]);
+
+      foreach ($bosses as $bossId) {
+        $approval = PerDiemApproval::where('per_diem_request_id', $request->id)
+          ->where('approver_id', $bossId)
+          ->first();
+
+        if (!$approval) {
+          // Crear aprobación faltante
+          PerDiemApproval::create([
+            'per_diem_request_id' => $request->id,
+            'approver_id' => $bossId,
+            'status' => PerDiemApproval::PENDING,
+          ]);
+        } elseif ($approval->status !== PerDiemApproval::PENDING) {
+          // Restablecer aprobación aprobada o rechazada a pendiente
+          $approval->update([
+            'status' => PerDiemApproval::PENDING,
+            'comments' => null,
+            'approved_at' => null,
+          ]);
+        }
+      }
+
+      // Si estaba aprobada o rechazada, volver a pendiente
+      if (in_array($request->status, [PerDiemRequest::STATUS_APPROVED, PerDiemRequest::STATUS_REJECTED])) {
+        $request->update(['status' => PerDiemRequest::STATUS_PENDING]);
       }
 
       DB::commit();
@@ -602,15 +668,16 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       }
 
       if ($request->settlement_status === PerDiemRequest::SETTLEMENT_SUBMITTED) {
-        if ($currentUserId !== $request->authorizer_id) {
-          throw new Exception('La aprobación de la liquidación debe ser realizada por el jefe directo');
+        $allowedApprovers = array_filter([$request->authorizer_id, $request->second_authorizer_id]);
+        if (!in_array($currentUserId, $allowedApprovers)) {
+          throw new Exception('La aprobación de la liquidación debe ser realizada por el jefe directo o el segundo jefe');
         }
 
         $request->update([
           'settlement_status' => PerDiemRequest::SETTLEMENT_APPROVED,
         ]);
 
-        $approvalNote = "LIQUIDACIÓN APROBADA POR JEFE DIRECTO";
+        $approvalNote = "LIQUIDACIÓN APROBADA POR JEFE";
       }
 
       // If there are comments, add them to notes
