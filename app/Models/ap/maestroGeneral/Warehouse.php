@@ -84,5 +84,32 @@ class Warehouse extends Model
   {
     return $this->belongsTo(Warehouse::class, 'parent_warehouse_id');
   }
-  
+
+//  SCOPES
+  public function scopeActive($query)
+  {
+    return $query->where('status', 1);
+  }
+
+  public function scopeCommercial($query)
+  {
+    return $query->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL);
+  }
+
+  public function scopePostSale($query)
+  {
+    return $query->where('type_operation_id', ApMasters::TIPO_OPERACION_POSTVENTA);
+  }
+
+  public function scopeNewVehicle($query)
+  {
+    return $query->where('article_class_id', ApClassArticle::VEHICULOS_NUEVO);
+  }
+
+  public function scopeReceived($query)
+  {
+    return $query->where('is_received', 1);
+  }
+
+
 }
