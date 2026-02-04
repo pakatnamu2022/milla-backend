@@ -77,8 +77,8 @@ class ApVehicleInspectionService extends BaseService
       // Crear la inspección
       $inspection = ApVehicleInspection::create($data);
 
-      //Actualizamos en work_order_id el id de la inspección creada
-      $workOrder = ApWorkOrder::findOrFail($data['work_order_id']);
+      //Actualizamos en ap_work_order_id el id de la inspección creada
+      $workOrder = ApWorkOrder::findOrFail($data['ap_work_order_id']);
       $workOrder->update([
         'vehicle_inspection_id' => $inspection->id,
         'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
@@ -120,7 +120,7 @@ class ApVehicleInspectionService extends BaseService
   {
     return DB::transaction(function () use ($data) {
       $inspection = $this->find($data['id']);
-      $workOrder = ApWorkOrder::findOrFail($data['work_order_id']);
+      $workOrder = ApWorkOrder::findOrFail($data['ap_work_order_id']);
 
       if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
         throw new Exception('No se puede modificar una orden de trabajo cerrada');
@@ -501,5 +501,53 @@ class ApVehicleInspectionService extends BaseService
     $pdf->setPaper('a4', 'portrait');
 
     return $pdf->stream("reporte-recepcion-{$workOrder->correlative}.pdf");
+  }
+
+  public function requestCancellation(int $id, string $reason)
+  {
+    $inspection = $this->find($id);
+
+    if ($inspection->is_cancelled) {
+      return response()->json(['message' => 'Esta inspección ya está anulada'], 422);
+    }
+
+    if ($inspection->cancellation_requested_by) {
+      return response()->json(['message' => 'Ya existe una solicitud de anulación pendiente'], 422);
+    }
+
+    $inspection->update([
+      'cancellation_requested_by' => auth()->id(),
+      'cancellation_requested_at' => now(),
+      'cancellation_reason' => $reason,
+    ]);
+
+    return response()->json([
+      'message' => 'Solicitud de anulación registrada exitosamente',
+      'data' => $inspection->fresh()
+    ]);
+  }
+
+  public function confirmCancellation(int $id)
+  {
+    $inspection = $this->find($id);
+
+    if ($inspection->is_cancelled) {
+      return response()->json(['message' => 'Esta inspección ya está anulada'], 422);
+    }
+
+    if (!$inspection->cancellation_requested_by) {
+      return response()->json(['message' => 'No existe solicitud de anulación para esta inspección'], 422);
+    }
+
+    $inspection->update([
+      'cancellation_confirmed_by' => auth()->id(),
+      'cancellation_confirmed_at' => now(),
+      'is_cancelled' => true,
+    ]);
+
+    return response()->json([
+      'message' => 'Anulación confirmada exitosamente',
+      'data' => $inspection->fresh()
+    ]);
   }
 }

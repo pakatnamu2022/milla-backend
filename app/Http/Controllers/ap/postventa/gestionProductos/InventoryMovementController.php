@@ -15,12 +15,10 @@ use Illuminate\Http\Request;
 
 class InventoryMovementController extends Controller
 {
-  protected $inventoryMovementService;
   protected InventoryMovementService $service;
 
   public function __construct(InventoryMovementService $service)
   {
-    $this->inventoryMovementService = new InventoryMovementService();
     $this->service = $service;
   }
 
@@ -46,7 +44,7 @@ class InventoryMovementController extends Controller
   {
     $request->validated();
     try {
-      $movement = $this->inventoryMovementService->createAdjustment(
+      $movement = $this->service->createAdjustment(
         $request->only(['movement_type', 'warehouse_id', 'movement_date', 'notes', 'reason_in_out_id']),
         $request->details
       );
@@ -71,7 +69,7 @@ class InventoryMovementController extends Controller
   public function destroy(int $id)
   {
     try {
-      return $this->inventoryMovementService->reverseStockFromMovement($id);
+      return $this->service->reverseStockFromMovement($id);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
@@ -88,7 +86,7 @@ class InventoryMovementController extends Controller
   {
     $request->validated();
     try {
-      $result = $this->inventoryMovementService->createTransfer(
+      $result = $this->service->createTransfer(
         $request->only([
           // Transfer data
           'document_type',
@@ -141,7 +139,7 @@ class InventoryMovementController extends Controller
   {
     $request->validated();
     try {
-      $result = $this->inventoryMovementService->updateTransfer(
+      $result = $this->service->updateTransfer(
         $request->only([
           'movement_date',
           'notes',
@@ -179,7 +177,7 @@ class InventoryMovementController extends Controller
   public function destroyTransfer(int $id): JsonResponse
   {
     try {
-      $this->inventoryMovementService->destroyTransfer($id);
+      $this->service->destroyTransfer($id);
 
       return $this->success([
         'message' => 'Transferencia eliminada correctamente. El stock ha sido revertido.'
@@ -201,7 +199,7 @@ class InventoryMovementController extends Controller
   public function getProductMovementHistory(int $productId, int $warehouseId, Request $request)
   {
     try {
-      $movements = $this->inventoryMovementService->getProductMovementHistory(
+      $movements = $this->service->getProductMovementHistory(
         $productId,
         $warehouseId,
         $request
@@ -235,7 +233,7 @@ class InventoryMovementController extends Controller
         'search' => 'nullable|string',
       ]);
 
-      $movements = $this->inventoryMovementService->getKardex($request);
+      $movements = $this->service->getKardex($request);
 
       // Return with pagination preserved
       // Format: { data: [], links: {}, meta: {} }
@@ -252,10 +250,13 @@ class InventoryMovementController extends Controller
    * @param int $quotationId Quotation ID
    * @return JsonResponse
    */
-  public function createSaleFromQuotation(int $quotationId): JsonResponse
+  public function createSaleFromQuotation(int $quotationId, Request $request): JsonResponse
   {
     try {
-      $movement = $this->inventoryMovementService->createSaleFromQuotation($quotationId);
+      $movement = $this->service->createSaleFromQuotation($quotationId, [
+        'customer_signature_delivery_url' => $request->input('customer_signature_delivery_url'),
+        'delivery_document_number' => $request->input('delivery_document_number'),
+      ]);
 
       return $this->success([
         'message' => 'Movimiento de salida por venta creado exitosamente',
@@ -284,7 +285,7 @@ class InventoryMovementController extends Controller
         'search' => 'sometimes|string',
       ]);
 
-      $history = $this->inventoryMovementService->getProductPurchaseHistory(
+      $history = $this->service->getProductPurchaseHistory(
         $productId,
         $warehouseId,
         $request
@@ -314,7 +315,7 @@ class InventoryMovementController extends Controller
         'status' => 'sometimes|string',
       ]);
 
-      return $this->inventoryMovementService->exportProductMovementHistory(
+      return $this->service->exportProductMovementHistory(
         $productId,
         $warehouseId,
         $request
@@ -340,7 +341,7 @@ class InventoryMovementController extends Controller
         'date_to' => 'sometimes|date|after_or_equal:date_from',
       ]);
 
-      return $this->inventoryMovementService->exportProductPurchaseHistory(
+      return $this->service->exportProductPurchaseHistory(
         $productId,
         $warehouseId,
         $request
