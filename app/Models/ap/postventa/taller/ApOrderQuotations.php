@@ -53,6 +53,8 @@ class ApOrderQuotations extends Model
     'discarded_at',
     'supply_type',
     'customer_signature_url',
+    'customer_signature_delivery_url',
+    'delivery_document_number',
     'chief_approval_by',
     'manager_approval_by',
     'status',

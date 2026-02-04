@@ -51,6 +51,8 @@ class ApOrderQuotationsResource extends JsonResource
       'discarded_by_name' => $this->discardedBy->name ?? null,
       'discarded_at' => $this->discarded_at ? $this->discarded_at->format('Y-m-d') : null,
       'supply_type' => $this->supply_type,
+      'customer_signature_delivery_url' => $this->customer_signature_delivery_url,
+      'delivery_document_number' => $this->delivery_document_number,
       'status' => $this->status,
 
       // Relations

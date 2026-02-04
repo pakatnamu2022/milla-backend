@@ -15,6 +15,7 @@ class ApVehicleInspection extends Model
   protected $table = 'ap_vehicle_inspection';
 
   protected $fillable = [
+    'ap_work_order_id',
     'inspection_date',
     'mileage',
     'fuel_level',
@@ -48,6 +49,13 @@ class ApVehicleInspection extends Model
     'photo_left_url',
     'photo_right_url',
     'inspected_by',
+    //campos de cancelar
+    'is_cancelled',
+    'cancellation_requested_by',
+    'cancellation_confirmed_by',
+    'cancellation_requested_at',
+    'cancellation_confirmed_at',
+    'cancellation_reason',
   ];
 
   protected $casts = [
@@ -80,6 +88,8 @@ class ApVehicleInspection extends Model
     'search' => ['general_observations', 'workOrder.vehicle.plate'],
     'fuel_level' => 'between',
     'inspected_by' => '=',
+    'ap_work_order_id' => '=',
+    'is_cancelled' => '=',
   ];
 
   const sorts = [
@@ -104,6 +114,11 @@ class ApVehicleInspection extends Model
     $this->attributes['general_observations'] = strtoupper($value);
   }
 
+  public function setCancellationReasonAttribute($value)
+  {
+    $this->attributes['cancellation_reason'] = strtoupper($value);
+  }
+
   public function damages()
   {
     return $this->hasMany(ApVehicleInspectionDamages::class, 'vehicle_inspection_id');
@@ -114,8 +129,18 @@ class ApVehicleInspection extends Model
     return $this->belongsTo(User::class, 'inspected_by');
   }
 
+  public function cancellationRequestedBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'cancellation_requested_by');
+  }
+
+  public function cancellationConfirmedBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'cancellation_confirmed_by');
+  }
+
   public function workOrder(): HasOne
   {
-    return $this->hasOne(ApWorkOrder::class, 'vehicle_inspection_id');
+    return $this->hasOne(ApWorkOrder::class, 'id', 'ap_work_order_id');
   }
 }
