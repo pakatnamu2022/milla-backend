@@ -244,9 +244,7 @@ class ElectronicDocument extends BaseModel
           ->active()->received()->first();
         return $warehouse->dyn_code;
       } else if (!$this->purchaseRequestQuote->has_vehicle) {
-        $article_class_id = $this->purchaseRequestQuote->article_class_id;
         $warehouse = Warehouse::where('sede_id', $sedeId)
-          ->where('article_class_id', $article_class_id)
           ->commercial()->received()->active()->first();
         return $warehouse->dyn_code;
       } else {
