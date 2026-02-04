@@ -2045,7 +2045,6 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       if ($sendToBoss && $request->employee->boss) {
         $this->emailService->queue([
           'to' => $request->employee->boss->email2,
-          //          'to' => "hvaldiviezos@automotorespakatnamu.com",
           'cc' => $accountantEmails,
           'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
           'template' => 'emails.per-diem-request-approved',
