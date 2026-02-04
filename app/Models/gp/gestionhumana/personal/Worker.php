@@ -27,6 +27,7 @@ class Worker extends BaseModel
     'nombre_completo',
     'sede_id',
     'jefe_id',
+    'second_boss_id',
     'supervisor_id',
     'fecha_inicio',
     'email',
@@ -122,6 +123,11 @@ class Worker extends BaseModel
   public function boss()
   {
     return $this->hasOne(Worker::class, 'id', 'jefe_id');
+  }
+
+  public function secondBoss()
+  {
+    return $this->hasOne(Worker::class, 'id', 'second_boss_id');
   }
 
   public function evaluator()
