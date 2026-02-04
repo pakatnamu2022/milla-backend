@@ -1178,6 +1178,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('workOrders/{id}/pre-liquidation', [WorkOrderController::class, 'getPreLiquidationPdf']);
       Route::patch('workOrders/{id}/unlink-quotation', [WorkOrderController::class, 'unlinkQuotation']);
       Route::patch('workOrders/{id}/authorization', [WorkOrderController::class, 'authorization']);
+      Route::patch('workOrders/{id}/invoice-to', [WorkOrderController::class, 'invoiceTo']);
       Route::apiResource('workOrders', WorkOrderController::class)->only([
         'index',
         'show',

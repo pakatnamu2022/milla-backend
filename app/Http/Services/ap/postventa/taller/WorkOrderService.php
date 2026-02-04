@@ -503,4 +503,23 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       return new WorkOrderResource($workOrder);
     });
   }
+
+  public function invoiceTo(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $workOrder = $this->find($data['id']);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+        throw new Exception('No se puede modificar una orden de trabajo cerrada');
+      }
+      // Update work order
+      $workOrder->update($data);
+
+      return new WorkOrderResource($workOrder);
+    });
+  }
 }

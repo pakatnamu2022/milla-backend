@@ -3,6 +3,7 @@
 namespace App\Models\ap\postventa\taller;
 
 use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -32,6 +33,7 @@ class ApWorkOrder extends Model
     'vehicle_vin',
     'status_id',
     'advisor_id',
+    'invoice_to',
     'sede_id',
     'opening_date',
     'estimated_delivery_date',
@@ -166,6 +168,11 @@ class ApWorkOrder extends Model
   public function advisor(): BelongsTo
   {
     return $this->belongsTo(Worker::class, 'advisor_id');
+  }
+
+  public function invoiceTo(): BelongsTo
+  {
+    return $this->belongsTo(BusinessPartners::class, 'invoice_to');
   }
 
   public function sede(): BelongsTo

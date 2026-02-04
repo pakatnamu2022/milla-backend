@@ -142,7 +142,7 @@ class ApWorkOrderPlanning extends Model
   {
     $activeSession = $this->activeSession();
     if ($activeSession) {
-      $activeSession->endSession($pauseReason);
+      $activeSession->endSession($pauseReason, 'paused');
 
       // Actualizar horas acumuladas
       $this->actual_hours = $this->calculateTotalHoursWorked();
