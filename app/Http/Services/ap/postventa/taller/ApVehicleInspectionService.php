@@ -407,4 +407,99 @@ class ApVehicleInspectionService extends BaseService
 
     return $pdf->stream("reporte-recepcion-{$workOrder->correlative}.pdf");
   }
+
+  /**
+   * Genera el reporte de recepción en PDF
+   */
+  public function generateOrderReceipt($id)
+  {
+    // Obtener la inspección con todas las relaciones necesarias
+    $inspection = ApVehicleInspection::with([
+      'damages',
+      'workOrder.vehicle.model.family.brand',
+      'workOrder.vehicle.color',
+      'workOrder.vehicle.customer',
+      'workOrder.advisor', // Worker extiende de Person, no tiene relación person
+      'workOrder.sede',
+      'workOrder.status',
+      'workOrder.items.typePlanning',
+      'workOrder.appointmentPlanning',
+      'inspectionBy.person' // User sí tiene relación person
+    ])->findOrFail($id);
+
+    $workOrder = $inspection->workOrder;
+    $vehicle = $workOrder->vehicle;
+    $customer = $vehicle->customer;
+    $advisor = $workOrder->advisor; // Worker extiende de Person directamente
+
+    // Obtener firma del asesor desde WorkerSignature
+    // El asesor es Worker que extiende de Person directamente
+    $advisorSignature = null;
+    if ($advisor) {
+      $workerSignature = WorkerSignature::where('worker_id', $advisor->id)->first();
+      if ($workerSignature && $workerSignature->signature_url) {
+        $advisorSignature = Helpers::convertUrlToBase64($workerSignature->signature_url);
+      }
+    }
+
+    // Convertir firma del cliente a base64 si existe
+    $customerSignature = null;
+    if ($inspection->customer_signature_url) {
+      $customerSignature = Helpers::convertUrlToBase64($inspection->customer_signature_url);
+    }
+
+    // Preparar lista de checks del inventario
+    $inventoryChecks = [
+      'dirty_unit' => 'UNIDAD SUCIA',
+      'unit_ok' => 'UNIDAD OK',
+      'title_deed' => 'TARJETA DE PROPIEDAD',
+      'soat' => 'SOAT',
+      'moon_permits' => 'PERMISOS LUNETA',
+      'service_card' => 'TARJETA DE SERVICIO',
+      'owner_manual' => 'MANUAL DEL PROPIETARIO',
+      'key_ring' => 'LLAVERO',
+      'wheel_lock' => 'SEGURO DE RUEDA',
+      'safe_glasses' => 'GAFAS DE SEGURIDAD',
+      'radio_mask' => 'MÁSCARA DE RADIO',
+      'lighter' => 'ENCENDEDOR',
+      'floors' => 'PISOS',
+      'seat_cover' => 'CUBRE ASIENTOS',
+      'quills' => 'PLUMILLAS',
+      'antenna' => 'ANTENA',
+      'glasses_wheel' => 'VASOS RUEDA',
+      'emblems' => 'EMBLEMAS',
+      'spare_tire' => 'LLANTA DE REPUESTO',
+      'fluid_caps' => 'TAPAS DE FLUIDOS',
+      'tool_kit' => 'KIT DE HERRAMIENTAS',
+      'jack_and_lever' => 'GATO Y PALANCA',
+    ];
+
+    // Preparar datos para la vista
+    $data = [
+      'inspection' => $inspection,
+      'workOrder' => $workOrder,
+      'vehicle' => $vehicle,
+      'customer' => $customer,
+      'advisor' => $advisor, // Worker ya es Person directamente
+      'advisorPhone' => $advisor ? $advisor->cel_personal : '',
+      'sede' => $workOrder->sede,
+      'status' => $workOrder->status,
+      'items' => $workOrder->items,
+      'damages' => $inspection->damages,
+      'inventoryChecks' => $inventoryChecks,
+      'customerSignature' => $customerSignature,
+      'advisorSignature' => $advisorSignature,
+      'appointmentNumber' => $workOrder->appointmentPlanning ? $workOrder->appointmentPlanning->correlative : 'N/A',
+      'isGuarantee' => $workOrder->is_guarantee ?? false,
+      'isRecall' => $workOrder->is_recall ?? false,
+      'descriptionRecall' => $workOrder->description_recall ?? '',
+      'typeRecall' => $workOrder->type_recall ?? '',
+    ];
+
+    // Generar PDF
+    $pdf = \PDF::loadView('reports.ap.postventa.taller.order-receipt', $data);
+    $pdf->setPaper('a4', 'portrait');
+
+    return $pdf->stream("reporte-recepcion-{$workOrder->correlative}.pdf");
+  }
 }

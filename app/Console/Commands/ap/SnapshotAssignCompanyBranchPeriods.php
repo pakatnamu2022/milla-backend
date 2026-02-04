@@ -40,6 +40,7 @@ class SnapshotAssignCompanyBranchPeriods extends Command
     $assignments = DB::table('ap_assign_company_branch_period')
       ->where('year', $previousYear)
       ->where('month', $previousMonthNumber)
+      ->where('status', true)
       ->get();
 
     if ($assignments->isEmpty()) {
