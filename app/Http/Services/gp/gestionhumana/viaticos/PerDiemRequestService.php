@@ -171,8 +171,17 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         ]);
       }
 
+      // Create approval for employee's second boss
+      if ($employee->second_boss_id) {
+        PerDiemApproval::create([
+          'per_diem_request_id' => $request->id,
+          'approver_id' => $employee->second_boss_id,
+          'status' => PerDiemApproval::PENDING,
+        ]);
+      }
+
       // Send email notifications
-      $this->sendPerDiemRequestCreatedEmails($request->fresh(['employee.boss', 'district']));
+      $this->sendPerDiemRequestCreatedEmails($request->fresh(['employee.boss', 'employee.secondBoss', 'district']));
 
       DB::commit();
       return new PerDiemRequestResource($request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category', 'budgets.expenseType', 'approvals.approver']));
@@ -268,7 +277,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       // Send cancellation email
       $this->sendPerDiemRequestCancelledEmail(
-        $request->fresh(['employee.boss', 'district']),
+        $request->fresh(['employee.boss', 'employee.secondBoss', 'district']),
         $data['cancellation_reason'] ?? ''
       );
 
@@ -297,9 +306,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Get approval requests for the authenticated user (as approver)
    * @param Request $request
-   * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+   * @return \Illuminate\Http\JsonResponse
    */
   public function getPendingApprovals(Request $request)
   {
@@ -448,7 +456,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           $request->update(['status' => PerDiemRequest::STATUS_APPROVED]);
 
           // Send approval email to employee
-          $this->sendPerDiemRequestApprovedEmail($request->fresh(['employee', 'district']));
+          $this->sendPerDiemRequestApprovedEmail($request->fresh(['employee.boss', 'employee.secondBoss', 'district']));
         }
         // If not all approved yet, keep status as pending
       }
@@ -515,7 +523,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       ]);
 
       // Send settlement email to employee
-      $this->sendPerDiemRequestSettlementEmail($request->fresh(['employee', 'district']));
+      $this->sendPerDiemRequestSettlementEmail($request->fresh(['employee.boss', 'employee.secondBoss', 'district']));
 
       DB::commit();
       return $request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category']);
@@ -567,7 +575,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       }
 
       // Send settlement completed email to employee
-      $this->sendPerDiemRequestSettledEmail($request->fresh(['employee', 'district']));
+      $this->sendPerDiemRequestSettledEmail($request->fresh(['employee.boss', 'employee.secondBoss', 'district']));
 
       DB::commit();
       return $request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category', 'expenses']);
@@ -701,7 +709,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       // Send in-progress email ONLY if no hotel reservation exists
       if (!$request->hotelReservation()->exists()) {
-        $this->sendPerDiemInProgressEmail($request->fresh(['employee', 'district']));
+        $this->sendPerDiemInProgressEmail($request->fresh(['employee.boss', 'employee.secondBoss', 'district']));
       }
 
       DB::commit();
@@ -1903,6 +1911,30 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'data' => $bossEmailData,
         ]);
       }
+
+      // Send email to second boss if exists
+      if ($sendToBoss && $request->employee->second_boss_id && $request->employee->secondBoss) {
+        $secondBossEmailData = [
+          'boss_name' => $request->employee->secondBoss->nombre_completo,
+          'employee_name' => $request->employee->nombre_completo,
+          'request_code' => $request->code,
+          'destination' => $request->district->name ?? 'N/A',
+          'start_date' => $request->start_date->format('d/m/Y'),
+          'end_date' => $request->end_date->format('d/m/Y'),
+          'days_count' => $request->days_count,
+          'total_budget' => $request->total_budget,
+          'purpose' => $request->purpose,
+          'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+        ];
+
+        $this->emailService->queue([
+          'to' => [$request->employee->secondBoss->email2],
+          'cc' => $accountantEmails,
+          'subject' => 'Nueva Solicitud de Viáticos Pendiente de Aprobación - ' . $request->code,
+          'template' => 'emails.per-diem-request-created-boss',
+          'data' => $secondBossEmailData,
+        ]);
+      }
     } catch (Exception $e) {
       // Log error but don't fail the transaction
       \Log::error('Error sending per diem request created emails: ' . $e->getMessage());
@@ -1947,6 +1979,20 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         $this->emailService->queue([
           'to' => $request->employee->boss->email2,
           //          'to' => "hvaldiviezos@automotorespakatnamu.com",
+          'cc' => $accountantEmails,
+          'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
+          'template' => 'emails.per-diem-request-approved',
+          'data' => array_merge($emailData, [
+            'recipient_type' => 'boss',
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          ]),
+        ]);
+      }
+
+      // Send email to second boss if exists
+      if ($sendToBoss && $request->employee->secondBoss) {
+        $this->emailService->queue([
+          'to' => $request->employee->secondBoss->email2,
           'cc' => $accountantEmails,
           'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
           'template' => 'emails.per-diem-request-approved',
@@ -2086,6 +2132,20 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         ]);
       }
 
+      // Send to second boss if exists
+      if ($sendToBoss && $request->employee->secondBoss) {
+        $this->emailService->queue([
+          'to' => $request->employee->secondBoss->email2,
+          'cc' => $accountantEmails,
+          'subject' => 'Liquidación de Viáticos - ' . $request->code,
+          'template' => 'emails.per-diem-request-settlement',
+          'data' => array_merge($emailData, [
+            'recipient_type' => 'boss',
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          ]),
+        ]);
+      }
+
       // Send to accounting (contabilidad)
       if ($sendToAccounting) {
         $this->emailService->queue([
@@ -2172,6 +2232,20 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           ]),
         ]);
       }
+
+      // Send to second boss if exists
+      if ($sendToBoss && $request->employee->secondBoss) {
+        $this->emailService->queue([
+          'to' => $request->employee->secondBoss->email2,
+          'cc' => $accountantEmails,
+          'subject' => 'Liquidación de Viáticos Completada - ' . $request->code,
+          'template' => 'emails.per-diem-request-settled',
+          'data' => array_merge($emailData, [
+            'recipient_type' => 'boss',
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          ]),
+        ]);
+      }
     } catch (Exception $e) {
       \Log::error('Error sending per diem request settled email: ' . $e->getMessage());
     }
@@ -2234,6 +2308,19 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           ]),
         ]);
       }
+
+      // Send to second boss if exists
+      if ($sendToBoss && $request->employee->secondBoss) {
+        $this->emailService->queue([
+          'to' => $request->employee->secondBoss->email2,
+          'cc' => $accountantEmails,
+          'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
+          'template' => 'emails.per-diem-request-cancelled',
+          'data' => array_merge($emailData, [
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          ]),
+        ]);
+      }
     } catch (Exception $e) {
       \Log::error('Error sending per diem request cancelled email: ' . $e->getMessage());
     }
@@ -2283,6 +2370,19 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           ]),
         ]);
       }
+
+      // Send to second boss if exists
+      if ($sendToBoss && $request->employee->secondBoss) {
+        $this->emailService->queue([
+          'to' => $request->employee->secondBoss->email2,
+          'cc' => $accountantEmails,
+          'subject' => 'Tu Viaje Está en Progreso - ' . $request->code,
+          'template' => 'emails.per-diem-in-progress',
+          'data' => array_merge($emailData, [
+            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          ]),
+        ]);
+      }
     } catch (Exception $e) {
       \Log::error('Error sending per diem in progress email: ' . $e->getMessage());
     }
@@ -2302,7 +2402,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $request = $this->find($id);
 
     // Load necessary relationships
-    $request->load(['employee.boss', 'district', 'expenses.expenseType']);
+    $request->load(['employee.boss', 'employee.secondBoss', 'district', 'expenses.expenseType']);
 
     $emailType = $data['email_type'];
     $sendToEmployee = $data['send_to_employee'] ?? false;
@@ -2325,6 +2425,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
             $emailCount++;
             $recipients[] = 'Jefe';
           }
+          if ($sendToBoss && $request->employee->secondBoss) {
+            $emailCount++;
+            $recipients[] = 'Segundo Jefe';
+          }
           break;
 
         case 'approved':
@@ -2336,6 +2440,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           if ($sendToBoss && $request->employee->boss) {
             $emailCount++;
             $recipients[] = 'Jefe';
+          }
+          if ($sendToBoss && $request->employee->secondBoss) {
+            $emailCount++;
+            $recipients[] = 'Segundo Jefe';
           }
           if ($sendToAccounting) {
             $emailCount++;
@@ -2353,6 +2461,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
             $emailCount++;
             $recipients[] = 'Jefe';
           }
+          if ($sendToBoss && $request->employee->secondBoss) {
+            $emailCount++;
+            $recipients[] = 'Segundo Jefe';
+          }
           if ($sendToAccounting) {
             $emailCount++;
             $recipients[] = 'Contabilidad';
@@ -2369,6 +2481,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
             $emailCount++;
             $recipients[] = 'Jefe';
           }
+          if ($sendToBoss && $request->employee->secondBoss) {
+            $emailCount++;
+            $recipients[] = 'Segundo Jefe';
+          }
           break;
 
         case 'cancelled':
@@ -2381,6 +2497,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
             $emailCount++;
             $recipients[] = 'Jefe';
           }
+          if ($sendToBoss && $request->employee->secondBoss) {
+            $emailCount++;
+            $recipients[] = 'Segundo Jefe';
+          }
           break;
 
         case 'in_progress':
@@ -2392,6 +2512,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           if ($sendToBoss && $request->employee->boss) {
             $emailCount++;
             $recipients[] = 'Jefe';
+          }
+          if ($sendToBoss && $request->employee->secondBoss) {
+            $emailCount++;
+            $recipients[] = 'Segundo Jefe';
           }
           break;
 
