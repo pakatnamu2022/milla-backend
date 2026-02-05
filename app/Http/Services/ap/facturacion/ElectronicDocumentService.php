@@ -896,7 +896,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
         'original_document_id' => $originalDocumentId,
-        'origin_module' => $originalDocument->origin_module,
+        'area_id' => $originalDocument->area_id,
         'origin_entity_type' => $originalDocument->origin_entity_type,
         'origin_entity_id' => $originalDocument->origin_entity_id,
         'purchase_request_quote_id' => $originalDocument->purchase_request_quote_id ?? null,
@@ -974,7 +974,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
         'original_document_id' => $originalDocumentId,
-        'origin_module' => $originalDocument->origin_module,
+        'area_id' => $originalDocument->area_id,
         'origin_entity_type' => $originalDocument->origin_entity_type,
         'origin_entity_id' => $originalDocument->origin_entity_id,
         'purchase_request_quote_id' => $originalDocument->purchase_request_quote_id ?? null,
@@ -1087,7 +1087,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // No permitir cambiar estos campos
       unset($updateData['sunat_concept_document_type_id']);
-      unset($updateData['origin_module']);
+      unset($updateData['area_id']);
       unset($updateData['origin_entity_type']);
       unset($updateData['origin_entity_id']);
 
@@ -1181,7 +1181,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // No permitir cambiar estos campos
       unset($updateData['sunat_concept_document_type_id']);
-      unset($updateData['origin_module']);
+      unset($updateData['area_id']);
       unset($updateData['origin_entity_type']);
       unset($updateData['origin_entity_id']);
 
@@ -1219,11 +1219,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   /**
    * Get documents by module and entity
    */
-  public function getByOriginEntity(string $module, string $entityType, int $entityId): JsonResponse
+  public function getByOriginEntity(int $areaId, string $entityType, int $entityId): JsonResponse
   {
     try {
       $documents = ElectronicDocument::with(['documentType', 'currency', 'items'])
-        ->where('origin_module', $module)
+        ->where('area_id', $areaId)
         ->where('origin_entity_type', $entityType)
         ->where('origin_entity_id', $entityId)
         ->orderBy('fecha_de_emision', 'desc')
@@ -1235,7 +1235,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ]);
     } catch (Exception $e) {
       Log::error('Error getting documents by origin entity', [
-        'module' => $module,
+        'module' => $areaId,
         'entity_type' => $entityType,
         'entity_id' => $entityId,
         'error' => $e->getMessage()

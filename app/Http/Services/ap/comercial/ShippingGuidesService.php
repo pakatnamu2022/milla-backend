@@ -3,6 +3,9 @@
 namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\ShippingGuidesResource;
+use App\Http\Resources\Dynamics\ShippingGuideDetailDynamicsResource;
+use App\Http\Resources\Dynamics\ShippingGuideHeaderDynamicsResource;
+use App\Http\Resources\Dynamics\ShippingGuideSeriesDynamicsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
@@ -620,9 +623,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     $vehicle = $shippingGuide->vehicleMovement?->vehicle;
 
     return [
-      'header' => new \App\Http\Resources\Dynamics\ShippingGuideHeaderDynamicsResource($shippingGuide),
-      'detail' => $vehicle ? new \App\Http\Resources\Dynamics\ShippingGuideDetailDynamicsResource($vehicle, $shippingGuide) : null,
-      'series' => new \App\Http\Resources\Dynamics\ShippingGuideSeriesDynamicsResource($shippingGuide),
+      'header' => new ShippingGuideHeaderDynamicsResource($shippingGuide),
+      'detail' => $vehicle ? new ShippingGuideDetailDynamicsResource($vehicle, $shippingGuide) : null,
+      'series' => new ShippingGuideSeriesDynamicsResource($shippingGuide),
     ];
   }
 }

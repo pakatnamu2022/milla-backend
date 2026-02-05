@@ -1322,7 +1322,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::put('electronic-documents/{id}/credit-note', [ElectronicDocumentController::class, 'updateCreditNote']);
       Route::post('electronic-documents/{id}/debit-note', [ElectronicDocumentController::class, 'createDebitNote']);
       Route::put('electronic-documents/{id}/debit-note', [ElectronicDocumentController::class, 'updateDebitNote']);
-      Route::get('electronic-documents/by-entity/{module}/{entityType}/{entityId}', [ElectronicDocumentController::class, 'getByOriginEntity']);
+      Route::get('electronic-documents/by-entity/{areaId}/{entityType}/{entityId}', [ElectronicDocumentController::class, 'getByOriginEntity']);
       Route::get('electronic-documents/{id}/pdf', [ElectronicDocumentController::class, 'generatePDF']);
 
       // Sincronización con Dynamics 365

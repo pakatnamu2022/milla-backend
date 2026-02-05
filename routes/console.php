@@ -33,49 +33,49 @@ Schedule::command('app:sync-exchange-rate')
 
 // Verificar y migrar órdenes de compra de vehículos pendientes
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
-Schedule::command('po:verify-migration --all --limit=10')
-  ->everyMinute()
-  ->timezone('America/Lima')
-  ->withoutOverlapping()
-  ->runInBackground();
+//Schedule::command('po:verify-migration --all --limit=10')
+//  ->everyMinute()
+//  ->timezone('America/Lima')
+//  ->withoutOverlapping()
+//  ->runInBackground();
 
 // Verificar y migrar guías de remisión pendientes
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
 Schedule::command('shipping-guide:verify-migration --all --limit=10')
-  ->everyMinute()
+  ->everyFiveSeconds()
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
 
 // Sincronizar invoice_dynamics desde Dynamics
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
-Schedule::command('po:sync-invoice-dynamics --all --limit=10')
-  ->everyMinute()
-  ->timezone('America/Lima')
-  ->withoutOverlapping()
-  ->runInBackground();
+//Schedule::command('po:sync-invoice-dynamics --all --limit=10')
+//  ->everyMinute()
+//  ->timezone('America/Lima')
+//  ->withoutOverlapping()
+//  ->runInBackground();
 
 // Sincronizar credit_note_dynamics desde Dynamics
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
-Schedule::command('po:sync-credit-note-dynamics --all --limit=10')
-  ->everyMinute()
-  ->timezone('America/Lima')
-  ->withoutOverlapping()
-  ->runInBackground();
+//Schedule::command('po:sync-credit-note-dynamics --all --limit=10')
+//  ->everyMinute()
+//  ->timezone('America/Lima')
+//  ->withoutOverlapping()
+//  ->runInBackground();
 
 // Verificar y sincronizar documentos electrónicos de venta a Dynamics
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
-Schedule::command('electronic-document:verify-sync --all --limit=10')
-  ->everyTenSeconds()
-  ->timezone('America/Lima')
-  ->withoutOverlapping()
-  ->runInBackground();
+//Schedule::command('electronic-document:verify-sync --all --limit=10')
+//  ->everyTenSeconds()
+//  ->timezone('America/Lima')
+//  ->withoutOverlapping()
+//  ->runInBackground();
 
 // Consultar estado de documentos electrónicos enviados a SUNAT
 // Verificación de estado cada minuto (solo lectura, no crea jobs masivos)
-Schedule::command('app:check-pending-electronic-documents')
-  ->everyTenSeconds()
-  ->timezone('America/Lima')
-  ->withoutOverlapping()
-  ->runInBackground();
-
+//Schedule::command('app:check-pending-electronic-documents')
+//  ->everyTenSeconds()
+//  ->timezone('America/Lima')
+//  ->withoutOverlapping()
+//  ->runInBackground();
+//

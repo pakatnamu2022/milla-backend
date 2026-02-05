@@ -40,7 +40,7 @@ class ElectronicDocument extends BaseModel
     'full_number',
     'is_advance_payment',
     'sunat_concept_transaction_type_id',
-    'origin_module',
+    'area_id',
     'origin_entity_type',
     'origin_entity_id',
     'ap_vehicle_movement_id',
@@ -168,7 +168,7 @@ class ElectronicDocument extends BaseModel
     'sunat_concept_document_type_id' => '=',
     'serie' => '=',
     'numero' => '=',
-    'origin_module' => '=',
+    'area_id' => '=',
     'origin_entity_type' => '=',
     'origin_entity_id' => '=',
     'ap_vehicle_movement_id' => '=',
@@ -200,8 +200,18 @@ class ElectronicDocument extends BaseModel
   const TYPE_NOTA_DEBITO = SunatConcepts::ID_NOTA_DEBITO_ELECTRONICA;      // 32
 
   // Módulos de origen
-  const MODULE_COMERCIAL = 'comercial';
-  const MODULE_POSVENTA = 'posventa';
+  const int AREA_COMERCIAL = 826;
+  const int AREA_POSVENTA = 825;
+  const int AREA_TALLER = 881;
+  const int AREA_MESON = 882;
+  const array AREAS_POSVENTA = [self::AREA_POSVENTA, self::AREA_TALLER, self::AREA_MESON];
+
+  const array ALL_AREAS = [
+    self::AREA_COMERCIAL,
+    self::AREA_POSVENTA,
+    self::AREA_TALLER,
+    self::AREA_MESON,
+  ];
 
   /**
    * Booted
@@ -236,7 +246,7 @@ class ElectronicDocument extends BaseModel
   {
     $series = AssignSalesSeries::find($this->series_id);
     $sedeId = $series->sede_id;
-    if ($this->origin_module == self::MODULE_COMERCIAL) {
+    if ($this->area_id == self::AREA_COMERCIAL) {
       if ($this->ap_vehicle_movement_id) {
         $ap_vehicle_movement = $this->vehicleMovement;
         $model = $ap_vehicle_movement->vehicle->model;
@@ -405,12 +415,22 @@ class ElectronicDocument extends BaseModel
 
   public function scopeComercial($query)
   {
-    return $query->where('origin_module', self::MODULE_COMERCIAL);
+    return $query->where('area_id', self::AREA_COMERCIAL);
   }
 
-  public function scopePosventa($query)
+  public function scopePostventa($query)
   {
-    return $query->where('origin_module', self::MODULE_POSVENTA);
+    return $query->whereIn('area_id', self::AREAS_POSVENTA);
+  }
+
+  public function scopeTaller($query)
+  {
+    return $query->where('area_id', self::AREA_TALLER);
+  }
+
+  public function scopeMeson($query)
+  {
+    return $query->where('area_id', self::AREA_MESON);
   }
 
   public function scopeAccepted($query)
@@ -429,9 +449,9 @@ class ElectronicDocument extends BaseModel
     return $query->where('is_advance_payment', true);
   }
 
-  public function scopeByOriginEntity($query, string $module, string $entityType, int $entityId)
+  public function scopeByOriginEntity($query, int $areaId, string $entityType, int $entityId)
   {
-    return $query->where('origin_module', $module)
+    return $query->where('area_id', $areaId)
       ->where('origin_entity_type', $entityType)
       ->where('origin_entity_id', $entityId);
   }
@@ -644,6 +664,11 @@ class ElectronicDocument extends BaseModel
   public function workOrder(): HasOne
   {
     return $this->hasOne(ApWorkOrder::class, 'id', 'work_order_id');
+  }
+
+  public function area(): HasOne
+  {
+    return $this->hasOne(ApMasters::class, 'id', 'area_id');
   }
 
   /**
