@@ -223,7 +223,7 @@ class SyncSalesDocumentJob implements ShouldQueue
         $existingDocument->ProcesoError ?? null
       );
 
-      if ($existingDocument->ProcesoEstado === "1" && $detailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+      if ($existingDocument->ProcesoEstado == 1 && $detailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
         $log->markAsCompletedElectronicDocument();
       }
     }

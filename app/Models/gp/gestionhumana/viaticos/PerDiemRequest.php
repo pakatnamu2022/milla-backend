@@ -48,6 +48,7 @@ class PerDiemRequest extends BaseModel
     'with_request',
     'deposit_voucher_url',
     'authorizer_id',
+    'second_authorizer_id',
     'mobility_payroll_generated',
   ];
 

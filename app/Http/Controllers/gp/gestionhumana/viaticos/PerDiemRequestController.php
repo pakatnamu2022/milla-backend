@@ -460,6 +460,24 @@ class PerDiemRequestController extends Controller
   }
 
   /**
+   * Reset approvals for a per diem request
+   * Creates missing boss approvals and resets approved/rejected ones to pending
+   */
+  public function resetApprovals(int $id)
+  {
+    try {
+      $perDiemRequest = $this->service->resetApprovals($id);
+
+      return $this->success([
+        'data' => new PerDiemRequestResource($perDiemRequest),
+        'message' => 'Aprobaciones restablecidas exitosamente'
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Resend emails for a per diem request
    * Allows filtering recipients with boolean parameters
    */

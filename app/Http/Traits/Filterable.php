@@ -493,7 +493,6 @@ trait Filterable
    * - Paginado: Retorna data, links y meta con información de paginación
    * - Todo (all=true): Retorna todos los resultados sin paginación
    *
-   * @param \Illuminate\Database\Eloquent\Model|\Illuminate\Database\Eloquent\Builder $modelOrQuery Modelo o query builder
    * @param \Illuminate\Http\Request $request La petición HTTP con parámetros de filtrado
    * @param array $filters Array de configuración de filtros
    * @param array $sorts Array de campos permitidos para ordenamiento

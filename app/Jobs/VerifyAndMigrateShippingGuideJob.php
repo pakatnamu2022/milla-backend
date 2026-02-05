@@ -344,7 +344,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
       // Verificar si la transacción fue aceptada por Dynamics (ProcesoEstado = 1)
       // y si es una transacción normal (no reversal)
-      if ($existingTransaction->ProcesoEstado === "1" && !str_contains($step, 'REVERSAL')) {
+      if ($existingTransaction->ProcesoEstado == 1 && !str_contains($step, 'REVERSAL')) {
         // Dispatch job con pequeño delay para asegurar consistencia
         SyncAccountingEntryJob::dispatch($shippingGuide->id)
           ->onQueue('sync')

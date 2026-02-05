@@ -20,9 +20,13 @@ class NubefactShippingGuideApiService
 
   public function __construct()
   {
-    $this->apiUrl = config('nubefact.api_url');
-    $this->token = config('nubefact.token');
-    $this->ruc = config('nubefact.ruc');
+  }
+
+  public function setApiCredentials($sedeId): void
+  {
+    $this->apiUrl = config('nubefact.' . $sedeId . '.api_url');
+    $this->token = config('nubefact.' . $sedeId . '.token');
+    $this->ruc = config('nubefact.' . $sedeId . '.ruc');
   }
 
   /**
@@ -34,6 +38,7 @@ class NubefactShippingGuideApiService
    */
   public function generateGuide($guide): array
   {
+    $this->setApiCredentials($guide->sede_transmitter_id);
     $payload = $this->buildGuidePayload($guide);
 
     $logData = [
@@ -98,6 +103,7 @@ class NubefactShippingGuideApiService
    */
   public function queryGuide($guide): array
   {
+    $this->setApiCredentials($guide->sede_transmitter_id);
     // Si es guía de remisión, DEBE tener type_voucher_id válido
     if ($guide->document_type == 'GUIA_REMISION') {
       if (!$guide->type_voucher_id) {
@@ -422,10 +428,10 @@ class NubefactShippingGuideApiService
       'codigo' => '001',
       'descripcion' => strtoupper(
         $vehicle->model->family->brand->name . ' ' .
-          $vehicle->model->version . ' ' .
-          $vehicle->model->model_year . ' ' .
-          'SERIE: ' . $vehicle->vin . ' ' .
-          'MOTOR: ' . $vehicle->engine_number
+        $vehicle->model->version . ' ' .
+        $vehicle->model->model_year . ' ' .
+        'SERIE: ' . $vehicle->vin . ' ' .
+        'MOTOR: ' . $vehicle->engine_number
       ),
       'cantidad' => '1',
     ]];
@@ -449,7 +455,7 @@ class NubefactShippingGuideApiService
         'unidad_de_medida' => $product->unitMeasurement->code_nubefact ?? 'NIU',
         'codigo' => $product->code ?? 'PROD',
         'descripcion' => strtoupper($product->name ?? 'PRODUCTO'),
-        'cantidad' => (string) $detail->quantity,
+        'cantidad' => (string)$detail->quantity,
       ];
     }
 
@@ -471,7 +477,7 @@ class NubefactShippingGuideApiService
         'unidad_de_medida' => 'NIU',
         'codigo' => '001',
         'descripcion' => strtoupper($description),
-        'cantidad' => (string) $detail->quantity,
+        'cantidad' => (string)$detail->quantity,
       ];
     }
 

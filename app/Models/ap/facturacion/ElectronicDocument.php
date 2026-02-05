@@ -230,18 +230,42 @@ class ElectronicDocument extends BaseModel
 
   /**
    * Relaciones
+   * @throws Exception
    */
   public function warehouse()
   {
-    if ($this->ap_vehicle_movement_id) {
-      $series = AssignSalesSeries::find($this->series_id);
-      $ap_vehicle_movement = $this->vehicleMovement;
-      $model = $ap_vehicle_movement->vehicle->model;
-      $warehouse = Warehouse::where('article_class_id', $model->class_id)->where('status', 1)->where('is_received', 1)->where('sede_id', $series->sede_id)->first();
-      return $warehouse->dyn_code;
+    $series = AssignSalesSeries::find($this->series_id);
+    $sedeId = $series->sede_id;
+    if ($this->origin_module == self::MODULE_COMERCIAL) {
+      if ($this->ap_vehicle_movement_id) {
+        $ap_vehicle_movement = $this->vehicleMovement;
+        $model = $ap_vehicle_movement->vehicle->model;
+        $warehouse = Warehouse::where('article_class_id', $model->class_id)->where('sede_id', $sedeId)
+          ->active()->received()->first();
+        return $warehouse->dyn_code;
+      } else if (!$this->purchaseRequestQuote->has_vehicle) {
+        $warehouse = Warehouse::where('sede_id', $sedeId)
+          ->commercial()->received()->active()->first();
+        return $warehouse->dyn_code;
+      } else {
+        throw new Exception("No se pudo determinar el almacén para el documento electrónico ID: {$this->id}");
+      }
     } else {
-      throw new Exception("El documento no tiene asociado un movimiento de vehículo.");
+      $warehouse = Warehouse::where('sede_id', $sedeId)
+        ->postSale()->active()->received()->first();
+      return $warehouse->dyn_code;
     }
+  }
+
+  public function inventoryMovement()
+  {
+    return $this->belongsTo(VehicleMovement::class, 'ap_vehicle_movement_id');
+  }
+
+  public function getSedeIdAttribute()
+  {
+    $series = AssignSalesSeries::find($this->series_id);
+    return $series ? $series->sede_id : null;
   }
 
   public function bank()

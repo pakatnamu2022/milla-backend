@@ -18,7 +18,15 @@
       "Bash(grep:*)",
       "Bash(test:*)",
       "Bash(git log:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(powershell -Command \"[System.Reflection.Assembly]::LoadFile\\(''C:/laragon/bin/php/php-8.3.30-Win32-vs16-x64/ext/php_pdo_sqlsrv_83_nts_x64.dll''\\)\")",
+      "Bash(powershell -Command \"& { try { [System.Runtime.InteropServices.DllImports]; } catch {} }\")",
+      "Bash(dumpbin:*)",
+      "Bash(powershell -Command \"\ntry {\n    $dll = ''C:/laragon/bin/php/php-8.3.30-Win32-vs16-x64/ext/php_pdo_sqlsrv_83_nts_x64.dll''\n    $result = & ''C:/Windows/System32/regsvcs.exe'' $dll 2>&1\n    Write-Host $result\n} catch { Write-Host $_.Exception.Message }\n\")",
+      "Bash(powershell -Command \"\n# Check if msodbcsql17 exists \\(some drivers require 17, not 18\\)\nls ''C:/Windows/System32/msodbcsql*''\n\")",
+      "Bash(powershell -Command:*)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -Command '\n$bytes = [System.IO.File]::ReadAllBytes\\(\"\"C:/laragon/bin/php/php-8.3.30-Win32-vs16-x64/ext/php_pdo_sqlsrv_83_nts_x64.dll\"\"\\)\n$text = [System.Text.Encoding]::ASCII.GetString\\($bytes\\)\n$dlls = [System.Text.RegularExpressions.Regex]::Matches\\($text, \"\"[a-zA-Z0-9_]+\\\\.dll\"\"\\)\n$dlls | ForEach-Object { $_.Value } | Sort-Object -Unique\n')",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -Command '\n$deps = @\\(\"\"KERNEL32.dll\"\",\"\"MSVCP140.dll\"\",\"\"ODBC32.dll\"\",\"\"VCRUNTIME140.dll\"\",\"\"VCRUNTIME140_1.dll\"\"\\)\nforeach \\($d in $deps\\) {\n    $found = Get-Command $d -ErrorAction SilentlyContinue\n    if \\($found\\) { Write-Host \"\"OK: $d -> $\\($found.Source\\)\"\" }\n    else {\n        # buscar manualmente\n        $path = \"\"C:/Windows/System32/$d\"\"\n        if \\(Test-Path $path\\) { Write-Host \"\"OK: $d -> $path\"\" }\n        else { Write-Host \"\"FALTANTE: $d\"\" }\n    }\n}\n# tambien verificar php8.dll en laragon\n$php8 = Get-ChildItem \"\"C:/laragon/bin/php/php-8.3.30-Win32-vs16-x64/\"\" -Filter \"\"php8*\"\" -ErrorAction SilentlyContinue\nWrite-Host \"\"php8 dlls en PHP dir:\"\"\n$php8 | ForEach-Object { Write-Host \"\"  $_\"\" }\n')"
     ],
     "deny": [],
     "ask": []

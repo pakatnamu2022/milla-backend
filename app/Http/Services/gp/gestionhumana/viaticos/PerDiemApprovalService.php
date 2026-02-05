@@ -129,6 +129,20 @@ class PerDiemApprovalService extends BaseService implements BaseServiceInterface
       // Get the per diem request
       $request = $approval->request;
 
+      // Si es aprobación de jefe (principal o segundo), auto-aprobar al otro jefe
+      $employee = $request->employee;
+      $bosses = array_filter([$employee->jefe_id, $employee->second_boss_id]);
+      if (in_array($approval->approver_id, $bosses)) {
+        $request->approvals()
+          ->whereIn('approver_id', $bosses)
+          ->where('status', 'pending')
+          ->update([
+            'status' => 'approved',
+            'comments' => 'Aprobado automáticamente - aprobado por otro jefe',
+            'approved_at' => now(),
+          ]);
+      }
+
       // Check if all approvals are approved
       $pendingApprovals = $request->approvals()->where('status', 'pending')->count();
 
@@ -178,9 +192,23 @@ class PerDiemApprovalService extends BaseService implements BaseServiceInterface
         'approved_at' => now(),
       ]);
 
-      // Get the per diem request and update its status
+      // Get the per diem request
       $request = $approval->request;
-      $request->update(['status' => 'rejected']);
+
+      // Si es aprobación de jefe y hay otro jefe pendiente, no rechazar aún
+      $employee = $request->employee;
+      $bosses = array_filter([$employee->jefe_id, $employee->second_boss_id]);
+      $siblingPending = false;
+      if (in_array($approval->approver_id, $bosses) && count($bosses) > 1) {
+        $siblingPending = $request->approvals()
+          ->whereIn('approver_id', $bosses)
+          ->where('status', 'pending')
+          ->exists();
+      }
+
+      if (!$siblingPending) {
+        $request->update(['status' => 'rejected']);
+      }
 
       DB::commit();
       return $approval->fresh(['request', 'approver']);

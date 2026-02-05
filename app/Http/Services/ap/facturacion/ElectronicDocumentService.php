@@ -34,7 +34,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use NumberFormatter;
 use Throwable;
-use function json_encode;
 
 class ElectronicDocumentService extends BaseService implements BaseServiceInterface
 {

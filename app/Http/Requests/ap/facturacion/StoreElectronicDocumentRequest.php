@@ -184,7 +184,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
           ->where('type', SunatConcepts::BILLING_DOCUMENT_TYPE)
           ->whereNull('deleted_at')->where('status', 1)
       ],
-      'series' => [
+      'series_id' => [
         'required',
         'integer',
         Rule::exists('assign_sales_series', 'id')
