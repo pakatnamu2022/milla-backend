@@ -103,14 +103,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $data['subtotal'] = $subtotalBase;
     }
 
-    // Calcular tax_amount basándose en el tax_rate del producto
-//    if (!isset($data['tax_amount']) || $data['tax_amount'] === null) {
-//      if ($product->is_taxable && $product->tax_rate) {
-//        $data['tax_amount'] = $data['subtotal'] * ($product->tax_rate / 100);
-//      } else {
-//        $data['tax_amount'] = 0;
-//      }
-//    }
     $data['tax_amount'] = 0;
 
     // Calcular total_amount
@@ -175,7 +167,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('No se puede agregar repuestos a una orden de trabajo cerrada');
       }
 
-      if ($workOrder->vehicle_inspection_id === null) {
+      if ($workOrder->vehicleInspection === null) {
         throw new Exception('No se puede agregar repuestos a una orden de trabajo sin inspección vehicular');
       }
 
@@ -189,6 +181,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
       // Create work order part (sin descontar stock, eso se hace en warehouseOutput)
       $workOrderPart = ApWorkOrderParts::create($data);
+      $workOrder->calculateTotals();
 
       return new ApWorkOrderPartsResource($workOrderPart->load([
         'workOrder',
@@ -210,6 +203,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
       // Update work order part
       $workOrderPart->update($data);
+      $workOrderPart->workOrder->calculateTotals();
 
       // Reload relations
       $workOrderPart->load([
@@ -244,6 +238,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
       // Eliminar el repuesto
       $workOrderPart->delete();
+      $workOrder->calculateTotals();
 
       return response()->json(['message' => 'Repuesto eliminado correctamente y stock devuelto al almacén']);
     });
@@ -311,6 +306,8 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         $detail->status = 'taken';
         $detail->save();
       }
+
+      ApWorkOrder::find($workOrderId)->calculateTotals();
 
       return [
         'message' => 'Repuestos agregados correctamente desde la cotización',

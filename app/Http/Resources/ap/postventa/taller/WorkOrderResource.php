@@ -3,6 +3,7 @@
 namespace App\Http\Resources\ap\postventa\taller;
 
 use App\Http\Resources\ap\ApMastersResource;
+use App\Http\Resources\ap\comercial\BusinessPartnersResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use Illuminate\Http\Request;
@@ -28,6 +29,8 @@ class WorkOrderResource extends JsonResource
       'status_name' => $this->status ? $this->status->description : null,
       'advisor_id' => $this->advisor_id,
       'advisor_name' => $this->advisor ? $this->advisor->nombre_completo : null,
+      'invoice_to' => $this->invoice_to,
+      'invoice_to_client' => BusinessPartnersResource::make($this->invoiceTo),
       'sede_id' => $this->sede_id,
       'sede_name' => $this->sede ? $this->sede->abreviatura : null,
       'opening_date' => $this->opening_date?->format('Y-m-d H:i:s'),

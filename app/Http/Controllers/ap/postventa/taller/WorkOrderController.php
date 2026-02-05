@@ -112,4 +112,19 @@ class WorkOrderController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function invoiceTo(Request $request, $id)
+  {
+    try {
+      $data = $request->validate(
+        [
+          'invoice_to' => 'required|integer|exists:business_partners,id',
+        ]
+      );
+      $data['id'] = $id;
+      return $this->success($this->service->invoiceTo($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

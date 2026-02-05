@@ -2,7 +2,9 @@
 
 namespace App\Models\ap\postventa\taller;
 
+use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -32,6 +34,7 @@ class ApWorkOrder extends Model
     'vehicle_vin',
     'status_id',
     'advisor_id',
+    'invoice_to',
     'sede_id',
     'opening_date',
     'estimated_delivery_date',
@@ -168,6 +171,11 @@ class ApWorkOrder extends Model
     return $this->belongsTo(Worker::class, 'advisor_id');
   }
 
+  public function invoiceTo(): BelongsTo
+  {
+    return $this->belongsTo(BusinessPartners::class, 'invoice_to');
+  }
+
   public function sede(): BelongsTo
   {
     return $this->belongsTo(Sede::class, 'sede_id');
@@ -207,8 +215,16 @@ class ApWorkOrder extends Model
   // Helper methods
   public function calculateTotals(): void
   {
+    $this->total_labor_cost = $this->labours()->sum('total_cost');
+    $this->total_parts_cost = $this->parts()->sum('subtotal');
+
     $this->subtotal = $this->total_labor_cost + $this->total_parts_cost;
-    $this->final_amount = $this->subtotal - $this->discount_amount + $this->tax_amount;
+    $this->discount_amount = $this->subtotal * (($this->discount_percentage ?? 0) / 100);
+
+    $base = $this->subtotal - $this->discount_amount;
+    $this->tax_amount = $base * (Constants::VAT_TAX / 100);
+    $this->final_amount = $base + $this->tax_amount;
+
     $this->save();
   }
 

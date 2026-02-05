@@ -79,11 +79,11 @@ class ApWorkOrderPlanningSession extends Model
   /**
    * Finaliza la sesión actual
    */
-  public function endSession(?string $pauseReason = null): void
+  public function endSession(?string $pauseReason = null, string $status = 'completed'): void
   {
     $this->end_datetime = now();
     $this->hours_worked = $this->calculateHoursWorked();
-    $this->status = $pauseReason ? 'paused' : 'completed';
+    $this->status = $status;
     $this->pause_reason = $pauseReason;
     $this->save();
   }
