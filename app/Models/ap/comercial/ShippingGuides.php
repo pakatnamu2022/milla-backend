@@ -85,6 +85,7 @@ class ShippingGuides extends BaseModel
     'company_name_transport',
     'created_at',
     'updated_at',
+    'area_id',
   ];
 
   protected $casts = [
@@ -107,24 +108,25 @@ class ShippingGuides extends BaseModel
 
   const filters = [
     'search' => ['document_number', 'plate', 'driver_name', 'documentSeries.series'],
-    'document_type',
-    'issuer_type',
+    'document_type' => '=',
+    'issuer_type' => '=',
     'issue_date' => 'date_between',
-    'requires_sunat',
-    'is_sunat_registered',
-    'vehicle_movement_id',
-    'sede_transmitter_id',
-    'sede_receiver_id',
-    'transmitter_id', // Ubicacion Origen (Proveedor)
-    'receiver_id', // Ubicacion Destino (Cliente)
-    'transport_company_id',
-    'driver_doc',
-    'license',
-    'plate',
-    'driver_name',
-    'status',
-    'transfer_reason_id',
-    'transfer_modality_id',
+    'requires_sunat' => '=',
+    'is_sunat_registered' => '=',
+    'vehicle_movement_id' => '=',
+    'sede_transmitter_id' => '=',
+    'sede_receiver_id' => '=',
+    'transmitter_id' => '=', // Ubicacion Origen (Proveedor)
+    'receiver_id' => '=', // Ubicacion Destino (Cliente)
+    'transport_company_id' => '=',
+    'driver_doc' => '=',
+    'license' => '=',
+    'plate' => '=',
+    'driver_name' => 'like',
+    'status' => '=',
+    'transfer_reason_id' => '=',
+    'transfer_modality_id' => '=',
+    'area_id' => '=',
   ];
 
   const sorts = [

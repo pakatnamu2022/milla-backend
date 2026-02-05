@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ap\facturacion;
 
 use App\Http\Requests\IndexRequest;
+use App\Models\ap\ApMasters;
 use App\Models\ap\facturacion\ElectronicDocument;
 use Illuminate\Validation\Rule;
 
@@ -37,7 +38,7 @@ class IndexElectronicDocumentRequest extends IndexRequest
       'area_id' => [
         'nullable',
         'string',
-        Rule::in(ElectronicDocument::ALL_AREAS)
+        Rule::in(ApMasters::ALL_AREAS)
       ],
       'status' => [
         'nullable',

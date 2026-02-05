@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ap\facturacion;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -221,7 +222,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       ],
 
       // Origen del documento
-      'area_id' => ['nullable', Rule::in(ElectronicDocument::ALL_AREAS)],
+      'area_id' => ['nullable', Rule::in(ApMasters::ALL_AREAS)],
       'origin_entity_type' => 'nullable|string|max:100',
       'origin_entity_id' => 'nullable|integer',
       'ap_vehicle_movement_id' => 'nullable|integer|exists:ap_vehicle_movement,id',
@@ -559,7 +560,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
 
             // Obtener suma de anticipos previos para este vehículo
             $sumaAnticipos = DB::table('ap_billing_electronic_documents')
-              ->where('area_id', ElectronicDocument::AREA_COMERCIAL)
+              ->where('area_id', ApMasters::AREA_COMERCIAL)
               ->where('origin_entity_id', $vehicle->id)
               ->where('sunat_concept_transaction_type_id', 36) // Tipo operación: Anticipos (ID del seeder)
               ->whereNull('deleted_at')

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\ap\facturacion;
 
+use App\Models\ap\ApMasters;
 use App\Models\ap\facturacion\ElectronicDocument;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -44,7 +45,7 @@ class ElectronicDocumentReportRequest extends FormRequest
       'area_id' => [
         'nullable',
         'string',
-        Rule::in(ElectronicDocument::ALL_AREAS)
+        Rule::in(ApMasters::ALL_AREAS)
       ],
       'origin_entity_type' => 'nullable|string',
       'origin_entity_id' => 'nullable|integer',

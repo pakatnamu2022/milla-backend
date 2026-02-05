@@ -199,20 +199,6 @@ class ElectronicDocument extends BaseModel
   const TYPE_NOTA_CREDITO = SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA;    // 31
   const TYPE_NOTA_DEBITO = SunatConcepts::ID_NOTA_DEBITO_ELECTRONICA;      // 32
 
-  // Módulos de origen
-  const int AREA_COMERCIAL = 826;
-  const int AREA_POSVENTA = 825;
-  const int AREA_TALLER = 881;
-  const int AREA_MESON = 882;
-  const array AREAS_POSVENTA = [self::AREA_POSVENTA, self::AREA_TALLER, self::AREA_MESON];
-
-  const array ALL_AREAS = [
-    self::AREA_COMERCIAL,
-    self::AREA_POSVENTA,
-    self::AREA_TALLER,
-    self::AREA_MESON,
-  ];
-
   /**
    * Booted
    */
@@ -246,7 +232,7 @@ class ElectronicDocument extends BaseModel
   {
     $series = AssignSalesSeries::find($this->series_id);
     $sedeId = $series->sede_id;
-    if ($this->area_id == self::AREA_COMERCIAL) {
+    if ($this->area_id == ApMasters::AREA_COMERCIAL) {
       if ($this->ap_vehicle_movement_id) {
         $ap_vehicle_movement = $this->vehicleMovement;
         $model = $ap_vehicle_movement->vehicle->model;
@@ -415,22 +401,22 @@ class ElectronicDocument extends BaseModel
 
   public function scopeComercial($query)
   {
-    return $query->where('area_id', self::AREA_COMERCIAL);
+    return $query->where('area_id', ApMasters::AREA_COMERCIAL);
   }
 
   public function scopePostventa($query)
   {
-    return $query->whereIn('area_id', self::AREAS_POSVENTA);
+    return $query->whereIn('area_id', ApMasters::AREAS_POSVENTA);
   }
 
   public function scopeTaller($query)
   {
-    return $query->where('area_id', self::AREA_TALLER);
+    return $query->where('area_id', ApMasters::AREA_TALLER);
   }
 
   public function scopeMeson($query)
   {
-    return $query->where('area_id', self::AREA_MESON);
+    return $query->where('area_id', ApMasters::AREA_MESON);
   }
 
   public function scopeAccepted($query)
