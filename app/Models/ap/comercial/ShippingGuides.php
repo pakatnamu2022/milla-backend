@@ -4,11 +4,13 @@ namespace App\Models\ap\comercial;
 
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -247,6 +249,11 @@ class ShippingGuides extends BaseModel
   public function ArticleClass()
   {
     return $this->belongsTo(ApClassArticle::class, 'ap_class_article_id');
+  }
+
+  public function inventoryMovement(): MorphOne
+  {
+    return $this->morphOne(InventoryMovement::class, 'reference');
   }
 
   public function receivingChecklists()
