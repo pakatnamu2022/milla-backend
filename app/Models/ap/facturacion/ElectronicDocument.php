@@ -243,6 +243,10 @@ class ElectronicDocument extends BaseModel
         $warehouse = Warehouse::where('article_class_id', $model->class_id)->where('sede_id', $sedeId)
           ->active()->received()->first();
         return $warehouse->dyn_code;
+      } else if (!$this->purchaseRequestQuote) {
+        $warehouse = Warehouse::where('sede_id', $sedeId)
+          ->commercial()->received()->active()->first();
+        return $warehouse->dyn_code;
       } else if (!$this->purchaseRequestQuote->has_vehicle) {
         $warehouse = Warehouse::where('sede_id', $sedeId)
           ->commercial()->received()->active()->first();
