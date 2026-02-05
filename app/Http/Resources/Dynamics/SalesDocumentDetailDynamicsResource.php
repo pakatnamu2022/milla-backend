@@ -90,7 +90,7 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
       'DocumentoId' => $documentoId,
       'Linea' => $linea,
       'ArticuloId' => $articuloId,
-      'ArticuloDescripcionCorta' => Str::upper($descripcionCorta),
+      'ArticuloDescripcionCorta' => Str::upper(Str::limit($descripcionCorta, 60, '')),
       'ArticuloDescripcionLarga' => Str::upper($descripcionLarga),
       'SitioId' => $sitioId,
       'UnidadMedidaId' => $unidadMedidaId,
