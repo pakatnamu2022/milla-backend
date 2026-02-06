@@ -16,8 +16,6 @@ use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
 use App\Models\ap\postventa\gestionProductos\Products;
-use App\Http\Services\gp\gestionsistema\DigitalFileService;
-use App\Http\Utils\Helpers;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
@@ -28,16 +26,10 @@ use Illuminate\Http\Request;
 class InventoryMovementService extends BaseService
 {
   protected $stockService;
-  protected DigitalFileService $digitalFileService;
 
-  private const FILE_PATHS = [
-    'customer_signature_delivery' => '/ap/postventa/taller/cotizaciones/firmas-entrega/',
-  ];
-
-  public function __construct(DigitalFileService $digitalFileService)
+  public function __construct()
   {
     $this->stockService = new ProductWarehouseStockService();
-    $this->digitalFileService = $digitalFileService;
   }
 
   public function list(Request $request)
@@ -1027,7 +1019,7 @@ class InventoryMovementService extends BaseService
    * @return InventoryMovement
    * @throws Exception
    */
-  public function createSaleFromQuotation(int $quotationId, array $data = []): InventoryMovement
+  public function createSaleFromQuotation(int $quotationId): InventoryMovement
   {
     DB::beginTransaction();
     try {
@@ -1117,19 +1109,8 @@ class InventoryMovementService extends BaseService
         'total_quantity' => $totalQuantity,
       ]);
 
-      // Update ApOrderQuotations output_generation_warehouse and delivery document number
-      $updateData = ['output_generation_warehouse' => true];
-
-      if (!empty($data['delivery_document_number'])) {
-        $updateData['delivery_document_number'] = $data['delivery_document_number'];
-      }
-
-      $quotation->update($updateData);
-
-      // Process delivery signature if provided
-      if (!empty($data['customer_signature_delivery_url'])) {
-        $this->processDeliverySignature($quotation, $data['customer_signature_delivery_url']);
-      }
+      // Update ApOrderQuotations output_generation_warehouse
+      $quotation->update(['output_generation_warehouse' => true]);
 
       // Update stock automatically
       $this->stockService->updateStockFromMovement($movement->fresh('details'));
@@ -1519,19 +1500,4 @@ class InventoryMovementService extends BaseService
     return Excel::download($export, $filename);
   }
 
-  /**
-   * Procesa y guarda la firma del cliente para entrega en base64
-   */
-  private function processDeliverySignature($quotation, string $base64Signature): void
-  {
-    $signatureFile = Helpers::base64ToUploadedFile($base64Signature, "customer_signature_delivery.png");
-
-    $path = self::FILE_PATHS['customer_signature_delivery'];
-    $model = $quotation->getTable();
-
-    $digitalFile = $this->digitalFileService->store($signatureFile, $path, 'public', $model);
-
-    $quotation->customer_signature_delivery_url = $digitalFile->url;
-    $quotation->save();
-  }
 }

@@ -223,30 +223,6 @@ class InventoryMovementController extends Controller
   }
 
   /**
-   * Create sale outbound movement from quotation
-   * Creates SALE type movement referencing an ApOrderQuotation
-   *
-   * @param int $quotationId Quotation ID
-   * @return JsonResponse
-   */
-  public function createSaleFromQuotation(int $quotationId, Request $request): JsonResponse
-  {
-    try {
-      $movement = $this->service->createSaleFromQuotation($quotationId, [
-        'customer_signature_delivery_url' => $request->input('customer_signature_delivery_url'),
-        'delivery_document_number' => $request->input('delivery_document_number'),
-      ]);
-
-      return $this->success([
-        'message' => 'Movimiento de salida por venta creado exitosamente',
-        'movement' => $movement,
-      ]);
-    } catch (Exception $e) {
-      return $this->error($e->getMessage());
-    }
-  }
-
-  /**
    * Get purchase history for a specific product in a warehouse
    * Returns all purchases with prices to track cost variations
    *
