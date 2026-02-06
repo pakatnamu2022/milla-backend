@@ -118,6 +118,9 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
         // Verificar el estado actual del trabajador
         $existingObjectivesCount = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
           ->where('person_id', $workerId)
+          ->whereHas('objective', function ($query) {
+            $query->where('active', true);
+          })
           ->count();
 
         $hasActiveObjectives = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)

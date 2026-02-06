@@ -57,7 +57,7 @@ class HierarchicalCategory extends BaseModel
       'objective_id'
     )
       ->wherePivotNull('deleted_at')
-      ->where('gh_evaluation_objective.active', true)
+      ->where('gh_evaluation_objective.active', 1)
       ->distinct(); // 👈 solo los que no están eliminados
   }
 
