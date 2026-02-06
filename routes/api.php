@@ -1489,7 +1489,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::apiResource('work-types', PayrollWorkTypeController::class);
 
     // Work Type Segments
-    Route::prefix('work-types/{workTypeId}/segments')->group(function () {
+    Route::prefix('work-types/segments')->group(function () {
       Route::get('/', [PayrollWorkTypeSegmentController::class, 'index']);
       Route::post('/', [PayrollWorkTypeSegmentController::class, 'store']);
       Route::put('/{id}', [PayrollWorkTypeSegmentController::class, 'update']);
