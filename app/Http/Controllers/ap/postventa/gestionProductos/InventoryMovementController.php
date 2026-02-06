@@ -86,32 +86,11 @@ class InventoryMovementController extends Controller
   {
     $request->validated();
     try {
+      $data = $request->validated();
+      
       $result = $this->service->createTransfer(
-        $request->only([
-          // Transfer data
-          'document_type',
-          'warehouse_origin_id',
-          'warehouse_destination_id',
-          'document_series_id',
-          'movement_date',
-          'notes',
-          'reason_in_out_id',
-          'item_type',
-          // Shipping guide data
-          'driver_name',
-          'driver_doc',
-          'license',
-          'plate',
-          'transfer_reason_id',
-          'transfer_modality_id',
-          'transport_company_id',
-          'total_packages',
-          'total_weight',
-          // Business Partners (will be used to get address and ubigeo data)
-          'transmitter_origin_id',
-          'receiver_destination_id',
-        ]),
-        $request->details
+        $data,
+        $data['details']
       );
 
       return $this->success([

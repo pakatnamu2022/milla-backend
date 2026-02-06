@@ -1751,7 +1751,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // 1. El total pagado >= total de la cotización
       // 2. Existe al menos una venta interna (is_advance_payment = 0) aceptada por SUNAT
       if ($totalPaid >= $quotation->total_amount && $hasInternalSale) {
-        $quotation->update(['is_fully_paid' => true]);
+        $quotation->update(
+          ['is_fully_paid' => true],
+          ['status' => ApOrderQuotations::STATUS_FACTURADO]
+        );
       }
     } catch (Exception $e) {
       Log::error('Error updating quotation invoice status', [

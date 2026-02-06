@@ -284,12 +284,13 @@ class InventoryMovementService extends BaseService
       }
 
       // Validate warehouses
-      if (!isset($transferData['warehouse_origin_id']) || !isset($transferData['warehouse_destination_id'])) {
-        throw new Exception('Debe especificar almacén de origen y destino');
+      if (!isset($transferData['transmitter_id']) || !isset($transferData['receiver_id'])) {
+        throw new Exception('Debe especificar ubicación de origen y destino');
       }
 
-      if ($transferData['warehouse_origin_id'] === $transferData['warehouse_destination_id']) {
-        throw new Exception('El almacén de origen y destino deben ser diferentes');
+      // Siempre deben ser diferentes (tanto PRODUCTO como SERVICIO)
+      if ($transferData['transmitter_id'] === $transferData['receiver_id']) {
+        throw new Exception('La ubicación de origen y destino deben ser diferentes');
       }
 
       // Validate details
@@ -297,10 +298,19 @@ class InventoryMovementService extends BaseService
         throw new Exception('Debe proporcionar al menos un producto');
       }
 
-      // Validate stock availability in origin warehouse (only for PRODUCTO type)
+      // Get item type (PRODUCTO or SERVICIO)
       $itemType = $transferData['item_type'] ?? 'PRODUCTO';
 
+      // Get Sede Transmitter and Receiver to determine physical warehouses for transfer
+      $transmitter = BusinessPartnersEstablishment::findOrFail($transferData['transmitter_id']);
+      $receiver = BusinessPartnersEstablishment::findOrFail($transferData['receiver_id']);
+
+      // Solo obtener y validar almacenes físicos si es PRODUCTO
       if ($itemType === 'PRODUCTO') {
+        $transferData['warehouse_origin_id'] = Warehouse::getPhysicalWarehouseForPostsale($transmitter->sede->id)->id;
+        $transferData['warehouse_destination_id'] = Warehouse::getPhysicalWarehouseForPostsale($receiver->sede->id)->id;
+
+        // Validate stock availability in origin warehouse
         foreach ($details as $detail) {
           // Skip validation if it's a service (description instead of product_id)
           if (!isset($detail['product_id'])) {
@@ -324,18 +334,30 @@ class InventoryMovementService extends BaseService
             );
           }
         }
+      } else {
+        // Para SERVICIO: intentar obtener almacenes si existen, pero permitir null
+        // Transmitter siempre tiene sede, intentar obtener su almacén
+        $warehouseOrigin = Warehouse::where('sede_id', $transmitter->sede->id)
+          ->where('is_physical_warehouse', 1)
+          ->where('status', 1)
+          ->first();
+
+        // Receiver puede no tener sede, solo buscar almacén si tiene sede
+        $warehouseDestination = null;
+        if ($receiver->sede?->id) {
+          $warehouseDestination = Warehouse::where('sede_id', $receiver->sede->id)
+            ->where('is_physical_warehouse', 1)
+            ->where('status', 1)
+            ->first();
+        }
+
+        $transferData['warehouse_origin_id'] = $warehouseOrigin?->id ?? null;
+        $transferData['warehouse_destination_id'] = $warehouseDestination?->id ?? null;
       }
 
       // Get info for shipping guide
-      $business_partner = BusinessPartners::find($transferData['transmitter_origin_id']);
-      $sede_transmitter = Warehouse::find($transferData['warehouse_origin_id'])->sede;
-      $sede_receiver = Warehouse::find($transferData['warehouse_destination_id'])->sede;
-      $transmitter = BusinessPartnersEstablishment::where('sede_id', $sede_transmitter->id)
-        ->where('business_partner_id', $business_partner->id)
-        ->first();
-      $receiver = BusinessPartnersEstablishment::where('sede_id', $sede_receiver->id)
-        ->where('business_partner_id', $business_partner->id)
-        ->first();
+      $receiver_destination = BusinessPartners::find($transferData['receiver_destination_id']);
+
       $transport_company = BusinessPartners::find($transferData['transport_company_id']);
       $assignedSeries = AssignSalesSeries::find($transferData['document_series_id']);
 
@@ -369,8 +391,8 @@ class InventoryMovementService extends BaseService
         'issue_date' => $transferData['movement_date'] ?? now(),
         'requires_sunat' => true,
         'is_sunat_registered' => false, // NOT sent yet
-        'sede_transmitter_id' => $sede_transmitter->id,
-        'sede_receiver_id' => $sede_receiver->id,
+        'sede_transmitter_id' => $transmitter->sede->id,
+        'sede_receiver_id' => $receiver->sede->id ?? $transmitter->sede->id,
         'transmitter_id' => $transmitter ? $transmitter->id : null,
         'receiver_id' => $receiver ? $receiver->id : null,
         'driver_name' => $transferData['driver_name'],
@@ -382,10 +404,10 @@ class InventoryMovementService extends BaseService
         'transport_company_id' => $transferData['transport_company_id'] ?? null,
         'total_packages' => $transferData['total_packages'] ?? null,
         'total_weight' => $transferData['total_weight'] ?? null,
-        'origin_ubigeo' => $sede_transmitter ? $sede_transmitter->district->ubigeo : null,
-        'origin_address' => $sede_transmitter ? $sede_transmitter->direccion : null,
-        'destination_ubigeo' => $sede_receiver ? $sede_receiver->district->ubigeo : null,
-        'destination_address' => $sede_receiver ? $sede_receiver->direccion : null,
+        'origin_ubigeo' => $transmitter ? $transmitter->sede->district->ubigeo : null,
+        'origin_address' => $transmitter ? $transmitter->sede->direccion : null,
+        'destination_ubigeo' => $receiver->sede?->district?->ubigeo ?? $receiver_destination->district->ubigeo ?? null,
+        'destination_address' => $receiver->sede?->direccion ?? $receiver_destination->direction ?? null,
         'ruc_transport' => $transport_company->num_doc ?? null,
         'company_name_transport' => $transport_company->full_name ?? null,
         'notes' => $transferData['notes'] ?? null,
@@ -394,14 +416,14 @@ class InventoryMovementService extends BaseService
         'type_voucher_id' => SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE,
       ]);
 
-      // Create TRANSFER_OUT movement (stock goes to in_transit)
+      // Create TRANSFER_OUT movement (stock goes to in_transit for PRODUCTO)
       $movementOut = InventoryMovement::create([
         'movement_number' => InventoryMovement::generateMovementNumber(),
         'movement_type' => InventoryMovement::TYPE_TRANSFER_OUT,
         'item_type' => $itemType,
         'movement_date' => $transferData['movement_date'] ?? now(),
-        'warehouse_id' => $transferData['warehouse_origin_id'],
-        'warehouse_destination_id' => $transferData['warehouse_destination_id'],
+        'warehouse_id' => $transferData['warehouse_origin_id'] ?? null,
+        'warehouse_destination_id' => $transferData['warehouse_destination_id'] ?? null,
         'reason_in_out_id' => $transferData['reason_in_out_id'] ?? null,
         'reference_type' => ShippingGuides::class,
         'reference_id' => $shippingGuide->id,
@@ -620,8 +642,8 @@ class InventoryMovementService extends BaseService
       $movement->load('details');
 
       // Reverse stock: move from in_transit back to available quantity
-      // Only reverse stock for PRODUCTO type, not for SERVICIO
-      if ($movement->item_type === 'PRODUCTO') {
+      // Only reverse stock for PRODUCTO type with warehouse_id, not for SERVICIO
+      if ($movement->item_type === 'PRODUCTO' && $movement->warehouse_id) {
         foreach ($movement->details as $detail) {
           $stock = $this->stockService->getStock($detail->product_id, $movement->warehouse_id);
 
@@ -696,14 +718,17 @@ class InventoryMovementService extends BaseService
         // Reverse the stock change
         // If it was an INBOUND movement (added stock), we need to REMOVE it
         // If it was an OUTBOUND movement (removed stock), we need to ADD it back
-        if ($movement->is_inbound) {
-          // INBOUND: Remove the stock that was added
-          $stock = $this->stockService->removeStock($productId, $movement->warehouse_id, abs($quantity));
-          $updatedStocks[] = $stock;
-        } else {
-          // OUTBOUND: Add back the stock that was removed
-          $stock = $this->stockService->addStock($productId, $movement->warehouse_id, abs($quantity));
-          $updatedStocks[] = $stock;
+        // Only reverse stock if warehouse_id is not null (PRODUCTO items)
+        if ($movement->warehouse_id) {
+          if ($movement->is_inbound) {
+            // INBOUND: Remove the stock that was added
+            $stock = $this->stockService->removeStock($productId, $movement->warehouse_id, abs($quantity));
+            $updatedStocks[] = $stock;
+          } else {
+            // OUTBOUND: Add back the stock that was removed
+            $stock = $this->stockService->addStock($productId, $movement->warehouse_id, abs($quantity));
+            $updatedStocks[] = $stock;
+          }
         }
 
         // Handle transfers (TRANSFER_OUT and TRANSFER_IN)
