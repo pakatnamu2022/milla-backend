@@ -40,7 +40,17 @@ class ObjectiveSeeder3 extends Seeder
      * "categoria" => "Tecnico Mecanico Ap"
      * ],
      */
+
     $data = [
+      [
+        "dni" => "72811912",
+        "objective" => "Cumplimiento de facturación de las 4 sedes",
+        "metric" => "Porcentaje",
+        "goal" => 100,
+        "weight" => 100,
+        "isAscending" => true,
+        "categoria" => "Jefe de Repuestos"
+      ],
       [
         "dni" => "45727231",
         "objective" => "Reingresos de vehículos",
@@ -527,8 +537,8 @@ declarados",
       ],
       [
         "dni" => "16664102",
-        "objective" => "Efectividad de liquidaciones=> % de reconocimeinto de la liquidacion \/ total de liquidaciones
-registradas",
+        "objective" => "Efectividad de liquidaciones",
+        "description" => "% de reconocimeinto de la liquidacion / total de liquidaciones registradas",
         "metric" => "Número",
         "goal" => 100,
         "weight" => 25,
@@ -818,8 +828,7 @@ registradas",
       [
         "dni" => "73747580",
         "objective" => "Calidad de servicio - Mesa de ayuda (Milla \/ Dynamics)",
-        "description" => "Promedio de calificaciones de encuesta de satisfacción en base a los servicios atendidos (Escalada
-1-5)",
+        "description" => "Promedio de calificaciones de encuesta de satisfacción en base a los servicios atendidos (Escalada 1-5)",
         "metric" => "Unidad",
         "goal" => 4,
         "weight" => 50,
@@ -1143,8 +1152,8 @@ registradas",
       ],
       [
         "dni" => "45017690",
-        "objective" => "Efectividad de liquidaciones=> % de reconocimeinto de la liquidacion \/ total de liquidaciones
-registradas",
+        "objective" => "Efectividad de liquidaciones",
+        "description" => "% de reconocimeinto de la liquidacion / total de liquidaciones registradas",
         "metric" => "Número",
         "goal" => 100,
         "weight" => 20,
@@ -2196,35 +2205,6 @@ registradas",
         "weight" => 20,
         "isAscending" => true,
         "categoria" => "Gerente De Administración Y Finanzas"
-      ],
-      [
-        "dni" => "26619707",
-        "objective" => "Nivel de servicio",
-        "description" => "Cantidad de repuestos para atención de clientes vs demanda",
-        "metric" => "Porcentaje",
-        "goal" => 90,
-        "weight" => 50,
-        "isAscending" => true,
-        "categoria" => "Jefe De Almacen"
-      ],
-      [
-        "dni" => "26619707",
-        "objective" => "Control de Inventario",
-        "description" => "Resultado de inventario físico por sede vs sistema",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 25,
-        "isAscending" => true,
-        "categoria" => "Jefe De Almacen"
-      ],
-      [
-        "dni" => "26619707",
-        "objective" => "Días de stock de material",
-        "metric" => "Días",
-        "goal" => 30,
-        "weight" => 25,
-        "isAscending" => false,
-        "categoria" => "Jefe De Almacen"
       ],
       [
         "dni" => "47037915",
@@ -3501,8 +3481,8 @@ registradas",
       ],
       [
         "dni" => "40524259",
-        "objective" => "Efectividad de liquidaciones=> % de reconocimeinto de la liquidacion \/ total de liquidaciones
-registradas",
+        "objective" => "Efectividad de liquidaciones",
+        "description" => "% de reconocimeinto de la liquidacion / total de liquidaciones registradas",
         "metric" => "Número",
         "goal" => 100,
         "weight" => 25,
@@ -3720,8 +3700,8 @@ registradas",
       ],
       [
         "dni" => "09994093",
-        "objective" => "Efectividad de liquidaciones=> % de reconocimeinto de la liquidacion \/ total de liquidaciones
-registradas",
+        "objective" => "Efectividad de liquidaciones",
+        "description" => "% de reconocimeinto de la liquidacion / total de liquidaciones registradas",
         "metric" => "Número",
         "goal" => 100,
         "weight" => 25,
@@ -4223,20 +4203,20 @@ registradas",
         "categoria" => "Asesor Comercial"
       ],
       [
-        "dni" => "43945322",
-        "objective" => "Reputation",
-        "description" => "Meta regional score superior a 820 puntos",
-        "metric" => "Número",
-        "goal" => 820,
+        "dni" => "42298543",
+        "objective" => "Colocación de créditos",
+        "metric" => "Unidad",
+        "goal" => 5,
         "weight" => 20,
         "isAscending" => true,
         "categoria" => "Asesor Comercial"
       ],
       [
         "dni" => "42298543",
-        "objective" => "Colocación de créditos",
-        "metric" => "Unidad",
-        "goal" => 5,
+        "objective" => "Reputation",
+        "description" => "Meta regional score superior a 820 puntos",
+        "metric" => "Número",
+        "goal" => 820,
         "weight" => 20,
         "isAscending" => true,
         "categoria" => "Asesor Comercial"
@@ -4712,42 +4692,6 @@ registradas",
         "categoria" => "Jefe De Ventas Dp"
       ],
       [
-        "dni" => "44236861",
-        "objective" => "Cumplimiento de presupuesto comercial",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 25,
-        "isAscending" => true,
-        "categoria" => "Ejecutivo Comercial"
-      ],
-      [
-        "dni" => "44236861",
-        "objective" => "% de Efectividad de Cobranza",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 25,
-        "isAscending" => true,
-        "categoria" => "Ejecutivo Comercial"
-      ],
-      [
-        "dni" => "44236861",
-        "objective" => "Mix de productos",
-        "metric" => "Unidad",
-        "goal" => 5,
-        "weight" => 25,
-        "isAscending" => true,
-        "categoria" => "Ejecutivo Comercial"
-      ],
-      [
-        "dni" => "44236861",
-        "objective" => "Cliente Nuevo al mes",
-        "metric" => "Unidad",
-        "goal" => 2,
-        "weight" => 25,
-        "isAscending" => true,
-        "categoria" => "Ejecutivo Comercial"
-      ],
-      [
         "dni" => "02851958",
         "objective" => "Total de incoformidades en despachos",
         "description" => " % Total de facturas (despachos externos) vs % de incorfomidades",
@@ -4832,33 +4776,6 @@ registradas",
         "weight" => 100,
         "isAscending" => true,
         "categoria" => "Jefe De Legal"
-      ],
-      [
-        "dni" => "45801424",
-        "objective" => "Cero soles de multa por errores contables en la empresa a cargo",
-        "metric" => "Número",
-        "goal" => 0,
-        "weight" => 33,
-        "isAscending" => false,
-        "categoria" => "Analista De Contabilidad DP"
-      ],
-      [
-        "dni" => "45801424",
-        "objective" => "Presentación de DDJJ mensuales a SUNAT",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 33,
-        "isAscending" => true,
-        "categoria" => "Analista De Contabilidad DP"
-      ],
-      [
-        "dni" => "45801424",
-        "objective" => "Entrega de cierres contables (EE.RR) en tiempo de empresa a cargo (15 dias)",
-        "metric" => "Días",
-        "goal" => 15,
-        "weight" => 34,
-        "isAscending" => false,
-        "categoria" => "Analista De Contabilidad DP"
       ],
       [
         "dni" => "46343351",
@@ -5818,34 +5735,6 @@ de caja",
         "categoria" => "Analista En Proyecto TICs"
       ],
       [
-        "dni" => "72483421",
-        "objective" => "Cumplir de paso vehicular",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 30,
-        "isAscending" => true,
-        "categoria" => "Asesor De Servicios"
-      ],
-      [
-        "dni" => "72483421",
-        "objective" => "Cumplimiento de meta general (facturación)",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 50,
-        "isAscending" => true,
-        "categoria" => "Asesor De Servicios"
-      ],
-      [
-        "dni" => "72483421",
-        "objective" => "Reputation",
-        "description" => "Meta regional score superior a 820 puntos",
-        "metric" => "Número",
-        "goal" => 820,
-        "weight" => 20,
-        "isAscending" => true,
-        "categoria" => "Asesor De Servicios"
-      ],
-      [
         "dni" => "44577179",
         "objective" => "Número de unidades entregadas",
         "metric" => "Unidades",
@@ -5973,34 +5862,6 @@ de caja",
         "weight" => 34,
         "isAscending" => false,
         "categoria" => "Asistente De Contabilidad"
-      ],
-      [
-        "dni" => "46815196",
-        "objective" => "Cumplir de paso vehicular",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 30,
-        "isAscending" => true,
-        "categoria" => "Asesor De Servicios"
-      ],
-      [
-        "dni" => "46815196",
-        "objective" => "Cumplimiento de meta general (facturación)",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 50,
-        "isAscending" => true,
-        "categoria" => "Asesor De Servicios"
-      ],
-      [
-        "dni" => "46815196",
-        "objective" => "Reputation",
-        "description" => "Meta regional score superior a 820 puntos",
-        "metric" => "Número",
-        "goal" => 820,
-        "weight" => 20,
-        "isAscending" => true,
-        "categoria" => "Asesor De Servicios"
       ],
       [
         "dni" => "43122872",
@@ -6220,43 +6081,6 @@ de caja",
         "weight" => 25,
         "isAscending" => false,
         "categoria" => "Jefe De Contabilidad"
-      ],
-      [
-        "dni" => "75618646",
-        "objective" => "Número de unidades entregadas",
-        "metric" => "Unidades",
-        "goal" => 6,
-        "weight" => 50,
-        "isAscending" => true,
-        "categoria" => "Asesor Comercial"
-      ],
-      [
-        "dni" => "75618646",
-        "objective" => "Reputation",
-        "description" => "Meta regional score superior a 820 puntos",
-        "metric" => "Número",
-        "goal" => 820,
-        "weight" => 20,
-        "isAscending" => true,
-        "categoria" => "Asesor Comercial"
-      ],
-      [
-        "dni" => "75618646",
-        "objective" => "Colocación de créditos",
-        "metric" => "Unidad",
-        "goal" => 2,
-        "weight" => 20,
-        "isAscending" => true,
-        "categoria" => "Asesor Comercial"
-      ],
-      [
-        "dni" => "75618646",
-        "objective" => "Colocación de seguros",
-        "metric" => "Unidad",
-        "goal" => 1,
-        "weight" => 10,
-        "isAscending" => true,
-        "categoria" => "Asesor Comercial"
       ],
       [
         "dni" => "72650523",
@@ -6601,25 +6425,6 @@ relacionados a la contabilidad)",
         "categoria" => "Asesor De Servicios"
       ],
       [
-        "dni" => "46292825",
-        "objective" => "Total de incoformidades en despachos",
-        "description" => " % Total de facturas (despachos externos) vs % de incorfomidades",
-        "metric" => "Porcentaje",
-        "goal" => 85,
-        "weight" => 60,
-        "isAscending" => true,
-        "categoria" => "Asistente De Reparto"
-      ],
-      [
-        "dni" => "46292825",
-        "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza",
-        "metric" => "Minutos",
-        "goal" => 3,
-        "weight" => 40,
-        "isAscending" => false,
-        "categoria" => "Asistente De Reparto"
-      ],
-      [
         "dni" => "05641617",
         "objective" => "Número de unidades entregadas",
         "metric" => "Unidades",
@@ -6900,55 +6705,6 @@ relacionados a la contabilidad)",
         "weight" => 50,
         "isAscending" => true,
         "categoria" => "Tecnico Mecanico Ap"
-      ],
-      [
-        "dni" => "48359987",
-        "objective" => "Cumplimiento promedio de liquidación de vales por arqueo",
-        "description" => "Vales pendientes por emitir vs vales levantados según arqueo programado o sorpresivo",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 15,
-        "isAscending" => true,
-        "categoria" => "Caja General"
-      ],
-      [
-        "dni" => "48359987",
-        "objective" => "Número de arqueos con efectivo mayor a S\/50000",
-        "description" => "El efectivo en caja no debe exceder los S\/50000 diario según arqueos.",
-        "metric" => "Número",
-        "goal" => 0,
-        "weight" => 20,
-        "isAscending" => false,
-        "categoria" => "Caja General"
-      ],
-      [
-        "dni" => "48359987",
-        "objective" => "Número de solicitudes de apertura de cajas",
-        "description" => "Por error directo de caja general",
-        "metric" => "Número",
-        "goal" => 0,
-        "weight" => 15,
-        "isAscending" => false,
-        "categoria" => "Caja General"
-      ],
-      [
-        "dni" => "48359987",
-        "objective" => "Envio de reportes oportunos",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 10,
-        "isAscending" => true,
-        "categoria" => "Caja General"
-      ],
-      [
-        "dni" => "48359987",
-        "objective" => "Aplicaciones de CXC ejecutadas al cierre de mes",
-        "description" => "Número de ingresos en bancos aplicados despues de plazo",
-        "metric" => "Número",
-        "goal" => 0,
-        "weight" => 40,
-        "isAscending" => false,
-        "categoria" => "Caja General"
       ],
       [
         "dni" => "19332661",
@@ -7702,8 +7458,8 @@ relacionados a la contabilidad)",
       ],
       [
         "dni" => "46304286",
-        "objective" => "Efectividad de liquidaciones=> % de reconocimeinto de la liquidacion \/ total de liquidaciones
-registradas",
+        "objective" => "Efectividad de liquidaciones",
+        "description" => "% de reconocimeinto de la liquidacion / total de liquidaciones registradas",
         "metric" => "Número",
         "goal" => 100,
         "weight" => 25,
@@ -7918,7 +7674,8 @@ relacionados a la contabilidad)",
         "metric" => "Porcentaje",
         "goal" => 100,
         "weight" => 33,
-        "isAscending" => true
+        "isAscending" => true,
+        "categoria" => "Asistente De Contabilidad Dp"
       ],
       [
         "dni" => "76390749",
@@ -7926,7 +7683,8 @@ relacionados a la contabilidad)",
         "metric" => "Errores",
         "goal" => 0,
         "weight" => 33,
-        "isAscending" => false
+        "isAscending" => false,
+        "categoria" => "Asistente De Contabilidad Dp"
       ],
       [
         "dni" => "76390749",
@@ -7934,7 +7692,8 @@ relacionados a la contabilidad)",
         "metric" => "Número",
         "goal" => 0,
         "weight" => 34,
-        "isAscending" => false
+        "isAscending" => false,
+        "categoria" => "Asistente De Contabilidad Dp"
       ],
       [
         "dni" => "16754597",
@@ -7944,7 +7703,7 @@ relacionados a la contabilidad)",
         "goal" => 85,
         "weight" => 60,
         "isAscending" => true,
-        "categoria" => "Asistente De Reparto"
+        "categoria" => "Asistente De Reparto",
       ],
       [
         "dni" => "16754597",
@@ -8239,54 +7998,6 @@ relacionados a la contabilidad)",
         "categoria" => "Asistente De Reparto"
       ],
       [
-        "dni" => "76692661",
-        "objective" => "Cumplimiento mensual de los límites de velocidad en ruta",
-        "description" => "Total de viajes por despachos del mes no excedan los 80km\/hr. (Control GPS)",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 25,
-        "isAscending" => true,
-        "categoria" => "Conductor II"
-      ],
-      [
-        "dni" => "76692661",
-        "objective" => "Cero multas de tránsito",
-        "description" => "Por infringir las normas de tránsito en el desarrollo de sus funciones",
-        "metric" => "Unidad",
-        "goal" => 0,
-        "weight" => 25,
-        "isAscending" => false,
-        "categoria" => "Conductor II"
-      ],
-      [
-        "dni" => "76692661",
-        "objective" => "Promedio mensual de ingreso",
-        "description" => "Promedio mensual de marcaciones de ingreso del mes según biométrico.",
-        "metric" => "Minutos",
-        "goal" => 3,
-        "weight" => 25,
-        "isAscending" => false,
-        "categoria" => "Conductor II"
-      ],
-      [
-        "dni" => "76692661",
-        "objective" => "Cumplimiento de inventario de sede al 100%",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 0,
-        "isAscending" => true,
-        "categoria" => "Conductor II"
-      ],
-      [
-        "dni" => "76692661",
-        "objective" => "Cero incidencias en la ruta asignada (robos, choques,etc)",
-        "metric" => "Unidad",
-        "goal" => 0,
-        "weight" => 25,
-        "isAscending" => false,
-        "categoria" => "Conductor II"
-      ],
-      [
         "dni" => "75560129",
         "objective" => "Cumplimiento de la programaciòn",
         "description" => " (Servicios entregados a tiempo\/total de servicios programados)",
@@ -8324,24 +8035,6 @@ relacionados a la contabilidad)",
         "weight" => 25,
         "isAscending" => false,
         "categoria" => "Asistente De Seguimiento Y Monitoreo"
-      ],
-      [
-        "dni" => "73629364",
-        "objective" => "Cuadres de caja oportunos",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 50,
-        "isAscending" => true,
-        "categoria" => "Caja Dp"
-      ],
-      [
-        "dni" => "73629364",
-        "objective" => "Arqueo de caja, sin diferencias",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 50,
-        "isAscending" => true,
-        "categoria" => "Caja Dp"
       ],
       [
         "dni" => "42430798",
@@ -8509,33 +8202,6 @@ relacionados a la contabilidad)",
         "categoria" => "Conductor De Tracto Camion"
       ],
       [
-        "dni" => "43753580",
-        "objective" => "Cumplimiento de la facturación de taller mas un incremento adicional del 2%",
-        "metric" => "Porcentaje",
-        "goal" => 102,
-        "weight" => 50,
-        "isAscending" => true,
-        "categoria" => "Jefe De Taller"
-      ],
-      [
-        "dni" => "43753580",
-        "objective" => "Cumplimiento de OT>100%",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 30,
-        "isAscending" => true,
-        "categoria" => "Jefe De Taller"
-      ],
-      [
-        "dni" => "43753580",
-        "objective" => "Tasa de reclamos relacionados al servicio que brinda el jefe de taller",
-        "metric" => "Unidad",
-        "goal" => 1,
-        "weight" => 20,
-        "isAscending" => false,
-        "categoria" => "Jefe De Taller"
-      ],
-      [
         "dni" => "72080239",
         "objective" => "Stock saludable de un mes por sede",
         "metric" => "Unidad",
@@ -8567,13 +8233,12 @@ relacionados a la contabilidad)",
       [
         "dni" => "48080535",
         "objective" => "Plazo de entrega de documentos contables",
-        "description" => "Plazo de entrega durante los primeros 4 días calendario del mes (notas de crédicto, débito y otros
-relacionados a la contabilidad)",
+        "description" => "Plazo de entrega durante los primeros 4 días calendario del mes (notas de crédicto, débito y otros relacionados a la contabilidad)",
         "metric" => "Días",
         "goal" => 4,
         "weight" => 33,
         "isAscending" => false,
-        "categoria" => "Asistente Administrativo DP"
+        "categoria" => "Jefe De Administracion"
       ],
       [
         "dni" => "48080535",
@@ -8583,7 +8248,7 @@ relacionados a la contabilidad)",
         "goal" => 10,
         "weight" => 34,
         "isAscending" => false,
-        "categoria" => "Asistente Administrativo DP"
+        "categoria" => "Jefe De Administracion"
       ],
       [
         "dni" => "48080535",
@@ -8592,7 +8257,7 @@ relacionados a la contabilidad)",
         "goal" => 100,
         "weight" => 33,
         "isAscending" => true,
-        "categoria" => "Asistente Administrativo DP"
+        "categoria" => "Jefe De Administracion"
       ],
       [
         "dni" => "42838742",
@@ -8868,24 +8533,6 @@ relacionados a la contabilidad)",
         "categoria" => "Conductor De Tracto Camion"
       ],
       [
-        "dni" => "73365479",
-        "objective" => "Número de unidades entregadas",
-        "metric" => "Unidades",
-        "goal" => 3,
-        "weight" => 50,
-        "isAscending" => true,
-        "categoria" => "Asesor Comercial"
-      ],
-      [
-        "dni" => "73365479",
-        "objective" => "Colocación de créditos",
-        "metric" => "Unidad",
-        "goal" => 1,
-        "weight" => 50,
-        "isAscending" => true,
-        "categoria" => "Asesor Comercial"
-      ],
-      [
         "dni" => "73657400",
         "objective" => "Arqueo de caja, sin diferencias",
         "metric" => "Porcentaje",
@@ -9065,70 +8712,6 @@ relacionados a la contabilidad)",
         "categoria" => "Asistente de Atracción De Talento"
       ],
       [
-        "dni" => "45464734",
-        "objective" => "Número de unidades entregadas",
-        "metric" => "Unidades",
-        "goal" => 5,
-        "weight" => 50,
-        "isAscending" => true,
-        "categoria" => "Asesor Comercial"
-      ],
-      [
-        "dni" => "45464734",
-        "objective" => "Reputation",
-        "description" => "Meta regional score superior a 820 puntos",
-        "metric" => "Número",
-        "goal" => 820,
-        "weight" => 20,
-        "isAscending" => true,
-        "categoria" => "Asesor Comercial"
-      ],
-      [
-        "dni" => "45464734",
-        "objective" => "Colocación de créditos",
-        "metric" => "Unidad",
-        "goal" => 2,
-        "weight" => 20,
-        "isAscending" => true,
-        "categoria" => "Asesor Comercial"
-      ],
-      [
-        "dni" => "45464734",
-        "objective" => "Colocación de seguros",
-        "metric" => "Unidad",
-        "goal" => 1,
-        "weight" => 10,
-        "isAscending" => true,
-        "categoria" => "Asesor Comercial"
-      ],
-      [
-        "dni" => "72757329",
-        "objective" => "Pagos ejecutados correctamente en planilla GP",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 34,
-        "isAscending" => true,
-        "categoria" => "Asistente de Remuneraciones y Compensaciones"
-      ],
-      [
-        "dni" => "72757329",
-        "objective" => "Pagos ejecutados correctamente en planilla TP",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 34,
-        "isAscending" => true,
-        "categoria" => "Asistente de Remuneraciones y Compensaciones"
-      ],
-      [
-        "dni" => "72757329",
-        "objective" => "Entrega de anexos de cuentas para planilla",
-        "metric" => "Días",
-        "goal" => 10,
-        "weight" => 32,
-        "isAscending" => false,
-        "categoria" => "Asistente de Remuneraciones y Compensaciones"
-      ],
-      [
         "dni" => "71875278",
         "objective" => "Rendimiento de combustible.",
         "description" => 0.92,
@@ -9205,34 +8788,6 @@ relacionados a la contabilidad)",
         "weight" => 40,
         "isAscending" => false,
         "categoria" => "Asistente De Reparto"
-      ],
-      [
-        "dni" => "73078735",
-        "objective" => "Calidad de contenido (crecimiento de 3% respecto al mes anterior)",
-        "metric" => "Porcentaje",
-        "goal" => 3,
-        "weight" => 40,
-        "isAscending" => true,
-        "categoria" => "Asistente De Marketing"
-      ],
-      [
-        "dni" => "73078735",
-        "objective" => "Promedio de alcance de visualización de videos y reels",
-        "description" => "Visualizaciones promedio en redes sociales",
-        "metric" => "Número",
-        "goal" => 2000,
-        "weight" => 40,
-        "isAscending" => true,
-        "categoria" => "Asistente De Marketing"
-      ],
-      [
-        "dni" => "73078735",
-        "objective" => "Promedio de tiempo de entrega de piezas por marca",
-        "metric" => "Días",
-        "goal" => 2,
-        "weight" => 20,
-        "isAscending" => true,
-        "categoria" => "Asistente De Marketing"
       ],
       [
         "dni" => "46337540",
@@ -9318,54 +8873,6 @@ relacionados a la contabilidad)",
         "weight" => 40,
         "isAscending" => false,
         "categoria" => "Asistente De Reparto"
-      ],
-      [
-        "dni" => "40709560",
-        "objective" => "Cumplimiento mensual de los límites de velocidad en ruta",
-        "description" => "Total de viajes por despachos del mes no excedan los 80km\/hr. (Control GPS)",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 25,
-        "isAscending" => true,
-        "categoria" => "Conductor I"
-      ],
-      [
-        "dni" => "40709560",
-        "objective" => "Cero multas de tránsito",
-        "description" => "Por infringir las normas de tránsito en el desarrollo de sus funciones",
-        "metric" => "Unidad",
-        "goal" => 0,
-        "weight" => 25,
-        "isAscending" => false,
-        "categoria" => "Conductor I"
-      ],
-      [
-        "dni" => "40709560",
-        "objective" => "Promedio mensual de ingreso",
-        "description" => "Promedio mensual de marcaciones de ingreso del mes según biométrico.",
-        "metric" => "Minutos",
-        "goal" => 3,
-        "weight" => 25,
-        "isAscending" => false,
-        "categoria" => "Conductor I"
-      ],
-      [
-        "dni" => "40709560",
-        "objective" => "Cumplimiento de inventario de sede al 100%",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 0,
-        "isAscending" => true,
-        "categoria" => "Conductor I"
-      ],
-      [
-        "dni" => "40709560",
-        "objective" => "Cero incidencias en la ruta asignada (robos, choques,etc)",
-        "metric" => "Unidad",
-        "goal" => 0,
-        "weight" => 25,
-        "isAscending" => false,
-        "categoria" => "Conductor I"
       ],
       [
         "dni" => "75480931",
@@ -9479,26 +8986,6 @@ relacionados a la contabilidad)",
         "weight" => 50,
         "isAscending" => true,
         "categoria" => "Tecnico Mecanico Ap"
-      ],
-      [
-        "dni" => "75626493",
-        "objective" => "Eficiencia de OT",
-        "description" => "Promedio de productividad de OT atendidas al mes",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 50,
-        "isAscending" => true,
-        "categoria" => "Asistente Mecánico Tp"
-      ],
-      [
-        "dni" => "75626493",
-        "objective" => "Mantenimentos correctivos de emergencia",
-        "description" => "(Auxilios Mecánicos), no supere el 4% mensual de la flota",
-        "metric" => "Porcentaje",
-        "goal" => 4,
-        "weight" => 50,
-        "isAscending" => false,
-        "categoria" => "Asistente Mecánico Tp"
       ],
       [
         "dni" => "45795895",
@@ -9691,54 +9178,6 @@ relacionados a la contabilidad)",
         "categoria" => "Conductor De Tracto Camion"
       ],
       [
-        "dni" => "007633555",
-        "objective" => "Cumplimiento mensual de los límites de velocidad en ruta",
-        "description" => "Total de viajes por despachos del mes no excedan los 80km\/hr. (Control GPS)",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 25,
-        "isAscending" => true,
-        "categoria" => "Conductor I"
-      ],
-      [
-        "dni" => "007633555",
-        "objective" => "Cero multas de tránsito",
-        "description" => "Por infringir las normas de tránsito en el desarrollo de sus funciones",
-        "metric" => "Unidad",
-        "goal" => 0,
-        "weight" => 25,
-        "isAscending" => false,
-        "categoria" => "Conductor I"
-      ],
-      [
-        "dni" => "007633555",
-        "objective" => "Promedio mensual de ingreso",
-        "description" => "Promedio mensual de marcaciones de ingreso del mes según biométrico.",
-        "metric" => "Minutos",
-        "goal" => 3,
-        "weight" => 25,
-        "isAscending" => false,
-        "categoria" => "Conductor I"
-      ],
-      [
-        "dni" => "007633555",
-        "objective" => "Cumplimiento de inventario de sede al 100%",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 0,
-        "isAscending" => true,
-        "categoria" => "Conductor I"
-      ],
-      [
-        "dni" => "007633555",
-        "objective" => "Cero incidencias en la ruta asignada (robos, choques,etc)",
-        "metric" => "Unidad",
-        "goal" => 0,
-        "weight" => 25,
-        "isAscending" => false,
-        "categoria" => "Conductor I"
-      ],
-      [
         "dni" => "77918582",
         "objective" => "Entrega de cierres contables en tiempo de empresa a cargo",
         "metric" => "Días",
@@ -9764,25 +9203,6 @@ relacionados a la contabilidad)",
         "weight" => 30,
         "isAscending" => false,
         "categoria" => "Asistente de Contabilidad Volante Ap"
-      ],
-      [
-        "dni" => "74873133",
-        "objective" => "Total de incoformidades en despachos",
-        "description" => " % Total de facturas (despachos externos) vs % de incorfomidades",
-        "metric" => "Porcentaje",
-        "goal" => 85,
-        "weight" => 60,
-        "isAscending" => true,
-        "categoria" => "Asistente De Reparto"
-      ],
-      [
-        "dni" => "74873133",
-        "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza",
-        "metric" => "Minutos",
-        "goal" => 3,
-        "weight" => 40,
-        "isAscending" => false,
-        "categoria" => "Asistente De Reparto"
       ],
       [
         "dni" => "43084165",
@@ -9856,15 +9276,6 @@ relacionados a la contabilidad)",
         "weight" => 10,
         "isAscending" => true,
         "categoria" => "Asesor Comercial"
-      ],
-      [
-        "dni" => "71248855",
-        "objective" => "Meta de facturación mensual mayor o igual a 100%",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 100,
-        "isAscending" => true,
-        "categoria" => "Asesor De Repuestos"
       ],
       [
         "dni" => "42085586",
@@ -9944,25 +9355,6 @@ relacionados a la contabilidad)",
         "categoria" => "Asesor Comercial"
       ],
       [
-        "dni" => "42040791",
-        "objective" => "Total de incoformidades en despachos",
-        "description" => " % Total de facturas (despachos externos e internos) vs % de incorfomidades",
-        "metric" => "Porcentaje",
-        "goal" => 90,
-        "weight" => 60,
-        "isAscending" => true,
-        "categoria" => "Supervisor De Almacen"
-      ],
-      [
-        "dni" => "42040791",
-        "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza",
-        "metric" => "Minutos",
-        "goal" => 3,
-        "weight" => 40,
-        "isAscending" => false,
-        "categoria" => "Supervisor De Almacen"
-      ],
-      [
         "dni" => "74531701",
         "objective" => "Total de incoformidades en despachos",
         "description" => " % Total de facturas (despachos externos) vs % de incorfomidades",
@@ -9998,15 +9390,6 @@ relacionados a la contabilidad)",
         "weight" => 50,
         "isAscending" => true,
         "categoria" => "Jefe de Ventas - Camiones"
-      ],
-      [
-        "dni" => "46783418",
-        "objective" => "Meta de facturación mensual mayor o igual a 100%",
-        "metric" => "Porcentaje",
-        "goal" => 100,
-        "weight" => 100,
-        "isAscending" => true,
-        "categoria" => "Asesor De Repuestos"
       ],
       [
         "dni" => "46966858",
@@ -10201,25 +9584,6 @@ relacionados a la contabilidad)",
         "categoria" => "Asistente Legal"
       ],
       [
-        "dni" => "71215084",
-        "objective" => "Total de incoformidades en despachos",
-        "description" => " % Total de facturas (despachos externos) vs % de incorfomidades",
-        "metric" => "Porcentaje",
-        "goal" => 85,
-        "weight" => 60,
-        "isAscending" => true,
-        "categoria" => "Asistente De Reparto"
-      ],
-      [
-        "dni" => "71215084",
-        "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza",
-        "metric" => "Minutos",
-        "goal" => 3,
-        "weight" => 40,
-        "isAscending" => false,
-        "categoria" => "Asistente De Reparto"
-      ],
-      [
         "dni" => "19247378",
         "objective" => "Rendimiento de combustible.",
         "description" => 0.92,
@@ -10353,24 +9717,6 @@ relacionados a la contabilidad)",
         "categoria" => "Asesor Comercial"
       ],
       [
-        "dni" => "02786294",
-        "objective" => "Número de unidades entregadas",
-        "metric" => "Unidades",
-        "goal" => 7,
-        "weight" => 50,
-        "isAscending" => true,
-        "categoria" => "Asesor Comercial"
-      ],
-      [
-        "dni" => "02786294",
-        "objective" => "Colocación de seguros",
-        "metric" => "Unidad",
-        "goal" => 1,
-        "weight" => 50,
-        "isAscending" => true,
-        "categoria" => "Asesor Comercial"
-      ],
-      [
         "dni" => "80590892",
         "objective" => "Rendimiento de combustible.",
         "description" => 0.92,
@@ -10402,46 +9748,6 @@ relacionados a la contabilidad)",
       ],
       [
         "dni" => "80590892",
-        "objective" => "Promedio de conducción",
-        "description" => "(Se da un un rango de cumplimiento entre 85 y 90)",
-        "metric" => "Porcentaje",
-        "goal" => 85,
-        "weight" => 25,
-        "isAscending" => true,
-        "categoria" => "Conductor De Tracto Camion"
-      ],
-      [
-        "dni" => "46169541",
-        "objective" => "Rendimiento de combustible.",
-        "description" => 0.92,
-        "metric" => "Porcentaje",
-        "goal" => 92,
-        "weight" => 25,
-        "isAscending" => true,
-        "categoria" => "Conductor De Tracto Camion"
-      ],
-      [
-        "dni" => "46169541",
-        "objective" => "Fletes no cubiertos por negativa de conductor",
-        "description" => "Flete no asumido por el conductor, más no perdido.",
-        "metric" => "Unidad",
-        "goal" => 0,
-        "weight" => 20,
-        "isAscending" => false,
-        "categoria" => "Conductor De Tracto Camion"
-      ],
-      [
-        "dni" => "46169541",
-        "objective" => "Número de incidencias por responsalidad del conductor",
-        "description" => "0: No hubo incidencia \/ 1: Incidencia leve \/ 2:Incidencia moderada \/ 3: Incidencia grave",
-        "metric" => "Número",
-        "goal" => 0,
-        "weight" => 30,
-        "isAscending" => false,
-        "categoria" => "Conductor De Tracto Camion"
-      ],
-      [
-        "dni" => "46169541",
         "objective" => "Promedio de conducción",
         "description" => "(Se da un un rango de cumplimiento entre 85 y 90)",
         "metric" => "Porcentaje",
@@ -10531,46 +9837,6 @@ relacionados a la contabilidad)",
         "categoria" => "Conductor De Tracto Camion"
       ],
       [
-        "dni" => "32987755",
-        "objective" => "Rendimiento de combustible.",
-        "description" => 0.92,
-        "metric" => "Porcentaje",
-        "goal" => 92,
-        "weight" => 25,
-        "isAscending" => true,
-        "categoria" => "Conductor De Tracto Camion"
-      ],
-      [
-        "dni" => "32987755",
-        "objective" => "Fletes no cubiertos por negativa de conductor",
-        "description" => "Flete no asumido por el conductor, más no perdido.",
-        "metric" => "Unidad",
-        "goal" => 0,
-        "weight" => 20,
-        "isAscending" => false,
-        "categoria" => "Conductor De Tracto Camion"
-      ],
-      [
-        "dni" => "32987755",
-        "objective" => "Número de incidencias por responsalidad del conductor",
-        "description" => "0: No hubo incidencia \/ 1: Incidencia leve \/ 2:Incidencia moderada \/ 3: Incidencia grave",
-        "metric" => "Número",
-        "goal" => 0,
-        "weight" => 30,
-        "isAscending" => false,
-        "categoria" => "Conductor De Tracto Camion"
-      ],
-      [
-        "dni" => "32987755",
-        "objective" => "Promedio de conducción",
-        "description" => "(Se da un un rango de cumplimiento entre 85 y 90)",
-        "metric" => "Porcentaje",
-        "goal" => 85,
-        "weight" => 25,
-        "isAscending" => true,
-        "categoria" => "Conductor De Tracto Camion"
-      ],
-      [
         "dni" => "43141821",
         "objective" => "Rendimiento de combustible.",
         "description" => 0.92,
@@ -10609,25 +9875,6 @@ relacionados a la contabilidad)",
         "weight" => 25,
         "isAscending" => true,
         "categoria" => "Conductor De Tracto Camion"
-      ],
-      [
-        "dni" => "71950477",
-        "objective" => "Total de incoformidades en despachos",
-        "description" => " % Total de facturas (despachos externos) vs % de incorfomidades",
-        "metric" => "Porcentaje",
-        "goal" => 85,
-        "weight" => 60,
-        "isAscending" => true,
-        "categoria" => "Asistente De Reparto"
-      ],
-      [
-        "dni" => "71950477",
-        "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza",
-        "metric" => "Minutos",
-        "goal" => 3,
-        "weight" => 40,
-        "isAscending" => false,
-        "categoria" => "Asistente De Reparto"
       ],
       [
         "dni" => "47221021",
@@ -10641,25 +9888,6 @@ relacionados a la contabilidad)",
       ],
       [
         "dni" => "47221021",
-        "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza",
-        "metric" => "Minutos",
-        "goal" => 3,
-        "weight" => 40,
-        "isAscending" => false,
-        "categoria" => "Asistente De Reparto"
-      ],
-      [
-        "dni" => "74537001",
-        "objective" => "Total de incoformidades en despachos",
-        "description" => " % Total de facturas (despachos externos) vs % de incorfomidades",
-        "metric" => "Porcentaje",
-        "goal" => 85,
-        "weight" => 60,
-        "isAscending" => true,
-        "categoria" => "Asistente De Reparto"
-      ],
-      [
-        "dni" => "74537001",
         "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza",
         "metric" => "Minutos",
         "goal" => 3,
@@ -11113,25 +10341,6 @@ relacionados a la contabilidad)",
         "categoria" => "Asistente Administrativo DP"
       ],
       [
-        "dni" => "40708289",
-        "objective" => "Total de incoformidades en despachos",
-        "description" => " % Total de facturas vs % de incorfomidades (plataforma)",
-        "metric" => "Porcentaje",
-        "goal" => 85,
-        "weight" => 60,
-        "isAscending" => true,
-        "categoria" => "Asistente De Reparto"
-      ],
-      [
-        "dni" => "40708289",
-        "objective" => "Promedio mensual de ingreso no mayor a 3 Minutos de tardanza",
-        "metric" => "Minutos",
-        "goal" => 3,
-        "weight" => 40,
-        "isAscending" => false,
-        "categoria" => "Asistente De Reparto"
-      ],
-      [
         "dni" => "16729345",
         "objective" => "Cero soles de multa por errores contables en la empresa a cargo",
         "metric" => "Número",
@@ -11310,103 +10519,109 @@ relacionados a la contabilidad)",
     //    2. Definir servicios
     $categoryObjectiveService = new EvaluationCategoryObjectiveDetailService();
 
-    //    Mapear todos los datos
-    foreach ($data as $item) {
-      $person = Worker::where('vat', $item['dni'])->where('status_id', 22)->first();
+    DB::beginTransaction();
 
-      $category = HierarchicalCategory::where('name', $item['categoria'])->first();
+    try {
+//    Mapear todos los datos
+      foreach ($data as $item) {
+        $person = Worker::where('vat', $item['dni'])->where('status_id', 22)->first();
 
-      $objective = EvaluationObjective::where('name', $item['objective'])->first();
-      $metric = EvaluationMetric::where('name', $item['metric'])->first();
+        $category = HierarchicalCategory::where('name', $item['categoria'])->first();
 
-      if (!$person) {
-        throw new \Exception("No se encontró la persona con DNI: {$item['dni']}");
+        $objective = EvaluationObjective::where('name', $item['objective'])->where('active', 1)->first();
+        $metric = EvaluationMetric::where('name', $item['metric'])->first();
+
+        if (!$person) {
+          throw new \Exception("No se encontró la persona con DNI: {$item['dni']}");
+        }
+
+        if (!$person->cargo_id) {
+          throw new \Exception("La persona con DNI: {$item['dni']} no tiene un cargo asignado.");
+        }
+
+        if (!$category) {
+          $newCategory = HierarchicalCategory::create([
+            'name' => $item['categoria'],
+            'description' => 'Description for the category ' . $item['categoria'],
+            'hasObjectives' => true,
+          ]);
+          $category = HierarchicalCategory::find($newCategory->id);
+        }
+
+        $categoryDetail = HierarchicalCategoryDetail::where('position_id', $person->cargo_id)
+          ->first();
+
+        if (!$categoryDetail) {
+          HierarchicalCategoryDetail::create([
+            'hierarchical_category_id' => $category->id,
+            'position_id' => $person->cargo_id,
+          ]);
+        }
+        if (!$metric) {
+          $newMetric = EvaluationMetric::create([
+            'name' => $item['metric'],
+            'description' => 'Description for the metric ' . $item['metric'],
+          ]);
+          $metric = EvaluationMetric::find($newMetric->id);
+        }
+
+        if (!$objective) {
+          $newObjective = EvaluationObjective::create([
+            'name' => $item['objective'],
+            'description' => 'Description for the objective ' . $item['objective'],
+            'goalReference' => $item['goal'],
+            'fixedWeight' => false,
+            'isAscending' => $item['isAscending'],
+            'metric_id' => $metric->id
+          ]);
+          $objective = EvaluationObjective::find($newObjective->id);
+        }
+
+        if (!$objective) {
+          throw new \Exception("No se encontró el objetivo: {$item['objective']}");
+        }
+
+
+        $data = [
+          'objective_id' => $objective->id,
+          'category_id' => $category->id,
+          'person_id' => $person->id,
+          'goal' => $objective->goalReference,
+          'fixedWeight' => true,
+          'weight' => $item['weight'],
+        ];
+        EvaluationCategoryObjectiveDetail::create($data);
+
       }
 
-      if (!$person->cargo_id) {
-        throw new \Exception("La persona con DNI: {$item['dni']} no tiene un cargo asignado.");
+      //    4. Asignar el gerente general category 'Gerente General' position id 23
+      $categoryChiefExecutive = HierarchicalCategory::create([
+        'name' => 'Gerente General',
+        'description' => 'Description for the category Gerente General',
+        'hasObjectives' => false,
+      ]);
+
+      HierarchicalCategoryDetail::create([
+        'hierarchical_category_id' => $categoryChiefExecutive->id,
+        'position_id' => 23,
+      ]);
+
+      //    Excluir del cálculo al gerente general
+      $excludedPositions = [215, 307, 255, 214, 276, 23, 294, 326, 295, 352];
+      $excludedPeople = Worker::whereIn('cargo_id', $excludedPositions)->where('status_id', 22)->get();
+      if ($excludedPeople) {
+        foreach ($excludedPeople as $excludedId) {
+          EvaluationPersonDetail::create([
+            'person_id' => $excludedId->id,
+          ]);
+        }
       }
-
-      if (!$category) {
-        throw new \Exception("No hay categoria");
-        $newCategory = HierarchicalCategory::create([
-          'name' => $item['categoria'],
-          'description' => 'Description for the category ' . $item['categoria'],
-          'hasObjectives' => true,
-        ]);
-        $category = HierarchicalCategory::find($newCategory->id);
-      }
-
-      $categoryDetail = HierarchicalCategoryDetail::where('position_id', $person->cargo_id)
-        ->first();
-
-      if (!$categoryDetail) {
-        HierarchicalCategoryDetail::create([
-          'hierarchical_category_id' => $category->id,
-          'position_id' => $person->cargo_id,
-        ]);
-      }
-
-
-      if (!$metric) {
-        $newMetric = EvaluationMetric::create([
-          'name' => $item['metric'],
-          'description' => 'Description for the metric ' . $item['metric'],
-        ]);
-        $metric = EvaluationMetric::find($newMetric->id);
-      }
-
-      if (!$objective) {
-        $newObjective = EvaluationObjective::create([
-          'name' => $item['objective'],
-          'description' => 'Description for the objective ' . $item['objective'],
-          'goalReference' => $item['goal'],
-          'fixedWeight' => false,
-          'isAscending' => $item['isAscending'],
-          'metric_id' => $metric->id
-        ]);
-        $objective = EvaluationObjective::find($newObjective->id);
-      }
-
-      if (!$objective) {
-        throw new \Exception("No se encontró el objetivo: {$item['objective']}");
-      }
-
-
-      $data = [
-        'objective_id' => $objective->id,
-        'category_id' => $category->id,
-        'person_id' => $person->id,
-        'goal' => $objective->goalReference,
-        'fixedWeight' => true,
-        'weight' => $item['weight'],
-      ];
-      EvaluationCategoryObjectiveDetail::create($data);
+      //    5. Asignar objetivos faltantes a todas las categorías
+      $categoryObjectiveService->assignMissingObjectives();
+      DB::commit();
+    } catch (\Exception $e) {
+      DB::rollBack();
+      echo "Error: " . $e->getMessage() . "\n";
     }
-
-    //    4. Asignar el gerente general category 'Gerente General' position id 23
-    $categoryChiefExecutive = HierarchicalCategory::create([
-      'name' => 'Gerente General',
-      'description' => 'Description for the category Gerente General',
-      'hasObjectives' => false,
-    ]);
-
-    HierarchicalCategoryDetail::create([
-      'hierarchical_category_id' => $categoryChiefExecutive->id,
-      'position_id' => 23,
-    ]);
-
-    //    Excluir del cálculo al gerente general
-    $excludedPositions = [215, 307, 255, 214, 276, 23, 294, 326, 295, 352];
-    $excludedPeople = Worker::whereIn('cargo_id', $excludedPositions)->where('status_id', 22)->get();
-    if ($excludedPeople) {
-      foreach ($excludedPeople as $excludedId) {
-        EvaluationPersonDetail::create([
-          'person_id' => $excludedId->id,
-        ]);
-      }
-    }
-    //    5. Asignar objetivos faltantes a todas las categorías
-    $categoryObjectiveService->assignMissingObjectives();
   }
 }

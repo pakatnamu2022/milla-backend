@@ -107,6 +107,12 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
           'credit_note_dynamics' => $credit_note,
         ]);
 
+        if (contains($credit_note, 'NC. RE')) {
+          $purchaseOrder->update([
+            'factura_dynamics' => null,
+          ]);
+        }
+
         if ($purchaseOrder->vehicle_movement_id) {
           // Crear movimiento usando el servicio
           $movementService = new VehicleMovementService();
