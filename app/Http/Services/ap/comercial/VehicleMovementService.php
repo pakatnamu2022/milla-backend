@@ -16,6 +16,7 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class VehicleMovementService extends BaseService implements BaseServiceInterface
@@ -215,6 +216,7 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
       return new VehicleMovementResource($vehicleMovement);
     } catch (Exception $e) {
       DB::rollBack();
+      Log::warning('Error al crear movimiento de vehículo devuelto: ' . $e->getMessage());
       throw new Exception($e->getMessage());
     }
   }
