@@ -50,7 +50,7 @@ Schedule::command('shipping-guide:verify-migration --all --limit=10')
 // Sincronizar invoice_dynamics desde Dynamics
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
 Schedule::command('po:sync-invoice-dynamics --all --limit=10')
-  ->everyMinute()
+  ->everyTenSeconds()
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
@@ -58,7 +58,7 @@ Schedule::command('po:sync-invoice-dynamics --all --limit=10')
 // Sincronizar credit_note_dynamics desde Dynamics
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
 Schedule::command('po:sync-credit-note-dynamics --all --limit=10')
-  ->everyMinute()
+  ->everyTenSeconds()
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
