@@ -129,6 +129,9 @@ use App\Http\Controllers\gp\tics\PhoneLineWorkerController;
 use App\Http\Controllers\gp\tics\TelephoneAccountController;
 use App\Http\Controllers\gp\tics\TelephonePlanController;
 use App\Http\Controllers\JobStatusController;
+use App\Http\Controllers\tp\comercial\OpFreightController;
+use App\Http\Controllers\tp\comercial\OpGoalTravelController;
+use App\Http\Controllers\tp\comercial\OpVehicleAssignmentController;
 use App\Http\Controllers\tp\comercial\TpTravelPhotoController;
 
 //TP - Controller
