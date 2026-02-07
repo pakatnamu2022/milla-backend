@@ -25,6 +25,7 @@ class EvaluationObjective extends Model
     'id' => '=',
     'search' => ['name', 'description'],
     'metric_id' => '=',
+    'active' => '=',
   ];
 
   const sorts = [
