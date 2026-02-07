@@ -4,6 +4,7 @@ namespace App\Http\Services\common;
 
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\personal\Worker;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -503,73 +504,141 @@ class EvaluationNotificationService
   }
 
   /**
-   * Calcula el resumen de desempeño del equipo
+   * Calcula el resumen de desempeño del equipo según el finalParameter
    */
   private function calculateTeamSummary(Evaluation $evaluation, int $leaderId): array
   {
-    $evaluationPersons = EvaluationPerson::where('evaluation_id', $evaluation->id)
+    // 1. Obtener person_ids únicos del equipo del líder
+    $teamPersonIds = EvaluationPerson::where('evaluation_id', $evaluation->id)
       ->where('chief_id', $leaderId)
+      ->distinct()
+      ->pluck('person_id')
+      ->toArray();
+
+    $totalTeamMembers = count($teamPersonIds);
+
+    if ($totalTeamMembers === 0) {
+      return $this->getEmptyTeamSummary();
+    }
+
+    // 2. Obtener resultados finales del equipo
+    $personResults = EvaluationPersonResult::where('evaluation_id', $evaluation->id)
+      ->whereIn('person_id', $teamPersonIds)
       ->with('person')
       ->get();
 
+    // 3. Obtener rangos del finalParameter
+    $finalParameter = $evaluation->finalParameter;
+    if (!$finalParameter || !$finalParameter->details || $finalParameter->details->isEmpty()) {
+      return $this->getEmptyTeamSummary('No hay parámetro final configurado');
+    }
+
+    $ranges = $finalParameter->details()->orderBy('from')->get();
+
+    // 4. Inicializar distribución con los rangos reales
+    $distribution = [];
+    foreach ($ranges as $range) {
+      $distribution[$range->label] = [
+        'count' => 0,
+        'percentage' => 0,
+        'from' => $range->from,
+        'to' => $range->to
+      ];
+    }
+
+    // 5. Clasificar resultados según los rangos
     $totalEvaluated = 0;
     $totalScore = 0;
-    $teamResults = [];
-    $distribution = [
-      'Excelente' => ['count' => 0, 'percentage' => 0],
-      'Bueno' => ['count' => 0, 'percentage' => 0],
-      'Regular' => ['count' => 0, 'percentage' => 0],
-      'Deficiente' => ['count' => 0, 'percentage' => 0]
-    ];
+    $scores = [];
 
-    foreach ($evaluationPersons as $evalPerson) {
-      if ($evalPerson->wasEvaluated == 1 && $evalPerson->result !== null) {
+    foreach ($personResults as $result) {
+      if ($result->result !== null && $result->result > 0) {
         $totalEvaluated++;
-        $score = (float)$evalPerson->result;
+        $score = (float)$result->result;
         $totalScore += $score;
+        $scores[] = $score;
 
-        $level = $this->getPerformanceLevel($score);
-        $distribution[$level]['count']++;
-
-        $teamResults[] = [
-          'employee_name' => $evalPerson->person->nombre_completo ?? 'N/A',
-          'score' => $score,
-          'level' => $level
-        ];
+        // Clasificar en el rango correspondiente
+        $rangeLabel = $this->classifyByFinalParameter($score, $ranges);
+        if ($rangeLabel && isset($distribution[$rangeLabel])) {
+          $distribution[$rangeLabel]['count']++;
+        }
       }
     }
 
+    // 6. Calcular promedio y porcentajes
     $averageScore = $totalEvaluated > 0 ? $totalScore / $totalEvaluated : 0;
 
-    // Calcular porcentajes
     foreach ($distribution as $level => &$data) {
       $data['percentage'] = $totalEvaluated > 0 ? ($data['count'] / $totalEvaluated) * 100 : 0;
     }
 
+    // 7. Determinar el nivel del promedio general
+    $teamLevel = $this->classifyByFinalParameter($averageScore, $ranges);
+
     return [
       'average_score' => $averageScore,
+      'team_level' => $teamLevel ?? 'N/A',
       'total_evaluated' => $totalEvaluated,
-      'team_results' => $teamResults,
+      'total_team_members' => $totalTeamMembers,
       'performance_distribution' => $distribution,
+      'parameter_name' => $finalParameter->name,
       'stats' => [
-        'Mejor Calificación' => $totalEvaluated > 0 ? number_format(max(array_column($teamResults, 'score')), 1) . '%' : 'N/A',
-        'Menor Calificación' => $totalEvaluated > 0 ? number_format(min(array_column($teamResults, 'score')), 1) . '%' : 'N/A',
-        'Tasa de Completitud' => number_format(($totalEvaluated / count($evaluationPersons)) * 100, 1) . '%',
-        'Total Evaluados' => $totalEvaluated . ' de ' . count($evaluationPersons)
+        'Mejor Calificación' => $totalEvaluated > 0 ? number_format(max($scores), 1) . '%' : 'N/A',
+        'Menor Calificación' => $totalEvaluated > 0 ? number_format(min($scores), 1) . '%' : 'N/A',
+        'Tasa de Completitud' => number_format(($totalEvaluated / $totalTeamMembers) * 100, 1) . '%',
+        'Total Evaluados' => $totalEvaluated . ' de ' . $totalTeamMembers
       ]
     ];
   }
 
   /**
-   * Determina el nivel de desempeño según la calificación
+   * Clasifica un puntaje según los rangos del finalParameter
    */
-  private function getPerformanceLevel(float $score): string
+  private function classifyByFinalParameter(float $score, $ranges): ?string
   {
-    if ($score >= 90) return 'Excelente';
-    if ($score >= 70) return 'Bueno';
-    if ($score >= 60) return 'Regular';
-    return 'Deficiente';
+    foreach ($ranges as $index => $range) {
+      $isLastRange = $index === ($ranges->count() - 1);
+
+      if ($score >= $range->from) {
+        if ($isLastRange) {
+          // Último rango: incluir el límite superior
+          if ($score <= $range->to) {
+            return $range->label;
+          }
+        } else {
+          // Rangos intermedios: menor que el límite superior
+          if ($score < $range->to) {
+            return $range->label;
+          }
+        }
+      }
+    }
+
+    return null;
   }
+
+  /**
+   * Retorna un resumen vacío cuando no hay datos
+   */
+  private function getEmptyTeamSummary(string $message = 'No hay datos disponibles'): array
+  {
+    return [
+      'average_score' => 0,
+      'team_level' => 'N/A',
+      'total_evaluated' => 0,
+      'total_team_members' => 0,
+      'performance_distribution' => [],
+      'parameter_name' => $message,
+      'stats' => [
+        'Mejor Calificación' => 'N/A',
+        'Menor Calificación' => 'N/A',
+        'Tasa de Completitud' => '0.0%',
+        'Total Evaluados' => '0 de 0'
+      ]
+    ];
+  }
+
 
   /**
    * Envía correo de cierre a un líder
@@ -578,8 +647,8 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
-//        'to' => "hvaldiviezos@automotorespakatnamu.com",
+//        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
+        'to' => "hvaldiviezos@automotorespakatnamu.com",
         'subject' => 'Evaluación de Desempeño Finalizada - Resumen de Resultados',
         'template' => 'emails.evaluation-closed',
         'data' => [
@@ -594,16 +663,7 @@ class EvaluationNotificationService
           'team_count' => $leaderData['team_count'],
           'total_evaluated' => $teamSummary['total_evaluated'],
           'team_summary' => $teamSummary,
-          'team_results' => $teamSummary['team_results'],
-          'top_competences' => [
-            'Trabajo en equipo',
-            'Cumplimiento de objetivos',
-            'Responsabilidad'
-          ],
-          'areas_improvement' => [
-            'Comunicación efectiva',
-            'Gestión del tiempo'
-          ],
+          // NO enviar resultados individuales por empleado, solo resumen general
           'evaluation_url' => config('app.frontend_url') . '/perfil/equipo',
           'additional_notes' => 'Los resultados detallados están disponibles en la plataforma para su revisión.',
           'date' => now()->format('d/m/Y H:i'),
