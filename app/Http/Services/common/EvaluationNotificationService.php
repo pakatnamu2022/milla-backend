@@ -647,8 +647,8 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-//        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
-        'to' => "hvaldiviezos@automotorespakatnamu.com",
+        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
+//        'to' => "hvaldiviezos@automotorespakatnamu.com",
         'subject' => 'Evaluación de Desempeño Finalizada - Resumen de Resultados',
         'template' => 'emails.evaluation-closed',
         'data' => [
