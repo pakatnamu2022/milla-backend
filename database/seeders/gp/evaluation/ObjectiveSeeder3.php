@@ -23,6 +23,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 /**
+ * sudo docker compose exec app php artisan db:seed --class=Database\\Seeders\\gp\\evaluation\\ObjectiveSeeder3
  * php artisan db:seed --class=Database\Seeders\gp\evaluation\ObjectiveSeeder3
  */
 class ObjectiveSeeder3 extends Seeder
