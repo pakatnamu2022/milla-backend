@@ -25,7 +25,7 @@ class ElectronicDocumentResource extends JsonResource
       'numero' => $this->numero,
       'full_number' => $this->full_number,
       'sunat_concept_transaction_type_id' => $this->sunat_concept_transaction_type_id,
-      'origin_module' => $this->origin_module, // COMERCIAL O POSVENTA
+      'area_id' => $this->area_id, // COMERCIAL O POSVENTA
       'origin_entity_type' => $this->origin_entity_type,
       'origin_entity_id' => $this->origin_entity_id,
       'ap_vehicle_movement_id' => $this->ap_vehicle_movement_id,

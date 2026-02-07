@@ -95,6 +95,33 @@ class ShippingGuidesResource extends JsonResource
           ];
         });
       }),
+      'items' => $this->when(
+        $this->relationLoaded('vehicleMovement') || $this->relationLoaded('inventoryMovement'),
+        function () {
+          // Si la guía es de vehículo, retorna los datos del vehículo
+          if ($this->vehicleMovement?->vehicle) {
+            $vehicle = $this->vehicleMovement->vehicle;
+            return [[
+              'codigo' => $vehicle->vin,
+              'descripcion' => $vehicle->model?->version ?? '-',
+              'unidad' => 'NIU',
+              'cantidad' => 1,
+            ]];
+          }
+
+          // Si la guía es de inventario, retorna los detalles del movimiento
+          if ($this->inventoryMovement?->details) {
+            return $this->inventoryMovement->details->map(fn($detail) => [
+              'codigo' => $detail->product?->code ?? '-',
+              'descripcion' => $detail->product?->name ?? '-',
+              'unidad' => $detail->product?->unitMeasurement?->nubefac_code ?? 'NIU',
+              'cantidad' => $detail->quantity,
+            ]);
+          }
+
+          return [];
+        }
+      ),
     ];
   }
 }

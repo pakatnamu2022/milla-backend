@@ -5,12 +5,14 @@ namespace App\Console\Commands;
 use App\Console\Commands\Concerns\ValidatesPendingJobs;
 use App\Http\Services\DatabaseSyncService;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ShippingGuides;
 use Illuminate\Console\Command;
 
 class VerifyShippingGuideMigrationCommand extends Command
 {
   use ValidatesPendingJobs;
+
   /**
    * The name and signature of the console command.
    *
@@ -74,15 +76,16 @@ class VerifyShippingGuideMigrationCommand extends Command
       }
 
       // Verificar todas las guías pendientes (limitado por --limit)
-      $limit = (int) $this->option('limit');
+      $limit = (int)$this->option('limit');
       $pendingGuides = ShippingGuides::whereIn('migration_status', [
         'pending',
         'in_progress',
         'failed'
       ])
-      ->orderBy('id')
-      ->limit($limit)
-      ->get();
+        ->where('area_id', ApMasters::AREA_COMERCIAL)
+        ->orderBy('id')
+        ->limit($limit)
+        ->get();
 
       if ($pendingGuides->isEmpty()) {
         $this->info("No hay guías pendientes de migración.");
