@@ -109,6 +109,22 @@ class ApSupplierOrder extends Model
   }
 
   /**
+   * Relación con recepciones de compra
+   */
+  public function receptions()
+  {
+    return $this->hasMany(\App\Models\ap\compras\PurchaseReception::class, 'ap_supplier_order_id');
+  }
+
+  /**
+   * Verificar si tiene recepciones activas (no eliminadas)
+   */
+  public function hasActiveReceptions(): bool
+  {
+    return $this->receptions()->whereNull('deleted_at')->exists();
+  }
+
+  /**
    * Relación con los detalles de solicitudes de compra
    */
   public function requestDetails(): BelongsToMany

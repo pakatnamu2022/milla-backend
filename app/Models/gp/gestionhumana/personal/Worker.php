@@ -96,7 +96,10 @@ class Worker extends BaseModel
   public function objectives()
   {
     return $this->hasMany(EvaluationCategoryObjectiveDetail::class, 'person_id')
-      ->where('active', true);
+      ->where('active', true)
+      ->whereHas('objective', function ($query) {
+        $query->where('active', true);
+      });
   }
 
   public function competences()

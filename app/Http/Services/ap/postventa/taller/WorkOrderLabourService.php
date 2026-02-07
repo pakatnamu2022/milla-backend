@@ -54,7 +54,7 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede agregar mano de obra a una orden de trabajo cerrada');
       }
 
-      if ($workOrder->vehicle_inspection_id === null) {
+      if ($workOrder->vehicleInspection === null) {
         throw new Exception('No se puede agregar mano de obra a una orden de trabajo sin inspección de vehículo');
       }
 
@@ -83,6 +83,8 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
       $data['time_spent'] = $timeSpentDecimal;
 
       $workOrderLabour = WorkOrderLabour::create($data);
+      $workOrder->calculateTotals();
+
       return new WorkOrderLabourResource($workOrderLabour->load(['worker', 'workOrder']));
     });
   }
@@ -125,6 +127,8 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
       }
 
       $workOrderLabour->update($data);
+      $workOrderLabour->workOrder->calculateTotals();
+
       return new WorkOrderLabourResource($workOrderLabour->load(['worker', 'workOrder']));
     });
   }
@@ -132,9 +136,13 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
   public function destroy($id)
   {
     $workOrderLabour = $this->find($id);
-    DB::transaction(function () use ($workOrderLabour) {
+    $workOrder = $workOrderLabour->workOrder;
+
+    DB::transaction(function () use ($workOrderLabour, $workOrder) {
       $workOrderLabour->delete();
+      $workOrder->calculateTotals();
     });
+
     return response()->json(['message' => 'Mano de obra eliminada correctamente']);
   }
 }

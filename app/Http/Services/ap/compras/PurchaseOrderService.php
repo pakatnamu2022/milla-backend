@@ -4,8 +4,10 @@ namespace App\Http\Services\ap\compras;
 
 use App\Http\Resources\ap\compras\PurchaseOrderResource;
 use App\Http\Services\ap\comercial\VehiclesService;
+use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
 use App\Http\Services\BaseService;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Http\Services\BaseServiceInterface;
@@ -15,6 +17,7 @@ use App\Jobs\VerifyAndMigratePurchaseOrderJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\postventa\taller\ApSupplierOrder;
@@ -237,6 +240,11 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       // Guardar items si existen
       $this->saveItemsIfExists($items, $purchaseOrder);
 
+      // Si viene purchase_reception_id, procesar la recepción y vincularla con la factura
+      if (isset($data['purchase_reception_id'])) {
+        $this->processReceptionOnInvoice($purchaseOrder, $data['purchase_reception_id']);
+      }
+
       // Si type_operation_id = TIPO_OPERACION_POSTVENTA, actualizar quantity_in_transit
       if (isset($data['type_operation_id']) && $data['type_operation_id'] == ApMasters::TIPO_OPERACION_POSTVENTA) {
         $this->updateInTransitStockOnCreate($purchaseOrder);
@@ -450,6 +458,8 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
           'description' => $itemData['description'] ?? '',
           'unit_price' => $unitPrice,
           'quantity' => $quantity,
+          'quantity_received' => 0,
+          'quantity_pending' => $quantity,
           'total' => $total,
           'is_vehicle' => $itemData['is_vehicle'] ?? false,
           'product_id' => $itemData['product_id'] ?? null,
@@ -686,6 +696,85 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         implode(', ', $missingProducts) . '. ' .
         'Por favor, registre estos productos en el almacén antes de continuar.'
       );
+    }
+  }
+
+  /**
+   * Process purchase reception when registering invoice (PurchaseOrder)
+   * - Links reception with invoice
+   * - Updates PurchaseOrderItem quantities based on reception details
+   * - Creates inventory movement
+   * - Updates physical stock
+   * - Updates quantity_pending_credit_note if there are observations
+   * - Updates quantity_in_transit (removes received quantities)
+   *
+   * @param PurchaseOrder $purchaseOrder
+   * @param int $receptionId
+   * @return void
+   * @throws Exception
+   */
+  protected function processReceptionOnInvoice(PurchaseOrder $purchaseOrder, int $receptionId): void
+  {
+    $stockService = new ProductWarehouseStockService();
+
+    // 1. Obtener la recepción
+    $reception = PurchaseReception::find($receptionId);
+    if (!$reception) {
+      throw new Exception("Recepción ID {$receptionId} no encontrada");
+    }
+
+    // 2. Vincular la recepción con la factura
+    $reception->update(['purchase_order_id' => $purchaseOrder->id]);
+
+    // 3. Procesar cada detalle de la recepción
+    foreach ($reception->details as $receptionDetail) {
+      $quantityReceived = $receptionDetail->quantity_received;
+      $observedQuantity = $receptionDetail->observed_quantity ?? 0;
+      $totalProcessed = $quantityReceived + $observedQuantity;
+
+      // 4. Buscar el PurchaseOrderItem correspondiente a este producto
+      $orderItem = $purchaseOrder->items()
+        ->where('product_id', $receptionDetail->product_id)
+        ->first();
+
+      if (!$orderItem) {
+        throw new Exception("No se encontró el item de la factura para el producto ID {$receptionDetail->product_id}");
+      }
+
+      // 5. Vincular el detalle de recepción con el item de la factura
+      $receptionDetail->update(['purchase_order_item_id' => $orderItem->id]);
+
+      // 6. Actualizar cantidades en PurchaseOrderItem (solo para items ORDERED)
+      if ($receptionDetail->reception_type === 'ORDERED') {
+        $orderItem->quantity_received += $quantityReceived;
+        $orderItem->quantity_pending = $orderItem->quantity - $orderItem->quantity_received;
+        $orderItem->save();
+
+        // 7. Actualizar quantity_pending_credit_note si hay observaciones
+        if ($observedQuantity > 0) {
+          $stockService->addPendingCreditNote(
+            $receptionDetail->product_id,
+            $reception->warehouse_id,
+            $observedQuantity
+          );
+        }
+
+        // 8. Remover de in-transit (total procesado: recibido + observado)
+        $stockService->removeInTransitStock(
+          $receptionDetail->product_id,
+          $reception->warehouse_id,
+          $totalProcessed
+        );
+      }
+    }
+
+    // 9. Crear movimiento de inventario y actualizar stock físico
+    $digitalFileService = new DigitalFileService();
+    $inventoryMovementService = new InventoryMovementService($digitalFileService);
+    try {
+      $inventoryMovementService->createFromPurchaseReception($reception);
+    } catch (Exception $e) {
+      throw new Exception('Error al crear el movimiento de inventario y actualizar stock: ' . $e->getMessage());
     }
   }
 }
