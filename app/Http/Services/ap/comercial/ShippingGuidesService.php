@@ -104,7 +104,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       $documentNumber = null;
       $documentSeriesId = null;
 
-      if ($data['issuer_type'] == 'NOSOTROS') {
+      if ($data['issuer_type'] == ShippingGuides::ISSUER_TYPE_SYSTEM) {
         if (empty($data['document_series_id'])) {
           throw new Exception('El campo document_series_id es obligatorio cuando el emisor es AUTOMOTORES');
         }
@@ -242,7 +242,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       }
 
       // 2. Recalcular serie y correlativo si cambió el document_series_id y el emisor es NOSOTROS
-      if (isset($data['issuer_type']) && $data['issuer_type'] == 'NOSOTROS') {
+      if (isset($data['issuer_type']) && $data['issuer_type'] == ShippingGuides::ISSUER_TYPE_SYSTEM) {
         $needsRecalculation = false;
         $seriesId = $data['document_series_id'] ?? $document->document_series_id;
 

@@ -6,6 +6,7 @@ use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\BaseModel;
+use App\Models\gp\gestionsistema\Area;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
@@ -106,7 +107,7 @@ class ShippingGuides extends BaseModel
 
   // Issuer types
   const ISSUER_TYPE_SUPPLIER = 'PROVEEDOR';
-  const ISSUER_TYPE_AUTOMOTORES = 'NOSOTROS';
+  const ISSUER_TYPE_SYSTEM = 'SYSTEM';
 
   const filters = [
     'search' => ['document_number', 'plate', 'driver_name', 'documentSeries.series'],
@@ -169,6 +170,15 @@ class ShippingGuides extends BaseModel
   public function setNoteReceivedAttribute($value): void
   {
     $this->attributes['note_received'] = Str::upper(Str::ascii($value));
+  }
+
+  /**
+   * Relaciones
+   */
+
+  public function area(): BelongsTo
+  {
+    return $this->belongsTo(Area::class, 'area_id');
   }
 
   public function typeVoucher(): BelongsTo
