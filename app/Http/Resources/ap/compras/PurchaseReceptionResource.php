@@ -27,6 +27,11 @@ class PurchaseReceptionResource extends JsonResource
       'purchase_order_id' => $this->purchase_order_id,
       'warehouse_id' => $this->warehouse_id,
       'status' => $this->status,
+      'carrier_id' => $this->carrier_id,
+      'supplier_id' => $this->supplierOrder->supplier_id ?? null,
+      'supplier_num_doc' => $this->supplierOrder && $this->supplierOrder->supplier ? $this->supplierOrder->supplier->num_doc : null,
+      'supplier_name' => $this->supplierOrder && $this->supplierOrder->supplier ? $this->supplierOrder->supplier->full_name : null,
+      'type_currency_id' => $this->supplierOrder ? $this->supplierOrder->type_currency_id : null,
 
       // Relationships
       'purchase_order' => new PurchaseOrderResource($this->purchaseOrder),

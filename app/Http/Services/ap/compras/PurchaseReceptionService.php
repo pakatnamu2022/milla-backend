@@ -235,9 +235,9 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     $observedQuantity = $detail['observed_quantity'] ?? 0;
     $quantityReceived = $detail['quantity_received'];
 
-    if ($observedQuantity > $quantityReceived) {
-      throw new Exception('La cantidad observada no puede ser mayor a la cantidad recibida');
-    }
+//    if ($observedQuantity > $quantityReceived) {
+//      throw new Exception('La cantidad observada no puede ser mayor a la cantidad recibida');
+//    }
 
     // If observed_quantity > 0, must have reason_observation
     if ($observedQuantity > 0 && empty($detail['reason_observation'])) {
