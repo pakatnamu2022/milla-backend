@@ -5,24 +5,26 @@ namespace App\Console\Commands;
 use App\Console\Commands\Concerns\ValidatesPendingJobs;
 use App\Jobs\SyncCreditNoteDynamicsJob;
 use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\compras\CreditNoteSyncLog;
 use Illuminate\Console\Command;
 
 class SyncCreditNoteDynamicsCommand extends Command
 {
   use ValidatesPendingJobs;
+
   /**
    * The name and signature of the console command.
    *
    * @var string
    */
-  protected $signature = 'po:sync-credit-note-dynamics {--id= : ID de la orden de compra específica} {--all : Sincronizar todas las OC sin credit_note_dynamics} {--limit=50 : Número máximo de órdenes a procesar (default: 50)}';
+  protected $signature = 'po:sync-credit-note-dynamics {--id= : ID de la orden de compra específica} {--all : Sincronizar todas las OC de los últimos 2 meses sin credit_note_dynamics}';
 
   /**
    * The console command description.
    *
    * @var string
    */
-  protected $description = 'Sincroniza el campo credit_note_dynamics consultando el PA de Dynamics';
+  protected $description = 'Sincroniza el campo credit_note_dynamics consultando el PA de Dynamics. Con --all procesa OC de los últimos 2 meses del año actual.';
 
   /**
    * Execute the console command.
@@ -89,15 +91,26 @@ class SyncCreditNoteDynamicsCommand extends Command
       return Command::SUCCESS;
     }
 
-    $limit = (int) $this->option('limit');
+    // Calcular rango de fechas (últimos 2 meses del año actual)
+    $now = now();
+    $currentYear = $now->year;
+    $currentMonth = $now->month;
+    $startMonth = max(1, $currentMonth - 1);
+    $startDate = "{$currentYear}-" . str_pad($startMonth, 2, '0', STR_PAD_LEFT) . "-01";
+    $endDate = $now->toDateString();
+    $today = $now->toDateString();
 
     $purchaseOrders = PurchaseOrder::where(function ($query) {
       $query->whereNull('credit_note_dynamics')
         ->orWhere('credit_note_dynamics', '');
     })
       ->whereNotNull('number')
-      ->orderBy('id')
-      ->limit($limit)
+      ->whereBetween('emission_date', [$startDate, $endDate])
+      // Excluir OC que ya fueron sincronizadas HOY
+      ->whereDoesntHave('creditNoteSyncLogs', function ($query) use ($today) {
+        $query->whereDate('attempted_at', '=', $today);
+      })
+      ->orderBy('emission_date', 'desc')
       ->get();
 
     if ($purchaseOrders->isEmpty()) {
@@ -105,7 +118,7 @@ class SyncCreditNoteDynamicsCommand extends Command
       return Command::SUCCESS;
     }
 
-    $this->info("Despachando jobs para sincronizar {$purchaseOrders->count()} órdenes de compra");
+    $this->info("Despachando jobs para sincronizar {$purchaseOrders->count()} órdenes de compra (rango: {$startDate} a {$endDate})");
 
     $bar = $this->output->createProgressBar($purchaseOrders->count());
     $bar->start();

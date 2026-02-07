@@ -190,6 +190,14 @@ class PurchaseOrder extends BaseModel
   }
 
   /**
+   * Relación a logs de sincronización de credit note
+   */
+  public function creditNoteSyncLogs(): HasMany
+  {
+    return $this->hasMany(CreditNoteSyncLog::class);
+  }
+
+  /**
    * Mutator para el número de orden de compra con prefijo OC
    * @param $value
    * @return void
