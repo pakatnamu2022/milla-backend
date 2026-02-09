@@ -82,7 +82,7 @@ class StorePurchaseOrderRequest extends StoreRequest
 
       'notes' => ['nullable', 'string', 'max:1000'],
 
-      'ap_supplier_order_id' => ['nullable', 'integer', 'exists:ap_supplier_order,id'],
+      'purchase_reception_id' => ['nullable', 'integer', 'exists:purchase_receptions,id'],
 
       'created_by' => ['required', 'integer', Rule::exists('usr_users', 'id')->where('status_deleted', 1)],
 

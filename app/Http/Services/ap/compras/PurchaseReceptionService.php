@@ -8,6 +8,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
+use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApSupplierOrder;
 use App\Models\ap\postventa\taller\ApSupplierOrderDetails;
 use Carbon\Carbon;
@@ -48,9 +49,9 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       $supplierOrder = ApSupplierOrder::findOrFail($data['ap_supplier_order_id']);
 
       // VALIDACIÓN 1: Verificar que la orden no tenga recepciones activas
-      if ($supplierOrder->hasActiveReceptions()) {
-        throw new Exception('Esta orden de compra ya tiene una recepción activa. No se permite recepcionar nuevamente.');
-      }
+//      if ($supplierOrder->hasActiveReceptions()) {
+//        throw new Exception('Esta orden de compra ya tiene una recepción activa. No se permite recepcionar nuevamente.');
+//      }
 
       // VALIDACIÓN 2: La fecha de recepción no puede ser anterior a la fecha de la orden
       $receptionDate = Carbon::parse($data['reception_date']);
@@ -251,10 +252,13 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       // Buscar el producto en los detalles de la orden de proveedor
       $supplierOrderDetail = ApSupplierOrderDetails::where('ap_supplier_order_id', $supplierOrder->id)
         ->where('product_id', $productId)
+        ->with('product')
         ->first();
 
       if (!$supplierOrderDetail) {
-        throw new Exception("El producto ID {$productId} no está en la orden de compra");
+        $product = Products::find($productId);
+        $productName = $product ? $product->name : "ID {$productId}";
+        throw new Exception("El producto '{$productName}' no está en la orden de compra");
       }
 
       // Calcular cuánto ya se ha recibido de este producto
@@ -270,7 +274,8 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       $totalThatWillBeReceived = $alreadyReceived + $quantityAccepted;
 
       if ($totalThatWillBeReceived > $supplierOrderDetail->quantity) {
-        throw new Exception("No puede recibir más de lo ordenado para el producto ID {$productId}. Ordenado: {$supplierOrderDetail->quantity}, Ya recibido: {$alreadyReceived}, Intenta recibir: {$quantityAccepted}");
+        $productName = $supplierOrderDetail->product->name ?? "ID {$productId}";
+        throw new Exception("No puede recibir más de lo ordenado para el producto '{$productName}'. Ordenado: {$supplierOrderDetail->quantity}, Ya recibido: {$alreadyReceived}, Intenta recibir: {$quantityAccepted}");
       }
     }
   }

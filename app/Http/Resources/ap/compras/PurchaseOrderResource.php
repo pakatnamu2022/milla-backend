@@ -43,6 +43,7 @@ class PurchaseOrderResource extends JsonResource
 
       'currency' => $this->currency->name,
       'currency_code' => $this->currency->code,
+      'currency_symbol' => $this->currency->symbol,
       'warehouse' => $this->warehouse->description ?? null,
       'article_class' => $this->warehouse->articleClass ?? null,
       'payment_terms' => $this->payment_terms ?? '',

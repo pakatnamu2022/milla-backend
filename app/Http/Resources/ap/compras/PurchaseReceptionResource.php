@@ -4,6 +4,7 @@ namespace App\Http\Resources\ap\compras;
 
 use App\Http\Resources\ap\comercial\BusinessPartnersResource;
 use App\Http\Resources\ap\maestroGeneral\WarehouseResource;
+use App\Http\Resources\ap\postventa\taller\ApSupplierOrderResource;
 use App\Http\Resources\gp\gestionsistema\UserResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
