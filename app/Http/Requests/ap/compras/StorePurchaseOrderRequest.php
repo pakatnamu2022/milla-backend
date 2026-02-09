@@ -75,6 +75,13 @@ class StorePurchaseOrderRequest extends StoreRequest
       // Movimiento de Vehículo (opcional, solo si la OC está relacionada a un movimiento)
       'vehicle_movement_id' => ['nullable', 'integer', Rule::exists('ap_vehicle_movement', 'id')->whereNull('deleted_at')],
 
+      // Cotización asociada (opcional)
+      'quotation_id' => [
+        'nullable',
+        'integer',
+        Rule::exists('purchase_request_quote', 'id')->whereNull('deleted_at')
+      ],
+
       // Tipo de Operación (opcional)
       'type_operation_id' => ['required', 'integer', Rule::exists('ap_masters', 'id')->where('type', 'TIPO_OPERACION')->where('status', 1)->whereNull('deleted_at')],
 
@@ -128,6 +135,7 @@ class StorePurchaseOrderRequest extends StoreRequest
       'currency_id' => 'Moneda',
       'warehouse_id' => 'Almacén',
       'vehicle_movement_id' => 'Movimiento de Vehículo',
+      'quotation_id' => 'Cotización',
 
       // Items
       'items' => 'Items de la Orden',

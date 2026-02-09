@@ -301,15 +301,17 @@ class ApReceivingChecklistService extends BaseService
       })->toArray();
 
       $coordinator = $vehicle->purchaseOrder->vehicleMovement->createdByUser->person->email2 ?? $vehicle->purchaseOrder->vehicleMovement->createdByUser->person->email1 ?? null;
-      $consultant = $vehicle->purchaseRequestQuote?->opportunity->worker->email2 ?? $vehicle->purchaseRequestQuote?->opportunity->worker->email1 ?? null;
+      $consultant = $vehicle->purchaseOrder->advisor?->email2 ?? $vehicle->purchaseOrder->advisor?->email1 ?? null;
 
-//      $emailsTo = [$coordinator, $consultant];
-      $emailsTo = ['hvaldiviezos@automotorespakatnamu.com'];
+
+      $emailsTo = [$coordinator, $consultant];
+      throw new Exception(json_encode($emailsTo));
+//      $emailsTo = ['hvaldiviezos@automotorespakatnamu.com'];
       $emailsCC = ['wsuclupef@automotorespakatnamu.com', 'dordinolac@grupopakatnamu.com', 'hvaldiviezos@automotorespakatnamu.com', 'kquesquenm@automotorespakatnamu.com'];
 
       $emailService->queue([
         'to' => array_filter($emailsTo),
-//        'cc' => $emailsCC,
+        'cc' => $emailsCC,
         'subject' => 'Notificación de Recepción de Vehículo - ' . ($vehicle->vin ?? 'VIN no disponible'),
         'template' => 'emails.vehicle-reception',
         'data' => [
@@ -329,6 +331,10 @@ class ApReceivingChecklistService extends BaseService
         ]
       ]);
     } catch (Exception $e) {
+      Log::error('Error al preparar o enviar correo de recepción de vehículo', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'error' => $e->getMessage(),
+      ]);
       throw $e;
     }
   }

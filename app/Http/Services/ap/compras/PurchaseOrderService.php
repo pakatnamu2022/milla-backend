@@ -72,7 +72,13 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
    */
   public function find($id)
   {
-    $purchaseOrder = PurchaseOrder::with(['items', 'supplier', 'warehouse'])->where('id', $id)->first();
+    $purchaseOrder = PurchaseOrder::with([
+      'items',
+      'supplier',
+      'warehouse',
+      'quotation',
+      'advisor'
+    ])->where('id', $id)->first();
     if (!$purchaseOrder) {
       throw new Exception('Orden de compra no encontrada');
     }

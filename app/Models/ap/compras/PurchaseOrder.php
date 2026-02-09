@@ -10,7 +10,10 @@ use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\VehicleAccessory;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\BaseModel;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
@@ -57,6 +60,7 @@ class PurchaseOrder extends BaseModel
     'migration_status',
     'status',
     'vehicle_movement_id',
+    'quotation_id',
     'type_operation_id',
     'migrated_at',
     'payment_terms',
@@ -88,6 +92,7 @@ class PurchaseOrder extends BaseModel
     'vehicle.ap_models_vn_id' => '=',
     'vehicle.ap_vehicle_status_id' => '=',
     'type_operation_id' => '=',
+    'quotation_id' => '=',
     'emission_date' => 'between',
     'due_date' => 'between',
   ];
@@ -195,6 +200,23 @@ class PurchaseOrder extends BaseModel
   public function creditNoteSyncLogs(): HasMany
   {
     return $this->hasMany(CreditNoteSyncLog::class);
+  }
+
+  /**
+   * Relación con la cotización asociada
+   */
+  public function quotation(): BelongsTo
+  {
+    return $this->belongsTo(ApOrderQuotations::class, 'quotation_id');
+  }
+
+  /**
+   * Acceso al asesor a través de: Quotation → WorkOrder → Advisor
+   * Retorna el asesor asociado a la orden de trabajo de esta cotización
+   */
+  public function advisor(): ?Worker
+  {
+    return $this->quotation?->opportunity->worker;
   }
 
   /**
