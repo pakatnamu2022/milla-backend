@@ -1980,7 +1980,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'end_date' => $request->end_date->format('d/m/Y'),
         'days_count' => $request->days_count,
         'purpose' => $request->purpose,
-        'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+        'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/' . $request->id,
       ];
 
       // Send email to employee
@@ -2007,7 +2007,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'days_count' => $request->days_count,
           'total_budget' => $request->total_budget,
           'purpose' => $request->purpose,
-          'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
         ];
 
         $this->emailService->queue([
@@ -2032,7 +2032,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'days_count' => $request->days_count,
           'total_budget' => $request->total_budget,
           'purpose' => $request->purpose,
-          'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
         ];
 
         $this->emailService->queue([
@@ -2077,7 +2077,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'template' => 'emails.per-diem-request-approved',
           'data' => array_merge($emailData, [
             'recipient_type' => 'employee',
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/' . $request->id,
           ]),
         ]);
       }
@@ -2091,7 +2091,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'template' => 'emails.per-diem-request-approved',
           'data' => array_merge($emailData, [
             'recipient_type' => 'boss',
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
           ]),
         ]);
       }
@@ -2105,7 +2105,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'template' => 'emails.per-diem-request-approved',
           'data' => array_merge($emailData, [
             'recipient_type' => 'boss',
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
           ]),
         ]);
       }
@@ -2120,7 +2120,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'template' => 'emails.per-diem-request-approved',
           'data' => array_merge($emailData, [
             'recipient_type' => 'accounting',
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
           ]),
         ]);
       }
@@ -2219,7 +2219,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'template' => 'emails.per-diem-request-settlement',
           'data' => array_merge($emailData, [
             'recipient_type' => 'employee',
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/' . $request->id,
           ]),
         ]);
       }
@@ -2234,7 +2234,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'template' => 'emails.per-diem-request-settlement',
           'data' => array_merge($emailData, [
             'recipient_type' => 'boss',
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar-liquidaciones',
           ]),
         ]);
       }
@@ -2248,7 +2248,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'template' => 'emails.per-diem-request-settlement',
           'data' => array_merge($emailData, [
             'recipient_type' => 'boss',
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
           ]),
         ]);
       }
@@ -2320,7 +2320,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'template' => 'emails.per-diem-request-settled',
           'data' => array_merge($emailData, [
             'recipient_type' => 'employee',
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/' . $request->id,
           ]),
         ]);
       }
@@ -2335,7 +2335,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'template' => 'emails.per-diem-request-settled',
           'data' => array_merge($emailData, [
             'recipient_type' => 'boss',
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
           ]),
         ]);
       }
@@ -2349,7 +2349,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'template' => 'emails.per-diem-request-settled',
           'data' => array_merge($emailData, [
             'recipient_type' => 'boss',
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
           ]),
         ]);
       }
@@ -2397,7 +2397,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
           'template' => 'emails.per-diem-request-cancelled',
           'data' => array_merge($emailData, [
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/' . $request->id,
           ]),
         ]);
       }
@@ -2411,7 +2411,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
           'template' => 'emails.per-diem-request-cancelled',
           'data' => array_merge($emailData, [
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
           ]),
         ]);
       }
@@ -2424,7 +2424,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
           'template' => 'emails.per-diem-request-cancelled',
           'data' => array_merge($emailData, [
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
           ]),
         ]);
       }
@@ -2459,7 +2459,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'subject' => 'Tu Viaje Está en Progreso - ' . $request->code,
           'template' => 'emails.per-diem-in-progress',
           'data' => array_merge($emailData, [
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/' . $request->id,
           ]),
         ]);
       }
@@ -2473,7 +2473,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'subject' => 'Tu Viaje Está en Progreso - ' . $request->code,
           'template' => 'emails.per-diem-in-progress',
           'data' => array_merge($emailData, [
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
           ]),
         ]);
       }
@@ -2486,7 +2486,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'subject' => 'Tu Viaje Está en Progreso - ' . $request->code,
           'template' => 'emails.per-diem-in-progress',
           'data' => array_merge($emailData, [
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
           ]),
         ]);
       }

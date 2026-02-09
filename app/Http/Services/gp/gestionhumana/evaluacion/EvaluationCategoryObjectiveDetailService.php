@@ -31,10 +31,13 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
     $hierarchicalCategory = HierarchicalCategory::findOrFail($id);
     $workers = $hierarchicalCategory->workers()->get();
 
-//    agrupar objetivos por person_id y dentro de la persona que este los objetivos
-    $workersWithObjectives = $workers->map(function ($worker) use ($id) {
+//  Agrupar objetivos por person_id y dentro de la persona que este los objetivos
+    return $workers->map(function ($worker) use ($id) {
       $objectives = EvaluationCategoryObjectiveDetail::where('category_id', $id)
         ->where('person_id', $worker->id)
+        ->whereHas('objective', function ($query) {
+          $query->where('active', true);
+        })
         ->whereNull('deleted_at')
         ->get();
       return [
@@ -42,8 +45,6 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
         'objectives' => EvaluationCategoryObjectiveDetailResource::collection($objectives),
       ];
     });
-
-    return $workersWithObjectives;
   }
 
   public function recalculateWeights($categoryId, $personId)
@@ -117,6 +118,9 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
         // Verificar el estado actual del trabajador
         $existingObjectivesCount = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
           ->where('person_id', $workerId)
+          ->whereHas('objective', function ($query) {
+            $query->where('active', true);
+          })
           ->count();
 
         $hasActiveObjectives = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)

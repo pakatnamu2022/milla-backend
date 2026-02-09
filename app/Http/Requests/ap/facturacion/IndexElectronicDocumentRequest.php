@@ -3,6 +3,8 @@
 namespace App\Http\Requests\ap\facturacion;
 
 use App\Http\Requests\IndexRequest;
+use App\Models\ap\ApMasters;
+use App\Models\ap\facturacion\ElectronicDocument;
 use Illuminate\Validation\Rule;
 
 class IndexElectronicDocumentRequest extends IndexRequest
@@ -33,10 +35,10 @@ class IndexElectronicDocumentRequest extends IndexRequest
       'ap_billing_document_type_id' => 'nullable|integer|exists:ap_billing_document_types,id',
       'serie' => 'nullable|string|max:4',
       'numero' => 'nullable|integer|min:1',
-      'origin_module' => [
+      'area_id' => [
         'nullable',
         'string',
-        Rule::in(['comercial', 'posventa'])
+        Rule::in(ApMasters::ALL_AREAS)
       ],
       'status' => [
         'nullable',
@@ -62,28 +64,29 @@ class IndexElectronicDocumentRequest extends IndexRequest
     ];
   }
 
-  /**
-   * Get custom messages for validator errors.
-   */
-  public function messages(): array
+
+  public function attributes()
   {
     return [
-      'page.integer' => 'El número de página debe ser un número entero',
-      'page.min' => 'El número de página debe ser mayor o igual a 1',
-      'per_page.integer' => 'La cantidad de registros por página debe ser un número entero',
-      'per_page.min' => 'La cantidad de registros por página debe ser mayor o igual a 1',
-      'per_page.max' => 'La cantidad de registros por página no puede exceder 100',
-      'sort_by.in' => 'El campo de ordenamiento no es válido',
-      'sort_direction.in' => 'La dirección de ordenamiento debe ser "asc" o "desc"',
-      'ap_billing_document_type_id.exists' => 'El tipo de documento seleccionado no es válido',
-      'origin_module.in' => 'El módulo de origen debe ser "comercial" o "posventa"',
-      'status.in' => 'El estado seleccionado no es válido',
-      'fecha_de_emision_hasta.after_or_equal' => 'La fecha hasta debe ser igual o posterior a la fecha desde',
-      'ap_billing_currency_id.exists' => 'La moneda seleccionada no es válida',
-      'ap_vehicle_movement_id.exists' => 'El movimiento de vehículo seleccionado no es válido',
-      'created_by.exists' => 'El usuario seleccionado no es válido',
+      'ap_billing_document_type_id' => 'tipo de documento',
+      'serie' => 'serie',
+      'numero' => 'número',
+      'area_id' => 'área',
+      'status' => 'estado',
+      'aceptada_por_sunat' => 'aceptada por SUNAT',
+      'anulado' => 'anulado',
+      'fecha_de_emision_desde' => 'fecha de emisión desde',
+      'fecha_de_emision_hasta' => 'fecha de emisión hasta',
+      'cliente_numero_de_documento' => 'número de documento del cliente',
+      'cliente_denominacion' => 'denominación del cliente',
+      'ap_billing_currency_id' => 'moneda',
+      'ap_vehicle_movement_id' => 'movimiento de vehículo',
+      'origin_entity_type' => 'tipo de entidad de origen',
+      'origin_entity_id' => 'ID de entidad de origen',
+      'created_by' => 'creado por',
     ];
   }
+
 
   /**
    * Get validated data with defaults.

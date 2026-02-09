@@ -109,7 +109,7 @@ class ApDailyDeliveryReportService
                 SunatConcepts::ID_FACTURA_ELECTRONICA,
                 SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA,
               ])
-              ->where('ap_billing_electronic_documents.origin_module', 'comercial')
+              ->where('ap_billing_electronic_documents.area_id', ApMasters::AREA_COMERCIAL)
               ->whereBetween('ap_billing_electronic_documents.fecha_de_emision', [$fechaInicio, $fechaFin])
               ->whereNull('ap_billing_electronic_documents.deleted_at');
           });
@@ -181,7 +181,7 @@ class ApDailyDeliveryReportService
         SunatConcepts::ID_FACTURA_ELECTRONICA,
         SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA,
       ])
-      ->where('origin_module', 'comercial')
+      ->where('area_id', ApMasters::AREA_COMERCIAL)
       ->whereNull('deleted_at')
       ->distinct()
       ->pluck('purchase_request_quote_id');

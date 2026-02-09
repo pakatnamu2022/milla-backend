@@ -3,6 +3,9 @@
 namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\ShippingGuidesResource;
+use App\Http\Resources\Dynamics\ShippingGuideDetailDynamicsResource;
+use App\Http\Resources\Dynamics\ShippingGuideHeaderDynamicsResource;
+use App\Http\Resources\Dynamics\ShippingGuideSeriesDynamicsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
@@ -101,7 +104,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       $documentNumber = null;
       $documentSeriesId = null;
 
-      if ($data['issuer_type'] == 'NOSOTROS') {
+      if ($data['issuer_type'] == ShippingGuides::ISSUER_TYPE_SYSTEM) {
         if (empty($data['document_series_id'])) {
           throw new Exception('El campo document_series_id es obligatorio cuando el emisor es AUTOMOTORES');
         }
@@ -197,7 +200,11 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
   public function show($id)
   {
-    $document = ShippingGuides::with(['receivingChecklists.receiving'])->findOrFail($id);
+    $document = ShippingGuides::with([
+      'receivingChecklists.receiving',
+      'vehicleMovement.vehicle.model',
+      'inventoryMovement.details.product.unitMeasurement',
+    ])->findOrFail($id);
     return new ShippingGuidesResource($document);
   }
 
@@ -235,7 +242,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       }
 
       // 2. Recalcular serie y correlativo si cambió el document_series_id y el emisor es NOSOTROS
-      if (isset($data['issuer_type']) && $data['issuer_type'] == 'NOSOTROS') {
+      if (isset($data['issuer_type']) && $data['issuer_type'] == ShippingGuides::ISSUER_TYPE_SYSTEM) {
         $needsRecalculation = false;
         $seriesId = $data['document_series_id'] ?? $document->document_series_id;
 
@@ -620,9 +627,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     $vehicle = $shippingGuide->vehicleMovement?->vehicle;
 
     return [
-      'header' => new \App\Http\Resources\Dynamics\ShippingGuideHeaderDynamicsResource($shippingGuide),
-      'detail' => $vehicle ? new \App\Http\Resources\Dynamics\ShippingGuideDetailDynamicsResource($vehicle, $shippingGuide) : null,
-      'series' => new \App\Http\Resources\Dynamics\ShippingGuideSeriesDynamicsResource($shippingGuide),
+      'header' => new ShippingGuideHeaderDynamicsResource($shippingGuide),
+      'detail' => $vehicle ? new ShippingGuideDetailDynamicsResource($vehicle, $shippingGuide) : null,
+      'series' => new ShippingGuideSeriesDynamicsResource($shippingGuide),
     ];
   }
 }

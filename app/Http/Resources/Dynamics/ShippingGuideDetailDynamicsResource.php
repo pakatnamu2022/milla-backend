@@ -2,8 +2,11 @@
 
 namespace App\Http\Resources\Dynamics;
 
+use App\Http\Utils\Constants;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
@@ -57,11 +60,11 @@ class ShippingGuideDetailDynamicsResource extends JsonResource
       ?? throw new Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.")
     );
 
-    $type_operation_id = $vehicleVn->type_operation_id ?? null;
-    $class_id = $vehicleVn->model->class_id ?? null;
+    $type_operation_id = $vehicleVn->type_operation_id ?? throw new Exception("El vehículo asociado a la guía de remisión no tiene un tipo de operación válido.");
+    $class_id = $vehicleVn->model->class_id ?? throw new Exception("El modelo del vehículo asociado a la guía de remisión no tiene una clase válida.");
 
     // Lógica para obtener el almacén de origen (venta)
-    $sede = $this->shippingGuide->sedeTransmitter ?? null;
+    $sede = $this->shippingGuide->sedeTransmitter ?? throw new Exception("La guía de remisión no tiene una sede transmisora asociada.");
 
     $baseQuery = Warehouse::where('sede_id', $sede->id)
       ->where('type_operation_id', $type_operation_id)

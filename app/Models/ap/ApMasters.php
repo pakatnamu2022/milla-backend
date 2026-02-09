@@ -57,11 +57,21 @@ class ApMasters extends Model
   const int CLOSED_WORK_ORDER_ID = 892;
   const int CANCELED_WORK_ORDER_ID = 893;
 
-  // IDS DE AREAS
-  const int AREA_POSTVENTA_ID = 825;
-  const int AREA_COMERCIAL_ID = 826;
-  const int AREA_TALLER_ID = 881;
-  const int AREA_MESON_ID = 882;
+  /**
+   * AREAS
+   */
+  const int AREA_COMERCIAL = 826;
+  const int AREA_POSVENTA = 825;
+  const int AREA_TALLER = 881;
+  const int AREA_MESON = 882;
+  const array AREAS_POSVENTA = [self::AREA_POSVENTA, self::AREA_TALLER, self::AREA_MESON];
+
+  const array ALL_AREAS = [
+    self::AREA_COMERCIAL,
+    self::AREA_POSVENTA,
+    self::AREA_TALLER,
+    self::AREA_MESON,
+  ];
 
   public function setCodeAttribute($value)
   {
