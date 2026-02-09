@@ -402,28 +402,33 @@ class PerDiemRequestController extends Controller
   }
 
   /**
-   * Upload deposit voucher for a per diem request
+   * Upload deposit voucher(s) for a per diem request
+   * Supports up to 3 vouchers (all optional)
    */
   public function agregarDeposito(int $id, Request $request)
   {
     try {
-      // Validate that a file was uploaded
-      if (!$request->hasFile('voucher')) {
-        return $this->error('No se ha proporcionado ningún archivo de voucher');
+      // Validate that at least one file was uploaded
+      if (!$request->hasFile('voucher_1') && !$request->hasFile('voucher_2') && !$request->hasFile('voucher_3')) {
+        return $this->error('Debe proporcionar al menos un archivo de voucher');
       }
 
-      $voucherFile = $request->file('voucher');
-
-      // Validate file type (images and PDFs)
+      // Validate file types (images and PDFs)
       $request->validate([
-        'voucher' => 'required|file|mimes:jpeg,jpg,png,pdf|max:10240' // Max 10MB
+        'voucher_1' => 'nullable|file|mimes:jpeg,jpg,png,pdf|max:10240', // Max 10MB
+        'voucher_2' => 'nullable|file|mimes:jpeg,jpg,png,pdf|max:10240', // Max 10MB
+        'voucher_3' => 'nullable|file|mimes:jpeg,jpg,png,pdf|max:10240', // Max 10MB
       ]);
 
-      $perDiemRequest = $this->service->agregarDeposito($id, $voucherFile);
+      $voucherFile1 = $request->hasFile('voucher_1') ? $request->file('voucher_1') : null;
+      $voucherFile2 = $request->hasFile('voucher_2') ? $request->file('voucher_2') : null;
+      $voucherFile3 = $request->hasFile('voucher_3') ? $request->file('voucher_3') : null;
+
+      $perDiemRequest = $this->service->agregarDeposito($id, $voucherFile1, $voucherFile2, $voucherFile3);
 
       return $this->success([
         'data' => $perDiemRequest,
-        'message' => 'Voucher de depósito agregado exitosamente'
+        'message' => 'Voucher(s) de depósito agregado(s) exitosamente'
       ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());

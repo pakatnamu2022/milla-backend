@@ -79,7 +79,7 @@
       text-align: left;
     }
 
-    .customer-right {
+    .company-right {
       width: 50%;
       text-align: left;
     }
@@ -326,13 +326,10 @@
         <div>Car. Panamericana Norte Nro. 1006</div>
         <div>Chiclayo - Lambayeque</div>
         <div>Tel.:</div>
+      </td>
+      <td class="company-right">
         <div>Email: info@automotorespakatnamu.com</div>
         <div>Web: www.automotorespakatnamu.com</div>
-      </td>
-      <td class="customer-right">
-        <div><strong>{{ $quotation['customer_name'] }}</strong></div>
-        <div>{{ $quotation['customer_address'] }}</div>
-        <div>{{ $quotation['customer_document'] }} {{ $quotation['customer_district'] }}</div>
       </td>
     </tr>
   </table>
@@ -350,14 +347,18 @@
     <td colspan="4" class="section-header">DATOS DE LA PROPUESTA</td>
   </tr>
   <tr>
-    <td class="label-cell">Descripción:</td>
-    <td style="width: 40%;">{{ $quotation['observations'] }}</td>
-    <td class="label-cell">Asesor:</td>
-    <td style="width: 25%;">{{ $quotation['advisor_name'] }}</td>
+    <td class="label-cell">Cliente:</td>
+    <td colspan="3"><strong>{{ $quotation['customer_name'] }}</strong> | {{ $quotation['customer_document'] }}
+      <br>{{ $quotation['customer_address'] }}
+    </td>
   </tr>
   <tr>
     <td class="label-cell">Observaciones:</td>
-    <td></td>
+    <td colspan="3">{{ $quotation['observations'] }}</td>
+  </tr>
+  <tr>
+    <td class="label-cell">Asesor:</td>
+    <td>{{ $quotation['advisor_name'] }}</td>
     <td class="label-cell">Celular:</td>
     <td>{{ $quotation['advisor_phone'] }}</td>
   </tr>

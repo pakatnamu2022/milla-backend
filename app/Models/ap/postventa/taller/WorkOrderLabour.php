@@ -18,6 +18,7 @@ class WorkOrderLabour extends Model
     'description',
     'time_spent',
     'hourly_rate',
+    'discount_percentage',
     'total_cost',
     'worker_id',
     'work_order_id'
@@ -41,6 +42,7 @@ class WorkOrderLabour extends Model
 
   protected $casts = [
     'hourly_rate' => 'decimal:2',
+    'discount_percentage' => 'decimal:2',
     'total_cost' => 'decimal:2',
   ];
 

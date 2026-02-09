@@ -1682,39 +1682,80 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Upload deposit voucher for a per diem request
+   * Upload deposit voucher(s) for a per diem request
    * This is used when with_request is true to upload proof of deposit
+   * Supports up to 3 vouchers (all optional)
    *
    * @param int $id Per diem request ID
-   * @param UploadedFile $voucherFile The voucher file (photo or document)
+   * @param UploadedFile|null $voucherFile1 First voucher file (optional)
+   * @param UploadedFile|null $voucherFile2 Second voucher file (optional)
+   * @param UploadedFile|null $voucherFile3 Third voucher file (optional)
    * @return PerDiemRequestResource
    * @throws Exception
    */
-  public function agregarDeposito(int $id, UploadedFile $voucherFile): PerDiemRequestResource
-  {
+  public function agregarDeposito(
+    int $id,
+    ?UploadedFile $voucherFile1 = null,
+    ?UploadedFile $voucherFile2 = null,
+    ?UploadedFile $voucherFile3 = null
+  ): PerDiemRequestResource {
     try {
       DB::beginTransaction();
 
       $request = $this->find($id);
-
-      // Delete old voucher if exists
-      if ($request->deposit_voucher_url) {
-        $oldDigitalFile = DigitalFile::where('url', $request->deposit_voucher_url)->first();
-
-        if ($oldDigitalFile) {
-          $this->digitalFileService->destroy($oldDigitalFile->id);
-        }
-      }
-
-      // Upload new voucher using DigitalFileService
       $path = self::DEPOSIT_VOUCHER_PATH;
       $model = $request->getTable();
 
-      $digitalFile = $this->digitalFileService->store($voucherFile, $path, 'public', $model);
+      // Process voucher 1 if provided
+      if ($voucherFile1) {
+        // Delete old voucher if exists
+        if ($request->deposit_voucher_url) {
+          $oldDigitalFile = DigitalFile::where('url', $request->deposit_voucher_url)->first();
+          if ($oldDigitalFile) {
+            $this->digitalFileService->destroy($oldDigitalFile->id);
+          }
+        }
 
-      // Update request with voucher URL
-      $request->deposit_voucher_url = $digitalFile->url;
-      $request->paid = true;
+        // Upload new voucher
+        $digitalFile = $this->digitalFileService->store($voucherFile1, $path, 'public', $model);
+        $request->deposit_voucher_url = $digitalFile->url;
+      }
+
+      // Process voucher 2 if provided
+      if ($voucherFile2) {
+        // Delete old voucher if exists
+        if ($request->deposit_voucher_url_2) {
+          $oldDigitalFile = DigitalFile::where('url', $request->deposit_voucher_url_2)->first();
+          if ($oldDigitalFile) {
+            $this->digitalFileService->destroy($oldDigitalFile->id);
+          }
+        }
+
+        // Upload new voucher
+        $digitalFile = $this->digitalFileService->store($voucherFile2, $path, 'public', $model);
+        $request->deposit_voucher_url_2 = $digitalFile->url;
+      }
+
+      // Process voucher 3 if provided
+      if ($voucherFile3) {
+        // Delete old voucher if exists
+        if ($request->deposit_voucher_url_3) {
+          $oldDigitalFile = DigitalFile::where('url', $request->deposit_voucher_url_3)->first();
+          if ($oldDigitalFile) {
+            $this->digitalFileService->destroy($oldDigitalFile->id);
+          }
+        }
+
+        // Upload new voucher
+        $digitalFile = $this->digitalFileService->store($voucherFile3, $path, 'public', $model);
+        $request->deposit_voucher_url_3 = $digitalFile->url;
+      }
+
+      // Mark as paid if at least one voucher was uploaded
+      if ($voucherFile1 || $voucherFile2 || $voucherFile3) {
+        $request->paid = true;
+      }
+
       $request->save();
 
       DB::commit();
