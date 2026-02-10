@@ -23,6 +23,8 @@ class EvaluationPerson extends BaseModel
     'qualification',
     'comment',
     'wasEvaluated',
+    'hasObjectives',
+    'hierarchical_category_id',
   ];
 
   const filters = [
@@ -61,5 +63,10 @@ class EvaluationPerson extends BaseModel
   public function evaluation()
   {
     return $this->belongsTo(Evaluation::class, 'evaluation_id');
+  }
+
+  public function hierarchicalCategory()
+  {
+    return $this->belongsTo(HierarchicalCategory::class, 'hierarchical_category_id');
   }
 }
