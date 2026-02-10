@@ -630,7 +630,7 @@ class EvaluationPersonResult extends BaseModel
     $completedSections = 0;
 
     // Solo contar objetivos si la persona los tiene
-    if ($this->person->position->hierarchicalCategory->hasObjectives) {
+    if ($this->hasObjectives) {
       $totalSections++;
       if ($objectivesProgress['completion_rate'] == 100) {
         $completedSections++;
@@ -672,7 +672,7 @@ class EvaluationPersonResult extends BaseModel
       'completed' => $completedObjectives,
       'total' => $totalObjectives,
       'is_completed' => $completionRate == 100,
-      'has_objectives' => (bool)$this->person->position->hierarchicalCategory->hasObjectives,
+      'has_objectives' => (bool)$this->hasObjectives,
     ];
   }
 
