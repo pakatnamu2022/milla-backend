@@ -23,4 +23,11 @@ class Constants
   public const int TICS_ROL_ID = 98;
 
   public const int SALE_COORDINATOR_CATEGORY_ID = 14; // Categoría Coordinador de Ventas
+
+  public const array AP_TICS_MAIL = [
+    'wsuclupef@automotorespakatnamu.com',
+    'dordinolac@grupopakatnamu.com',
+    'hvaldiviezos@automotorespakatnamu.com',
+    'kquesquenm@automotorespakatnamu.com'
+  ];
 }
