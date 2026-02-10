@@ -43,6 +43,8 @@ class EvaluationPersonResult extends BaseModel
     'boss_area',
     'boss_sede',
     'comments',
+    'hasObjectives',
+    'hierarchical_category_id',
   ];
 
   const filters = [
@@ -56,6 +58,8 @@ class EvaluationPersonResult extends BaseModel
     'objectivesResult' => '=',
     'competencesResult' => '=',
     'result' => '=',
+    'hasObjectives' => '=',
+    'hierarchical_category_id' => '=',
 
     // 👇 NUEVOS: Filtros por accessor
     'is_completed' => 'accessor_bool',
@@ -81,6 +85,11 @@ class EvaluationPersonResult extends BaseModel
     'competencesResult',
     'result',
   ];
+
+  public function hierarchicalCategory()
+  {
+    return $this->belongsTo(HierarchicalCategory::class, 'hierarchical_category_id');
+  }
 
   public function person()
   {
