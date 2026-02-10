@@ -13,6 +13,7 @@ class DigitalFile extends Model
 
   protected $fillable = [
     'name',
+    'description',
     'url',
     'mimeType',
     'model',
@@ -41,4 +42,9 @@ class DigitalFile extends Model
     'updated_at',
     'deleted_at'
   ];
+
+  public function setDescriptionAttribute($value)
+  {
+    $this->attributes['description'] = strtoupper($value);
+  }
 }

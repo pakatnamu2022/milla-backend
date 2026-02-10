@@ -2,6 +2,12 @@
 
 namespace App\Http\Resources\ap\postventa\gestionProductos;
 
+use App\Http\Resources\ap\comercial\ShippingGuidesResource;
+use App\Http\Resources\ap\compras\PurchaseReceptionResource;
+use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsResource;
+use App\Models\ap\comercial\ShippingGuides;
+use App\Models\ap\compras\PurchaseReception;
+use App\Models\ap\postventa\taller\ApOrderQuotations;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -25,7 +31,7 @@ class InventoryMovementResource extends JsonResource
       'warehouse_destination' => $this->warehouseDestination,
       'reference_type' => $this->reference_type,
       'reference_id' => $this->reference_id,
-      'reference' => $this->reference,
+      'reference' => $this->formatReference(),
       'user_id' => $this->user_id,
       'user_name' => $this->user ? $this->user->name : null,
       'reason_in_out_id' => $this->reason_in_out_id,
@@ -42,5 +48,26 @@ class InventoryMovementResource extends JsonResource
       'created_at' => $this->created_at->format('Y-m-d H:i:s'),
       'updated_at' => $this->updated_at->format('Y-m-d H:i:s'),
     ];
+  }
+
+  /**
+   * Format reference field with appropriate Resource based on reference_type
+   */
+  private function formatReference()
+  {
+    if (!$this->reference) {
+      return null;
+    }
+
+    // Map reference_type to corresponding Resource class
+    $resourceMap = [
+      ShippingGuides::class => ShippingGuidesResource::class,
+      ApOrderQuotations::class => ApOrderQuotationsResource::class,
+      PurchaseReception::class => PurchaseReceptionResource::class,
+    ];
+
+    $resourceClass = $resourceMap[$this->reference_type] ?? null;
+
+    return $resourceClass ? new $resourceClass($this->reference) : $this->reference;
   }
 }

@@ -43,7 +43,9 @@ class PayrollWorkTypeService extends BaseService implements BaseServiceInterface
    */
   public function show($id)
   {
-    return new PayrollWorkTypeResource($this->find($id));
+    $workType = $this->find($id);
+    $workType->load('segments'); // Load related schedules
+    return new PayrollWorkTypeResource($workType);
   }
 
   /**
@@ -53,21 +55,7 @@ class PayrollWorkTypeService extends BaseService implements BaseServiceInterface
   {
     try {
       DB::beginTransaction();
-
-      $workType = PayrollWorkType::create([
-        'code' => strtoupper($data['code']),
-        'name' => $data['name'],
-        'description' => $data['description'] ?? null,
-        'multiplier' => $data['multiplier'] ?? 1.0000,
-        'base_hours' => $data['base_hours'] ?? 8,
-        'is_extra_hours' => $data['is_extra_hours'] ?? false,
-        'is_night_shift' => $data['is_night_shift'] ?? false,
-        'is_holiday' => $data['is_holiday'] ?? false,
-        'is_sunday' => $data['is_sunday'] ?? false,
-        'active' => $data['active'] ?? true,
-        'order' => $data['order'] ?? 0,
-      ]);
-
+      $workType = PayrollWorkType::create($data);
       DB::commit();
       return new PayrollWorkTypeResource($workType);
     } catch (Exception $e) {
@@ -85,21 +73,7 @@ class PayrollWorkTypeService extends BaseService implements BaseServiceInterface
       DB::beginTransaction();
 
       $workType = $this->find($data['id']);
-
-      $workType->update([
-        'code' => strtoupper($data['code'] ?? $workType->code),
-        'name' => $data['name'] ?? $workType->name,
-        'description' => $data['description'] ?? $workType->description,
-        'multiplier' => $data['multiplier'] ?? $workType->multiplier,
-        'base_hours' => $data['base_hours'] ?? $workType->base_hours,
-        'is_extra_hours' => $data['is_extra_hours'] ?? $workType->is_extra_hours,
-        'is_night_shift' => $data['is_night_shift'] ?? $workType->is_night_shift,
-        'is_holiday' => $data['is_holiday'] ?? $workType->is_holiday,
-        'is_sunday' => $data['is_sunday'] ?? $workType->is_sunday,
-        'active' => $data['active'] ?? $workType->active,
-        'order' => $data['order'] ?? $workType->order,
-      ]);
-
+      $workType->update($data);
       DB::commit();
       return new PayrollWorkTypeResource($workType->fresh());
     } catch (Exception $e) {

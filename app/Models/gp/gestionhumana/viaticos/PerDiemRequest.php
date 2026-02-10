@@ -6,10 +6,12 @@ use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\gestionsistema\District;
+use App\Models\gp\gestionsistema\DigitalFile;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PerDiemRequest extends BaseModel
@@ -46,7 +48,6 @@ class PerDiemRequest extends BaseModel
     'final_result',
     'with_active',
     'with_request',
-    'deposit_voucher_url',
     'authorizer_id',
     'second_authorizer_id',
     'mobility_payroll_generated',
@@ -233,6 +234,14 @@ class PerDiemRequest extends BaseModel
   }
 
   /**
+   * Get all digital files for this request (deposit vouchers)
+   */
+  public function digitalFiles(): MorphMany
+  {
+    return $this->morphMany(DigitalFile::class, 'fileable', 'model', 'id_model');
+  }
+
+  /**
    * Scope to filter requests by status
    */
   public function scopeByStatus($query, string $status)
@@ -306,5 +315,21 @@ class PerDiemRequest extends BaseModel
     }
 
     return $this->end_date->diffInDays(now());
+  }
+
+  /**
+   * Check if all deposit vouchers have been uploaded (max 3)
+   */
+  public function hasAllDepositVouchers(): bool
+  {
+    return $this->digitalFiles()->count() >= 3;
+  }
+
+  /**
+   * Get count of uploaded deposit vouchers
+   */
+  public function getDepositVouchersCount(): int
+  {
+    return $this->digitalFiles()->count();
   }
 }

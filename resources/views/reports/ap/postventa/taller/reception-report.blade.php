@@ -384,6 +384,45 @@
       color: #000;
       font-size: 11px;
     }
+
+    .damage-evidence-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+
+    .damage-evidence-table td {
+      width: 33.33%;
+      padding: 8px;
+      border: 1px solid #000;
+      text-align: center;
+      vertical-align: top;
+    }
+
+    .damage-evidence-img {
+      max-width: 100%;
+      max-height: 180px;
+      width: auto;
+      height: auto;
+      display: block;
+      margin: 0 auto 5px auto;
+      border: 1px solid #ddd;
+    }
+
+    .damage-evidence-label {
+      font-size: 8px;
+      font-weight: bold;
+      margin-bottom: 5px;
+      color: #172e66;
+    }
+
+    .damage-evidence-description {
+      font-size: 7px;
+      margin-top: 5px;
+      color: #333;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -664,6 +703,45 @@
     <strong>Observaciones Generales:</strong><br>
     {{ $inspection->general_observations }}
   </div>
+@endif
+
+@if($damages->count() > 0)
+  @php
+    $damagesWithPhotos = $damages->filter(function($damage) {
+      return !empty($damage->photo_url);
+    });
+  @endphp
+
+  @if($damagesWithPhotos->count() > 0)
+    <!-- Sección: Evidencias de Daños -->
+    <div class="section-title">EVIDENCIAS DE DAÑOS</div>
+    <table class="damage-evidence-table">
+      @foreach($damagesWithPhotos->chunk(3) as $damageRow)
+        <tr>
+          @foreach($damageRow as $index => $damage)
+            <td>
+              <div class="damage-evidence-label">
+                DAÑO N° {{ $damages->search($damage) + 1 }} - {{ $damage->damage_type }}
+              </div>
+              @if(isset($damage->photo_base64) && $damage->photo_base64)
+                <img src="{{ $damage->photo_base64 }}" alt="Evidencia Daño" class="damage-evidence-img">
+              @endif
+              @if($damage->description)
+                <div class="damage-evidence-description">
+                  {{ $damage->description }}
+                </div>
+              @endif
+            </td>
+          @endforeach
+          @if($damageRow->count() < 3)
+            @for($i = 0; $i < (3 - $damageRow->count()); $i++)
+              <td></td>
+            @endfor
+          @endif
+        </tr>
+      @endforeach
+    </table>
+  @endif
 @endif
 
 <!-- Sección: Información Importante -->

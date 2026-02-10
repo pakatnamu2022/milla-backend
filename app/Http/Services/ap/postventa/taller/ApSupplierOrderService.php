@@ -127,7 +127,6 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
   {
     $apSupplierOrder = $this->find($id);
     $apSupplierOrder->load([
-      'apPurchaseOrder',
       'supplier',
       'sede',
       'warehouse',

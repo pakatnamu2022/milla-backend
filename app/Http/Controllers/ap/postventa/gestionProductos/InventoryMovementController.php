@@ -86,32 +86,11 @@ class InventoryMovementController extends Controller
   {
     $request->validated();
     try {
+      $data = $request->validated();
+      
       $result = $this->service->createTransfer(
-        $request->only([
-          // Transfer data
-          'document_type',
-          'warehouse_origin_id',
-          'warehouse_destination_id',
-          'document_series_id',
-          'movement_date',
-          'notes',
-          'reason_in_out_id',
-          'item_type',
-          // Shipping guide data
-          'driver_name',
-          'driver_doc',
-          'license',
-          'plate',
-          'transfer_reason_id',
-          'transfer_modality_id',
-          'transport_company_id',
-          'total_packages',
-          'total_weight',
-          // Business Partners (will be used to get address and ubigeo data)
-          'transmitter_origin_id',
-          'receiver_destination_id',
-        ]),
-        $request->details
+        $data,
+        $data['details']
       );
 
       return $this->success([
@@ -238,30 +217,6 @@ class InventoryMovementController extends Controller
       // Return with pagination preserved
       // Format: { data: [], links: {}, meta: {} }
       return $movements;
-    } catch (Exception $e) {
-      return $this->error($e->getMessage());
-    }
-  }
-
-  /**
-   * Create sale outbound movement from quotation
-   * Creates SALE type movement referencing an ApOrderQuotation
-   *
-   * @param int $quotationId Quotation ID
-   * @return JsonResponse
-   */
-  public function createSaleFromQuotation(int $quotationId, Request $request): JsonResponse
-  {
-    try {
-      $movement = $this->service->createSaleFromQuotation($quotationId, [
-        'customer_signature_delivery_url' => $request->input('customer_signature_delivery_url'),
-        'delivery_document_number' => $request->input('delivery_document_number'),
-      ]);
-
-      return $this->success([
-        'message' => 'Movimiento de salida por venta creado exitosamente',
-        'movement' => $movement,
-      ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
