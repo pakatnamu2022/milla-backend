@@ -37,12 +37,12 @@ class PurchaseOrderItemDynamicsResource extends JsonResource
       } else {
         // Para otros tipos de ítems, usar la descripción o un código específico
         // TODO: Implementar lógica para otros tipos de ítems cuando sea necesario
-        $articleId = $item->description;
+        $articleId = $item->product->dyn_code;
       }
 
       if (!$articleId) throw new Exception("Article ID not found for item {$item->id}");
       if (!$siteId) throw new Exception("Site ID not found for item {$item->id}");
-      
+
       $result[] = [
         'EmpresaId' => Company::AP_DYNAMICS,
         'OrdenCompraId' => $item->purchaseOrder->number,

@@ -2,6 +2,8 @@
 
 namespace App\Http\Services\ap\compras;
 
+use App\Http\Resources\ap\compras\PurchaseOrderDynamicsResource;
+use App\Http\Resources\ap\compras\PurchaseOrderItemDynamicsResource;
 use App\Http\Resources\ap\compras\PurchaseOrderResource;
 use App\Http\Services\ap\comercial\VehiclesService;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
@@ -776,5 +778,20 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     } catch (Exception $e) {
       throw new Exception('Error al crear el movimiento de inventario y actualizar stock: ' . $e->getMessage());
     }
+  }
+
+  /**
+   * Obtiene los recursos formateados para Dynamics de una orden de compra
+   * @param int $id
+   * @return array
+   */
+  public function checkResources($id)
+  {
+    $purchaseOrder = $this->find($id);
+
+    return [
+      'header' => new PurchaseOrderDynamicsResource($purchaseOrder),
+      'detail' => new PurchaseOrderItemDynamicsResource($purchaseOrder->items),
+    ];
   }
 }
