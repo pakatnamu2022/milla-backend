@@ -301,11 +301,10 @@ class ApReceivingChecklistService extends BaseService
       })->toArray();
 
       $coordinator = $vehicle->purchaseOrder->vehicleMovement->createdByUser->person->email2 ?? $vehicle->purchaseOrder->vehicleMovement->createdByUser->person->email1 ?? null;
-      $consultant = $vehicle->purchaseOrder->advisor?->email2 ?? $vehicle->purchaseOrder->advisor?->email1 ?? null;
-
+      $consultant = $vehicle->purchaseOrder->advisor()?->email2 ?? $vehicle->purchaseOrder->advisor()?->email1 ?? null;
 
       $emailsTo = [$coordinator, $consultant];
-      throw new Exception(json_encode($emailsTo));
+//      throw new Exception(json_encode($emailsTo));
 //      $emailsTo = ['hvaldiviezos@automotorespakatnamu.com'];
       $emailsCC = ['wsuclupef@automotorespakatnamu.com', 'dordinolac@grupopakatnamu.com', 'hvaldiviezos@automotorespakatnamu.com', 'kquesquenm@automotorespakatnamu.com'];
 

@@ -5,6 +5,7 @@ namespace App\Models\ap\compras;
 use App\Http\Traits\Reportable;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\VehicleAccessory;
@@ -207,7 +208,7 @@ class PurchaseOrder extends BaseModel
    */
   public function quotation(): BelongsTo
   {
-    return $this->belongsTo(ApOrderQuotations::class, 'quotation_id');
+    return $this->belongsTo(PurchaseRequestQuote::class, 'quotation_id');
   }
 
   /**
