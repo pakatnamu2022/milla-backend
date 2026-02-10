@@ -15,6 +15,7 @@ class WorkOrderLabourResource extends JsonResource
       'description' => $this->description,
       'time_spent' => $this->time_spent,
       'hourly_rate' => $this->hourly_rate,
+      'discount_percentage' => $this->discount_percentage,
       'total_cost' => $this->total_cost,
       'worker_id' => $this->worker_id,
       'worker_full_name' => $this->worker ? $this->worker->nombre_completo : null,

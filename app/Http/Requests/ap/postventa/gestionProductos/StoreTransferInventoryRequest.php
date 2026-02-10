@@ -10,12 +10,14 @@ class StoreTransferInventoryRequest extends StoreRequest
   {
     return [
       // Transferencia
-      'warehouse_origin_id' => 'required|integer|exists:warehouse,id',
-      'warehouse_destination_id' => 'required|integer|exists:warehouse,id|different:warehouse_origin_id',
+      'transmitter_id' => 'required|integer|exists:business_partners_establishment,id',
+      'receiver_id' => 'required|integer|exists:business_partners_establishment,id|different:transmitter_id',
       'movement_date' => 'required|date',
       'notes' => 'nullable|string|max:1000',
       'reason_in_out_id' => 'nullable|integer|exists:ap_masters,id',
       'item_type' => 'required|in:PRODUCTO,SERVICIO',
+      'document_series_id' => 'required|integer|exists:assign_sales_series,id',
+      'document_type' => 'required|in:GUIA_REMISION',
 
       // Detalles de productos o servicios
       'details' => 'required|array|min:1',
@@ -46,17 +48,24 @@ class StoreTransferInventoryRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'warehouse_origin_id.required' => 'El almacén de origen es requerido',
-      'warehouse_origin_id.exists' => 'El almacén de origen no existe',
-      'warehouse_destination_id.required' => 'El almacén de destino es requerido',
-      'warehouse_destination_id.exists' => 'El almacén de destino no existe',
-      'warehouse_destination_id.different' => 'El almacén de destino debe ser diferente al almacén de origen',
+      'transmitter_id.required' => 'El remitente es requerido',
+      'transmitter_id.integer' => 'El remitente debe ser un número entero',
+      'transmitter_id.exists' => 'El remitente no existe',
+      'receiver_id.required' => 'El destinatario es requerido',
+      'receiver_id.integer' => 'El destinatario debe ser un número entero',
+      'receiver_id.exists' => 'El destinatario no existe',
+      'receiver_id.different' => 'El destinatario debe ser diferente al remitente',
       'movement_date.required' => 'La fecha de movimiento es requerida',
       'movement_date.date' => 'La fecha de movimiento debe ser una fecha válida',
       'notes.string' => 'Las notas deben ser texto',
       'notes.max' => 'Las notas no pueden exceder 1000 caracteres',
       'item_type.required' => 'El tipo de item es requerido',
       'item_type.in' => 'El tipo de item debe ser PRODUCTO o SERVICIO',
+      'document_series_id.required' => 'La serie de documento es requerida',
+      'document_series_id.integer' => 'La serie de documento debe ser un número entero',
+      'document_series_id.exists' => 'La serie de documento no existe',
+      'document_type.required' => 'El tipo de documento es requerido',
+      'document_type.in' => 'El tipo de documento debe ser GUIA_REMISION',
       'details.required' => 'Debe proporcionar al menos un producto o servicio',
       'details.array' => 'Los detalles deben ser un array',
       'details.min' => 'Debe proporcionar al menos un producto o servicio',

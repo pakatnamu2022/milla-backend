@@ -55,6 +55,13 @@ class UpdateWorkOrderLabourRequest extends StoreRequest
         'numeric',
         'min:0',
       ],
+      'discount_percentage' => [
+        'sometimes',
+        'nullable',
+        'numeric',
+        'min:0',
+        'max:100',
+      ],
       'work_order_id' => [
         'sometimes',
         'integer',
@@ -85,6 +92,10 @@ class UpdateWorkOrderLabourRequest extends StoreRequest
 
       'hourly_rate.numeric' => 'La tarifa por hora debe ser un número.',
       'hourly_rate.min' => 'La tarifa por hora no puede ser negativa.',
+
+      'discount_percentage.numeric' => 'El porcentaje de descuento debe ser un número.',
+      'discount_percentage.min' => 'El porcentaje de descuento no puede ser negativo.',
+      'discount_percentage.max' => 'El porcentaje de descuento no puede ser mayor a 100.',
 
       'work_order_id.integer' => 'La orden de trabajo debe ser un entero.',
       'work_order_id.exists' => 'La orden de trabajo seleccionada no existe.',

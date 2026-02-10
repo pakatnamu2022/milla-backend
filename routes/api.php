@@ -129,6 +129,9 @@ use App\Http\Controllers\gp\tics\PhoneLineWorkerController;
 use App\Http\Controllers\gp\tics\TelephoneAccountController;
 use App\Http\Controllers\gp\tics\TelephonePlanController;
 use App\Http\Controllers\JobStatusController;
+use App\Http\Controllers\tp\comercial\OpFreightController;
+use App\Http\Controllers\tp\comercial\OpGoalTravelController;
+use App\Http\Controllers\tp\comercial\OpVehicleAssignmentController;
 use App\Http\Controllers\tp\comercial\TpTravelPhotoController;
 
 //TP - Controller
@@ -1129,7 +1132,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('inventoryMovements/transfers', [InventoryMovementController::class, 'createTransfer']);
       Route::put('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'updateTransfer']);
       Route::delete('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'destroyTransfer']);
-      Route::post('inventoryMovements/sales/quotation/{quotationId}', [InventoryMovementController::class, 'createSaleFromQuotation']);
       Route::get('inventoryMovements/kardex', [InventoryMovementController::class, 'getKardex']);
       Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history', [InventoryMovementController::class, 'getProductMovementHistory']);
       Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/purchase-history', [InventoryMovementController::class, 'getProductPurchaseHistory']);
@@ -1233,6 +1235,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::put('orderQuotations/{id}/discard', [ApOrderQuotationsController::class, 'discard']);
       Route::put('orderQuotations/{id}/confirm', [ApOrderQuotationsController::class, 'confirm']);
       Route::put('orderQuotations/{id}/approve', [ApOrderQuotationsController::class, 'approve']);
+      Route::put('orderQuotations/{id}/delivery-info', [ApOrderQuotationsController::class, 'updateDeliveryInfo']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',
@@ -1409,6 +1412,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('per-diem-requests/{id}/available-budgets', [PerDiemRequestController::class, 'availableBudgets']);
     Route::get('per-diem-requests/{id}/available-expense-types', [PerDiemRequestController::class, 'availableExpenseTypes']);
     Route::post('per-diem-requests/{id}/agregar-deposito', [PerDiemRequestController::class, 'agregarDeposito']);
+    Route::delete('per-diem-requests/{requestId}/eliminar-deposito/{fileId}', [PerDiemRequestController::class, 'eliminarDeposito']);
     Route::get('per-diem-requests/{id}/generate-mobility-payroll-pdf', [PerDiemRequestController::class, 'generateMobilityPayrollPDF']);
     Route::post('per-diem-requests/{id}/reset-approvals', [PerDiemRequestController::class, 'resetApprovals']);
     Route::post('per-diem-requests/{id}/resend-emails', [PerDiemRequestController::class, 'resendEmails']);
@@ -1489,7 +1493,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::apiResource('work-types', PayrollWorkTypeController::class);
 
     // Work Type Segments
-    Route::prefix('work-types/{workTypeId}/segments')->group(function () {
+    Route::prefix('work-types/segments')->group(function () {
       Route::get('/', [PayrollWorkTypeSegmentController::class, 'index']);
       Route::post('/', [PayrollWorkTypeSegmentController::class, 'store']);
       Route::put('/{id}', [PayrollWorkTypeSegmentController::class, 'update']);

@@ -4,6 +4,7 @@ namespace App\Models\ap\postventa\taller;
 
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\maestroGeneral\Sede;
@@ -20,7 +21,6 @@ class ApSupplierOrder extends Model
   protected $table = 'ap_supplier_order';
 
   protected $fillable = [
-    'ap_purchase_order_id',
     'supplier_id',
     'sede_id',
     'warehouse_id',
@@ -73,11 +73,6 @@ class ApSupplierOrder extends Model
     });
   }
 
-  public function apPurchaseOrder(): BelongsTo
-  {
-    return $this->belongsTo(PurchaseOrder::class, 'ap_purchase_order_id');
-  }
-
   public function supplier(): BelongsTo
   {
     return $this->belongsTo(BusinessPartners::class, 'supplier_id');
@@ -113,7 +108,7 @@ class ApSupplierOrder extends Model
    */
   public function receptions()
   {
-    return $this->hasMany(\App\Models\ap\compras\PurchaseReception::class, 'ap_supplier_order_id');
+    return $this->hasMany(PurchaseReception::class, 'ap_supplier_order_id');
   }
 
   /**

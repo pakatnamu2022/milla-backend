@@ -353,6 +353,14 @@ class ApVehicleInspectionService extends BaseService
       $customerSignature = Helpers::convertUrlToBase64($inspection->customer_signature_url);
     }
 
+    // Convertir fotos de daños a base64
+    $damagesWithPhotos = $inspection->damages->map(function ($damage) {
+      if ($damage->photo_url) {
+        $damage->photo_base64 = Helpers::convertUrlToBase64($damage->photo_url);
+      }
+      return $damage;
+    });
+
     // Preparar lista de checks del inventario
     $inventoryChecks = [
       'dirty_unit' => 'UNIDAD SUCIA',
@@ -390,7 +398,7 @@ class ApVehicleInspectionService extends BaseService
       'sede' => $workOrder->sede,
       'status' => $workOrder->status,
       'items' => $workOrder->items,
-      'damages' => $inspection->damages,
+      'damages' => $damagesWithPhotos,
       'inventoryChecks' => $inventoryChecks,
       'customerSignature' => $customerSignature,
       'advisorSignature' => $advisorSignature,
@@ -448,6 +456,14 @@ class ApVehicleInspectionService extends BaseService
       $customerSignature = Helpers::convertUrlToBase64($inspection->customer_signature_url);
     }
 
+    // Convertir fotos de daños a base64
+    $damagesWithPhotos = $inspection->damages->map(function ($damage) {
+      if ($damage->photo_url) {
+        $damage->photo_base64 = Helpers::convertUrlToBase64($damage->photo_url);
+      }
+      return $damage;
+    });
+
     // Preparar lista de checks del inventario
     $inventoryChecks = [
       'dirty_unit' => 'UNIDAD SUCIA',
@@ -485,7 +501,7 @@ class ApVehicleInspectionService extends BaseService
       'sede' => $workOrder->sede,
       'status' => $workOrder->status,
       'items' => $workOrder->items,
-      'damages' => $inspection->damages,
+      'damages' => $damagesWithPhotos,
       'inventoryChecks' => $inventoryChecks,
       'customerSignature' => $customerSignature,
       'advisorSignature' => $advisorSignature,
