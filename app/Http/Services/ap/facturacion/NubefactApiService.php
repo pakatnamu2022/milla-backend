@@ -38,15 +38,6 @@ class NubefactApiService
     $payload = $this->buildDocumentPayload($document);
     $endpoint = $this->getEndpointForDocumentType($document->documentType->code_nubefact);
 
-    // Log temporal para debugging
-    Log::info('Payload enviado a Nubefact', [
-      'endpoint' => $this->apiUrl . $endpoint,
-      'token' => $this->token,
-      'document_id' => $document->id,
-      'payload' => $payload,
-      'sede_id' => $document->sede_id,
-    ]);
-
     $logData = [
       'ap_billing_electronic_document_id' => $document->id,
       'operation' => 'generar_comprobante',
@@ -64,15 +55,6 @@ class NubefactApiService
 
       $logData['response_payload'] = json_encode($responseData, JSON_UNESCAPED_UNICODE);
       $logData['http_status_code'] = $httpStatusCode;
-
-      // Log raw response for debugging
-      Log::info('Nubefact API Response', [
-        'status' => $httpStatusCode,
-        'response' => $responseData,
-        'endpoint' => $this->apiUrl,
-        'token' => $this->token,
-        'sede_id' => $document->sede_id,
-      ]);
 
       if ($response->successful() && isset($responseData['aceptada_por_sunat'])) {
         $logData['success'] = true;
@@ -99,11 +81,6 @@ class NubefactApiService
       $logData['error_message'] = $e->getMessage();
       $logData['http_status_code'] = 0;
       $this->logRequest($logData);
-
-      Log::error('Error en NubefactApiService::generateDocument', [
-        'document_id' => $document->id,
-        'error' => $e->getMessage(),
-      ]);
 
       throw $e;
     }
@@ -141,12 +118,6 @@ class NubefactApiService
 
       $responseData = $response->json();
       $httpStatusCode = $response->status();
-//
-//      Log::info($this->apiUrl . $endpoint);
-//      Log::info($body);
-//      Log::info($httpStatusCode);
-//      Log::info($responseData);
-
 
       $logData['response_payload'] = json_encode($responseData, JSON_UNESCAPED_UNICODE);
       $logData['http_status_code'] = $httpStatusCode;
@@ -166,23 +137,12 @@ class NubefactApiService
         $this->logRequest($logData);
 
         throw new Exception($errorMessage);
-
-//        return [
-//          'success' => false,
-//          'error' => $errorMessage,
-//          'data' => $responseData,
-//        ];
       }
     } catch (Exception $e) {
       $logData['success'] = false;
       $logData['error_message'] = $e->getMessage();
       $logData['http_status_code'] = 0;
       $this->logRequest($logData);
-
-      Log::error('Error en NubefactApiService::queryDocument', [
-        'document_id' => $document->id,
-        'error' => $e->getMessage(),
-      ]);
 
       throw $e;
     }
@@ -252,11 +212,6 @@ class NubefactApiService
       $logData['http_status_code'] = 0;
       $this->logRequest($logData);
 
-      Log::error('Error en NubefactApiService::cancelDocument', [
-        'document_id' => $document->id,
-        'error' => $e->getMessage(),
-      ]);
-
       throw $e;
     }
   }
@@ -320,11 +275,6 @@ class NubefactApiService
       $logData['error_message'] = $e->getMessage();
       $logData['http_status_code'] = 0;
       $this->logRequest($logData);
-
-      Log::error('Error en NubefactApiService::queryCancellation', [
-        'document_id' => $document->id,
-        'error' => $e->getMessage(),
-      ]);
 
       throw $e;
     }
@@ -481,9 +431,17 @@ class NubefactApiService
         // $igvItem mantiene su valor calculado normalmente
       }
 
+      // Determinar el código a usar:
+      // - Si es vehículo o anticipo: usar code_dynamics del plan contable
+      // - Si NO es vehículo ni anticipo: usar el código del item
+      $isVehiculo = !empty($document->ap_vehicle_movement_id);
+      $codigo = ($isAnticipo || $isVehiculo)
+        ? $item->accountPlan->code_dynamics
+        : $item->codigo;
+
       $itemData = [
         'unidad_de_medida' => $item->unidad_de_medida,
-        'codigo' => $item->accountPlan->code_dynamics,
+        'codigo' => $codigo,
         'descripcion' => $item->descripcion,
         'cantidad' => $item->cantidad,
         'valor_unitario' => $item->valor_unitario,

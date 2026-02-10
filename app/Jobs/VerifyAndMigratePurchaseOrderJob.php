@@ -4,6 +4,8 @@ namespace App\Jobs;
 
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderDetailDynamicsResource;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderDynamicsResource;
+use App\Http\Resources\ap\compras\PurchaseOrderDynamicsResource;
+use App\Http\Resources\ap\compras\PurchaseOrderItemDynamicsResource;
 use App\Http\Resources\ap\compras\PurchaseOrderVehicleReceptionResource;
 use App\Http\Resources\ap\compras\PurchaseOrderVehicleReceptionDetailResource;
 use App\Http\Resources\ap\compras\PurchaseOrderVehicleReceptionSerialResource;
@@ -45,6 +47,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
   {
     try {
       if ($this->purchaseOrderId) {
+        Log::info('Procesando OC genérica ID');
         $this->processPurchaseOrder($this->purchaseOrderId, $syncService);
       } else {
         $this->processAllPendingPurchaseOrders($syncService);
@@ -83,7 +86,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
    */
   protected function processPurchaseOrder(int $purchaseOrderId, DatabaseSyncService $syncService): void
   {
-    $purchaseOrder = PurchaseOrder::with(['supplier', 'vehicleMovement.vehicle.model'])->find($purchaseOrderId);
+    $purchaseOrder = PurchaseOrder::with(['supplier', 'vehicleMovement.vehicle.model', 'items'])->find($purchaseOrderId);
 
     if (!$purchaseOrder) {
       return;
@@ -92,6 +95,24 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
     // Actualizar estado general a 'in_progress'
     $purchaseOrder->update(['migration_status' => 'in_progress']);
 
+    // Determinar si es OC de vehículos o genérica
+    $isVehiclePO = !is_null($purchaseOrder->vehicle_movement_id);
+
+    if ($isVehiclePO) {
+      // Flujo para OC de vehículos (flujo original)
+      $this->processVehiclePurchaseOrder($purchaseOrder, $syncService);
+    } else {
+      // Flujo para OC genéricas (productos, servicios, etc.)
+      Log::info('Gestionando OC genérica ID ' . $purchaseOrder->id);
+      $this->processGenericPurchaseOrder($purchaseOrder, $syncService);
+    }
+  }
+
+  /**
+   * Procesa una orden de compra de vehículos
+   */
+  protected function processVehiclePurchaseOrder(PurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
+  {
     // 1. Verificar y sincronizar proveedor
     $this->verifyAndSyncSupplier($purchaseOrder, $syncService);
 
@@ -106,6 +127,24 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
 
     // 5. Verificar si todo está completo
     $this->checkAndUpdateCompletionStatus($purchaseOrder);
+  }
+
+  /**
+   * Procesa una orden de compra genérica (productos, servicios, etc.)
+   */
+  protected function processGenericPurchaseOrder(PurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
+  {
+    // 1. Verificar y sincronizar proveedor
+    $this->verifyAndSyncSupplier($purchaseOrder, $syncService);
+
+    // 2. Verificar y sincronizar artículos (productos)
+    $this->verifyAndSyncProducts($purchaseOrder, $syncService);
+
+    // 3. Verificar y sincronizar orden de compra genérica
+    $this->verifyAndSyncGenericPurchaseOrder($purchaseOrder, $syncService);
+
+    // 4. Verificar si todo está completo
+    $this->checkAndUpdateCompletionStatusForGeneric($purchaseOrder);
   }
 
   /**
@@ -232,6 +271,67 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
   }
 
   /**
+   * Verifica y sincroniza los artículos (productos) de una OC genérica
+   */
+  protected function verifyAndSyncProducts(PurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
+  {
+    // Obtener items con productos
+    $items = $purchaseOrder->items()->with('product')->get();
+
+    if ($items->isEmpty()) {
+      return;
+    }
+
+    foreach ($items as $item) {
+      if (!$item->product || !$item->product->dyn_code) {
+        continue; // Saltar items sin producto o sin dyn_code
+      }
+
+      $product = $item->product;
+
+      Log::info("Verificando artículo {$product->dyn_code} para OC genérica ID {$purchaseOrder->id}");
+
+      // Crear log para este producto (usar código único por producto)
+      $articleLog = $this->getOrCreateLog(
+        $purchaseOrder->id,
+        VehiclePurchaseOrderMigrationLog::STEP_ARTICLE, // Step único por producto
+        VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_ARTICLE], // Tabla dinámica por producto
+        $product->dyn_code
+      );
+
+      // Si ya está completado, continuar con el siguiente
+      if ($articleLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+        continue;
+      }
+
+      // Verificar en la BD intermedia
+      $existingArticle = DB::connection('dbtp')
+        ->table('neInTbArticulo')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('Articulo', $product->dyn_code)
+        ->first();
+
+      if (!$existingArticle) {
+        // No existe, despachar job para sincronizar el producto
+        try {
+          $articleLog->markAsInProgress();
+          SyncProductArticleJob::dispatch($product->id);
+          Log::info("Despachado job para sincronizar artículo producto ID {$product->id}, dyn_code: {$product->dyn_code}");
+        } catch (Exception $e) {
+          Log::error("Error al despachar job de artículo producto: {$e->getMessage()}");
+          $articleLog->markAsFailed("Error al despachar job de artículo producto: {$e->getMessage()}");
+        }
+      } else {
+        // Existe, actualizar el estado del log
+        $articleLog->updateProcesoEstado(
+          $existingArticle->ProcesoEstado ?? 0,
+          $existingArticle->ProcesoError ?? null
+        );
+      }
+    }
+  }
+
+  /**
    * Verifica y sincroniza la orden de compra
    */
   protected function verifyAndSyncPurchaseOrder(PurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
@@ -308,7 +408,10 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         ->first();
 
       if ($existingPODetail) {
-        $purchaseOrderDetailLog->updateProcesoEstado(1);
+        $purchaseOrderDetailLog->updateProcesoEstado(
+          $existingPODetail->ProcesoEstado ?? 0,
+          $existingPODetail->ProcesoError ?? null
+        );
       }
     }
   }
@@ -447,6 +550,169 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
     });
 
     if ($allCompleted && $logs->count() === 8) { // 8 pasos en total
+      $purchaseOrder->update([
+        'migration_status' => 'completed',
+        'migrated_at' => now(),
+      ]);
+    } elseif ($hasFailed) {
+      $purchaseOrder->update(['migration_status' => 'failed']);
+    }
+  }
+
+  /**
+   * Verifica y sincroniza una orden de compra genérica (sin artículos/vehículos)
+   */
+  protected function verifyAndSyncGenericPurchaseOrder(PurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
+  {
+    $purchaseOrderLog = $this->getOrCreateLog(
+      $purchaseOrder->id,
+      VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER,
+      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER],
+      $purchaseOrder->number
+    );
+
+    $purchaseOrderDetailLog = $this->getOrCreateLog(
+      $purchaseOrder->id,
+      VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER_DETAIL,
+      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER_DETAIL],
+      $purchaseOrder->number
+    );
+
+    if ($purchaseOrderLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED &&
+      $purchaseOrderDetailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+      return;
+    }
+
+    // Verificar que el proveedor esté procesado
+    $supplierLog = VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $purchaseOrder->id)
+      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_SUPPLIER)
+      ->first();
+
+    if (!$supplierLog || $supplierLog->proceso_estado !== 1) {
+      return;
+    }
+
+    // Verificar que TODOS los productos (artículos) estén procesados
+    $productLogs = VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $purchaseOrder->id)
+      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_ARTICLE)
+      ->get();
+
+    // Obtener todos los productos únicos de los items de la OC
+    $items = $purchaseOrder->items()->with('product')->get();
+    $requiredProducts = $items->filter(function ($item) {
+      return $item->product && $item->product->dyn_code;
+    })->pluck('product.dyn_code')->unique();
+
+    // Verificar que existan logs para todos los productos requeridos
+    if ($requiredProducts->isNotEmpty()) {
+      $processedProductCodes = $productLogs->pluck('external_id');
+
+      // Verificar que todos los productos requeridos tengan un log
+      foreach ($requiredProducts as $productCode) {
+        if (!$processedProductCodes->contains($productCode)) {
+          Log::info("OC {$purchaseOrder->number}: Falta log para el producto {$productCode}");
+          return;
+        }
+      }
+
+      // Verificar que todos los logs de productos estén procesados (proceso_estado = 1)
+      $allProductsProcessed = $productLogs->every(function ($log) {
+        return $log->proceso_estado === 1;
+      });
+
+      if (!$allProductsProcessed) {
+        Log::info("OC {$purchaseOrder->number}: Esperando que todos los productos sean procesados en Dynamics");
+        return;
+      }
+    }
+
+    // Verificar si ya existe en la BD intermedia
+    $existingPO = DB::connection('dbtp')
+      ->table('neInTbOrdenCompra')
+      ->where('EmpresaId', Company::AP_DYNAMICS)
+      ->where('OrdenCompraId', $purchaseOrder->number)
+      ->first();
+
+    if (!$existingPO) {
+      try {
+        // Usar los resources genéricos para OC sin vehículos
+        $resourcePurchaseOrder = new PurchaseOrderDynamicsResource($purchaseOrder);
+        $resourceDataPurchaseOrder = $resourcePurchaseOrder->toArray(request());
+
+        $resourcePurchaseOrderDetail = new PurchaseOrderItemDynamicsResource($purchaseOrder->items);
+        $resourceDataPurchaseOrderDetail = $resourcePurchaseOrderDetail->toArray(request());
+
+        // Sincronizar header
+        $purchaseOrderLog->markAsInProgress();
+        $syncService->sync('ap_purchase_order', $resourceDataPurchaseOrder, 'create');
+        $purchaseOrderLog->updateProcesoEstado(0);
+
+        // Sincronizar detalle (cada item)
+        $purchaseOrderDetailLog->markAsInProgress();
+        foreach ($resourceDataPurchaseOrderDetail as $detail) {
+          $syncService->sync('ap_purchase_order_item', $detail, 'create');
+        }
+        $purchaseOrderDetailLog->updateProcesoEstado(0);
+      } catch (Exception $e) {
+        Log::error('Error al sincronizar orden de compra genérica: ' . $e->getMessage());
+        $purchaseOrderLog->markAsFailed("Error al sincronizar orden de compra genérica: {$e->getMessage()}");
+      }
+    } else {
+      $purchaseOrderLog->updateProcesoEstado(
+        $existingPO->ProcesoEstado ?? 0,
+        $existingPO->ProcesoError ?? null
+      );
+
+      $existingPODetail = DB::connection('dbtp')
+        ->table('neInTbOrdenCompraDet')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('OrdenCompraId', $purchaseOrder->number)
+        ->first();
+
+      if ($existingPODetail) {
+        $purchaseOrderDetailLog->updateProcesoEstado(
+          $existingPODetail->ProcesoEstado ?? 0,
+          $existingPODetail->ProcesoError ?? null
+        );
+      }
+    }
+  }
+
+  /**
+   * Verifica si todos los pasos de una OC genérica están completos
+   * OC genéricas tienen: supplier, supplier_address, article_* (dinámico), purchase_order, purchase_order_detail
+   */
+  protected function checkAndUpdateCompletionStatusForGeneric(PurchaseOrder $purchaseOrder): void
+  {
+    // Obtener todos los logs de esta OC
+    $logs = VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $purchaseOrder->id)->get();
+
+    // Pasos base requeridos
+    $baseSteps = [
+      VehiclePurchaseOrderMigrationLog::STEP_SUPPLIER,
+      VehiclePurchaseOrderMigrationLog::STEP_SUPPLIER_ADDRESS,
+      VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER,
+      VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER_DETAIL,
+    ];
+
+    // Verificar que existan los pasos base
+    foreach ($baseSteps as $step) {
+      if (!$logs->where('step', $step)->first()) {
+        return; // Falta algún paso base
+      }
+    }
+
+    // Verificar que TODOS los logs estén completados con proceso_estado = 1
+    $allCompleted = $logs->every(function ($log) {
+      return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED &&
+        $log->proceso_estado === 1;
+    });
+
+    $hasFailed = $logs->contains(function ($log) {
+      return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED;
+    });
+
+    if ($allCompleted) {
       $purchaseOrder->update([
         'migration_status' => 'completed',
         'migrated_at' => now(),
