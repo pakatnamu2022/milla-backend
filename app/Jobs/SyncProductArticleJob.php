@@ -24,7 +24,7 @@ class SyncProductArticleJob implements ShouldQueue
     public int $productId
   )
   {
-    $this->onQueue('sync');
+    $this->onQueue('purchase_orders');
   }
 
   /**

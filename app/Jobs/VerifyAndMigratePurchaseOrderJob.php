@@ -279,25 +279,27 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       return;
     }
 
-    foreach ($items as $item) {
-      if (!$item->product || !$item->product->dyn_code) {
-        continue; // Saltar items sin producto o sin dyn_code
-      }
+    // Filtrar productos únicos con dyn_code válido
+    $uniqueProducts = $items->filter(function ($item) {
+      return $item->product && $item->product->dyn_code;
+    })->pluck('product')->unique('id');
 
-      $product = $item->product;
+    if ($uniqueProducts->isEmpty()) {
+      return;
+    }
 
-      Log::info("OC {$purchaseOrder->number}: PROCESAMOS EL PRIMER PRODUCTO CON DYN_CODE {$product->dyn_code}");
-
-      // Crear log para este producto (usar código único por producto)
+    // FASE 1: Crear TODOS los logs y despachar TODOS los jobs necesarios
+    foreach ($uniqueProducts as $product) {
+      // Crear log para este producto
       $articleLog = $this->getOrCreateLog(
         $purchaseOrder->id,
-        VehiclePurchaseOrderMigrationLog::STEP_ARTICLE, // Step único por producto
-        VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_ARTICLE], // Tabla dinámica por producto
+        VehiclePurchaseOrderMigrationLog::STEP_ARTICLE,
+        VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_ARTICLE],
         $product->dyn_code
       );
 
-      // Si ya está completado, continuar con el siguiente
-      if ($articleLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+      // Si ya está completado, continuar
+      if ($articleLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED && $articleLog->proceso_estado === 1) {
         continue;
       }
 
@@ -583,7 +585,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       return;
     }
 
-    // Verificar que TODOS los productos (artículos) estén procesados
+    // FASE 2: Verificar que TODOS los productos (artículos) estén procesados
     $productLogs = VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $purchaseOrder->id)
       ->where('step', VehiclePurchaseOrderMigrationLog::STEP_ARTICLE)
       ->get();
@@ -592,27 +594,31 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
     $items = $purchaseOrder->items()->with('product')->get();
     $requiredProducts = $items->filter(function ($item) {
       return $item->product && $item->product->dyn_code;
-    })->pluck('product.dyn_code')->unique();
+    })->pluck('product')->unique('id');
 
     // Verificar que existan logs para todos los productos requeridos
     if ($requiredProducts->isNotEmpty()) {
+      $requiredProductCodes = $requiredProducts->pluck('dyn_code')->unique();
       $processedProductCodes = $productLogs->pluck('external_id');
 
       // Verificar que todos los productos requeridos tengan un log
-      foreach ($requiredProducts as $productCode) {
+      $missingProducts = [];
+      foreach ($requiredProductCodes as $productCode) {
         if (!$processedProductCodes->contains($productCode)) {
-          Log::info("OC {$purchaseOrder->number}: Falta log para el producto {$productCode}");
-          return;
+          $missingProducts[] = $productCode;
         }
       }
 
+      if (!empty($missingProducts)) {
+        return;
+      }
+
       // Verificar que todos los logs de productos estén procesados (proceso_estado = 1)
-      $allProductsProcessed = $productLogs->every(function ($log) {
-        return $log->proceso_estado === 1;
+      $pendingProducts = $productLogs->filter(function ($log) {
+        return $log->proceso_estado !== 1;
       });
 
-      if (!$allProductsProcessed) {
-        Log::info("OC {$purchaseOrder->number}: Esperando que todos los productos sean procesados en Dynamics");
+      if ($pendingProducts->isNotEmpty()) {
         return;
       }
     }
@@ -712,9 +718,28 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
 
   /**
    * Obtiene o crea un registro de log
+   * Para productos (STEP_ARTICLE), usa el external_id como parte de la búsqueda
+   * para permitir múltiples logs del mismo step
    */
   protected function getOrCreateLog(int $purchaseOrderId, string $step, string $tableName, ?string $externalId = null): VehiclePurchaseOrderMigrationLog
   {
+    // Para el step de artículos, incluir external_id en la búsqueda
+    // para permitir múltiples productos en la misma OC
+    if ($step === VehiclePurchaseOrderMigrationLog::STEP_ARTICLE && $externalId) {
+      return VehiclePurchaseOrderMigrationLog::firstOrCreate(
+        [
+          'vehicle_purchase_order_id' => $purchaseOrderId,
+          'step' => $step,
+          'external_id' => $externalId, // Incluir en búsqueda para productos
+        ],
+        [
+          'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+          'table_name' => $tableName,
+        ]
+      );
+    }
+
+    // Para otros steps, usar lógica original (un solo log por step)
     return VehiclePurchaseOrderMigrationLog::firstOrCreate(
       [
         'vehicle_purchase_order_id' => $purchaseOrderId,
