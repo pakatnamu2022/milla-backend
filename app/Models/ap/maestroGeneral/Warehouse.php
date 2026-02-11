@@ -111,5 +111,13 @@ class Warehouse extends Model
     return $query->where('is_received', 1);
   }
 
+  public static function getPhysicalWarehouseForPostsale($sedeId)
+  {
+    return self::where('sede_id', $sedeId)
+      ->where('is_physical_warehouse', 1)
+      ->where('type_operation_id', ApMasters::TIPO_OPERACION_POSTVENTA)
+      ->where('status', 1)
+      ->first();
+  }
 
 }

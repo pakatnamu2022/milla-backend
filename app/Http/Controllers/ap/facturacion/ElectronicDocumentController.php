@@ -260,10 +260,10 @@ class ElectronicDocumentController extends Controller
   /**
    * Get documents by origin entity
    */
-  public function getByOriginEntity($module, $entityType, $entityId): JsonResponse
+  public function getByOriginEntity($areaId, $entityType, $entityId): JsonResponse
   {
     try {
-      return $this->service->getByOriginEntity($module, $entityType, $entityId);
+      return $this->service->getByOriginEntity($areaId, $entityType, $entityId);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

@@ -11,6 +11,7 @@ use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationWithProductsRequ
 use App\Http\Requests\ap\postventa\taller\DiscardApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\ConfirmApOrderQuotationsRequest;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsService;
+use Illuminate\Http\Request;
 
 class ApOrderQuotationsController extends Controller
 {
@@ -140,6 +141,23 @@ class ApOrderQuotationsController extends Controller
   {
     try {
       return $this->success($this->service->approve($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+  
+  public function updateDeliveryInfo(Request $request, $id)
+  {
+    try {
+      $request->validate([
+        'customer_signature_delivery_url' => 'nullable|string',
+        'delivery_document_number' => 'nullable|string|max:255',
+      ]);
+
+      return $this->success($this->service->updateDeliveryInfo($id, $request->only([
+        'customer_signature_delivery_url',
+        'delivery_document_number',
+      ])));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

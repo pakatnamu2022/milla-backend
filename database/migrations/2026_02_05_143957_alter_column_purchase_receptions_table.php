@@ -11,6 +11,7 @@ return new class extends Migration {
   public function up(): void
   {
     Schema::table('purchase_receptions', function (Blueprint $table) {
+      $table->unsignedBigInteger('purchase_order_id')->nullable()->change();
       $table->foreignId('ap_supplier_order_id')->after('purchase_order_id')->nullable()->constrained('ap_supplier_order')->onDelete('set null');
     });
   }
@@ -23,6 +24,7 @@ return new class extends Migration {
     Schema::table('purchase_receptions', function (Blueprint $table) {
       $table->dropForeign(['ap_supplier_order_id']);
       $table->dropColumn('ap_supplier_order_id');
+      $table->unsignedBigInteger('purchase_order_id')->nullable(false)->change();
     });
   }
 };

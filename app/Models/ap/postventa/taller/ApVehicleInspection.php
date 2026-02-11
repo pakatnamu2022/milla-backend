@@ -89,6 +89,7 @@ class ApVehicleInspection extends Model
     'fuel_level' => 'between',
     'inspected_by' => '=',
     'ap_work_order_id' => '=',
+    'workOrder.sede_id' => '=',
     'is_cancelled' => '=',
   ];
 

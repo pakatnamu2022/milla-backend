@@ -304,7 +304,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         $shippingGuideData = [
           'document_type' => 'GUIA_REMISION',
           'type_voucher_id' => SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE,
-          'issuer_type' => 'NOSOTROS',
+          'issuer_type' => ShippingGuides::ISSUER_TYPE_SYSTEM,
           'document_series_id' => $documentSeriesId,
           'series' => $series,
           'correlative' => $correlative,

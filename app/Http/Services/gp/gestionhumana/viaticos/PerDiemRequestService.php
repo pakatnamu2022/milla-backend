@@ -64,7 +64,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   {
     $perDiemRequest = PerDiemRequest::with([
       'budgets.expenseType',
-      'expenses.expenseType' // Eager load expenses for spent calculation
+      'expenses.expenseType', // Eager load expenses for spent calculation
+      'digitalFiles' // Eager load deposit vouchers
     ])->where('id', $id)->first();
     if (!$perDiemRequest) {
       throw new Exception('Solicitud de viático no encontrada');
@@ -77,7 +78,17 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
    */
   public function show($id)
   {
-    return new PerDiemRequestResource($this->find($id));
+    $request = $this->find($id);
+    $request->load([
+      'employee',
+      'company',
+      'sedeService',
+      'district',
+      'policy',
+      'category',
+      'digitalFiles'
+    ]);
+    return new PerDiemRequestResource($request);
   }
 
   /**
@@ -1682,40 +1693,64 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Upload deposit voucher for a per diem request
+   * Upload deposit voucher(s) for a per diem request
    * This is used when with_request is true to upload proof of deposit
+   * Each voucher can have a description for context
+   * Maximum 3 vouchers per request
    *
    * @param int $id Per diem request ID
-   * @param UploadedFile $voucherFile The voucher file (photo or document)
+   * @param array $voucherFiles Array of voucher files to upload
+   * @param array $descriptions Array of descriptions (optional, indexed to match files)
    * @return PerDiemRequestResource
    * @throws Exception
    */
-  public function agregarDeposito(int $id, UploadedFile $voucherFile): PerDiemRequestResource
+  public function agregarDeposito(
+    int   $id,
+    array $voucherFiles,
+    array $descriptions = []
+  ): PerDiemRequestResource
   {
     try {
       DB::beginTransaction();
 
       $request = $this->find($id);
 
-      // Delete old voucher if exists
-      if ($request->deposit_voucher_url) {
-        $oldDigitalFile = DigitalFile::where('url', $request->deposit_voucher_url)->first();
+      // Validate max 3 vouchers total
+      $currentVouchersCount = $request->digitalFiles()->count();
+      $newVouchersCount = count($voucherFiles);
 
-        if ($oldDigitalFile) {
-          $this->digitalFileService->destroy($oldDigitalFile->id);
-        }
+      if ($currentVouchersCount + $newVouchersCount > 3) {
+        $remaining = 3 - $currentVouchersCount;
+        throw new Exception("Solo puedes subir {$remaining} archivo(s) más. Límite máximo: 3 comprobantes de depósito");
       }
 
-      // Upload new voucher using DigitalFileService
       $path = self::DEPOSIT_VOUCHER_PATH;
-      $model = $request->getTable();
 
-      $digitalFile = $this->digitalFileService->store($voucherFile, $path, 'public', $model);
+      // Process each voucher file
+      foreach ($voucherFiles as $index => $voucherFile) {
+        // Generate file name and upload directly to S3
+        $fileName = $path . time() . '_' . $voucherFile->getClientOriginalName();
+        $url = $this->digitalFileService->uploadImage($voucherFile, $fileName, 'public');
 
-      // Update request with voucher URL
-      $request->deposit_voucher_url = $digitalFile->url;
-      $request->paid = true;
-      $request->save();
+        // Get description for this file (if provided)
+        $description = $descriptions[$index] ?? null;
+
+        // Create only the morphMany relationship record
+        $request->digitalFiles()->create([
+          'name' => $fileName,
+          'description' => $description ? strtoupper($description) : null,
+          'url' => $url,
+          'mimeType' => $voucherFile->getClientMimeType(),
+          'model' => get_class($request),
+          'id_model' => $request->id,
+        ]);
+      }
+
+      // Mark as paid if at least one voucher exists
+      if (!$request->paid && $request->digitalFiles()->count() > 0) {
+        $request->paid = true;
+        $request->save();
+      }
 
       DB::commit();
 
@@ -1726,7 +1761,58 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'sedeService',
           'district',
           'policy',
-          'category'
+          'category',
+          'digitalFiles'
+        ])
+      );
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Remove a deposit voucher from a per diem request
+   *
+   * @param int $requestId Per diem request ID
+   * @param int $fileId Digital file ID to remove
+   * @return PerDiemRequestResource
+   * @throws Exception
+   */
+  public function eliminarDeposito(int $requestId, int $fileId): PerDiemRequestResource
+  {
+    try {
+      DB::beginTransaction();
+
+      $request = $this->find($requestId);
+
+      // Find the digital file that belongs to this request
+      $digitalFile = $request->digitalFiles()->where('id', $fileId)->first();
+
+      if (!$digitalFile) {
+        throw new Exception('El archivo no pertenece a esta solicitud');
+      }
+
+      // Delete the file using the service
+      $this->digitalFileService->destroy($fileId);
+
+      // Update paid status if no vouchers remain
+      if ($request->digitalFiles()->count() === 0) {
+        $request->paid = false;
+        $request->save();
+      }
+
+      DB::commit();
+
+      return new PerDiemRequestResource(
+        $request->fresh([
+          'employee',
+          'company',
+          'sedeService',
+          'district',
+          'policy',
+          'category',
+          'digitalFiles'
         ])
       );
     } catch (Exception $e) {

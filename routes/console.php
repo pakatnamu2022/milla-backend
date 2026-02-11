@@ -34,7 +34,8 @@ Schedule::command('app:sync-exchange-rate')
 // Verificar y migrar órdenes de compra de vehículos pendientes
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
 Schedule::command('po:verify-migration --all --limit=10')
-  ->everyMinute()
+  ->everyTenSeconds()
+  ->between('6:00', '23:59')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
@@ -42,7 +43,8 @@ Schedule::command('po:verify-migration --all --limit=10')
 // Verificar y migrar guías de remisión pendientes
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
 Schedule::command('shipping-guide:verify-migration --all --limit=10')
-  ->everyMinute()
+  ->everyTenSeconds()
+  ->between('6:00', '23:59')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
@@ -50,7 +52,8 @@ Schedule::command('shipping-guide:verify-migration --all --limit=10')
 // Sincronizar invoice_dynamics desde Dynamics
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
 Schedule::command('po:sync-invoice-dynamics --all --limit=10')
-  ->everyMinute()
+  ->everyTenSeconds()
+  ->between('6:00', '23:59')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
@@ -58,7 +61,8 @@ Schedule::command('po:sync-invoice-dynamics --all --limit=10')
 // Sincronizar credit_note_dynamics desde Dynamics
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
 Schedule::command('po:sync-credit-note-dynamics --all --limit=10')
-  ->everyMinute()
+  ->everyTenSeconds()
+  ->between('6:00', '23:59')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
@@ -67,6 +71,7 @@ Schedule::command('po:sync-credit-note-dynamics --all --limit=10')
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
 Schedule::command('electronic-document:verify-sync --all --limit=10')
   ->everyTenSeconds()
+  ->between('6:00', '23:59')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
@@ -75,6 +80,7 @@ Schedule::command('electronic-document:verify-sync --all --limit=10')
 // Verificación de estado cada minuto (solo lectura, no crea jobs masivos)
 Schedule::command('app:check-pending-electronic-documents')
   ->everyTenSeconds()
+  ->between('6:00', '23:59')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();

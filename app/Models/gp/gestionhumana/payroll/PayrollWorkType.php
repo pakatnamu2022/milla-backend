@@ -16,6 +16,7 @@ class PayrollWorkType extends BaseModel
     'code',
     'name',
     'description',
+    'shift_type',
     'multiplier',
     'base_hours',
     'shift_start_time',
@@ -46,6 +47,7 @@ class PayrollWorkType extends BaseModel
   const filters = [
     'search' => ['code', 'name'],
     'code' => '=',
+    'shift_type' => '=',
     'active' => '=',
     'is_extra_hours' => '=',
     'is_night_shift' => '=',

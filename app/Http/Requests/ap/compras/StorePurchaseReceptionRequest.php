@@ -20,7 +20,7 @@ class StorePurchaseReceptionRequest extends StoreRequest
       // Details
       'details' => 'required|array|min:1',
       'details.*.product_id' => 'required|exists:products,id',
-      'details.*.quantity_received' => 'required|numeric|min:0.01',
+      'details.*.quantity_received' => 'required|numeric|min:0',
       'details.*.observed_quantity' => 'nullable|numeric|min:0',
       'details.*.reception_type' => 'required|in:ORDERED,BONUS,GIFT,SAMPLE',
       'details.*.reason_observation' => 'nullable|in:DAMAGED,DEFECTIVE,EXPIRED,WRONG_PRODUCT,WRONG_QUANTITY,POOR_QUALITY,OTHER',
@@ -53,7 +53,7 @@ class StorePurchaseReceptionRequest extends StoreRequest
       'details.*.product_id.required' => 'El producto es obligatorio.',
       'details.*.product_id.exists' => 'El producto no existe.',
       'details.*.quantity_received.required' => 'La cantidad recibida es obligatoria.',
-      'details.*.quantity_received.min' => 'La cantidad recibida debe ser mayor a 0.',
+      'details.*.quantity_received.min' => 'La cantidad recibida debe ser al menos 0.',
       'details.*.reception_type.required' => 'El tipo de recepción es obligatorio.',
       'details.*.reception_type.in' => 'El tipo de recepción debe ser ORDERED, BONUS, GIFT o SAMPLE.',
     ];

@@ -6,6 +6,7 @@ use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Resources\Dynamics\SalesDocumentDetailDynamicsResource;
 use App\Http\Resources\Dynamics\SalesDocumentDynamicsResource;
 use App\Http\Resources\Dynamics\SalesDocumentSerialDynamicsResource;
+use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
@@ -651,6 +652,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         // Actualizar estado de cotización si el documento tiene order_quotation_id
         if ($document->order_quotation_id) {
           $this->updateQuotationInvoiceStatus($document->order_quotation_id);
+
+          // Verificar si esta es la última factura que finaliza el pago total de la cotización
+          // y crear salida de inventario automáticamente
+          $this->createInventoryMovementIfQuotationFullyPaid($document->order_quotation_id);
         }
       }
 
@@ -896,7 +901,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
         'original_document_id' => $originalDocumentId,
-        'origin_module' => $originalDocument->origin_module,
+        'area_id' => $originalDocument->area_id,
         'origin_entity_type' => $originalDocument->origin_entity_type,
         'origin_entity_id' => $originalDocument->origin_entity_id,
         'purchase_request_quote_id' => $originalDocument->purchase_request_quote_id ?? null,
@@ -974,7 +979,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
         'original_document_id' => $originalDocumentId,
-        'origin_module' => $originalDocument->origin_module,
+        'area_id' => $originalDocument->area_id,
         'origin_entity_type' => $originalDocument->origin_entity_type,
         'origin_entity_id' => $originalDocument->origin_entity_id,
         'purchase_request_quote_id' => $originalDocument->purchase_request_quote_id ?? null,
@@ -1087,7 +1092,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // No permitir cambiar estos campos
       unset($updateData['sunat_concept_document_type_id']);
-      unset($updateData['origin_module']);
+      unset($updateData['area_id']);
       unset($updateData['origin_entity_type']);
       unset($updateData['origin_entity_id']);
 
@@ -1181,7 +1186,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // No permitir cambiar estos campos
       unset($updateData['sunat_concept_document_type_id']);
-      unset($updateData['origin_module']);
+      unset($updateData['area_id']);
       unset($updateData['origin_entity_type']);
       unset($updateData['origin_entity_id']);
 
@@ -1219,11 +1224,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   /**
    * Get documents by module and entity
    */
-  public function getByOriginEntity(string $module, string $entityType, int $entityId): JsonResponse
+  public function getByOriginEntity(int $areaId, string $entityType, int $entityId): JsonResponse
   {
     try {
       $documents = ElectronicDocument::with(['documentType', 'currency', 'items'])
-        ->where('origin_module', $module)
+        ->where('area_id', $areaId)
         ->where('origin_entity_type', $entityType)
         ->where('origin_entity_id', $entityId)
         ->orderBy('fecha_de_emision', 'desc')
@@ -1235,7 +1240,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ]);
     } catch (Exception $e) {
       Log::error('Error getting documents by origin entity', [
-        'module' => $module,
+        'module' => $areaId,
         'entity_type' => $entityType,
         'entity_id' => $entityId,
         'error' => $e->getMessage()
@@ -1751,7 +1756,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // 1. El total pagado >= total de la cotización
       // 2. Existe al menos una venta interna (is_advance_payment = 0) aceptada por SUNAT
       if ($totalPaid >= $quotation->total_amount && $hasInternalSale) {
-        $quotation->update(['is_fully_paid' => true]);
+        $quotation->update(
+          ['is_fully_paid' => true],
+          ['status' => ApOrderQuotations::STATUS_FACTURADO]
+        );
       }
     } catch (Exception $e) {
       Log::error('Error updating quotation invoice status', [
@@ -2011,6 +2019,54 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'work_order_id' => $workOrderId,
         'error' => $e->getMessage(),
       ]);
+    }
+  }
+
+  /**
+   * Crear movimiento de inventario si la cotización está totalmente pagada
+   * Este método se llama desde queryFromNubefact cuando una factura es aceptada por SUNAT
+   * Verifica si es la última factura que completa el pago total de la cotización
+   * y automáticamente crea la salida de inventario
+   *
+   * @param int $quotationId
+   * @return void
+   */
+  private function createInventoryMovementIfQuotationFullyPaid(int $quotationId): void
+  {
+    try {
+      $quotation = ApOrderQuotations::find($quotationId);
+
+      if (!$quotation) {
+        return;
+      }
+
+      // Verificar si la cotización está totalmente pagada Y aún no se ha generado la salida de inventario
+      if ($quotation->is_fully_paid && !$quotation->output_generation_warehouse) {
+        // Crear la salida de inventario automáticamente
+        $inventoryMovementService = app(InventoryMovementService::class);
+
+        try {
+          $inventoryMovementService->createSaleFromQuotation($quotationId);
+
+          Log::info('Inventory movement created automatically for fully paid quotation', [
+            'quotation_id' => $quotationId,
+            'quotation_number' => $quotation->quotation_number,
+          ]);
+        } catch (Exception $e) {
+          // Loguear el error pero no lanzar excepción para no afectar el flujo principal
+          Log::error('Error creating inventory movement for fully paid quotation', [
+            'quotation_id' => $quotationId,
+            'quotation_number' => $quotation->quotation_number,
+            'error' => $e->getMessage(),
+          ]);
+        }
+      }
+    } catch (Exception $e) {
+      Log::error('Error in createInventoryMovementIfQuotationFullyPaid', [
+        'quotation_id' => $quotationId,
+        'error' => $e->getMessage(),
+      ]);
+      // No lanzar excepción para evitar que falle la consulta de Nubefact
     }
   }
 }

@@ -38,11 +38,10 @@ class ApSupplierOrderResource extends JsonResource
       'status' => $this->status,
       'created_at' => $this->created_at,
       'updated_at' => $this->updated_at,
-      'has_invoice' => !is_null($this->ap_purchase_order_id),
+      'has_receptions' => $this->hasActiveReceptions(),
 
       // Relationships
       'supplier' => new BusinessPartnersResource($this->whenLoaded('supplier')),
-      'invoice' => new PurchaseOrderResource($this->whenLoaded('apPurchaseOrder')),
       'sede' => new SedeResource($this->whenLoaded('sede')),
       'warehouse' => new WarehouseResource($this->whenLoaded('warehouse')),
       'type_currency' => new TypeCurrencyResource($this->whenLoaded('typeCurrency')),

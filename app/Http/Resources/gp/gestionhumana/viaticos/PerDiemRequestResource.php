@@ -44,7 +44,18 @@ class PerDiemRequestResource extends JsonResource
       'days_without_settlement' => $daysWithoutSettlement,
       'with_active' => (bool)$this->with_active,
       'with_request' => (bool)$this->with_request,
-      'deposit_voucher_url' => $this->deposit_voucher_url,
+      'deposit_vouchers' => $this->digitalFiles ? $this->digitalFiles->map(function ($file) {
+        return [
+          'id' => $file->id,
+          'name' => $file->name,
+          'description' => $file->description,
+          'url' => $file->url,
+          'mimeType' => $file->mimeType,
+          'created_at' => $file->created_at,
+        ];
+      }) : [],
+      'deposit_vouchers_count' => $this->digitalFiles ? $this->digitalFiles->count() : 0,
+      'has_all_deposit_vouchers' => $this->hasAllDepositVouchers(),
       'mobility_payroll_generated' => (bool)$this->mobility_payroll_generated,
 
       // Relations

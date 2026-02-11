@@ -25,6 +25,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   // Configuración de rutas para archivos
   private const FILE_PATHS = [
     'customer_signature' => '/ap/postventa/taller/cotizaciones/firmas-cliente/',
+    'customer_signature_delivery' => '/ap/postventa/taller/cotizaciones/firmas-entrega/',
   ];
 
   public function __construct(DigitalFileService $digitalFileService)
@@ -760,6 +761,50 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       return new ApOrderQuotationsResource($quotation);
     });
+  }
+  
+  public function updateDeliveryInfo(int $id, array $data)
+  {
+    return DB::transaction(function () use ($id, $data) {
+      $quotation = $this->find($id);
+
+      // Actualizar número de documento de entrega si se proporciona
+      if (isset($data['delivery_document_number'])) {
+        $quotation->delivery_document_number = $data['delivery_document_number'];
+      }
+
+      // Procesar firma de entrega si se proporciona
+      if (isset($data['customer_signature_delivery_url'])) {
+        $this->processDeliverySignature($quotation, $data['customer_signature_delivery_url']);
+      }
+
+      // Guardar cambios si no se procesó firma (si se procesó, ya se guardó en processDeliverySignature)
+      if (!isset($data['customer_signature_delivery_url']) && isset($data['delivery_document_number'])) {
+        $quotation->save();
+      }
+
+      return new ApOrderQuotationsResource($quotation->fresh([
+        'vehicle',
+        'createdBy',
+        'details'
+      ]));
+    });
+  }
+
+  /**
+   * Procesa y guarda la firma de entrega del cliente en base64
+   */
+  private function processDeliverySignature($quotation, string $base64Signature): void
+  {
+    $signatureFile = Helpers::base64ToUploadedFile($base64Signature, "customer_signature_delivery.png");
+
+    $path = self::FILE_PATHS['customer_signature_delivery'];
+    $model = $quotation->getTable();
+
+    $digitalFile = $this->digitalFileService->store($signatureFile, $path, 'public', $model);
+
+    $quotation->customer_signature_delivery_url = $digitalFile->url;
+    $quotation->save();
   }
 
   /**

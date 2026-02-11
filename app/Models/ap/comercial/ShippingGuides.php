@@ -4,11 +4,14 @@ namespace App\Models\ap\comercial;
 
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\BaseModel;
+use App\Models\gp\gestionsistema\Area;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -85,6 +88,7 @@ class ShippingGuides extends BaseModel
     'company_name_transport',
     'created_at',
     'updated_at',
+    'area_id',
   ];
 
   protected $casts = [
@@ -103,28 +107,29 @@ class ShippingGuides extends BaseModel
 
   // Issuer types
   const ISSUER_TYPE_SUPPLIER = 'PROVEEDOR';
-  const ISSUER_TYPE_AUTOMOTORES = 'NOSOTROS';
+  const ISSUER_TYPE_SYSTEM = 'SYSTEM';
 
   const filters = [
     'search' => ['document_number', 'plate', 'driver_name', 'documentSeries.series'],
-    'document_type',
-    'issuer_type',
+    'document_type' => '=',
+    'issuer_type' => '=',
     'issue_date' => 'date_between',
-    'requires_sunat',
-    'is_sunat_registered',
-    'vehicle_movement_id',
-    'sede_transmitter_id',
-    'sede_receiver_id',
-    'transmitter_id', // Ubicacion Origen (Proveedor)
-    'receiver_id', // Ubicacion Destino (Cliente)
-    'transport_company_id',
-    'driver_doc',
-    'license',
-    'plate',
-    'driver_name',
-    'status',
-    'transfer_reason_id',
-    'transfer_modality_id',
+    'requires_sunat' => '=',
+    'is_sunat_registered' => '=',
+    'vehicle_movement_id' => '=',
+    'sede_transmitter_id' => '=',
+    'sede_receiver_id' => '=',
+    'transmitter_id' => '=', // Ubicacion Origen (Proveedor)
+    'receiver_id' => '=', // Ubicacion Destino (Cliente)
+    'transport_company_id' => '=',
+    'driver_doc' => '=',
+    'license' => '=',
+    'plate' => '=',
+    'driver_name' => 'like',
+    'status' => '=',
+    'transfer_reason_id' => '=',
+    'transfer_modality_id' => '=',
+    'area_id' => '=',
   ];
 
   const sorts = [
@@ -165,6 +170,15 @@ class ShippingGuides extends BaseModel
   public function setNoteReceivedAttribute($value): void
   {
     $this->attributes['note_received'] = Str::upper(Str::ascii($value));
+  }
+
+  /**
+   * Relaciones
+   */
+
+  public function area(): BelongsTo
+  {
+    return $this->belongsTo(Area::class, 'area_id');
   }
 
   public function typeVoucher(): BelongsTo
@@ -245,6 +259,11 @@ class ShippingGuides extends BaseModel
   public function ArticleClass()
   {
     return $this->belongsTo(ApClassArticle::class, 'ap_class_article_id');
+  }
+
+  public function inventoryMovement(): MorphOne
+  {
+    return $this->morphOne(InventoryMovement::class, 'reference');
   }
 
   public function receivingChecklists()

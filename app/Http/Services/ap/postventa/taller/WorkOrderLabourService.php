@@ -77,7 +77,16 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
 
       // Calcular el costo total automáticamente
       if (isset($data['time_spent']) && isset($data['hourly_rate'])) {
-        $data['total_cost'] = $timeSpentDecimal * floatval($data['hourly_rate']) * $factor;
+        $discountPercentage = $data['discount_percentage'] ?? 0;
+        $costBase = $timeSpentDecimal * floatval($data['hourly_rate']) * $factor;
+
+        // Aplicar descuento si existe
+        if ($discountPercentage > 0) {
+          $discountAmount = $costBase * ($discountPercentage / 100);
+          $data['total_cost'] = $costBase - $discountAmount;
+        } else {
+          $data['total_cost'] = $costBase;
+        }
       }
       $data['hourly_rate'] = floatval($data['hourly_rate']) * $factor;
       $data['time_spent'] = $timeSpentDecimal;
@@ -111,8 +120,8 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
     return DB::transaction(function () use ($data) {
       $workOrderLabour = $this->find($data['id']);
 
-      // Calcular el costo total automáticamente si se actualizan time_spent u hourly_rate
-      if (isset($data['time_spent']) || isset($data['hourly_rate'])) {
+      // Calcular el costo total automáticamente si se actualizan time_spent, hourly_rate o discount_percentage
+      if (isset($data['time_spent']) || isset($data['hourly_rate']) || isset($data['discount_percentage'])) {
         // Obtener time_spent en formato decimal
         if (isset($data['time_spent'])) {
           $timeSpent = is_numeric($data['time_spent'])
@@ -123,7 +132,18 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         }
 
         $hourlyRate = $data['hourly_rate'] ?? $workOrderLabour->hourly_rate;
-        $data['total_cost'] = $timeSpent * floatval($hourlyRate);
+        $discountPercentage = $data['discount_percentage'] ?? $workOrderLabour->discount_percentage ?? 0;
+
+        // Calcular costo base
+        $costBase = $timeSpent * floatval($hourlyRate);
+
+        // Aplicar descuento si existe
+        if ($discountPercentage > 0) {
+          $discountAmount = $costBase * ($discountPercentage / 100);
+          $data['total_cost'] = $costBase - $discountAmount;
+        } else {
+          $data['total_cost'] = $costBase;
+        }
       }
 
       $workOrderLabour->update($data);
