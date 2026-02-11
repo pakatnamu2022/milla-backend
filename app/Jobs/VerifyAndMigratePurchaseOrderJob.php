@@ -47,7 +47,6 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
   {
     try {
       if ($this->purchaseOrderId) {
-        Log::info('Procesando OC genérica ID');
         $this->processPurchaseOrder($this->purchaseOrderId, $syncService);
       } else {
         $this->processAllPendingPurchaseOrders($syncService);
@@ -103,7 +102,6 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       $this->processVehiclePurchaseOrder($purchaseOrder, $syncService);
     } else {
       // Flujo para OC genéricas (productos, servicios, etc.)
-      Log::info('Gestionando OC genérica ID ' . $purchaseOrder->id);
       $this->processGenericPurchaseOrder($purchaseOrder, $syncService);
     }
   }
@@ -258,7 +256,6 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         $articleLog->markAsInProgress();
         SyncArticleJob::dispatch($model->id);
       } catch (Exception $e) {
-        Log::error('Error al despachar job de artículo: ' . $e->getMessage());
         $articleLog->markAsFailed("Error al despachar job de artículo: {$e->getMessage()}");
       }
     } else {
@@ -289,7 +286,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
 
       $product = $item->product;
 
-      Log::info("Verificando artículo {$product->dyn_code} para OC genérica ID {$purchaseOrder->id}");
+      Log::info("OC {$purchaseOrder->number}: PROCESAMOS EL PRIMER PRODUCTO CON DYN_CODE {$product->dyn_code}");
 
       // Crear log para este producto (usar código único por producto)
       $articleLog = $this->getOrCreateLog(
@@ -316,9 +313,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         try {
           $articleLog->markAsInProgress();
           SyncProductArticleJob::dispatch($product->id);
-          Log::info("Despachado job para sincronizar artículo producto ID {$product->id}, dyn_code: {$product->dyn_code}");
         } catch (Exception $e) {
-          Log::error("Error al despachar job de artículo producto: {$e->getMessage()}");
           $articleLog->markAsFailed("Error al despachar job de artículo producto: {$e->getMessage()}");
         }
       } else {
@@ -408,10 +403,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         ->first();
 
       if ($existingPODetail) {
-        $purchaseOrderDetailLog->updateProcesoEstado(
-          $existingPODetail->ProcesoEstado ?? 0,
-          $existingPODetail->ProcesoError ?? null
-        );
+        $purchaseOrderDetailLog->updateProcesoEstado(1);
       }
     }
   }
@@ -433,7 +425,6 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
     if ($purchaseOrderLog->proceso_estado !== 1) {
       return;
     }
-
 
     $receptionLog = $this->getOrCreateLog(
       $purchaseOrder->id,
@@ -670,10 +661,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         ->first();
 
       if ($existingPODetail) {
-        $purchaseOrderDetailLog->updateProcesoEstado(
-          $existingPODetail->ProcesoEstado ?? 0,
-          $existingPODetail->ProcesoError ?? null
-        );
+        $purchaseOrderDetailLog->updateProcesoEstado(1);
       }
     }
   }

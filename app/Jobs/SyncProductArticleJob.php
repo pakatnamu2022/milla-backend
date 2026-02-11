@@ -36,12 +36,10 @@ class SyncProductArticleJob implements ShouldQueue
       ->find($this->productId);
 
     if (!$product) {
-      Log::error("Product not found: {$this->productId}");
       return;
     }
 
     if (!$product->dyn_code) {
-      Log::error("Product {$this->productId} does not have dyn_code");
       return;
     }
 
@@ -60,16 +58,12 @@ class SyncProductArticleJob implements ShouldQueue
       $resource = new ProductArticleResource($product);
       $syncService->sync('article_product', $resource->toArray(request()), 'create');
 
-      Log::info("Article product synced successfully for product ID: {$this->productId}, dyn_code: {$product->dyn_code}");
-
       // Marcar como completado (con ProcesoEstado = 0, se actualizará después)
       foreach ($articleLogs as $log) {
         $log->updateProcesoEstado(0);
       }
 
     } catch (\Exception $e) {
-      Log::error("Failed to sync article for product {$this->productId}: {$e->getMessage()}");
-
       // Marcar logs como fallidos
       $articleLogs = VehiclePurchaseOrderMigrationLog::where('step', VehiclePurchaseOrderMigrationLog::STEP_ARTICLE)
         ->where('external_id', $product->dyn_code)
