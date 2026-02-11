@@ -51,6 +51,7 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
   {
     $allObjectives = EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
       ->where('person_id', $personId)
+      ->where('active', 1)
       ->whereNull('deleted_at');
 
     $activeObjectives = (clone $allObjectives)->where('active', true)->get();
