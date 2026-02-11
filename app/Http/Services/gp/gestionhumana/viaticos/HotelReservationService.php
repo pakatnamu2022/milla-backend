@@ -415,7 +415,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         'checkout_date' => $reservation->checkout_date->format('d/m/Y'),
         'nights_count' => $reservation->nights_count,
         'total_cost' => $reservation->total_cost,
-        'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+        'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/' . $request->id,
       ];
 
       $this->emailService->send([
