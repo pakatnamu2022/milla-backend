@@ -43,6 +43,8 @@ class EvaluationPersonResult extends BaseModel
     'boss_area',
     'boss_sede',
     'comments',
+    'hasObjectives',
+    'hierarchical_category_id',
   ];
 
   const filters = [
@@ -56,6 +58,8 @@ class EvaluationPersonResult extends BaseModel
     'objectivesResult' => '=',
     'competencesResult' => '=',
     'result' => '=',
+    'hasObjectives' => '=',
+    'hierarchical_category_id' => '=',
 
     // 👇 NUEVOS: Filtros por accessor
     'is_completed' => 'accessor_bool',
@@ -81,6 +85,11 @@ class EvaluationPersonResult extends BaseModel
     'competencesResult',
     'result',
   ];
+
+  public function hierarchicalCategory()
+  {
+    return $this->belongsTo(HierarchicalCategory::class, 'hierarchical_category_id');
+  }
 
   public function person()
   {
@@ -630,7 +639,7 @@ class EvaluationPersonResult extends BaseModel
     $completedSections = 0;
 
     // Solo contar objetivos si la persona los tiene
-    if ($this->person->position->hierarchicalCategory->hasObjectives) {
+    if ($this->hasObjectives) {
       $totalSections++;
       if ($objectivesProgress['completion_rate'] == 100) {
         $completedSections++;
@@ -672,7 +681,7 @@ class EvaluationPersonResult extends BaseModel
       'completed' => $completedObjectives,
       'total' => $totalObjectives,
       'is_completed' => $completionRate == 100,
-      'has_objectives' => (bool)$this->person->position->hierarchicalCategory->hasObjectives,
+      'has_objectives' => (bool)$this->hasObjectives,
     ];
   }
 
