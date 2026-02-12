@@ -56,4 +56,13 @@ class TelephoneAccountController extends Controller
       return response()->json(['message' => $e->getMessage()], 404);
     }
   }
+
+  public function getOperators()
+  {
+    try {
+      return $this->service->getOperators();
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

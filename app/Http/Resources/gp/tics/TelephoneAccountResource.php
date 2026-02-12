@@ -19,6 +19,7 @@ class TelephoneAccountResource extends JsonResource
       'company_id' => $this->company_id,
       'company' => $this->company->name,
       'account_number' => $this->account_number,
+      'operator' => $this->operator,
     ];
   }
 }

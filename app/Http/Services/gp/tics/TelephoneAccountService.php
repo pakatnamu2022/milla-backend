@@ -5,9 +5,11 @@ namespace App\Http\Services\gp\tics;
 use App\Http\Resources\gp\tics\TelephoneAccountResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\GeneralMaster;
 use App\Models\gp\tics\TelephoneAccount;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class TelephoneAccountService extends BaseService implements BaseServiceInterface
 {
@@ -55,4 +57,20 @@ class TelephoneAccountService extends BaseService implements BaseServiceInterfac
     $telephoneAccount->delete();
     return response()->json(['message' => 'Cuenta telefónica eliminada correctamente']);
   }
+
+  public function getOperators()
+  {
+    $operators = TelephoneAccount::select('operator')
+      ->distinct()
+      ->whereNotNull('operator')
+      ->orderBy('operator')
+      ->pluck('operator');
+
+    return response()->json([
+      'data' => $operators,
+      'count' => $operators->count(),
+      'cached_at' => now()->toDateTimeString(),
+    ]);
+  }
+
 }
