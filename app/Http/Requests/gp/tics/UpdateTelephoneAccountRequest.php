@@ -2,28 +2,16 @@
 
 namespace App\Http\Requests\gp\tics;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\StoreRequest;
 
-class UpdateTelephoneAccountRequest extends FormRequest
+class UpdateTelephoneAccountRequest extends StoreRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return true;
-    }
-
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
-    public function rules(): array
-    {
-        return [
-            'company_id' => 'sometimes|required|exists:companies,id',
-            'account_number' => 'sometimes|required|string|max:255',
-        ];
-    }
+  public function rules(): array
+  {
+    return [
+      'company_id' => 'sometimes|exists:companies,id',
+      'account_number' => 'sometimes|string|max:255',
+      'operator' => 'sometimes|string|max:255',
+    ];
+  }
 }

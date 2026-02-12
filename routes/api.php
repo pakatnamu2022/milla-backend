@@ -341,6 +341,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       //    TELEPHONE ACCOUNTS
+      Route::get('telephoneAccount/operators', [TelephoneAccountController::class, 'getOperators'])->name('telephoneAccount.operators');
       Route::apiResource('telephoneAccount', TelephoneAccountController::class)->only([
         'index',
         'show',

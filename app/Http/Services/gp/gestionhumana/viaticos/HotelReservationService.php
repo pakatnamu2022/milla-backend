@@ -401,7 +401,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
   /**
    * Send email notification when a hotel reservation is created
    */
-  private function sendHotelReservationEmail(HotelReservation $reservation): void
+  public function sendHotelReservationEmail(HotelReservation $reservation): void
   {
     try {
       $request = $reservation->request;
