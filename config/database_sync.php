@@ -442,6 +442,57 @@ return [
     ]
   ],
 
+//  ENVIAR UN PRODUCT_ARTICLE_RESOURCE A 'neInTbArticulo'
+  'article_product' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbArticulo',
+      'mapping' => [
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
+        'Articulo' => fn($data) => $data['code'],
+        'Nombre' => fn($data) => substr($data['name'], 0, 100),
+        'DescripcionBreve' => fn($data) => substr($data['description'] ?? $data['name'], 0, 100),
+        'DescripcionGenerica' => fn($data) => substr($data['description'] ?? $data['name'], 0, 200),
+        'Nota' => fn($data) => '',
+        'ClaseArticulo' => fn($data) => $data['class_dyn'] ?? '',
+        'PlanUnidadMedida' => fn($data) => 'UNIDAD',
+        'CostoEstandar' => fn($data) => $data['cost_price'] ?? 0,
+        'CostoActual' => fn($data) => $data['cost_price'] ?? 0,
+        'PesoEnvio' => 0,
+        'Seguimiento' => 1, // PARA VEHICULOS ES 2 Y PARA REPUESTOS/PRODUCTOS ES 1
+        'Sitio' => fn($data) => '',
+        'UnidadMedidaCompra' => fn($data) => $data['unit_measurement'] ?? 'UND',
+        'MetodoPrecio' => 1,
+        'UnidadMedidaVenta' => fn($data) => $data['unit_measurement'] ?? 'UND',
+        'NivelPrecio' => fn($data) => 'LISTA',
+        'GrupoPrecio' => fn($data) => 'GRUPO',
+        'CategoriaArticulo1' => fn($data) => $data['brand_dyn'] ?? '',
+        'CategoriaArticulo2' => fn($data) => $data['category'] ?? '',
+        'CategoriaArticulo3' => fn($data) => '',
+        'CategoriaArticulo4' => fn($data) => '',
+        'CategoriaArticulo5' => fn($data) => '',
+        'CategoriaArticulo6' => fn($data) => '',
+        'CodigoABC' => 1,
+        'TipoArticulo' => 1,
+        'DetraccionId' => fn($data) => '',
+        'CuentaInventario' => fn($data) => '',
+        'CuentaContrapartida' => fn($data) => '',
+        'ProcesoEstado' => 0,
+        'ProcesoError' => fn($data) => '',
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'Articulo',
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false,
+      ],
+    ]
+  ],
+
 //  Configuración para la entidad "ap_sales_receipts"
   'ap_sales_receipts' => [
     'dbtp' => [

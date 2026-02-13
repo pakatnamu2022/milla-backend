@@ -144,6 +144,7 @@ class VehiclePurchaseOrderMigrationLog extends Model
   public function markAsInProgress(): void
   {
     $this->update([
+      'proceso_estado' => 0,
       'status' => self::STATUS_IN_PROGRESS,
       'last_attempt_at' => now(),
       'attempts' => $this->attempts + 1,
@@ -196,11 +197,17 @@ class VehiclePurchaseOrderMigrationLog extends Model
     ];
 
     if ($procesoEstado === 1) {
+      // Procesado exitosamente
       $data['status'] = self::STATUS_COMPLETED;
       $data['completed_at'] = now();
       $data['error_message'] = null;
     } elseif ($errorMessage) {
+      // Error: proceso_estado = 0 pero hay mensaje de error
+      $data['status'] = self::STATUS_FAILED;
       $data['error_message'] = $errorMessage;
+    } else {
+      // Pendiente: proceso_estado = 0 y sin mensaje de error
+      $data['status'] = self::STATUS_IN_PROGRESS;
     }
 
     $this->update($data);

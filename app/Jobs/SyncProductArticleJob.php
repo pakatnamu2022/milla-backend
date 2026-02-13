@@ -2,14 +2,15 @@
 
 namespace App\Jobs;
 
-use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnResource;
+use App\Http\Resources\ap\postventa\gestionProductos\ProductArticleResource;
 use App\Http\Services\DatabaseSyncService;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
-use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
+use App\Models\ap\postventa\gestionProductos\Products;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 
-class SyncArticleJob implements ShouldQueue
+class SyncProductArticleJob implements ShouldQueue
 {
   use Queueable;
 
@@ -20,7 +21,7 @@ class SyncArticleJob implements ShouldQueue
    * Create a new job instance.
    */
   public function __construct(
-    public int $modelId
+    public int $productId
   )
   {
     $this->onQueue('purchase_orders');
@@ -31,17 +32,21 @@ class SyncArticleJob implements ShouldQueue
    */
   public function handle(DatabaseSyncService $syncService): void
   {
-    $model = ApModelsVn::find($this->modelId);
+    $product = Products::with(['brand', 'category', 'articleClass', 'unitMeasurement'])
+      ->find($this->productId);
 
-    if (!$model) {
-      // Log::error("Model not found: {$this->modelId}");
+    if (!$product) {
+      return;
+    }
+
+    if (!$product->dyn_code) {
       return;
     }
 
     try {
-      // Buscar logs relacionados con este modelo
+      // Buscar logs relacionados con este producto
       $articleLogs = VehiclePurchaseOrderMigrationLog::where('step', VehiclePurchaseOrderMigrationLog::STEP_ARTICLE)
-        ->where('external_id', $model->code)
+        ->where('external_id', $product->dyn_code)
         ->get();
 
       // Marcar como en progreso
@@ -50,21 +55,18 @@ class SyncArticleJob implements ShouldQueue
       }
 
       // Sincronizar el artículo
-      $resource = new ApModelsVnResource($model);
-      $syncService->sync('article_model', $resource->toArray(request()), 'create');
+      $resource = new ProductArticleResource($product);
+      $syncService->sync('article_product', $resource->toArray(request()), 'create');
 
       // Marcar como completado (con ProcesoEstado = 0, se actualizará después)
       foreach ($articleLogs as $log) {
         $log->updateProcesoEstado(0);
       }
 
-      // Log::info("Article synced successfully for model: {$this->modelId}");
     } catch (\Exception $e) {
-      // Log::error("Failed to sync article for model {$this->modelId}: {$e->getMessage()}");
-
       // Marcar logs como fallidos
       $articleLogs = VehiclePurchaseOrderMigrationLog::where('step', VehiclePurchaseOrderMigrationLog::STEP_ARTICLE)
-        ->where('external_id', $model->code)
+        ->where('external_id', $product->dyn_code)
         ->get();
 
       foreach ($articleLogs as $log) {
@@ -77,6 +79,6 @@ class SyncArticleJob implements ShouldQueue
 
   public function failed(\Throwable $exception): void
   {
-    // Log::error("Failed SyncArticleJob for model {$this->modelId}: {$exception->getMessage()}");
+    Log::error("Failed SyncProductArticleJob for product {$this->productId}: {$exception->getMessage()}");
   }
 }
