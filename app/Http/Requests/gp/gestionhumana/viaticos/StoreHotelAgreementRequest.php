@@ -10,6 +10,7 @@ class StoreHotelAgreementRequest extends StoreRequest
   public function rules(): array
   {
     return [
+      'ruc' => ['nullable', 'string', 'max:11'],
       'city' => ['required', 'string', 'max:255'],
       'name' => ['required', 'string', 'max:255'],
       'corporate_rate' => ['required', 'numeric', 'min:0'],
@@ -22,13 +23,14 @@ class StoreHotelAgreementRequest extends StoreRequest
       'address' => ['nullable', 'string', 'max:500'],
       'phone' => ['nullable', 'string', 'max:50'],
       'email' => ['nullable', 'email', 'max:255'],
-      'website' => ['nullable', 'url', 'max:255'],
+      'website' => ['nullable', 'string', 'max:255'],
     ];
   }
 
   public function messages(): array
   {
     return [
+      'ruc.max' => 'El RUC no debe exceder 11 caracteres.',
       'city.required' => 'La ciudad es requerida.',
       'city.max' => 'La ciudad no debe exceder 255 caracteres.',
       'name.required' => 'El nombre del hotel es requerido.',
@@ -42,7 +44,7 @@ class StoreHotelAgreementRequest extends StoreRequest
       'includes_parking.boolean' => 'El campo incluye estacionamiento debe ser verdadero o falso.',
       'contact.max' => 'El contacto no debe exceder 255 caracteres.',
       'address.max' => 'La dirección no debe exceder 500 caracteres.',
-      'website.url' => 'El sitio web debe ser una URL válida.',
+      'website.string' => 'El sitio web debe ser una cadena de texto.',
       'website.max' => 'El sitio web no debe exceder 255 caracteres.',
     ];
   }
