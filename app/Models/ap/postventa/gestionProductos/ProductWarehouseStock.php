@@ -35,7 +35,7 @@ class ProductWarehouseStock extends Model
   ];
 
   const filters = [
-    'search' => ['product.name', 'product.code'],
+    'search' => ['product.name', 'product.code', 'product.dyn_code'],
     'product_id' => '=',
     'warehouse_id' => '=',
   ];

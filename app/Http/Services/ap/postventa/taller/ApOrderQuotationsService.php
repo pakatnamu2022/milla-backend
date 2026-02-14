@@ -737,12 +737,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       $positionId = $user->person?->position?->id;
 
-      if ($positionId === Position::POSITION_JEFE_TALLER_ID) {
+      if (in_array($positionId, Position::POSITION_JEFE_PV_IDS)) {
         if ($quotation->chief_approval_by) {
           throw new Exception('Esta cotización ya fue aprobada por el Jefe de Taller.');
         }
         $quotation->update(['chief_approval_by' => $user->id]);
-      } elseif ($positionId === Position::POSITION_GERENTE_TALLER_ID) {
+      } elseif (in_array($$positionId, Position::POSITION_GERENTE_PV_IDS)) {
         if ($quotation->manager_approval_by) {
           throw new Exception('Esta cotización ya fue aprobada por el Gerente de Taller.');
         }
@@ -762,7 +762,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       return new ApOrderQuotationsResource($quotation);
     });
   }
-  
+
   public function updateDeliveryInfo(int $id, array $data)
   {
     return DB::transaction(function () use ($id, $data) {

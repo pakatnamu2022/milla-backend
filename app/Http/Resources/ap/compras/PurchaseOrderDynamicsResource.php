@@ -31,7 +31,7 @@ class PurchaseOrderDynamicsResource extends JsonResource
       'EmpresaId' => Company::AP_DYNAMICS,
       'OrdenCompraId' => $this->number,
       'ProveedorId' => $supplierNumber,
-      'FechaEmision' => $this->emission_date,
+      'FechaEmision' => $this->emission_date?->format('Y-m-d'),
       'MonedaId' => $typeCurrency,
       'TipoTasaId' => $exchangeRate->type,
       'TasaCambio' => $exchangeRate->rate,

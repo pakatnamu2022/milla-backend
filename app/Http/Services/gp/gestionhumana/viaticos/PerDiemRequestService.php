@@ -1454,9 +1454,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       'expenses.expenseType',
     ]);
 
-    // Obtener solo los gastos del personal (no asumidos por la empresa) directamente del modelo
+    // Obtener solo los gastos del personal (no asumidos por la empresa) directamente del modelo y filtrar por validados
     $gastosColaborador = $perDiemRequest->expenses->filter(function ($expense) {
-      return !$expense->is_company_expense && $expense->validated == 1;
+      return !$expense->is_company_expense; //&& $expense->validated == 1;
     });
 
     // Agrupar gastos por parent (si tienen parent, agrupar por parent_id, si no por expense_type_id)

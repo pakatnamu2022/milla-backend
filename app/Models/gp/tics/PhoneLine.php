@@ -29,6 +29,7 @@ class PhoneLine extends BaseModel
     'line_number' => 'like',
     'status' => '=',
     'is_active' => '=',
+    'telephoneAccount.company_id' => '=',
   ];
 
   const sorts = [

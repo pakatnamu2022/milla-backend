@@ -33,7 +33,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use NumberFormatter;
 use Throwable;
 
 class ElectronicDocumentService extends BaseService implements BaseServiceInterface
@@ -582,7 +581,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Validar estructura de respuesta
       if (!is_array($response)) {
-        Log::error('Respuesta de Nubefact no es un array', ['response' => $response]);
         throw new Exception('Respuesta inválida de Nubefact: formato inesperado');
       }
 
@@ -596,7 +594,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $nubefactData = $response['data'] ?? [];
 
       if (!isset($nubefactData['aceptada_por_sunat'])) {
-        Log::error('Respuesta de Nubefact sin clave aceptada_por_sunat', ['response' => $nubefactData]);
         throw new Exception('Respuesta inválida de Nubefact: falta campo aceptada_por_sunat');
       }
 

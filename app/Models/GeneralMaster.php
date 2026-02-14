@@ -36,6 +36,10 @@ class GeneralMaster extends Model
   ];
 
   const string PER_DIEM_MIN_DAYS = 'PER_DIEM_MIN_DAYS';
+  const string DISCOUNT_PERCENTAGE_PV = 'DISCOUNT_PERCENTAGE_PV';
+  const int MANAGER_DISCOUNT_PERCENTAGE_PV_ID = 2;
+  const int BOSS_DISCOUNT_PERCENTAGE_PV_ID = 3;
+  const int ADVISOR_DISCOUNT_PERCENTAGE_PV_ID = 4;
 
   public function setCodeAttribute($value)
   {
