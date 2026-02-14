@@ -29,7 +29,6 @@ class EvaluationPersonCycleDetailService extends BaseService
   {
   }
 
-
   public function list(Request $request, int $id)
   {
     return $this->getFilteredResults(
