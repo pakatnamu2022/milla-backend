@@ -32,14 +32,16 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 {
   protected EmailService $emailService;
   protected DigitalFileService $digitalFileService;
+  protected HotelReservationService $hotelReservationService;
 
   // Configuración de ruta para vouchers de depósito
   private const DEPOSIT_VOUCHER_PATH = '/gp/gestionhumana/viaticos/vouchers/';
 
-  public function __construct(DigitalFileService $digitalFileService, EmailService $emailService)
+  public function __construct(DigitalFileService $digitalFileService, EmailService $emailService, HotelReservationService $hotelReservationService)
   {
     $this->digitalFileService = $digitalFileService;
     $this->emailService = $emailService;
+    $this->hotelReservationService = $hotelReservationService;
   }
 
   /**
@@ -1452,9 +1454,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       'expenses.expenseType',
     ]);
 
-    // Obtener solo los gastos del personal (no asumidos por la empresa) directamente del modelo
+    // Obtener solo los gastos del personal (no asumidos por la empresa) directamente del modelo y filtrar por validados
     $gastosColaborador = $perDiemRequest->expenses->filter(function ($expense) {
-      return !$expense->is_company_expense && $expense->validated == 1;
+      return !$expense->is_company_expense; //&& $expense->validated == 1;
     });
 
     // Agrupar gastos por parent (si tienen parent, agrupar por parent_id, si no por expense_type_id)
@@ -2554,7 +2556,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $request = $this->find($id);
 
     // Load necessary relationships
-    $request->load(['employee.boss', 'employee.secondBoss', 'district', 'expenses.expenseType']);
+    $request->load(['employee.boss', 'employee.secondBoss', 'district', 'expenses.expenseType', 'hotelReservation']);
 
     $emailType = $data['email_type'];
     $sendToEmployee = $data['send_to_employee'] ?? false;
@@ -2668,6 +2670,21 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           if ($sendToBoss && $request->employee->secondBoss) {
             $emailCount++;
             $recipients[] = 'Segundo Jefe';
+          }
+          break;
+
+        case 'hotel_reservation':
+          // Get the hotel reservation for this request
+          $reservation = $request->hotelReservation;
+          if (!$reservation) {
+            throw new Exception('Esta solicitud no tiene una reserva de hotel asociada');
+          }
+
+          // Send hotel reservation email only to employee
+          if ($sendToEmployee && $request->employee->email2) {
+            $this->hotelReservationService->sendHotelReservationEmail($reservation);
+            $emailCount++;
+            $recipients[] = 'Empleado';
           }
           break;
 

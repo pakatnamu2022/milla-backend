@@ -122,18 +122,6 @@ return [
       'icon' => 'UserCheck',
       'policy_method' => 'assign',
     ],
-    'manage' => [
-      'label' => 'Gestionar',
-      'description' => 'Permite gestionar configuraciones avanzadas',
-      'icon' => 'Settings',
-      'policy_method' => 'manage',
-    ],
-    'receive' => [
-      'label' => 'Recepcionar',
-      'description' => 'Permite recepcionar en el sistema vehículos o activos',
-      'icon' => 'Truck',
-      'policy_method' => 'receive',
-    ],
     'bill' => [
       'label' => 'Facturar',
       'description' => 'Permite facturar cotizaciones o servicios',
@@ -145,6 +133,18 @@ return [
       'description' => 'Permite acceder a opciones de órdenes de trabajo',
       'icon' => 'Settings',
       'policy_method' => 'otOptions',
+    ],
+    'manage' => [
+      'label' => 'Gestionar',
+      'description' => 'Permite gestionar configuraciones avanzadas',
+      'icon' => 'Settings',
+      'policy_method' => 'manage',
+    ],
+    'receive' => [
+      'label' => 'Recepcionar',
+      'description' => 'Permite recepcionar en el sistema vehículos o activos',
+      'icon' => 'Truck',
+      'policy_method' => 'receive',
     ],
   ],
 

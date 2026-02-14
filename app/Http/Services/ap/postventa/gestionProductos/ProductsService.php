@@ -137,8 +137,12 @@ class ProductsService extends BaseService implements BaseServiceInterface
     try {
       $product = $this->find($data['id']);
 
+      // Si solo se está actualizando el status, permitir la actualización sin validaciones
+      $isOnlyStatusUpdate = count($data) === 2 && isset($data['id']) && isset($data['status']);
+
       // Verificar si el producto tiene una orden de compra/factura registrada
-      if ($product->hasPurchaseOrder()) {
+      // Solo aplica esta validación si NO es una actualización únicamente de status
+      if (!$isOnlyStatusUpdate && $product->hasPurchaseOrder()) {
         throw new Exception(
           'No se puede editar el producto porque tiene una factura a proveedor registrada.'
         );

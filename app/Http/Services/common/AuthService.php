@@ -52,6 +52,7 @@ class AuthService
         $user->tokens()->delete();
         throw new Exception('Credenciales Inválidas', 401);
       }
+
       return response()->json([
         'user' => UserResource::make($user),
         'permissions' => $permissionsData['permissions'],

@@ -2,6 +2,8 @@
 
 namespace App\Http\Services\ap\compras;
 
+use App\Http\Resources\ap\compras\PurchaseOrderDynamicsResource;
+use App\Http\Resources\ap\compras\PurchaseOrderItemDynamicsResource;
 use App\Http\Resources\ap\compras\PurchaseOrderResource;
 use App\Http\Services\ap\comercial\VehiclesService;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
@@ -729,16 +731,21 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       throw new Exception("Recepción ID {$receptionId} no encontrada");
     }
 
-    // 2. Vincular la recepción con la factura
+    // 2. Validamos que si la recepción ya está vinculada a otra factura, no se pueda vincular a esta nueva factura
+    if ($reception->purchase_order_id && $reception->purchase_order_id !== $purchaseOrder->id) {
+      throw new Exception("La recepción ID {$receptionId} ya está vinculada a otra orden de compra (ID {$reception->purchase_order_id}). No se puede vincular a esta orden de compra.");
+    }
+
+    // 3. Vincular la recepción con la factura
     $reception->update(['purchase_order_id' => $purchaseOrder->id]);
 
-    // 3. Procesar cada detalle de la recepción
+    // 4. Procesar cada detalle de la recepción
     foreach ($reception->details as $receptionDetail) {
       $quantityReceived = $receptionDetail->quantity_received;
       $observedQuantity = $receptionDetail->observed_quantity ?? 0;
       $totalProcessed = $quantityReceived + $observedQuantity;
 
-      // 4. Buscar el PurchaseOrderItem correspondiente a este producto
+      // 5. Buscar el PurchaseOrderItem correspondiente a este producto
       $orderItem = $purchaseOrder->items()
         ->where('product_id', $receptionDetail->product_id)
         ->first();
@@ -747,16 +754,16 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         throw new Exception("No se encontró el item de la factura para el producto ID {$receptionDetail->product_id}");
       }
 
-      // 5. Vincular el detalle de recepción con el item de la factura
+      // 6. Vincular el detalle de recepción con el item de la factura
       $receptionDetail->update(['purchase_order_item_id' => $orderItem->id]);
 
-      // 6. Actualizar cantidades en PurchaseOrderItem (solo para items ORDERED)
+      // 7. Actualizar cantidades en PurchaseOrderItem (solo para items ORDERED)
       if ($receptionDetail->reception_type === 'ORDERED') {
         $orderItem->quantity_received += $quantityReceived;
         $orderItem->quantity_pending = $orderItem->quantity - $orderItem->quantity_received;
         $orderItem->save();
 
-        // 7. Actualizar quantity_pending_credit_note si hay observaciones
+        // 8. Actualizar quantity_pending_credit_note si hay observaciones
         if ($observedQuantity > 0) {
           $stockService->addPendingCreditNote(
             $receptionDetail->product_id,
@@ -765,7 +772,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
           );
         }
 
-        // 8. Remover de in-transit (total procesado: recibido + observado)
+        // 9. Remover de in-transit (total procesado: recibido + observado)
         $stockService->removeInTransitStock(
           $receptionDetail->product_id,
           $reception->warehouse_id,
@@ -774,7 +781,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       }
     }
 
-    // 9. Crear movimiento de inventario y actualizar stock físico
+    // 10. Crear movimiento de inventario y actualizar stock físico
     $digitalFileService = new DigitalFileService();
     $inventoryMovementService = new InventoryMovementService($digitalFileService);
     try {
@@ -782,5 +789,20 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     } catch (Exception $e) {
       throw new Exception('Error al crear el movimiento de inventario y actualizar stock: ' . $e->getMessage());
     }
+  }
+
+  /**
+   * Obtiene los recursos formateados para Dynamics de una orden de compra
+   * @param int $id
+   * @return array
+   */
+  public function checkResources($id)
+  {
+    $purchaseOrder = $this->find($id);
+
+    return [
+      'header' => new PurchaseOrderDynamicsResource($purchaseOrder),
+      'detail' => new PurchaseOrderItemDynamicsResource($purchaseOrder->items),
+    ];
   }
 }

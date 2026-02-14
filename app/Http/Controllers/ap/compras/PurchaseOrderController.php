@@ -87,4 +87,22 @@ class PurchaseOrderController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Obtiene los recursos formateados para Dynamics de una orden de compra
+   */
+  public function checkResources($id)
+  {
+    try {
+      return response()->json([
+        'success' => true,
+        'data' => $this->service->checkResources($id)
+      ]);
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
+    }
+  }
 }
