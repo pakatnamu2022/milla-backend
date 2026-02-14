@@ -822,8 +822,10 @@ class EvaluationPersonCycleDetailService extends BaseService
     DB::transaction(function () use ($personCycleDetail) {
       $clone = $personCycleDetail->replicate();
 
-      // Limpiar evaluaciones asociadas antes de eliminar
-      $this->cleanupAssociatedEvaluations($personCycleDetail);
+      // Solo eliminar el EvaluationPerson específico de este detalle
+      // NO eliminar EvaluationPersonResult ni EvaluationPersonCompetenceDetail
+      // ya que la persona puede tener otros objetivos en el mismo ciclo
+      $this->cleanupSingleDetailEvaluation($personCycleDetail);
 
       $personCycleDetail->delete();
       $this->recalculateWeights($clone->id, $clone);
@@ -864,6 +866,34 @@ class EvaluationPersonCycleDetailService extends BaseService
         ->where('person_id', $detail->person_id)
         ->delete();
     }
+  }
+
+  /**
+   * Elimina solo el EvaluationPerson asociado a un detalle específico
+   * NO elimina EvaluationPersonResult ni EvaluationPersonCompetenceDetail
+   *
+   * Se usa cuando se elimina MANUALMENTE un objetivo de una persona.
+   * La persona puede tener otros objetivos en el ciclo, por lo que no se debe
+   * eliminar toda su información de evaluación.
+   *
+   * @param EvaluationPersonCycleDetail $detail
+   * @return void
+   */
+  private function cleanupSingleDetailEvaluation(EvaluationPersonCycleDetail $detail)
+  {
+    // 1. Obtener todas las evaluaciones de este ciclo
+    $evaluationIds = Evaluation::where('cycle_id', $detail->cycle_id)
+      ->pluck('id');
+
+    // 2. Eliminar SOLO el EvaluationPerson de este detalle específico
+    foreach ($evaluationIds as $evaluationId) {
+      EvaluationPerson::where('person_cycle_detail_id', $detail->id)
+        ->where('evaluation_id', $evaluationId)
+        ->delete();
+    }
+
+    // NO eliminamos EvaluationPersonResult ni EvaluationPersonCompetenceDetail
+    // porque la persona puede tener otros objetivos activos en el mismo ciclo
   }
 
   /**

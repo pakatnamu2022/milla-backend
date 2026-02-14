@@ -781,6 +781,8 @@ class EvaluationService extends BaseService
         'boss_position' => $evaluator->position->name ?? '',
         'boss_area' => $evaluator->position->area->name ?? '',
         'boss_sede' => $evaluator->sede->abreviatura ?? '',
+        'hasObjectives' => $hierarchicalCategory->hasObjectives,
+        'hierarchical_category_id' => $hierarchicalCategory->id,
       ]);
 
       // Agregar detalles de la persona agregada para el log
