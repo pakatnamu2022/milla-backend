@@ -375,7 +375,7 @@ class InventoryMovementService extends BaseService
       // Create Shipping Guide (NOT sent to Nubefact yet)
       $shippingGuide = ShippingGuides::create([
         'document_type' => $transferData['document_type'],
-        'issuer_type' => ShippingGuides::ISSUER_TYPE_AUTOMOTORES,
+        'issuer_type' => ShippingGuides::ISSUER_TYPE_SYSTEM,
         'document_number' => $documentNumber,
         'document_series_id' => $transferData['document_series_id'],
         'series' => $assignedSeries->series,
