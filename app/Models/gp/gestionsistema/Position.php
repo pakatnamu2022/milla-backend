@@ -81,6 +81,8 @@ class Position extends BaseModel
   const array ASESOR_SERVICIO_PV_IDS = [144, 145, 146];
   const array POSITION_JEFE_PV_IDS = [143];
   const array POSITION_GERENTE_PV_IDS = [142];
+  const array ZONAL_ACCOUNTING_ANALYST = [301, 302];
+  const array HEAD_ACCOUNTING = [44, 288];
 
   public function setNameAttribute($value)
   {

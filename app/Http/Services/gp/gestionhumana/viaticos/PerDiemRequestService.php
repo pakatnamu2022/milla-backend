@@ -19,6 +19,8 @@ use App\Models\gp\gestionhumana\viaticos\PerDiemPolicy;
 use App\Models\gp\gestionhumana\viaticos\PerDiemApproval;
 use App\Models\gp\gestionhumana\viaticos\MobilityPayroll;
 use App\Models\gp\gestionsistema\DigitalFile;
+use App\Models\gp\gestionsistema\Position;
+use App\Models\gp\gestionsistema\UserSede;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\UploadedFile;
@@ -674,34 +676,37 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       DB::beginTransaction();
 
       $request = $this->find($id);
-      $currentUserId = auth()->user()->person->id ?? null;
+//      $currentUserId = auth()->user()->person->id ?? null;
+//
+//      if ($request->settlement_status != PerDiemRequest::SETTLEMENT_SUBMITTED) {
+//        throw new Exception('Solo se pueden aprobar liquidaciones que han sido enviadas para revisión');
+//      }
+//
+//      if ($request->settlement_status === PerDiemRequest::SETTLEMENT_SUBMITTED) {
+//        $allowedApprovers = array_filter([$request->authorizer_id, $request->second_authorizer_id]);
+//        if (!in_array($currentUserId, $allowedApprovers)) {
+//          throw new Exception('La aprobación de la liquidación debe ser realizada por el jefe directo o el segundo jefe');
+//        }
+//
+//        $request->update([
+//          'settlement_status' => PerDiemRequest::SETTLEMENT_APPROVED,
+//        ]);
+//
+//        $approvalNote = "LIQUIDACIÓN APROBADA POR JEFE";
+//      }
+//
+//      // If there are comments, add them to notes
+//      $currentNotes = $request->notes ?? '';
+//      $newNotes = $currentNotes ? $currentNotes . "\n\n" . $approvalNote : $approvalNote;
+//
+//      if (!empty($data['comments'])) {
+//        $newNotes .= " - COMENTARIOS: " . strtoupper($data['comments']);
+//      }
+//
+//      $request->update(['notes' => $newNotes]);
 
-      if ($request->settlement_status != PerDiemRequest::SETTLEMENT_SUBMITTED) {
-        throw new Exception('Solo se pueden aprobar liquidaciones que han sido enviadas para revisión');
-      }
-
-      if ($request->settlement_status === PerDiemRequest::SETTLEMENT_SUBMITTED) {
-        $allowedApprovers = array_filter([$request->authorizer_id, $request->second_authorizer_id]);
-        if (!in_array($currentUserId, $allowedApprovers)) {
-          throw new Exception('La aprobación de la liquidación debe ser realizada por el jefe directo o el segundo jefe');
-        }
-
-        $request->update([
-          'settlement_status' => PerDiemRequest::SETTLEMENT_APPROVED,
-        ]);
-
-        $approvalNote = "LIQUIDACIÓN APROBADA POR JEFE";
-      }
-
-      // If there are comments, add them to notes
-      $currentNotes = $request->notes ?? '';
-      $newNotes = $currentNotes ? $currentNotes . "\n\n" . $approvalNote : $approvalNote;
-
-      if (!empty($data['comments'])) {
-        $newNotes .= " - COMENTARIOS: " . strtoupper($data['comments']);
-      }
-
-      $request->update(['notes' => $newNotes]);
+      // Enviar notificaciones en segundo plano a los 3 actores
+      $this->sendSettlementNotifications($request->fresh(['employee', 'company', 'sedeService', 'district', 'authorizer']));
 
       DB::commit();
       return $request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category', 'expenses']);
@@ -2701,6 +2706,221 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     } catch (Exception $e) {
       \Log::error('Error resending per diem request emails: ' . $e->getMessage());
       throw $e;
+    }
+  }
+
+  /**
+   * Enviar notificaciones de liquidación aprobada a los actores involucrados
+   * 1. Jefe que aprobó la liquidación
+   * 2. Jefes de contabilidad
+   * 3. Analistas de contabilidad zonales según la sede de servicio
+   */
+  private function sendSettlementNotifications(PerDiemRequest $request): void
+  {
+    try {
+      // 1. Enviar al jefe que aprobó la liquidación
+      $this->sendToAuthorizer($request);
+
+      // 2. Enviar a jefes de contabilidad
+      $this->sendToAccountingHeads($request);
+
+      // 3. Enviar a analistas de contabilidad zonales
+      $this->sendToAccountingAnalysts($request);
+
+    } catch (Exception $e) {
+      \Log::error('Error sending settlement notifications: ' . $e->getMessage());
+      // No lanzamos excepción para no bloquear el proceso principal
+    }
+  }
+
+  /**
+   * Enviar notificación al jefe que aprobó la liquidación
+   */
+  private function sendToAuthorizer(PerDiemRequest $request): void
+  {
+    try {
+      if (!$request->authorizer || !$request->authorizer->email2) {
+        return;
+      }
+
+      // Calcular totales de empresa y colaborador
+      $totalCompanyAmount = $request->expenses()->where('is_company_expense', 1)->sum('receipt_amount');
+      $totalEmployeeAmount = $request->expenses()->where('is_company_expense', 0)->sum('receipt_amount');
+
+      $emailConfig = [
+        'to' => $request->authorizer->email2,
+        'subject' => "Liquidación de Viáticos {$request->code} - Aprobada",
+        'template' => 'emails.per-diem-settlement-notification',
+        'data' => [
+          'recipient_name' => $request->authorizer->nombre_completo,
+          'recipient_role' => 'Jefe Aprobador',
+          'request_code' => $request->code,
+          'employee_name' => $request->employee->nombre_completo ?? 'N/A',
+          'company' => $request->company->businessName ?? 'N/A',
+          'sede_service' => $request->sedeService->abreviatura ?? 'N/A',
+          'district' => $request->district->name ?? 'N/A',
+          'start_date' => Carbon::parse($request->start_date)->format('d/m/Y'),
+          'end_date' => Carbon::parse($request->end_date)->format('d/m/Y'),
+          'days_count' => $request->days_count,
+          'total_budget' => number_format($request->total_budget, 2),
+          'total_spent' => number_format($request->total_spent ?? 0, 2),
+          'total_company_amount' => number_format($totalCompanyAmount, 2),
+          'total_employee_amount' => number_format($totalEmployeeAmount, 2),
+          'balance_to_return' => number_format($request->balance_to_return ?? 0, 2),
+          'settlement_status' => $request->settlement_status,
+          'purpose' => $request->purpose,
+          'action_required' => 'Confirmación: Ha aprobado esta liquidación',
+          'view_url' => config('app.frontend_url') . '/viaticos/solicitudes/' . $request->id,
+          'send_date' => now()->format('d/m/Y H:i'),
+          'company_name' => 'Grupo Pakatnamu',
+          'contact_info' => 'rrhh@grupopakatnamu.com'
+        ]
+      ];
+
+      $this->emailService->queue($emailConfig);
+
+    } catch (Exception $e) {
+      \Log::error("Error sending email to authorizer for request {$request->code}: " . $e->getMessage());
+    }
+  }
+
+  /**
+   * Enviar notificación a jefes de contabilidad
+   */
+  private function sendToAccountingHeads(PerDiemRequest $request): void
+  {
+    try {
+      // Calcular totales de empresa y colaborador
+      $totalCompanyAmount = $request->expenses()->where('is_company_expense', 1)->sum('receipt_amount');
+      $totalEmployeeAmount = $request->expenses()->where('is_company_expense', 0)->sum('receipt_amount');
+
+      $accountingHeads = Worker::whereIn('cargo_id', Position::HEAD_ACCOUNTING)
+        ->where('status_id', 22)
+        ->get();
+
+      foreach ($accountingHeads as $accountingHead) {
+        if (!$accountingHead->email2) {
+          continue;
+        }
+
+        $emailConfig = [
+          'to' => $accountingHead->email2,
+          'subject' => "Liquidación de Viáticos {$request->code} - Notificación",
+          'template' => 'emails.per-diem-settlement-notification',
+          'data' => [
+            'recipient_name' => $accountingHead->nombre_completo,
+            'recipient_role' => 'Jefe de Contabilidad',
+            'request_code' => $request->code,
+            'employee_name' => $request->employee->nombre_completo ?? 'N/A',
+            'company' => $request->company->razon_social ?? 'N/A',
+            'sede_service' => $request->sedeService->razon_social ?? 'N/A',
+            'district' => $request->district->name ?? 'N/A',
+            'start_date' => Carbon::parse($request->start_date)->format('d/m/Y'),
+            'end_date' => Carbon::parse($request->end_date)->format('d/m/Y'),
+            'days_count' => $request->days_count,
+            'total_budget' => number_format($request->total_budget, 2),
+            'total_spent' => number_format($request->total_spent ?? 0, 2),
+            'total_company_amount' => number_format($totalCompanyAmount, 2),
+            'total_employee_amount' => number_format($totalEmployeeAmount, 2),
+            'balance_to_return' => number_format($request->balance_to_return ?? 0, 2),
+            'settlement_status' => $request->settlement_status,
+            'purpose' => $request->purpose,
+            'action_required' => 'Revisar la liquidación de viáticos',
+            'view_url' => config('app.frontend_url') . '/viaticos/solicitudes/' . $request->id,
+            'send_date' => now()->format('d/m/Y H:i'),
+            'company_name' => 'Grupo Pakatnamu',
+            'contact_info' => 'rrhh@grupopakatnamu.com'
+          ]
+        ];
+
+        $this->emailService->queue($emailConfig);
+      }
+
+    } catch (Exception $e) {
+      \Log::error("Error sending emails to accounting heads for request {$request->code}: " . $e->getMessage());
+    }
+  }
+
+  /**
+   * Enviar notificación a analistas de contabilidad zonales
+   * Filtrados por sede de servicio usando UserSede
+   */
+  private function sendToAccountingAnalysts(PerDiemRequest $request): void
+  {
+    try {
+      if (!$request->sede_service_id) {
+        return;
+      }
+
+      // Calcular totales de empresa y colaborador
+      $totalCompanyAmount = $request->expenses()->where('is_company_expense', 1)->sum('receipt_amount');
+      $totalEmployeeAmount = $request->expenses()->where('is_company_expense', 0)->sum('receipt_amount');
+
+      // Obtener usuarios asignados a la sede del servicio
+      $userSedeRecords = UserSede::where('sede_id', $request->sede_service_id)
+        ->where('status', true)
+        ->with('user')
+        ->get();
+
+      if ($userSedeRecords->isEmpty()) {
+        return;
+      }
+
+      // Obtener partner_ids de usuarios asignados a la sede
+      $partnerIds = $userSedeRecords->map(function ($userSede) {
+        return $userSede->user ? $userSede->user->partner_id : null;
+      })->filter()->unique();
+
+      // Filtrar analistas de contabilidad que están asignados a la sede
+      $accountingAnalysts = Worker::whereIn('id', $partnerIds)
+        ->whereIn('cargo_id', Position::ZONAL_ACCOUNTING_ANALYST)
+        ->where('status_id', 22)
+        ->get();
+
+      if ($accountingAnalysts->isEmpty()) {
+        return;
+      }
+
+      foreach ($accountingAnalysts as $analyst) {
+        if (!$analyst->email2) {
+          continue;
+        }
+
+        $emailConfig = [
+          'to' => $analyst->email2,
+          'subject' => "Liquidación de Viáticos {$request->code} - Revisión",
+          'template' => 'emails.per-diem-settlement-notification',
+          'data' => [
+            'recipient_name' => $analyst->nombre_completo,
+            'recipient_role' => 'Analista de Contabilidad',
+            'request_code' => $request->code,
+            'employee_name' => $request->employee->nombre_completo ?? 'N/A',
+            'company' => $request->company->razon_social ?? 'N/A',
+            'sede_service' => $request->sedeService->razon_social ?? 'N/A',
+            'district' => $request->district->name ?? 'N/A',
+            'start_date' => Carbon::parse($request->start_date)->format('d/m/Y'),
+            'end_date' => Carbon::parse($request->end_date)->format('d/m/Y'),
+            'days_count' => $request->days_count,
+            'total_budget' => number_format($request->total_budget, 2),
+            'total_spent' => number_format($request->total_spent ?? 0, 2),
+            'total_company_amount' => number_format($totalCompanyAmount, 2),
+            'total_employee_amount' => number_format($totalEmployeeAmount, 2),
+            'balance_to_return' => number_format($request->balance_to_return ?? 0, 2),
+            'settlement_status' => $request->settlement_status,
+            'purpose' => $request->purpose,
+            'action_required' => 'Procesar la liquidación de viáticos',
+            'view_url' => config('app.frontend_url') . '/viaticos/solicitudes/' . $request->id,
+            'send_date' => now()->format('d/m/Y H:i'),
+            'company_name' => 'Grupo Pakatnamu',
+            'contact_info' => 'rrhh@grupopakatnamu.com'
+          ]
+        ];
+
+        $this->emailService->queue($emailConfig);
+      }
+
+    } catch (Exception $e) {
+      \Log::error("Error sending emails to accounting analysts for request {$request->code}: " . $e->getMessage());
     }
   }
 }
