@@ -323,11 +323,11 @@
   <table>
     <tr>
       <td class="company-left">
+      </td>
+      <td class="company-right" style="text-align: right;">
         <div>Car. Panamericana Norte Nro. 1006</div>
         <div>Chiclayo - Lambayeque</div>
         <div>Tel.:</div>
-      </td>
-      <td class="company-right">
         <div>Email: info@automotorespakatnamu.com</div>
         <div>Web: www.automotorespakatnamu.com</div>
       </td>

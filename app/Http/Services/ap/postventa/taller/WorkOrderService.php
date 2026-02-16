@@ -6,6 +6,7 @@ use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Resources\ap\postventa\taller\WorkOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -264,11 +265,16 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     return "OT-{$year}-{$month}-{$newNumber}";
   }
 
-  public function getPaymentSummary($workOrderId, $groupNumber = 1)
+  /**
+   * Calculate work order total amount
+   * This is the single source of truth for work order totals
+   *
+   * @param ApWorkOrder $workOrder
+   * @param int|null $groupNumber Optional group number filter
+   * @return array Array with breakdown: labour_cost, parts_cost, subtotal, discount_amount, tax_amount, total_amount
+   */
+  public static function calculateWorkOrderTotal(ApWorkOrder $workOrder, ?int $groupNumber = null): array
   {
-    $workOrder = ApWorkOrder::with(['labours', 'advancesWorkOrder', 'parts'])
-      ->findOrFail($workOrderId);
-
     // Filter labours by group_number if provided
     $labours = $groupNumber !== null
       ? $workOrder->labours->where('group_number', $groupNumber)
@@ -279,38 +285,48 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       ? $workOrder->parts->where('group_number', $groupNumber)
       : $workOrder->parts;
 
-    // Calculate total labour cost
+    // Calculate costs
     $totalLabourCost = $labours->sum('total_cost') ?? 0;
-
-    // Get total parts cost from order quotation total_amount
     $totalPartsCost = $parts->sum('total_amount') ?? 0;
+
+    // Calculate totals
+    $subtotal = $totalLabourCost + $totalPartsCost;
+    $discountAmount = $workOrder->discount_amount ?? 0;
+    $taxAmount = ($subtotal - $discountAmount) * (Constants::VAT_TAX / 100);
+    $totalAmount = $subtotal - $discountAmount + $taxAmount;
+
+    return [
+      'labour_cost' => (float)$totalLabourCost,
+      'parts_cost' => (float)$totalPartsCost,
+      'subtotal' => (float)$subtotal,
+      'discount_amount' => (float)$discountAmount,
+      'tax_amount' => (float)$taxAmount,
+      'total_amount' => (float)$totalAmount,
+    ];
+  }
+
+  public function getPaymentSummary($workOrderId, $groupNumber = 1)
+  {
+    $workOrder = ApWorkOrder::with(['labours', 'advancesWorkOrder', 'parts'])
+      ->findOrFail($workOrderId);
+
+    // Calculate totals using centralized method
+    $totals = self::calculateWorkOrderTotal($workOrder, $groupNumber);
 
     // Calculate total advances
     $totalAdvances = $workOrder->advancesWorkOrder->sum('total') ?? 0;
 
-    // Calculate consolidated total
-    $subtotal = $totalLabourCost + $totalPartsCost;
-    $discountAmount = $workOrder->discount_amount ?? 0;
-    $taxAmount = $workOrder->tax_amount ?? 0;
-    $totalAmount = $subtotal - $discountAmount + $taxAmount;
-
     // Calculate remaining balance (total - advances)
-    $remainingBalance = $totalAmount - $totalAdvances;
+    $remainingBalance = $totals['total_amount'] - $totalAdvances;
 
     return response()->json([
       'work_order_id' => $workOrder->id,
       'correlative' => $workOrder->correlative,
       'group_number' => $groupNumber,
-      'payment_summary' => [
-        'labour_cost' => (float)$totalLabourCost,
-        'parts_cost' => (float)$totalPartsCost,
-        'subtotal' => (float)$subtotal,
-        'discount_amount' => (float)$discountAmount,
-        'tax_amount' => (float)$taxAmount,
-        'total_amount' => (float)$totalAmount,
+      'payment_summary' => array_merge($totals, [
         'total_advances' => (float)$totalAdvances,
         'remaining_balance' => (float)$remainingBalance,
-      ]
+      ])
     ]);
   }
 
@@ -331,21 +347,12 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $client = $workOrder->vehicle->customer;
     $vehicle = $workOrder->vehicle;
 
-    // Calcular totales de mano de obra
-    $totalLabourCost = $workOrder->labours->sum('total_cost') ?? 0;
-
-    // Calcular totales de repuestos
-    $totalPartsCost = $workOrder->parts->sum('total_amount') ?? 0;
-
-    // Calcular totales generales
-    $subtotal = $totalLabourCost + $totalPartsCost;
-    $discountAmount = $workOrder->discount_amount ?? 0;
-    $taxAmount = $workOrder->tax_amount ?? 0;
-    $totalAmount = $subtotal - $discountAmount + $taxAmount;
+    // Calculate totals using centralized method
+    $totals = self::calculateWorkOrderTotal($workOrder);
 
     // Calcular anticipos y saldo
     $totalAdvances = $workOrder->advancesWorkOrder->sum('total') ?? 0;
-    $remainingBalance = $totalAmount - $totalAdvances;
+    $remainingBalance = $totals['total_amount'] - $totalAdvances;
 
     $data = [
       'workOrder' => $workOrder,
@@ -354,16 +361,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'labours' => $workOrder->labours,
       'parts' => $workOrder->parts,
       'advances' => $workOrder->advancesWorkOrder,
-      'totals' => [
-        'labour_cost' => $totalLabourCost,
-        'parts_cost' => $totalPartsCost,
-        'subtotal' => $subtotal,
-        'discount_amount' => $discountAmount,
-        'tax_amount' => $taxAmount,
-        'total_amount' => $totalAmount,
+      'totals' => array_merge($totals, [
         'total_advances' => $totalAdvances,
         'remaining_balance' => $remainingBalance,
-      ]
+      ])
     ];
 
     // Generar PDF
