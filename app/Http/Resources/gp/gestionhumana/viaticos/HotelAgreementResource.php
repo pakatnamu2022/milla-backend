@@ -16,6 +16,7 @@ class HotelAgreementResource extends JsonResource
   {
     return [
       'id' => $this->id,
+      'ruc' => $this->ruc,
       'city' => $this->city,
       'name' => $this->name,
       'corporate_rate' => $this->corporate_rate,
