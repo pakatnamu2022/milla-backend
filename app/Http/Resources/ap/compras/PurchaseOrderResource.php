@@ -62,6 +62,12 @@ class PurchaseOrderResource extends JsonResource
       'created_by' => $this->created_by,
       'created_by_name' => $this->creator->name ?? '',
 
+      // Cotización asociada
+      'quotation_id' => $this->quotation_id,
+
+      // Asesor comercial (si el movimiento de vehículo está asociado a un asesor)
+      'advisor' => $this->advisor()?->nombre_completo,
+
       // Estados
       'resent' => (bool)$this->resent,
       'status' => (bool)$this->status,

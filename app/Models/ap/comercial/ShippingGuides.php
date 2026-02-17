@@ -89,6 +89,7 @@ class ShippingGuides extends BaseModel
     'created_at',
     'updated_at',
     'area_id',
+    'send_dynamics'
   ];
 
   protected $casts = [
@@ -130,6 +131,7 @@ class ShippingGuides extends BaseModel
     'transfer_reason_id' => '=',
     'transfer_modality_id' => '=',
     'area_id' => '=',
+    'send_dynamics' => '=',
   ];
 
   const sorts = [

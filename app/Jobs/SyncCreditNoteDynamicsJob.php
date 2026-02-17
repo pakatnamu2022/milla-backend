@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\compras\CreditNoteSyncLog;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -79,44 +80,70 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
    */
   protected function processPurchaseOrder(int $purchaseOrderId): void
   {
-    $purchaseOrder = PurchaseOrder::find($purchaseOrderId);
-
-    if (!$purchaseOrder) {
-      return;
-    }
-
-    if (!$purchaseOrder->number) {
-      return;
-    }
-
-    // Si ya tiene credit_note_dynamics, no volver a procesar
-    if (!empty($purchaseOrder->credit_note_dynamics)) {
-      return;
-    }
-
+    $startTime = microtime(true); // Inicio de medición
+    $creditNoteNumber = null;
+    $errorMessage = null;
+    $status = 'error';
 
     try {
+      $purchaseOrder = PurchaseOrder::find($purchaseOrderId);
+
+      if (!$purchaseOrder) {
+        $errorMessage = "Orden de compra #{$purchaseOrderId} no encontrada";
+        throw new \Exception($errorMessage);
+      }
+
+      if (!$purchaseOrder->number) {
+        $errorMessage = "La orden de compra #{$purchaseOrderId} no tiene número asignado";
+        throw new \Exception($errorMessage);
+      }
+
+      // Si ya tiene credit_note_dynamics, no volver a procesar
+      if (!empty($purchaseOrder->credit_note_dynamics)) {
+        $status = 'success';
+        $creditNoteNumber = $purchaseOrder->credit_note_dynamics;
+        return; // Se registrará en finally
+      }
+
       // Ejecutar el Procedimiento Almacenado
       $result = $this->consultStoredProcedure($purchaseOrder->number);
 
       if ($result && !empty($result->DocumentoNumero)) {
-        $credit_note = trim($result->DocumentoNumero);
+        $creditNoteNumber = trim($result->DocumentoNumero);
 
-        // Actualizar el campo credit_note_dynamics y marcar como anulada
+        // Actualizar el campo credit_note_dynamics
         $purchaseOrder->update([
-          'credit_note_dynamics' => $credit_note,
+          'credit_note_dynamics' => $creditNoteNumber,
         ]);
 
         if ($purchaseOrder->vehicle_movement_id) {
           // Crear movimiento usando el servicio
           $movementService = new VehicleMovementService();
-          $movementService->storeReturnedVehicleMovement($purchaseOrder->id, $credit_note);
+          $movementService->storeReturnedVehicleMovement($purchaseOrder->id, $creditNoteNumber);
         }
 
-        // NOTA: El job de actualización en Dynamics se disparará cuando el usuario edite manualmente la OC
+        $status = 'success';
+      } else {
+        // No se encontró NC en Dynamics, pero no es un error
+        $status = 'success';
+        $errorMessage = 'No se encontró credit note en Dynamics';
       }
     } catch (\Exception $e) {
-      throw $e;
+      $errorMessage = $e->getMessage();
+      throw $e; // Re-lanzar para que el job se marque como fallido
+    } finally {
+      // Calcular tiempo de ejecución
+      $executionTime = (int)((microtime(true) - $startTime) * 1000); // en milisegundos
+
+      // Registrar en log
+      CreditNoteSyncLog::create([
+        'purchase_order_id' => $purchaseOrderId,
+        'attempted_at' => now(),
+        'status' => $status,
+        'credit_note_number' => $creditNoteNumber,
+        'error_message' => $errorMessage,
+        'execution_time' => $executionTime,
+      ]);
     }
   }
 
@@ -143,5 +170,22 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
 
   public function failed(\Throwable $exception): void
   {
+    // Si el job falla completamente (no se pudo ejecutar processPurchaseOrder)
+    // registrar en el log si aún no se registró
+    if ($this->purchaseOrderId) {
+      // Verificar si ya se registró en processPurchaseOrder
+      $existsLog = CreditNoteSyncLog::where('purchase_order_id', $this->purchaseOrderId)
+        ->whereDate('attempted_at', now()->toDateString())
+        ->exists();
+
+      if (!$existsLog) {
+        CreditNoteSyncLog::create([
+          'purchase_order_id' => $this->purchaseOrderId,
+          'attempted_at' => now(),
+          'status' => 'error',
+          'error_message' => $exception->getMessage(),
+        ]);
+      }
+    }
   }
 }

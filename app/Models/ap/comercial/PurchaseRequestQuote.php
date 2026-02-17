@@ -3,6 +3,7 @@
 namespace App\Models\ap\comercial;
 
 use App\Models\ap\ApMasters;
+use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -46,6 +48,7 @@ class PurchaseRequestQuote extends Model
   ];
 
   const filters = [
+    'search' => ['correlative', 'apModelsVn.code', 'holder.full_name', 'holder.num_doc', 'opportunity.worker.nombre_completo'],
     'type_document' => '=',
     'type_vehicle' => '=',
     'quote_deadline' => '=',
@@ -160,6 +163,14 @@ class PurchaseRequestQuote extends Model
   public function sede(): BelongsTo
   {
     return $this->belongsTo(Sede::class, 'sede_id');
+  }
+
+  /**
+   * Relación inversa con órdenes de compra
+   */
+  public function purchaseOrders(): HasOne
+  {
+    return $this->hasOne(PurchaseOrder::class, 'quotation_id');
   }
 
   public function activate(): void
