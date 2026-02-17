@@ -145,7 +145,7 @@ class ApOrderQuotationsController extends Controller
       return $this->error($th->getMessage());
     }
   }
-  
+
   public function updateDeliveryInfo(Request $request, $id)
   {
     try {

@@ -725,7 +725,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
    * - Jefe de Taller (143) → chief_approval_by
    * - Gerente de Taller (142) → manager_approval_by
    */
-  public function approve(int $id)
+  public function approve($id)
   {
     return DB::transaction(function () use ($id) {
       $quotation = $this->find($id);

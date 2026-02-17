@@ -194,15 +194,15 @@ class EvaluationPersonResultController extends Controller
   }
 
   /**
-   * Obtiene los líderes con el estado de evaluación para una evaluación específica
+   * Obtiene los líderes con el estado de las evaluaciones que están haciendo a su equipo
+   * @param Request $request
    * @param int $evaluationId
    * @return \Illuminate\Http\JsonResponse
    */
-  public function getLeadersEvaluationStatus(int $evaluationId)
+  public function getLeadersEvaluationStatus(Request $request, int $evaluationId)
   {
     try {
-      $data = $this->service->getLeadersWithEvaluationStatus($evaluationId);
-      return $this->success($data);
+      return $this->service->getLeadersWithEvaluationStatus($evaluationId, $request);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
