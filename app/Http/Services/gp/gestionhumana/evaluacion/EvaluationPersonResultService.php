@@ -326,7 +326,7 @@ class EvaluationPersonResultService extends BaseService
   {
     $labels = [
       'completado' => 'Completado',
-      'en_progreso' => 'En Progreso',
+      'en_proceso' => 'En Proceso',
       'sin_iniciar' => 'Sin Iniciar',
       'completed' => 'Completado',
       'in_progress' => 'En Progreso',
