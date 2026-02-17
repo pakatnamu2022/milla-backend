@@ -38,7 +38,7 @@ class Worker extends BaseModel
 
   const filters = [
     'id' => '=',
-    'search' => ['nombre_completo', 'vat'],
+    'search' => ['nombre_completo', 'vat', 'position.name'],
     'vat' => 'like',
     'sede.empresa_id' => '=',
     'nombre_completo' => 'like',
