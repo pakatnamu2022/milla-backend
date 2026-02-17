@@ -7,6 +7,7 @@ use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
@@ -712,24 +713,25 @@ class EvaluationPersonResultService extends BaseService
       // PASO 4: Regenerar competencias
       $this->regeneratePersonCompetences($evaluation, $person);
 
-      // PASO 5: Actualizar EvaluationPersonResult con información actualizada
-      $personResult = EvaluationPersonResult::where('person_id', $personId)
-        ->where('evaluation_id', $evaluationId)
-        ->first();
+      // PASO 5: Crear o actualizar EvaluationPersonResult con información actualizada
+      // Obtener el evaluador actualizado
+      $evaluator = $person->evaluator;
+      if (!$evaluator) {
+        throw new Exception('La persona ' . $person->nombre_completo . ' no tiene un evaluador asignado.');
+      }
 
-      if ($personResult) {
-        // Obtener el evaluador actualizado
-        $evaluator = $person->evaluator;
-        if (!$evaluator) {
-          throw new Exception('La persona ' . $person->nombre_completo . ' no tiene un evaluador asignado.');
-        }
+      // Obtener la categoría jerárquica
+      $hierarchicalCategory = $person->position?->hierarchicalCategory;
+      $objectivesPercentage = $hierarchicalCategory?->hasObjectives ? $evaluation->objectivesPercentage : 0;
+      $competencesPercentage = $hierarchicalCategory?->hasObjectives ? $evaluation->competencesPercentage : 100;
 
-        // Obtener la categoría jerárquica
-        $hierarchicalCategory = $person->position?->hierarchicalCategory;
-        $objectivesPercentage = $hierarchicalCategory?->hasObjectives ? $evaluation->objectivesPercentage : 0;
-        $competencesPercentage = $hierarchicalCategory?->hasObjectives ? $evaluation->competencesPercentage : 100;
-
-        $personResult->update([
+      // Usar updateOrCreate para crear si no existe o actualizar si existe
+      EvaluationPersonResult::updateOrCreate(
+        [
+          'person_id' => $personId,
+          'evaluation_id' => $evaluationId,
+        ],
+        [
           'objectivesPercentage' => $objectivesPercentage,
           'competencesPercentage' => $competencesPercentage,
           'objectivesResult' => 0,
@@ -751,17 +753,24 @@ class EvaluationPersonResultService extends BaseService
           'boss_sede' => $evaluator->sede?->abreviatura,
           'hasObjectives' => $hierarchicalCategory?->hasObjectives,
           'hierarchical_category_id' => $hierarchicalCategory?->id,
-        ]);
-      }
+        ]
+      );
 
-      // PASO 6: Reset EvaluationPersonDashboard
-      $dashboard = EvaluationPersonDashboard::where('person_id', $personId)
-        ->where('evaluation_id', $evaluationId)
-        ->first();
+      // PASO 6: Crear o resetear EvaluationPersonDashboard
+      $dashboard = EvaluationPersonDashboard::firstOrCreate(
+        [
+          'person_id' => $personId,
+          'evaluation_id' => $evaluationId,
+        ],
+        [
+          'completion_rate' => 0,
+          'is_completed' => false,
+          'progress_status' => 'sin_iniciar',
+        ]
+      );
 
-      if ($dashboard) {
-        $dashboard->resetStats();
-      }
+      // Resetear las estadísticas
+      $dashboard->resetStats();
 
       return [
         'message' => 'Evaluación del colaborador regenerada completamente desde cero',
@@ -928,6 +937,200 @@ class EvaluationPersonResultService extends BaseService
       ->where('status_deleted', 1)
       ->where('status_id', 22)
       ->get();
+  }
+
+  /**
+   * Valida y retorna un preview de qué pasará al regenerar la evaluación de una persona
+   * SIN hacer cambios reales en la base de datos
+   *
+   * @param int $personId
+   * @param int $evaluationId
+   * @return array
+   */
+  public function previewRegeneratePersonEvaluation(int $personId, int $evaluationId)
+  {
+    $evaluation = Evaluation::findOrFail($evaluationId);
+    $cycle = EvaluationCycle::findOrFail($evaluation->cycle_id);
+    $person = Worker::findOrFail($personId);
+
+    $result = [
+      'person' => [
+        'id' => $person->id,
+        'name' => $person->nombre_completo,
+        'dni' => $person->vat,
+        'position' => $person->position?->name,
+        'hierarchical_category' => $person->position?->hierarchicalCategory?->name,
+      ],
+      'validations' => [],
+      'warnings' => [],
+      'errors' => [],
+      'can_regenerate' => true,
+      'what_will_be_deleted' => [],
+      'what_will_be_created' => [],
+    ];
+
+    // VALIDACIÓN 1: Verificar que tiene categoría jerárquica
+    $hierarchicalCategory = $person->position?->hierarchicalCategory;
+    if (!$hierarchicalCategory) {
+      $result['errors'][] = 'La persona no tiene una categoría jerárquica asignada';
+      $result['can_regenerate'] = false;
+    } else {
+      $result['validations'][] = '✓ Tiene categoría jerárquica: ' . $hierarchicalCategory->name;
+    }
+
+    // VALIDACIÓN 2: Verificar que tiene evaluador
+    $evaluatorId = $person->supervisor_id ?? $person->jefe_id;
+    if (!$evaluatorId) {
+      $result['errors'][] = 'La persona no tiene un evaluador asignado (supervisor_id o jefe_id)';
+      $result['can_regenerate'] = false;
+    } else {
+      $evaluator = Worker::find($evaluatorId);
+      if (!$evaluator) {
+        $result['errors'][] = "El evaluador con ID {$evaluatorId} no existe";
+        $result['can_regenerate'] = false;
+      } else {
+        $result['validations'][] = '✓ Tiene evaluador: ' . $evaluator->nombre_completo;
+      }
+    }
+
+    // VALIDACIÓN 3: Verificar que la categoría tiene objetivos
+    if ($hierarchicalCategory) {
+      $objectives = $hierarchicalCategory->objectives()->get();
+      if ($objectives->isEmpty()) {
+        $result['errors'][] = 'La categoría jerárquica "' . $hierarchicalCategory->name . '" no tiene objetivos asignados';
+        $result['can_regenerate'] = false;
+      } else {
+        $result['validations'][] = '✓ La categoría tiene ' . $objectives->count() . ' objetivo(s)';
+
+        // VALIDACIÓN 4: Verificar que tiene EvaluationCategoryObjectiveDetail para cada objetivo
+        $objectivesWithDetails = 0;
+        $objectivesWithoutDetails = [];
+
+        foreach ($objectives as $objective) {
+          $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
+            ->whereHas('objective', function ($query) {
+              $query->where('active', 1);
+            })
+            ->where('category_id', $hierarchicalCategory->id)
+            ->where('person_id', $person->id)
+            ->where('active', 1)
+            ->whereNull('deleted_at')
+            ->first();
+
+          if ($categoryObjective) {
+            $objectivesWithDetails++;
+          } else {
+            $objectivesWithoutDetails[] = $objective->name;
+          }
+        }
+
+        if ($objectivesWithDetails > 0) {
+          $result['validations'][] = "✓ Tiene {$objectivesWithDetails} objetivo(s) con configuración personalizada (EvaluationCategoryObjectiveDetail)";
+        }
+
+        if (!empty($objectivesWithoutDetails)) {
+          $result['warnings'][] = 'Los siguientes objetivos NO tienen configuración personalizada y usarán valores por defecto: ' . implode(', ', $objectivesWithoutDetails);
+        }
+
+        // Si no tiene ningún objetivo configurado, no se puede regenerar
+        if ($objectivesWithDetails === 0 && count($objectivesWithoutDetails) === $objectives->count()) {
+          $result['errors'][] = 'Ninguno de los objetivos tiene configuración personalizada activa para esta persona';
+          $result['can_regenerate'] = false;
+        }
+      }
+    }
+
+    // VALIDACIÓN 5: Verificar que tiene competencias (si es necesario)
+    if ($hierarchicalCategory) {
+      $competences = DB::table('gh_evaluation_category_competence')
+        ->join('gh_config_competencias', 'gh_evaluation_category_competence.competence_id', '=', 'gh_config_competencias.id')
+        ->join('gh_config_subcompetencias', 'gh_config_competencias.id', '=', 'gh_config_subcompetencias.competencia_id')
+        ->join('gh_hierarchical_category_detail', 'gh_evaluation_category_competence.category_id', '=', 'gh_hierarchical_category_detail.hierarchical_category_id')
+        ->where('gh_evaluation_category_competence.person_id', $person->id)
+        ->where('gh_evaluation_category_competence.active', 1)
+        ->where('gh_hierarchical_category_detail.position_id', $person->cargo_id)
+        ->whereNull('gh_config_competencias.deleted_at')
+        ->whereNull('gh_config_subcompetencias.deleted_at')
+        ->whereNull('gh_evaluation_category_competence.deleted_at')
+        ->whereNull('gh_hierarchical_category_detail.deleted_at')
+        ->count();
+
+      if ($competences > 0) {
+        $result['validations'][] = "✓ Tiene {$competences} competencia(s) asignada(s)";
+      } else {
+        $result['warnings'][] = 'No tiene competencias asignadas. Se regenerarán solo objetivos.';
+      }
+    }
+
+    // QUÉ SE ELIMINARÁ
+    $competencesToDelete = EvaluationPersonCompetenceDetail::where('person_id', $personId)
+      ->where('evaluation_id', $evaluationId)
+      ->count();
+
+    $evaluationPersonToDelete = EvaluationPerson::where('person_id', $personId)
+      ->where('evaluation_id', $evaluationId)
+      ->count();
+
+    $personCycleDetailsToDelete = EvaluationPersonCycleDetail::where('person_id', $personId)
+      ->where('cycle_id', $cycle->id)
+      ->count();
+
+    $result['what_will_be_deleted'] = [
+      'competences' => $competencesToDelete,
+      'evaluation_persons' => $evaluationPersonToDelete,
+      'person_cycle_details' => $personCycleDetailsToDelete,
+    ];
+
+    // QUÉ SE CREARÁ (solo si puede regenerar)
+    if ($result['can_regenerate'] && $hierarchicalCategory) {
+      $objectivesToCreate = EvaluationCategoryObjectiveDetail::where('category_id', $hierarchicalCategory->id)
+        ->where('person_id', $person->id)
+        ->where('active', 1)
+        ->whereHas('objective', function ($query) {
+          $query->where('active', 1);
+        })
+        ->whereNull('deleted_at')
+        ->count();
+
+      $competencesData = $this->obtenerCompetenciasParaPersona($person);
+      $competencesToCreate = count($competencesData);
+
+      // Calcular cuántas evaluaciones de competencia se crearán
+      $competenceEvaluationsToCreate = 0;
+      $tieneJefe = $person->jefe_id !== null;
+      $tieneSubordinados = Worker::where('jefe_id', $person->id)
+        ->where('status_deleted', 1)
+        ->where('status_id', 22)
+        ->exists();
+      $partners = $this->obtenerCompanerosPorEvaluationParEvaluator($person);
+
+      foreach ($competencesData as $competenciaData) {
+        if ($evaluation->selfEvaluation && $evaluation->self_weight > 0) {
+          $competenceEvaluationsToCreate++; // Autoevaluación
+        }
+        if ($tieneJefe && $evaluation->leadership_weight > 0) {
+          $competenceEvaluationsToCreate++; // Evaluación del jefe
+        }
+        if ($evaluation->partnersEvaluation && $evaluation->par_weight > 0 && $partners->count() > 0) {
+          $competenceEvaluationsToCreate += $partners->count(); // Evaluación de compañeros
+        }
+        if ($tieneSubordinados && $evaluation->report_weight > 0) {
+          $subordinadosCount = Worker::where('jefe_id', $person->id)
+            ->where('status_deleted', 1)
+            ->where('status_id', 22)
+            ->count();
+          $competenceEvaluationsToCreate += $subordinadosCount; // Evaluación de reportes
+        }
+      }
+
+      $result['what_will_be_created'] = [
+        'person_cycle_details' => $objectivesToCreate,
+        'evaluation_persons' => $objectivesToCreate,
+        'competence_details' => $competenceEvaluationsToCreate,
+      ];
+    }
+
+    return $result;
   }
 
   /**
