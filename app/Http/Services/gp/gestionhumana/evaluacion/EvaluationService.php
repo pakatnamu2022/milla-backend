@@ -783,7 +783,24 @@ class EvaluationService extends BaseService
       return !in_array($person['person_id'], $removeIds);
     });
 
-    $personsWithProgressLost = array_filter($personsToRemoveDetails, fn($p) => isset($p['progress_lost']));
+    // Contar personas que se eliminan con progreso
+    $personsRemovedWithProgress = array_filter($personsToRemoveDetails, fn($p) => isset($p['progress_lost']));
+
+    // Contar personas que se mantienen pero tienen progreso (si reset_progress=true, perderán su progreso)
+    $personsToKeepWithProgress = array_filter($personsToKeep, function($p) use ($evaluation) {
+      // Verificar si tiene progreso actual
+      $personResult = EvaluationPersonResult::where('evaluation_id', $evaluation->id)
+        ->where('person_id', $p['person_id'])
+        ->first();
+
+      return $personResult && ($personResult->result > 0 || $personResult->is_completed);
+    });
+
+    // Calcular total de personas con progreso que se perderá
+    $totalProgressLost = count($personsRemovedWithProgress);
+    if ($resetProgress) {
+      $totalProgressLost += count($personsToKeepWithProgress);
+    }
 
     return [
       'mode' => 'sync_with_cycle',
@@ -794,16 +811,21 @@ class EvaluationService extends BaseService
         'total_will_add' => count($personsToAddDetails),
         'total_will_keep' => count($personsToKeep),
         'will_reset_progress' => $resetProgress,
-        'persons_with_progress_lost' => count($personsWithProgressLost),
+        'persons_removed_with_progress' => count($personsRemovedWithProgress),
+        'persons_kept_with_progress' => count($personsToKeepWithProgress),
+        'total_persons_losing_progress' => $totalProgressLost,
       ],
       'persons_to_remove' => $personsToRemoveDetails,
       'persons_to_add' => $personsToAddDetails,
       'warnings' => array_filter([
-        count($personsWithProgressLost) > 0
-          ? 'Se perderá el progreso de ' . count($personsWithProgressLost) . ' persona(s) que se eliminan'
+        count($personsRemovedWithProgress) > 0
+          ? 'Se perderá el progreso de ' . count($personsRemovedWithProgress) . ' persona(s) que se eliminan'
+          : null,
+        $resetProgress && count($personsToKeepWithProgress) > 0
+          ? 'Se reseteará el progreso de ' . count($personsToKeepWithProgress) . ' persona(s) que se mantienen'
           : null,
         $resetProgress
-          ? 'Se reseteará el progreso de ' . count($personsToKeep) . ' persona(s) que se mantienen'
+          ? '⚠️ TOTAL: Se perderá el progreso de ' . $totalProgressLost . ' persona(s) en total'
           : null,
       ]),
     ];
