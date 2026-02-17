@@ -52,6 +52,27 @@ class EvaluationController extends Controller
     }
   }
 
+  /**
+   * Preview de qué pasará al regenerar toda la evaluación
+   * Sin hacer cambios reales en la base de datos
+   * @param Request $request
+   * @param int $id
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function previewRegenerateEvaluation(Request $request, int $id)
+  {
+    try {
+      $params = [
+        'mode' => $request->input('mode', 'sync_with_cycle'),
+        'reset_progress' => $request->input('reset_progress', false),
+        'force' => $request->input('force', false),
+      ];
+      return $this->success($this->service->previewRegenerateEvaluation($id, $params));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function regenerateEvaluation(RegenerateEvaluationRequest $request, int $id)
   {
     try {
