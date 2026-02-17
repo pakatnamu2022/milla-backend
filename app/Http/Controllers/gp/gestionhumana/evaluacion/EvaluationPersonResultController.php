@@ -179,6 +179,22 @@ class EvaluationPersonResultController extends Controller
   }
 
   /**
+   * Preview de qué pasará al regenerar la evaluación de una persona
+   * Sin hacer cambios reales en la base de datos
+   * @param int $personId
+   * @param int $evaluationId
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function previewRegenerate(int $personId, int $evaluationId)
+  {
+    try {
+      return $this->success($this->service->previewRegeneratePersonEvaluation($personId, $evaluationId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
    * Obtiene todos los jefes asociados a una evaluación
    * @param int $evaluationId
    * @return \Illuminate\Http\JsonResponse
