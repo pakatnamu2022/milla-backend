@@ -257,7 +257,7 @@ class EvaluationNotificationController extends Controller
   {
     $validator = Validator::make($request->all(), [
       'evaluation_id' => 'required|integer|exists:gh_evaluation,id',
-      'leader_id' => 'required|integer|exists:gh_worker,id'
+      'leader_id' => 'required|integer|exists:rrhh_persona,id'
     ]);
 
     if ($validator->fails()) {
