@@ -1021,69 +1021,44 @@ class EvaluationPersonResultService extends BaseService
     // Obtener todos los líderes
     $leaders = $leadersQuery->get();
 
-    // Mapear cada líder con sus miembros de equipo
+    // Mapear cada líder con sus estadísticas de equipo
     $leadersData = $leaders->map(function ($leader) use ($evaluationId) {
-      // Obtener los miembros del equipo de este líder
-      $teamMembers = EvaluationPersonResult::with([
-        'person.position.hierarchicalCategory',
-        'person.position.area',
-        'person.sede',
-        'dashboard',
-      ])
-        ->where('evaluation_id', $evaluationId)
+      // Obtener conteos básicos del equipo
+      $totalMembers = EvaluationPersonResult::where('evaluation_id', $evaluationId)
         ->where('boss_dni', $leader->vat)
-        ->get();
+        ->count();
 
-      // Calcular estadísticas del equipo
-      $totalMembers = $teamMembers->count();
-      $completedMembers = $teamMembers->filter(fn($m) => $m->is_completed)->count();
-      $inProgressMembers = $teamMembers->filter(fn($m) => !$m->is_completed && $m->completion_percentage > 0)->count();
-      $notStartedMembers = $teamMembers->filter(fn($m) => $m->completion_percentage == 0)->count();
+      if ($totalMembers > 0) {
+        // Obtener estadísticas de completitud
+        $teamResults = EvaluationPersonResult::where('evaluation_id', $evaluationId)
+          ->where('boss_dni', $leader->vat)
+          ->get();
 
-      // Contar evaluaciones de objetivos realizadas
-      $objectivesEvaluated = EvaluationPerson::where('evaluation_id', $evaluationId)
-        ->where('chief_id', $leader->id)
-        ->where('result', '>', 0)
-        ->distinct('person_id')
-        ->count('person_id');
+        $completedMembers = $teamResults->filter(fn($m) => $m->is_completed)->count();
+        $inProgressMembers = $teamResults->filter(fn($m) => !$m->is_completed && $m->completion_percentage > 0)->count();
+        $notStartedMembers = $teamResults->filter(fn($m) => $m->completion_percentage == 0)->count();
 
-      // Contar evaluaciones de competencias realizadas
-      $competencesEvaluated = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
-        ->where('evaluator_id', $leader->id)
-        ->where('evaluatorType', 0) // Tipo jefe
-        ->where('result', '>', 0)
-        ->distinct('person_id')
-        ->count('person_id');
+        // Contar evaluaciones de objetivos realizadas
+        $objectivesEvaluated = EvaluationPerson::where('evaluation_id', $evaluationId)
+          ->where('chief_id', $leader->id)
+          ->where('result', '>', 0)
+          ->distinct('person_id')
+          ->count('person_id');
 
-      // Mapear los miembros del equipo
-      $teamMembersData = $teamMembers->map(function ($member) {
-        return [
-          'id' => $member->id,
-          'person_id' => $member->person_id,
-          'name' => $member->name,
-          'dni' => $member->dni,
-          'position' => $member->position,
-          'area' => $member->area,
-          'sede' => $member->sede,
-          'hierarchical_category' => $member->hierarchical_category,
-          'evaluation_results' => [
-            'objectives_result' => round($member->objectivesResult ?? 0, 2),
-            'competences_result' => round($member->competencesResult ?? 0, 2),
-            'final_result' => round($member->result ?? 0, 2),
-            'objectives_percentage' => $member->objectivesPercentage,
-            'competences_percentage' => $member->competencesPercentage,
-          ],
-          'evaluation_progress' => [
-            'is_completed' => $member->is_completed,
-            'completion_percentage' => round($member->completion_percentage, 2),
-            'progress_status' => $member->progress_status,
-            'progress_status_label' => $this->getStatusLabel($member->progress_status),
-          ],
-          'has_objectives' => $member->hasObjectives,
-          'comments' => $member->comments,
-          'last_updated' => $member->updated_at,
-        ];
-      })->values();
+        // Contar evaluaciones de competencias realizadas
+        $competencesEvaluated = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
+          ->where('evaluator_id', $leader->id)
+          ->where('evaluatorType', 0) // Tipo jefe
+          ->where('result', '>', 0)
+          ->distinct('person_id')
+          ->count('person_id');
+      } else {
+        $completedMembers = 0;
+        $inProgressMembers = 0;
+        $notStartedMembers = 0;
+        $objectivesEvaluated = 0;
+        $competencesEvaluated = 0;
+      }
 
       return [
         'person_id' => $leader->id,
@@ -1103,12 +1078,124 @@ class EvaluationPersonResultService extends BaseService
           'completion_percentage' => $totalMembers > 0 ? round(($completedMembers / $totalMembers) * 100, 2) : 0,
           'evaluation_progress_percentage' => $totalMembers > 0 ? round(($objectivesEvaluated / $totalMembers) * 100, 2) : 0,
         ],
-        'team_members' => $teamMembersData, // Lista de miembros del equipo
-        'team_members_count' => $totalMembers,
       ];
     });
 
     // Usar paginateCollection para paginar los resultados transformados
     return $this->paginateCollection($leadersData, $request);
+  }
+
+  /**
+   * Obtiene los miembros del equipo de un líder específico
+   * Retorna la lista detallada de colaboradores de un jefe/líder
+   *
+   * @param int $evaluationId
+   * @param int $leaderId
+   * @param Request $request
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function getLeaderTeamMembers(int $evaluationId, int $leaderId, Request $request)
+  {
+    // Validar que existe la evaluación
+    $evaluation = Evaluation::findOrFail($evaluationId);
+
+    // Validar que existe el líder
+    $leader = Worker::findOrFail($leaderId);
+
+    // Obtener los miembros del equipo de este líder
+    $teamMembersQuery = EvaluationPersonResult::query()
+      ->with([
+        'person.position.hierarchicalCategory',
+        'person.position.area',
+        'person.sede',
+        'dashboard',
+      ])
+      ->where('evaluation_id', $evaluationId)
+      ->where('boss_dni', $leader->vat);
+
+    // Filtros disponibles
+    $filters = [
+      'search' => ['name', 'dni'], // Buscar por nombre o DNI del colaborador
+      'person_id' => '=',
+      'hierarchical_category' => 'like',
+      'area' => 'like',
+      'sede' => 'like',
+      'is_completed' => 'accessor_bool', // Filtrar por completados
+      'progress_status' => 'accessor_string', // Filtrar por estado
+    ];
+
+    $sorts = [
+      'name',
+      'dni',
+      'result',
+      'objectivesResult',
+      'competencesResult',
+    ];
+
+    // Aplicar filtros y ordenamiento
+    $teamMembersQuery = $this->applyFilters($teamMembersQuery, $request, $filters);
+
+    // Verificar si hay filtros de accessor
+    $hasAccessorFilters = $request->has('is_completed') || $request->has('progress_status');
+
+    if (!$hasAccessorFilters) {
+      $teamMembersQuery = $this->applySorting($teamMembersQuery, $request, $sorts);
+      // Obtener resultados con paginación SQL
+      $teamMembers = $teamMembersQuery->get();
+    } else {
+      // Si hay filtros de accessor, obtener todo y filtrar en memoria
+      $teamMembers = $teamMembersQuery->get();
+      $teamMembers = $this->applyAccessorFilters($teamMembers, $request, $filters);
+    }
+
+    // Mapear los miembros del equipo
+    $teamMembersData = $teamMembers->map(function ($member) {
+      return [
+        'id' => $member->id,
+        'person_id' => $member->person_id,
+        'name' => $member->name,
+        'dni' => $member->dni,
+        'position' => $member->position,
+        'area' => $member->area,
+        'sede' => $member->sede,
+        'hierarchical_category' => $member->hierarchical_category,
+        'evaluation_results' => [
+          'objectives_result' => round($member->objectivesResult ?? 0, 2),
+          'competences_result' => round($member->competencesResult ?? 0, 2),
+          'final_result' => round($member->result ?? 0, 2),
+          'objectives_percentage' => $member->objectivesPercentage,
+          'competences_percentage' => $member->competencesPercentage,
+        ],
+        'evaluation_progress' => [
+          'is_completed' => $member->is_completed,
+          'completion_percentage' => round($member->completion_percentage, 2),
+          'progress_status' => $member->progress_status,
+          'progress_status_label' => $this->getStatusLabel($member->progress_status),
+        ],
+        'has_objectives' => $member->hasObjectives,
+        'comments' => $member->comments,
+        'last_updated' => $member->updated_at,
+      ];
+    });
+
+    // Información del líder
+    $leaderInfo = [
+      'person_id' => $leader->id,
+      'name' => $leader->nombre_completo,
+      'dni' => $leader->vat,
+      'position' => $leader->position?->name,
+      'area' => $leader->position?->area?->name,
+      'sede' => $leader->sede?->abreviatura,
+      'hierarchical_category' => $leader->position?->hierarchicalCategory?->name,
+    ];
+
+    // Usar paginateCollection para paginar los resultados
+    $paginatedResponse = $this->paginateCollection($teamMembersData, $request);
+
+    // Decodificar la respuesta para agregar información del líder
+    $responseData = json_decode($paginatedResponse->getContent(), true);
+    $responseData['leader'] = $leaderInfo;
+
+    return response()->json($responseData);
   }
 }

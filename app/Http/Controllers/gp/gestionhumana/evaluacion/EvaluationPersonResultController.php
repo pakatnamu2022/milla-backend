@@ -207,4 +207,20 @@ class EvaluationPersonResultController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Obtiene los miembros del equipo de un líder específico
+   * @param Request $request
+   * @param int $evaluationId
+   * @param int $leaderId
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function getLeaderTeamMembers(Request $request, int $evaluationId, int $leaderId)
+  {
+    try {
+      return $this->service->getLeaderTeamMembers($evaluationId, $leaderId, $request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

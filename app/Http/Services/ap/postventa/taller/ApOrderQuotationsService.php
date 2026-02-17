@@ -742,7 +742,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           throw new Exception('Esta cotización ya fue aprobada por el Jefe de Taller.');
         }
         $quotation->update(['chief_approval_by' => $user->id]);
-      } elseif (in_array($$positionId, Position::POSITION_GERENTE_PV_IDS)) {
+      } elseif (in_array($positionId, Position::POSITION_GERENTE_PV_IDS)) {
         if ($quotation->manager_approval_by) {
           throw new Exception('Esta cotización ya fue aprobada por el Gerente de Taller.');
         }

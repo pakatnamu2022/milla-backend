@@ -10,6 +10,7 @@ use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationWithProductsRequest;
 use App\Http\Requests\ap\postventa\taller\DiscardApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\ConfirmApOrderQuotationsRequest;
+use App\Http\Requests\ap\postventa\taller\ApproveApOrderQuotationsRequest;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsService;
 use Illuminate\Http\Request;
 
@@ -137,7 +138,10 @@ class ApOrderQuotationsController extends Controller
     }
   }
 
-  public function approve($id)
+  /**
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function approve(ApproveApOrderQuotationsRequest $request, $id)
   {
     try {
       return $this->success($this->service->approve($id));
