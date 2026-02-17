@@ -105,10 +105,15 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   {
     return DB::transaction(function () use ($data) {
       $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
+      $vehicle = Vehicles::find($data['vehicle_id']);
 
       $exchangeRate = ExchangeRate::where('date', $date)->first();
       if (!$exchangeRate) {
         throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      }
+
+      if ($vehicle->customer_id === null) {
+        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
       }
 
       if (auth()->check()) {

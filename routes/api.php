@@ -50,6 +50,7 @@ use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationDetailsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationsController;
+use App\Http\Controllers\ap\postventa\taller\DiscountRequestsOrderQuotationController;
 use App\Http\Controllers\ap\postventa\taller\ApSupplierOrderController;
 use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
 use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
@@ -1248,6 +1249,16 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Order Quotation Details - Detalles de Cotización (Productos y Mano de Obra)
       Route::apiResource('orderQuotationDetails', ApOrderQuotationDetailsController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Discount Requests Order Quotation - Solicitudes de Descuento de Cotizaciones
+      Route::put('discountRequestsOrderQuotation/{id}/approve', [DiscountRequestsOrderQuotationController::class, 'approve']);
+      Route::apiResource('discountRequestsOrderQuotation', DiscountRequestsOrderQuotationController::class)->only([
         'index',
         'show',
         'store',

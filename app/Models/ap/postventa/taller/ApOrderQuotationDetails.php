@@ -49,6 +49,9 @@ class ApOrderQuotationDetails extends Model
     'created_at',
   ];
 
+  const ITEM_TYPE_PRODUCT = 'PRODUCT';
+  const ITEM_TYPE_LABOR = 'LABOR';
+
   public function setDescriptionAttribute($value): void
   {
     if ($value) {
