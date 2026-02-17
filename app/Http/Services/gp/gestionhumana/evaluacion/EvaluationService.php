@@ -1225,6 +1225,7 @@ class EvaluationService extends BaseService
 
   /**
    * Obtener personas del ciclo según categorías jerárquicas
+   * IMPORTANTE: Aplica las mismas validaciones que createPersonResultsForSpecific
    */
   private function getPersonsFromCycle($cycleId)
   {
@@ -1239,7 +1240,14 @@ class EvaluationService extends BaseService
       ->whereNull('eccd.deleted_at')
       ->where('p.status_deleted', 1)
       ->where('p.b_empleado', 1)
-      ->where('p.status_id', 22);
+      ->where('p.status_id', 22)
+      // CRÍTICO: Validar fecha de inicio <= fecha de corte (igual que en createPersonResultsForSpecific)
+      ->where('p.fecha_inicio', '<=', $cycle->cut_off_date)
+      // CRÍTICO: Debe tener evaluador asignado (igual que en createPersonResultsForSpecific)
+      ->where(function($q) {
+        $q->whereNotNull('p.supervisor_id')
+          ->orWhereNotNull('p.jefe_id');
+      });
 
     if ($cycle->typeEvaluation == 0) {
       // Solo categorías con objetivos

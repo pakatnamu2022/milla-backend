@@ -59,7 +59,7 @@ class EvaluationController extends Controller
    * @param int $id
    * @return \Illuminate\Http\JsonResponse
    */
-  public function previewRegenerateEvaluation(Request $request, int $id)
+  public function previewRegenerateEvaluation(Request $request, $id)
   {
     try {
       $params = [
@@ -67,7 +67,7 @@ class EvaluationController extends Controller
         'reset_progress' => $request->input('reset_progress', false),
         'force' => $request->input('force', false),
       ];
-      return $this->success($this->service->previewRegenerateEvaluation($id, $params));
+      return $this->success($this->service->previewRegenerateEvaluation((int)$id, $params));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
