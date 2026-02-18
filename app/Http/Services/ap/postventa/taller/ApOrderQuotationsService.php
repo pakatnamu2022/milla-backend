@@ -10,6 +10,7 @@ use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\gp\maestroGeneral\Sede;
 use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -78,7 +79,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $data['created_by'] = auth()->user()->id;
       }
 
-      $data['quotation_number'] = $this->generateNextQuotationNumber();
+      $data['quotation_number'] = $this->generateNextQuotationNumber($data['sede_id']);
       $data['subtotal'] = 0;
       $data['discount_amount'] = 0;
       $data['tax_amount'] = Constants::VAT_TAX;
@@ -155,7 +156,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'expiration_date' => $data['expiration_date'],
         'observations' => $data['observations'] ?? null,
         'created_by' => $data['created_by'],
-        'quotation_number' => $this->generateNextQuotationNumber(),
+        'quotation_number' => $this->generateNextQuotationNumber($data['sede_id']),
         'subtotal' => $subtotal,
         'discount_percentage' => $discount_percentage,
         'discount_amount' => $discount_amount,
@@ -415,17 +416,25 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   }
 
   /**
-   * Genera el siguiente número de cotización en formato COT-YYYY-MM-XXXX
+   * Genera el siguiente número de cotización en formato COT-{dyn_code}-{YYYYMM}{XXXX}
    *
+   * @param int $sedeId
    * @return string
    */
-  public function generateNextQuotationNumber(): string
+  public function generateNextQuotationNumber(int $sedeId): string
   {
+    $sede = Sede::find($sedeId);
+    if (!$sede) {
+      throw new Exception('Sede no encontrada');
+    }
+
+    $dynCode = $sede->dyn_code;
     $year = date('Y');
     $month = date('m');
+    $prefix = "COT-{$dynCode}-{$year}{$month}";
 
     $lastQuotation = ApOrderQuotations::withTrashed()
-      ->where('quotation_number', 'like', "COT-{$year}-{$month}-%")
+      ->where('quotation_number', 'like', "{$prefix}%")
       ->orderBy('quotation_number', 'desc')
       ->first();
 
@@ -436,7 +445,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $newNumber = '0001';
     }
 
-    return "COT-{$year}-{$month}-{$newNumber}";
+    return "{$prefix}{$newNumber}";
   }
 
   public function generateQuotationPDF($id)
@@ -655,6 +664,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $data['subtotal'] = $quotation->subtotal;
     $data['tax_amount'] = $quotation->tax_amount;
     $data['total_amount'] = $quotation->total_amount;
+    $data['area'] = $quotation->area ? $quotation->area->description : 'N/A';
 
     // Calcular pagos realizados (anticipos no anulados)
     $totalPagado = $quotation->advancesOrderQuotation
