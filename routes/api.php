@@ -1021,6 +1021,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Resend purchase order with credit note (creates new OC with point)
       Route::post('vehiclePurchaseOrder/{id}/resend', [PurchaseOrderController::class, 'resend']);
       Route::get('vehiclePurchaseOrder/{id}/check-resources', [PurchaseOrderController::class, 'checkResources']);
+      Route::get('vehiclePurchaseOrder/{id}/dispatchSyncCreditNoteJob', [PurchaseOrderController::class, 'dispatchSyncCreditNoteJob']);
 
       // Vehicle Purchase Order Migration Monitoring
       Route::group(['prefix' => 'vehiclePurchaseOrder/migration'], function () {

@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use App\Console\Commands\Concerns\ValidatesPendingJobs;
 use App\Jobs\SyncCreditNoteDynamicsJob;
 use App\Models\ap\compras\PurchaseOrder;
-use App\Models\ap\compras\CreditNoteSyncLog;
 use Illuminate\Console\Command;
 
 class SyncCreditNoteDynamicsCommand extends Command
