@@ -828,7 +828,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
    * @return string[]
    * @throws Exception
    */
-  public function dispatchInvoiceJob($id): array
+  public function dispatchSyncInvoiceJob($id): array
   {
     $purchaseOrder = $this->find($id);
     SyncInvoiceDynamicsJob::dispatchSync($purchaseOrder->id);

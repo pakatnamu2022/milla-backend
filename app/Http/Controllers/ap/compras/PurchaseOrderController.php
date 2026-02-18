@@ -127,10 +127,10 @@ class PurchaseOrderController extends Controller
    * @param $id
    * @return \Illuminate\Http\JsonResponse
    */
-  public function dispatchInvoiceJob($id)
+  public function dispatchSyncInvoiceJob($id)
   {
     try {
-      return $this->success($this->service->dispatchInvoiceJob($id));
+      return $this->success($this->service->dispatchSyncInvoiceJob($id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
