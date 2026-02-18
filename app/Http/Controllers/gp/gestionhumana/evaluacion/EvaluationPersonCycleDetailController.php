@@ -74,4 +74,27 @@ class EvaluationPersonCycleDetailController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Vista previa de los pesos de evaluación para un ciclo específico.
+   * @param int $cycle
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function previewWeights(int $cycle)
+  {
+    try {
+      return $this->success($this->service->previewWeightsByCycle($cycle));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function regenerateWeights(int $cycle)
+  {
+    try {
+      return $this->success($this->service->regenerateWeightsByCycle($cycle));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

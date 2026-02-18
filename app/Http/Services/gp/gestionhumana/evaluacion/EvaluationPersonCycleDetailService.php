@@ -796,17 +796,28 @@ class EvaluationPersonCycleDetailService extends BaseService
       ->where('category_id', $personCycleDetail->category_id)
       ->get();
 
-    $fixedObjectives = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === true);
-    $nonFixedObjectives = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === false);
+    $fixedObjectives    = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === true);
+    $nonFixedObjectives = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === false)->values();
 
     $usedWeight = $fixedObjectives->sum('weight');
-    $remaining = max(0, 100 - $usedWeight); // evitar negativos
-    $count = $nonFixedObjectives->count();
-    $weight = $count > 0 ? round($remaining / $count, 2) : 0;
+    $remaining  = max(0, 100 - $usedWeight);
+    $count      = $nonFixedObjectives->count();
 
-    foreach ($nonFixedObjectives as $objective) {
+    // Cada objetivo activo debe tener peso >= 1
+    $baseWeight = $count > 0 ? max(1.0, round($remaining / $count, 2)) : 0;
+
+    // Calcular la diferencia de redondeo (ej: 33.33 × 3 = 99.99 → diff = 0.01)
+    $distributed = round($baseWeight * $count, 2);
+    $diff        = round($remaining - $distributed, 2);
+
+    foreach ($nonFixedObjectives as $index => $objective) {
+      // El último objetivo absorbe la diferencia de redondeo para sumar exactamente 100
+      $objectiveWeight = ($index === $count - 1 && $diff != 0)
+        ? max(1.0, round($baseWeight + $diff, 2))
+        : $baseWeight;
+
       $objective->update([
-        'weight' => $weight,
+        'weight'      => $objectiveWeight,
         'fixedWeight' => false,
       ]);
     }
@@ -932,6 +943,159 @@ class EvaluationPersonCycleDetailService extends BaseService
         ->where('person_id', $personId)
         ->delete();
     }
+  }
+
+  /**
+   * Devuelve una vista previa del estado de pesos por persona en un ciclo,
+   * sin realizar ninguna modificación.
+   * Agrupa en: needs_update (suma != 100) y ok (suma == 100).
+   *
+   * @param int $cycleId
+   * @return array
+   * @throws Exception
+   */
+  public function previewWeightsByCycle(int $cycleId): array
+  {
+    $cycle = EvaluationCycle::find($cycleId);
+    if (!$cycle) {
+      throw new Exception('Ciclo no encontrado');
+    }
+
+    $personGroups = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+      ->whereNull('deleted_at')
+      ->select('person_id', 'category_id')
+      ->distinct()
+      ->get();
+
+    $needsUpdate = [];
+
+    foreach ($personGroups as $group) {
+      $objectives = EvaluationPersonCycleDetail::where('person_id', $group->person_id)
+        ->where('cycle_id', $cycleId)
+        ->where('category_id', $group->category_id)
+        ->whereNull('deleted_at')
+        ->get(['id', 'person_id', 'person', 'category_id', 'category', 'objective_id', 'objective', 'weight', 'fixedWeight']);
+
+      if ($objectives->isEmpty()) {
+        continue;
+      }
+
+      $totalWeight   = round($objectives->sum('weight'), 2);
+      $hasLowWeight  = $objectives->contains(fn($o) => $o->weight < 1);
+
+      if ($totalWeight == 100.00 && !$hasLowWeight) {
+        continue;
+      }
+
+      $reasons = [];
+      if ($totalWeight != 100.00)  $reasons[] = "suma_incorrecta ({$totalWeight})";
+      if ($hasLowWeight)           $reasons[] = 'peso_menor_a_1';
+
+      $first = $objectives->first();
+
+      $needsUpdate[] = [
+        'person_id'    => $first->person_id,
+        'person'       => $first->person,
+        'category_id'  => $first->category_id,
+        'category'     => $first->category,
+        'total_weight' => $totalWeight,
+        'reasons'      => $reasons,
+        'objectives'   => $objectives->map(fn($o) => [
+          'id'          => $o->id,
+          'objective'   => $o->objective,
+          'weight'      => $o->weight,
+          'fixedWeight' => (bool) $o->fixedWeight,
+        ])->values(),
+      ];
+    }
+
+    return [
+      'cycle_id'           => $cycleId,
+      'needs_update_count' => count($needsUpdate),
+      'needs_update'       => $needsUpdate,
+    ];
+  }
+
+  /**
+   * Regenera los pesos de personas en un ciclo cuya suma no es 100.
+   * Omite a quienes ya tienen sus pesos correctamente asignados (suma = 100).
+   * Para cada grupo persona+categoría que no sume 100, redistribuye los pesos
+   * respetando los objetivos con fixedWeight y distribuyendo el resto equitativamente.
+   *
+   * @param int $cycleId
+   * @return array
+   * @throws Exception
+   */
+  public function regenerateWeightsByCycle(int $cycleId): array
+  {
+    $cycle = EvaluationCycle::find($cycleId);
+    if (!$cycle) {
+      throw new Exception('Ciclo no encontrado');
+    }
+
+    $personGroups = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+      ->whereNull('deleted_at')
+      ->select('person_id', 'category_id')
+      ->distinct()
+      ->get();
+
+    $updated = [];
+    $skipped = [];
+
+    foreach ($personGroups as $group) {
+      $objectives = EvaluationPersonCycleDetail::where('person_id', $group->person_id)
+        ->where('cycle_id', $cycleId)
+        ->where('category_id', $group->category_id)
+        ->whereNull('deleted_at')
+        ->get();
+
+      if ($objectives->isEmpty()) {
+        continue;
+      }
+
+      $totalWeight  = round($objectives->sum('weight'), 2);
+      $hasLowWeight = $objectives->contains(fn($o) => $o->weight < 1);
+      $personName   = $objectives->first()->person;
+      $categoryName = $objectives->first()->category;
+
+      if ($totalWeight == 100.00 && !$hasLowWeight) {
+        $skipped[] = [
+          'person_id'    => $group->person_id,
+          'person'       => $personName,
+          'category'     => $categoryName,
+          'total_weight' => $totalWeight,
+        ];
+        continue;
+      }
+
+      // Redistribuir pesos: respeta fixedWeight, distribuye el resto equitativamente
+      $this->recalculateWeights($objectives->first()->id);
+
+      $newTotal = round(
+        EvaluationPersonCycleDetail::where('person_id', $group->person_id)
+          ->where('cycle_id', $cycleId)
+          ->where('category_id', $group->category_id)
+          ->whereNull('deleted_at')
+          ->sum('weight'),
+        2
+      );
+
+      $updated[] = [
+        'person_id'             => $group->person_id,
+        'person'                => $personName,
+        'category'              => $categoryName,
+        'previous_total_weight' => $totalWeight,
+        'new_total_weight'      => $newTotal,
+      ];
+    }
+
+    return [
+      'cycle_id'      => $cycleId,
+      'updated_count' => count($updated),
+      'skipped_count' => count($skipped),
+      'updated'       => $updated,
+      'skipped'       => $skipped,
+    ];
   }
 
   /**
