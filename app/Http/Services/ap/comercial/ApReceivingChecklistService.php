@@ -6,6 +6,7 @@ use App\Http\Resources\ap\comercial\ApReceivingChecklistResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\EmailService;
+use App\Http\Utils\Constants;
 use App\Jobs\SyncShippingGuideJob;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\comercial\ApReceivingChecklist;
@@ -274,6 +275,7 @@ class ApReceivingChecklistService extends BaseService
    * @param ShippingGuides $shippingGuide
    * @param mixed $receivedItems
    * @return void
+   * @throws Exception
    */
   private function sendReceptionEmail(ShippingGuides $shippingGuide, mixed $receivedItems): void
   {
@@ -301,19 +303,18 @@ class ApReceivingChecklistService extends BaseService
       })->toArray();
 
       $coordinator = $vehicle->purchaseOrder->vehicleMovement->createdByUser->person->email2 ?? $vehicle->purchaseOrder->vehicleMovement->createdByUser->person->email1 ?? null;
-      $consultant = $vehicle->purchaseRequestQuote?->opportunity->worker->email2 ?? $vehicle->purchaseRequestQuote?->opportunity->worker->email1 ?? null;
+      $consultant = $vehicle->purchaseOrder->advisor()?->email2 ?? $vehicle->purchaseOrder->advisor()?->email1 ?? null;
 
-//      $emailsTo = [$coordinator, $consultant];
-      $emailsTo = ['hvaldiviezos@automotorespakatnamu.com'];
-      $emailsCC = ['wsuclupef@automotorespakatnamu.com', 'dordinolac@grupopakatnamu.com', 'hvaldiviezos@automotorespakatnamu.com', 'kquesquenm@automotorespakatnamu.com'];
+      $emailsTo = [$coordinator, $consultant];
+      $emailsCC = Constants::AP_TICS_MAIL;
 
       $emailService->queue([
         'to' => array_filter($emailsTo),
-//        'cc' => $emailsCC,
+        'cc' => $emailsCC,
         'subject' => 'Notificación de Recepción de Vehículo - ' . ($vehicle->vin ?? 'VIN no disponible'),
         'template' => 'emails.vehicle-reception',
         'data' => [
-          'advisor_name' => 'Wilmer Yoel Suclupe Farroñan', // TODO: Obtener del asesor real
+          'advisor_name' => $consultant->nombre_completo ?? 'N/A',
           'vehicle_vin' => $vehicle->vin ?? 'N/A',
           'vehicle_model' => $vehicle->model->version ?? 'N/A',
           'vehicle_brand' => $vehicle->model->family->brand->name ?? 'N/A',
@@ -329,6 +330,10 @@ class ApReceivingChecklistService extends BaseService
         ]
       ]);
     } catch (Exception $e) {
+      Log::error('Error al preparar o enviar correo de recepción de vehículo', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'error' => $e->getMessage(),
+      ]);
       throw $e;
     }
   }

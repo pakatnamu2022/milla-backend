@@ -9,6 +9,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
 use App\Jobs\UpdateEvaluationDashboards;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationDashboard;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationModel;
@@ -481,6 +482,376 @@ class EvaluationService extends BaseService
     return (new EvaluationResource($this->find($id)))->showExtra($show_extra);
   }
 
+  /**
+   * Preview de qué pasará al regenerar toda la evaluación
+   * SIN hacer cambios reales en la base de datos
+   *
+   * @param int $evaluationId
+   * @param array $params
+   * @return array
+   */
+  public function previewRegenerateEvaluation($evaluationId, array $params = [])
+  {
+    $evaluation = $this->find($evaluationId);
+    $cycle = EvaluationCycle::findOrFail($evaluation->cycle_id);
+
+    // Parámetros por defecto
+    $mode = $params['mode'] ?? 'sync_with_cycle';
+    $resetProgress = $params['reset_progress'] ?? false;
+    $force = $params['force'] ?? false;
+
+    // Verificar si hay cambios en las personas del ciclo
+    $cycleChanges = $this->checkCycleChanges($evaluation);
+    $needsRegeneration = $force || $cycleChanges;
+
+    // Personas actualmente en la evaluación
+    $currentPersons = EvaluationPersonResult::where('evaluation_id', $evaluation->id)
+      ->pluck('person_id')
+      ->toArray();
+
+    // Personas que deberían estar según el ciclo actual
+    $expectedPersons = $this->getPersonsFromCycle($evaluation->cycle_id);
+
+    // Calcular diferencias
+    $personsToAdd = array_diff($expectedPersons, $currentPersons);
+    $personsToRemove = array_diff($currentPersons, $expectedPersons);
+
+    // Obtener información COMPLETA y DETALLADA de las personas
+    $currentPersonsDetails = $this->getDetailedPersonsInfo($currentPersons, $evaluation, $cycle, 'current');
+    $personsToAddDetails = $this->getDetailedPersonsInfo($personsToAdd, $evaluation, $cycle, 'to_add');
+    $personsToRemoveDetails = $this->getDetailedPersonsInfo($personsToRemove, $evaluation, $cycle, 'to_remove');
+
+    // Contar registros actuales
+    $currentStats = [
+      'person_results' => EvaluationPersonResult::where('evaluation_id', $evaluation->id)->count(),
+      'competence_details' => EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluation->id)->count(),
+      'evaluation_persons' => EvaluationPerson::where('evaluation_id', $evaluation->id)->count(),
+      'dashboards' => EvaluationPersonDashboard::where('evaluation_id', $evaluation->id)->count(),
+    ];
+
+    $result = [
+      'evaluation' => [
+        'id' => $evaluation->id,
+        'name' => $evaluation->name,
+        'cycle_id' => $evaluation->cycle_id,
+        'type' => $evaluation->typeEvaluation,
+      ],
+      'parameters' => [
+        'mode' => $mode,
+        'reset_progress' => $resetProgress,
+        'force' => $force,
+      ],
+      'current_state' => [
+        'total_persons' => count($currentPersons),
+        'statistics' => $currentStats,
+      ],
+      'cycle_analysis' => [
+        'expected_persons_in_cycle' => count($expectedPersons),
+        'changes_detected' => !empty($personsToAdd) || !empty($personsToRemove),
+        'persons_to_add_count' => count($personsToAdd),
+        'persons_to_remove_count' => count($personsToRemove),
+      ],
+      'validations' => [],
+      'warnings' => [],
+      'errors' => [],
+    ];
+
+    // Validar según el modo
+    if (!$needsRegeneration && $mode !== 'full_reset') {
+      $result['validations'][] = '✓ No se detectaron cambios en el ciclo';
+      $result['warnings'][] = 'No se realizarán cambios a menos que uses force=true o mode=full_reset';
+      $result['will_execute'] = false;
+      $result['what_will_happen'] = 'No se realizarán cambios';
+      return $result;
+    }
+
+    $result['will_execute'] = true;
+
+    // Preview según el modo con información DETALLADA
+    switch ($mode) {
+      case 'full_reset':
+        $result['affected_persons'] = $this->previewFullResetDetailed(
+          $evaluation,
+          $cycle,
+          $currentPersonsDetails,
+          $expectedPersons
+        );
+        break;
+
+      case 'sync_with_cycle':
+        $result['affected_persons'] = $this->previewSyncWithCycleDetailed(
+          $evaluation,
+          $cycle,
+          $currentPersonsDetails,
+          $personsToAddDetails,
+          $personsToRemoveDetails,
+          $resetProgress
+        );
+        break;
+
+      case 'add_missing_only':
+        $result['affected_persons'] = $this->previewAddMissingOnlyDetailed(
+          $evaluation,
+          $cycle,
+          $personsToAddDetails
+        );
+        break;
+
+      default:
+        $result['errors'][] = "Modo de regeneración no válido: {$mode}";
+        $result['will_execute'] = false;
+        return $result;
+    }
+
+    return $result;
+  }
+
+  /**
+   * Obtiene información RESUMIDA de personas con razón de cambio
+   */
+  private function getDetailedPersonsInfo($personIds, $evaluation, $cycle, $context = 'current')
+  {
+    if (empty($personIds)) {
+      return [];
+    }
+
+    $persons = Worker::whereIn('id', $personIds)
+      ->with(['position.hierarchicalCategory', 'position.area', 'sede'])
+      ->get();
+
+    return $persons->map(function ($person) use ($evaluation, $cycle, $context) {
+      $hierarchicalCategory = $person->position?->hierarchicalCategory;
+
+      // Determinar la razón según el contexto
+      $reason = '';
+      $hasProgress = false;
+      $progressLost = null;
+
+      if ($context === 'to_remove') {
+        // Razones por las que se elimina
+        $reasons = [];
+
+        // Verificar si la persona ya no está en el ciclo
+        $isInCycle = DB::table('rrhh_persona as p')
+          ->join('rrhh_cargo as pos', 'pos.id', '=', 'p.cargo_id')
+          ->join('gh_hierarchical_category_detail as hcd', 'hcd.position_id', '=', 'pos.id')
+          ->join('gh_evaluation_cycle_category_detail as eccd', 'eccd.hierarchical_category_id', '=', 'hcd.hierarchical_category_id')
+          ->where('eccd.cycle_id', $cycle->id)
+          ->where('p.id', $person->id)
+          ->exists();
+
+        if (!$isInCycle) {
+          $reasons[] = 'Ya no está en el ciclo actual';
+        }
+        if ($person->status_deleted != 1) {
+          $reasons[] = 'Empleado inactivo';
+        }
+        if ($person->status_id != 22) {
+          $reasons[] = 'Estado del empleado cambió';
+        }
+        if ($person->fecha_inicio > $cycle->cut_off_date) {
+          $reasons[] = 'Fecha de inicio posterior a fecha de corte';
+        }
+
+        $reason = !empty($reasons) ? implode(', ', $reasons) : 'Eliminado por sincronización con ciclo';
+
+        // Verificar si tiene progreso
+        $personResult = EvaluationPersonResult::where('evaluation_id', $evaluation->id)
+          ->where('person_id', $person->id)
+          ->first();
+
+        if ($personResult) {
+          $hasProgress = $personResult->result > 0 || $personResult->is_completed;
+          $progressLost = [
+            'result' => round($personResult->result, 2),
+            'is_completed' => $personResult->is_completed,
+            'completion_percentage' => round($personResult->completion_percentage * 100, 2),
+          ];
+        }
+      } elseif ($context === 'to_add') {
+        // Razones por las que se agrega
+        $reason = 'Nueva persona en el ciclo';
+
+        if ($person->fecha_inicio >= $cycle->start_date && $person->fecha_inicio <= $cycle->cut_off_date) {
+          $reason = 'Ingresó durante el ciclo (fecha: ' . $person->fecha_inicio . ')';
+        }
+      } elseif ($context === 'current') {
+        $personResult = EvaluationPersonResult::where('evaluation_id', $evaluation->id)
+          ->where('person_id', $person->id)
+          ->first();
+
+        if ($personResult && $personResult->is_completed) {
+          $reason = 'Evaluación completada';
+        } elseif ($personResult && $personResult->completion_percentage > 0) {
+          $reason = 'Evaluación en progreso (' . round($personResult->completion_percentage * 100, 2) . '%)';
+        } else {
+          $reason = 'Sin iniciar';
+        }
+      }
+
+      // Contar objetivos y competencias (solo totales)
+      $objectivesCount = 0;
+      $competencesCount = 0;
+
+      if ($hierarchicalCategory && $context !== 'to_remove') {
+        $objectivesCount = EvaluationCategoryObjectiveDetail::where('category_id', $hierarchicalCategory->id)
+          ->where('person_id', $person->id)
+          ->where('active', 1)
+          ->whereHas('objective', fn($q) => $q->where('active', 1))
+          ->whereNull('deleted_at')
+          ->count();
+
+        if (in_array($evaluation->typeEvaluation, [self::EVALUACION_180, self::EVALUACION_360])) {
+          $competencesCount = DB::table('gh_evaluation_category_competence')
+            ->join('gh_hierarchical_category_detail', 'gh_evaluation_category_competence.category_id', '=', 'gh_hierarchical_category_detail.hierarchical_category_id')
+            ->where('gh_evaluation_category_competence.person_id', $person->id)
+            ->where('gh_evaluation_category_competence.active', 1)
+            ->where('gh_hierarchical_category_detail.position_id', $person->cargo_id)
+            ->whereNull('gh_evaluation_category_competence.deleted_at')
+            ->whereNull('gh_hierarchical_category_detail.deleted_at')
+            ->count();
+        }
+      }
+
+      $result = [
+        'person_id' => $person->id,
+        'name' => $person->nombre_completo,
+        'dni' => $person->vat,
+        'position' => $person->position?->name,
+        'area' => $person->position?->area?->name,
+        'sede' => $person->sede?->abreviatura,
+        'hierarchical_category' => $hierarchicalCategory?->name,
+        'reason' => $reason,
+      ];
+
+      // Solo agregar conteos si hay
+      if ($objectivesCount > 0 || $competencesCount > 0) {
+        $result['will_have'] = [];
+        if ($objectivesCount > 0) {
+          $result['will_have']['objectives'] = $objectivesCount;
+        }
+        if ($competencesCount > 0) {
+          $result['will_have']['competences'] = $competencesCount;
+        }
+      }
+
+      // Solo agregar progreso perdido si se elimina y tiene progreso
+      if ($context === 'to_remove' && $hasProgress && $progressLost) {
+        $result['progress_lost'] = $progressLost;
+      }
+
+      return $result;
+    })->values()->toArray();
+  }
+
+  /**
+   * Preview simplificado del modo full_reset
+   */
+  private function previewFullResetDetailed($evaluation, $cycle, $currentPersonsDetails, $expectedPersonIds)
+  {
+    $personsToCreate = $this->getDetailedPersonsInfo($expectedPersonIds, $evaluation, $cycle, 'to_add');
+
+    // Contar personas con progreso que se perderá
+    $personsWithProgress = array_filter($currentPersonsDetails, fn($p) => isset($p['progress_lost']));
+
+    return [
+      'mode' => 'full_reset',
+      'description' => 'Reinicio completo - Elimina todo y crea desde cero',
+      'impact' => 'ALTO - Se perderá todo el progreso existente',
+      'summary' => [
+        'total_will_delete' => count($currentPersonsDetails),
+        'total_will_create' => count($personsToCreate),
+        'persons_with_progress_lost' => count($personsWithProgress),
+      ],
+      'persons_to_delete' => $currentPersonsDetails,
+      'persons_to_add' => $personsToCreate,
+      'warnings' => [
+        count($personsWithProgress) > 0
+          ? 'Se perderá el progreso de ' . count($personsWithProgress) . ' persona(s)'
+          : 'No hay progreso que se perderá',
+      ],
+    ];
+  }
+
+  /**
+   * Preview simplificado del modo sync_with_cycle
+   */
+  private function previewSyncWithCycleDetailed($evaluation, $cycle, $currentPersonsDetails, $personsToAddDetails, $personsToRemoveDetails, $resetProgress)
+  {
+    $personsToKeep = array_filter($currentPersonsDetails, function ($person) use ($personsToRemoveDetails) {
+      $removeIds = array_column($personsToRemoveDetails, 'person_id');
+      return !in_array($person['person_id'], $removeIds);
+    });
+
+    // Contar personas que se eliminan con progreso
+    $personsRemovedWithProgress = array_filter($personsToRemoveDetails, fn($p) => isset($p['progress_lost']));
+
+    // Contar personas que se mantienen pero tienen progreso (si reset_progress=true, perderán su progreso)
+    $personsToKeepWithProgress = array_filter($personsToKeep, function($p) use ($evaluation) {
+      // Verificar si tiene progreso actual
+      $personResult = EvaluationPersonResult::where('evaluation_id', $evaluation->id)
+        ->where('person_id', $p['person_id'])
+        ->first();
+
+      return $personResult && ($personResult->result > 0 || $personResult->is_completed);
+    });
+
+    // Calcular total de personas con progreso que se perderá
+    $totalProgressLost = count($personsRemovedWithProgress);
+    if ($resetProgress) {
+      $totalProgressLost += count($personsToKeepWithProgress);
+    }
+
+    return [
+      'mode' => 'sync_with_cycle',
+      'description' => 'Sincronizar con ciclo - Agregar nuevos y eliminar inactivos',
+      'impact' => $resetProgress ? 'ALTO - Se resetearán resultados' : 'MEDIO - Solo afecta cambios',
+      'summary' => [
+        'total_will_remove' => count($personsToRemoveDetails),
+        'total_will_add' => count($personsToAddDetails),
+        'total_will_keep' => count($personsToKeep),
+        'will_reset_progress' => $resetProgress,
+        'persons_removed_with_progress' => count($personsRemovedWithProgress),
+        'persons_kept_with_progress' => count($personsToKeepWithProgress),
+        'total_persons_losing_progress' => $totalProgressLost,
+      ],
+      'persons_to_remove' => $personsToRemoveDetails,
+      'persons_to_add' => $personsToAddDetails,
+      'warnings' => array_filter([
+        count($personsRemovedWithProgress) > 0
+          ? 'Se perderá el progreso de ' . count($personsRemovedWithProgress) . ' persona(s) que se eliminan'
+          : null,
+        $resetProgress && count($personsToKeepWithProgress) > 0
+          ? 'Se reseteará el progreso de ' . count($personsToKeepWithProgress) . ' persona(s) que se mantienen'
+          : null,
+        $resetProgress
+          ? '⚠️ TOTAL: Se perderá el progreso de ' . $totalProgressLost . ' persona(s) en total'
+          : null,
+      ]),
+    ];
+  }
+
+  /**
+   * Preview simplificado del modo add_missing_only
+   */
+  private function previewAddMissingOnlyDetailed($evaluation, $cycle, $personsToAddDetails)
+  {
+    return [
+      'mode' => 'add_missing_only',
+      'description' => 'Agregar solo faltantes - No elimina nada',
+      'impact' => 'BAJO - Solo agrega',
+      'summary' => [
+        'total_will_add' => count($personsToAddDetails),
+        'no_deletions' => true,
+        'no_modifications' => true,
+      ],
+      'persons_to_add' => $personsToAddDetails,
+      'warnings' => count($personsToAddDetails) === 0
+        ? ['No hay personas nuevas que agregar']
+        : [],
+    ];
+  }
+
   public function regenerateEvaluation($evaluationId, array $params = [])
   {
     $evaluation = $this->find($evaluationId);
@@ -876,6 +1247,7 @@ class EvaluationService extends BaseService
 
   /**
    * Obtener personas del ciclo según categorías jerárquicas
+   * IMPORTANTE: Aplica las mismas validaciones que createPersonResultsForSpecific
    */
   private function getPersonsFromCycle($cycleId)
   {
@@ -890,7 +1262,14 @@ class EvaluationService extends BaseService
       ->whereNull('eccd.deleted_at')
       ->where('p.status_deleted', 1)
       ->where('p.b_empleado', 1)
-      ->where('p.status_id', 22);
+      ->where('p.status_id', 22)
+      // CRÍTICO: Validar fecha de inicio <= fecha de corte (igual que en createPersonResultsForSpecific)
+      ->where('p.fecha_inicio', '<=', $cycle->cut_off_date)
+      // CRÍTICO: Debe tener evaluador asignado (igual que en createPersonResultsForSpecific)
+      ->where(function($q) {
+        $q->whereNotNull('p.supervisor_id')
+          ->orWhereNotNull('p.jefe_id');
+      });
 
     if ($cycle->typeEvaluation == 0) {
       // Solo categorías con objetivos

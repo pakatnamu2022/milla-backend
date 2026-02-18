@@ -588,6 +588,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::post('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'storeMany']);
         Route::get('/cycle/{cycle}/details', [EvaluationPersonCycleDetailController::class, 'index']);
         Route::get('/cycle/{cycle}/chiefs', [EvaluationPersonCycleDetailController::class, 'getChiefsByCycle']);
+        Route::get('/cycle/{cycle}/weights/preview', [EvaluationPersonCycleDetailController::class, 'previewWeights']);
+        Route::post('/cycle/{cycle}/weights/regenerate', [EvaluationPersonCycleDetailController::class, 'regenerateWeights']);
         Route::get('/cycle/{id}/participants', [EvaluationCycleController::class, 'participants']);
         Route::get('/cycle/{id}/positions', [EvaluationCycleController::class, 'positions']);
 
@@ -614,6 +616,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/evaluation/export', [EvaluationController::class, 'export']);
         Route::get('/evaluation/check', [EvaluationController::class, 'checkActiveEvaluationByDateRange']);
         Route::get('/evaluation/active', [EvaluationController::class, 'active']);
+        Route::get('/evaluation/{evaluation}/preview-regenerate', [EvaluationController::class, 'previewRegenerateEvaluation']);
         Route::post('/evaluation/{evaluation}/regenerateEvaluation', [EvaluationController::class, 'regenerateEvaluation']);
         Route::get('/evaluation/{evaluation}/participants', [EvaluationController::class, 'participants']);
         Route::get('/evaluation/{evaluation}/positions', [EvaluationController::class, 'positions']);
@@ -656,7 +659,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('personResult/evaluations-to-evaluate/{id}', [EvaluationPersonResultController::class, 'getEvaluationsByPersonToEvaluate']);
         Route::get('personResult/evaluation/{evaluation_id}/bosses', [EvaluationPersonResultController::class, 'getBossesByEvaluation']);
         Route::get('personResult/evaluation/{evaluation_id}/leaders-status', [EvaluationPersonResultController::class, 'getLeadersEvaluationStatus']);
+        Route::get('personResult/evaluation/{evaluation_id}/leader/{leader_id}/team-members', [EvaluationPersonResultController::class, 'getLeaderTeamMembers']);
         Route::get('leader-dashboard/{evaluation_id}', [EvaluationPersonResultController::class, 'getLeaderDashboard']);
+        Route::get('personResult/preview-regenerate/{personId}/{evaluationId}', [EvaluationPersonResultController::class, 'previewRegenerate']);
         Route::post('personResult/regenerate/{personId}/{evaluationId}', [EvaluationPersonResultController::class, 'regenerate']);
         Route::apiResource('personResult', EvaluationPersonResultController::class)->only([
           'index',

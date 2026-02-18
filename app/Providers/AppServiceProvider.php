@@ -34,6 +34,16 @@ class AppServiceProvider extends ServiceProvider
       );
     });
 
+    // Optimización: Filtrar solo rutas API (excluir rutas de autenticación, etc.)
+    Scramble::routes(function ($route) {
+      // Solo documentar rutas que empiecen con 'api/'
+      // y excluir rutas de autenticación, login, etc.
+      return str_starts_with($route->uri, 'api/')
+        && !str_contains($route->uri, 'sanctum')
+        && !str_contains($route->uri, 'login')
+        && !str_contains($route->uri, 'register');
+    });
+
     // Registrar Blade Directives personalizados para permisos
     $this->registerPermissionBladeDirectives();
   }

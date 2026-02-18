@@ -7,6 +7,7 @@ use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
@@ -326,7 +327,7 @@ class EvaluationPersonResultService extends BaseService
   {
     $labels = [
       'completado' => 'Completado',
-      'en_progreso' => 'En Progreso',
+      'en_proceso' => 'En Proceso',
       'sin_iniciar' => 'Sin Iniciar',
       'completed' => 'Completado',
       'in_progress' => 'En Progreso',
@@ -712,24 +713,25 @@ class EvaluationPersonResultService extends BaseService
       // PASO 4: Regenerar competencias
       $this->regeneratePersonCompetences($evaluation, $person);
 
-      // PASO 5: Actualizar EvaluationPersonResult con información actualizada
-      $personResult = EvaluationPersonResult::where('person_id', $personId)
-        ->where('evaluation_id', $evaluationId)
-        ->first();
+      // PASO 5: Crear o actualizar EvaluationPersonResult con información actualizada
+      // Obtener el evaluador actualizado
+      $evaluator = $person->evaluator;
+      if (!$evaluator) {
+        throw new Exception('La persona ' . $person->nombre_completo . ' no tiene un evaluador asignado.');
+      }
 
-      if ($personResult) {
-        // Obtener el evaluador actualizado
-        $evaluator = $person->evaluator;
-        if (!$evaluator) {
-          throw new Exception('La persona ' . $person->nombre_completo . ' no tiene un evaluador asignado.');
-        }
+      // Obtener la categoría jerárquica
+      $hierarchicalCategory = $person->position?->hierarchicalCategory;
+      $objectivesPercentage = $hierarchicalCategory?->hasObjectives ? $evaluation->objectivesPercentage : 0;
+      $competencesPercentage = $hierarchicalCategory?->hasObjectives ? $evaluation->competencesPercentage : 100;
 
-        // Obtener la categoría jerárquica
-        $hierarchicalCategory = $person->position?->hierarchicalCategory;
-        $objectivesPercentage = $hierarchicalCategory?->hasObjectives ? $evaluation->objectivesPercentage : 0;
-        $competencesPercentage = $hierarchicalCategory?->hasObjectives ? $evaluation->competencesPercentage : 100;
-
-        $personResult->update([
+      // Usar updateOrCreate para crear si no existe o actualizar si existe
+      EvaluationPersonResult::updateOrCreate(
+        [
+          'person_id' => $personId,
+          'evaluation_id' => $evaluationId,
+        ],
+        [
           'objectivesPercentage' => $objectivesPercentage,
           'competencesPercentage' => $competencesPercentage,
           'objectivesResult' => 0,
@@ -751,17 +753,24 @@ class EvaluationPersonResultService extends BaseService
           'boss_sede' => $evaluator->sede?->abreviatura,
           'hasObjectives' => $hierarchicalCategory?->hasObjectives,
           'hierarchical_category_id' => $hierarchicalCategory?->id,
-        ]);
-      }
+        ]
+      );
 
-      // PASO 6: Reset EvaluationPersonDashboard
-      $dashboard = EvaluationPersonDashboard::where('person_id', $personId)
-        ->where('evaluation_id', $evaluationId)
-        ->first();
+      // PASO 6: Crear o resetear EvaluationPersonDashboard
+      $dashboard = EvaluationPersonDashboard::firstOrCreate(
+        [
+          'person_id' => $personId,
+          'evaluation_id' => $evaluationId,
+        ],
+        [
+          'completion_rate' => 0,
+          'is_completed' => false,
+          'progress_status' => 'sin_iniciar',
+        ]
+      );
 
-      if ($dashboard) {
-        $dashboard->resetStats();
-      }
+      // Resetear las estadísticas
+      $dashboard->resetStats();
 
       return [
         'message' => 'Evaluación del colaborador regenerada completamente desde cero',
@@ -931,6 +940,200 @@ class EvaluationPersonResultService extends BaseService
   }
 
   /**
+   * Valida y retorna un preview de qué pasará al regenerar la evaluación de una persona
+   * SIN hacer cambios reales en la base de datos
+   *
+   * @param int $personId
+   * @param int $evaluationId
+   * @return array
+   */
+  public function previewRegeneratePersonEvaluation(int $personId, int $evaluationId)
+  {
+    $evaluation = Evaluation::findOrFail($evaluationId);
+    $cycle = EvaluationCycle::findOrFail($evaluation->cycle_id);
+    $person = Worker::findOrFail($personId);
+
+    $result = [
+      'person' => [
+        'id' => $person->id,
+        'name' => $person->nombre_completo,
+        'dni' => $person->vat,
+        'position' => $person->position?->name,
+        'hierarchical_category' => $person->position?->hierarchicalCategory?->name,
+      ],
+      'validations' => [],
+      'warnings' => [],
+      'errors' => [],
+      'can_regenerate' => true,
+      'what_will_be_deleted' => [],
+      'what_will_be_created' => [],
+    ];
+
+    // VALIDACIÓN 1: Verificar que tiene categoría jerárquica
+    $hierarchicalCategory = $person->position?->hierarchicalCategory;
+    if (!$hierarchicalCategory) {
+      $result['errors'][] = 'La persona no tiene una categoría jerárquica asignada';
+      $result['can_regenerate'] = false;
+    } else {
+      $result['validations'][] = '✓ Tiene categoría jerárquica: ' . $hierarchicalCategory->name;
+    }
+
+    // VALIDACIÓN 2: Verificar que tiene evaluador
+    $evaluatorId = $person->supervisor_id ?? $person->jefe_id;
+    if (!$evaluatorId) {
+      $result['errors'][] = 'La persona no tiene un evaluador asignado (supervisor_id o jefe_id)';
+      $result['can_regenerate'] = false;
+    } else {
+      $evaluator = Worker::find($evaluatorId);
+      if (!$evaluator) {
+        $result['errors'][] = "El evaluador con ID {$evaluatorId} no existe";
+        $result['can_regenerate'] = false;
+      } else {
+        $result['validations'][] = '✓ Tiene evaluador: ' . $evaluator->nombre_completo;
+      }
+    }
+
+    // VALIDACIÓN 3: Verificar que la categoría tiene objetivos
+    if ($hierarchicalCategory) {
+      $objectives = $hierarchicalCategory->objectives()->get();
+      if ($objectives->isEmpty()) {
+        $result['errors'][] = 'La categoría jerárquica "' . $hierarchicalCategory->name . '" no tiene objetivos asignados';
+        $result['can_regenerate'] = false;
+      } else {
+        $result['validations'][] = '✓ La categoría tiene ' . $objectives->count() . ' objetivo(s)';
+
+        // VALIDACIÓN 4: Verificar que tiene EvaluationCategoryObjectiveDetail para cada objetivo
+        $objectivesWithDetails = 0;
+        $objectivesWithoutDetails = [];
+
+        foreach ($objectives as $objective) {
+          $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
+            ->whereHas('objective', function ($query) {
+              $query->where('active', 1);
+            })
+            ->where('category_id', $hierarchicalCategory->id)
+            ->where('person_id', $person->id)
+            ->where('active', 1)
+            ->whereNull('deleted_at')
+            ->first();
+
+          if ($categoryObjective) {
+            $objectivesWithDetails++;
+          } else {
+            $objectivesWithoutDetails[] = $objective->name;
+          }
+        }
+
+        if ($objectivesWithDetails > 0) {
+          $result['validations'][] = "✓ Tiene {$objectivesWithDetails} objetivo(s) con configuración personalizada (EvaluationCategoryObjectiveDetail)";
+        }
+
+        if (!empty($objectivesWithoutDetails)) {
+          $result['warnings'][] = 'Los siguientes objetivos NO tienen configuración personalizada y usarán valores por defecto: ' . implode(', ', $objectivesWithoutDetails);
+        }
+
+        // Si no tiene ningún objetivo configurado, no se puede regenerar
+        if ($objectivesWithDetails === 0 && count($objectivesWithoutDetails) === $objectives->count()) {
+          $result['errors'][] = 'Ninguno de los objetivos tiene configuración personalizada activa para esta persona';
+          $result['can_regenerate'] = false;
+        }
+      }
+    }
+
+    // VALIDACIÓN 5: Verificar que tiene competencias (si es necesario)
+    if ($hierarchicalCategory) {
+      $competences = DB::table('gh_evaluation_category_competence')
+        ->join('gh_config_competencias', 'gh_evaluation_category_competence.competence_id', '=', 'gh_config_competencias.id')
+        ->join('gh_config_subcompetencias', 'gh_config_competencias.id', '=', 'gh_config_subcompetencias.competencia_id')
+        ->join('gh_hierarchical_category_detail', 'gh_evaluation_category_competence.category_id', '=', 'gh_hierarchical_category_detail.hierarchical_category_id')
+        ->where('gh_evaluation_category_competence.person_id', $person->id)
+        ->where('gh_evaluation_category_competence.active', 1)
+        ->where('gh_hierarchical_category_detail.position_id', $person->cargo_id)
+        ->whereNull('gh_config_competencias.deleted_at')
+        ->whereNull('gh_config_subcompetencias.deleted_at')
+        ->whereNull('gh_evaluation_category_competence.deleted_at')
+        ->whereNull('gh_hierarchical_category_detail.deleted_at')
+        ->count();
+
+      if ($competences > 0) {
+        $result['validations'][] = "✓ Tiene {$competences} competencia(s) asignada(s)";
+      } else {
+        $result['warnings'][] = 'No tiene competencias asignadas. Se regenerarán solo objetivos.';
+      }
+    }
+
+    // QUÉ SE ELIMINARÁ
+    $competencesToDelete = EvaluationPersonCompetenceDetail::where('person_id', $personId)
+      ->where('evaluation_id', $evaluationId)
+      ->count();
+
+    $evaluationPersonToDelete = EvaluationPerson::where('person_id', $personId)
+      ->where('evaluation_id', $evaluationId)
+      ->count();
+
+    $personCycleDetailsToDelete = EvaluationPersonCycleDetail::where('person_id', $personId)
+      ->where('cycle_id', $cycle->id)
+      ->count();
+
+    $result['what_will_be_deleted'] = [
+      'competences' => $competencesToDelete,
+      'evaluation_persons' => $evaluationPersonToDelete,
+      'person_cycle_details' => $personCycleDetailsToDelete,
+    ];
+
+    // QUÉ SE CREARÁ (solo si puede regenerar)
+    if ($result['can_regenerate'] && $hierarchicalCategory) {
+      $objectivesToCreate = EvaluationCategoryObjectiveDetail::where('category_id', $hierarchicalCategory->id)
+        ->where('person_id', $person->id)
+        ->where('active', 1)
+        ->whereHas('objective', function ($query) {
+          $query->where('active', 1);
+        })
+        ->whereNull('deleted_at')
+        ->count();
+
+      $competencesData = $this->obtenerCompetenciasParaPersona($person);
+      $competencesToCreate = count($competencesData);
+
+      // Calcular cuántas evaluaciones de competencia se crearán
+      $competenceEvaluationsToCreate = 0;
+      $tieneJefe = $person->jefe_id !== null;
+      $tieneSubordinados = Worker::where('jefe_id', $person->id)
+        ->where('status_deleted', 1)
+        ->where('status_id', 22)
+        ->exists();
+      $partners = $this->obtenerCompanerosPorEvaluationParEvaluator($person);
+
+      foreach ($competencesData as $competenciaData) {
+        if ($evaluation->selfEvaluation && $evaluation->self_weight > 0) {
+          $competenceEvaluationsToCreate++; // Autoevaluación
+        }
+        if ($tieneJefe && $evaluation->leadership_weight > 0) {
+          $competenceEvaluationsToCreate++; // Evaluación del jefe
+        }
+        if ($evaluation->partnersEvaluation && $evaluation->par_weight > 0 && $partners->count() > 0) {
+          $competenceEvaluationsToCreate += $partners->count(); // Evaluación de compañeros
+        }
+        if ($tieneSubordinados && $evaluation->report_weight > 0) {
+          $subordinadosCount = Worker::where('jefe_id', $person->id)
+            ->where('status_deleted', 1)
+            ->where('status_id', 22)
+            ->count();
+          $competenceEvaluationsToCreate += $subordinadosCount; // Evaluación de reportes
+        }
+      }
+
+      $result['what_will_be_created'] = [
+        'person_cycle_details' => $objectivesToCreate,
+        'evaluation_persons' => $objectivesToCreate,
+        'competence_details' => $competenceEvaluationsToCreate,
+      ];
+    }
+
+    return $result;
+  }
+
+  /**
    * Obtiene la lista de bosses únicos de una evaluación
    * @param int $evaluationId
    * @return \Illuminate\Support\Collection
@@ -955,18 +1158,19 @@ class EvaluationPersonResultService extends BaseService
   }
 
   /**
-   * Obtiene todos los líderes con su estado de evaluación
-   * Retorna información sobre si cada líder completó todas sus evaluaciones
+   * Obtiene los jefes/líderes con sus equipos y el estado de las evaluaciones
+   * Retorna cada líder con su información y la lista de sus miembros de equipo
    *
    * @param int $evaluationId
-   * @return array
+   * @param Request $request
+   * @return \Illuminate\Http\JsonResponse
    */
-  public function getLeadersWithEvaluationStatus(int $evaluationId)
+  public function getLeadersWithEvaluationStatus(int $evaluationId, Request $request)
   {
     // Validar que existe la evaluación
     $evaluation = Evaluation::findOrFail($evaluationId);
 
-    // Obtener todos los person_ids únicos que son jefes en esta evaluación
+    // Obtener todos los chief_ids únicos que tienen colaboradores a cargo
     $leaderPersonIds = EvaluationPerson::where('evaluation_id', $evaluationId)
       ->whereNotNull('chief_id')
       ->pluck('chief_id')
@@ -974,109 +1178,227 @@ class EvaluationPersonResultService extends BaseService
       ->values();
 
     if ($leaderPersonIds->isEmpty()) {
-      return [
-        'evaluation' => [
-          'id' => $evaluation->id,
-          'name' => $evaluation->name,
-          'status' => $evaluation->status,
-          'start_date' => $evaluation->start_date,
-          'end_date' => $evaluation->end_date,
+      return response()->json([
+        'data' => [],
+        'links' => [
+          'first' => null,
+          'last' => null,
+          'prev' => null,
+          'next' => null,
         ],
-        'leaders' => [],
-        'summary' => [
-          'total_leaders' => 0,
-          'completed' => 0,
-          'in_progress' => 0,
-          'not_started' => 0,
-          'completion_percentage' => 0,
+        'meta' => [
+          'total' => 0,
+          'per_page' => 15,
+          'current_page' => 1,
+          'last_page' => 1,
+          'from' => null,
+          'to' => null,
         ]
-      ];
+      ]);
     }
 
-    // Obtener los resultados de evaluación de estos líderes
-    $leadersResults = EvaluationPersonResult::with([
-      'person.position.hierarchicalCategory',
-      'person.position.area',
-      'person.sede',
-      'dashboard'
-    ])
-      ->where('evaluation_id', $evaluationId)
-      ->whereIn('person_id', $leaderPersonIds)
-      ->get();
+    // Obtener los datos de los líderes
+    $leadersQuery = Worker::query()
+      ->with(['position.hierarchicalCategory', 'position.area', 'sede'])
+      ->whereIn('id', $leaderPersonIds);
 
-    // Calcular resumen
-    $totalLeaders = $leadersResults->count();
-    $completed = 0;
-    $inProgress = 0;
-    $notStarted = 0;
+    // Filtros disponibles
+    $filters = [
+      'search' => ['nombre_completo', 'vat'], // Buscar por nombre o DNI del líder
+      'id' => '=', // Filtrar por ID del líder
+      'vat' => '=', // Filtrar por DNI del líder
+      'cargo_id' => '=', // Filtrar por cargo
+      'sede_id' => '=', // Filtrar por sede
+    ];
 
-    // Mapear los datos de cada líder
-    $leadersData = $leadersResults->map(function ($result) use (&$completed, &$inProgress, &$notStarted) {
-      $isCompleted = $result->is_completed;
-      $completionPercentage = $result->completion_percentage;
-      $progressStatus = $result->progress_status;
+    $sorts = [
+      'nombre_completo',
+      'vat',
+      'id',
+    ];
 
-      // Contar estados
-      if ($isCompleted) {
-        $completed++;
-      } elseif ($completionPercentage > 0) {
-        $inProgress++;
+    // Aplicar filtros y ordenamiento
+    $leadersQuery = $this->applyFilters($leadersQuery, $request, $filters);
+    $leadersQuery = $this->applySorting($leadersQuery, $request, $sorts);
+
+    // Obtener todos los líderes
+    $leaders = $leadersQuery->get();
+
+    // Mapear cada líder con sus estadísticas de equipo
+    $leadersData = $leaders->map(function ($leader) use ($evaluationId) {
+      // Obtener conteos básicos del equipo
+      $totalMembers = EvaluationPersonResult::where('evaluation_id', $evaluationId)
+        ->where('boss_dni', $leader->vat)
+        ->count();
+
+      if ($totalMembers > 0) {
+        // Obtener estadísticas de completitud
+        $teamResults = EvaluationPersonResult::where('evaluation_id', $evaluationId)
+          ->where('boss_dni', $leader->vat)
+          ->get();
+
+        $completedMembers = $teamResults->filter(fn($m) => $m->is_completed)->count();
+        $inProgressMembers = $teamResults->filter(fn($m) => !$m->is_completed && $m->completion_percentage > 0)->count();
+        $notStartedMembers = $teamResults->filter(fn($m) => $m->completion_percentage == 0)->count();
+
+        // Contar evaluaciones de objetivos realizadas
+        $objectivesEvaluated = EvaluationPerson::where('evaluation_id', $evaluationId)
+          ->where('chief_id', $leader->id)
+          ->where('result', '>', 0)
+          ->distinct('person_id')
+          ->count('person_id');
+
+        // Contar evaluaciones de competencias realizadas
+        $competencesEvaluated = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
+          ->where('evaluator_id', $leader->id)
+          ->where('evaluatorType', 0) // Tipo jefe
+          ->where('result', '>', 0)
+          ->distinct('person_id')
+          ->count('person_id');
       } else {
-        $notStarted++;
+        $completedMembers = 0;
+        $inProgressMembers = 0;
+        $notStartedMembers = 0;
+        $objectivesEvaluated = 0;
+        $competencesEvaluated = 0;
       }
 
-      // Obtener información de cuántos colaboradores tiene a cargo
-      $subordinatesCount = EvaluationPerson::where('evaluation_id', $result->evaluation_id)
-        ->where('chief_id', $result->person_id)
-        ->distinct('person_id')
-        ->count('person_id');
-
       return [
-        'person_id' => $result->person_id,
-        'name' => $result->name,
-        'dni' => $result->dni,
-        'position' => $result->position,
-        'area' => $result->area,
-        'sede' => $result->sede,
-        'hierarchical_category' => $result->hierarchical_category,
-        'evaluation_status' => [
-          'is_completed' => $isCompleted,
-          'completion_percentage' => round($completionPercentage * 100, 2),
-          'progress_status' => $progressStatus,
-          'progress_status_label' => $this->getStatusLabel($progressStatus),
-          'objectives_result' => round($result->objectivesResult, 2),
-          'competences_result' => round($result->competencesResult, 2),
-          'final_result' => round($result->result, 2),
+        'person_id' => $leader->id,
+        'name' => $leader->nombre_completo,
+        'dni' => $leader->vat,
+        'position' => $leader->position?->name,
+        'area' => $leader->position?->area?->name,
+        'sede' => $leader->sede?->abreviatura,
+        'hierarchical_category' => $leader->position?->hierarchicalCategory?->name,
+        'team_evaluation_stats' => [
+          'total_team_members' => $totalMembers,
+          'completed_members' => $completedMembers,
+          'in_progress_members' => $inProgressMembers,
+          'not_started_members' => $notStartedMembers,
+          'objectives_evaluated' => $objectivesEvaluated,
+          'competences_evaluated' => $competencesEvaluated,
+          'completion_percentage' => $totalMembers > 0 ? round(($completedMembers / $totalMembers) * 100, 2) : 0,
+          'evaluation_progress_percentage' => $totalMembers > 0 ? round(($objectivesEvaluated / $totalMembers) * 100, 2) : 0,
         ],
-        'team_info' => [
-          'subordinates_count' => $subordinatesCount,
-        ],
-        'last_updated' => $result->updated_at,
       ];
     });
 
-    // Ordenar: primero los no completados, luego por nombre
-    $leadersData = $leadersData->sortBy([
-      fn($a, $b) => $b['evaluation_status']['is_completed'] <=> $a['evaluation_status']['is_completed'],
-      fn($a, $b) => $a['name'] <=> $b['name']
-    ])->values();
+    // Usar paginateCollection para paginar los resultados transformados
+    return $this->paginateCollection($leadersData, $request);
+  }
 
-    return [
-      'evaluation' => [
-        'id' => $evaluation->id,
-        'name' => $evaluation->name,
-        'status' => $evaluation->status,
-        'start_date' => $evaluation->start_date,
-        'end_date' => $evaluation->end_date,
-      ],
-      'leaders' => $leadersData,
-      'summary' => [
-        'total_leaders' => $totalLeaders,
-        'completed' => $completed,
-        'in_progress' => $inProgress,
-        'not_started' => $notStarted,
-        'completion_percentage' => $totalLeaders > 0 ? round(($completed / $totalLeaders) * 100, 2) : 0,
-      ]
+  /**
+   * Obtiene los miembros del equipo de un líder específico
+   * Retorna la lista detallada de colaboradores de un jefe/líder
+   *
+   * @param int $evaluationId
+   * @param int $leaderId
+   * @param Request $request
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function getLeaderTeamMembers(int $evaluationId, int $leaderId, Request $request)
+  {
+    // Validar que existe la evaluación
+    $evaluation = Evaluation::findOrFail($evaluationId);
+
+    // Validar que existe el líder
+    $leader = Worker::findOrFail($leaderId);
+
+    // Obtener los miembros del equipo de este líder
+    $teamMembersQuery = EvaluationPersonResult::query()
+      ->with([
+        'person.position.hierarchicalCategory',
+        'person.position.area',
+        'person.sede',
+        'dashboard',
+      ])
+      ->where('evaluation_id', $evaluationId)
+      ->where('boss_dni', $leader->vat);
+
+    // Filtros disponibles
+    $filters = [
+      'search' => ['name', 'dni'], // Buscar por nombre o DNI del colaborador
+      'person_id' => '=',
+      'hierarchical_category' => 'like',
+      'area' => 'like',
+      'sede' => 'like',
+      'is_completed' => 'accessor_bool', // Filtrar por completados
+      'progress_status' => 'accessor_string', // Filtrar por estado
     ];
+
+    $sorts = [
+      'name',
+      'dni',
+      'result',
+      'objectivesResult',
+      'competencesResult',
+    ];
+
+    // Aplicar filtros y ordenamiento
+    $teamMembersQuery = $this->applyFilters($teamMembersQuery, $request, $filters);
+
+    // Verificar si hay filtros de accessor
+    $hasAccessorFilters = $request->has('is_completed') || $request->has('progress_status');
+
+    if (!$hasAccessorFilters) {
+      $teamMembersQuery = $this->applySorting($teamMembersQuery, $request, $sorts);
+      // Obtener resultados con paginación SQL
+      $teamMembers = $teamMembersQuery->get();
+    } else {
+      // Si hay filtros de accessor, obtener todo y filtrar en memoria
+      $teamMembers = $teamMembersQuery->get();
+      $teamMembers = $this->applyAccessorFilters($teamMembers, $request, $filters);
+    }
+
+    // Mapear los miembros del equipo
+    $teamMembersData = $teamMembers->map(function ($member) {
+      return [
+        'id' => $member->id,
+        'person_id' => $member->person_id,
+        'name' => $member->name,
+        'dni' => $member->dni,
+        'position' => $member->position,
+        'area' => $member->area,
+        'sede' => $member->sede,
+        'hierarchical_category' => $member->hierarchical_category,
+        'evaluation_results' => [
+          'objectives_result' => round($member->objectivesResult ?? 0, 2),
+          'competences_result' => round($member->competencesResult ?? 0, 2),
+          'final_result' => round($member->result ?? 0, 2),
+          'objectives_percentage' => $member->objectivesPercentage,
+          'competences_percentage' => $member->competencesPercentage,
+        ],
+        'evaluation_progress' => [
+          'is_completed' => $member->is_completed,
+          'completion_percentage' => round($member->completion_percentage, 2),
+          'progress_status' => $member->progress_status,
+          'progress_status_label' => $this->getStatusLabel($member->progress_status),
+        ],
+        'has_objectives' => $member->hasObjectives,
+        'comments' => $member->comments,
+        'last_updated' => $member->updated_at,
+      ];
+    });
+
+    // Información del líder
+    $leaderInfo = [
+      'person_id' => $leader->id,
+      'name' => $leader->nombre_completo,
+      'dni' => $leader->vat,
+      'position' => $leader->position?->name,
+      'area' => $leader->position?->area?->name,
+      'sede' => $leader->sede?->abreviatura,
+      'hierarchical_category' => $leader->position?->hierarchicalCategory?->name,
+    ];
+
+    // Usar paginateCollection para paginar los resultados
+    $paginatedResponse = $this->paginateCollection($teamMembersData, $request);
+
+    // Decodificar la respuesta para agregar información del líder
+    $responseData = json_decode($paginatedResponse->getContent(), true);
+    $responseData['leader'] = $leaderInfo;
+
+    return response()->json($responseData);
   }
 }

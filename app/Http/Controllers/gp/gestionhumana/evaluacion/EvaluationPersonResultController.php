@@ -179,6 +179,22 @@ class EvaluationPersonResultController extends Controller
   }
 
   /**
+   * Preview de qué pasará al regenerar la evaluación de una persona
+   * Sin hacer cambios reales en la base de datos
+   * @param int $personId
+   * @param int $evaluationId
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function previewRegenerate(int $personId, int $evaluationId)
+  {
+    try {
+      return $this->success($this->service->previewRegeneratePersonEvaluation($personId, $evaluationId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
    * Obtiene todos los jefes asociados a una evaluación
    * @param int $evaluationId
    * @return \Illuminate\Http\JsonResponse
@@ -194,15 +210,31 @@ class EvaluationPersonResultController extends Controller
   }
 
   /**
-   * Obtiene los líderes con el estado de evaluación para una evaluación específica
+   * Obtiene los líderes con el estado de las evaluaciones que están haciendo a su equipo
+   * @param Request $request
    * @param int $evaluationId
    * @return \Illuminate\Http\JsonResponse
    */
-  public function getLeadersEvaluationStatus(int $evaluationId)
+  public function getLeadersEvaluationStatus(Request $request, int $evaluationId)
   {
     try {
-      $data = $this->service->getLeadersWithEvaluationStatus($evaluationId);
-      return $this->success($data);
+      return $this->service->getLeadersWithEvaluationStatus($evaluationId, $request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Obtiene los miembros del equipo de un líder específico
+   * @param Request $request
+   * @param int $evaluationId
+   * @param int $leaderId
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function getLeaderTeamMembers(Request $request, int $evaluationId, int $leaderId)
+  {
+    try {
+      return $this->service->getLeaderTeamMembers($evaluationId, $leaderId, $request);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

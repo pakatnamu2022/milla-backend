@@ -108,4 +108,13 @@ return [
     ],
 
     'extensions' => [],
+
+    /*
+     * Cache configuration for better performance
+     * In production, you can cache the generated documentation
+     */
+    'cache' => [
+        'enabled' => env('SCRAMBLE_CACHE_ENABLED', false),
+        'driver' => env('SCRAMBLE_CACHE_DRIVER', 'file'),
+    ],
 ];

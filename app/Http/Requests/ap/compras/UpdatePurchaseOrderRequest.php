@@ -34,6 +34,14 @@ class UpdatePurchaseOrderRequest extends StoreRequest
       // Movimiento de Vehículo (opcional)
       'vehicle_movement_id' => ['sometimes', 'nullable', 'integer', Rule::exists('ap_vehicle_movement', 'id')->whereNull('deleted_at')],
 
+      // Cotización asociada (opcional)
+      'quotation_id' => [
+        'sometimes',
+        'nullable',
+        'integer',
+        Rule::exists('purchase_request_quote', 'id')->whereNull('deleted_at')
+      ],
+
       // Tipo de Operación (opcional)
       'type_operation_id' => ['sometimes', 'nullable', 'integer', Rule::exists('ap_masters', 'id')->where('status', 1)->whereNull('deleted_at')],
 
@@ -77,6 +85,7 @@ class UpdatePurchaseOrderRequest extends StoreRequest
       'exchange_rate_id' => 'Tipo de Cambio',
       'warehouse_id' => 'Almacén',
       'vehicle_movement_id' => 'Movimiento de Vehículo',
+      'quotation_id' => 'Cotización',
 
       // Items
       'items' => 'Items de la Orden',
