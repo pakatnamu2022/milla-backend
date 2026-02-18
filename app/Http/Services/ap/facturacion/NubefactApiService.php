@@ -416,6 +416,11 @@ class NubefactApiService
     // Items del comprobante
     $payload['items'] = [];
     $isAnticipo = $document->sunat_concept_transaction_type_id == SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
+    $isVehiculo = !empty($document->ap_vehicle_movement_id);
+    // Si el documento tiene algún ítem de regularización de anticipo, es una factura de regularización.
+    // En ese caso, solo el ítem de anticipo usa code_dynamics; los productos usan su propio código.
+    // Si no tiene ítems de regularización, es un anticipo puro y todos los ítems usan code_dynamics.
+    $hasAnticipoRegularizacion = $document->items->contains('anticipo_regularizacion', true);
 
     foreach ($document->items as $index => $item) {
       $tipoIgv = $item->igvType->code_nubefact;
@@ -432,12 +437,14 @@ class NubefactApiService
       }
 
       // Determinar el código a usar:
-      // - Si es vehículo o anticipo: usar code_dynamics del plan contable
-      // - Si NO es vehículo ni anticipo: usar el código del item
-      $isVehiculo = !empty($document->ap_vehicle_movement_id);
-      $codigo = ($isAnticipo || $isVehiculo)
-        ? $item->accountPlan->code_dynamics
-        : $item->codigo;
+      // - Documento de vehículo: todos los ítems usan code_dynamics
+      // - Anticipo puro (sin ítems de regularización): todos los ítems usan code_dynamics
+      // - Factura de regularización (tiene ítems con anticipo_regularizacion=true):
+      //   solo el ítem de anticipo usa code_dynamics, los productos usan su propio código
+      $usarCodeDynamics = $isVehiculo
+        || $item->anticipo_regularizacion
+        || ($isAnticipo && !$hasAnticipoRegularizacion);
+      $codigo = $usarCodeDynamics ? $item->accountPlan->code_dynamics : $item->codigo;
 
       $itemData = [
         'unidad_de_medida' => $item->unidad_de_medida,

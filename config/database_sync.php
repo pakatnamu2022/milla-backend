@@ -293,8 +293,8 @@ return [
       ],
       'optional_mapping' => [
       ],
-      'sync_mode' => 'insert',
-      'unique_key' => 'OrdenCompraId',
+      'sync_mode' => 'upsert',
+      'unique_key' => ['EmpresaId', 'OrdenCompraId', 'Linea'],
       'actions' => [
         'create' => true,
         'update' => true,

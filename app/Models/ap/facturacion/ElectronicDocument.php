@@ -168,7 +168,7 @@ class ElectronicDocument extends BaseModel
     'sunat_concept_document_type_id' => '=',
     'serie' => '=',
     'numero' => '=',
-    'area_id' => '=',
+    'area_id' => 'in_or_equal',
     'origin_entity_type' => '=',
     'origin_entity_id' => '=',
     'ap_vehicle_movement_id' => '=',

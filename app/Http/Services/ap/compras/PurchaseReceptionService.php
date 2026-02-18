@@ -261,7 +261,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         throw new Exception("El producto '{$productName}' no está en la orden de compra");
       }
 
-      // Calcular cuánto ya se ha recibido de este producto
+      // Calcular cuánto ya se ha recibido de este producto en recepciones previas
       $alreadyReceived = PurchaseReceptionDetail::whereHas('reception', function ($query) use ($supplierOrder) {
         $query->where('ap_supplier_order_id', $supplierOrder->id)
           ->whereNull('deleted_at');
@@ -272,6 +272,8 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
       $quantityAccepted = $quantityReceived - $observedQuantity;
       $totalThatWillBeReceived = $alreadyReceived + $quantityAccepted;
+
+//\Log::info("Validando recepción para producto ID {$productId}: Ordenado={$supplierOrderDetail->quantity}, Ya recibido={$alreadyReceived}, Intentando recibir={$quantityAccepted}, Total si se acepta={$totalThatWillBeReceived}");
 
       if ($totalThatWillBeReceived > $supplierOrderDetail->quantity) {
         $productName = $supplierOrderDetail->product->name ?? "ID {$productId}";
