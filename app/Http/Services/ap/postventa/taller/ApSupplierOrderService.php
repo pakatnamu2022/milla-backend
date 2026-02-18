@@ -75,6 +75,15 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
       $details = $data['details'] ?? [];
       unset($data['details']);
 
+      // Validar que no haya product_id duplicados en los detalles
+      if (!empty($details)) {
+        $productIds = array_column($details, 'product_id');
+        $duplicates = array_unique(array_diff_assoc($productIds, array_unique($productIds)));
+        if (!empty($duplicates)) {
+          throw new Exception('No se permite registrar el mismo producto más de una vez en la orden. Productos duplicados: ' . implode(', ', $duplicates));
+        }
+      }
+
       // Calculate net_amount from details
       $netAmount = 0;
       if (!empty($details)) {
@@ -153,6 +162,13 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
 
       // Update details if provided and recalculate amounts
       if ($details !== null) {
+        // Validar que no haya product_id duplicados en los detalles
+        $productIds = array_column($details, 'product_id');
+        $duplicates = array_unique(array_diff_assoc($productIds, array_unique($productIds)));
+        if (!empty($duplicates)) {
+          throw new Exception('No se permite registrar el mismo producto más de una vez en la orden. Productos duplicados: ' . implode(', ', $duplicates));
+        }
+
         // Calculate new net_amount from details
         $netAmount = 0;
         foreach ($details as $detail) {

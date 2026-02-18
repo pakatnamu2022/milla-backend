@@ -37,6 +37,7 @@ class PurchaseReceptionResource extends JsonResource
       // Relationships
       'purchase_order' => new PurchaseOrderResource($this->purchaseOrder),
       'warehouse' => new WarehouseResource($this->warehouse),
+      'supplier_order' => $this->supplierOrder ? new ApSupplierOrderResource($this->supplierOrder->load('details')) : null,
       'carrier' => BusinessPartnersResource::make($this->carrier),
       'details' => PurchaseReceptionDetailResource::collection($this->details->load('product')),
     ];

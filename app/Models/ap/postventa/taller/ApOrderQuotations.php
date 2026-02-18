@@ -148,7 +148,7 @@ class ApOrderQuotations extends Model
     return $this->belongsTo(User::class, 'manager_approval_by');
   }
 
-  public function Area(): BelongsTo
+  public function area(): BelongsTo
   {
     return $this->belongsTo(ApMasters::class, 'area_id');
   }

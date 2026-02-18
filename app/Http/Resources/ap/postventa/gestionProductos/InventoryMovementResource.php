@@ -68,6 +68,19 @@ class InventoryMovementResource extends JsonResource
 
     $resourceClass = $resourceMap[$this->reference_type] ?? null;
 
-    return $resourceClass ? new $resourceClass($this->reference) : $this->reference;
+    if (!$resourceClass) {
+      return $this->reference;
+    }
+
+    // Load specific relations based on reference type
+    $relationsMap = [
+      ApOrderQuotations::class => ['advancesOrderQuotation'],
+    ];
+
+    if (isset($relationsMap[$this->reference_type])) {
+      $this->reference->loadMissing($relationsMap[$this->reference_type]);
+    }
+
+    return new $resourceClass($this->reference);
   }
 }

@@ -7,6 +7,7 @@ use App\Http\Resources\Dynamics\SalesDocumentDetailDynamicsResource;
 use App\Http\Resources\Dynamics\SalesDocumentDynamicsResource;
 use App\Http\Resources\Dynamics\SalesDocumentSerialDynamicsResource;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
+use App\Http\Services\ap\postventa\taller\WorkOrderService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
@@ -1753,10 +1754,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // 1. El total pagado >= total de la cotización
       // 2. Existe al menos una venta interna (is_advance_payment = 0) aceptada por SUNAT
       if ($totalPaid >= $quotation->total_amount && $hasInternalSale) {
-        $quotation->update(
-          ['is_fully_paid' => true],
-          ['status' => ApOrderQuotations::STATUS_FACTURADO]
-        );
+        $quotation->update([
+          'is_fully_paid' => true,
+          'status' => ApOrderQuotations::STATUS_FACTURADO
+        ]);
       }
     } catch (Exception $e) {
       Log::error('Error updating quotation invoice status', [
@@ -1834,10 +1835,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('Orden de trabajo no encontrada.');
     }
 
-    // Calculate work order totals (based on getPaymentSummary logic)
-    $totalLabourCost = $workOrder->labours->sum('total_cost') ?? 0;
-    $totalPartsCost = $workOrder->parts->sum('total_amount') ?? 0;
-    $workOrderTotal = $totalLabourCost + $totalPartsCost;
+    // Calculate work order total using centralized method (includes labour, parts, discount, and tax)
+    $totals = WorkOrderService::calculateWorkOrderTotal($workOrder);
+    $workOrderTotal = $totals['total_amount'];
 
     // Validate that work order has at least labours or parts to invoice
     if ($workOrderTotal <= 0) {
@@ -1851,13 +1851,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ->whereNull('deleted_at')
       ->sum('total');
 
-    // Calculate total with new invoice
-    $totalWithNewInvoice = $totalInvoiced + $newTotal;
+    // Calculate total with new invoice and round to 2 decimals to avoid floating point precision issues
+    $totalWithNewInvoice = round($totalInvoiced + $newTotal, 2);
+    $workOrderTotal = round($workOrderTotal, 2);
 
     // Validate that invoice does not exceed work order total
     if ($totalWithNewInvoice > $workOrderTotal) {
       throw new Exception(sprintf(
-        'El monto total a facturar (%.2f) excede el monto de la orden de trabajo (%.2f). Ya hay %.2f facturado.',
+        'El monto total a facturar (%.2f) excede el monto de la orden de trabajo (%.2f) que incluye IGV. Ya hay %.2f facturado.',
         $totalWithNewInvoice,
         $workOrderTotal,
         $totalInvoiced
@@ -1890,11 +1891,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         ->whereNull('deleted_at')
         ->sum('total');
 
-      $totalAdvancesWithNew = $totalAdvances + $newTotal;
+      // Round to 2 decimals to avoid floating point precision issues
+      $totalAdvancesWithNew = round($totalAdvances + $newTotal, 2);
 
       if ($totalAdvancesWithNew > $workOrderTotal) {
         throw new Exception(sprintf(
-          'La suma de anticipos (%.2f) excede el monto total de la orden de trabajo (%.2f). Ya hay %.2f en anticipos existentes.',
+          'La suma de anticipos (%.2f) excede el monto total de la orden de trabajo (%.2f) que incluye IGV. Ya hay %.2f en anticipos existentes.',
           $totalAdvancesWithNew,
           $workOrderTotal,
           $totalAdvances
@@ -1940,9 +1942,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $entityId = $data['work_order_id'];
       $workOrder = ApWorkOrder::with(['labours', 'parts'])->find($entityId);
       if ($workOrder) {
-        $totalLabourCost = $workOrder->labours->sum('total_cost') ?? 0;
-        $totalPartsCost = $workOrder->parts->sum('total_amount') ?? 0;
-        $entityTotal = $totalLabourCost + $totalPartsCost;
+        // Calculate total using centralized method (includes labour, parts, discount, and tax)
+        $totals = WorkOrderService::calculateWorkOrderTotal($workOrder);
+        $entityTotal = $totals['total_amount'];
         $entityName = 'orden de trabajo';
       }
     } elseif (isset($data['purchase_request_quote_id']) && $data['purchase_request_quote_id']) {

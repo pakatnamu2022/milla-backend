@@ -37,7 +37,7 @@ class IndexElectronicDocumentRequest extends IndexRequest
       'numero' => 'nullable|integer|min:1',
       'area_id' => [
         'nullable',
-        'string',
+        'array',
         Rule::in(ApMasters::ALL_AREAS)
       ],
       'status' => [

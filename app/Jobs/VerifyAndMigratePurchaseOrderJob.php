@@ -9,6 +9,8 @@ use App\Http\Resources\ap\compras\PurchaseOrderItemDynamicsResource;
 use App\Http\Resources\ap\compras\PurchaseOrderVehicleReceptionResource;
 use App\Http\Resources\ap\compras\PurchaseOrderVehicleReceptionDetailResource;
 use App\Http\Resources\ap\compras\PurchaseOrderVehicleReceptionSerialResource;
+use App\Http\Resources\ap\compras\PurchaseOrderProductReceptionResource;
+use App\Http\Resources\ap\compras\PurchaseOrderProductReceptionDetailResource;
 use App\Http\Services\DatabaseSyncService;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
@@ -141,7 +143,10 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
     // 3. Verificar y sincronizar orden de compra genérica
     $this->verifyAndSyncGenericPurchaseOrder($purchaseOrder, $syncService);
 
-    // 4. Verificar si todo está completo
+    // 4. Verificar y sincronizar recepción de productos (solo si la OC está procesada)
+    $this->verifyAndSyncProductReception($purchaseOrder, $syncService);
+
+    // 5. Verificar si todo está completo
     $this->checkAndUpdateCompletionStatusForGeneric($purchaseOrder);
   }
 
@@ -527,6 +532,88 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
   }
 
   /**
+   * Verifica y sincroniza la recepción de productos/repuestos de una OC genérica.
+   * La propia OC actúa como recepción (igual que en vehículos), usando sus items como líneas.
+   */
+  protected function verifyAndSyncProductReception(PurchaseOrder $purchaseOrder, DatabaseSyncService $syncService): void
+  {
+    // Verificar que la OC esté procesada en Dynamics
+    $purchaseOrderLog = VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $purchaseOrder->id)
+      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER)
+      ->first();
+
+    if (!$purchaseOrderLog || $purchaseOrderLog->proceso_estado !== 1) {
+      return;
+    }
+
+    $code_reception = substr_replace($purchaseOrder->number, 'MI', 0, 2);
+
+    $receptionLog = $this->getOrCreateLog(
+      $purchaseOrder->id,
+      VehiclePurchaseOrderMigrationLog::STEP_RECEPTION,
+      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_RECEPTION],
+      $code_reception
+    );
+
+    $receptionDetailLog = $this->getOrCreateLog(
+      $purchaseOrder->id,
+      VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL,
+      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL],
+      $code_reception
+    );
+
+    if ($receptionLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED &&
+      $receptionDetailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+      return;
+    }
+
+    $existingReception = DB::connection('dbtp')
+      ->table('neInTbRecepcion')
+      ->where('EmpresaId', Company::AP_DYNAMICS)
+      ->where('RecepcionId', $code_reception)
+      ->first();
+
+    if (!$existingReception) {
+      try {
+        $receptionResource = new PurchaseOrderProductReceptionResource($purchaseOrder);
+        $receptionData = $receptionResource->toArray(request());
+
+        $receptionDetailResource = new PurchaseOrderProductReceptionDetailResource($purchaseOrder);
+        $receptionDetailData = $receptionDetailResource->toArray(request());
+
+        $receptionLog->markAsInProgress();
+        $syncService->sync('ap_vehicle_purchase_order_reception', $receptionData, 'create');
+        $receptionLog->updateProcesoEstado(0);
+
+        $receptionDetailLog->markAsInProgress();
+        foreach ($receptionDetailData as $detailRow) {
+          $syncService->sync('ap_vehicle_purchase_order_reception_det', $detailRow, 'create');
+        }
+        $receptionDetailLog->updateProcesoEstado(0);
+
+      } catch (Exception $e) {
+        Log::error('Error al sincronizar recepción de productos: ' . $e->getMessage());
+        $receptionLog->markAsFailed("Error al sincronizar recepción: {$e->getMessage()}");
+      }
+    } else {
+      $receptionLog->updateProcesoEstado(
+        $existingReception->ProcesoEstado ?? 0,
+        $existingReception->ProcesoError ?? null
+      );
+
+      $existingReceptionDetail = DB::connection('dbtp')
+        ->table('neInTbRecepcionDt')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('RecepcionId', $code_reception)
+        ->first();
+
+      if ($existingReceptionDetail) {
+        $receptionDetailLog->updateProcesoEstado(1);
+      }
+    }
+  }
+
+  /**
    * Verifica si todos los pasos están completos y actualiza el estado general
    */
   protected function checkAndUpdateCompletionStatus(PurchaseOrder $purchaseOrder): void
@@ -660,14 +747,31 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         $existingPO->ProcesoError ?? null
       );
 
-      $existingPODetail = DB::connection('dbtp')
+      $expectedItemCount = $purchaseOrder->items()->count();
+
+      $existingDetailCount = DB::connection('dbtp')
         ->table('neInTbOrdenCompraDet')
         ->where('EmpresaId', Company::AP_DYNAMICS)
         ->where('OrdenCompraId', $purchaseOrder->number)
-        ->first();
+        ->count();
 
-      if ($existingPODetail) {
+      if ($existingDetailCount >= $expectedItemCount && $expectedItemCount > 0) {
         $purchaseOrderDetailLog->updateProcesoEstado(1);
+      } else {
+        // El detalle está incompleto o corresponde a una migración anterior; sincronizar
+        try {
+          $resourcePurchaseOrderDetail = new PurchaseOrderItemDynamicsResource($purchaseOrder->items);
+          $resourceDataPurchaseOrderDetail = $resourcePurchaseOrderDetail->toArray(request());
+
+          $purchaseOrderDetailLog->markAsInProgress();
+          foreach ($resourceDataPurchaseOrderDetail as $detail) {
+            $syncService->sync('ap_purchase_order_item', $detail, 'create');
+          }
+          $purchaseOrderDetailLog->updateProcesoEstado(0);
+        } catch (Exception $e) {
+          Log::error('Error al sincronizar detalle de orden de compra genérica: ' . $e->getMessage());
+          $purchaseOrderDetailLog->markAsFailed("Error al sincronizar detalle: {$e->getMessage()}");
+        }
       }
     }
   }
@@ -723,8 +827,10 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
    */
   protected function getOrCreateLog(int $purchaseOrderId, string $step, string $tableName, ?string $externalId = null): VehiclePurchaseOrderMigrationLog
   {
-    // Para el step de artículos, incluir external_id en la búsqueda
-    // para permitir múltiples productos en la misma OC
+    // Para artículos y recepciones de productos, incluir external_id en la búsqueda
+    // para permitir múltiples entradas del mismo step en la misma OC
+    // Para artículos, incluir external_id en la búsqueda para permitir
+    // múltiples productos (dyn_code) en la misma OC
     if ($step === VehiclePurchaseOrderMigrationLog::STEP_ARTICLE && $externalId) {
       return VehiclePurchaseOrderMigrationLog::firstOrCreate(
         [

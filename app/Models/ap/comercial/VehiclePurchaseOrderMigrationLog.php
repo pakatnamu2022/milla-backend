@@ -135,7 +135,7 @@ class VehiclePurchaseOrderMigrationLog extends Model
    */
   public function electronicDocument(): BelongsTo
   {
-    return $this->belongsTo(\App\Models\ap\facturacion\ElectronicDocument::class, 'electronic_document_id');
+    return $this->belongsTo(ElectronicDocument::class, 'electronic_document_id');
   }
 
   /**

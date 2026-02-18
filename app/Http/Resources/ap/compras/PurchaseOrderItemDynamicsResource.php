@@ -42,7 +42,7 @@ class PurchaseOrderItemDynamicsResource extends JsonResource
 
       if (!$articleId) throw new Exception("Article ID not found for item {$item->id}");
       if (!$siteId) throw new Exception("Site ID not found for item {$item->id}");
-
+      
       $result[] = [
         'EmpresaId' => Company::AP_DYNAMICS,
         'OrdenCompraId' => $item->purchaseOrder->number,
