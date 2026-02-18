@@ -4,6 +4,7 @@ namespace App\Models\ap\postventa;
 
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -68,5 +69,15 @@ class DiscountRequestsOrderQuotation extends Model
   public function apOrderQuotationDetail()
   {
     return $this->belongsTo(ApOrderQuotationDetails::class, 'ap_order_quotation_detail_id');
+  }
+
+  public function manager()
+  {
+    return $this->belongsTo(User::class, 'manager_id');
+  }
+
+  public function approver()
+  {
+    return $this->belongsTo(User::class, 'approved_id');
   }
 }

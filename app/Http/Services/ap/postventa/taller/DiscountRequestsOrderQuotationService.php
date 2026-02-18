@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\DiscountRequestsOrderQuotationResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\EmailService;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use Exception;
@@ -13,6 +14,13 @@ use Illuminate\Support\Facades\DB;
 
 class DiscountRequestsOrderQuotationService extends BaseService implements BaseServiceInterface
 {
+  protected EmailService $emailService;
+
+  public function __construct(EmailService $emailService)
+  {
+    $this->emailService = $emailService;
+  }
+
   public function list(Request $request)
   {
     return $this->getFilteredResults(
@@ -73,6 +81,9 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
       ]);
     });
 
+    // Send email notification to managers
+    $this->sendEmailNotification($record);
+
     return new DiscountRequestsOrderQuotationResource($record);
   }
 
@@ -115,7 +126,11 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
       ]);
     });
 
-    return new DiscountRequestsOrderQuotationResource($record->fresh());
+    $fresh = $record->fresh();
+
+    $this->sendApprovalNotification($fresh);
+
+    return new DiscountRequestsOrderQuotationResource($fresh);
   }
 
   private function findNotApproved($id): DiscountRequestsOrderQuotation
@@ -127,5 +142,123 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     }
 
     return $record;
+  }
+
+  private function sendApprovalNotification(DiscountRequestsOrderQuotation $record): void
+  {
+    try {
+      $record->loadMissing(['manager', 'apOrderQuotation.vehicle', 'apOrderQuotationDetail']);
+
+      $quotation = $record->apOrderQuotation;
+      $detail = $record->apOrderQuotationDetail;
+      $requester = $record->manager;
+      $approver = $record->approved;
+
+      if ($record->type === DiscountRequestsOrderQuotation::TYPE_PARTIAL && $detail) {
+        $originalPrice = (float)$detail->unit_price * (float)$detail->quantity;
+      } else {
+        $originalPrice = (float)($quotation->total_amount ?? 0);
+      }
+
+      $discountAmount = (float)$record->requested_discount_amount;
+      $finalPrice = $originalPrice - $discountAmount;
+
+      $sharedData = [
+        'quotation_number' => $quotation->quotation_number ?? $record->ap_order_quotation_id,
+        'plate' => $quotation?->vehicle?->plate,
+        'type' => $record->type,
+        'item_type' => $record->item_type,
+        'requester_name' => $requester?->name ?? 'Usuario',
+        'approver_name' => $approver?->name ?? 'Gerente',
+        'approval_date' => $record->approval_date?->format('d/m/Y H:i'),
+        'item_description' => $detail?->description,
+        'item_quantity' => $detail?->quantity,
+        'item_unit' => $detail?->unit_measure,
+        'item_unit_price' => (float)($detail?->unit_price ?? 0),
+        'original_price' => $originalPrice,
+        'discount_percentage' => (float)$record->requested_discount_percentage,
+        'discount_amount' => $discountAmount,
+        'final_price' => $finalPrice,
+        'button_url' => config('app.frontend_url') . '/ap/post-venta/repuestos/cotizacion-meson/solicitar-descuento/' . $quotation->id,
+      ];
+
+      $subject = 'Descuento aprobado — Cotización #' . ($quotation->quotation_number ?? $record->ap_order_quotation_id);
+
+      // Notificar al solicitante
+      $this->emailService->queue([
+        'to' => 'wsuclupef2001@gmail.com', //$requester?->email,
+        'subject' => $subject,
+        'template' => 'emails.discount-request-approved',
+        'data' => array_merge($sharedData, ['recipient_name' => $requester?->name ?? 'Usuario']),
+      ]);
+
+      // Notificar al aprobador
+      $this->emailService->queue([
+        'to' => 'wsuclupef2001@gmail.com', //$approver?->email,
+        'subject' => $subject,
+        'template' => 'emails.discount-request-approved',
+        'data' => array_merge($sharedData, ['recipient_name' => $approver?->name ?? 'Gerente']),
+      ]);
+    } catch (Exception $e) {
+      \Log::error('Error al enviar notificación de aprobación de descuento: ' . $e->getMessage());
+    }
+  }
+
+  private function sendEmailNotification(DiscountRequestsOrderQuotation $record): void
+  {
+    try {
+      $record->loadMissing(['manager', 'apOrderQuotation.vehicle', 'apOrderQuotationDetail']);
+
+      $quotation = $record->apOrderQuotation;
+      $detail = $record->apOrderQuotationDetail;
+      $manager = $record->manager;
+
+      // Precio base según tipo de descuento
+      if ($record->type === DiscountRequestsOrderQuotation::TYPE_PARTIAL && $detail) {
+        $originalPrice = (float)$detail->unit_price * (float)$detail->quantity;
+      } else {
+        $originalPrice = (float)($quotation->total_amount ?? 0);
+      }
+
+      $discountAmount = (float)$record->requested_discount_amount;
+      $finalPrice = $originalPrice - $discountAmount;
+
+      $data = [
+        // Cotización
+        'quotation_number' => $quotation->quotation_number ?? $record->ap_order_quotation_id,
+        'plate' => $quotation?->vehicle?->plate,
+        'type' => $record->type,
+        'item_type' => $record->item_type,
+
+        // Solicitante
+        'manager_name' => $manager?->name ?? 'Gerente',
+        'requester_name' => $manager?->name ?? 'Usuario',
+
+        // Ítem (solo PARTIAL)
+        'item_description' => $detail?->description,
+        'item_quantity' => $detail?->quantity,
+        'item_unit' => $detail?->unit_measure,
+        'item_unit_price' => (float)($detail?->unit_price ?? 0),
+
+        // Resumen descuento
+        'original_price' => $originalPrice,
+        'discount_percentage' => (float)$record->requested_discount_percentage,
+        'discount_amount' => $discountAmount,
+        'final_price' => $finalPrice,
+
+        // Link
+        'button_url' => config('app.frontend_url') . '/ap/post-venta/repuestos/cotizacion-meson/solicitar-descuento/' . $record->apOrderQuotation->id,
+      ];
+
+      $this->emailService->queue([
+        //'to' => $manager?->email2,
+        'to' => 'wsuclupef2001@gmail.com',
+        'subject' => 'Nueva solicitud de descuento — Cotización #' . ($quotation->quotation_number ?? $record->ap_order_quotation_id),
+        'template' => 'emails.discount-request-notification',
+        'data' => $data,
+      ]);
+    } catch (Exception $e) {
+      \Log::error('Error al enviar notificación de solicitud de descuento: ' . $e->getMessage());
+    }
   }
 }

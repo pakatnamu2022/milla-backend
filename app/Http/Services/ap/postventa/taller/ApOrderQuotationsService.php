@@ -555,6 +555,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $data['subtotal'] = $subtotal;
     $data['tax_amount'] = $quotation->tax_amount;
     $data['total_amount'] = $total_amount;
+    $data['area'] = $quotation->area ? $quotation->area->description : 'N/A';
 
     // Convertir firma del cliente a base64 si existe
     $customerSignature = null;

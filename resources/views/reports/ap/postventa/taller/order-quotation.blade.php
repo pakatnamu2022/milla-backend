@@ -337,7 +337,7 @@
 
 <!-- Número de propuesta y fecha -->
 <div class="quotation-info">
-  <strong>Nº Propuesta:</strong> {{ $quotation['quotation_number'] }} &nbsp;&nbsp;&nbsp;
+  <strong>Nº Propuesta {{ $quotation['area'] }} : </strong> {{ $quotation['quotation_number'] }} &nbsp;&nbsp;&nbsp;
   <strong>Fecha:</strong> {{ \Carbon\Carbon::parse($quotation['quotation_date'])->format('d/m/Y') }}
 </div>
 
