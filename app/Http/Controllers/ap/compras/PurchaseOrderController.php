@@ -121,4 +121,18 @@ class PurchaseOrderController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Despacha el job para sincronizar la factura a Dynamics
+   * @param $id
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function dispatchInvoiceJob($id)
+  {
+    try {
+      return $this->success($this->service->dispatchInvoiceJob($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

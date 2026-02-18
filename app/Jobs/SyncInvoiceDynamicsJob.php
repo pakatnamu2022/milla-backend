@@ -129,9 +129,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           'invoice_dynamics' => $newInvoice,
           'receipt_dynamics' => $newReceipt,
           'migration_status' => 'updated_with_nc',
-          'status' => (!empty($purchaseOrder->invoice_dynamics) && !($newInvoice == $newReceipt)) ||
-            (!empty($purchaseOrder->invoice_dynamics) && !empty($purchaseOrder->receipt_dynamics))
-          // Si son iguales, marcar como false (anulada)
+          'status' => (!empty($purchaseOrder->invoice_dynamics) && !($newInvoice == $newReceipt)) // Si son iguales, marcar como false (anulada)
         ]);
 
         return;

@@ -11,6 +11,7 @@ use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService
 use App\Http\Services\BaseService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Jobs\SyncCreditNoteDynamicsJob;
+use App\Jobs\SyncInvoiceDynamicsJob;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Http\Services\BaseServiceInterface;
@@ -818,6 +819,21 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     SyncCreditNoteDynamicsJob::dispatchSync($purchaseOrder->id);
     return [
       'message' => "Job de sincronización de nota de crédito para la orden de compra {$purchaseOrder->number} ha sido despachado."
+    ];
+  }
+
+  /**
+   * Despacha un job para sincronizar la factura de una orden de compra con Dynamics
+   * @param $id
+   * @return string[]
+   * @throws Exception
+   */
+  public function dispatchInvoiceJob($id): array
+  {
+    $purchaseOrder = $this->find($id);
+    SyncInvoiceDynamicsJob::dispatchSync($purchaseOrder->id);
+    return [
+      'message' => "Job de sincronización de factura para la orden de compra {$purchaseOrder->number} ha sido despachado."
     ];
   }
 }
