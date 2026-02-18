@@ -22,7 +22,7 @@ class PurchaseOrderProductReceptionDetailResource extends JsonResource
     $purchaseOrder = $this->resource;
     $items = $purchaseOrder->items;
     $warehouse = $purchaseOrder->warehouse;
-    $code_reception = substr_replace($purchaseOrder->number, 'MI', 0, 2);
+    $code_reception = substr_replace($purchaseOrder->number, 'NI', 0, 2);
 
     if (!$items || $items->isEmpty()) {
       throw new Exception("No items found for purchase order {$purchaseOrder->number}");

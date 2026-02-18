@@ -546,7 +546,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       return;
     }
 
-    $code_reception = substr_replace($purchaseOrder->number, 'MI', 0, 2);
+    $code_reception = substr_replace($purchaseOrder->number, 'NI', 0, 2);
 
     $receptionLog = $this->getOrCreateLog(
       $purchaseOrder->id,
