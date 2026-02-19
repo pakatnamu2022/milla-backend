@@ -34,7 +34,6 @@ class ShippingGuidesController extends Controller
   {
     try {
       $data = $request->validated();
-
       // Agregar el archivo si existe
       if ($request->hasFile('file')) {
         $data['file'] = $request->file('file');

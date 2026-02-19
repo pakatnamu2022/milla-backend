@@ -175,6 +175,8 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'origin_address' => $origin->address ?? '-',
         'destination_ubigeo' => $destination->ubigeo ?? '-',
         'destination_address' => $destination->address ?? '-',
+        'send_dynamics' => $data['send_dynamics'] ?? true,
+        'is_consignment' => $data['is_consignment'] ?? false,
       ];
 
       $document = ShippingGuides::create($documentData);

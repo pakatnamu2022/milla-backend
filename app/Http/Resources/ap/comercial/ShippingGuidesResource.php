@@ -122,6 +122,8 @@ class ShippingGuidesResource extends JsonResource
           return [];
         }
       ),
+      'send_dynamics' => $this->send_dynamics,
+      'is_consignment' => $this->is_consignment,
     ];
   }
 }
