@@ -20,6 +20,7 @@ use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -140,9 +141,9 @@ class PurchaseOrder extends BaseModel
     return $this->hasMany(PurchaseOrderItem::class, 'purchase_order_id');
   }
 
-  public function receptions(): HasMany
+  public function reception(): HasOne // A una recepción le corresponde una factura (OC)
   {
-    return $this->hasMany(PurchaseReception::class, 'purchase_order_id');
+    return $this->hasOne(PurchaseReception::class, 'purchase_order_id');
   }
 
   public function hasActiveReceptions(): bool
