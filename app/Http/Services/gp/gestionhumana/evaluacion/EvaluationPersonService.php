@@ -22,9 +22,9 @@ class EvaluationPersonService extends BaseService
 {
   protected EvaluationPersonCompetenceDetailService $competenceDetailService;
 
-  public function __construct(EvaluationPersonCompetenceDetailService $competenceDetailService)
+  public function __construct()
   {
-    $this->competenceDetailService = $competenceDetailService;
+    $this->competenceDetailService = new EvaluationPersonCompetenceDetailService();
   }
 
   public function list(Request $request)

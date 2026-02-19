@@ -27,13 +27,10 @@ class EvaluationPersonResultService extends BaseService
   protected $exportService;
   protected EvaluationPersonCycleDetailService $personCycleDetailService;
 
-  public function __construct(
-    ExportService                      $exportService,
-    EvaluationPersonCycleDetailService $personCycleDetailService
-  )
+  public function __construct()
   {
-    $this->exportService = $exportService;
-    $this->personCycleDetailService = $personCycleDetailService;
+    $this->exportService = new ExportService();
+    $this->personCycleDetailService = new EvaluationPersonCycleDetailService();
   }
 
   public function export(Request $request)

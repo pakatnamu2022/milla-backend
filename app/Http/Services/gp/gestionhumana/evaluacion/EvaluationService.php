@@ -43,15 +43,11 @@ class EvaluationService extends BaseService
   const EVALUACION_180 = 1;
   const EVALUACION_360 = 2;
 
-  public function __construct(
-    EvaluationPersonService       $evaluationPersonService,
-    EvaluationPersonResultService $evaluationPersonResultService,
-    ExportService                 $exportService
-  )
+  public function __construct()
   {
-    $this->evaluationPersonService = $evaluationPersonService;
-    $this->evaluationPersonResultService = $evaluationPersonResultService;
-    $this->exportService = $exportService;
+    $this->evaluationPersonService = new EvaluationPersonService();
+    $this->evaluationPersonResultService = new EvaluationPersonResultService();
+    $this->exportService = new ExportService();
   }
 
   public function export(Request $request)
@@ -787,7 +783,7 @@ class EvaluationService extends BaseService
     $personsRemovedWithProgress = array_filter($personsToRemoveDetails, fn($p) => isset($p['progress_lost']));
 
     // Contar personas que se mantienen pero tienen progreso (si reset_progress=true, perderán su progreso)
-    $personsToKeepWithProgress = array_filter($personsToKeep, function($p) use ($evaluation) {
+    $personsToKeepWithProgress = array_filter($personsToKeep, function ($p) use ($evaluation) {
       // Verificar si tiene progreso actual
       $personResult = EvaluationPersonResult::where('evaluation_id', $evaluation->id)
         ->where('person_id', $p['person_id'])
@@ -1266,7 +1262,7 @@ class EvaluationService extends BaseService
       // CRÍTICO: Validar fecha de inicio <= fecha de corte (igual que en createPersonResultsForSpecific)
       ->where('p.fecha_inicio', '<=', $cycle->cut_off_date)
       // CRÍTICO: Debe tener evaluador asignado (igual que en createPersonResultsForSpecific)
-      ->where(function($q) {
+      ->where(function ($q) {
         $q->whereNotNull('p.supervisor_id')
           ->orWhereNotNull('p.jefe_id');
       });
