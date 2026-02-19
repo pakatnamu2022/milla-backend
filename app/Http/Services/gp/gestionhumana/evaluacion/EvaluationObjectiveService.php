@@ -67,6 +67,9 @@ class EvaluationObjectiveService extends BaseService
       foreach ($personCycleDetails as $detail) {
         $detail->objective = $objective->name;
         $detail->isAscending = $objective->isAscending;
+        if ($objective->metric) {
+          $detail->metric = $objective->metric->name;
+        }
         $detail->save();
       }
     });
