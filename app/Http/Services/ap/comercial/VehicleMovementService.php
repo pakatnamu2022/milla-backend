@@ -355,19 +355,19 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
 
     $vehicleMovementData = [
       'ap_vehicle_id' => $vehicleId,
-      'movement_type' => 'TRAVESIA',
+      'movement_type' => VehicleMovement::CONSIGNMENT,
       'movement_date' => $issueDate ?? now(),
       'observation' => $observation,
       'origin_address' => $originAddress,
       'destination_address' => $destinationAddress,
       'previous_status_id' => $statusCurrentVehicle,
-      'new_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-      'ap_vehicle_status_id' => $statusCurrentVehicle,
+      'new_status_id' => ApVehicleStatus::CONSIGNACION,
+      'ap_vehicle_status_id' => ApVehicleStatus::CONSIGNACION,
       'created_by' => auth()->id(),
     ];
 
     $vehicle->update([
-      'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+      'ap_vehicle_status_id' => ApVehicleStatus::CONSIGNACION,
     ]);
 
     return VehicleMovement::create($vehicleMovementData);

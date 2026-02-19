@@ -30,6 +30,19 @@ class ShippingGuidesController extends Controller
     }
   }
 
+  public function storeConsignment(StoreShippingGuidesRequest $request)
+  {
+    try {
+      $data = $request->validated();
+      if ($request->hasFile('file')) {
+        $data['file'] = $request->file('file');
+      }
+      return $this->success($this->service->storeConsignment($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function store(StoreShippingGuidesRequest $request)
   {
     try {

@@ -7,7 +7,6 @@ use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\EmailService;
 use App\Http\Utils\Constants;
-use App\Jobs\SyncShippingGuideJob;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\comercial\ApReceivingChecklist;
 use App\Models\ap\comercial\ShippingGuides;
@@ -118,7 +117,8 @@ class ApReceivingChecklistService extends BaseService
         throw new Exception('Guía de envío no encontrada');
       }
 
-      if (!$shippingGuide->aceptada_por_sunat) {
+      $isConsignment = $shippingGuide->is_consignment && !$shippingGuide->send_dynamics;
+      if (!$isConsignment && !$shippingGuide->aceptada_por_sunat) {
         throw new Exception('Debe esperar a que la guía de remisión sea aceptada por SUNAT antes de registrar la recepción');
       }
 
@@ -181,19 +181,19 @@ class ApReceivingChecklistService extends BaseService
           ->update(['quantity' => $data['items_receiving'][$receivingId]]);
       }
 
-      // marcar cono enviada a Dynamics
-      $shippingGuide->markAsSentToDynamic();
+      if (!$isConsignment) {
+        // marcar como enviada a Dynamics y despachar migración
+        $shippingGuide->markAsSentToDynamic();
+        VerifyAndMigrateShippingGuideJob::dispatchSync($shippingGuide->id);
+      }
 
-      // Update shipping guide with note, is_received, received_by and received_date
+      // Siempre marcar como recibido
       $shippingGuide->update([
         'is_received' => true,
         'note_received' => $data['note'] ?? null,
         'received_by' => auth()->id(),
         'received_date' => now(),
       ]);
-
-      // Despachar el Job síncronamente para debugging
-      VerifyAndMigrateShippingGuideJob::dispatchSync($shippingGuide->id);
 
       // Get updated records
       $updatedRecords = ApReceivingChecklist::where('shipping_guide_id', $data['shipping_guide_id'])

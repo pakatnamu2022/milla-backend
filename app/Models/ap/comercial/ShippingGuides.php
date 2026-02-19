@@ -91,10 +91,12 @@ class ShippingGuides extends BaseModel
     'area_id',
     'send_dynamics',
     'is_consignment',
+    'dynamics_date',
   ];
 
   protected $casts = [
     'issue_date' => 'datetime',
+    'dynamics_date' => 'date',
     'cancelled_at' => 'datetime',
     'sent_at' => 'datetime',
     'accepted_at' => 'datetime',
