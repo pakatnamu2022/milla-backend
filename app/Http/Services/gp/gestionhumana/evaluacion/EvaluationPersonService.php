@@ -195,7 +195,7 @@ class EvaluationPersonService extends BaseService
   /**
    * Recalcular los resultados de una persona en una evaluación
    */
-  private function recalculatePersonResults($evaluationId, $personId)
+  public function recalculatePersonResults($evaluationId, $personId)
   {
     $evaluation = Evaluation::findOrFail($evaluationId);
 
