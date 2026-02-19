@@ -277,6 +277,11 @@ class ShippingGuides extends BaseModel
     return $this->hasMany(ApReceivingChecklist::class, 'shipping_guide_id');
   }
 
+  public function consignmentAccessories()
+  {
+    return $this->hasMany(ShippingGuideAccessory::class, 'shipping_guide_id');
+  }
+
   /**
    * Marca la guía como enviada a Nubefact/SUNAT
    */

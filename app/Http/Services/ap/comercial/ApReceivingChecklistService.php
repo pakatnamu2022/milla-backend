@@ -9,6 +9,7 @@ use App\Http\Services\common\EmailService;
 use App\Http\Utils\Constants;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\comercial\ApReceivingChecklist;
+use App\Models\ap\comercial\ShippingGuideAccessory;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklist;
 use Exception;
@@ -69,15 +70,30 @@ class ApReceivingChecklistService extends BaseService
         ->with(['receiving', 'shipping_guide'])
         ->get();
 
-      // Get accessories from purchase orders related to this vehicle
+      // Get accessories: desde tabla de accesorios de consignación o desde OC según el tipo de guía
       $accessories = [];
 
-      if ($shippingGuide->vehicleMovement) {
+      if ($shippingGuide->is_consignment) {
+        // Consignación: leer accesorios declarados directamente en la guía
+        $consignmentAccessories = ShippingGuideAccessory::with('unitMeasurement')
+          ->where('shipping_guide_id', $shippingGuideId)
+          ->get();
 
+        foreach ($consignmentAccessories as $accessory) {
+          $accessories[] = [
+            'id' => $accessory->id,
+            'description' => $accessory->description,
+            'quantity' => $accessory->quantity,
+            'unit_price' => null,
+            'total' => null,
+            'unit_measurement' => $accessory->unitMeasurement?->description ?? 'UND',
+          ];
+        }
+      } elseif ($shippingGuide->vehicleMovement) {
+        // Normal: leer accesorios desde las órdenes de compra del vehículo
         $vehicle = $shippingGuide->vehicleMovement->vehicle;
 
         if ($vehicle) {
-
           $purchaseOrders = $vehicle->purchaseOrders;
 
           foreach ($purchaseOrders as $purchaseOrder) {

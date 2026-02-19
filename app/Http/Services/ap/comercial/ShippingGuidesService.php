@@ -11,6 +11,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
+use App\Models\ap\comercial\ShippingGuideAccessory;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\gestionsistema\DigitalFile;
@@ -314,6 +315,18 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $document->update([
           'file_url' => $digitalFile->url,
         ]);
+      }
+
+      // Crear accesorios de consignación si se enviaron
+      if (!empty($data['accessories'])) {
+        foreach ($data['accessories'] as $accessory) {
+          ShippingGuideAccessory::create([
+            'shipping_guide_id' => $document->id,
+            'description' => $accessory['description'],
+            'quantity' => $accessory['quantity'],
+            'unit_measurement_id' => $accessory['unit_measurement_id'] ?? null,
+          ]);
+        }
       }
 
       return new ShippingGuidesResource($document);

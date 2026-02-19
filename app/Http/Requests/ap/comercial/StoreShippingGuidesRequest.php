@@ -51,6 +51,10 @@ class StoreShippingGuidesRequest extends StoreRequest
       'ap_class_article_id' => 'required|integer|exists:ap_class_article,id',
       'send_dynamics' => 'required|boolean',
       'is_consignment' => 'required|boolean',
+      'accessories' => 'nullable|array',
+      'accessories.*.description' => 'required_with:accessories|string|max:255',
+      'accessories.*.quantity' => 'required_with:accessories|numeric|min:0.01',
+      'accessories.*.unit_measurement_id' => 'nullable|integer|exists:unit_measurement,id',
     ];
   }
 
@@ -84,6 +88,10 @@ class StoreShippingGuidesRequest extends StoreRequest
       'ap_class_article_id' => 'clase de artículo',
       'send_dynamics' => 'enviar a dynamics',
       'is_consignment' => 'es consignación',
+      'accessories' => 'accesorios',
+      'accessories.*.description' => 'descripción del accesorio',
+      'accessories.*.quantity' => 'cantidad del accesorio',
+      'accessories.*.unit_measurement_id' => 'unidad de medida del accesorio',
     ];
   }
 }
