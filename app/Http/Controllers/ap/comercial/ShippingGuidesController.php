@@ -11,6 +11,7 @@ use App\Http\Services\ap\comercial\ShippingGuidesService;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use Illuminate\Http\Request;
+use function Pest\Laravel\json;
 
 class ShippingGuidesController extends Controller
 {

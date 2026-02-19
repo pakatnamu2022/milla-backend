@@ -210,7 +210,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       $origin = BusinessPartnersEstablishment::find($data['transmitter_id']) ?? null;
       $destination = BusinessPartnersEstablishment::find($data['receiver_id']) ?? null;
-
       // Crear el movimiento de vehículo de consignación
       $vehicleMovement = $this->vehicleMovementService->storeShippingGuideConsignmentVehicleMovement(
         $data['ap_vehicle_id'],

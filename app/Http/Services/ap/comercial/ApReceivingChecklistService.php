@@ -221,7 +221,9 @@ class ApReceivingChecklistService extends BaseService
 
       // Enviar correo de notificación en segundo plano (después del commit)
       try {
-        $this->sendReceptionEmail($shippingGuide->fresh(['vehicleMovement.vehicle', 'transmitter', 'receiver', 'receivedBy']), $updatedRecords);
+        if (!$shippingGuide->is_consignment) {
+          $this->sendReceptionEmail($shippingGuide->fresh(['vehicleMovement.vehicle', 'transmitter', 'receiver', 'receivedBy']), $updatedRecords);
+        }
       } catch (Exception $e) {
         Log::error('Error al enviar correo de recepción de vehículo', [
           'shipping_guide_id' => $shippingGuide->id,
