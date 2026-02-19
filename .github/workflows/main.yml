@@ -1,0 +1,68 @@
+name: Deploy Backend to Server
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      run_migrations:
+        description: '¿Ejecutar migraciones?'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        password: ${{ secrets.PASSWORD }}
+        port: 22
+        timeout: 30s
+        command_timeout: 15m
+        script: |
+          cd /opt/milla-api/app
+          
+          echo "📥 Pulling latest changes..."
+          git pull origin main
+          
+          cd /opt/milla-api
+          
+          echo "🐳 Rebuilding Docker..."
+          docker compose build
+          docker compose up -d
+          
+          echo "📦 Installing dependencies..."
+          docker compose exec -T app composer install --no-dev --optimize-autoloader
+          
+          if [ "${{ github.event.inputs.run_migrations }}" = "true" ]; then
+            echo "🗄️ Running migrations..."
+            docker compose exec -T app php artisan migrate --force
+          else
+            echo "⏭️ Skipping migrations..."
+          fi
+          
+          echo "🧹 Clearing caches..."
+          docker compose exec -T app php artisan optimize:clear
+          docker compose exec -T app php artisan config:clear
+          docker compose exec -T app php artisan route:clear
+          docker compose exec -T app php artisan view:clear
+          docker compose exec -T app php artisan cache:clear
+          
+          echo "🔄 Regenerating autoload..."
+          docker compose exec -T app composer dump-autoload --optimize
+          
+          echo "♻️ Restarting services..."
+          docker compose restart app
+          docker compose exec -T app php artisan queue:restart
+          docker compose exec -T app php artisan schedule:clear-cache
+          docker compose exec -T app php -r "if(function_exists('opcache_reset')) opcache_reset();"
+          
+          echo "✅ Deploy completed successfully!"
