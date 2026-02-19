@@ -91,7 +91,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
       // CÁLCULO AUTOMÁTICO DE STATUS:
       // Verificar si todos los items de la orden de proveedor están completamente recibidos
-      $allItemsFullyReceived = $this->checkIfAllItemsReceived($supplierOrder, $reception->id);
+      $allItemsFullyReceived = $this->checkIfAllItemsReceived($supplierOrder);
 
       // - APPROVED: Si se recepcionó todo lo pedido
       // - INCOMPLETE: Si falta mercancía
@@ -193,7 +193,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     }
   }
 
-  protected function checkIfAllItemsReceived($supplierOrder, $currentReceptionId)
+  protected function checkIfAllItemsReceived($supplierOrder): bool
   {
     // Obtener todos los items de la orden de proveedor
     $supplierOrderDetails = $supplierOrder->details;
