@@ -58,11 +58,14 @@ class EvaluationObjectiveService extends BaseService
      */
     DB::transaction(function () use ($objective) {
       $evaluationService = new EvaluationService();
+      $evaluationPersonService = new EvaluationPersonService();
       $evaluation = $evaluationService->active();
       $cycle = $evaluation->cycle;
       $personCycleDetails = EvaluationPersonCycleDetail::where('cycle_id', $cycle->id)
         ->where('objective_id', $objective->id)
         ->get();
+
+      $affectedPersonIds = [];
 
       foreach ($personCycleDetails as $detail) {
         $detail->objective = $objective->name;
@@ -71,6 +74,11 @@ class EvaluationObjectiveService extends BaseService
           $detail->metric = $objective->metric->name;
         }
         $detail->save();
+        $affectedPersonIds[$detail->person_id] = true;
+      }
+
+      foreach (array_keys($affectedPersonIds) as $personId) {
+        $evaluationPersonService->recalculatePersonResults($evaluation->id, $personId);
       }
     });
 
