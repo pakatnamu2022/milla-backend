@@ -13,7 +13,8 @@ class UpdateEvaluationObjectiveRequest extends StoreRequest
       'description' => 'nullable|string|max:1000',
       'metric_id' => 'nullable|exists:gh_evaluation_metric,id',
       'goalReference' => 'nullable|numeric|max:255',
-      'fixedWeight' => 'nullable|numeric|min:0'
+      'fixedWeight' => 'nullable|numeric|min:0',
+      'isAscending' => 'nullable|boolean',
     ];
   }
 }
