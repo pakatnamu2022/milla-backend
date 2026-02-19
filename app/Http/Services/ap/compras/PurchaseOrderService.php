@@ -77,7 +77,6 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       'supplier',
       'warehouse',
       'quotation',
-      'advisor'
     ])->where('id', $id)->first();
     if (!$purchaseOrder) {
       throw new Exception('Orden de compra no encontrada');
@@ -740,6 +739,36 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     return [
       'header' => new PurchaseOrderDynamicsResource($purchaseOrder),
       'detail' => new PurchaseOrderItemDynamicsResource($purchaseOrder->items),
+    ];
+  }
+
+  /**
+   * Despacha un job para sincronizar la nota de crédito de una orden de compra con Dynamics
+   * @param $id
+   * @return string[]
+   * @throws Exception
+   */
+  public function dispatchSyncCreditNoteJob($id): array
+  {
+    $purchaseOrder = $this->find($id);
+    SyncCreditNoteDynamicsJob::dispatchSync($purchaseOrder->id);
+    return [
+      'message' => "Job de sincronización de nota de crédito para la orden de compra {$purchaseOrder->number} ha sido despachado."
+    ];
+  }
+
+  /**
+   * Despacha un job para sincronizar la factura de una orden de compra con Dynamics
+   * @param $id
+   * @return string[]
+   * @throws Exception
+   */
+  public function dispatchSyncInvoiceJob($id): array
+  {
+    $purchaseOrder = $this->find($id);
+    SyncInvoiceDynamicsJob::dispatchSync($purchaseOrder->id);
+    return [
+      'message' => "Job de sincronización de factura para la orden de compra {$purchaseOrder->number} ha sido despachado."
     ];
   }
 }

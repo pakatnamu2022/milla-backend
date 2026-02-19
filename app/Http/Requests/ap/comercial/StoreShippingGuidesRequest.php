@@ -6,6 +6,16 @@ use App\Http\Requests\StoreRequest;
 
 class StoreShippingGuidesRequest extends StoreRequest
 {
+
+  public function prepareForValidation()
+  {
+    if (!$this->send_dynamics) {
+      $this->merge([
+        'send_dynamics' => 1
+      ]);
+    }
+  }
+
   public function rules(): array
   {
     return [
@@ -34,6 +44,7 @@ class StoreShippingGuidesRequest extends StoreRequest
       'transfer_reason_id' => 'nullable|integer|exists:sunat_concepts,id',
       'transfer_modality_id' => 'nullable|integer|exists:sunat_concepts,id',
       'ap_class_article_id' => 'required|integer|exists:ap_class_article,id',
+      'send_dynamics' => 'required|boolean',
     ];
   }
 

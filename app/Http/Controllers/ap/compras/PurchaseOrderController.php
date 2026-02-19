@@ -8,6 +8,7 @@ use App\Http\Requests\ap\compras\ResendPurchaseOrderRequest;
 use App\Http\Requests\ap\compras\StorePurchaseOrderRequest;
 use App\Http\Requests\ap\compras\UpdatePurchaseOrderRequest;
 use App\Http\Services\ap\compras\PurchaseOrderService;
+use App\Jobs\SyncCreditNoteDynamicsJob;
 use Illuminate\Http\Request;
 
 class PurchaseOrderController extends Controller
@@ -103,6 +104,35 @@ class PurchaseOrderController extends Controller
         'success' => false,
         'message' => $th->getMessage()
       ], 400);
+    }
+  }
+
+
+  /**
+   * Despacha el job para sincronizar la nota de crédito a Dynamics
+   * @param $id
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function dispatchSyncCreditNoteJob($id)
+  {
+    try {
+      return $this->success($this->service->dispatchSyncCreditNoteJob($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Despacha el job para sincronizar la factura a Dynamics
+   * @param $id
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function dispatchSyncInvoiceJob($id)
+  {
+    try {
+      return $this->success($this->service->dispatchSyncInvoiceJob($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
   }
 }

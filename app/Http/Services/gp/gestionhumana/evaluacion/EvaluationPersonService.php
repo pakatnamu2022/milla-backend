@@ -22,9 +22,9 @@ class EvaluationPersonService extends BaseService
 {
   protected EvaluationPersonCompetenceDetailService $competenceDetailService;
 
-  public function __construct(EvaluationPersonCompetenceDetailService $competenceDetailService)
+  public function __construct()
   {
-    $this->competenceDetailService = $competenceDetailService;
+    $this->competenceDetailService = new EvaluationPersonCompetenceDetailService();
   }
 
   public function list(Request $request)
@@ -195,7 +195,7 @@ class EvaluationPersonService extends BaseService
   /**
    * Recalcular los resultados de una persona en una evaluación
    */
-  private function recalculatePersonResults($evaluationId, $personId)
+  public function recalculatePersonResults($evaluationId, $personId)
   {
     $evaluation = Evaluation::findOrFail($evaluationId);
 

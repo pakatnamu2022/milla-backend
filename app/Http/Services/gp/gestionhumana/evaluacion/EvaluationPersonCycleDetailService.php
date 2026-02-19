@@ -21,12 +21,13 @@ use Illuminate\Support\Facades\Log;
 
 class EvaluationPersonCycleDetailService extends BaseService
 {
+  protected EvaluationCategoryObjectiveDetailService $categoryObjectiveDetailService;
+  protected EvaluationPersonService $evaluationPersonService;
 
-  public function __construct(
-    protected EvaluationCategoryObjectiveDetailService $categoryObjectiveDetailService,
-    protected EvaluationPersonService                  $evaluationPersonService
-  )
+  public function __construct()
   {
+    $this->categoryObjectiveDetailService = new EvaluationCategoryObjectiveDetailService();
+    $this->evaluationPersonService = new EvaluationPersonService();
   }
 
   public function list(Request $request, int $id)
@@ -796,19 +797,19 @@ class EvaluationPersonCycleDetailService extends BaseService
       ->where('category_id', $personCycleDetail->category_id)
       ->get();
 
-    $fixedObjectives    = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === true);
+    $fixedObjectives = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === true);
     $nonFixedObjectives = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === false)->values();
 
     $usedWeight = $fixedObjectives->sum('weight');
-    $remaining  = max(0, 100 - $usedWeight);
-    $count      = $nonFixedObjectives->count();
+    $remaining = max(0, 100 - $usedWeight);
+    $count = $nonFixedObjectives->count();
 
     // Cada objetivo activo debe tener peso >= 1
     $baseWeight = $count > 0 ? max(1.0, round($remaining / $count, 2)) : 0;
 
     // Calcular la diferencia de redondeo (ej: 33.33 × 3 = 99.99 → diff = 0.01)
     $distributed = round($baseWeight * $count, 2);
-    $diff        = round($remaining - $distributed, 2);
+    $diff = round($remaining - $distributed, 2);
 
     foreach ($nonFixedObjectives as $index => $objective) {
       // El último objetivo absorbe la diferencia de redondeo para sumar exactamente 100
@@ -817,7 +818,7 @@ class EvaluationPersonCycleDetailService extends BaseService
         : $baseWeight;
 
       $objective->update([
-        'weight'      => $objectiveWeight,
+        'weight' => $objectiveWeight,
         'fixedWeight' => false,
       ]);
     }
@@ -980,39 +981,39 @@ class EvaluationPersonCycleDetailService extends BaseService
         continue;
       }
 
-      $totalWeight   = round($objectives->sum('weight'), 2);
-      $hasLowWeight  = $objectives->contains(fn($o) => $o->weight < 1);
+      $totalWeight = round($objectives->sum('weight'), 2);
+      $hasLowWeight = $objectives->contains(fn($o) => $o->weight < 1);
 
       if ($totalWeight == 100.00 && !$hasLowWeight) {
         continue;
       }
 
       $reasons = [];
-      if ($totalWeight != 100.00)  $reasons[] = "suma_incorrecta ({$totalWeight})";
-      if ($hasLowWeight)           $reasons[] = 'peso_menor_a_1';
+      if ($totalWeight != 100.00) $reasons[] = "suma_incorrecta ({$totalWeight})";
+      if ($hasLowWeight) $reasons[] = 'peso_menor_a_1';
 
       $first = $objectives->first();
 
       $needsUpdate[] = [
-        'person_id'    => $first->person_id,
-        'person'       => $first->person,
-        'category_id'  => $first->category_id,
-        'category'     => $first->category,
+        'person_id' => $first->person_id,
+        'person' => $first->person,
+        'category_id' => $first->category_id,
+        'category' => $first->category,
         'total_weight' => $totalWeight,
-        'reasons'      => $reasons,
-        'objectives'   => $objectives->map(fn($o) => [
-          'id'          => $o->id,
-          'objective'   => $o->objective,
-          'weight'      => $o->weight,
-          'fixedWeight' => (bool) $o->fixedWeight,
+        'reasons' => $reasons,
+        'objectives' => $objectives->map(fn($o) => [
+          'id' => $o->id,
+          'objective' => $o->objective,
+          'weight' => $o->weight,
+          'fixedWeight' => (bool)$o->fixedWeight,
         ])->values(),
       ];
     }
 
     return [
-      'cycle_id'           => $cycleId,
+      'cycle_id' => $cycleId,
       'needs_update_count' => count($needsUpdate),
-      'needs_update'       => $needsUpdate,
+      'needs_update' => $needsUpdate,
     ];
   }
 
@@ -1053,16 +1054,16 @@ class EvaluationPersonCycleDetailService extends BaseService
         continue;
       }
 
-      $totalWeight  = round($objectives->sum('weight'), 2);
+      $totalWeight = round($objectives->sum('weight'), 2);
       $hasLowWeight = $objectives->contains(fn($o) => $o->weight < 1);
-      $personName   = $objectives->first()->person;
+      $personName = $objectives->first()->person;
       $categoryName = $objectives->first()->category;
 
       if ($totalWeight == 100.00 && !$hasLowWeight) {
         $skipped[] = [
-          'person_id'    => $group->person_id,
-          'person'       => $personName,
-          'category'     => $categoryName,
+          'person_id' => $group->person_id,
+          'person' => $personName,
+          'category' => $categoryName,
           'total_weight' => $totalWeight,
         ];
         continue;
@@ -1081,20 +1082,20 @@ class EvaluationPersonCycleDetailService extends BaseService
       );
 
       $updated[] = [
-        'person_id'             => $group->person_id,
-        'person'                => $personName,
-        'category'              => $categoryName,
+        'person_id' => $group->person_id,
+        'person' => $personName,
+        'category' => $categoryName,
         'previous_total_weight' => $totalWeight,
-        'new_total_weight'      => $newTotal,
+        'new_total_weight' => $newTotal,
       ];
     }
 
     return [
-      'cycle_id'      => $cycleId,
+      'cycle_id' => $cycleId,
       'updated_count' => count($updated),
       'skipped_count' => count($skipped),
-      'updated'       => $updated,
-      'skipped'       => $skipped,
+      'updated' => $updated,
+      'skipped' => $skipped,
     ];
   }
 
