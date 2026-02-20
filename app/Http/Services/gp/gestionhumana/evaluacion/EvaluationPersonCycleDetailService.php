@@ -1134,20 +1134,47 @@ class EvaluationPersonCycleDetailService extends BaseService
       ->filter()
       ->values();
 
-    $alreadyInCycle = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+    // Objetivos ya insertados en el ciclo por persona: person_id => [objective_ids]
+    $objectivesInCycle = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
       ->whereNull('deleted_at')
-      ->pluck('person_id')
-      ->unique();
+      ->get(['person_id', 'objective_id'])
+      ->groupBy('person_id')
+      ->map(fn($rows) => $rows->pluck('objective_id'));
 
-    return Worker::whereIn('cargo_id', $positionIds)
+    $workers = Worker::whereIn('cargo_id', $positionIds)
       ->whereNotIn('id', $excludedWorkerIds)
       ->where('fecha_inicio', '<=', $cycle->cut_off_date)
       ->where('status_id', 22)
       ->whereDoesntHave('evaluationDetails')
       ->whereNotNull('supervisor_id')
-      ->whereNotIn('id', $alreadyInCycle)
-      ->with(['position.area', 'sede'])
+      ->with(['position.hierarchicalCategory', 'position.area', 'sede'])
       ->get();
+
+    // Solo incluir workers que tengan al menos un objetivo pendiente de insertar
+    return $workers->filter(function (Worker $worker) use ($cycleId, $objectivesInCycle) {
+      $category = $worker->position?->hierarchicalCategory;
+      if (!$category) {
+        return false;
+      }
+
+      // Objetivos que el worker debería tener (tiene EvaluationCategoryObjectiveDetail activo)
+      $shouldHaveIds = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
+        ->where('person_id', $worker->id)
+        ->where('active', 1)
+        ->whereNull('deleted_at')
+        ->whereHas('objective', fn($q) => $q->where('active', 1))
+        ->pluck('objective_id');
+
+      if ($shouldHaveIds->isEmpty()) {
+        return false;
+      }
+
+      // Objetivos que ya tiene en el ciclo
+      $hasIds = $objectivesInCycle->get($worker->id, collect());
+
+      // Es elegible si le falta al menos uno
+      return $shouldHaveIds->diff($hasIds)->isNotEmpty();
+    })->values();
   }
 
   /**
@@ -1212,15 +1239,6 @@ class EvaluationPersonCycleDetailService extends BaseService
       throw new Exception("Persona con ID {$workerId} no encontrada");
     }
 
-    $alreadyExists = EvaluationPersonCycleDetail::where('person_id', $workerId)
-      ->where('cycle_id', $cycleId)
-      ->whereNull('deleted_at')
-      ->exists();
-
-    if ($alreadyExists) {
-      throw new Exception("La persona {$person->nombre_completo} ya está asignada al ciclo.");
-    }
-
     $hierarchicalCategory = $person->position?->hierarchicalCategory;
     if (!$hierarchicalCategory) {
       throw new Exception("La persona {$person->nombre_completo} no tiene una categoría jerárquica asignada.");
@@ -1244,7 +1262,18 @@ class EvaluationPersonCycleDetailService extends BaseService
     $objectives = $hierarchicalCategory->objectives()->get();
     $previousCycle = EvaluationCycle::where('id', '<', $cycleId)->orderBy('id', 'desc')->first();
 
+    // Pre-cargar los objective_ids que el worker ya tiene en este ciclo para no repetir consultas
+    $existingObjectiveIds = EvaluationPersonCycleDetail::where('person_id', $person->id)
+      ->where('cycle_id', $cycleId)
+      ->whereNull('deleted_at')
+      ->pluck('objective_id');
+
     foreach ($objectives as $objective) {
+      // Saltar si este objetivo ya está insertado en el ciclo para esta persona
+      if ($existingObjectiveIds->contains($objective->id)) {
+        continue;
+      }
+
       $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
         ->whereHas('objective', fn($q) => $q->where('active', 1))
         ->where('category_id', $hierarchicalCategory->id)

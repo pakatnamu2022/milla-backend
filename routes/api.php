@@ -551,6 +551,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
         //    CATEGORY OBJECTIVE DETAILS
         Route::get('/categoryObjectiveDetail/{category}/workers', [EvaluationCategoryObjectiveDetailController::class, 'workers']);
+        Route::post('/categoryObjectiveDetail/{category}/regenerate-person/{person}', [EvaluationCategoryObjectiveDetailController::class, 'regeneratePersonObjectives']);
+        Route::post('/categoryObjectiveDetail/{category}/homogeneous-weights/{person}', [EvaluationCategoryObjectiveDetailController::class, 'recalculateHomogeneousWeights']);
         Route::apiResource('categoryObjectiveDetail', EvaluationCategoryObjectiveDetailController::class)->only([
           'index',
           'show',
