@@ -19,7 +19,7 @@ class PurchaseOrderProductReceptionResource extends JsonResource
   public function toArray(Request $request): array
   {
     $supplier = BusinessPartners::find($this->supplier_id);
-    $code_reception = substr_replace($this->number, 'MI', 0, 2);
+    $code_reception = substr_replace($this->number, 'NI', 0, 2);
 
     return [
       'EmpresaId' => Company::AP_DYNAMICS,

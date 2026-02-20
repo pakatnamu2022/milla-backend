@@ -3,9 +3,13 @@
 namespace App\Http\Services\ap\compras;
 
 use App\Http\Resources\ap\compras\PurchaseReceptionResource;
+use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
+use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
+use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\postventa\gestionProductos\Products;
@@ -48,12 +52,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       // Validate supplier order exists
       $supplierOrder = ApSupplierOrder::findOrFail($data['ap_supplier_order_id']);
 
-      // VALIDACIÓN 1: Verificar que la orden no tenga recepciones activas
-//      if ($supplierOrder->hasActiveReceptions()) {
-//        throw new Exception('Esta orden de compra ya tiene una recepción activa. No se permite recepcionar nuevamente.');
-//      }
-
-      // VALIDACIÓN 2: La fecha de recepción no puede ser anterior a la fecha de la orden
+      // VALIDACIÓN 1: La fecha de recepción no puede ser anterior a la fecha de la orden
       $receptionDate = Carbon::parse($data['reception_date']);
       $orderDate = Carbon::parse($supplierOrder->order_date);
       if ($receptionDate->lt($orderDate)) {
@@ -92,7 +91,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
       // CÁLCULO AUTOMÁTICO DE STATUS:
       // Verificar si todos los items de la orden de proveedor están completamente recibidos
-      $allItemsFullyReceived = $this->checkIfAllItemsReceived($supplierOrder, $reception->id);
+      $allItemsFullyReceived = $this->checkIfAllItemsReceived($supplierOrder);
 
       // - APPROVED: Si se recepcionó todo lo pedido
       // - INCOMPLETE: Si falta mercancía
@@ -194,11 +193,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     }
   }
 
-
-  /**
-   * Check if all items from supplier order are fully received
-   */
-  protected function checkIfAllItemsReceived($supplierOrder, $currentReceptionId)
+  protected function checkIfAllItemsReceived($supplierOrder): bool
   {
     // Obtener todos los items de la orden de proveedor
     $supplierOrderDetails = $supplierOrder->details;
@@ -222,9 +217,6 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     return true;
   }
 
-  /**
-   * Validate reception detail
-   */
   protected function validateReceptionDetail($detail, $supplierOrder)
   {
     // BONUS/GIFT/SAMPLE must NOT have purchase_order_item_id
@@ -235,10 +227,6 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     // observed_quantity must be less than or equal to quantity_received
     $observedQuantity = $detail['observed_quantity'] ?? 0;
     $quantityReceived = $detail['quantity_received'];
-
-//    if ($observedQuantity > $quantityReceived) {
-//      throw new Exception('La cantidad observada no puede ser mayor a la cantidad recibida');
-//    }
 
     // If observed_quantity > 0, must have reason_observation
     if ($observedQuantity > 0 && empty($detail['reason_observation'])) {
@@ -273,8 +261,6 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       $quantityAccepted = $quantityReceived - $observedQuantity;
       $totalThatWillBeReceived = $alreadyReceived + $quantityAccepted;
 
-//\Log::info("Validando recepción para producto ID {$productId}: Ordenado={$supplierOrderDetail->quantity}, Ya recibido={$alreadyReceived}, Intentando recibir={$quantityAccepted}, Total si se acepta={$totalThatWillBeReceived}");
-
       if ($totalThatWillBeReceived > $supplierOrderDetail->quantity) {
         $productName = $supplierOrderDetail->product->name ?? "ID {$productId}";
         throw new Exception("No puede recibir más de lo ordenado para el producto '{$productName}'. Ordenado: {$supplierOrderDetail->quantity}, Ya recibido: {$alreadyReceived}, Intenta recibir: {$quantityAccepted}");
@@ -282,9 +268,6 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     }
   }
 
-  /**
-   * Generate unique reception number
-   */
   protected function generateReceptionNumber()
   {
     $year = date('Y');
@@ -305,21 +288,6 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     return sprintf('REC-%s-%04d', $year, $correlative);
   }
 
-  /**
-   * Get receptions by supplier order
-   */
-  public function getBySupplierOrder($supplierOrderId)
-  {
-    $receptions = PurchaseReception::where('ap_supplier_order_id', $supplierOrderId)
-      ->with(['supplierOrder', 'purchaseOrder', 'warehouse', 'receivedByUser', 'reviewedByUser', 'details.product'])
-      ->get();
-
-    return PurchaseReceptionResource::collection($receptions);
-  }
-
-  /**
-   * Get receptions by purchase order (factura)
-   */
   public function getByPurchaseOrder($purchaseOrderId)
   {
     $receptions = PurchaseReception::where('purchase_order_id', $purchaseOrderId)
@@ -329,12 +297,6 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     return PurchaseReceptionResource::collection($receptions);
   }
 
-  /**
-   * OPCIONAL: Notificar a los usuarios que solicitaron productos cuando llega la orden
-   * Solo notifica si la orden tiene solicitudes vinculadas
-   * @param ApSupplierOrder $supplierOrder
-   * @return void
-   */
   protected function notifyRequestUsers(ApSupplierOrder $supplierOrder): void
   {
     $requestDetailsCount = $supplierOrder->requestDetails()->count();
@@ -393,6 +355,68 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       } catch (\Exception $e) {
         \Log::error('Error al enviar notificación de recepción de orden de compra a ' . $email . ': ' . $e->getMessage());
       }
+    }
+  }
+
+  public function processReceptionStock(PurchaseOrder $purchaseOrder): void
+  {
+    $stockService = new ProductWarehouseStockService();
+    $reception = $purchaseOrder->reception; // Relación ya vinculada
+
+    // 1. Validar que la recepción exista
+    if (!$reception) {
+      throw new Exception("No hay recepción vinculada a esta factura");
+    }
+
+    // 2. Procesar cada detalle de la recepción
+    foreach ($reception->details as $receptionDetail) {
+      $quantityReceived = $receptionDetail->quantity_received;
+      $observedQuantity = $receptionDetail->observed_quantity ?? 0;
+      $totalProcessed = $quantityReceived + $observedQuantity;
+
+      // 3. Buscar el PurchaseOrderItem correspondiente a este producto
+      $orderItem = $purchaseOrder->items()
+        ->where('product_id', $receptionDetail->product_id)
+        ->first();
+
+      if (!$orderItem) {
+        throw new Exception("No se encontró el item de la factura para el producto ID {$receptionDetail->product_id}");
+      }
+
+      // 4. Vincular el detalle de recepción con el item de la factura
+      $receptionDetail->update(['purchase_order_item_id' => $orderItem->id]);
+
+      // 5. Actualizar cantidades en PurchaseOrderItem (solo para items ORDERED)
+      if ($receptionDetail->reception_type === 'ORDERED') {
+        $orderItem->quantity_received += $quantityReceived;
+        $orderItem->quantity_pending = $orderItem->quantity - $orderItem->quantity_received;
+        $orderItem->save();
+
+        // 6. Actualizar quantity_pending_credit_note si hay observaciones
+        if ($observedQuantity > 0) {
+          $stockService->addPendingCreditNote(
+            $receptionDetail->product_id,
+            $reception->warehouse_id,
+            $observedQuantity
+          );
+        }
+
+        // 7. Remover de in-transit (total procesado: recibido + observado)
+        $stockService->removeInTransitStock(
+          $receptionDetail->product_id,
+          $reception->warehouse_id,
+          $totalProcessed
+        );
+      }
+    }
+
+    // 8. Crear movimiento de inventario y actualizar stock físico
+    $digitalFileService = new DigitalFileService();
+    $inventoryMovementService = new InventoryMovementService($digitalFileService);
+    try {
+      $inventoryMovementService->createFromPurchaseReception($reception);
+    } catch (Exception $e) {
+      throw new Exception('Error al crear el movimiento de inventario y actualizar stock: ' . $e->getMessage());
     }
   }
 }

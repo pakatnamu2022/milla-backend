@@ -51,6 +51,7 @@ use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationDetailsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationsController;
 use App\Http\Controllers\ap\postventa\taller\DiscountRequestsOrderQuotationController;
+use App\Http\Controllers\ap\postventa\taller\DiscountRequestsWorkOrderController;
 use App\Http\Controllers\ap\postventa\taller\ApSupplierOrderController;
 use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
 use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
@@ -1238,6 +1239,17 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
+      // Discount Requests Work Order - Solicitudes de Descuento de Órdenes de Trabajo
+      Route::put('discountRequestsWorkOrder/{id}/approve', [DiscountRequestsWorkOrderController::class, 'approve']);
+      Route::put('discountRequestsWorkOrder/{id}/reject', [DiscountRequestsWorkOrderController::class, 'reject']);
+      Route::apiResource('discountRequestsWorkOrder', DiscountRequestsWorkOrderController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
       // Work Order Quotations - Cotizaciones de Órdenes de Trabajo
       Route::get('orderQuotations/{id}/pdf', [ApOrderQuotationsController::class, 'downloadPDF']);
       Route::get('orderQuotations/{id}/pdf-repuesto', [ApOrderQuotationsController::class, 'downloadRepuestoPDF']);
@@ -1266,6 +1278,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Discount Requests Order Quotation - Solicitudes de Descuento de Cotizaciones
       Route::put('discountRequestsOrderQuotation/{id}/approve', [DiscountRequestsOrderQuotationController::class, 'approve']);
+      Route::put('discountRequestsOrderQuotation/{id}/reject', [DiscountRequestsOrderQuotationController::class, 'reject']);
       Route::apiResource('discountRequestsOrderQuotation', DiscountRequestsOrderQuotationController::class)->only([
         'index',
         'show',

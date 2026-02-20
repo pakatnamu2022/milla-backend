@@ -46,24 +46,35 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     $type = $data['type'];
 
     if ($type === DiscountRequestsOrderQuotation::TYPE_GLOBAL) {
-      $exists = DiscountRequestsOrderQuotation::where('ap_order_quotation_id', $data['ap_order_quotation_id'])
+      $existingDiscount = DiscountRequestsOrderQuotation::where('ap_order_quotation_id', $data['ap_order_quotation_id'])
         ->where('type', DiscountRequestsOrderQuotation::TYPE_GLOBAL)
         ->where('item_type', $data['item_type'])
-        ->exists();
+        ->whereIn('status', [DiscountRequestsOrderQuotation::STATUS_REJECTED, DiscountRequestsOrderQuotation::STATUS_PENDING])
+        ->select('status')
+        ->first();
 
-      if ($exists) {
+      if ($existingDiscount) {
+        if ($existingDiscount->status === DiscountRequestsOrderQuotation::STATUS_REJECTED) {
+          throw new Exception('Ya existe un descuento GLOBAL rechazado para esta cotización. No se puede crear un nuevo descuento.');
+        }
         throw new Exception('Ya existe un descuento GLOBAL activo para esta cotización. Debe eliminarlo antes de crear uno nuevo.');
       }
     }
 
     if ($type === DiscountRequestsOrderQuotation::TYPE_PARTIAL) {
       $data['ap_order_quotation_id'] = ApOrderQuotationDetails::findOrFail($data['ap_order_quotation_detail_id'])->order_quotation_id;
-      $exists = DiscountRequestsOrderQuotation::where('ap_order_quotation_detail_id', $data['ap_order_quotation_detail_id'])
+
+      $existingDiscount = DiscountRequestsOrderQuotation::where('ap_order_quotation_detail_id', $data['ap_order_quotation_detail_id'])
         ->where('type', DiscountRequestsOrderQuotation::TYPE_PARTIAL)
         ->where('item_type', $data['item_type'])
-        ->exists();
+        ->whereIn('status', [DiscountRequestsOrderQuotation::STATUS_REJECTED, DiscountRequestsOrderQuotation::STATUS_PENDING])
+        ->select('status')
+        ->first();
 
-      if ($exists) {
+      if ($existingDiscount) {
+        if ($existingDiscount->status === DiscountRequestsOrderQuotation::STATUS_REJECTED) {
+          throw new Exception('Ya existe un descuento PARTIAL rechazado para este detalle de cotización. No se puede crear un nuevo descuento.');
+        }
         throw new Exception('Ya existe un descuento PARTIAL activo para este detalle de cotización. Debe eliminarlo antes de crear uno nuevo.');
       }
     }
@@ -78,6 +89,7 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
         'requested_discount_percentage' => $data['requested_discount_percentage'],
         'requested_discount_amount' => $data['requested_discount_amount'],
         'item_type' => $data['item_type'],
+        'status' => DiscountRequestsOrderQuotation::STATUS_PENDING,
       ]);
     });
 
@@ -121,8 +133,9 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
 
     DB::transaction(function () use ($record) {
       $record->update([
-        'approved_id' => auth()->id(),
-        'approval_date' => now(),
+        'reviewed_by_id' => auth()->id(),
+        'review_date' => now(),
+        'status' => DiscountRequestsOrderQuotation::STATUS_APPROVED,
       ]);
     });
 
@@ -133,12 +146,31 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     return new DiscountRequestsOrderQuotationResource($fresh);
   }
 
+  public function reject($id): DiscountRequestsOrderQuotationResource
+  {
+    $record = $this->findNotApproved($id);
+
+    DB::transaction(function () use ($record) {
+      $record->update([
+        'reviewed_by_id' => auth()->id(),
+        'review_date' => now(),
+        'status' => DiscountRequestsOrderQuotation::STATUS_REJECTED,
+      ]);
+    });
+
+    $fresh = $record->fresh();
+
+    $this->sendRejectionNotification($fresh);
+
+    return new DiscountRequestsOrderQuotationResource($fresh);
+  }
+
   private function findNotApproved($id): DiscountRequestsOrderQuotation
   {
     $record = $this->find($id);
 
-    if (!is_null($record->approved_id) || !is_null($record->approval_date)) {
-      throw new Exception('No se puede modificar una solicitud de descuento que ya ha sido aprobada.');
+    if ($record->status !== DiscountRequestsOrderQuotation::STATUS_PENDING) {
+      throw new Exception('No se puede modificar una solicitud de descuento que ya ha sido procesada.');
     }
 
     return $record;
@@ -147,12 +179,12 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
   private function sendApprovalNotification(DiscountRequestsOrderQuotation $record): void
   {
     try {
-      $record->loadMissing(['manager', 'apOrderQuotation.vehicle', 'apOrderQuotationDetail']);
+      $record->loadMissing(['manager', 'apOrderQuotation.vehicle', 'apOrderQuotationDetail', 'reviewer']);
 
       $quotation = $record->apOrderQuotation;
       $detail = $record->apOrderQuotationDetail;
       $requester = $record->manager;
-      $approver = $record->approved;
+      $approver = $record->reviewer;
 
       if ($record->type === DiscountRequestsOrderQuotation::TYPE_PARTIAL && $detail) {
         $originalPrice = (float)$detail->unit_price * (float)$detail->quantity;
@@ -170,7 +202,7 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
         'item_type' => $record->item_type,
         'requester_name' => $requester?->name ?? 'Usuario',
         'approver_name' => $approver?->name ?? 'Gerente',
-        'approval_date' => $record->approval_date?->format('d/m/Y H:i'),
+        'approval_date' => $record->review_date?->format('d/m/Y H:i'),
         'item_description' => $detail?->description,
         'item_quantity' => $detail?->quantity,
         'item_unit' => $detail?->unit_measure,
@@ -201,6 +233,66 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
       ]);
     } catch (Exception $e) {
       \Log::error('Error al enviar notificación de aprobación de descuento: ' . $e->getMessage());
+    }
+  }
+
+  private function sendRejectionNotification(DiscountRequestsOrderQuotation $record): void
+  {
+    try {
+      $record->loadMissing(['manager', 'apOrderQuotation.vehicle', 'apOrderQuotationDetail', 'reviewer']);
+
+      $quotation = $record->apOrderQuotation;
+      $detail = $record->apOrderQuotationDetail;
+      $requester = $record->manager;
+      $rejector = $record->reviewer;
+
+      if ($record->type === DiscountRequestsOrderQuotation::TYPE_PARTIAL && $detail) {
+        $originalPrice = (float)$detail->unit_price * (float)$detail->quantity;
+      } else {
+        $originalPrice = (float)($quotation->total_amount ?? 0);
+      }
+
+      $discountAmount = (float)$record->requested_discount_amount;
+      $finalPrice = $originalPrice - $discountAmount;
+
+      $sharedData = [
+        'quotation_number' => $quotation->quotation_number ?? $record->ap_order_quotation_id,
+        'plate' => $quotation?->vehicle?->plate,
+        'type' => $record->type,
+        'item_type' => $record->item_type,
+        'requester_name' => $requester?->name ?? 'Usuario',
+        'rejector_name' => $rejector?->name ?? 'Gerente',
+        'rejection_date' => $record->review_date?->format('d/m/Y H:i'),
+        'item_description' => $detail?->description,
+        'item_quantity' => $detail?->quantity,
+        'item_unit' => $detail?->unit_measure,
+        'item_unit_price' => (float)($detail?->unit_price ?? 0),
+        'original_price' => $originalPrice,
+        'discount_percentage' => (float)$record->requested_discount_percentage,
+        'discount_amount' => $discountAmount,
+        'final_price' => $finalPrice,
+        'button_url' => config('app.frontend_url') . '/ap/post-venta/repuestos/cotizacion-meson/solicitar-descuento/' . $quotation->id,
+      ];
+
+      $subject = 'Descuento rechazado — Cotización #' . ($quotation->quotation_number ?? $record->ap_order_quotation_id);
+
+      // Notificar al solicitante
+      $this->emailService->queue([
+        'to' => 'wsuclupef2001@gmail.com', //$requester?->email,
+        'subject' => $subject,
+        'template' => 'emails.discount-request-rejected',
+        'data' => array_merge($sharedData, ['recipient_name' => $requester?->name ?? 'Usuario']),
+      ]);
+
+      // Notificar al que rechazó
+      $this->emailService->queue([
+        'to' => 'wsuclupef2001@gmail.com', //$rejector?->email,
+        'subject' => $subject,
+        'template' => 'emails.discount-request-rejected',
+        'data' => array_merge($sharedData, ['recipient_name' => $rejector?->name ?? 'Gerente']),
+      ]);
+    } catch (Exception $e) {
+      \Log::error('Error al enviar notificación de rechazo de descuento: ' . $e->getMessage());
     }
   }
 

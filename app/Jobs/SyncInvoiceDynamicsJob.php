@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Http\Services\ap\comercial\VehicleMovementService;
+use App\Http\Services\ap\compras\PurchaseReceptionService;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -152,6 +153,10 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           'receipt_dynamics' => $newReceipt
         ]);
 
+        if ($purchaseOrder->reception) {
+          $purchaseReceptionService = new PurchaseReceptionService();
+          $purchaseReceptionService->processReceptionStock($purchaseOrder);
+        }
 
         /**
          * Crear movimiento de vehículo en tránsito
