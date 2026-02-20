@@ -8,6 +8,8 @@ use App\Http\Resources\ap\compras\PurchaseOrderResource;
 use App\Http\Services\ap\comercial\VehiclesService;
 use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
 use App\Http\Services\BaseService;
+use App\Jobs\SyncCreditNoteDynamicsJob;
+use App\Jobs\SyncInvoiceDynamicsJob;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Http\Services\BaseServiceInterface;

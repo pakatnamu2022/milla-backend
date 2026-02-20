@@ -8,7 +8,6 @@ use App\Http\Requests\ap\compras\ResendPurchaseOrderRequest;
 use App\Http\Requests\ap\compras\StorePurchaseOrderRequest;
 use App\Http\Requests\ap\compras\UpdatePurchaseOrderRequest;
 use App\Http\Services\ap\compras\PurchaseOrderService;
-use App\Jobs\SyncCreditNoteDynamicsJob;
 use Illuminate\Http\Request;
 
 class PurchaseOrderController extends Controller
