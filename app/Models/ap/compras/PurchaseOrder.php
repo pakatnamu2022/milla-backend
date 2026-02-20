@@ -148,7 +148,7 @@ class PurchaseOrder extends BaseModel
 
   public function hasActiveReceptions(): bool
   {
-    return $this->receptions()->whereNull('deleted_at')->exists();
+    return $this->reception()->whereNull('deleted_at')->exists();
   }
 
   public function vehicleMovement(): BelongsTo
