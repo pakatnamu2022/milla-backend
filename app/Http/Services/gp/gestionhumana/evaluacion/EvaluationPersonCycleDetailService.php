@@ -1205,10 +1205,6 @@ class EvaluationPersonCycleDetailService extends BaseService
       }
     }
 
-    if (!empty($added)) {
-      $this->revalidateAllPersonsInCycle($cycleId);
-    }
-
     return [
       'added' => $added,
       'errors' => $errors,
