@@ -124,6 +124,7 @@ class ShippingGuidesResource extends JsonResource
       ),
       'send_dynamics' => $this->send_dynamics,
       'is_consignment' => $this->is_consignment,
+      'vehicle' => $this->vehicleMovement?->vehicle ? new VehiclesResource($this->vehicleMovement->vehicle) : null,
     ];
   }
 }
