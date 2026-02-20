@@ -679,7 +679,9 @@ trait Filterable
     // Aplicar configuraciones
     foreach ($config as $method => $params) {
       if (method_exists($resourceInstance, $method)) {
-        if (is_array($params)) {
+        // Validación más robusta para prevenir "Only arrays and traversables can be unpacked"
+        if (is_array($params) && count($params) > 0 && array_is_list($params)) {
+          // Solo usar spread operator si es array secuencial válido y no vacío
           $resourceInstance->$method(...$params);
         } else {
           $resourceInstance->$method($params);

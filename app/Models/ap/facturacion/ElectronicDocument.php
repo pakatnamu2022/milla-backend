@@ -182,6 +182,7 @@ class ElectronicDocument extends BaseModel
     'anulado' => '=',
     'fecha_de_emision' => '=',
     'created_by' => '=',
+    'seriesModel.sede_id' => '=',
   ];
 
   const array sorts = ['id', 'fecha_de_emision', 'numero', 'total'];

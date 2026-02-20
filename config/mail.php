@@ -117,6 +117,6 @@ return [
     'name' => env('MAIL_FROM_NAME', 'Example'),
   ],
 
-  'tics' => 'mesadeayuda@grupopakatnamu.com'
+  'tics' => ['mesadeayuda@grupopakatnamu.com']
 
 ];

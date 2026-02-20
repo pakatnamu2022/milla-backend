@@ -22,6 +22,7 @@ class DashboardComercialService
   {
     $this->exportService = $exportService;
   }
+
   public function getTotalsByDateRangeTotal($dateFrom, $dateTo, $type)
   {
     // Total de visitas (todos los registros en el rango)

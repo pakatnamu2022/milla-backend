@@ -345,7 +345,7 @@ class PotentialBuyersService extends BaseService
       DB::rollBack();
       return [
         'success' => false,
-        'message' => 'Error en la importación',
+        'message' => $e->getMessage(),
         'error' => $e->getMessage()
       ];
     }
@@ -544,7 +544,7 @@ class PotentialBuyersService extends BaseService
       DB::rollBack();
       return [
         'success' => false,
-        'message' => 'Error en la importación de redes sociales',
+        'message' => $e->getMessage(),
         'error' => $e->getMessage()
       ];
     }

@@ -8,6 +8,7 @@ use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -181,6 +182,11 @@ class ApOrderQuotations extends Model
   public function discardedBy(): BelongsTo
   {
     return $this->belongsTo(User::class, 'discarded_by');
+  }
+
+  public function discountRequests()
+  {
+    return $this->hasMany(DiscountRequestsOrderQuotation::class, 'ap_order_quotation_id');
   }
 
   public function markAsTaken(): void

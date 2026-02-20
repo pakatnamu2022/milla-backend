@@ -2,30 +2,31 @@
 
 namespace App\Models\ap\postventa;
 
-use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
-use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\WorkOrderLabour;
+use App\Models\ap\postventa\taller\ApWorkOrderParts;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class DiscountRequestsOrderQuotation extends Model
+class DiscountRequestsWorkOrder extends Model
 {
   use SoftDeletes;
 
-  protected $table = 'discount_requests_order_quotation';
+  protected $table = 'discount_requests_work_order';
 
   protected $fillable = [
-    'ap_order_quotation_id',
-    'ap_order_quotation_detail_id',
+    'ap_work_order_id',
     'manager_id',
     'reviewed_by_id',
+    'part_labour_id',
+    'part_labour_model',
     'request_date',
     'requested_discount_percentage',
     'requested_discount_amount',
     'review_date',
     'type',
-    'item_type',
     'status',
   ];
 
@@ -37,10 +38,11 @@ class DiscountRequestsOrderQuotation extends Model
   ];
 
   const filters = [
-    'ap_order_quotation_id' => '=',
-    'ap_order_quotation_detail_id' => '=',
+    'ap_work_order_id' => '=',
     'manager_id' => '=',
     'reviewed_by_id' => '=',
+    'request_date' => 'between',
+    'review_date' => 'between',
     'type' => 'in',
     'status' => 'in',
   ];
@@ -80,14 +82,9 @@ class DiscountRequestsOrderQuotation extends Model
     return $query->where('status', self::STATUS_REJECTED);
   }
 
-  public function apOrderQuotation()
+  public function apWorkOrder()
   {
-    return $this->belongsTo(ApOrderQuotations::class, 'ap_order_quotation_id');
-  }
-
-  public function apOrderQuotationDetail()
-  {
-    return $this->belongsTo(ApOrderQuotationDetails::class, 'ap_order_quotation_detail_id');
+    return $this->belongsTo(ApWorkOrder::class, 'ap_work_order_id');
   }
 
   public function manager()
@@ -104,5 +101,31 @@ class DiscountRequestsOrderQuotation extends Model
   public function approver()
   {
     return $this->reviewer();
+  }
+
+  /**
+   * Relación polimórfica para el item (parte o labor)
+   */
+  public function partLabour()
+  {
+    return $this->morphTo('part_labour', 'part_labour_model', 'part_labour_id');
+  }
+
+  /**
+   * Relación específica para WorkOrderParts
+   */
+  public function workOrderPart()
+  {
+    return $this->belongsTo(ApWorkOrderParts::class, 'part_labour_id')
+      ->where('part_labour_model', ApWorkOrderParts::class);
+  }
+
+  /**
+   * Relación específica para WorkOrderLabour
+   */
+  public function workOrderLabour()
+  {
+    return $this->belongsTo(WorkOrderLabour::class, 'part_labour_id')
+      ->where('part_labour_model', WorkOrderLabour::class);
   }
 }
