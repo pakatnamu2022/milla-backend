@@ -11,6 +11,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
+use App\Models\ap\comercial\ShippingGuideAccessory;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\gestionsistema\DigitalFile;
@@ -175,6 +176,8 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'origin_address' => $origin->address ?? '-',
         'destination_ubigeo' => $destination->ubigeo ?? '-',
         'destination_address' => $destination->address ?? '-',
+        'send_dynamics' => $data['send_dynamics'] ?? true,
+        'is_consignment' => $data['is_consignment'] ?? false,
       ];
 
       $document = ShippingGuides::create($documentData);
@@ -192,6 +195,137 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $document->update([
           'file_url' => $digitalFile->url,
         ]);
+      }
+
+      return new ShippingGuidesResource($document);
+    });
+  }
+
+  public function storeConsignment(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      if (empty($data['ap_vehicle_id'])) {
+        throw new Exception('El campo ap_vehicle_id es obligatorio para una guía de consignación');
+      }
+
+      $origin = BusinessPartnersEstablishment::find($data['transmitter_id']) ?? null;
+      $destination = BusinessPartnersEstablishment::find($data['receiver_id']) ?? null;
+      // Crear el movimiento de vehículo de consignación
+      $vehicleMovement = $this->vehicleMovementService->storeShippingGuideConsignmentVehicleMovement(
+        $data['ap_vehicle_id'],
+        $origin->address ?? '-',
+        $destination->address ?? '-',
+        $data['notes'] ?? null,
+        $data['issue_date']
+      );
+
+      // Manejar la carga del archivo si existe
+      $file = null;
+      if (isset($data['file']) && $data['file'] instanceof UploadedFile) {
+        $file = $data['file'];
+        unset($data['file']);
+      }
+
+      // Manejar series y correlativo según issuer_type
+      $series = null;
+      $correlative = null;
+      $documentNumber = null;
+      $documentSeriesId = null;
+
+      if ($data['issuer_type'] == ShippingGuides::ISSUER_TYPE_SYSTEM) {
+        if (empty($data['document_series_id'])) {
+          throw new Exception('El campo document_series_id es obligatorio cuando el emisor es AUTOMOTORES');
+        }
+
+        $assignSeries = AssignSalesSeries::findOrFail($data['document_series_id']);
+        $series = $assignSeries->series;
+        $correlativeStart = $assignSeries->correlative_start;
+
+        $existingCount = ShippingGuides::where('document_series_id', $data['document_series_id'])->count();
+        $correlativeNumber = $correlativeStart + $existingCount + 1;
+
+        $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
+        $documentNumber = $series . '-' . $correlative;
+        $documentSeriesId = $data['document_series_id'];
+      } elseif ($data['issuer_type'] == 'PROVEEDOR') {
+        if (empty($data['series'])) {
+          throw new Exception('El campo series es obligatorio cuando el emisor es PROVEEDOR');
+        }
+        if (empty($data['correlative'])) {
+          throw new Exception('El campo correlative es obligatorio cuando el emisor es PROVEEDOR');
+        }
+
+        $series = $data['series'];
+        $correlative = $data['correlative'];
+        $documentNumber = $series . '-' . $correlative;
+      }
+
+      $typeVoucherId = null;
+      if ($data['document_type'] == 'GUIA_REMISION') {
+        $typeVoucherId = SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE;
+      }
+
+      $documentData = [
+        'document_type' => $data['document_type'],
+        'type_voucher_id' => $typeVoucherId,
+        'issuer_type' => $data['issuer_type'],
+        'document_series_id' => $documentSeriesId,
+        'series' => $series,
+        'correlative' => $correlative,
+        'document_number' => $documentNumber,
+        'issue_date' => $data['issue_date'],
+        'requires_sunat' => $data['requires_sunat'] ?? false,
+        'total_packages' => $data['total_packages'] ?? null,
+        'total_weight' => $data['total_weight'] ?? null,
+        'vehicle_movement_id' => $vehicleMovement->id,
+        'sede_transmitter_id' => $data['sede_transmitter_id'],
+        'sede_receiver_id' => $data['sede_receiver_id'],
+        'transmitter_id' => $data['transmitter_id'],
+        'receiver_id' => $data['receiver_id'],
+        'transport_company_id' => $data['transport_company_id'] ?? null,
+        'driver_doc' => $data['driver_doc'] ?? null,
+        'license' => $data['license'] ?? null,
+        'plate' => $data['plate'] ?? null,
+        'driver_name' => $data['driver_name'] ?? null,
+        'notes' => $data['notes'] ?? null,
+        'status' => $data['status'] ?? true,
+        'transfer_reason_id' => $data['transfer_reason_id'] ?? null,
+        'transfer_modality_id' => $data['transfer_modality_id'] ?? null,
+        'created_by' => Auth::id(),
+        'ap_class_article_id' => $data['ap_class_article_id'] ?? null,
+        'origin_ubigeo' => $origin->ubigeo ?? '-',
+        'origin_address' => $origin->address ?? '-',
+        'destination_ubigeo' => $destination->ubigeo ?? '-',
+        'destination_address' => $destination->address ?? '-',
+        'send_dynamics' => false,
+        'is_consignment' => true,
+      ];
+
+      $document = ShippingGuides::create($documentData);
+
+      if ($file) {
+        $digitalFile = $this->digitalFileService->store(
+          $file,
+          self::FILE_PATH,
+          'public',
+          $document->getTable()
+        );
+
+        $document->update([
+          'file_url' => $digitalFile->url,
+        ]);
+      }
+
+      // Crear accesorios de consignación si se enviaron
+      if (!empty($data['accessories'])) {
+        foreach ($data['accessories'] as $accessory) {
+          ShippingGuideAccessory::create([
+            'shipping_guide_id' => $document->id,
+            'description' => $accessory['description'],
+            'quantity' => $accessory['quantity'],
+            'unit_measurement_id' => $accessory['unit_measurement_id'] ?? null,
+          ]);
+        }
       }
 
       return new ShippingGuidesResource($document);

@@ -75,6 +75,9 @@ class StorePurchaseOrderRequest extends StoreRequest
       // Movimiento de Vehículo (opcional, solo si la OC está relacionada a un movimiento)
       'vehicle_movement_id' => ['nullable', 'integer', Rule::exists('ap_vehicle_movement', 'id')->whereNull('deleted_at')],
 
+      // Guía de consignación (opcional, para OC de vehículos en consignación)
+      'consignment_shipping_guide_id' => ['nullable', 'integer', 'exists:shipping_guides,id'],
+
       // Cotización asociada (opcional)
       'quotation_id' => [
         'nullable',

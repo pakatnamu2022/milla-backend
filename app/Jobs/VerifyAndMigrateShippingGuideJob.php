@@ -885,8 +885,8 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       $data = [
         'EmpresaId' => Company::AP_DYNAMICS,
         'TransferenciaId' => $transferId,
-        'FechaEmision' => $shippingGuide->issue_date?->format('Y-m-d') ?? throw new Exception("La fecha de emisión es obligatoria."),
-        'FechaContable' => $shippingGuide->issue_date->format('Y-m-d') ?? throw new Exception("La fecha contable es obligatoria."),
+        'FechaEmision' => ($shippingGuide->dynamics_date ?? $shippingGuide->issue_date)?->format('Y-m-d') ?? throw new Exception("La fecha de emisión es obligatoria."),
+        'FechaContable' => ($shippingGuide->dynamics_date ?? $shippingGuide->issue_date)?->format('Y-m-d') ?? throw new Exception("La fecha contable es obligatoria."),
         'Procesar' => 1,
         'ProcesoEstado' => 0,
         'ProcesoError' => '',
@@ -1195,6 +1195,10 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
     if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
       return 'CTRA-';
+    }
+
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_CONSIGNACION) {
+      return 'CCON-';
     }
 
     return '-';
