@@ -17,8 +17,6 @@ class PhoneLineWorkerResource extends JsonResource
       'assigned_at'        => $this->assigned_at,
       'unassigned_at'      => $this->unassigned_at,
       'active'             => $this->active,
-      'pdf_path'           => $this->pdf_path,
-      'pdf_unassign_path'  => $this->pdf_unassign_path,
     ];
   }
 }
