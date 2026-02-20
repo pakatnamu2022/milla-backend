@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Acta de Devolución de Equipos</title>
+  <title>Acta de Desasignación de Línea Telefónica</title>
   <style>
     @page { margin: 15mm; }
     body { font-family: Arial, sans-serif; font-size: 11px; color: #333; }
@@ -13,11 +13,7 @@
     .section-title { font-size: 12px; font-weight: bold; color: #00227d; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-bottom: 8px; }
     .info-table { width: 100%; margin-bottom: 10px; }
     .info-table td { padding: 3px 8px; vertical-align: top; }
-    .info-table .label { font-weight: bold; width: 140px; color: #555; }
-    table.items { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-    table.items th { background-color: #f1f5f9; color: #64748B; padding: 6px 8px; text-align: left; font-size: 10px; border-bottom: 1px solid #cbd5e1; }
-    table.items td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; font-size: 10px; }
-    table.items tr:nth-child(even) { background-color: #f8fafc; }
+    .info-table .label { font-weight: bold; width: 160px; color: #555; }
     .observaciones { background-color: #f8f9fa; padding: 10px; border-left: 3px solid #00227d; margin-bottom: 20px; }
     .firmas { margin-top: 60px; width: 100%; }
     .firmas td { width: 50%; text-align: center; vertical-align: bottom; padding-top: 40px; }
@@ -29,7 +25,7 @@
 </head>
 <body>
   <div class="header">
-    <h1>ACTA DE DEVOLUCIÓN DE EQUIPOS</h1>
+    <h1>ACTA DE DESASIGNACIÓN DE LÍNEA TELEFÓNICA</h1>
     <p>Documento generado el {{ now()->format('d/m/Y H:i:s') }}</p>
   </div>
 
@@ -50,54 +46,41 @@
       </tr>
       <tr>
         <td class="label">Fecha de Asignación:</td>
-        <td>{{ $assignment->fecha }}</td>
+        <td>{{ $assignment->assigned_at ? \Carbon\Carbon::parse($assignment->assigned_at)->format('d/m/Y') : '-' }}</td>
       </tr>
       <tr>
-        <td class="label">Fecha de Devolución:</td>
-        <td>{{ $assignment->unassigned_at }}</td>
+        <td class="label">Fecha de Desasignación:</td>
+        <td>{{ $assignment->unassigned_at ? \Carbon\Carbon::parse($assignment->unassigned_at)->format('d/m/Y') : now()->format('d/m/Y') }}</td>
       </tr>
     </table>
   </div>
 
   <div class="section">
-    <div class="section-title">Equipos Devueltos</div>
-    <table class="items">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Equipo</th>
-          <th>Tipo</th>
-          <th>Marca / Modelo</th>
-          <th>Serie</th>
-          <th>Observación</th>
-        </tr>
-      </thead>
-      <tbody>
-        @foreach($assignment->items as $index => $item)
-          <tr>
-            <td>{{ $index + 1 }}</td>
-            <td>{{ $item->equipment?->equipo ?? '-' }}</td>
-            <td>{{ $item->equipment?->equipmentType?->nombre ?? '-' }}</td>
-            <td>{{ $item->equipment?->marca_modelo ?? '-' }}</td>
-            <td>{{ $item->equipment?->serie ?? '-' }}</td>
-            <td>{{ $item->observacion ?? '-' }}</td>
-          </tr>
-        @endforeach
-      </tbody>
+    <div class="section-title">Datos de la Línea Telefónica</div>
+    <table class="info-table">
+      <tr>
+        <td class="label">Número de Línea:</td>
+        <td>{{ $assignment->phoneLine?->line_number ?? '-' }}</td>
+      </tr>
+      <tr>
+        <td class="label">Cuenta:</td>
+        <td>{{ $assignment->phoneLine?->telephoneAccount?->account_number ?? '-' }}</td>
+      </tr>
+      <tr>
+        <td class="label">Operador:</td>
+        <td>{{ $assignment->phoneLine?->telephoneAccount?->operator ?? '-' }}</td>
+      </tr>
+      <tr>
+        <td class="label">Plan:</td>
+        <td>{{ $assignment->phoneLine?->telephonePlan?->name ?? '-' }}</td>
+      </tr>
     </table>
   </div>
 
-  @if($assignment->observacion_unassign)
-    <div class="section">
-      <div class="section-title">Observaciones de Devolución</div>
-      <div class="observaciones">{{ $assignment->observacion_unassign }}</div>
-    </div>
-  @endif
-
   <div class="section">
-    <div class="section-title">Declaración de Devolución</div>
+    <div class="section-title">Declaración de Desasignación</div>
     <div class="declaracion">
-      Certifico que los equipos detallados en el presente documento han sido devueltos al área de TICs en la fecha indicada y en las condiciones descritas. Declaro haber entregado la totalidad de los equipos que me fueron asignados, quedando exento de toda responsabilidad sobre los mismos a partir de la fecha de devolución registrada en este documento. En caso de existir daños, faltantes o deterioro no declarado en el momento de la devolución, y que sean verificados posteriormente por el área de Sistemas, reconozco mi responsabilidad y autorizo se descuente el valor correspondiente de mis haberes, prestaciones sociales, vacaciones, indemnizaciones, bonificaciones y demás derechos que me correspondan. Con la firma del presente documento doy conformidad a la devolución realizada y libero a la empresa de cualquier reclamo posterior sobre los equipos aquí relacionados.
+      Certifico que la línea telefónica corporativa detallada en el presente documento ha sido desasignada a mi persona en la fecha indicada. Me comprometo a cesar inmediatamente cualquier uso de dicha línea a partir de esta fecha y a no retener ningún dispositivo o SIM asociado a la misma. Declaro haber entregado al área de TICs todos los elementos vinculados a esta línea en las condiciones acordadas, quedando exento de toda responsabilidad sobre el uso o costos generados por la línea referida a partir de la fecha de desasignación registrada en este documento. En caso de detectarse consumos posteriores atribuibles a mi persona, o de no haberse realizado la devolución íntegra de los dispositivos asociados, reconozco mi responsabilidad y autorizo se descuente el valor correspondiente de cualquier liquidación, prestaciones sociales, bonificaciones y demás haberes que me correspondan.
     </div>
   </div>
 

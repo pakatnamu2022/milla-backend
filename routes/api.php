@@ -366,6 +366,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('equipmentAssigment/history/equipment/{equipoId}', [EquipmentAssigmentController::class, 'historyByEquipment']);
       Route::put('equipmentAssigment/{id}/confirm', [EquipmentAssigmentController::class, 'confirm']);
       Route::post('equipmentAssigment/{id}/unassign', [EquipmentAssigmentController::class, 'unassign']);
+      Route::get('equipmentAssigment/{id}/pdf/assignment', [EquipmentAssigmentController::class, 'downloadAssignmentPdf']);
+      Route::get('equipmentAssigment/{id}/pdf/unassignment', [EquipmentAssigmentController::class, 'downloadUnassignmentPdf']);
       Route::apiResource('equipmentAssigment', EquipmentAssigmentController::class)->only([
         'index',
         'show',
@@ -376,6 +378,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       //    PHONE LINE WORKERS (ASSIGNMENTS)
       Route::get('phoneLineWorker/history/{phoneLineId}', [PhoneLineWorkerController::class, 'history']);
+      Route::get('phoneLineWorker/{id}/pdf/assignment', [PhoneLineWorkerController::class, 'downloadAssignmentPdf']);
+      Route::get('phoneLineWorker/{id}/pdf/unassignment', [PhoneLineWorkerController::class, 'downloadUnassignmentPdf']);
       Route::apiResource('phoneLineWorker', PhoneLineWorkerController::class)->only([
         'index',
         'show',

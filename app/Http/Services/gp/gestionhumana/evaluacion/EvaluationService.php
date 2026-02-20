@@ -18,6 +18,7 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Position;
@@ -1248,12 +1249,14 @@ class EvaluationService extends BaseService
   private function getPersonsFromCycle($cycleId)
   {
     $cycle = EvaluationCycle::findOrFail($cycleId);
+    $excludedFromCycle = EvaluationPersonDetail::all()->pluck('person_id')->toArray();
 
     $query = DB::table('rrhh_persona as p')
       ->join('rrhh_cargo as pos', 'pos.id', '=', 'p.cargo_id')
       ->join('gh_hierarchical_category_detail as hcd', 'hcd.position_id', '=', 'pos.id')
       ->join('gh_hierarchical_category as hc', 'hc.id', '=', 'hcd.hierarchical_category_id')
       ->join('gh_evaluation_cycle_category_detail as eccd', 'eccd.hierarchical_category_id', '=', 'hc.id')
+      ->whereNotIn('p.id', $excludedFromCycle)
       ->where('eccd.cycle_id', $cycleId)
       ->whereNull('eccd.deleted_at')
       ->where('p.status_deleted', 1)

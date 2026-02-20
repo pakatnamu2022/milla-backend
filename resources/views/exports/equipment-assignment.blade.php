@@ -24,6 +24,7 @@
     .firma-linea { border-top: 1px solid #333; display: inline-block; width: 200px; margin-bottom: 4px; }
     .firma-nombre { font-weight: bold; font-size: 11px; }
     .firma-cargo { font-size: 9px; color: #666; }
+    .declaracion { font-size: 10px; line-height: 1.6; text-align: justify; background-color: #f8f9fa; border: 1px solid #dee2e6; border-left: 4px solid #00227d; padding: 12px 14px; margin-bottom: 10px; color: #333; }
   </style>
 </head>
 <body>
@@ -88,6 +89,13 @@
       <div class="observaciones">{{ $assignment->observacion }}</div>
     </div>
   @endif
+
+  <div class="section">
+    <div class="section-title">Declaración y Compromiso</div>
+    <div class="declaracion">
+      Certifico que los elementos detallados en el presente documento, me han sido entregados en las cantidades descritas para mi cuidado y custodia con el propósito de cumplir con las tareas y asignaciones propias de mi cargo en la empresa, siendo estos de mi única y exclusiva responsabilidad. Me comprometo a usar correctamente los recursos, y solo para los fines establecidos, a no instalar ni permitir la instalación de software por personal ajeno al área de Sistemas; declaro además conocer y cumplir las normas internas actualizadas de seguridad TIC's, entregadas físicamente, publicadas y accesibles en todo momento desde la intranet de la empresa. Todo daño físico causado por maltrato o por el uso inapropiado de los equipos asignados, el robo o pérdida de éstos es de mi única y exclusiva responsabilidad, por lo cual autorizo se descuente el valor correspondiente del pago de planilla; en caso de finalizar mi contrato laboral me comprometo a realizar la devolución de la totalidad de los equipos asignados y autorizo el descuento de salarios, prestaciones sociales, vacaciones, indemnizaciones, bonificaciones y demás derechos que me correspondan del valor correspondiente a daños, pérdida o robo de los equipos en comento.
+    </div>
+  </div>
 
   <table class="firmas">
     <tr>

@@ -11,7 +11,6 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class EquipmentAssigmentService extends BaseService implements BaseServiceInterface
 {
@@ -54,12 +53,9 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
         EquipmentItemAssigment::create($item);
       }
 
-      $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'items.equipment.equipmentType'])->find($assignment->id);
-
-      $pdfPath = $this->generateAssignmentPdf($assignment);
-      $assignment->update(['pdf_path' => $pdfPath]);
-
-      return new EquipmentAssigmentResource($assignment);
+      return new EquipmentAssigmentResource(
+        EquipmentAssigment::with(['worker', 'items.equipment.equipmentType'])->find($assignment->id)
+      );
     });
   }
 
@@ -88,12 +84,9 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
         'observacion_unassign' => $data['observacion_unassign'],
       ]);
 
-      $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'items.equipment.equipmentType'])->find($assignment->id);
-
-      $pdfPath = $this->generateUnassignmentPdf($assignment);
-      $assignment->update(['pdf_unassign_path' => $pdfPath]);
-
-      return new EquipmentAssigmentResource($assignment);
+      return new EquipmentAssigmentResource(
+        EquipmentAssigment::with(['worker', 'items.equipment.equipmentType'])->find($assignment->id)
+      );
     });
   }
 
@@ -172,25 +165,25 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
     return EquipmentAssigmentResource::collection($assignments);
   }
 
-  private function generateAssignmentPdf(EquipmentAssigment $assignment): string
+  public function downloadAssignmentPdf($id)
   {
-    $pdf = Pdf::loadView('exports.equipment-assignment', compact('assignment'));
-    $filename = "assignment_{$assignment->id}_{$assignment->fecha}.pdf";
-    $path = "equipment-assignments/{$filename}";
+    $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'items.equipment.equipmentType'])
+      ->findOrFail($id);
 
-    Storage::disk('local')->put($path, $pdf->output());
+    $filename = "acta-asignacion_{$assignment->id}_{$assignment->fecha}.pdf";
 
-    return $path;
+    return Pdf::loadView('exports.equipment-assignment', compact('assignment'))
+      ->download($filename);
   }
 
-  private function generateUnassignmentPdf(EquipmentAssigment $assignment): string
+  public function downloadUnassignmentPdf($id)
   {
-    $pdf = Pdf::loadView('exports.equipment-unassignment', compact('assignment'));
-    $filename = "unassignment_{$assignment->id}_{$assignment->unassigned_at}.pdf";
-    $path = "equipment-assignments/{$filename}";
+    $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'items.equipment.equipmentType'])
+      ->findOrFail($id);
 
-    Storage::disk('local')->put($path, $pdf->output());
+    $filename = "acta-devolucion_{$assignment->id}.pdf";
 
-    return $path;
+    return Pdf::loadView('exports.equipment-unassignment', compact('assignment'))
+      ->download($filename);
   }
 }

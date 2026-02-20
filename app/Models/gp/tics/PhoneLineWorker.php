@@ -18,6 +18,8 @@ class PhoneLineWorker extends BaseModel
     'assigned_at',
     'active',
     'unassigned_at',
+    'pdf_path',
+    'pdf_unassign_path',
   ];
 
   protected $casts = [
