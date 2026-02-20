@@ -18,7 +18,7 @@ class EvaluationPersonDetailService extends BaseService implements BaseServiceIn
     return $this->getFilteredResults(
       EvaluationPersonDetail::class,
       $request,
-      [],
+      EvaluationPersonDetail::filters,
       [],
       EvaluationPersonDetailResource::class
     );

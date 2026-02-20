@@ -83,7 +83,7 @@ class EquipmentAssigmentController extends Controller
       return $this->error($e->getMessage());
     }
   }
-
+ 
   public function historyByWorker($personaId)
   {
     try {
@@ -97,6 +97,24 @@ class EquipmentAssigmentController extends Controller
   {
     try {
       return $this->success($this->service->historyByEquipment($equipoId));
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function downloadAssignmentPdf($id)
+  {
+    try {
+      return $this->service->downloadAssignmentPdf($id);
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function downloadUnassignmentPdf($id)
+  {
+    try {
+      return $this->service->downloadUnassignmentPdf($id);
     } catch (Throwable $e) {
       return $this->error($e->getMessage());
     }
