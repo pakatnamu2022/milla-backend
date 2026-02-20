@@ -171,9 +171,12 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         return;
       }
 
-      $hasInTransitMovement = $purchaseOrder->vehicle()->vehicleMovements()
-        ->where('ap_vehicle_status_id', ApVehicleStatus::VEHICULO_EN_TRAVESIA)
-        ->exists();
+      $vehicle = $purchaseOrder->vehicle;
+      $hasInTransitMovement = $vehicle
+        ? $vehicle->vehicleMovements()
+          ->where('ap_vehicle_status_id', ApVehicleStatus::VEHICULO_EN_TRAVESIA)
+          ->exists()
+        : false;
 
       /**
        * CASO 3: OC con factura pero sin movimiento (recuperación)
