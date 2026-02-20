@@ -9,9 +9,14 @@ class StoreShippingGuidesRequest extends StoreRequest
 
   public function prepareForValidation()
   {
-    if (!$this->send_dynamics) {
+    if (!isset($this->send_dynamics)) {
       $this->merge([
-        'send_dynamics' => 1
+        'send_dynamics' => 1,
+      ]);
+    }
+    if (!isset($this->is_consignment)) {
+      $this->merge([
+        'is_consignment' => 0
       ]);
     }
   }
@@ -45,44 +50,48 @@ class StoreShippingGuidesRequest extends StoreRequest
       'transfer_modality_id' => 'nullable|integer|exists:sunat_concepts,id',
       'ap_class_article_id' => 'required|integer|exists:ap_class_article,id',
       'send_dynamics' => 'required|boolean',
+      'is_consignment' => 'required|boolean',
+      'accessories' => 'nullable|array',
+      'accessories.*.description' => 'required_with:accessories|string|max:255',
+      'accessories.*.quantity' => 'required_with:accessories|numeric|min:0.01',
+      'accessories.*.unit_measurement_id' => 'nullable|integer|exists:unit_measurement,id',
     ];
   }
 
-  public function messages(): array
+  public function attributes(): array
   {
     return [
-      'document_type.required' => 'El tipo de documento es obligatorio.',
-      'issuer_type.required' => 'El tipo de emisor es obligatorio.',
-      'document_series_id.integer' => 'El ID de la serie de documentos es inválido.',
-      'document_series_id.exists' => 'La serie de documentos no existe.',
-      'issue_date.required' => 'La fecha de emisión es obligatoria.',
-      'sede_transmitter_id.required' => 'El sede origen es obligatorio.',
-      'sede_transmitter_id.integer' => 'El sede origen es invalido.',
-      'sede_transmitter_id.exists' => 'El sede origen no existe.',
-      'sede_receiver_id.required' => 'El sede destino es obligatorio.',
-      'sede_receiver_id.integer' => 'El sede destino es invalido.',
-      'sede_receiver_id.exists' => 'El sede destino no existe.',
-      'transmitter_id.required' => 'El remitente es obligatorio.',
-      'receiver_id.required' => 'El destinatario es obligatorio.',
-      'file.mimes' => 'El archivo debe ser un PDF, JPG, JPEG, PNG o XML.',
-      'file.max' => 'El tamaño máximo del archivo es 10MB.',
-      'requires_sunat' => 'El campo requiere sunat debe ser verdadero o falso.',
-      'total_packages.numeric' => 'El total de bultos debe ser un número.',
-      'total_packages.min' => 'El total de bultos no puede ser negativo.',
-      'total_weight.numeric' => 'El peso total debe ser un número.',
-      'total_weight.min' => 'El peso total no puede ser negativo.',
-      'ap_vehicle_id.required' => 'El vehículo es obligatorio.',
-      'ap_vehicle_id.integer' => 'El ID del vehículo es inválido.',
-      'ap_vehicle_id.exists' => 'El vehículo no existe.',
-      'transport_company_id.integer' => 'El ID de la empresa de transporte es inválido.',
-      'transport_company_id.exists' => 'La empresa de transporte no existe.',
-      'transfer_reason_id.integer' => 'El ID del motivo de traslado es inválido.',
-      'transfer_reason_id.exists' => 'El motivo de traslado no existe.',
-      'transfer_modality_id.integer' => 'El ID de la modalidad de traslado es inválido.',
-      'transfer_modality_id.exists' => 'La modalidad de traslado no existe.',
-      'ap_class_article_id.required' => 'La clase de artículo es obligatoria.',
-      'ap_class_article_id.integer' => 'El ID de la clase de artículo es inválido.',
-      'ap_class_article_id.exists' => 'La clase de artículo no existe.',
+      'document_type' => 'tipo de documento',
+      'issuer_type' => 'tipo de emisor',
+      'document_series_id' => 'serie del documento',
+      'series' => 'serie',
+      'correlative' => 'correlativo',
+      'issue_date' => 'fecha de emisión',
+      'sede_transmitter_id' => 'sede remitente',
+      'sede_receiver_id' => 'sede destinataria',
+      'transmitter_id' => 'remitente',
+      'receiver_id' => 'destinatario',
+      'ap_vehicle_id' => 'vehículo',
+      'requires_sunat' => 'requiere sunat',
+      'total_packages' => 'total de bultos',
+      'total_weight' => 'peso total',
+      'file' => 'archivo',
+      'transport_company_id' => 'empresa de transporte',
+      'driver_doc' => 'documento del conductor',
+      'license' => 'licencia',
+      'plate' => 'placa',
+      'driver_name' => 'nombre del conductor',
+      'notes' => 'notas',
+      'status' => 'estado',
+      'transfer_reason_id' => 'motivo de traslado',
+      'transfer_modality_id' => 'modalidad de traslado',
+      'ap_class_article_id' => 'clase de artículo',
+      'send_dynamics' => 'enviar a dynamics',
+      'is_consignment' => 'es consignación',
+      'accessories' => 'accesorios',
+      'accessories.*.description' => 'descripción del accesorio',
+      'accessories.*.quantity' => 'cantidad del accesorio',
+      'accessories.*.unit_measurement_id' => 'unidad de medida del accesorio',
     ];
   }
 }

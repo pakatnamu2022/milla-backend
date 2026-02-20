@@ -329,6 +329,51 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
   }
 
   /**
+   * Create a vehicle movement for shipping guide in consignment (EN CONSIGNACION)
+   * @param int $vehicleId
+   * @param string $originAddress
+   * @param string $destinationAddress
+   * @param string|null $observation
+   * @param string|null $issueDate
+   * @return VehicleMovement
+   * @throws Exception
+   */
+  public function storeShippingGuideConsignmentVehicleMovement(
+    int     $vehicleId,
+    string  $originAddress,
+    string  $destinationAddress,
+    ?string $observation = null,
+    ?string $issueDate = null
+  ): VehicleMovement
+  {
+    $vehicle = Vehicles::find($vehicleId);
+    if (!$vehicle) {
+      throw new Exception('Vehículo no encontrado');
+    }
+
+    $statusCurrentVehicle = $vehicle->ap_vehicle_status_id;
+
+    $vehicleMovementData = [
+      'ap_vehicle_id' => $vehicleId,
+      'movement_type' => VehicleMovement::CONSIGNMENT,
+      'movement_date' => $issueDate ?? now(),
+      'observation' => $observation,
+      'origin_address' => $originAddress,
+      'destination_address' => $destinationAddress,
+      'previous_status_id' => $statusCurrentVehicle,
+      'new_status_id' => ApVehicleStatus::CONSIGNACION,
+      'ap_vehicle_status_id' => ApVehicleStatus::CONSIGNACION,
+      'created_by' => auth()->id(),
+    ];
+
+    $vehicle->update([
+      'ap_vehicle_status_id' => ApVehicleStatus::CONSIGNACION,
+    ]);
+
+    return VehicleMovement::create($vehicleMovementData);
+  }
+
+  /**
    * Show details of a specific vehicle movement
    * @throws Exception
    */

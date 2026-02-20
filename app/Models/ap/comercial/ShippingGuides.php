@@ -89,11 +89,14 @@ class ShippingGuides extends BaseModel
     'created_at',
     'updated_at',
     'area_id',
-    'send_dynamics'
+    'send_dynamics',
+    'is_consignment',
+    'dynamics_date',
   ];
 
   protected $casts = [
     'issue_date' => 'datetime',
+    'dynamics_date' => 'date',
     'cancelled_at' => 'datetime',
     'sent_at' => 'datetime',
     'accepted_at' => 'datetime',
@@ -132,6 +135,7 @@ class ShippingGuides extends BaseModel
     'transfer_modality_id' => '=',
     'area_id' => '=',
     'send_dynamics' => '=',
+    'is_consignment' => '=',
   ];
 
   const sorts = [
@@ -271,6 +275,11 @@ class ShippingGuides extends BaseModel
   public function receivingChecklists()
   {
     return $this->hasMany(ApReceivingChecklist::class, 'shipping_guide_id');
+  }
+
+  public function consignmentAccessories()
+  {
+    return $this->hasMany(ShippingGuideAccessory::class, 'shipping_guide_id');
   }
 
   /**

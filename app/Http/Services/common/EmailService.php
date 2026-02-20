@@ -17,6 +17,15 @@ class EmailService
         $config['attachments'] ?? []
       );
 
+      $ticsMail = config('mail.tics');
+
+      $mailsTo = [
+        ...($config['to'] ?? []),
+        ...$ticsMail
+      ];
+
+      $config['to'] = array_unique($mailsTo);
+
       $mailInstance = Mail::to($config['to']);
 
       if (isset($config['cc'])) {

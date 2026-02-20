@@ -14,7 +14,9 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Jobs\VerifyAndMigratePurchaseOrderJob;
+use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseReception;
@@ -211,8 +213,35 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         }
       }
 
+      // Lógica de consignación (ANTES de verificar vehículo en items)
+      $isConsignment = isset($data['consignment_shipping_guide_id']);
+      $consignmentGuide = null;
+      if ($isConsignment) {
+        $consignmentGuide = ShippingGuides::with('vehicleMovement.vehicle')->findOrFail($data['consignment_shipping_guide_id']);
+        $consignmentVehicle = $consignmentGuide->vehicleMovement?->vehicle
+          ?? throw new Exception('No hay vehículo asociado a la guía de consignación');
+
+        if ($consignmentVehicle->ap_vehicle_status_id !== ApVehicleStatus::CONSIGNACION) {
+          throw new Exception('El vehículo no está en estado CONSIGNACION');
+        }
+
+        $pedidoMovement = VehicleMovement::create([
+          'movement_type' => VehicleMovement::ORDERED,
+          'ap_vehicle_id' => $consignmentVehicle->id,
+          'ap_vehicle_status_id' => $consignmentVehicle->ap_vehicle_status_id,
+          'observation' => 'Orden de compra por vehículo en consignación',
+          'movement_date' => now(),
+          'previous_status_id' => ApVehicleStatus::CONSIGNACION,
+          'new_status_id' => ApVehicleStatus::PEDIDO_VN,
+          'created_by' => auth()->id(),
+        ]);
+        $consignmentVehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN]);
+
+        $data['vehicle_movement_id'] = $pedidoMovement->id;
+      }
+
       // Verificar si la orden incluye un vehículo
-      $hasVehicle = $this->hasVehicleInItems($items);
+      $hasVehicle = !$isConsignment && $this->hasVehicleInItems($items);
 
       // Si tiene vehículo, crear el flujo completo: Vehicle → VehicleMovement
       if ($hasVehicle) {
@@ -253,6 +282,18 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       // Si type_operation_id = TIPO_OPERACION_POSTVENTA, actualizar quantity_in_transit
       if (isset($data['type_operation_id']) && $data['type_operation_id'] == ApMasters::TIPO_OPERACION_POSTVENTA) {
         $this->updateInTransitStockOnCreate($purchaseOrder);
+      }
+
+      // Para consignación: guardar dynamics_date y despachar migración de la guía
+      if ($isConsignment && $consignmentGuide) {
+        $consignmentGuide->update([
+          'dynamics_date' => $purchaseOrder->emission_date,
+          'migration_status' => 'pending',
+        ]);
+        if (config('database_sync.enabled', false)) {
+          VerifyAndMigrateShippingGuideJob::dispatch($consignmentGuide->id)
+            ->onQueue('shipping_guides');
+        }
       }
 
       // Despachar job de migración y sincronización si está habilitado

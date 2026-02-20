@@ -11,6 +11,7 @@ use App\Http\Services\ap\comercial\ShippingGuidesService;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use Illuminate\Http\Request;
+use function Pest\Laravel\json;
 
 class ShippingGuidesController extends Controller
 {
@@ -30,11 +31,23 @@ class ShippingGuidesController extends Controller
     }
   }
 
+  public function storeConsignment(StoreShippingGuidesRequest $request)
+  {
+    try {
+      $data = $request->validated();
+      if ($request->hasFile('file')) {
+        $data['file'] = $request->file('file');
+      }
+      return $this->success($this->service->storeConsignment($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function store(StoreShippingGuidesRequest $request)
   {
     try {
       $data = $request->validated();
-
       // Agregar el archivo si existe
       if ($request->hasFile('file')) {
         $data['file'] = $request->file('file');
