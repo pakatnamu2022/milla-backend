@@ -1150,7 +1150,7 @@ class EvaluationPersonCycleDetailService extends BaseService
       ->with(['position.hierarchicalCategory', 'position.area', 'sede'])
       ->get();
 
-    // Solo incluir workers que tengan al menos un objetivo pendiente de insertar
+    // Incluir workers aptos: sin objetivos asignados aún, o con al menos uno pendiente de insertar
     return $workers->filter(function (Worker $worker) use ($cycleId, $objectivesInCycle) {
       $category = $worker->position?->hierarchicalCategory;
       if (!$category) {
@@ -1165,8 +1165,9 @@ class EvaluationPersonCycleDetailService extends BaseService
         ->whereHas('objective', fn($q) => $q->where('active', 1))
         ->pluck('objective_id');
 
+      // Sin objetivos asignados aún: igual es apto para el ciclo
       if ($shouldHaveIds->isEmpty()) {
-        return false;
+        return true;
       }
 
       // Objetivos que ya tiene en el ciclo
