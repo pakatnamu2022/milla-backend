@@ -11,8 +11,10 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
+use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategoryDetail;
 use App\Models\gp\gestionhumana\personal\Worker;
 use Exception;
 use Illuminate\Http\Request;
@@ -1097,6 +1099,438 @@ class EvaluationPersonCycleDetailService extends BaseService
       'updated' => $updated,
       'skipped' => $skipped,
     ];
+  }
+
+  /**
+   * Retorna los workers elegibles para un ciclo que aún no están asignados.
+   * Criterios: activo, fecha_inicio <= cut_off_date, sin evaluationDetails,
+   * con supervisor asignado, con categoría jerárquica en su cargo, y con al
+   * menos un objetivo pendiente de insertar (o sin objetivos pero apto).
+   * No restringe por las categorías ya configuradas en el ciclo.
+   *
+   * @param int $cycleId
+   * @return \Illuminate\Support\Collection<Worker>
+   * @throws Exception
+   */
+  public function previewEligibleWorkers(int $cycleId)
+  {
+    $cycle = EvaluationCycle::find($cycleId);
+    if (!$cycle) {
+      throw new Exception('Ciclo no encontrado');
+    }
+
+    $excludedWorkerIds = EvaluationPersonDetail::whereNull('deleted_at')
+      ->pluck('person_id')
+      ->unique();
+
+    // Objetivos ya insertados en el ciclo por persona: person_id => [objective_ids]
+    $objectivesInCycle = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+      ->whereNull('deleted_at')
+      ->get(['person_id', 'objective_id'])
+      ->groupBy('person_id')
+      ->map(fn($rows) => $rows->pluck('objective_id'));
+
+    $workers = Worker::whereNotIn('id', $excludedWorkerIds)
+      ->where('fecha_inicio', '<=', $cycle->cut_off_date)
+      ->where('status_id', 22)
+      ->whereDoesntHave('evaluationDetails')
+      ->whereNotNull('supervisor_id')
+      ->whereHas('position.hierarchicalCategory', fn($q) => $q
+        ->where('excluded_from_evaluation', false)
+        ->where('hasObjectives', true)
+      )
+      ->with(['position.hierarchicalCategory', 'position.area', 'sede'])
+      ->get();
+
+    // Incluir workers aptos: sin objetivos asignados aún, o con al menos uno pendiente de insertar
+    return $workers->filter(function (Worker $worker) use ($objectivesInCycle) {
+      $category = $worker->position?->hierarchicalCategory;
+      if (!$category) {
+        return false;
+      }
+
+      // Objetivos que el worker debería tener (tiene EvaluationCategoryObjectiveDetail activo)
+      $shouldHaveIds = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
+        ->where('person_id', $worker->id)
+        ->where('active', 1)
+        ->whereNull('deleted_at')
+        ->whereHas('objective', fn($q) => $q->where('active', 1))
+        ->pluck('objective_id');
+
+      // Sin objetivos personales asignados: no puede entrar al ciclo
+      if ($shouldHaveIds->isEmpty()) {
+        return false;
+      }
+
+      // Objetivos que ya tiene en el ciclo
+      $hasIds = $objectivesInCycle->get($worker->id, collect());
+
+      // Es elegible si le falta al menos uno
+      return $shouldHaveIds->diff($hasIds)->isNotEmpty();
+    })->values();
+  }
+
+  /**
+   * Valida si una persona es elegible para entrar a un ciclo.
+   * Retorna el resultado de cada condición y si es elegible globalmente.
+   *
+   * @param int $cycleId
+   * @param int $workerId
+   * @return array
+   * @throws Exception
+   */
+  public function validateWorkerForCycle(int $cycleId, int $workerId): array
+  {
+    $cycle = EvaluationCycle::find($cycleId);
+    if (!$cycle) {
+      throw new Exception('Ciclo no encontrado');
+    }
+
+    $checks = [];
+
+    // Worker existe con global scope (status_deleted=1, b_empleado=1)
+    $worker = Worker::find($workerId);
+    $checks['worker_activo'] = [
+      'pass'    => (bool) $worker,
+      'message' => $worker ? 'Trabajador activo y empleado' : 'Trabajador no encontrado, inactivo o no es empleado',
+    ];
+
+    if (!$worker) {
+      return ['eligible' => false, 'checks' => $checks];
+    }
+
+    // status_id = 22
+    $checks['status'] = [
+      'pass'    => $worker->status_id == 22,
+      'message' => $worker->status_id == 22 ? 'Estado activo (22)' : "Estado inválido ({$worker->status_id}), se requiere 22",
+    ];
+
+    // fecha_inicio <= cut_off_date
+    $checks['fecha_inicio'] = [
+      'pass'    => $worker->fecha_inicio <= $cycle->cut_off_date,
+      'message' => $worker->fecha_inicio <= $cycle->cut_off_date
+        ? "Fecha de inicio ({$worker->fecha_inicio}) dentro del corte ({$cycle->cut_off_date})"
+        : "Fecha de inicio ({$worker->fecha_inicio}) posterior al corte ({$cycle->cut_off_date})",
+    ];
+
+    // Tiene supervisor
+    $checks['supervisor'] = [
+      'pass'    => !is_null($worker->supervisor_id),
+      'message' => $worker->supervisor_id ? "Supervisor asignado (ID {$worker->supervisor_id})" : 'Sin supervisor asignado',
+    ];
+
+    // No tiene EvaluationPersonDetail (excluido global)
+    $isExcluded = EvaluationPersonDetail::whereNull('deleted_at')->where('person_id', $workerId)->exists();
+    $checks['no_excluido'] = [
+      'pass'    => !$isExcluded,
+      'message' => !$isExcluded ? 'No está en la lista de excluidos' : 'Está registrado en EvaluationPersonDetail (excluido)',
+    ];
+
+    // No tiene evaluationDetails
+    $hasEvalDetails = $worker->evaluationDetails()->exists();
+    $checks['sin_evaluation_detail'] = [
+      'pass'    => !$hasEvalDetails,
+      'message' => !$hasEvalDetails ? 'Sin registros de evaluation detail' : 'Ya tiene evaluation details asignados',
+    ];
+
+    // Categoría jerárquica válida
+    $category = $worker->position?->hierarchicalCategory;
+    $validCategory = $category
+      && !$category->excluded_from_evaluation
+      && $category->hasObjectives
+      && !$category->trashed();
+
+    $checks['categoria_valida'] = [
+      'pass'    => $validCategory,
+      'message' => $validCategory
+        ? "Categoría válida: {$category->name} (ID {$category->id})"
+        : (!$category
+          ? 'El cargo no tiene categoría jerárquica asignada'
+          : ($category->excluded_from_evaluation
+            ? "Categoría '{$category->name}' está excluida de evaluación"
+            : (!$category->hasObjectives
+              ? "Categoría '{$category->name}' no tiene objetivos configurados"
+              : "Categoría '{$category->name}' está eliminada"))),
+    ];
+
+    // Objetivos pendientes de insertar en el ciclo
+    $pendingObjectives = 0;
+    $totalObjectives   = 0;
+    $alreadyInCycle    = 0;
+
+    if ($validCategory) {
+      $shouldHaveIds = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
+        ->where('person_id', $workerId)
+        ->where('active', 1)
+        ->whereNull('deleted_at')
+        ->whereHas('objective', fn($q) => $q->where('active', 1))
+        ->pluck('objective_id');
+
+      $hasIds = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+        ->whereNull('deleted_at')
+        ->where('person_id', $workerId)
+        ->pluck('objective_id');
+
+      $totalObjectives   = $shouldHaveIds->count();
+      $alreadyInCycle    = $shouldHaveIds->intersect($hasIds)->count();
+      $pendingObjectives = $shouldHaveIds->diff($hasIds)->count();
+    }
+
+    $checks['objetivos'] = [
+      'pass'              => $validCategory && $pendingObjectives > 0,
+      'total'             => $totalObjectives,
+      'ya_en_ciclo'       => $alreadyInCycle,
+      'pendientes'        => $pendingObjectives,
+      'message'           => !$validCategory
+        ? 'No aplica (categoría inválida)'
+        : ($totalObjectives === 0
+          ? 'Sin objetivos personales asignados en su categoría, no puede entrar al ciclo'
+          : ($pendingObjectives > 0
+            ? "{$pendingObjectives} objetivo(s) pendientes de insertar"
+            : 'Todos los objetivos ya están en el ciclo')),
+    ];
+
+    $eligible = collect($checks)->every(fn($c) => $c['pass']);
+
+    return [
+      'eligible' => $eligible,
+      'worker'   => [
+        'id'             => $worker->id,
+        'nombre'         => $worker->nombre_completo,
+        'cargo_id'       => $worker->cargo_id,
+        'categoria'      => $category?->name,
+        'categoria_id'   => $category?->id,
+      ],
+      'cycle_id' => $cycleId,
+      'checks'   => $checks,
+    ];
+  }
+
+  /**
+   * Inserta múltiples workers en un ciclo individualmente.
+   * Devuelve resumen de agregados y errores.
+   *
+   * @param int $cycleId
+   * @param array $workerIds
+   * @return array
+   * @throws Exception
+   */
+  public function storeManyByWorker(int $cycleId, array $workerIds): array
+  {
+    $cycle = EvaluationCycle::find($cycleId);
+    if (!$cycle) {
+      throw new Exception('Ciclo no encontrado');
+    }
+
+    $added = [];
+    $errors = [];
+
+    foreach ($workerIds as $workerId) {
+      try {
+        $this->storeByWorkerAndCycle($cycleId, $workerId);
+        $added[] = $workerId;
+      } catch (Exception $e) {
+        $errors[] = ['worker_id' => $workerId, 'message' => $e->getMessage()];
+      }
+    }
+
+    return [
+      'added' => $added,
+      'errors' => $errors,
+      'summary' => [
+        'added_count' => count($added),
+        'errors_count' => count($errors),
+      ],
+    ];
+  }
+
+  /**
+   * Inserta un worker individual en un ciclo, creando sus EvaluationPersonCycleDetail
+   * por cada objetivo activo de su categoría jerárquica.
+   *
+   * @param int $cycleId
+   * @param int $workerId
+   * @throws Exception
+   */
+  public function storeByWorkerAndCycle(int $cycleId, int $workerId): void
+  {
+    $cycle = EvaluationCycle::find($cycleId);
+    if (!$cycle) {
+      throw new Exception('Ciclo no encontrado');
+    }
+
+    $person = Worker::find($workerId);
+    if (!$person) {
+      throw new Exception("Persona con ID {$workerId} no encontrada");
+    }
+
+    $hierarchicalCategory = $person->position?->hierarchicalCategory;
+    if (!$hierarchicalCategory) {
+      throw new Exception("La persona {$person->nombre_completo} no tiene una categoría jerárquica asignada.");
+    }
+
+    if ($hierarchicalCategory->excluded_from_evaluation) {
+      throw new Exception("La categoría '{$hierarchicalCategory->name}' está excluida de evaluación.");
+    }
+
+    if (!$hierarchicalCategory->hasObjectives) {
+      throw new Exception("La categoría '{$hierarchicalCategory->name}' no tiene objetivos configurados.");
+    }
+
+    // Si la categoría no está en el ciclo, agregarla automáticamente (restaurando si fue soft-deleted)
+    $cycleCategoryDetail = EvaluationCycleCategoryDetail::withTrashed()
+      ->where('cycle_id', $cycleId)
+      ->where('hierarchical_category_id', $hierarchicalCategory->id)
+      ->first();
+
+    if ($cycleCategoryDetail) {
+      if ($cycleCategoryDetail->trashed()) {
+        $cycleCategoryDetail->restore();
+      }
+    } else {
+      EvaluationCycleCategoryDetail::create([
+        'cycle_id' => $cycleId,
+        'hierarchical_category_id' => $hierarchicalCategory->id,
+      ]);
+    }
+
+    $evaluatorId = $person->supervisor_id ?? $person->jefe_id;
+    if (!$evaluatorId) {
+      throw new Exception("La persona {$person->nombre_completo} no tiene un evaluador asignado.");
+    }
+
+    $chief = Worker::find($evaluatorId);
+    $objectives = $hierarchicalCategory->objectives()->get();
+    $previousCycle = EvaluationCycle::where('id', '<', $cycleId)->orderBy('id', 'desc')->first();
+
+    // Pre-cargar los objective_ids que el worker ya tiene en este ciclo para no repetir consultas
+    $existingObjectiveIds = EvaluationPersonCycleDetail::where('person_id', $person->id)
+      ->where('cycle_id', $cycleId)
+      ->whereNull('deleted_at')
+      ->pluck('objective_id');
+
+    foreach ($objectives as $objective) {
+      // Saltar si este objetivo ya está insertado en el ciclo para esta persona
+      if ($existingObjectiveIds->contains($objective->id)) {
+        continue;
+      }
+
+      $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
+        ->whereHas('objective', fn($q) => $q->where('active', 1))
+        ->where('category_id', $hierarchicalCategory->id)
+        ->where('person_id', $person->id)
+        ->where('active', 1)
+        ->whereNull('deleted_at')
+        ->first();
+
+      if (!$categoryObjective) {
+        continue;
+      }
+
+      $goal = 0;
+      $weight = 0;
+
+      if ($previousCycle) {
+        $prev = EvaluationPersonCycleDetail::where('person_id', $person->id)
+          ->where('cycle_id', $previousCycle->id)
+          ->where('category_id', $hierarchicalCategory->id)
+          ->where('objective_id', $objective->id)
+          ->whereNull('deleted_at')
+          ->first();
+        $goal = $prev?->goal ?? 0;
+        $weight = $prev?->weight ?? 0;
+      }
+
+      if ($goal === 0) {
+        $goal = $categoryObjective->goal ?? 0;
+        if ($weight === 0) {
+          $weight = $categoryObjective->weight ?? 0;
+        }
+      }
+
+      if ($goal === 0) {
+        $goal = $objective->goalReference;
+        if ($weight === 0) {
+          $weight = round(100 / $objectives->count(), 2);
+        }
+      }
+
+      EvaluationPersonCycleDetail::create([
+        'person_id' => $person->id,
+        'chief_id' => $evaluatorId,
+        'position_id' => $person->cargo_id,
+        'sede_id' => $person->sede_id,
+        'area_id' => $person->area_id,
+        'cycle_id' => $cycleId,
+        'category_id' => $hierarchicalCategory->id,
+        'objective_id' => $objective->id,
+        'isAscending' => $objective->isAscending,
+        'person' => $person->nombre_completo,
+        'chief' => $chief?->nombre_completo ?? '',
+        'position' => $person->position?->name ?? '',
+        'sede' => $person->sede?->abreviatura ?? '',
+        'area' => $person->position?->area?->name ?? '',
+        'category' => $hierarchicalCategory->name,
+        'objective' => $objective->name,
+        'goal' => $goal,
+        'weight' => $weight,
+        'metric' => $objective->metric?->name
+          ?? throw new Exception("El objetivo {$objective->name} no tiene una métrica asignada."),
+        'end_date_objectives' => $cycle->end_date_objectives,
+      ]);
+    }
+
+    // Verificar que se haya creado al menos un registro
+    $createdCount = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+      ->where('person_id', $person->id)
+      ->whereNull('deleted_at')
+      ->count();
+
+    if ($createdCount === 0) {
+      throw new Exception("No se pudieron crear registros para {$person->nombre_completo}. La persona no tiene objetivos asignados en su categoría '{$hierarchicalCategory->name}'.");
+    }
+
+    // Recalcular pesos para esta persona en el ciclo
+    $firstDetail = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+      ->where('person_id', $person->id)
+      ->whereNull('deleted_at')
+      ->first();
+
+    if ($firstDetail) {
+      $this->recalculateWeights($firstDetail->id);
+    }
+
+    // Reflejar al trabajador en las evaluaciones ya existentes del ciclo
+    $evaluations = Evaluation::where('cycle_id', $cycleId)->get();
+
+    if ($evaluations->isNotEmpty()) {
+      $personCycleDetails = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+        ->where('person_id', $person->id)
+        ->whereNull('deleted_at')
+        ->get();
+
+      foreach ($evaluations as $evaluation) {
+        foreach ($personCycleDetails as $detail) {
+          $exists = EvaluationPerson::where('evaluation_id', $evaluation->id)
+            ->where('person_cycle_detail_id', $detail->id)
+            ->exists();
+
+          if (!$exists) {
+            EvaluationPerson::create([
+              'person_id'             => $detail->person_id,
+              'chief_id'              => $detail->chief_id,
+              'chief'                 => $detail->chief,
+              'person_cycle_detail_id' => $detail->id,
+              'evaluation_id'         => $evaluation->id,
+              'result'                => 0,
+              'compliance'            => 0,
+              'qualification'         => 0,
+              'wasEvaluated'          => 0,
+            ]);
+          }
+        }
+      }
+    }
   }
 
   /**

@@ -16,6 +16,10 @@ class EvaluationPersonDetail extends Model
     'person_id'
   ];
 
+  const filters = [
+    'search' => ['person.nombre_completo'],
+  ];
+
   public function person()
   {
     return $this->belongsTo(Worker::class, 'person_id');

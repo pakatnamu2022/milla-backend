@@ -367,6 +367,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('equipmentAssigment/history/equipment/{equipoId}', [EquipmentAssigmentController::class, 'historyByEquipment']);
       Route::put('equipmentAssigment/{id}/confirm', [EquipmentAssigmentController::class, 'confirm']);
       Route::post('equipmentAssigment/{id}/unassign', [EquipmentAssigmentController::class, 'unassign']);
+      Route::get('equipmentAssigment/{id}/pdf/assignment', [EquipmentAssigmentController::class, 'downloadAssignmentPdf']);
+      Route::get('equipmentAssigment/{id}/pdf/unassignment', [EquipmentAssigmentController::class, 'downloadUnassignmentPdf']);
       Route::apiResource('equipmentAssigment', EquipmentAssigmentController::class)->only([
         'index',
         'show',
@@ -377,6 +379,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       //    PHONE LINE WORKERS (ASSIGNMENTS)
       Route::get('phoneLineWorker/history/{phoneLineId}', [PhoneLineWorkerController::class, 'history']);
+      Route::get('phoneLineWorker/{id}/pdf/assignment', [PhoneLineWorkerController::class, 'downloadAssignmentPdf']);
+      Route::get('phoneLineWorker/{id}/pdf/unassignment', [PhoneLineWorkerController::class, 'downloadUnassignmentPdf']);
       Route::apiResource('phoneLineWorker', PhoneLineWorkerController::class)->only([
         'index',
         'show',
@@ -547,6 +551,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
         //    CATEGORY OBJECTIVE DETAILS
         Route::get('/categoryObjectiveDetail/{category}/workers', [EvaluationCategoryObjectiveDetailController::class, 'workers']);
+        Route::post('/categoryObjectiveDetail/{category}/regenerate-person/{person}', [EvaluationCategoryObjectiveDetailController::class, 'regeneratePersonObjectives']);
+        Route::post('/categoryObjectiveDetail/{category}/homogeneous-weights/{person}', [EvaluationCategoryObjectiveDetailController::class, 'recalculateHomogeneousWeights']);
         Route::apiResource('categoryObjectiveDetail', EvaluationCategoryObjectiveDetailController::class)->only([
           'index',
           'show',
@@ -591,6 +597,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/cycle/{cycle}/chiefs', [EvaluationPersonCycleDetailController::class, 'getChiefsByCycle']);
         Route::get('/cycle/{cycle}/weights/preview', [EvaluationPersonCycleDetailController::class, 'previewWeights']);
         Route::post('/cycle/{cycle}/weights/regenerate', [EvaluationPersonCycleDetailController::class, 'regenerateWeights']);
+        Route::get('/cycle/{cycle}/eligible-workers', [EvaluationPersonCycleDetailController::class, 'previewEligibleWorkers']);
+        Route::get('/cycle/{cycle}/workers/{worker}/validate', [EvaluationPersonCycleDetailController::class, 'validateWorkerForCycle']);
+        Route::post('/cycle/{cycle}/workers', [EvaluationPersonCycleDetailController::class, 'storeManyByWorker']);
         Route::get('/cycle/{id}/participants', [EvaluationCycleController::class, 'participants']);
         Route::get('/cycle/{id}/positions', [EvaluationCycleController::class, 'positions']);
 

@@ -73,4 +73,22 @@ class PhoneLineWorkerController extends Controller
       return $this->error($e->getMessage());
     }
   }
+
+  public function downloadAssignmentPdf($id)
+  {
+    try {
+      return $this->service->downloadAssignmentPdf($id);
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function downloadUnassignmentPdf($id)
+  {
+    try {
+      return $this->service->downloadUnassignmentPdf($id);
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }

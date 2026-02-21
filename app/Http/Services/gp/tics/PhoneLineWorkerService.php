@@ -6,6 +6,7 @@ use App\Http\Resources\gp\tics\PhoneLineWorkerResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\gp\tics\PhoneLineWorker;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
 
@@ -66,5 +67,27 @@ class PhoneLineWorkerService extends BaseService implements BaseServiceInterface
     $phoneLineWorker = $this->find($id);
     $phoneLineWorker->delete();
     return response()->json(['message' => 'Asignación eliminada correctamente']);
+  }
+
+  public function downloadAssignmentPdf($id)
+  {
+    $assignment = PhoneLineWorker::with(['worker.position', 'worker.area', 'phoneLine.telephoneAccount', 'phoneLine.telephonePlan'])
+      ->findOrFail($id);
+
+    $filename = "acta-asignacion-linea_{$assignment->id}_{$assignment->phone_line_id}.pdf";
+
+    return Pdf::loadView('exports.phone-line-assignment', compact('assignment'))
+      ->download($filename);
+  }
+
+  public function downloadUnassignmentPdf($id)
+  {
+    $assignment = PhoneLineWorker::with(['worker.position', 'worker.area', 'phoneLine.telephoneAccount', 'phoneLine.telephonePlan'])
+      ->findOrFail($id);
+
+    $filename = "acta-desasignacion-linea_{$assignment->id}_{$assignment->phone_line_id}.pdf";
+
+    return Pdf::loadView('exports.phone-line-unassignment', compact('assignment'))
+      ->download($filename);
   }
 }

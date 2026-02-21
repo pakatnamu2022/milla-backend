@@ -162,6 +162,58 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
     }
   }
 
+  public function regeneratePersonObjectives(int $categoryId, int $personId)
+  {
+    $category = HierarchicalCategory::findOrFail($categoryId);
+    $objectives = $category->objectives()->pluck('gh_evaluation_objective.id')->toArray();
+
+    foreach ($objectives as $objectiveId) {
+      $exists = EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
+        ->where('person_id', $personId)
+        ->where('objective_id', $objectiveId)
+        ->exists();
+
+      if (!$exists) {
+        $objective = EvaluationObjective::findOrFail($objectiveId);
+        EvaluationCategoryObjectiveDetail::create([
+          'objective_id' => $objectiveId,
+          'category_id' => $categoryId,
+          'person_id' => $personId,
+          'goal' => $objective->goalReference,
+          'fixedWeight' => false,
+          'weight' => 0,
+          'active' => 1,
+        ]);
+      }
+    }
+
+    $this->recalculateWeights($categoryId, $personId);
+
+    return EvaluationCategoryObjectiveDetailResource::collection(
+      EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
+        ->where('person_id', $personId)
+        ->whereNull('deleted_at')
+        ->get()
+    );
+  }
+
+  public function recalculateHomogeneousWeights(int $categoryId, int $personId)
+  {
+    EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
+      ->where('person_id', $personId)
+      ->whereNull('deleted_at')
+      ->update(['fixedWeight' => false, 'weight' => 0]);
+
+    $this->recalculateWeights($categoryId, $personId);
+
+    return EvaluationCategoryObjectiveDetailResource::collection(
+      EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
+        ->where('person_id', $personId)
+        ->whereNull('deleted_at')
+        ->get()
+    );
+  }
+
   public function find($id)
   {
     $categoryObjective = EvaluationCategoryObjectiveDetail::where('id', $id)->first();

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationPersonCycleDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationPersonCycleDetailRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\StoreManyWorkerToCycleRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationPersonCycleDetailRequest;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetailService;
@@ -93,6 +94,44 @@ class EvaluationPersonCycleDetailController extends Controller
   {
     try {
       return $this->success($this->service->regenerateWeightsByCycle($cycle));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Previsualiza los workers elegibles para un ciclo (no asignados aún).
+   */
+  public function previewEligibleWorkers(int $cycle)
+  {
+    try {
+      $workers = $this->service->previewEligibleWorkers($cycle);
+      return $this->success(WorkerResource::collection($workers));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Valida si una persona es elegible para entrar a un ciclo.
+   */
+  public function validateWorkerForCycle(int $cycle, int $worker)
+  {
+    try {
+      return $this->success($this->service->validateWorkerForCycle($cycle, $worker));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Inserta múltiples workers en un ciclo.
+   */
+  public function storeManyByWorker(StoreManyWorkerToCycleRequest $request, int $cycle)
+  {
+    try {
+      $result = $this->service->storeManyByWorker($cycle, $request->validated()['worker_ids']);
+      return $this->success($result);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
