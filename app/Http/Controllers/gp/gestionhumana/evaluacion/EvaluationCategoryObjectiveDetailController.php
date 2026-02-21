@@ -18,6 +18,11 @@ class EvaluationCategoryObjectiveDetailController extends Controller
     $this->service = $service;
   }
 
+  /**
+   * Display a listing of the resource.
+   * @param IndexEvaluationCategoryObjectiveDetailRequest $request
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function index(IndexEvaluationCategoryObjectiveDetailRequest $request)
   {
     try {
@@ -27,6 +32,11 @@ class EvaluationCategoryObjectiveDetailController extends Controller
     }
   }
 
+  /**
+   * Display the workers associated with the given evaluation category objective detail.
+   * @param int $id
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function workers(int $id)
   {
     try {
@@ -36,6 +46,11 @@ class EvaluationCategoryObjectiveDetailController extends Controller
     }
   }
 
+  /**
+   * Store a newly created resource in storage.
+   * @param StoreEvaluationCategoryObjectiveDetailRequest $request
+   * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\Resources\Json\AnonymousResourceCollection
+   */
   public function store(StoreEvaluationCategoryObjectiveDetailRequest $request)
   {
     try {
@@ -45,11 +60,22 @@ class EvaluationCategoryObjectiveDetailController extends Controller
     }
   }
 
+  /**
+   * Display the specified resource.
+   * @param int $id
+   * @return void
+   */
   public function show(int $id)
   {
     //
   }
 
+  /**
+   * Update the specified resource in storage.
+   * @param UpdateEvaluationCategoryObjectiveDetailRequest $request
+   * @param int $id
+   * @return \App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailResource|\Illuminate\Http\JsonResponse
+   */
   public function update(UpdateEvaluationCategoryObjectiveDetailRequest $request, int $id)
   {
     try {
@@ -61,6 +87,12 @@ class EvaluationCategoryObjectiveDetailController extends Controller
     }
   }
 
+  /**
+   * Regenerate the objectives for a specific person and category.
+   * @param int $category
+   * @param int $person
+   * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\Resources\Json\AnonymousResourceCollection
+   */
   public function regeneratePersonObjectives(int $category, int $person)
   {
     try {
@@ -70,6 +102,12 @@ class EvaluationCategoryObjectiveDetailController extends Controller
     }
   }
 
+  /**
+   * Recalculate the homogeneous weights for a specific person and category.
+   * @param int $category
+   * @param int $person
+   * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\Resources\Json\AnonymousResourceCollection
+   */
   public function recalculateHomogeneousWeights(int $category, int $person)
   {
     try {
@@ -79,6 +117,11 @@ class EvaluationCategoryObjectiveDetailController extends Controller
     }
   }
 
+  /**
+   * Remove the specified resource from storage.
+   * @param DeleteEvaluationCategoryObjectiveDetailRequest $request
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function destroy(DeleteEvaluationCategoryObjectiveDetailRequest $request)
   {
     try {
