@@ -66,10 +66,16 @@ class AttendanceRuleService extends BaseService implements BaseServiceInterface
 
   public function codes()
   {
-    return AttendanceRule::select('code')
+    return AttendanceRule::select('code', 'description')
       ->distinct()
       ->orderBy('code')
-      ->pluck('code');
+      ->get()
+      ->map(function ($rule) {
+        return [
+          'code' => $rule->code,
+          'description' => $rule->description,
+        ];
+      });
   }
 
   public function destroy($id)

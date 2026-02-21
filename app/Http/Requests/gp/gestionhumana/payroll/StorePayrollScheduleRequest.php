@@ -11,11 +11,9 @@ class StorePayrollScheduleRequest extends StoreRequest
   {
     return [
       'worker_id' => ['required', 'integer', 'exists:rrhh_persona,id'],
-      'code' => ['nullable', 'string', 'max:50'],
+      'code' => ['required', 'string', 'max:50'],
       'period_id' => ['required', 'integer', 'exists:gh_payroll_periods,id'],
       'work_date' => ['required', 'date'],
-      'hours_worked' => ['nullable', 'numeric', 'min:0', 'max:24'],
-      'extra_hours' => ['nullable', 'numeric', 'min:0', 'max:24'],
       'notes' => ['nullable', 'string', 'max:255'],
       'status' => ['nullable', 'string', 'in:' . implode(',', PayrollSchedule::STATUSES)],
     ];
@@ -25,11 +23,9 @@ class StorePayrollScheduleRequest extends StoreRequest
   {
     return [
       'worker_id' => 'worker',
-      'code' => 'code',
+      'code' => 'attendance code',
       'period_id' => 'period',
       'work_date' => 'work date',
-      'hours_worked' => 'hours worked',
-      'extra_hours' => 'extra hours',
       'notes' => 'notes',
       'status' => 'status',
     ];
