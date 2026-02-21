@@ -113,6 +113,18 @@ class EvaluationPersonCycleDetailController extends Controller
   }
 
   /**
+   * Valida si una persona es elegible para entrar a un ciclo.
+   */
+  public function validateWorkerForCycle(int $cycle, int $worker)
+  {
+    try {
+      return $this->success($this->service->validateWorkerForCycle($cycle, $worker));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
    * Inserta múltiples workers en un ciclo.
    */
   public function storeManyByWorker(StoreManyWorkerToCycleRequest $request, int $cycle)
