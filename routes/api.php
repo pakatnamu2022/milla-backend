@@ -103,7 +103,7 @@ use App\Http\Controllers\gp\gestionhumana\payroll\PayrollConceptController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollPeriodController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkTypeController;
+use App\Http\Controllers\gp\gestionhumana\payroll\AttendanceRuleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkTypeSegmentController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\AreaController;
@@ -1532,8 +1532,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
   // GP - Gestión Humana - Payroll (Nómina) Routes
   Route::group(['prefix' => 'gp/gh/payroll'], function () {
-    // Work Types
-    Route::apiResource('work-types', PayrollWorkTypeController::class);
+    // Attendance Rules
+    Route::get('attendance-rules/codes', [AttendanceRuleController::class, 'codes']);
+    Route::apiResource('attendance-rules', AttendanceRuleController::class);
 
     // Work Type Segments
     Route::prefix('work-types/segments')->group(function () {

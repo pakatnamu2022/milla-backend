@@ -11,7 +11,7 @@ class StorePayrollScheduleRequest extends StoreRequest
   {
     return [
       'worker_id' => ['required', 'integer', 'exists:rrhh_persona,id'],
-      'work_type_id' => ['required', 'integer', 'exists:gh_payroll_work_types,id'],
+      'code' => ['nullable', 'string', 'max:50'],
       'period_id' => ['required', 'integer', 'exists:gh_payroll_periods,id'],
       'work_date' => ['required', 'date'],
       'hours_worked' => ['nullable', 'numeric', 'min:0', 'max:24'],
@@ -25,7 +25,7 @@ class StorePayrollScheduleRequest extends StoreRequest
   {
     return [
       'worker_id' => 'worker',
-      'work_type_id' => 'work type',
+      'code' => 'code',
       'period_id' => 'period',
       'work_date' => 'work date',
       'hours_worked' => 'hours worked',
