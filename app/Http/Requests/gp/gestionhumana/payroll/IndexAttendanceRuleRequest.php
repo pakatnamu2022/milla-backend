@@ -4,19 +4,16 @@ namespace App\Http\Requests\gp\gestionhumana\payroll;
 
 use App\Http\Requests\StoreRequest;
 
-class IndexPayrollScheduleRequest extends StoreRequest
+class IndexAttendanceRuleRequest extends StoreRequest
 {
   public function rules(): array
   {
     return [
       'search' => ['nullable', 'string', 'max:100'],
-      'worker_id' => ['nullable', 'integer', 'exists:rrhh_persona,id'],
-      'code' => ['nullable', 'string', 'max:50'],
-      'period_id' => ['nullable', 'integer', 'exists:gh_payroll_periods,id'],
-      'work_date' => ['nullable', 'array'],
-      'work_date.0' => ['nullable', 'date'],
-      'work_date.1' => ['nullable', 'date'],
-      'status' => ['nullable', 'string'],
+      'code' => ['nullable', 'string', 'max:10'],
+      'hour_type' => ['nullable', 'string', 'max:50'],
+      'pay' => ['nullable', 'boolean'],
+      'use_shift' => ['nullable', 'boolean'],
       'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
       'page' => ['nullable', 'integer', 'min:1'],
       'sort' => ['nullable', 'string'],

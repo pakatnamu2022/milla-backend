@@ -16,6 +16,7 @@ class PayrollScheduleResource extends JsonResource
   {
     return [
       'id' => $this->id,
+      'code' => $this->code,
       'work_date' => $this->work_date,
       'hours_worked' => (float) $this->hours_worked,
       'extra_hours' => (float) $this->extra_hours,
@@ -29,8 +30,6 @@ class PayrollScheduleResource extends JsonResource
         'full_name' => $this->worker->nombre_completo,
         'vat' => $this->worker->vat,
       ] : null,
-
-      'work_type' => $this->workType ? new PayrollWorkTypeResource($this->workType) : null,
 
       'period' => $this->period ? [
         'id' => $this->period->id,

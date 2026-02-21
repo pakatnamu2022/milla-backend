@@ -34,7 +34,7 @@ class PurchaseOrderDynamicsResource extends JsonResource
       'FechaEmision' => $this->emission_date?->format('Y-m-d'),
       'MonedaId' => $typeCurrency,
       'TipoTasaId' => $exchangeRate->type,
-      'TasaCambio' => $exchangeRate->rate,
+      'TasaCambio' => '0',
       'PlanImpuestoId' => $supplierTaxClassType,
       'UsuarioId' => 'USUGP',
       'Procesar' => 1,

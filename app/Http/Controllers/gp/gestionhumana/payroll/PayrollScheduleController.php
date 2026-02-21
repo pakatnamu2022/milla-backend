@@ -77,7 +77,7 @@ class PayrollScheduleController extends Controller
   public function update(Request $request, int $id)
   {
     try {
-      $data = $request->only(['work_type_id', 'hours_worked', 'extra_hours', 'notes', 'status']);
+      $data = $request->only(['code', 'hours_worked', 'extra_hours', 'notes', 'status']);
       $data['id'] = $id;
       return $this->success($this->service->update($data));
     } catch (Exception $e) {

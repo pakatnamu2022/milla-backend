@@ -103,7 +103,7 @@ use App\Http\Controllers\gp\gestionhumana\payroll\PayrollConceptController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollPeriodController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkTypeController;
+use App\Http\Controllers\gp\gestionhumana\payroll\AttendanceRuleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkTypeSegmentController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\AreaController;
@@ -551,6 +551,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
         //    CATEGORY OBJECTIVE DETAILS
         Route::get('/categoryObjectiveDetail/{category}/workers', [EvaluationCategoryObjectiveDetailController::class, 'workers']);
+        Route::post('/categoryObjectiveDetail/{category}/regenerate-person/{person}', [EvaluationCategoryObjectiveDetailController::class, 'regeneratePersonObjectives']);
+        Route::post('/categoryObjectiveDetail/{category}/homogeneous-weights/{person}', [EvaluationCategoryObjectiveDetailController::class, 'recalculateHomogeneousWeights']);
         Route::apiResource('categoryObjectiveDetail', EvaluationCategoryObjectiveDetailController::class)->only([
           'index',
           'show',
@@ -595,6 +597,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/cycle/{cycle}/chiefs', [EvaluationPersonCycleDetailController::class, 'getChiefsByCycle']);
         Route::get('/cycle/{cycle}/weights/preview', [EvaluationPersonCycleDetailController::class, 'previewWeights']);
         Route::post('/cycle/{cycle}/weights/regenerate', [EvaluationPersonCycleDetailController::class, 'regenerateWeights']);
+        Route::get('/cycle/{cycle}/eligible-workers', [EvaluationPersonCycleDetailController::class, 'previewEligibleWorkers']);
+        Route::get('/cycle/{cycle}/workers/{worker}/validate', [EvaluationPersonCycleDetailController::class, 'validateWorkerForCycle']);
+        Route::post('/cycle/{cycle}/workers', [EvaluationPersonCycleDetailController::class, 'storeManyByWorker']);
         Route::get('/cycle/{id}/participants', [EvaluationCycleController::class, 'participants']);
         Route::get('/cycle/{id}/positions', [EvaluationCycleController::class, 'positions']);
 
@@ -1527,8 +1532,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
   // GP - Gestión Humana - Payroll (Nómina) Routes
   Route::group(['prefix' => 'gp/gh/payroll'], function () {
-    // Work Types
-    Route::apiResource('work-types', PayrollWorkTypeController::class);
+    // Attendance Rules
+    Route::get('attendance-rules/codes', [AttendanceRuleController::class, 'codes']);
+    Route::apiResource('attendance-rules', AttendanceRuleController::class);
 
     // Work Type Segments
     Route::prefix('work-types/segments')->group(function () {

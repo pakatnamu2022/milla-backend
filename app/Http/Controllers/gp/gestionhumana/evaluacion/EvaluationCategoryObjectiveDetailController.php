@@ -61,6 +61,24 @@ class EvaluationCategoryObjectiveDetailController extends Controller
     }
   }
 
+  public function regeneratePersonObjectives(int $category, int $person)
+  {
+    try {
+      return $this->service->regeneratePersonObjectives($category, $person);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function recalculateHomogeneousWeights(int $category, int $person)
+  {
+    try {
+      return $this->service->recalculateHomogeneousWeights($category, $person);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function destroy(DeleteEvaluationCategoryObjectiveDetailRequest $request)
   {
     try {
