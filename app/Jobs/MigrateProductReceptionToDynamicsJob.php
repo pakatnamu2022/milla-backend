@@ -7,10 +7,8 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\maestroGeneral\Warehouse;
-use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\TransferReception;
 use App\Models\gp\gestionsistema\Company;
-use App\Models\gp\maestroGeneral\Sede;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -83,17 +81,81 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       $shippingGuide->update(['migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS]);
     }
 
-    // Crear logs si no existen
+    // 1. Verificar y sincronizar artículos (productos) PRIMERO
+    $this->verifyAndSyncProducts($shippingGuide, $reception);
+
+    // 2. Crear logs de transferencia (solo después de que productos estén en proceso)
     $this->ensureProductTransferLogsExist($shippingGuide, $reception);
 
-    // 1. Verificar y sincronizar transferencia de inventario (Header)
+    // 3. Verificar y sincronizar transferencia de inventario (Header)
     $this->verifyInventoryTransfer($shippingGuide, $reception);
 
-    // 2. Verificar y sincronizar detalle de transferencia (Detail)
+    // 4. Verificar y sincronizar detalle de transferencia (Detail)
     $this->verifyInventoryTransferDetail($shippingGuide, $reception);
 
-    // 3. Verificar si todo está completo
+    // 5. Verificar si todo está completo
     $this->checkAndUpdateCompletionStatus($shippingGuide);
+  }
+
+  /**
+   * Verifica y sincroniza los artículos (productos) de la recepción
+   */
+  protected function verifyAndSyncProducts(ShippingGuides $shippingGuide, TransferReception $reception): void
+  {
+    // Obtener items con productos
+    $items = $reception->details()->with('product')->get();
+
+    if ($items->isEmpty()) {
+      return;
+    }
+
+    // Obtener productos únicos con dyn_code válido
+    $uniqueProducts = $items->filter(function ($detail) {
+      return $detail->product && $detail->product->dyn_code;
+    })->pluck('product')->unique('id');
+
+    if ($uniqueProducts->isEmpty()) {
+      return;
+    }
+
+    // Crear logs y despachar jobs para cada producto
+    foreach ($uniqueProducts as $product) {
+      // Crear log para este producto
+      $articleLog = $this->getOrCreateArticleLog(
+        $shippingGuide->id,
+        VehiclePurchaseOrderMigrationLog::STEP_ARTICLE,
+        VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_ARTICLE],
+        $product->dyn_code
+      );
+
+      // Si ya está completado, continuar
+      if ($articleLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED && $articleLog->proceso_estado === 1) {
+        continue;
+      }
+
+      // Verificar en la BD intermedia
+      $existingArticle = DB::connection('dbtp')
+        ->table('neInTbArticulo')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('Articulo', $product->dyn_code)
+        ->first();
+
+      if (!$existingArticle) {
+        // No existe, despachar job para sincronizar el producto
+        try {
+          $articleLog->markAsInProgress();
+          SyncProductArticleJob::dispatch($product->id);
+        } catch (Exception $e) {
+          $articleLog->markAsFailed("Error al despachar job de artículo producto: {$e->getMessage()}");
+        }
+      } else {
+        // Existe, actualizar el estado del log
+        $articleLog->updateProcesoEstado(
+          $existingArticle->ProcesoEstado ?? 0,
+          $existingArticle->ProcesoError ?? null
+        );
+      }
+    }
   }
 
   /**
@@ -159,6 +221,23 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       return;
     }
 
+    // Verificar que TODOS los productos (artículos) estén procesados antes de continuar
+    $productLogs = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
+      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_ARTICLE)
+      ->get();
+
+    // Si hay productos, verificar que todos estén procesados (proceso_estado = 1)
+    if ($productLogs->isNotEmpty()) {
+      $pendingProducts = $productLogs->filter(function ($log) {
+        return $log->proceso_estado !== 1;
+      });
+
+      if ($pendingProducts->isNotEmpty()) {
+        // Hay productos pendientes, no se puede sincronizar la transferencia aún
+        return;
+      }
+    }
+
     // Si no tiene dyn_series, necesita sincronizar
     if (empty($shippingGuide->dyn_series)) {
       $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
@@ -204,20 +283,52 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       return;
     }
 
-    // Verificar si existe en la BD intermedia
-    $existingDetail = DB::connection('dbtp')
+    $productLogs = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id',
+      $shippingGuide->id)
+      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_ARTICLE)
+      ->get();
+
+    // Si hay productos, verificar que todos estén procesados (proceso_estado = 1)
+    if ($productLogs->isNotEmpty()) {
+      $pendingProducts = $productLogs->filter(function ($log) {
+        return $log->proceso_estado !== 1;
+      });
+
+      if ($pendingProducts->isNotEmpty()) {
+        // Hay productos pendientes, no se puede sincronizar el detalle aún
+        return;
+      }
+    }
+
+    // Verificar que dyn_series esté configurado
+    if (empty($shippingGuide->dyn_series)) {
+      return;
+    }
+
+    // Contar cuántos detalles deberían existir
+    $expectedDetailsCount = $reception->details->filter(function ($detail) {
+      return $detail->product && $detail->product->dyn_code;
+    })->count();
+
+    if ($expectedDetailsCount === 0) {
+      return;
+    }
+
+    // Verificar cuántos detalles existen en la BD intermedia
+    $existingDetailsCount = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventarioDet')
       ->where('EmpresaId', Company::AP_DYNAMICS)
       ->where('TransferenciaId', $shippingGuide->dyn_series)
-      ->first();
+      ->count();
 
-    if (!$existingDetail) {
-      // NO EXISTE → SINCRONIZAR
+    if ($existingDetailsCount < $expectedDetailsCount) {
+      // Faltan detalles → SINCRONIZAR
       $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
       $this->syncInventoryTransferDetail($shippingGuide, $reception, $isCancelled);
       return;
     }
 
+    // Todos los detalles existen, actualizar estado
     $detailLog->updateProcesoEstado(1);
   }
 
@@ -347,6 +458,25 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
 
         $product = $detail->product;
 
+        // Verificar si esta línea ya existe en la BD intermedia
+        $existingLine = DB::connection('dbtp')
+          ->table('neInTbTransferenciaInventarioDet')
+          ->where('EmpresaId', Company::AP_DYNAMICS)
+          ->where('TransferenciaId', $transferId)
+          ->where('Linea', $lineNumber)
+          ->first();
+
+        if ($existingLine) {
+          // Esta línea ya existe, continuar con la siguiente
+          Log::info('Línea de detalle ya existe, omitiendo inserción', [
+            'TransferenciaId' => $transferId,
+            'Linea' => $lineNumber,
+            'ArticuloId' => $product->dyn_code
+          ]);
+          $lineNumber++;
+          continue;
+        }
+
         // Cantidad total (recibida + observada)
         $quantity = $detail->quantity_received + $detail->observed_quantity;
 
@@ -391,6 +521,12 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
         // Sincronizar detalle
         $transferDetailLog->markAsInProgress();
         $this->syncService->sync('inventory_transfer_dt', $detailData, 'create');
+
+        Log::info('Línea de detalle sincronizada correctamente', [
+          'TransferenciaId' => $transferId,
+          'Linea' => $lineNumber,
+          'ArticuloId' => $product->dyn_code
+        ]);
 
         $lineNumber++;
       }
@@ -437,6 +573,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
   {
     $logs = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)->get();
 
+    // Verificar que TODOS los logs estén completados con proceso_estado = 1
     $allCompleted = $logs->every(function ($log) {
       return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED &&
         $log->proceso_estado === 1;
@@ -446,7 +583,23 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED;
     });
 
-    if ($allCompleted && $logs->count() === 3) { // 3 pasos en total
+    // Los pasos base son 2: transferencia + detalle de transferencia
+    // Pero también puede haber N logs de artículos (productos)
+    $baseSteps = [
+      VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
+      VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL,
+    ];
+
+    // Verificar que existan los pasos base
+    $hasBaseSteps = true;
+    foreach ($baseSteps as $step) {
+      if (!$logs->where('step', $step)->first()) {
+        $hasBaseSteps = false;
+        break;
+      }
+    }
+
+    if ($allCompleted && $hasBaseSteps) {
       // Marcar la guía como sincronizada
       $shippingGuide->update([
         'status_dynamic' => 1,
@@ -476,6 +629,25 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
         'table_name' => $tableName,
         'external_id' => $externalId,
         'ap_vehicles_id' => $vehicleId,
+      ]
+    );
+  }
+
+  /**
+   * Obtiene o crea un registro de log para artículos
+   * Permite múltiples logs del mismo step con diferentes external_id (productos)
+   */
+  protected function getOrCreateArticleLog(int $shippingGuideId, string $step, string $tableName, ?string $externalId = null): VehiclePurchaseOrderMigrationLog
+  {
+    return VehiclePurchaseOrderMigrationLog::firstOrCreate(
+      [
+        'shipping_guide_id' => $shippingGuideId,
+        'step' => $step,
+        'external_id' => $externalId, // Incluir en búsqueda para productos
+      ],
+      [
+        'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+        'table_name' => $tableName,
       ]
     );
   }

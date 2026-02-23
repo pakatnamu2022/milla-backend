@@ -7,6 +7,7 @@ use App\Http\Resources\Dynamics\ShippingGuideHeaderDynamicsResource;
 use App\Http\Resources\Dynamics\ShippingGuideSeriesDynamicsResource;
 use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Http\Services\DatabaseSyncService;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
@@ -69,15 +70,16 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
   /**
    * Procesa todas las guías de remisión pendientes de migración
+   * SOLO procesa guías del área COMERCIAL (vehículos)
    */
   protected function processAllPendingShippingGuides(): void
   {
     $pendingGuides = ShippingGuides::whereIn('migration_status', [
       VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
       VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
-//      VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
     ])
-      ->where('aceptada_por_sunat', 1)
+      ->where('aceptada_por_sunat', true)
+      ->where('area_id', ApMasters::AREA_COMERCIAL) // Solo área comercial (vehículos)
       ->whereNull('deleted_at')
       ->get();
 
@@ -96,6 +98,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
   /**
    * Procesa una guía de remisión específica
+   * SOLO procesa guías del área COMERCIAL (vehículos)
    */
   protected function processShippingGuide(int $shippingGuideId): void
   {
@@ -107,6 +110,25 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
     if (!$shippingGuide) {
       return;
+    }
+
+    // Validar que la guía sea del área COMERCIAL
+    if ($shippingGuide->area_id !== ApMasters::AREA_COMERCIAL) {
+      Log::warning('Guía de remisión no es del área COMERCIAL, se omite la migración', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'area_id' => $shippingGuide->area_id,
+        'expected_area_id' => ApMasters::AREA_COMERCIAL
+      ]);
+      return;
+    }
+
+    // Validar que tenga vehicle_movement_id
+    if (!$shippingGuide->vehicle_movement_id) {
+      Log::error('Guía de remisión del área COMERCIAL sin vehicle_movement_id', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'area_id' => $shippingGuide->area_id
+      ]);
+      throw new Exception("La guía de remisión del área COMERCIAL debe tener un vehicle_movement_id válido. ShippingGuide ID: {$shippingGuide->id}");
     }
 
     // Actualizar estado general a 'in_progress' si está pending

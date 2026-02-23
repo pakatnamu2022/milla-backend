@@ -40,9 +40,18 @@ Schedule::command('po:verify-migration --all --limit=10')
   ->withoutOverlapping()
   ->runInBackground();
 
-// Verificar y migrar guías de remisión pendientes
-// Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
+// Verificar y migrar guías de remisión de COMERCIAL (vehículos) pendientes
+// Ejecuta cada 10 segundos con límite de 10 jobs pendientes máximo en cola
 Schedule::command('shipping-guide:verify-migration --all --limit=10')
+  ->everyTenSeconds()
+  ->between('6:00', '23:59')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
+// Verificar y migrar recepciones de POSVENTA (productos) pendientes
+// Ejecuta cada 10 segundos con límite de 10 jobs pendientes máximo en cola
+Schedule::command('product-reception:verify-migration --all --limit=10')
   ->everyTenSeconds()
   ->between('6:00', '23:59')
   ->timezone('America/Lima')
