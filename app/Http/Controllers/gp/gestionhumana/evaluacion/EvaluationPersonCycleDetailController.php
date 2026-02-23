@@ -19,6 +19,12 @@ class EvaluationPersonCycleDetailController extends Controller
     $this->service = $service;
   }
 
+  /**
+   * Display a listing of the resource for a specific evaluation cycle.
+   * @param IndexEvaluationPersonCycleDetailRequest $request
+   * @param int $id
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function index(IndexEvaluationPersonCycleDetailRequest $request, int $id)
   {
     try {
@@ -28,6 +34,11 @@ class EvaluationPersonCycleDetailController extends Controller
     }
   }
 
+  /**
+   * Store a newly created resource in storage.
+   * @param StoreEvaluationPersonCycleDetailRequest $request
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function store(StoreEvaluationPersonCycleDetailRequest $request)
   {
     try {
@@ -37,6 +48,11 @@ class EvaluationPersonCycleDetailController extends Controller
     }
   }
 
+  /**
+   * Display the specified resource.
+   * @param $id
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function show($id)
   {
     try {
@@ -46,6 +62,12 @@ class EvaluationPersonCycleDetailController extends Controller
     }
   }
 
+  /**
+   * Update the specified resource in storage.
+   * @param UpdateEvaluationPersonCycleDetailRequest $request
+   * @param $id
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function update(UpdateEvaluationPersonCycleDetailRequest $request, $id)
   {
     try {
@@ -57,6 +79,11 @@ class EvaluationPersonCycleDetailController extends Controller
     }
   }
 
+  /**
+   * Remove the specified resource from storage.
+   * @param $id
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function destroy($id)
   {
     try {
@@ -66,6 +93,11 @@ class EvaluationPersonCycleDetailController extends Controller
     }
   }
 
+  /**
+   * Obtiene los jefes de un ciclo específico.
+   * @param int $cycleId
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function getChiefsByCycle(int $cycleId)
   {
     try {
@@ -90,6 +122,11 @@ class EvaluationPersonCycleDetailController extends Controller
     }
   }
 
+  /**
+   * Regenera los pesos de evaluación para un ciclo específico.
+   * @param int $cycle
+   * @return \Illuminate\Http\JsonResponse
+   */
   public function regenerateWeights(int $cycle)
   {
     try {
@@ -100,7 +137,9 @@ class EvaluationPersonCycleDetailController extends Controller
   }
 
   /**
-   * Previsualiza los workers elegibles para un ciclo (no asignados aún).
+   * Vista previa de los trabajadores elegibles para un ciclo específico.
+   * @param int $cycle
+   * @return \Illuminate\Http\JsonResponse
    */
   public function previewEligibleWorkers(int $cycle)
   {
@@ -113,7 +152,10 @@ class EvaluationPersonCycleDetailController extends Controller
   }
 
   /**
-   * Valida si una persona es elegible para entrar a un ciclo.
+   * Valida si un trabajador es elegible para ser incluido en un ciclo específico.
+   * @param int $cycle
+   * @param int $worker
+   * @return \Illuminate\Http\JsonResponse
    */
   public function validateWorkerForCycle(int $cycle, int $worker)
   {
@@ -125,7 +167,10 @@ class EvaluationPersonCycleDetailController extends Controller
   }
 
   /**
-   * Inserta múltiples workers en un ciclo.
+   * Asocia múltiples trabajadores a un ciclo específico.
+   * @param StoreManyWorkerToCycleRequest $request
+   * @param int $cycle
+   * @return \Illuminate\Http\JsonResponse
    */
   public function storeManyByWorker(StoreManyWorkerToCycleRequest $request, int $cycle)
   {
