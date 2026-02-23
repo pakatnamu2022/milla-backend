@@ -5,7 +5,6 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 use App\Http\Resources\ap\postventa\gestionProductos\TransferReceptionResource;
 use App\Http\Services\BaseService;
 use App\Jobs\MigrateProductReceptionToDynamicsJob;
-use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
@@ -126,10 +125,9 @@ class TransferReceptionService extends BaseService
           // Diferenciar entre productos de posventa y vehículos según area_id
           if ($shippingGuide->area_id === ApMasters::AREA_POSVENTA) {
             // Migrar productos de posventa a Dynamics
-            MigrateProductReceptionToDynamicsJob::dispatchSync($reception->id);
+            MigrateProductReceptionToDynamicsJob::dispatch($reception->id);
           } else {
-            // Migrar vehículos a Dynamics (comercial)
-            VerifyAndMigrateShippingGuideJob::dispatchSync($shippingGuide->id);
+            \Log::info("Recepción de transferencia {$reception->reception_number} no requiere migración a Dynamics por ser de área diferente a posventa.");
           }
         }
       } else {

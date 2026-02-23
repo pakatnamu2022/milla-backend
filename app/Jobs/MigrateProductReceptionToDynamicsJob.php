@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Http\Services\DatabaseSyncService;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\maestroGeneral\Warehouse;
@@ -31,7 +32,8 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
    */
   public function __construct(
     public int $transferReceptionId
-  ) {
+  )
+  {
     $this->onQueue('shipping_guides');
   }
 
@@ -90,10 +92,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
     // 2. Verificar y sincronizar detalle de transferencia (Detail)
     $this->verifyInventoryTransferDetail($shippingGuide, $reception);
 
-    // 3. Verificar y sincronizar serial de transferencia (Serial)
-    $this->verifyInventoryTransferSerial($shippingGuide, $reception);
-
-    // 4. Verificar si todo está completo
+    // 3. Verificar si todo está completo
     $this->checkAndUpdateCompletionStatus($shippingGuide);
   }
 
@@ -109,23 +108,20 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       ? [
         VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL,
         VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL,
-        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL_REVERSAL,
       ]
       : [
         VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
         VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL,
-        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL,
       ];
 
-    // Tablas correspondientes
-    $tables = [
-      'neInTbTransferenciaInventario',
-      'neInTbTransferenciaInventarioDet',
-      'neInTbTransferenciaInventarioDtS',
-    ];
-
     // Crear logs para cada step si no existen
-    foreach ($steps as $index => $step) {
+    foreach ($steps as $step) {
+      $tableName = VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[$step] ?? null;
+
+      if (!$tableName) {
+        throw new Exception("No se encontró tabla mapeada para el step: {$step}");
+      }
+
       $existingLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
         ->where('step', $step)
         ->first();
@@ -137,7 +133,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
         $this->getOrCreateLog(
           $shippingGuide->id,
           $step,
-          $tables[$index],
+          VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[$step],
           $transactionId,
           null // No es vehículo, no hay vehicle_id
         );
@@ -223,41 +219,6 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
     }
 
     $detailLog->updateProcesoEstado(1);
-  }
-
-  /**
-   * Verifica el estado del serial de transferencia en la BD intermedia (Serial)
-   */
-  protected function verifyInventoryTransferSerial(ShippingGuides $shippingGuide, TransferReception $reception): void
-  {
-    $serialLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
-      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL)
-      ->first();
-
-    if (!$serialLog) {
-      return;
-    }
-
-    // Si ya está completado, no hacer nada
-    if ($serialLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-      return;
-    }
-
-    // Verificar si existe en la BD intermedia (verificamos por al menos un producto)
-    $existingSerial = DB::connection('dbtp')
-      ->table('neInTbTransferenciaInventarioDtS')
-      ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', $shippingGuide->dyn_series)
-      ->first();
-
-    if (!$existingSerial) {
-      // NO EXISTE → SINCRONIZAR
-      $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
-      $this->syncInventoryTransferSerial($shippingGuide, $reception, $isCancelled);
-      return;
-    }
-
-    $serialLog->updateProcesoEstado(1);
   }
 
   /**
@@ -368,6 +329,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       $almacenIdIni = $isCancelled ? $warehouseDestinationCode : $warehouseOriginCode;
       $almacenIdFin = $isCancelled ? $warehouseOriginCode : $warehouseDestinationCode;
 
+      $sedeOrigin = $warehouseOrigin->sede;
       $sede = $reception->warehouse->sede;
       if (!$sede) {
         throw new Exception("Sede del almacén de recepción no encontrada.");
@@ -390,11 +352,11 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
 
         // Obtener almacenes para este producto específico según su article_class (para cuentas contables)
         $warehouseQuery = Warehouse::where('sede_id', $sede->id)
-          ->where('type_operation_id', 804) // TIPO_OPERACION_POSTVENTA
+          ->where('type_operation_id', ApMasters::TIPO_OPERACION_POSTVENTA) // TIPO_OPERACION_POSTVENTA
           ->where('article_class_id', $product->ap_class_article_id)
           ->where('status', true);
 
-        $warehouseStart = (clone $warehouseQuery)->where('is_received', false)->first();
+        $warehouseStart = (clone $warehouseQuery)->where('is_received', true)->first();
         $warehouseEnd = (clone $warehouseQuery)->where('is_received', true)->first();
 
         if (!$warehouseStart || !$warehouseEnd) {
@@ -402,7 +364,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
         }
 
         // Cuentas contables
-        $inventoryAccount = $warehouseStart->inventory_account . '-' . $sede->dyn_code;
+        $inventoryAccount = $warehouseStart->inventory_account . '-' . $sedeOrigin->dyn_code;
         $counterpartInventoryAccount = $warehouseEnd->inventory_account . '-' . $sede->dyn_code;
 
         if ($isCancelled) {
@@ -443,80 +405,6 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
         'trace' => $e->getTraceAsString()
       ]);
       $transferDetailLog->markAsFailed("Error al sincronizar detalle de transferencia: {$e->getMessage()}");
-      throw $e;
-    }
-  }
-
-  /**
-   * Sincroniza el serial de transferencia de inventario (Serial)
-   * UNO POR UNO para cada producto usando su dyn_code
-   */
-  protected function syncInventoryTransferSerial(ShippingGuides $shippingGuide, TransferReception $reception, bool $isCancelled): void
-  {
-    $step = $isCancelled
-      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL_REVERSAL
-      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL;
-
-    $transferSerialLog = $this->getOrCreateLog(
-      $shippingGuide->id,
-      $step,
-      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL],
-      $shippingGuide->document_number,
-      null
-    );
-
-    // Si ya está completado, no hacer nada
-    if ($transferSerialLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-      return;
-    }
-
-    try {
-      // Preparar TransferenciaId con asterisco si está cancelada
-      $transferId = 'PTRA-' . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
-      if ($isCancelled) {
-        $transferId .= '*';
-      }
-
-      // Sincronizar cada producto UNO POR UNO
-      $lineNumber = 1;
-      foreach ($reception->details as $detail) {
-        if (!$detail->product) {
-          Log::warning('Detalle de recepción sin producto asociado', [
-            'transfer_reception_detail_id' => $detail->id
-          ]);
-          continue;
-        }
-
-        $product = $detail->product;
-
-        // Preparar datos para sincronización del serial
-        $serialData = [
-          'EmpresaId' => Company::AP_DYNAMICS,
-          'TransferenciaId' => $transferId,
-          'Linea' => $lineNumber,
-          'Serie' => $product->dyn_code ?? throw new Exception("El producto {$product->code} no tiene dyn_code"),
-          'ArticuloId' => $product->dyn_code,
-          'DatoUsuario1' => $product->dyn_code,
-          'DatoUsuario2' => $product->dyn_code,
-        ];
-
-        // Sincronizar serial
-        $transferSerialLog->markAsInProgress();
-        $this->syncService->sync('inventory_transfer_dts', $serialData, 'create');
-
-        $lineNumber++;
-      }
-
-      $transferSerialLog->updateProcesoEstado(0);
-
-    } catch (Exception $e) {
-      Log::error('Error al sincronizar serial de transferencia de inventario (productos)', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'transfer_reception_id' => $reception->id,
-        'error' => $e->getMessage(),
-        'trace' => $e->getTraceAsString()
-      ]);
-      $transferSerialLog->markAsFailed("Error al sincronizar serial de transferencia: {$e->getMessage()}");
       throw $e;
     }
   }

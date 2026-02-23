@@ -712,7 +712,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       }
 
       if ($guide->document_type === ShippingGuides::DOCUMENT_TYPE_GR) {
-        VerifyAndMigrateShippingGuideJob::dispatchSync($guide->id);
+        VerifyAndMigrateShippingGuideJob::dispatch($guide->id);
       }
 
       $guide->update([
