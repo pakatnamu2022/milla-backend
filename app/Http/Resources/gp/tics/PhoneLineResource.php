@@ -20,6 +20,7 @@ class PhoneLineResource extends JsonResource
       'telephone_plan_id' => $this->telephone_plan_id,
       'company_id' => $this->telephoneAccount?->company_id,
       'telephone_account' => $this->telephoneAccount ? new TelephoneAccountResource($this->telephoneAccount) : null,
+      'telephone_plan' => $this->telephonePlan ? new TelephonePlanResource($this->telephonePlan) : null,
     ];
   }
 }
