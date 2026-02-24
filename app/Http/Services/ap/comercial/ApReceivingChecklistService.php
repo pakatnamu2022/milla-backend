@@ -187,6 +187,7 @@ class ApReceivingChecklistService extends BaseService
           'receiving_id' => $receivingId,
           'shipping_guide_id' => $data['shipping_guide_id'],
           'quantity' => $data['items_receiving'][$receivingId],
+          'kilometers' => $data['kilometers'],
         ]);
       }
 
