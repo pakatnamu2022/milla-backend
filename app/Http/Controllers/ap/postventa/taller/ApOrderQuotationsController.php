@@ -154,8 +154,8 @@ class ApOrderQuotationsController extends Controller
   {
     try {
       $request->validate([
-        'customer_signature_delivery_url' => 'nullable|string',
-        'delivery_document_number' => 'nullable|string|max:255',
+        'customer_signature_delivery_url' => 'required|string',
+        'delivery_document_number' => 'required|string|max:255',
       ]);
 
       return $this->success($this->service->updateDeliveryInfo($id, $request->only([
