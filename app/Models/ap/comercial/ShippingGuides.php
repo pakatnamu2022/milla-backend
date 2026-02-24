@@ -112,6 +112,7 @@ class ShippingGuides extends BaseModel
   // Issuer types
   const ISSUER_TYPE_SUPPLIER = 'PROVEEDOR';
   const ISSUER_TYPE_SYSTEM = 'SYSTEM';
+  const DOCUMENT_TYPE_GR = 'GUIA_REMISION';
 
   const filters = [
     'search' => ['document_number', 'plate', 'driver_name', 'documentSeries.series'],

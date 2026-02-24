@@ -5,9 +5,9 @@ namespace App\Http\Services\gp\gestionhumana\payroll;
 use App\Http\Resources\gp\gestionhumana\payroll\PayrollScheduleResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\gp\gestionhumana\payroll\AttendanceRule;
 use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
 use App\Models\gp\gestionhumana\payroll\PayrollSchedule;
-use App\Models\gp\gestionhumana\payroll\PayrollWorkType;
 use App\Models\gp\gestionhumana\personal\Worker;
 use Carbon\Carbon;
 use Exception;
@@ -21,7 +21,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
    */
   public function list(Request $request)
   {
-    $query = PayrollSchedule::with(['worker', 'workType', 'period']);
+    $query = PayrollSchedule::with(['worker', 'period']);
 
     return $this->getFilteredResults(
       $query,
@@ -37,7 +37,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
    */
   public function find($id)
   {
-    $schedule = PayrollSchedule::with(['worker', 'workType', 'period'])->find($id);
+    $schedule = PayrollSchedule::with(['worker', 'period'])->find($id);
     if (!$schedule) {
       throw new Exception('Schedule not found');
     }
@@ -66,12 +66,6 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         throw new Exception('Worker not found');
       }
 
-      // Validate work type exists
-      $workType = PayrollWorkType::find($data['work_type_id']);
-      if (!$workType) {
-        throw new Exception('Work type not found');
-      }
-
       // Validate period exists and is modifiable
       $period = PayrollPeriod::find($data['period_id']);
       if (!$period) {
@@ -92,17 +86,15 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
 
       $schedule = PayrollSchedule::create([
         'worker_id' => $data['worker_id'],
-        'work_type_id' => $data['work_type_id'],
+        'code' => $data['code'],
         'period_id' => $data['period_id'],
         'work_date' => $data['work_date'],
-        'hours_worked' => $data['hours_worked'] ?? $workType->base_hours,
-        'extra_hours' => $data['extra_hours'] ?? 0,
         'notes' => $data['notes'] ?? null,
         'status' => $data['status'] ?? PayrollSchedule::STATUS_SCHEDULED,
       ]);
 
       DB::commit();
-      return new PayrollScheduleResource($schedule->load(['worker', 'workType', 'period']));
+      return new PayrollScheduleResource($schedule->load(['worker', 'period']));
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -141,13 +133,6 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
             continue;
           }
 
-          // Validate work type exists
-          $workType = PayrollWorkType::find($scheduleData['work_type_id']);
-          if (!$workType) {
-            $errors[] = "Row {$index}: Work type not found";
-            continue;
-          }
-
           // Check for duplicate
           $existingSchedule = PayrollSchedule::where('worker_id', $scheduleData['worker_id'])
             ->where('work_date', $scheduleData['work_date'])
@@ -156,9 +141,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           if ($existingSchedule) {
             // Update existing schedule
             $existingSchedule->update([
-              'work_type_id' => $scheduleData['work_type_id'],
-              'hours_worked' => $scheduleData['hours_worked'] ?? $workType->base_hours,
-              'extra_hours' => $scheduleData['extra_hours'] ?? 0,
+              'code' => $scheduleData['code'],
               'notes' => $scheduleData['notes'] ?? null,
               'status' => $scheduleData['status'] ?? PayrollSchedule::STATUS_SCHEDULED,
             ]);
@@ -167,11 +150,9 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
             // Create new schedule
             $schedule = PayrollSchedule::create([
               'worker_id' => $scheduleData['worker_id'],
-              'work_type_id' => $scheduleData['work_type_id'],
+              'code' => $scheduleData['code'],
               'period_id' => $periodId,
               'work_date' => $scheduleData['work_date'],
-              'hours_worked' => $scheduleData['hours_worked'] ?? $workType->base_hours,
-              'extra_hours' => $scheduleData['extra_hours'] ?? 0,
               'notes' => $scheduleData['notes'] ?? null,
               'status' => $scheduleData['status'] ?? PayrollSchedule::STATUS_SCHEDULED,
             ]);
@@ -188,7 +169,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         'created_count' => count($createdSchedules),
         'errors' => $errors,
         'schedules' => PayrollScheduleResource::collection(
-          collect($createdSchedules)->map(fn($s) => $s->load(['worker', 'workType', 'period']))
+          collect($createdSchedules)->map(fn($s) => $s->load(['worker', 'period']))
         ),
       ];
     } catch (Exception $e) {
@@ -212,24 +193,14 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         throw new Exception('Cannot update schedule: period is in ' . $schedule->period->status . ' status');
       }
 
-      // Validate work type if changing
-      if (isset($data['work_type_id']) && $data['work_type_id'] !== $schedule->work_type_id) {
-        $workType = PayrollWorkType::find($data['work_type_id']);
-        if (!$workType) {
-          throw new Exception('Work type not found');
-        }
-      }
-
       $schedule->update([
-        'work_type_id' => $data['work_type_id'] ?? $schedule->work_type_id,
-        'hours_worked' => $data['hours_worked'] ?? $schedule->hours_worked,
-        'extra_hours' => $data['extra_hours'] ?? $schedule->extra_hours,
+        'code' => $data['code'] ?? $schedule->code,
         'notes' => $data['notes'] ?? $schedule->notes,
         'status' => $data['status'] ?? $schedule->status,
       ]);
 
       DB::commit();
-      return new PayrollScheduleResource($schedule->fresh()->load(['worker', 'workType', 'period']));
+      return new PayrollScheduleResource($schedule->fresh()->load(['worker', 'period']));
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -262,7 +233,20 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Get summary of hours by period
+   * Get summary by period using attendance codes and rules
+   *
+   * Calculation logic:
+   * 1. Group schedules by worker_id and code
+   * 2. Count days worked per code
+   * 3. For each code, get AttendanceRules
+   * 4. Calculate cost per rule:
+   *    - If use_shift = 1: hours = worker.horas_jornada
+   *    - If use_shift = 0: hours = rule.hours
+   *    - base_hour_value = worker.sueldo / 30 / worker.horas_jornada
+   *    - If hour_type = NOCTURNO: apply 35% surcharge (multiply by 1.35)
+   *    - Apply rule multiplier
+   *    - total = hours × hour_value × multiplier × days_worked
+   *    - If pay = 0: subtract instead of add
    */
   public function getSummaryByPeriod(int $periodId)
   {
@@ -271,44 +255,93 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       throw new Exception('Period not found');
     }
 
-    $schedules = PayrollSchedule::with(['worker', 'workType'])
+    // Get all worked schedules for this period
+    $schedules = PayrollSchedule::with(['worker'])
       ->where('period_id', $periodId)
       ->where('status', PayrollSchedule::STATUS_WORKED)
       ->get();
 
-    $summary = $schedules->groupBy('worker_id')->map(function ($workerSchedules) {
+    // Get all attendance rules
+    $attendanceRules = AttendanceRule::all()->groupBy('code');
+
+    $summary = $schedules->groupBy('worker_id')->map(function ($workerSchedules) use ($attendanceRules) {
       $worker = $workerSchedules->first()->worker;
 
-      $totalNormalHours = 0;
-      $totalExtraHours = 0;
-      $totalNightHours = 0;
-      $totalHolidayHours = 0;
-      $daysWorked = 0;
+      // Worker salary and shift info
+      $sueldo = (float)($worker->sueldo ?? 0);
+      $horasJornada = (float)($worker->horas_jornada ?? 8);
 
-      foreach ($workerSchedules as $schedule) {
-        $workType = $schedule->workType;
-        $hours = (float) $schedule->hours_worked;
+      if ($sueldo == 0 || $horasJornada == 0) {
+        throw new Exception("Worker {$worker->nombre_completo} has invalid salary or shift hours");
+      }
 
-        if ($workType->is_night_shift) {
-          $totalNightHours += $hours;
-        } elseif ($workType->is_holiday || $workType->is_sunday) {
-          $totalHolidayHours += $hours;
-        } else {
-          $totalNormalHours += $hours;
+      // Base hour value
+      $valorHoraBase = $sueldo / 30 / $horasJornada;
+
+      // Night surcharge constant (35%)
+      $recargoNocturno = 1.35;
+
+      // Group by code and count days
+      $codeGroups = $workerSchedules->groupBy('code');
+
+      $details = [];
+      $totalAmount = 0;
+
+      foreach ($codeGroups as $code => $codeSchedules) {
+        $diasTrabajados = $codeSchedules->count();
+
+        // Get rules for this code
+        $rules = $attendanceRules->get($code);
+
+        if (!$rules || $rules->isEmpty()) {
+          continue; // Skip if no rules defined for this code
         }
 
-        $totalExtraHours += (float) $schedule->extra_hours;
-        $daysWorked++;
+        foreach ($rules as $rule) {
+          // Determine hours to use
+          $horas = $rule->use_shift ? $horasJornada : (float)$rule->hours;
+
+          // Calculate hour value with night surcharge if applicable
+          $valorHora = $valorHoraBase;
+          if (strtoupper($rule->hour_type) === 'NOCTURNO') {
+            $valorHora *= $recargoNocturno;
+          }
+
+          // Apply multiplier
+          $valorHora *= (float)$rule->multiplier;
+
+          // Calculate total for this rule
+          $total = $horas * $valorHora * $diasTrabajados;
+
+          // If pay = 0, subtract instead of add
+          if (!$rule->pay) {
+            $total = -$total;
+          }
+
+          $totalAmount += $total;
+
+          $details[] = [
+            'code' => $code,
+            'hour_type' => $rule->hour_type,
+            'hours' => round($horas, 2),
+            'multiplier' => round((float)$rule->multiplier, 4),
+            'pay' => $rule->pay,
+            'use_shift' => $rule->use_shift,
+            'hour_value' => round($valorHora, 2),
+            'days_worked' => $diasTrabajados,
+            'total' => round($total, 2),
+          ];
+        }
       }
 
       return [
         'worker_id' => $worker->id,
         'worker_name' => $worker->nombre_completo,
-        'total_normal_hours' => round($totalNormalHours, 2),
-        'total_extra_hours' => round($totalExtraHours, 2),
-        'total_night_hours' => round($totalNightHours, 2),
-        'total_holiday_hours' => round($totalHolidayHours, 2),
-        'days_worked' => $daysWorked,
+        'salary' => round($sueldo, 2),
+        'shift_hours' => round($horasJornada, 2),
+        'base_hour_value' => round($valorHoraBase, 2),
+        'details' => $details,
+        'total_amount' => round($totalAmount, 2),
       ];
     })->values();
 

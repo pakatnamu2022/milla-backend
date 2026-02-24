@@ -139,7 +139,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       // 4. Manejar type_voucher_id para guías de remisión
       $typeVoucherId = null;
-      if ($data['document_type'] == 'GUIA_REMISION') {
+      if ($data['document_type'] == ShippingGuides::DOCUMENT_TYPE_GR) {
         $typeVoucherId = SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE;
       }
 
@@ -261,7 +261,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       }
 
       $typeVoucherId = null;
-      if ($data['document_type'] == 'GUIA_REMISION') {
+      if ($data['document_type'] = ShippingGuides::DOCUMENT_TYPE_GR) {
         $typeVoucherId = SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE;
       }
 
@@ -430,7 +430,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       }
 
       // 3. Manejar type_voucher_id para guías de remisión
-      if (isset($data['document_type']) && $data['document_type'] == 'GUIA_REMISION') {
+      if (isset($data['document_type']) && $data['document_type'] == ShippingGuides::DOCUMENT_TYPE_GR) {
         $data['type_voucher_id'] = SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE;
       }
 
@@ -590,7 +590,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('Debe esperar al menos 30 minutos antes de reenviar la guía a SUNAT');
       }
 
-      if ($guide->document_type != 'GUIA_REMISION' || $guide->type_voucher_id != SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE) {
+      if ($guide->document_type != ShippingGuides::DOCUMENT_TYPE_GR || $guide->type_voucher_id != SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE) {
         throw new Exception('El tipo de documento o comprobante no es válido para envío a SUNAT');
       }
 
@@ -711,8 +711,8 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede marcar como recepcionada una guía anulada');
       }
 
-      if ($guide->document_type === 'GUIA_REMISION') {
-        VerifyAndMigrateShippingGuideJob::dispatchSync($guide->id);
+      if ($guide->document_type === ShippingGuides::DOCUMENT_TYPE_GR) {
+        VerifyAndMigrateShippingGuideJob::dispatch($guide->id);
       }
 
       $guide->update([

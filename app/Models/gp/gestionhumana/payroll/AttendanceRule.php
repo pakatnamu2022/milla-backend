@@ -13,6 +13,7 @@ class AttendanceRule extends BaseModel
 
   protected $fillable = [
     'code',
+    'description',
     'hour_type',
     'hours',
     'multiplier',
