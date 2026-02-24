@@ -1220,7 +1220,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       return 'CTRA-';
     }
 
-    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_CONSIGNACION) {
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_OTROS) {
       return 'CCON-';
     }
 
