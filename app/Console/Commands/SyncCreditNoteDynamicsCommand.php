@@ -16,7 +16,7 @@ class SyncCreditNoteDynamicsCommand extends Command
    *
    * @var string
    */
-  protected $signature = 'po:sync-credit-note-dynamics {--id= : ID de la orden de compra específica} {--all : Sincronizar todas las OC de los últimos 2 meses sin credit_note_dynamics}';
+  protected $signature = 'po:sync-credit-note-dynamics {--id= : ID de la orden de compra específica} {--all : Sincronizar todas las OC de los últimos 2 meses sin credit_note_dynamics} {--limit= : Limitar cantidad de registros a procesar}';
 
   /**
    * The console command description.
@@ -99,7 +99,7 @@ class SyncCreditNoteDynamicsCommand extends Command
     $endDate = $now->toDateString();
     $today = $now->toDateString();
 
-    $purchaseOrders = PurchaseOrder::where(function ($query) {
+    $query = PurchaseOrder::where(function ($query) {
       $query->whereNull('credit_note_dynamics')
         ->orWhere('credit_note_dynamics', '');
     })
@@ -109,8 +109,13 @@ class SyncCreditNoteDynamicsCommand extends Command
       ->whereDoesntHave('creditNoteSyncLogs', function ($query) use ($today) {
         $query->whereDate('attempted_at', '=', $today);
       })
-      ->orderBy('emission_date', 'desc')
-      ->get();
+      ->orderBy('emission_date', 'desc');
+
+    if ($limit = $this->option('limit')) {
+      $query->limit((int)$limit);
+    }
+
+    $purchaseOrders = $query->get();
 
     if ($purchaseOrders->isEmpty()) {
       $this->info('No hay órdenes de compra pendientes de sincronizar credit_note_dynamics');

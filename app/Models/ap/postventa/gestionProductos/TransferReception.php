@@ -63,6 +63,10 @@ class TransferReception extends Model
   const STATUS_APPROVED = 'APPROVED';
   const STATUS_REJECTED = 'REJECTED';
 
+  //Types constants
+  const ITEM_TYPE_PRODUCT = 'PRODUCTO';
+  const ITEM_TYPE_SERVICE = 'SERVICIO';
+
   // Boot method
   protected static function boot()
   {

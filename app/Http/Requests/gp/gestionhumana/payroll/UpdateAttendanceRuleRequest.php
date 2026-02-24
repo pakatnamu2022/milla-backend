@@ -15,6 +15,7 @@ class UpdateAttendanceRuleRequest extends StoreRequest
         'string',
         'max:10',
       ],
+      'description' => ['sometimes', 'string', 'max:255'],
       'hour_type' => ['sometimes', 'string', 'max:50'],
       'hours' => ['nullable', 'numeric:2', 'min:0', 'max:24'],
       'multiplier' => ['sometimes', 'numeric', 'min:0'],
@@ -27,6 +28,7 @@ class UpdateAttendanceRuleRequest extends StoreRequest
   {
     return [
       'code' => 'código',
+      'description' => 'descripción',
       'hour_type' => 'tipo de hora',
       'hours' => 'horas',
       'multiplier' => 'multiplicador',
@@ -40,6 +42,8 @@ class UpdateAttendanceRuleRequest extends StoreRequest
     return [
       'code.string' => 'El :attribute debe ser una cadena de texto.',
       'code.max' => 'El :attribute no debe exceder los 10 caracteres.',
+      'description.string' => 'La :attribute debe ser una cadena de texto.',
+      'description.max' => 'La :attribute no debe exceder los 255 caracteres.',
       'hour_type.string' => 'El :attribute debe ser una cadena de texto.',
       'hour_type.max' => 'El :attribute no debe exceder los 50 caracteres.',
       'hours.decimal' => 'El :attribute debe ser un número decimal con hasta 2 decimales.',

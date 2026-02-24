@@ -18,16 +18,12 @@ class PayrollSchedule extends BaseModel
     'code',
     'period_id',
     'work_date',
-    'hours_worked',
-    'extra_hours',
     'notes',
     'status',
   ];
 
   protected $casts = [
     'work_date' => 'date',
-    'hours_worked' => 'decimal:2',
-    'extra_hours' => 'decimal:2',
   ];
 
   // Schedule statuses
@@ -109,13 +105,5 @@ class PayrollSchedule extends BaseModel
   public function scopeAbsent($query)
   {
     return $query->where('status', self::STATUS_ABSENT);
-  }
-
-  /**
-   * Get total hours for this schedule
-   */
-  public function getTotalHoursAttribute(): float
-  {
-    return (float) $this->hours_worked + (float) $this->extra_hours;
   }
 }

@@ -13,10 +13,8 @@ class StoreBulkPayrollScheduleRequest extends StoreRequest
       'period_id' => ['required', 'integer', 'exists:gh_payroll_periods,id'],
       'schedules' => ['required', 'array', 'min:1'],
       'schedules.*.worker_id' => ['required', 'integer', 'exists:rrhh_persona,id'],
-      'schedules.*.code' => ['nullable', 'string', 'max:50'],
+      'schedules.*.code' => ['required', 'string', 'max:50'],
       'schedules.*.work_date' => ['required', 'date'],
-      'schedules.*.hours_worked' => ['nullable', 'numeric', 'min:0', 'max:24'],
-      'schedules.*.extra_hours' => ['nullable', 'numeric', 'min:0', 'max:24'],
       'schedules.*.notes' => ['nullable', 'string', 'max:255'],
       'schedules.*.status' => ['nullable', 'string', 'in:' . implode(',', PayrollSchedule::STATUSES)],
     ];
@@ -28,10 +26,8 @@ class StoreBulkPayrollScheduleRequest extends StoreRequest
       'period_id' => 'period',
       'schedules' => 'schedules',
       'schedules.*.worker_id' => 'worker',
-      'schedules.*.code' => 'code',
+      'schedules.*.code' => 'attendance code',
       'schedules.*.work_date' => 'work date',
-      'schedules.*.hours_worked' => 'hours worked',
-      'schedules.*.extra_hours' => 'extra hours',
       'schedules.*.notes' => 'notes',
       'schedules.*.status' => 'status',
     ];

@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 use App\Exports\GeneralExport;
 use App\Http\Resources\ap\postventa\gestionProductos\InventoryMovementResource;
 use App\Http\Services\BaseService;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
@@ -326,6 +327,24 @@ class InventoryMovementService extends BaseService
             );
           }
         }
+
+        // Validate that all products have warehouse assignment in destination
+        foreach ($details as $detail) {
+          // Skip validation if it's a service (description instead of product_id)
+          if (!isset($detail['product_id'])) {
+            continue;
+          }
+
+          $destinationStock = $this->stockService->getStock($detail['product_id'], $transferData['warehouse_destination_id']);
+          $product = Products::find($detail['product_id']);
+          $productName = $product ? $product->name : "ID {$detail['product_id']}";
+
+          if (!$destinationStock) {
+            throw new Exception(
+              "El producto '{$productName}' no está asignado al almacén de destino. Por favor, asigne el producto al almacén antes de crear la transferencia."
+            );
+          }
+        }
       } else {
         // Para SERVICIO: intentar obtener almacenes si existen, pero permitir null
         // Transmitter siempre tiene sede, intentar obtener su almacén
@@ -406,6 +425,7 @@ class InventoryMovementService extends BaseService
         'status' => true,
         'created_by' => Auth::id(),
         'type_voucher_id' => SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE,
+        'area_id' => ApMasters::AREA_POSVENTA,
       ]);
 
       // Create TRANSFER_OUT movement (stock goes to in_transit for PRODUCTO)
