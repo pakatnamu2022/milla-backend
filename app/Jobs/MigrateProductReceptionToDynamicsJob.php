@@ -522,12 +522,6 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
         $transferDetailLog->markAsInProgress();
         $this->syncService->sync('inventory_transfer_dt', $detailData, 'create');
 
-        Log::info('Línea de detalle sincronizada correctamente', [
-          'TransferenciaId' => $transferId,
-          'Linea' => $lineNumber,
-          'ArticuloId' => $product->dyn_code
-        ]);
-
         $lineNumber++;
       }
 
