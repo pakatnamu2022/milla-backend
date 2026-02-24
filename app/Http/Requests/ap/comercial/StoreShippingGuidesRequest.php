@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ap\comercial;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 
 class StoreShippingGuidesRequest extends StoreRequest
 {

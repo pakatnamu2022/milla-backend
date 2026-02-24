@@ -138,6 +138,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
     // Determinar si es una guía de venta o transferencia
     $isSale = $this->isSaleShippingGuide($shippingGuide);
+
     if ($isSale) {
       // NUEVO: Crear logs si no existen (primera vez)
       $this->ensureSaleLogsExist($shippingGuide);

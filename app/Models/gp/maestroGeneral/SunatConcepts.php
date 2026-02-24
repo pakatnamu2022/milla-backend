@@ -86,7 +86,6 @@ class SunatConcepts extends Model
   const TRANSFER_REASON_TRASLADO_SEDE = 17;
   const TRANSFER_REASON_COMPRA = 15;
   const TRANSFER_REASON_VENTA = 14;
-
   const TRANSFER_REASON_CONSIGNACION = 18;
 
   // IDs especificos de TYPE_TRANSPORTATION
