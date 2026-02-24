@@ -176,22 +176,4 @@ class VehiclesController extends Controller
       return $this->error($th->getMessage());
     }
   }
-
-  /**
-   * Match VINs from an uploaded Excel file against vehicles in Inventario VN status
-   *
-   * @param Request $request
-   * @return JsonResponse
-   */
-  public function matchVins(Request $request): JsonResponse
-  {
-    try {
-      $request->validate([
-        'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
-      ]);
-      return $this->service->matchVins($request);
-    } catch (Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
 }
