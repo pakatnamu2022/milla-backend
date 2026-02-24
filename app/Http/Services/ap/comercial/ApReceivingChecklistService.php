@@ -3,18 +3,23 @@
 namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\ApReceivingChecklistResource;
+use App\Http\Resources\ap\comercial\ApReceivingInspectionResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\EmailService;
 use App\Http\Utils\Constants;
+use App\Jobs\ProcessReceivingInspectionImagesJob;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\comercial\ApReceivingChecklist;
+use App\Models\ap\comercial\ApReceivingInspection;
+use App\Models\ap\comercial\ApReceivingInspectionDamage;
 use App\Models\ap\comercial\ShippingGuideAccessory;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklist;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -113,10 +118,13 @@ class ApReceivingChecklistService extends BaseService
         }
       }
 
+      $inspection = ApReceivingInspection::with('damages')->where('shipping_guide_id', $shippingGuideId)->first();
+
       return response()->json([
         'data' => ApReceivingChecklistResource::collection($checklists),
         'note_received' => $shippingGuide->note_received,
         'accessories' => $accessories,
+        'inspection' => $inspection ? new ApReceivingInspectionResource($inspection) : null,
       ]);
     } catch (Exception $e) {
       throw new Exception($e->getMessage());
@@ -211,6 +219,31 @@ class ApReceivingChecklistService extends BaseService
         'received_by' => auth()->id(),
         'received_date' => now(),
       ]);
+
+      // Crear/actualizar inspección si llegan fotos o daños
+      $hasInspectionData = isset($data['photo_front'])
+        || isset($data['photo_back'])
+        || isset($data['photo_left'])
+        || isset($data['photo_right'])
+        || isset($data['general_observations'])
+        || !empty($data['damages']);
+
+      if ($hasInspectionData) {
+        $inspection = ApReceivingInspection::firstOrCreate(
+          ['shipping_guide_id' => $data['shipping_guide_id']],
+          ['inspected_by' => auth()->id()]
+        );
+
+        if (isset($data['general_observations'])) {
+          $inspection->update(['general_observations' => $data['general_observations']]);
+        }
+
+        $this->processVehiclePhotos($inspection, $data);
+
+        if (!empty($data['damages'])) {
+          $this->processInspectionDamages($inspection, $data['damages']);
+        }
+      }
 
       // Get updated records
       $updatedRecords = ApReceivingChecklist::where('shipping_guide_id', $data['shipping_guide_id'])
@@ -355,5 +388,81 @@ class ApReceivingChecklistService extends BaseService
       ]);
       throw $e;
     }
+  }
+
+  private function processVehiclePhotos(ApReceivingInspection $inspection, array $data): void
+  {
+    $pendingImages = [];
+    $photoTypes = ['photo_front', 'photo_back', 'photo_left', 'photo_right'];
+
+    foreach ($photoTypes as $photoType) {
+      if (isset($data[$photoType]) && $data[$photoType] instanceof UploadedFile) {
+        $photoFile = $data[$photoType];
+        $tempPath  = $this->saveToTemp($photoFile);
+        $pendingImages[] = [
+          'receiving_inspection_id' => $inspection->id,
+          'photo_type'              => $photoType,
+          'temp_path'               => $tempPath,
+          'original_name'           => $photoFile->getClientOriginalName(),
+        ];
+      }
+    }
+
+    if (!empty($pendingImages)) {
+      ProcessReceivingInspectionImagesJob::dispatch($pendingImages, [
+        'quality'   => 75,
+        'maxWidth'  => 1920,
+        'maxHeight' => 1080,
+      ], 'inspection_photo');
+    }
+  }
+
+  private function processInspectionDamages(ApReceivingInspection $inspection, array $damages): void
+  {
+    $pendingImages = [];
+
+    foreach ($damages as $damageData) {
+      $photoFile = null;
+
+      if (isset($damageData['photo']) && $damageData['photo'] instanceof UploadedFile) {
+        $photoFile = $damageData['photo'];
+        unset($damageData['photo']);
+      }
+
+      $damage = new ApReceivingInspectionDamage($damageData);
+      $damage->receiving_inspection_id = $inspection->id;
+      $damage->save();
+
+      if ($photoFile) {
+        $tempPath = $this->saveToTemp($photoFile);
+        $pendingImages[] = [
+          'damage_id'     => $damage->id,
+          'temp_path'     => $tempPath,
+          'original_name' => $photoFile->getClientOriginalName(),
+        ];
+      }
+    }
+
+    if (!empty($pendingImages)) {
+      ProcessReceivingInspectionImagesJob::dispatch($pendingImages, [
+        'quality'   => 75,
+        'maxWidth'  => 1920,
+        'maxHeight' => 1080,
+      ], 'damage_photo');
+    }
+  }
+
+  private function saveToTemp(UploadedFile $file): string
+  {
+    $tempDir = storage_path('app/temp/receiving_inspection');
+
+    if (!is_dir($tempDir)) {
+      mkdir($tempDir, 0755, true);
+    }
+
+    $tempPath = $tempDir . '/' . uniqid('recv_') . '_' . $file->getClientOriginalName();
+    $file->move($tempDir, basename($tempPath));
+
+    return $tempPath;
   }
 }

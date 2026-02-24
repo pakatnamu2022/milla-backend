@@ -9,11 +9,22 @@ class UpdateApReceivingChecklistRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'items_receiving' => 'nullable|array',
-      'items_receiving.*' => 'nullable|integer',
-      'shipping_guide_id' => 'required|integer|exists:shipping_guides,id',
-      'note' => 'nullable|string|max:250',
-      'kilometers' => 'required|numeric|min:0',
+      'items_receiving'           => 'nullable|array',
+      'items_receiving.*'         => 'nullable|integer',
+      'shipping_guide_id'         => 'required|integer|exists:shipping_guides,id',
+      'note'                      => 'nullable|string|max:250',
+      'kilometers'                => 'required|numeric|min:0',
+      'photo_front'               => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+      'photo_back'                => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+      'photo_left'                => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+      'photo_right'               => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+      'general_observations'      => 'nullable|string|max:1000',
+      'damages'                   => 'nullable|array',
+      'damages.*.damage_type'     => 'required_with:damages|string|max:100',
+      'damages.*.x_coordinate'    => 'nullable|numeric',
+      'damages.*.y_coordinate'    => 'nullable|numeric',
+      'damages.*.description'     => 'nullable|string',
+      'damages.*.photo'           => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
     ];
   }
 

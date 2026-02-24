@@ -113,7 +113,9 @@ class ApVehicleInspectionService extends BaseService
 
   public function show($id)
   {
-    return new ApVehicleInspectionResource($this->find($id));
+    $inspection = $this->find($id);
+    $inspection->load(['workOrder.vehicle.shippingGuideReceiving.receivingInspection.damages']);
+    return new ApVehicleInspectionResource($inspection);
   }
 
   public function update(mixed $data)
