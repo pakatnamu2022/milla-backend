@@ -92,7 +92,7 @@ class WarehouseService extends BaseService implements BaseServiceInterface
       ->where('type_operation_id', $typeOperationId)
       ->where('status', 1)
       ->when($articleClassId, fn($q) => $q->where('article_class_id', $articleClassId))
-      ->when($onlyPhysical, fn($q) => $q->where('is_physical_warehouse', 1))
+      ->when($onlyPhysical, fn($q) => $q->where('is_physical_warehouse', true))
       ->orderBy('dyn_code', 'asc')
       ->get();
 
@@ -112,9 +112,9 @@ class WarehouseService extends BaseService implements BaseServiceInterface
     }
 
     $warehouses = Warehouse::whereIn('sede_id', $sedeIds)
-      ->where('is_physical_warehouse', 1)
+      ->where('is_physical_warehouse', true)
       ->where('type_operation_id', ApMasters::TIPO_OPERACION_POSTVENTA)
-      ->where('status', 1)
+      ->where('status', true)
       ->orderBy('dyn_code', 'asc')
       ->get();
 

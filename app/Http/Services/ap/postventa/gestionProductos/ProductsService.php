@@ -2,9 +2,11 @@
 
 namespace App\Http\Services\ap\postventa\gestionProductos;
 
+use App\Http\Resources\ap\maestroGeneral\WarehouseResource;
 use App\Http\Resources\ap\postventa\gestionProductos\ProductsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
@@ -336,5 +338,30 @@ class ProductsService extends BaseService implements BaseServiceInterface
       DB::rollBack();
       throw $e;
     }
+  }
+  
+  public function getWarehousesAvailabilityForProduct($productId)
+  {
+    // Verify product exists
+    $product = $this->find($productId);
+
+    // Get all physical warehouses
+    $warehouses = Warehouse::where('is_physical_warehouse', true)
+      ->where('status', true)
+      ->orderBy('dyn_code', 'asc')
+      ->get();
+
+    // Get all warehouse stocks for this product
+    $productWarehouses = ProductWarehouseStock::where('product_id', $productId)
+      ->pluck('warehouse_id')
+      ->toArray();
+
+    // Add has_product field to each warehouse
+    $warehousesWithAvailability = $warehouses->map(function ($warehouse) use ($productWarehouses) {
+      $warehouse->has_product = in_array($warehouse->id, $productWarehouses);
+      return $warehouse;
+    });
+
+    return WarehouseResource::collection($warehousesWithAvailability);
   }
 }

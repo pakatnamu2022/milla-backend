@@ -1128,6 +1128,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Products - Gestión de Productos
       Route::get('products/low-stock', [ProductsController::class, 'lowStock']);
       Route::get('products/featured', [ProductsController::class, 'featured']);
+      Route::get('products/{id}/warehouses-availability', [ProductsController::class, 'getWarehousesAvailability']);
       Route::post('products/{id}/update-stock', [ProductsController::class, 'updateStock']);
       Route::post('products/assign-to-warehouse', [ProductsController::class, 'assignToWarehouse']);
       Route::apiResource('products', ProductsController::class)->only([
