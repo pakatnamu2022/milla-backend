@@ -1068,6 +1068,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('receivingChecklist/byShippingGuide/{shippingGuideId}/vehicle', [ApReceivingChecklistController::class, 'getVehicleByShippingGuide']);
 
       // Vehicles
+      Route::post('vehicles/match-vins', [VehiclesController::class, 'matchVins']);
       Route::post('vehicles/export/sales', [VehiclesController::class, 'exportSales']);
       Route::get('vehicles/costs', [VehiclesController::class, 'getCostsData']);
       Route::get('vehicles/{id}/invoices', [VehiclesController::class, 'getInvoices']);
