@@ -110,22 +110,14 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
       if (!$series) throw new Exception('No hay una serie asignada para la sede y tipo de operación proporcionados');
 
-      // Construir query con los mismos filtros de la serie
-      $query = PurchaseOrder::where('sede_id', $data['sede_id'])
+      // Obtener el máximo correlativo real (incluyendo anuladas) para evitar duplicados
+      $maxCorrelative = PurchaseOrder::where('sede_id', $data['sede_id'])
         ->where('type_operation_id', $data['type_operation_id'])
         ->where('status', true)
-        ->whereNull('deleted_at');
+        ->whereNull('deleted_at')
+        ->max('number_correlative');
 
-      // Verificar si hay datos previos
-      $hasData = $query->exists();
-
-      if (!$hasData) {
-        // No hay datos, usar el correlative_start de la serie
-        $number_correlative = $series->correlative_start;
-      } else {
-        // Ya hay datos, usar nextCorrelativeQueryInteger que retorna max + 1
-        $number_correlative = $this->nextCorrelativeQueryInteger($query, 'number_correlative');
-      }
+      $number_correlative = $maxCorrelative ? $maxCorrelative + 1 : $series->correlative_start;
 
       $number = $this->completeNumber($number_correlative, 7);
 
