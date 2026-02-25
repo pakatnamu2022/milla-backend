@@ -190,7 +190,8 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
 
       if (!$existingLog) {
         // Construir el TransferenciaId para este step
-        $transactionId = $this->buildTransferTransactionId($shippingGuide, $step);
+        $isReversal = str_contains($step, 'REVERSAL');
+        $transactionId = $shippingGuide->getDynamicsTransferTransactionId($isReversal);
 
         $this->getOrCreateLog(
           $shippingGuide->id,
@@ -238,23 +239,21 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       }
     }
 
-    // Si no tiene dyn_series, necesita sincronizar
-    if (empty($shippingGuide->dyn_series)) {
-      $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
-      $this->syncInventoryTransfer($shippingGuide, $reception, $isCancelled);
-      return;
-    }
+    // Determinar si está cancelada ANTES de construir el TransferenciaId
+    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+
+    // Construir el TransferenciaId para este step (con asterisco si está cancelada)
+    $transactionId = $shippingGuide->getDynamicsTransferTransactionId($isCancelled);
 
     // Verificar si existe en la BD intermedia
     $existingTransfer = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventario')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', $shippingGuide->dyn_series)
+      ->where('TransferenciaId', $transactionId)
       ->first();
 
     if (!$existingTransfer) {
       // NO EXISTE → SINCRONIZAR
-      $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
       $this->syncInventoryTransfer($shippingGuide, $reception, $isCancelled);
       return;
     }
@@ -300,11 +299,6 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       }
     }
 
-    // Verificar que dyn_series esté configurado
-    if (empty($shippingGuide->dyn_series)) {
-      return;
-    }
-
     // Contar cuántos detalles deberían existir
     $expectedDetailsCount = $reception->details->filter(function ($detail) {
       return $detail->product && $detail->product->dyn_code;
@@ -314,16 +308,21 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       return;
     }
 
+    // Determinar si está cancelada ANTES de construir el TransferenciaId
+    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+
+    // Construir el TransferenciaId para este step (con asterisco si está cancelada)
+    $transactionId = $shippingGuide->getDynamicsTransferTransactionId($isCancelled);
+
     // Verificar cuántos detalles existen en la BD intermedia
     $existingDetailsCount = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventarioDet')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', $shippingGuide->dyn_series)
+      ->where('TransferenciaId', $transactionId)
       ->count();
 
     if ($existingDetailsCount < $expectedDetailsCount) {
       // Faltan detalles → SINCRONIZAR
-      $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
       $this->syncInventoryTransferDetail($shippingGuide, $reception, $isCancelled);
       return;
     }
@@ -356,17 +355,14 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
 
     try {
       // Preparar TransferenciaId con asterisco si está cancelada
-      $transferId = 'PTRA-' . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
-      if ($isCancelled) {
-        $transferId .= '*';
-      }
+      $transferId = $shippingGuide->getDynamicsTransferTransactionId($isCancelled);
 
       // Preparar datos para sincronización del header
       $data = [
         'EmpresaId' => Company::AP_DYNAMICS,
         'TransferenciaId' => $transferId,
-        'FechaEmision' => $reception->reception_date->format('Y-m-d'),
-        'FechaContable' => $reception->reception_date->format('Y-m-d'),
+        'FechaEmision' => $shippingGuide->created_at->format('Y-m-d'),
+        'FechaContable' => $shippingGuide->created_at->format('Y-m-d'),
         'Procesar' => 1,
         'ProcesoEstado' => 0,
         'ProcesoError' => '',
@@ -377,11 +373,6 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       $transferLog->markAsInProgress();
       $this->syncService->sync('inventory_transfer', $data, 'create');
       $transferLog->updateProcesoEstado(0); // 0 = En proceso en la BD intermedia
-
-      // Actualizar dyn_series en ShippingGuides con el TransferenciaId
-      $shippingGuide->update([
-        'dyn_series' => $transferId,
-      ]);
     } catch (Exception $e) {
       Log::error('Error al sincronizar transferencia de inventario (productos)', [
         'shipping_guide_id' => $shippingGuide->id,
@@ -419,10 +410,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
 
     try {
       // Preparar TransferenciaId con asterisco si está cancelada
-      $transferId = 'PTRA-' . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
-      if ($isCancelled) {
-        $transferId .= '*';
-      }
+      $transferId = $shippingGuide->getDynamicsTransferTransactionId($isCancelled);
 
       $transferOutMovement = $reception->transferMovement;
       $warehouseOrigin = $transferOutMovement->warehouse;
@@ -537,27 +525,6 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       $transferDetailLog->markAsFailed("Error al sincronizar detalle de transferencia: {$e->getMessage()}");
       throw $e;
     }
-  }
-
-  /**
-   * Construye el TransferenciaId para guías de transferencia de productos
-   */
-  protected function buildTransferTransactionId(ShippingGuides $shippingGuide, string $step): string
-  {
-    // Si ya tiene dyn_series, usarlo directamente
-    if (!empty($shippingGuide->dyn_series)) {
-      $transactionId = $shippingGuide->dyn_series;
-    } else {
-      // Productos siempre usan prefijo PTRA-
-      $transactionId = 'PTRA-' . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
-    }
-
-    // Si es una reversión, agregar asterisco
-    if (str_contains($step, 'REVERSAL')) {
-      $transactionId .= '*';
-    }
-
-    return $transactionId;
   }
 
   /**

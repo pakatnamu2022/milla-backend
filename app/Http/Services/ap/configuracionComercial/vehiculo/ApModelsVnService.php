@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\configuracionComercial\vehiculo;
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApFamilies;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use Exception;
@@ -16,30 +17,6 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
-    $all = $request->query('all') === 'true';
-    $status = $request->query('status') == 1;
-    $onlyAll = $all && $status && count($request->except(['all'])) === 1;
-
-    if ($onlyAll) {
-      $isCached = Cache::has('models.all');
-
-      // Cachear solo los datos, no la respuesta completa
-      $data = Cache::remember('models.all', now()->addMonth(), function () use ($request) { // 1 mes
-        $response = $this->getFilteredResults(
-          ApModelsVn::class,
-          $request,
-          ApModelsVn::filters,
-          ApModelsVn::sorts,
-          ApModelsVnResource::class,
-        );
-        // Retornar solo el contenido JSON decodificado
-        return json_decode($response->content(), true);
-      });
-
-      // Crear respuesta y agregar header para indicar si viene de caché
-      return response()->json($data)->header('X-Cache-Status', $isCached ? 'HIT' : 'MISS');
-    }
-
     return $this->getFilteredResults(
       ApModelsVn::class,
       $request,
@@ -60,22 +37,30 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
   public function store(mixed $data)
   {
-    $existe = ApModelsVn::where('family_id', $data['family_id'])
-      ->where('model_year', $data['model_year'])
-      ->where('version', $data['version'])
-      ->whereNull('deleted_at')
-      ->exists();
+    if ($data['type_operation_id'] === ApMasters::TIPO_OPERACION_COMERCIAL) {
+      $existe = ApModelsVn::where('family_id', $data['family_id'])
+        ->where('model_year', $data['model_year'])
+        ->where('version', $data['version'])
+        ->whereNull('deleted_at')
+        ->exists();
 
-    if ($existe) {
-      throw new Exception('Ya existe un modelo con esa familia y año.');
+      if ($existe) {
+        throw new Exception('Ya existe un modelo con esa familia y año.');
+      }
+
+      // Generate code using model method (separates correlatives by operation type)
+      $data['code'] = ApModelsVn::generateNextCode(
+        $data['family_id'],
+        $data['model_year'],
+        $data['type_operation_id']
+      );
+    } else {
+      $data['code'] = ApModelsVn::generateNextCode(
+        $data['family_id'],
+        date('Y'),
+        $data['type_operation_id']
+      );
     }
-
-    // Generate code using model method (separates correlatives by operation type)
-    $data['code'] = ApModelsVn::generateNextCode(
-      $data['family_id'],
-      $data['model_year'],
-      $data['type_operation_id']
-    );
 
     $engineType = ApModelsVn::create($data);
 

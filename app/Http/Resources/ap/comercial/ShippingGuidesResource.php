@@ -14,7 +14,7 @@ class ShippingGuidesResource extends JsonResource
       'ap_vehicle_id' => $this->vehicleMovement?->ap_vehicle_id ?? null,
       'document_series_id' => $this->document_series_id ?? "",
       'series' => $this->series ?? "",
-      'dyn_series' => $this->dyn_series ?? "-",
+      'dyn_series' => $this->dyn_series ?? "",
       'correlative' => $this->correlative ?? "",
       'document_type' => $this->document_type,
       'issuer_type' => $this->issuer_type,

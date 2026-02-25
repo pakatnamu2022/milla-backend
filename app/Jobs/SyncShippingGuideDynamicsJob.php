@@ -102,23 +102,28 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
 
     // Consultar el PA para obtener los datos de la transferencia de inventario
     try {
-      $result = $this->consultStoredProcedure($shippingGuide->document_number);
+      // Determinar si está cancelada antes de construir el TransferenciaId
+      $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+
+      // Usar el método del modelo para obtener el TransferenciaId correcto
+      $transactionId = $shippingGuide->getDynamicsTransferTransactionId($isCancelled);
+      $result = $this->consultStoredProcedure($transactionId);
 
       if (!$result) {
         Log::warning('No se encontró resultado en Dynamics para la guía', [
           'shipping_guide_id' => $shippingGuide->id,
-          'document_number' => $shippingGuide->document_number
+          'transaction_id' => $transactionId,
         ]);
         return;
       }
 
-      // Obtener el dyn_series del resultado de Dynamics
-      $dynSeriesFromDynamics = isset($result->Serie) ? trim($result->Serie) : null;
+      // Obtener el Documento del resultado de Dynamics retorna (Documento, Fecha, Estado)
+      $dynSeriesFromDynamics = isset($result->Documento) ? trim($result->Documento) : null;
 
       if (empty($dynSeriesFromDynamics)) {
         Log::warning('El resultado de Dynamics no contiene Serie', [
           'shipping_guide_id' => $shippingGuide->id,
-          'document_number' => $shippingGuide->document_number
+          'transaction_id' => $transactionId
         ]);
         return;
       }
@@ -126,31 +131,18 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       // Actualizar el dyn_series de la guía
       $shippingGuide->update([
         'dyn_series' => $dynSeriesFromDynamics,
-        'status_dynamic' => true,
-      ]);
-
-      Log::info('Guía de remisión sincronizada - dyn_series actualizado', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'document_number' => $shippingGuide->document_number,
-        'dyn_series' => $dynSeriesFromDynamics
       ]);
 
       // Verificar si la transferencia ya está contabilizada en Dynamics
-      $isAccounted = isset($result->Contabilizado) ? (bool)$result->Contabilizado : false;
+      $isAccounted = ($result->Estado === 'CONTABILIZADO');
 
       if (!$isAccounted) {
         Log::info('La transferencia aún no está contabilizada en Dynamics', [
           'shipping_guide_id' => $shippingGuide->id,
-          'document_number' => $shippingGuide->document_number
+          'transaction_id' => $transactionId
         ]);
         return;
       }
-
-      // Si está contabilizada, procesar el movimiento de inventario
-      Log::info('La transferencia está contabilizada, procesando movimiento de inventario', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'document_number' => $shippingGuide->document_number
-      ]);
 
       // Obtener el TransferReception asociado a la guía
       $transferReception = TransferReception::where('shipping_guide_id', $shippingGuide->id)->first();
@@ -158,7 +150,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       if (!$transferReception) {
         Log::warning('No se encontró la recepción de transferencia asociada', [
           'shipping_guide_id' => $shippingGuide->id,
-          'document_number' => $shippingGuide->document_number
+          'transaction_id' => $transactionId
         ]);
         return;
       }
@@ -187,7 +179,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
     } catch (\Exception $e) {
       Log::error('Error procesando guía de remisión en Dynamics', [
         'shipping_guide_id' => $shippingGuide->id,
-        'document_number' => $shippingGuide->document_number,
+        'transaction_id' => $transactionId ?? 'N/A',
         'error' => $e->getMessage()
       ]);
       throw $e;
@@ -197,12 +189,12 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
   /**
    * Consulta el Procedimiento Almacenado
    */
-  protected function consultStoredProcedure(string $documentNumber): ?object
+  protected function consultStoredProcedure(string $transactionId): ?object
   {
     try {
       // Ejecutar el PA: EXEC neIvConsultarTransferenciasInventario 'PTRA-00000157'
       $results = DB::connection('dbtest')
-        ->select("EXEC neIvConsultarTransferenciasInventario '{$documentNumber}'");
+        ->select("EXEC neIvConsultarTransferenciasInventario '{$transactionId}'");
 
       // El PA debería retornar un resultado con el campo Serie (dyn_series)
       if (!empty($results) && isset($results[0])) {
@@ -212,7 +204,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       return null;
     } catch (\Exception $e) {
       Log::error('Error ejecutando PA neIvConsultarTransferenciasInventario', [
-        'document_number' => $documentNumber,
+        'transaction_id' => $transactionId,
         'error' => $e->getMessage()
       ]);
       throw $e;
