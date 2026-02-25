@@ -125,26 +125,23 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    * @return int
    * @throws Exception
    */
-  public function nextDocumentNumber(string $documentType, string $series): array
+  public function nextDocumentNumber(string $documentType, string $seriesCode): array
   {
-    $query = ElectronicDocument::where('sunat_concept_document_type_id', $documentType)
-      ->where('serie', $series)
-      ->whereNull('deleted_at');
-
-    $series = AssignSalesSeries::where('series', $series)
+    $assignSeries = AssignSalesSeries::where('series', $seriesCode)
       ->whereNull('deleted_at')
       ->first();
 
-    /**
-     * TODO: Delete this block and always use nextCorrelativeQuery
-     */
-    if ($query->count() == 0) {
-      $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $series->correlative_start;
-    } else {
-      $correlative = (int)$this->nextCorrelativeQuery($query, 'numero');
-    }
+    // Sin whereNull('deleted_at'): los soft-deleted también cuentan
+    // para evitar reusar números ya emitidos ante SUNAT
+    $maxCorrelative = ElectronicDocument::where('sunat_concept_document_type_id', $documentType)
+      ->where('serie', $seriesCode)
+      ->max('numero');
 
-    $number = $this->completeNumber($correlative);
+    $correlativeNumber = $maxCorrelative !== null
+      ? ((int) $maxCorrelative) + 1
+      : $assignSeries->correlative_start + 1;
+
+    $number = $this->completeNumber($correlativeNumber);
     return ["number" => $number];
   }
 

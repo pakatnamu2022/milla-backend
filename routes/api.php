@@ -1051,6 +1051,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('shippingGuides/{id}/logs', [ShippingGuidesController::class, 'logs']);
       Route::get('shippingGuides/{id}/history', [ShippingGuidesController::class, 'history']);
       Route::get('shippingGuides/{id}/check-resources', [ShippingGuidesController::class, 'checkResources']);
+      Route::get('shippingGuides/next-document-number', [ShippingGuidesController::class, 'nextDocumentNumber']);
       Route::post('shippingGuides/consignment', [ShippingGuidesController::class, 'storeConsignment']);
       Route::apiResource('shippingGuides', ShippingGuidesController::class)->only([
         'index',
