@@ -8,17 +8,17 @@ use Illuminate\Validation\ValidationException;
 
 class StoreRequest extends FormRequest
 {
-    public function authorize(): bool
-    {
-        return true;
-    }
+  public function authorize(): bool
+  {
+    return true;
+  }
 
-    public function failedValidation(Validator $validator)
-    {
-        $response = response()->json([
-            'message' => $validator->errors()->first(),
-        ], 422);
+  public function failedValidation(Validator $validator)
+  {
+    $response = response()->json([
+      'message' => $validator->errors()->first(),
+    ], 422);
 
-        throw new ValidationException($validator, $response);
-    }
+    throw new ValidationException($validator, $response);
+  }
 }

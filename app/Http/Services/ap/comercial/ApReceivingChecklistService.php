@@ -8,7 +8,7 @@ use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\EmailService;
 use App\Http\Utils\Constants;
-use App\Jobs\ProcessReceivingInspectionImagesJob;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\comercial\ApReceivingChecklist;
 use App\Models\ap\comercial\ApReceivingInspection;
@@ -25,6 +25,13 @@ use Illuminate\Support\Facades\Log;
 
 class ApReceivingChecklistService extends BaseService
 {
+  private const PATH_RECEPTIONS = 'ap/commercial/receptions';
+  private const PATH_DAMAGES = 'ap/commercial/receptions/damages';
+
+  public function __construct(protected DigitalFileService $digitalFileService)
+  {
+  }
+
   public function list(Request $request): JsonResponse
   {
     return $this->getFilteredResults(
@@ -165,16 +172,13 @@ class ApReceivingChecklistService extends BaseService
       // Get existing records for this shipping guide
       $existingRecords = ApReceivingChecklist::where('shipping_guide_id', $data['shipping_guide_id'])->get();
       $existingReceivingIds = $existingRecords->pluck('receiving_id')->toArray();
-      $newReceivingIds = array_keys($data['items_receiving']);
+      $newReceivingIds = array_values($data['items_receiving']);
 
       // Determine which to delete (in existing but not in new)
       $toDelete = array_diff($existingReceivingIds, $newReceivingIds);
 
       // Determine which to add (in new but not in existing)
       $toAdd = array_diff($newReceivingIds, $existingReceivingIds);
-
-      // Determine which to update (in both existing and new)
-      $toUpdate = array_intersect($existingReceivingIds, $newReceivingIds);
 
       // Delete removed records
       if (!empty($toDelete)) {
@@ -194,16 +198,8 @@ class ApReceivingChecklistService extends BaseService
         ApReceivingChecklist::create([
           'receiving_id' => $receivingId,
           'shipping_guide_id' => $data['shipping_guide_id'],
-          'quantity' => $data['items_receiving'][$receivingId],
           'kilometers' => $data['kilometers'],
         ]);
-      }
-
-      // Update existing records with new quantities
-      foreach ($toUpdate as $receivingId) {
-        ApReceivingChecklist::where('shipping_guide_id', $data['shipping_guide_id'])
-          ->where('receiving_id', $receivingId)
-          ->update(['quantity' => $data['items_receiving'][$receivingId]]);
       }
 
       if (!$isConsignment) {
@@ -392,35 +388,28 @@ class ApReceivingChecklistService extends BaseService
 
   private function processVehiclePhotos(ApReceivingInspection $inspection, array $data): void
   {
-    $pendingImages = [];
     $photoTypes = ['photo_front', 'photo_back', 'photo_left', 'photo_right'];
+    $updates = [];
 
     foreach ($photoTypes as $photoType) {
       if (isset($data[$photoType]) && $data[$photoType] instanceof UploadedFile) {
-        $photoFile = $data[$photoType];
-        $tempPath  = $this->saveToTemp($photoFile);
-        $pendingImages[] = [
-          'receiving_inspection_id' => $inspection->id,
-          'photo_type'              => $photoType,
-          'temp_path'               => $tempPath,
-          'original_name'           => $photoFile->getClientOriginalName(),
-        ];
+        $digitalFile = $this->digitalFileService->store(
+          $data[$photoType],
+          self::PATH_RECEPTIONS,
+          'public',
+          $inspection->getTable()
+        );
+        $updates["{$photoType}_url"] = $digitalFile->url;
       }
     }
 
-    if (!empty($pendingImages)) {
-      ProcessReceivingInspectionImagesJob::dispatch($pendingImages, [
-        'quality'   => 75,
-        'maxWidth'  => 1920,
-        'maxHeight' => 1080,
-      ], 'inspection_photo');
+    if (!empty($updates)) {
+      $inspection->update($updates);
     }
   }
 
   private function processInspectionDamages(ApReceivingInspection $inspection, array $damages): void
   {
-    $pendingImages = [];
-
     foreach ($damages as $damageData) {
       $photoFile = null;
 
@@ -434,35 +423,14 @@ class ApReceivingChecklistService extends BaseService
       $damage->save();
 
       if ($photoFile) {
-        $tempPath = $this->saveToTemp($photoFile);
-        $pendingImages[] = [
-          'damage_id'     => $damage->id,
-          'temp_path'     => $tempPath,
-          'original_name' => $photoFile->getClientOriginalName(),
-        ];
+        $digitalFile = $this->digitalFileService->store(
+          $photoFile,
+          self::PATH_DAMAGES,
+          'public',
+          $damage->getTable()
+        );
+        $damage->update(['photo_url' => $digitalFile->url]);
       }
     }
-
-    if (!empty($pendingImages)) {
-      ProcessReceivingInspectionImagesJob::dispatch($pendingImages, [
-        'quality'   => 75,
-        'maxWidth'  => 1920,
-        'maxHeight' => 1080,
-      ], 'damage_photo');
-    }
-  }
-
-  private function saveToTemp(UploadedFile $file): string
-  {
-    $tempDir = storage_path('app/temp/receiving_inspection');
-
-    if (!is_dir($tempDir)) {
-      mkdir($tempDir, 0755, true);
-    }
-
-    $tempPath = $tempDir . '/' . uniqid('recv_') . '_' . $file->getClientOriginalName();
-    $file->move($tempDir, basename($tempPath));
-
-    return $tempPath;
   }
 }
