@@ -8,9 +8,7 @@ use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
-use App\Http\Services\common\ImportService;
 use App\Http\Utils\Constants;
-use App\Imports\ap\comercial\VinMatchImport;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
@@ -20,7 +18,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Maatwebsite\Excel\Facades\Excel;
 use Throwable;
 
 class VehiclesService extends BaseService implements BaseServiceInterface
@@ -466,85 +463,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'facturas' => $facturas,
       'notas_credito' => $notasCredito,
       'notas_debito' => $notasDebito,
-    ]);
-  }
-
-  /**
-   * Compara VINs de un Excel contra vehículos en estado Inventario VN
-   * @param Request $request
-   * @return \Illuminate\Http\JsonResponse
-   * @throws Exception
-   */
-  public function matchVins(Request $request): \Illuminate\Http\JsonResponse
-  {
-    $importService = new ImportService();
-    $importService->validateFile($request->file('file'));
-
-    $import = new VinMatchImport();
-    Excel::import($import, $request->file('file'));
-
-    $vinsFromExcel = $import->vins;
-
-    if ($vinsFromExcel->isEmpty()) {
-      throw new Exception('El archivo no contiene VINs válidos');
-    }
-
-    // Vehículos en INVENTARIO_VN que coinciden con los VINs del Excel
-    $inventoryVehicles = Vehicles::where('ap_vehicle_status_id', ApVehicleStatus::INVENTARIO_VN)
-      ->whereNull('deleted_at')
-      ->whereIn('vin', $vinsFromExcel)
-      ->with(['model', 'color', 'vehicleStatus', 'warehousePhysical'])
-      ->get()
-      ->keyBy(fn($v) => strtoupper(trim($v->vin)));
-
-    // Vehículos que existen pero con un estado diferente
-    $otherVehicles = Vehicles::whereNull('deleted_at')
-      ->whereIn('vin', $vinsFromExcel)
-      ->where('ap_vehicle_status_id', '!=', ApVehicleStatus::INVENTARIO_VN)
-      ->with(['vehicleStatus'])
-      ->get()
-      ->keyBy(fn($v) => strtoupper(trim($v->vin)));
-
-    $matched = [];
-    $notFound = [];
-    $foundDifferentStatus = [];
-
-    foreach ($vinsFromExcel as $vin) {
-      if (isset($inventoryVehicles[$vin])) {
-        $vehicle = $inventoryVehicles[$vin];
-        $matched[] = [
-          'vin' => $vin,
-          'id' => $vehicle->id,
-          'year' => $vehicle->year,
-          'model' => $vehicle->model?->version,
-          'color' => $vehicle->color?->description,
-          'vehicle_status' => $vehicle->vehicleStatus?->description,
-          'warehouse_physical' => $vehicle->warehousePhysical?->description,
-        ];
-      } elseif (isset($otherVehicles[$vin])) {
-        $vehicle = $otherVehicles[$vin];
-        $foundDifferentStatus[] = [
-          'vin' => $vin,
-          'id' => $vehicle->id,
-          'vehicle_status' => $vehicle->vehicleStatus?->description,
-          'vehicle_status_color' => $vehicle->vehicleStatus?->color,
-          'ap_vehicle_status_id' => $vehicle->ap_vehicle_status_id,
-        ];
-      } else {
-        $notFound[] = $vin;
-      }
-    }
-
-    return response()->json([
-      'summary' => [
-        'total_vins_from_excel' => $vinsFromExcel->count(),
-        'total_matched' => count($matched),
-        'total_not_found' => count($notFound),
-        'total_found_different_status' => count($foundDifferentStatus),
-      ],
-      'matched' => $matched,
-      'not_found' => $notFound,
-      'found_different_status' => $foundDifferentStatus,
     ]);
   }
 

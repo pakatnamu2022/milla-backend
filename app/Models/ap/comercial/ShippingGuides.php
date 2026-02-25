@@ -11,6 +11,7 @@ use App\Models\gp\maestroGeneral\Sede;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -281,6 +282,11 @@ class ShippingGuides extends BaseModel
   public function consignmentAccessories()
   {
     return $this->hasMany(ShippingGuideAccessory::class, 'shipping_guide_id');
+  }
+
+  public function receivingInspection(): HasOne
+  {
+    return $this->hasOne(ApReceivingInspection::class, 'shipping_guide_id');
   }
 
   /**

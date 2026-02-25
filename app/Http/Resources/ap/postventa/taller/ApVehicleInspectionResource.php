@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\postventa\taller;
 
+use App\Http\Resources\ap\comercial\ApReceivingInspectionDamageResource;
 use App\Http\Resources\gp\gestionsistema\UserResource;
 use App\Models\ap\comercial\Vehicles;
 use Illuminate\Http\Request;
@@ -70,6 +71,23 @@ class ApVehicleInspectionResource extends JsonResource
 
       // Relationships
       'damages' => ApVehicleInspectionDamagesResource::collection($this->whenLoaded('damages')),
+
+      // Trazabilidad: daños registrados en la recepción comercial del mismo vehículo
+      'receiving_damages' => $this->getReceivingDamages(),
     ];
+  }
+
+  private function getReceivingDamages(): array
+  {
+    $damages = $this->workOrder?->vehicle
+      ?->shippingGuideReceiving
+      ?->receivingInspection
+      ?->damages;
+
+    if (!$damages) {
+      return [];
+    }
+
+    return ApReceivingInspectionDamageResource::collection($damages)->resolve();
   }
 }
