@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\comercial;
 
+use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnResource;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -38,7 +39,8 @@ class PurchaseRequestQuoteResource extends JsonResource
       'holder_phone' => $this->holder->phone,
       'client_name' => $this->opportunity->client->full_name ?? null,
       'ap_vehicle_id' => $this->ap_vehicle_id,
-      'ap_vehicle' => $this->when($this->ap_vehicle_id, VehiclesResource::make($this->vehicle)),
+      'ap_vehicle' => $this->ap_vehicle_id ? VehiclesResource::make($this->vehicle) : null,
+      'model' => $this->apModelsVn ? ApModelsVnResource::make($this->apModelsVn) : null,
       'vehicle_color_id' => $this->vehicle_color_id,
       'vehicle_color' => $this->vehicleColor->description ?? null,
       'ap_models_vn_id' => $this->ap_models_vn_id,
