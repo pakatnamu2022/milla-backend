@@ -2,7 +2,6 @@
 
 namespace App\Http\Services\ap\postventa\taller;
 
-use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Resources\ap\postventa\taller\WorkOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
@@ -522,5 +521,72 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       return new WorkOrderResource($workOrder);
     });
+  }
+
+  public function getVehicleHistory(int $vehicleId): array
+  {
+    // Verificar que el vehículo existe
+    $vehicle = Vehicles::find($vehicleId);
+    if (!$vehicle) {
+      throw new Exception('Vehículo no encontrado');
+    }
+
+    // Obtener todas las órdenes de trabajo del vehículo ordenadas por fecha de apertura descendente
+    $workOrders = ApWorkOrder::where('vehicle_id', $vehicleId)
+      ->with([
+        'status',
+        'sede',
+        'advisor',
+        'plannings' => function ($query) {
+          $query->with('worker')
+            ->whereNotNull('actual_start_datetime')
+            ->orderBy('actual_start_datetime', 'asc');
+        },
+        'parts.product'
+      ])
+      ->orderBy('opening_date', 'desc')
+      ->get();
+
+    // Formatear los datos para la respuesta
+    $history = $workOrders->map(function ($workOrder) {
+      return [
+        'correlative' => $workOrder->correlative,
+        'opening_date' => $workOrder->opening_date?->format('Y-m-d'),
+        'estimated_delivery_date' => $workOrder->estimated_delivery_date?->format('Y-m-d'),
+        'actual_delivery_date' => $workOrder->actual_delivery_date?->format('Y-m-d H:i:s'),
+        'diagnosis_date' => $workOrder->diagnosis_date?->format('Y-m-d H:i:s'),
+        'status' => $workOrder->status?->description,
+        'sede' => $workOrder->sede?->abreviatura,
+        'advisor' => $workOrder->advisor?->nombre_completo,
+        'is_guarantee' => $workOrder->is_guarantee,
+        'is_recall' => $workOrder->is_recall,
+        'description_recall' => $workOrder->description_recall,
+        'type_recall' => $workOrder->type_recall,
+        'observations' => $workOrder->observations,
+        'works_performed' => $workOrder->plannings->map(function ($planning) {
+          return [
+            'description' => $planning->description,
+            'actual_hours' => $planning->actual_hours,
+            'worker' => $planning->worker?->nombre_completo,
+            'actual_start_datetime' => $planning->actual_start_datetime?->format('Y-m-d H:i:s'),
+            'actual_end_datetime' => $planning->actual_end_datetime?->format('Y-m-d H:i:s'),
+            'status' => $planning->status,
+          ];
+        })->values()->toArray(),
+        'parts_used' => $workOrder->parts->map(function ($part) {
+          return [
+            'description' => $part->product?->description ?? $part->product?->name,
+            'quantity' => $part->quantity_used,
+          ];
+        })->values()->toArray()
+      ];
+    });
+
+    return [
+      'vehicle_id' => $vehicleId,
+      'vehicle_plate' => $vehicle->plate,
+      'vehicle_vin' => $vehicle->vin,
+      'data' => $history->values()->toArray()
+    ];
   }
 }

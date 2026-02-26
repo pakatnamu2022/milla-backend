@@ -15,6 +15,7 @@ use App\Jobs\SyncSalesDocumentJob;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -138,7 +139,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ->max('numero');
 
     $correlativeNumber = $maxCorrelative !== null
-      ? ((int) $maxCorrelative) + 1
+      ? ((int)$maxCorrelative) + 1
       : $assignSeries->correlative_start + 1;
 
     $number = $this->completeNumber($correlativeNumber);
