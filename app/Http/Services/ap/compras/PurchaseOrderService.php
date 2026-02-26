@@ -110,22 +110,14 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
       if (!$series) throw new Exception('No hay una serie asignada para la sede y tipo de operación proporcionados');
 
-      // Construir query con los mismos filtros de la serie
-      $query = PurchaseOrder::where('sede_id', $data['sede_id'])
+      // Obtener el máximo correlativo real (incluyendo anuladas) para evitar duplicados
+      $maxCorrelative = PurchaseOrder::where('sede_id', $data['sede_id'])
         ->where('type_operation_id', $data['type_operation_id'])
         ->where('status', true)
-        ->whereNull('deleted_at');
+        ->whereNull('deleted_at')
+        ->max('number_correlative');
 
-      // Verificar si hay datos previos
-      $hasData = $query->exists();
-
-      if (!$hasData) {
-        // No hay datos, usar el correlative_start de la serie
-        $number_correlative = $series->correlative_start;
-      } else {
-        // Ya hay datos, usar nextCorrelativeQueryInteger que retorna max + 1
-        $number_correlative = $this->nextCorrelativeQueryInteger($query, 'number_correlative');
-      }
+      $number_correlative = $maxCorrelative ? $maxCorrelative + 1 : $series->correlative_start;
 
       // Si no es producción, sumar 1000 al correlativo para evitar conflictos
       if (config('app.env') !== 'production') {
@@ -161,6 +153,42 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     $data['payment_terms'] = $data['payment_terms'] ?? null;
 
     return $data;
+  }
+
+  /**
+   * Obtiene el próximo número correlativo para una orden de compra
+   * @param int $sedeId
+   * @param int $typeOperationId
+   * @return array
+   * @throws Exception
+   */
+  public function nextCorrelative(int $sedeId, int $typeOperationId): array
+  {
+    $series = AssignSalesSeries::where('sede_id', $sedeId)
+      ->where('type_operation_id', $typeOperationId)
+      ->where('type', AssignSalesSeries::PURCHASE)
+      ->where('status', true)
+      ->whereNull('deleted_at')
+      ->first();
+
+    if (!$series) {
+      throw new Exception('No hay una serie asignada para la sede y tipo de operación proporcionados');
+    }
+
+    $maxCorrelative = PurchaseOrder::where('sede_id', $sedeId)
+      ->where('type_operation_id', $typeOperationId)
+      ->where('status', true)
+      ->whereNull('deleted_at')
+      ->max('number_correlative');
+
+    $numberCorrelative = $maxCorrelative ? $maxCorrelative + 1 : $series->correlative_start;
+    $number = $series->series . $this->completeNumber($numberCorrelative, 7);
+
+    return [
+      'series' => 'OC' . $series->series,
+      'number_correlative' => $numberCorrelative,
+      'number' => 'OC' . $number,
+    ];
   }
 
   public function hasVehicleInItems(array $items): bool

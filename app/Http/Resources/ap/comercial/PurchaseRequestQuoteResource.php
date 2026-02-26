@@ -2,15 +2,24 @@
 
 namespace App\Http\Resources\ap\comercial;
 
+use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnResource;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class PurchaseRequestQuoteResource extends JsonResource
 {
+  protected bool $showExtra = false;
+
+  public function showExtra($show = true): static
+  {
+    $this->showExtra = $show;
+    return $this;
+  }
+
   public function toArray(Request $request): array
   {
-    return [
+    $response = [
       'id' => $this->id,
       'is_paid' => $this->is_paid,
       'correlative' => $this->correlative,
@@ -38,7 +47,6 @@ class PurchaseRequestQuoteResource extends JsonResource
       'holder_phone' => $this->holder->phone,
       'client_name' => $this->opportunity->client->full_name ?? null,
       'ap_vehicle_id' => $this->ap_vehicle_id,
-      'ap_vehicle' => $this->when($this->ap_vehicle_id, VehiclesResource::make($this->vehicle)),
       'vehicle_color_id' => $this->vehicle_color_id,
       'vehicle_color' => $this->vehicleColor->description ?? null,
       'ap_models_vn_id' => $this->ap_models_vn_id,
@@ -83,5 +91,12 @@ class PurchaseRequestQuoteResource extends JsonResource
       'created_at' => $this->created_at,
       'updated_at' => $this->updated_at,
     ];
+
+    if ($this->showExtra) {
+      $response['ap_vehicle'] = $this->ap_vehicle_id ? VehiclesResource::make($this->vehicle) : null;
+      $response['model'] = $this->apModelsVn ? ApModelsVnResource::make($this->apModelsVn) : null;
+    }
+
+    return $response;
   }
 }

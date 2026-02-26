@@ -83,7 +83,7 @@ class VerifyShippingGuideMigrationCommand extends Command
         'failed'
       ])
         ->where('area_id', ApMasters::AREA_COMERCIAL)
-        ->orderBy('id')
+        ->orderBy('id', 'desc')
         ->limit($limit)
         ->get();
 

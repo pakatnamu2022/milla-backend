@@ -1019,6 +1019,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
+      Route::get('vehiclePurchaseOrder/next-correlative', [PurchaseOrderController::class, 'nextCorrelative']);
       Route::get('vehiclePurchaseOrder/export', [PurchaseOrderController::class, 'export']);
       Route::apiResource('vehiclePurchaseOrder', PurchaseOrderController::class)->only([
         'index',

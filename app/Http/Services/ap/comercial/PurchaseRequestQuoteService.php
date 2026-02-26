@@ -41,8 +41,6 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $worker = $workerService->getAuthenticatedWorkerWithArea();
     $purchaseRequestQuoteQuery = $this->getPurchaseRequestQuoteQuery($worker, $request);
 
-//    throw new Exception(json_encode($purchaseRequestQuoteQuery->pluck('id')->toArray()));
-
     return $this->getFilteredResults(
       $purchaseRequestQuoteQuery,
       $request,
@@ -162,7 +160,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
   public function show($id)
   {
-    return new PurchaseRequestQuoteResource($this->find($id));
+    return (new PurchaseRequestQuoteResource($this->find($id)))->showExtra();
   }
 
   public function update(mixed $data)
@@ -249,6 +247,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $purchaseRequestQuote->ap_vehicle_id = null;
       $purchaseRequestQuote->save();
 
+
       $movementService = new VehicleMovementService();
       $isInInventory = $vehicle->vehicleMovements()
         ->where('ap_vehicle_status_id', ApVehicleStatus::INVENTARIO_VN)
@@ -264,7 +263,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         // Registrar movimiento de regreso a inventario
         $movementService->storeInventoryVehicleMovement($vehicle->id);
       } elseif ($isInTransit) {
-        $movementService->storeInTransitVehicleMovement($vehicle->id);
+        $movementService->storeInTransitVehicleMovement($purchaseRequestQuote->id);
       }
 
       $purchaseRequestQuote->desactivate();
