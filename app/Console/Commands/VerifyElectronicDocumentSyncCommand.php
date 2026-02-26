@@ -8,12 +8,11 @@ use App\Jobs\SyncSalesDocumentJob;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class VerifyElectronicDocumentSyncCommand extends Command
 {
   use ValidatesPendingJobs;
+
   /**
    * The name and signature of the console command.
    *
@@ -117,7 +116,7 @@ class VerifyElectronicDocumentSyncCommand extends Command
    */
   private function getPendingDocuments()
   {
-    $limit = (int) $this->option('limit');
+    $limit = (int)$this->option('limit');
 
     $pendingDocumentIds = VehiclePurchaseOrderMigrationLog::whereNotNull('electronic_document_id')
       ->whereIn('status', [
@@ -133,7 +132,7 @@ class VerifyElectronicDocumentSyncCommand extends Command
       ->where('anulado', false)
       ->where('aceptada_por_sunat', true)
       ->whereNull('deleted_at')
-      ->orderBy('id')
+      ->orderBy('id', 'desc')
       ->limit($limit)
       ->get();
   }
