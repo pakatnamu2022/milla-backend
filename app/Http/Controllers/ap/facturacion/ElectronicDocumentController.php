@@ -318,6 +318,18 @@ class ElectronicDocumentController extends Controller
   }
 
   /**
+   * Despacha manualmente el job de sincronización (útil para reintentar fallidos)
+   */
+  public function dispatchMigration(int $id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->dispatchMigration($id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Get sync status for electronic document
    */
   public function getSyncStatus($id): JsonResponse

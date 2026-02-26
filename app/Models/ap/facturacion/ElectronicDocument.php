@@ -588,6 +588,13 @@ class ElectronicDocument extends BaseModel
     ]);
   }
 
+  public function markAsFailed(): void
+  {
+    $this->update([
+      'migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
+    ]);
+  }
+
   public function markAsLocalCancelled(string $reason = null): void
   {
     $this->update([

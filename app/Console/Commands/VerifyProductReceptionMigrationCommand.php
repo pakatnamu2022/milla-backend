@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Console\Commands\Concerns\ValidatesPendingJobs;
 use App\Http\Services\DatabaseSyncService;
 use App\Jobs\MigrateProductReceptionToDynamicsJob;
 use App\Models\ap\ApMasters;
@@ -12,8 +11,6 @@ use Illuminate\Console\Command;
 
 class VerifyProductReceptionMigrationCommand extends Command
 {
-  use ValidatesPendingJobs;
-
   /**
    * The name and signature of the console command.
    *
@@ -82,11 +79,6 @@ class VerifyProductReceptionMigrationCommand extends Command
     }
 
     if ($all) {
-      // Validar límite de jobs pendientes antes de despachar (solo si usa cola)
-      if (!$useSync && !$this->canDispatchMoreJobs(MigrateProductReceptionToDynamicsJob::class)) {
-        return 0;
-      }
-
       // Verificar todas las recepciones pendientes (limitado por --limit)
       $limit = (int)$this->option('limit');
 
@@ -96,7 +88,6 @@ class VerifyProductReceptionMigrationCommand extends Command
           ->whereIn('migration_status', [
             VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
             VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
-            VehiclePurchaseOrderMigrationLog::STATUS_FAILED
           ])
           ->where('aceptada_por_sunat', true);
       })

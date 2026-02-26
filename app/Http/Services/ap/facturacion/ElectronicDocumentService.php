@@ -46,6 +46,26 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
+   * Despacha manualmente el job de sincronización para un documento (útil para reintentar fallidos)
+   */
+  public function dispatchMigration(int $id): string
+  {
+    $document = ElectronicDocument::find($id);
+
+    if (!$document) {
+      throw new Exception('Documento electrónico no encontrado');
+    }
+
+    if ($document->migration_status === 'completed') {
+      throw new Exception('El documento ya está sincronizado completamente');
+    }
+
+    SyncSalesDocumentJob::dispatch($document->id);
+
+    return "Job de sincronización despachado para el documento {$document->full_number}";
+  }
+
+  /**
    * Despacha un job de sincronización con deduplicación para evitar jobs duplicados
    * Usa cache de base de datos como lock para prevenir dispatch de jobs múltiples
    * para el mismo documento electrónico

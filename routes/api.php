@@ -1042,6 +1042,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/orders', [VehiclePurchaseOrderMigrationController::class, 'index']);
         Route::get('/{id}/logs', [VehiclePurchaseOrderMigrationController::class, 'logs']);
         Route::get('/{id}/history', [VehiclePurchaseOrderMigrationController::class, 'history']);
+        Route::post('/{id}/dispatch', [VehiclePurchaseOrderMigrationController::class, 'dispatch']);
       });
 
       // Vehicle Documents (Guías de Remisión/Traslado)
@@ -1051,6 +1052,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('shippingGuides/{id}/mark-as-received', [ShippingGuidesController::class, 'markAsReceived']);
       Route::get('shippingGuides/{id}/logs', [ShippingGuidesController::class, 'logs']);
       Route::get('shippingGuides/{id}/history', [ShippingGuidesController::class, 'history']);
+      Route::post('shippingGuides/{id}/dispatch-migration', [ShippingGuidesController::class, 'dispatchMigration']);
       Route::get('shippingGuides/{id}/check-resources', [ShippingGuidesController::class, 'checkResources']);
       Route::get('shippingGuides/next-document-number', [ShippingGuidesController::class, 'nextDocumentNumber']);
       Route::post('shippingGuides/consignment', [ShippingGuidesController::class, 'storeConsignment']);
@@ -1383,9 +1385,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('electronic-documents/{id}/sync-status', [ElectronicDocumentController::class, 'getSyncStatus']);
       Route::get('electronic-documents/checkResources/{id}', [ElectronicDocumentController::class, 'checkResources']);
 
-      // Migration logs and history
+      // Migration logs, history and manual dispatch
       Route::get('electronic-documents/{id}/logs', [ElectronicDocumentController::class, 'logs']);
       Route::get('electronic-documents/{id}/history', [ElectronicDocumentController::class, 'history']);
+      Route::post('electronic-documents/{id}/dispatch-migration', [ElectronicDocumentController::class, 'dispatchMigration']);
 
       // Report
       Route::get('electronic-documents-report', [ElectronicDocumentController::class, 'report']);

@@ -791,4 +791,17 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       'series' => new ShippingGuideSeriesDynamicsResource($shippingGuide),
     ];
   }
+
+  public function dispatchMigration(int $id): string
+  {
+    $guide = $this->find($id);
+
+    if ($guide->migration_status === 'completed') {
+      throw new Exception('La guía ya está migrada completamente');
+    }
+
+    VerifyAndMigrateShippingGuideJob::dispatch($guide->id);
+
+    return "Job de migración despachado para la guía {$guide->document_number}";
+  }
 }
