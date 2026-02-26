@@ -96,7 +96,7 @@ class VerifyProductReceptionMigrationCommand extends Command
           ->whereIn('migration_status', [
             VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
             VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
-            'failed', // backward compat: registros existentes en BD
+            VehiclePurchaseOrderMigrationLog::STATUS_FAILED
           ])
           ->where('aceptada_por_sunat', true);
       })

@@ -215,12 +215,15 @@ class SyncAccountingEntryJob implements ShouldQueue
       'trace' => $exception->getTraceAsString()
     ]);
 
-    // Eliminar logs fallidos para que se reintenten en el próximo ciclo
+    // Marcar logs como failed
     VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $this->shippingGuideId)
       ->whereIn('step', [
         VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_HEADER,
         VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_DETAIL,
       ])
-      ->delete();
+      ->update([
+        'status' => VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
+        'error_message' => $exception->getMessage(),
+      ]);
   }
 }

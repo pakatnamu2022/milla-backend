@@ -79,6 +79,7 @@ class VehiclePurchaseOrderMigrationLog extends Model
   const STATUS_PENDING = 'pending';
   const STATUS_IN_PROGRESS = 'in_progress';
   const STATUS_COMPLETED = 'completed';
+  const STATUS_FAILED = 'failed';
 
   // Mapeo de pasos a tablas intermedias
   const STEP_TABLE_MAPPING = [
@@ -173,27 +174,39 @@ class VehiclePurchaseOrderMigrationLog extends Model
   }
 
   /**
-   * Actualiza el estado de proceso desde la BD intermedia.
-   * Si Dynamics retorna un error, elimina el log para que se reintente en el próximo ciclo.
+   * Marca el paso como fallido
+   */
+  public function markAsFailed(string $errorMessage, ?int $procesoEstado = null): void
+  {
+    $this->update([
+      'status' => self::STATUS_FAILED,
+      'error_message' => $errorMessage,
+      'proceso_estado' => $procesoEstado,
+      'last_attempt_at' => now(),
+    ]);
+  }
+
+  /**
+   * Actualiza el estado de proceso desde la BD intermedia
    */
   public function updateProcesoEstado(int $procesoEstado, ?string $errorMessage = null): void
   {
-    if ($errorMessage) {
-      // Error desde Dynamics: eliminar el log para reintentar en el próximo ciclo
-      $this->delete();
-      return;
-    }
-
     $data = [
       'proceso_estado' => $procesoEstado,
       'last_attempt_at' => now(),
     ];
 
     if ($procesoEstado === 1) {
+      // Procesado exitosamente
       $data['status'] = self::STATUS_COMPLETED;
       $data['completed_at'] = now();
       $data['error_message'] = null;
+    } elseif ($errorMessage) {
+      // Error: proceso_estado = 0 pero hay mensaje de error
+      $data['status'] = self::STATUS_FAILED;
+      $data['error_message'] = $errorMessage;
     } else {
+      // Pendiente: proceso_estado = 0 y sin mensaje de error
       $data['status'] = self::STATUS_IN_PROGRESS;
     }
 
@@ -206,6 +219,14 @@ class VehiclePurchaseOrderMigrationLog extends Model
   public function scopeCompleted($query)
   {
     return $query->where('status', self::STATUS_COMPLETED);
+  }
+
+  /**
+   * Scope para obtener solo logs fallidos
+   */
+  public function scopeFailed($query)
+  {
+    return $query->where('status', self::STATUS_FAILED);
   }
 
   /**

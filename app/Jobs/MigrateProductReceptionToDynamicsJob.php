@@ -146,7 +146,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
           $articleLog->markAsInProgress();
           SyncProductArticleJob::dispatch($product->id);
         } catch (Exception $e) {
-          $articleLog->delete();
+          $articleLog->markAsFailed("Error al despachar job de artículo producto: {$e->getMessage()}");
         }
       } else {
         // Existe, actualizar el estado del log
@@ -389,7 +389,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
         'error' => $e->getMessage(),
         'trace' => $e->getTraceAsString()
       ]);
-      $transferLog->delete();
+      $transferLog->markAsFailed("Error al sincronizar transferencia: {$e->getMessage()}");
       throw $e;
     }
   }
@@ -534,7 +534,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
         'error' => $e->getMessage(),
         'trace' => $e->getTraceAsString()
       ]);
-      $transferDetailLog->delete();
+      $transferDetailLog->markAsFailed("Error al sincronizar detalle de transferencia: {$e->getMessage()}");
       throw $e;
     }
   }
@@ -573,6 +573,10 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
         $log->proceso_estado === 1;
     });
 
+    $hasFailed = $logs->contains(function ($log) {
+      return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED;
+    });
+
     // Los pasos base son 2: transferencia + detalle de transferencia
     // Pero también puede haber N logs de artículos (productos)
     $baseSteps = [
@@ -595,6 +599,11 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
         'status_dynamic' => 1,
         'migration_status' => 'completed',
         'migrated_at' => now(),
+      ]);
+    } elseif ($hasFailed) {
+      $shippingGuide->update([
+        'status_dynamic' => 0,
+        'migration_status' => 'failed',
       ]);
     }
   }

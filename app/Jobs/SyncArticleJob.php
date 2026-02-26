@@ -68,7 +68,7 @@ class SyncArticleJob implements ShouldQueue
         ->get();
 
       foreach ($articleLogs as $log) {
-        $log->delete();
+        $log->markAsFailed($e->getMessage());
       }
 
       throw $e;

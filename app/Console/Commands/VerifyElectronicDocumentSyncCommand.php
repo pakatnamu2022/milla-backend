@@ -122,6 +122,7 @@ class VerifyElectronicDocumentSyncCommand extends Command
       ->whereIn('status', [
         VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
         VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
+        VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
       ])
       ->distinct()
       ->pluck('electronic_document_id');

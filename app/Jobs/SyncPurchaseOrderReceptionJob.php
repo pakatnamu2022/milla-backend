@@ -153,7 +153,9 @@ class SyncPurchaseOrderReceptionJob implements ShouldQueue
         VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL,
         VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL_SERIAL,
       ])
-      ->delete();
+      ->each(function ($log) use ($errorMessage) {
+        $log->markAsFailed($errorMessage);
+      });
   }
 
   public function failed(\Throwable $exception): void

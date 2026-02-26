@@ -142,7 +142,7 @@ class SyncSalesDocumentJob implements ShouldQueue
         $log->updateProcesoEstado(1);
       }
     } catch (\Exception $e) {
-      $log->delete();
+      $log->markAsFailed($e->getMessage());
       Log::error('Error al sincronizar cliente', [
         'document_id' => $document->id,
         'client_id' => $document->cliente_numero_de_documento,
@@ -209,7 +209,7 @@ class SyncSalesDocumentJob implements ShouldQueue
           $log->updateProcesoEstado(0);
         }
       } catch (\Exception $e) {
-        $log->delete();
+        $log->markAsFailed($e->getMessage());
         Log::error('Error al sincronizar documento de venta', [
           'document_id' => $document->id,
           'error' => $e->getMessage(),
@@ -269,7 +269,7 @@ class SyncSalesDocumentJob implements ShouldQueue
 
         $log->updateProcesoEstado(0);
       } catch (\Exception $e) {
-        $log->delete();
+        $log->markAsFailed($e->getMessage());
         Log::error('Error al sincronizar detalle de venta', [
           'document_id' => $document->id,
           'error' => $e->getMessage(),
