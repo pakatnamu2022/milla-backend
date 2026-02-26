@@ -114,11 +114,12 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         // Generar automáticamente la serie y correlativo
         $assignSeries = AssignSalesSeries::findOrFail($data['document_series_id']);
         $series = $assignSeries->series;
-        $correlativeStart = $assignSeries->correlative_start;
 
-        // Contar documentos existentes con la misma serie
-        $existingCount = ShippingGuides::where('document_series_id', $data['document_series_id'])->count();
-        $correlativeNumber = $correlativeStart + $existingCount + 1;
+        $maxCorrelative = ShippingGuides::where('document_series_id', $data['document_series_id'])
+          ->max('correlative');
+        $correlativeNumber = $maxCorrelative !== null
+          ? ((int) $maxCorrelative) + 1
+          : $assignSeries->correlative_start + 1;
 
         $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
         $documentNumber = $series . '-' . $correlative;
@@ -240,10 +241,12 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
         $assignSeries = AssignSalesSeries::findOrFail($data['document_series_id']);
         $series = $assignSeries->series;
-        $correlativeStart = $assignSeries->correlative_start;
 
-        $existingCount = ShippingGuides::where('document_series_id', $data['document_series_id'])->count();
-        $correlativeNumber = $correlativeStart + $existingCount + 1;
+        $maxCorrelative = ShippingGuides::where('document_series_id', $data['document_series_id'])
+          ->max('correlative');
+        $correlativeNumber = $maxCorrelative !== null
+          ? ((int) $maxCorrelative) + 1
+          : $assignSeries->correlative_start + 1;
 
         $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
         $documentNumber = $series . '-' . $correlative;
@@ -753,6 +756,28 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     } catch (Exception $e) {
       throw new Exception('Error al programar la sincronización: ' . $e->getMessage());
     }
+  }
+
+  public function nextDocumentNumber(int $documentSeriesId): array
+  {
+    $assignSeries = AssignSalesSeries::findOrFail($documentSeriesId);
+    $series = $assignSeries->series;
+
+    $maxCorrelative = ShippingGuides::where('document_series_id', $documentSeriesId)
+      ->max('correlative');
+
+    $correlativeNumber = $maxCorrelative !== null
+      ? ((int) $maxCorrelative) + 1
+      : $assignSeries->correlative_start + 1;
+
+    $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
+    $documentNumber = $series . '-' . $correlative;
+
+    return [
+      'series' => $series,
+      'correlative' => $correlative,
+      'document_number' => $documentNumber,
+    ];
   }
 
   public function checkResources($id)

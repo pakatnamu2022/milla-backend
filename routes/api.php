@@ -1052,6 +1052,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('shippingGuides/{id}/logs', [ShippingGuidesController::class, 'logs']);
       Route::get('shippingGuides/{id}/history', [ShippingGuidesController::class, 'history']);
       Route::get('shippingGuides/{id}/check-resources', [ShippingGuidesController::class, 'checkResources']);
+      Route::get('shippingGuides/next-document-number', [ShippingGuidesController::class, 'nextDocumentNumber']);
       Route::post('shippingGuides/consignment', [ShippingGuidesController::class, 'storeConsignment']);
       Route::apiResource('shippingGuides', ShippingGuidesController::class)->only([
         'index',
@@ -1064,7 +1065,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Receiving Checklist
       Route::get('receivingChecklist/byShippingGuide/{shippingGuideId}', [ApReceivingChecklistController::class, 'getByShippingGuide']);
       Route::get('receivingChecklist', [ApReceivingChecklistController::class, 'index']);
-      Route::put('receivingChecklist/{id}', [ApReceivingChecklistController::class, 'update']);
+      Route::post('receivingChecklist/{id}', [ApReceivingChecklistController::class, 'update']);
       Route::delete('receivingChecklist/byShippingGuide/{shippingGuideId}', [ApReceivingChecklistController::class, 'destroyByShippingGuide']);
       Route::get('receivingChecklist/byShippingGuide/{shippingGuideId}/vehicle', [ApReceivingChecklistController::class, 'getVehicleByShippingGuide']);
 

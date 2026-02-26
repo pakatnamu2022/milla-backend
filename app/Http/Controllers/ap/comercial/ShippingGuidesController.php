@@ -293,4 +293,17 @@ class ShippingGuidesController extends Controller
       ], 400);
     }
   }
+  
+  public function nextDocumentNumber(Request $request)
+  {
+    try {
+      $request->validate([
+        'document_series_id' => 'required|integer|exists:assign_sales_series,id',
+      ]);
+
+      return $this->success($this->service->nextDocumentNumber($request->document_series_id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

@@ -17,6 +17,7 @@ class ApReceivingChecklist extends Model
     'receiving_id',
     'shipping_guide_id',
     'quantity',
+    'kilometers',
   ];
 
   const filters = [

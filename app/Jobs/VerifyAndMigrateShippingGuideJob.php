@@ -138,6 +138,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
     // Determinar si es una guía de venta o transferencia
     $isSale = $this->isSaleShippingGuide($shippingGuide);
+
     if ($isSale) {
       // NUEVO: Crear logs si no existen (primera vez)
       $this->ensureSaleLogsExist($shippingGuide);
@@ -1219,7 +1220,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       return 'CTRA-';
     }
 
-    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_CONSIGNACION) {
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_OTROS) {
       return 'CCON-';
     }
 
