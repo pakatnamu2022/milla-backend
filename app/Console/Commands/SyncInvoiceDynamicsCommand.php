@@ -10,6 +10,7 @@ use Illuminate\Console\Command;
 class SyncInvoiceDynamicsCommand extends Command
 {
   use ValidatesPendingJobs;
+
   /**
    * The name and signature of the console command.
    *
@@ -85,7 +86,7 @@ class SyncInvoiceDynamicsCommand extends Command
       return Command::SUCCESS;
     }
 
-    $limit = (int) $this->option('limit');
+    $limit = (int)$this->option('limit');
 
     // Obtener OCs que:
     // 1. No tienen invoice_dynamics (flujo normal)
@@ -103,7 +104,7 @@ class SyncInvoiceDynamicsCommand extends Command
       });
     })
       ->whereNotNull('number')
-      ->orderBy('id')
+      ->orderBy('id', 'desc')
       ->limit($limit)
       ->get();
 
