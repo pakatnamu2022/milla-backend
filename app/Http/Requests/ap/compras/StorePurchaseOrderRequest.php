@@ -53,7 +53,14 @@ class StorePurchaseOrderRequest extends StoreRequest
     return array_merge($vehicleRules, [
       // Información de la Factura (Cabecera)
       'invoice_series' => ['required', 'string', 'max:10'],
-      'invoice_number' => ['required', 'string', 'max:20'],
+      'invoice_number' => [
+        'required',
+        'string',
+        'max:20',
+        Rule::unique('ap_purchase_order')
+          ->where('invoice_series', $this->invoice_series)
+          ->whereNull('deleted_at')
+      ],
       'emission_date' => ['required', 'date', 'date_format:Y-m-d'],
       'due_date' => ['nullable', 'date', 'date_format:Y-m-d', 'after_or_equal:emission_date'],
 
@@ -160,6 +167,7 @@ class StorePurchaseOrderRequest extends StoreRequest
       'subtotal.required' => 'El subtotal es requerido (debe venir de la factura)',
       'igv.required' => 'El IGV es requerido (debe venir de la factura)',
       'total.required' => 'El total es requerido (debe venir de la factura)',
+      'invoice_number.unique' => 'Ya existe una factura con la serie :invoice_series y el número :input',
     ];
   }
 }

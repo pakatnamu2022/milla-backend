@@ -1048,6 +1048,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('shippingGuides/{id}/send-to-nubefact', [ShippingGuidesController::class, 'sendToNubefact']);
       Route::post('shippingGuides/{id}/query-from-nubefact', [ShippingGuidesController::class, 'queryFromNubefact']);
       Route::post('shippingGuides/{id}/mark-as-received', [ShippingGuidesController::class, 'markAsReceived']);
+      Route::post('shippingGuides/{id}/sync-with-dynamics', [ShippingGuidesController::class, 'syncWithDynamics']);
       Route::get('shippingGuides/{id}/logs', [ShippingGuidesController::class, 'logs']);
       Route::get('shippingGuides/{id}/history', [ShippingGuidesController::class, 'history']);
       Route::get('shippingGuides/{id}/check-resources', [ShippingGuidesController::class, 'checkResources']);
@@ -1129,6 +1130,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Products - Gestión de Productos
       Route::get('products/low-stock', [ProductsController::class, 'lowStock']);
       Route::get('products/featured', [ProductsController::class, 'featured']);
+      Route::get('products/{id}/warehouses-availability', [ProductsController::class, 'getWarehousesAvailability']);
       Route::post('products/{id}/update-stock', [ProductsController::class, 'updateStock']);
       Route::post('products/assign-to-warehouse', [ProductsController::class, 'assignToWarehouse']);
       Route::apiResource('products', ProductsController::class)->only([

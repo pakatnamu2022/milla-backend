@@ -9,7 +9,7 @@ class WarehouseResource extends JsonResource
 {
   public function toArray(Request $request): array
   {
-    return [
+    $data = [
       'id' => $this->id,
       'dyn_code' => $this->dyn_code,
       'description' => $this->description,
@@ -27,5 +27,12 @@ class WarehouseResource extends JsonResource
       'parent_warehouse_id' => $this->parent_warehouse_id ?? "",
       'parent_warehouse_dyn_code' => $this->parentWarehouse ? $this->parentWarehouse->dyn_code : "-",
     ];
+
+    // Add has_product field if it exists (for product availability queries)
+    if (isset($this->has_product)) {
+      $data['has_product'] = $this->has_product;
+    }
+
+    return $data;
   }
 }

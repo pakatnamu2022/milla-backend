@@ -9,6 +9,7 @@ use App\Http\Resources\Dynamics\ShippingGuideSeriesDynamicsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
+use App\Jobs\SyncShippingGuideDynamicsJob;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuideAccessory;
@@ -789,6 +790,23 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       'header' => new ShippingGuideHeaderDynamicsResource($shippingGuide),
       'detail' => $vehicle ? new ShippingGuideDetailDynamicsResource($vehicle, $shippingGuide) : null,
       'series' => new ShippingGuideSeriesDynamicsResource($shippingGuide),
+    ];
+  }
+
+  public function syncWithDynamics($id)
+  {
+    $shippingGuide = $this->find($id);
+
+    if (!$shippingGuide->document_number) {
+      throw new Exception('La guía de remisión no tiene número de documento asignado');
+    }
+
+    // Despachar el job para sincronizar con Dynamics
+    SyncShippingGuideDynamicsJob::dispatch($shippingGuide->id);
+
+    return [
+      'message' => 'Job de sincronización con Dynamics despachado exitosamente',
+      'shipping_guide' => new ShippingGuidesResource($shippingGuide->fresh()),
     ];
   }
 }

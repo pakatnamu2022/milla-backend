@@ -395,4 +395,19 @@ class ShippingGuides extends BaseModel
       'correlative' => $correlative,
     ];
   }
+
+  /**
+   * Obtiene el TransferenciaId usado en Dynamics para transferencias de productos
+   * Formato: PTRA-00000XXX
+   */
+  public function getDynamicsTransferTransactionId(bool $isReversal = false): string
+  {
+    $transactionId = 'PTRA-' . str_pad($this->correlative, 8, '0', STR_PAD_LEFT);
+
+    if ($isReversal) {
+      $transactionId .= '*';
+    }
+
+    return $transactionId;
+  }
 }

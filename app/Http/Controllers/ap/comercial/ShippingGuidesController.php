@@ -279,6 +279,21 @@ class ShippingGuidesController extends Controller
     }
   }
 
+  public function syncWithDynamics($id)
+  {
+    try {
+      return response()->json([
+        'success' => true,
+        'data' => $this->service->syncWithDynamics($id)
+      ]);
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
+    }
+  }
+  
   public function nextDocumentNumber(Request $request)
   {
     try {
