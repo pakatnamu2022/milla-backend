@@ -11,6 +11,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApWorkOrder;
@@ -171,6 +172,15 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('No se puede agregar repuestos a una orden de trabajo sin inspección vehicular');
       }
 
+      // Validar que no exista el mismo producto en la orden de trabajo
+      $existingPart = ApWorkOrderParts::where('work_order_id', $data['work_order_id'])
+        ->where('product_id', $data['product_id'])
+        ->first();
+
+      if ($existingPart) {
+        throw new Exception('Este producto ya ha sido agregado a la orden de trabajo');
+      }
+
       // Set registered_by
       if (auth()->check()) {
         $data['registered_by'] = auth()->user()->id;
@@ -179,8 +189,30 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       // Calcular precios y totales automáticamente
       $this->calculatePricesAndTotals($data);
 
-      // Create work order part (sin descontar stock, eso se hace en warehouseOutput)
+      // Validar que exista stock disponible para reservar
+      $stock = ProductWarehouseStock::where('product_id', $data['product_id'])
+        ->where('warehouse_id', $data['warehouse_id'])
+        ->first();
+
+      if (!$stock) {
+        throw new Exception('No se encontró registro de stock para el producto en el almacén seleccionado');
+      }
+
+      if ($stock->available_quantity < $data['quantity_used']) {
+        throw new Exception(
+          "Stock insuficiente. Disponible: {$stock->available_quantity}, Requerido: {$data['quantity_used']}"
+        );
+      }
+
+      // Create work order part
       $workOrderPart = ApWorkOrderParts::create($data);
+
+      // Reservar el stock
+      $reserveSuccess = $stock->reserveStock($data['quantity_used']);
+      if (!$reserveSuccess) {
+        throw new Exception('No se pudo reservar el stock. Stock insuficiente.');
+      }
+
       $workOrder->calculateTotals();
 
       return new ApWorkOrderPartsResource($workOrderPart->load([
@@ -220,6 +252,15 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
   {
     return DB::transaction(function () use ($id) {
       $workOrderPart = $this->find($id);
+
+      // Liberar el stock reservado
+      $stock = ProductWarehouseStock::where('product_id', $workOrderPart->product_id)
+        ->where('warehouse_id', $workOrderPart->warehouse_id)
+        ->first();
+
+      if ($stock) {
+        $stock->releaseReservedStock($workOrderPart->quantity_used);
+      }
 
       // Buscamos la OT
       $workOrder = $workOrderPart->workOrder;

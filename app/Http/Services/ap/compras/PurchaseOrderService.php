@@ -127,6 +127,11 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         $number_correlative = $this->nextCorrelativeQueryInteger($query, 'number_correlative');
       }
 
+      // Si no es producción, sumar 1000 al correlativo para evitar conflictos
+      if (config('app.env') !== 'production') {
+        $number_correlative += 1000;
+      }
+
       $number = $this->completeNumber($number_correlative, 7);
 
       $data['number_correlative'] = $number_correlative;

@@ -38,6 +38,8 @@ class ProductWarehouseStock extends Model
     'search' => ['product.name', 'product.code', 'product.dyn_code'],
     'product_id' => '=',
     'warehouse_id' => '=',
+    'quantity' => '>',
+    'available_quantity' => '>',
   ];
 
   const sorts = [

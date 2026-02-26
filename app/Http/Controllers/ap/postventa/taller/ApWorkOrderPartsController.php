@@ -65,11 +65,6 @@ class ApWorkOrderPartsController extends Controller
     }
   }
 
-  /**
-   * Guardar masivamente repuestos desde una cotización
-   * POST /api/ap-work-order-parts/store-bulk-from-quotation
-   * Body: { quotation_id, work_order_id, warehouse_id, group_number, quotation_detail_ids[] }
-   */
   public function storeBulkFromQuotation(StoreBulkFromQuotationRequest $request)
   {
     try {
@@ -79,11 +74,7 @@ class ApWorkOrderPartsController extends Controller
       return $this->error($th->getMessage());
     }
   }
-
-  /**
-   * Realizar la salida de almacén para un repuesto específico
-   * POST /api/ap/postventa/workOrderParts/{id}/warehouse-output
-   */
+  
   public function warehouseOutput($id)
   {
     try {
