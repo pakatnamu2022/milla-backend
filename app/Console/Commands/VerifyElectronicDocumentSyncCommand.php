@@ -99,6 +99,9 @@ class VerifyElectronicDocumentSyncCommand extends Command
       : "Jobs despachados a la cola.";
 
     $this->info($message);
+    foreach ($pendingDocuments as $document) {
+      $this->line(" - {$document->full_number}");
+    }
 
     return 0;
   }
@@ -111,12 +114,12 @@ class VerifyElectronicDocumentSyncCommand extends Command
     $limit = (int)$this->option('limit');
 
     return ElectronicDocument::where(function ($q) {
-        $q->whereNull('migration_status')
-          ->orWhereIn('migration_status', [
-            VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
-            VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
-          ]);
-      })
+      $q->whereNull('migration_status')
+        ->orWhereIn('migration_status', [
+          VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+          VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
+        ]);
+    })
       ->where('status', ElectronicDocument::STATUS_ACCEPTED)
       ->where('anulado', false)
       ->where('aceptada_por_sunat', true)
