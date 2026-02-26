@@ -200,7 +200,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
 
       } catch (Exception $e) {
         Log::error('Error al sincronizar proveedor: ' . $e->getMessage());
-        $supplierLog->markAsFailed("Error al sincronizar proveedor: {$e->getMessage()}");
+        $supplierLog->delete();
       }
     } else {
       // Existe, actualizar el estado del log
@@ -261,7 +261,8 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         $articleLog->markAsInProgress();
         SyncArticleJob::dispatch($model->id);
       } catch (Exception $e) {
-        $articleLog->markAsFailed("Error al despachar job de artículo: {$e->getMessage()}");
+        Log::error('Error al despachar job de artículo: ' . $e->getMessage());
+        $articleLog->delete();
       }
     } else {
       // Existe, actualizar el estado del log
@@ -321,7 +322,8 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
           $articleLog->markAsInProgress();
           SyncProductArticleJob::dispatch($product->id);
         } catch (Exception $e) {
-          $articleLog->markAsFailed("Error al despachar job de artículo producto: {$e->getMessage()}");
+          Log::error('Error al despachar job de artículo producto: ' . $e->getMessage());
+          $articleLog->delete();
         }
       } else {
         // Existe, actualizar el estado del log
@@ -396,7 +398,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         $purchaseOrderDetailLog->updateProcesoEstado(0);
       } catch (Exception $e) {
         Log::error('Error al sincronizar orden de compra: ' . $e->getMessage());
-        $purchaseOrderLog->markAsFailed("Error al sincronizar orden de compra: {$e->getMessage()}");
+        $purchaseOrderLog->delete();
       }
     } else {
       $purchaseOrderLog->updateProcesoEstado(
@@ -498,7 +500,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
 
       } catch (Exception $e) {
         Log::error('Error al sincronizar recepción: ' . $e->getMessage());
-        $receptionLog->markAsFailed("Error al sincronizar recepción: {$e->getMessage()}");
+        $receptionLog->delete();
       }
     } else {
       // Existe, actualizar el estado del log
@@ -593,7 +595,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
 
       } catch (Exception $e) {
         Log::error('Error al sincronizar recepción de productos: ' . $e->getMessage());
-        $receptionLog->markAsFailed("Error al sincronizar recepción: {$e->getMessage()}");
+        $receptionLog->delete();
       }
     } else {
       $receptionLog->updateProcesoEstado(
@@ -625,17 +627,11 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         $log->proceso_estado === 1;
     });
 
-    $hasFailed = $logs->contains(function ($log) {
-      return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED;
-    });
-
     if ($allCompleted && $logs->count() === 8) { // 8 pasos en total
       $purchaseOrder->update([
         'migration_status' => 'completed',
         'migrated_at' => now(),
       ]);
-    } elseif ($hasFailed) {
-      $purchaseOrder->update(['migration_status' => 'failed']);
     }
   }
 
@@ -739,7 +735,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         $purchaseOrderDetailLog->updateProcesoEstado(0);
       } catch (Exception $e) {
         Log::error('Error al sincronizar orden de compra genérica: ' . $e->getMessage());
-        $purchaseOrderLog->markAsFailed("Error al sincronizar orden de compra genérica: {$e->getMessage()}");
+        $purchaseOrderLog->delete();
       }
     } else {
       $purchaseOrderLog->updateProcesoEstado(
@@ -770,7 +766,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
           $purchaseOrderDetailLog->updateProcesoEstado(0);
         } catch (Exception $e) {
           Log::error('Error al sincronizar detalle de orden de compra genérica: ' . $e->getMessage());
-          $purchaseOrderDetailLog->markAsFailed("Error al sincronizar detalle: {$e->getMessage()}");
+          $purchaseOrderDetailLog->delete();
         }
       }
     }
@@ -806,17 +802,11 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         $log->proceso_estado === 1;
     });
 
-    $hasFailed = $logs->contains(function ($log) {
-      return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED;
-    });
-
     if ($allCompleted) {
       $purchaseOrder->update([
         'migration_status' => 'completed',
         'migrated_at' => now(),
       ]);
-    } elseif ($hasFailed) {
-      $purchaseOrder->update(['migration_status' => 'failed']);
     }
   }
 

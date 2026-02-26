@@ -1042,6 +1042,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/orders', [VehiclePurchaseOrderMigrationController::class, 'index']);
         Route::get('/{id}/logs', [VehiclePurchaseOrderMigrationController::class, 'logs']);
         Route::get('/{id}/history', [VehiclePurchaseOrderMigrationController::class, 'history']);
+        Route::post('/{id}/dispatch', [VehiclePurchaseOrderMigrationController::class, 'dispatch']);
       });
 
       // Vehicle Documents (Guías de Remisión/Traslado)

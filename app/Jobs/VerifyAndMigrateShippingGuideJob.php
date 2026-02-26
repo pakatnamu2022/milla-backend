@@ -536,21 +536,12 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         $log->proceso_estado === 1;
     });
 
-    $hasFailed = $logs->contains(function ($log) {
-      return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED;
-    });
-
     if ($allCompleted && $logs->count() === 3) { // 3 pasos en total para shipping guides
       // Marcar la guía como sincronizada
       $shippingGuide->update([
         'status_dynamic' => 1,
         'migration_status' => 'completed',
         'migrated_at' => now(),
-      ]);
-    } elseif ($hasFailed) {
-      $shippingGuide->update([
-        'status_dynamic' => 0,
-        'migration_status' => 'failed',
       ]);
     }
   }
@@ -759,7 +750,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         'error' => $e->getMessage(),
         'trace' => $e->getTraceAsString()
       ]);
-      $transactionLog->markAsFailed("Error al sincronizar transacción de inventario: {$e->getMessage()}");
+      $transactionLog->delete();
       throw $e;
     }
   }
@@ -812,7 +803,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         'error' => $e->getMessage(),
         'trace' => $e->getTraceAsString()
       ]);
-      $transactionDetailLog->markAsFailed("Error al sincronizar detalle de transacción de inventario: {$e->getMessage()}");
+      $transactionDetailLog->delete();
       throw $e;
     }
   }
@@ -859,7 +850,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         'error' => $e->getMessage(),
         'trace' => $e->getTraceAsString()
       ]);
-      $transactionSerialLog->markAsFailed("Error al sincronizar serial de transacción de inventario: {$e->getMessage()}");
+      $transactionSerialLog->delete();
       throw $e;
     }
   }
@@ -931,7 +922,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         'error' => $e->getMessage(),
         'trace' => $e->getTraceAsString()
       ]);
-      $transferLog->markAsFailed("Error al sincronizar transferencia: {$e->getMessage()}");
+      $transferLog->delete();
       throw $e;
     }
   }
@@ -1117,7 +1108,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         'error' => $e->getMessage(),
         'trace' => $e->getTraceAsString()
       ]);
-      $transferSerialLog->markAsFailed("Error al sincronizar serial de transferencia: {$e->getMessage()}");
+      $transferSerialLog->delete();
       throw $e;
     }
   }
@@ -1178,7 +1169,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         'error' => $e->getMessage(),
         'trace' => $e->getTraceAsString()
       ]);
-      $transferDetailLog->markAsFailed("Error al sincronizar detalle de transferencia: {$e->getMessage()}");
+      $transferDetailLog->delete();
       throw $e;
     }
   }

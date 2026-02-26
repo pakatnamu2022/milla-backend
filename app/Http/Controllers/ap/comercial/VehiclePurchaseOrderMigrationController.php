@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
+use App\Jobs\VerifyAndMigratePurchaseOrderJob;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use Illuminate\Http\JsonResponse;
@@ -188,6 +189,35 @@ class VehiclePurchaseOrderMigrationController extends Controller
         ],
         'timeline' => $timeline,
       ],
+    ]);
+  }
+
+  /**
+   * Despacha el job de migración para una orden de compra específica
+   */
+  public function dispatch(int $id): JsonResponse
+  {
+    $purchaseOrder = PurchaseOrder::find($id);
+
+    if (!$purchaseOrder) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Orden de compra no encontrada',
+      ], 404);
+    }
+
+    if ($purchaseOrder->migration_status === 'completed') {
+      return response()->json([
+        'success' => false,
+        'message' => 'La orden ya está migrada completamente',
+      ], 422);
+    }
+
+    VerifyAndMigratePurchaseOrderJob::dispatch($purchaseOrder->id);
+
+    return response()->json([
+      'success' => true,
+      'message' => "Job de migración despachado para la orden {$purchaseOrder->number}",
     ]);
   }
 
