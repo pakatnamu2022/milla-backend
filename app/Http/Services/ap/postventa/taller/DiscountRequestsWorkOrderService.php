@@ -22,6 +22,18 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
     $this->emailService = $emailService;
   }
 
+  /**
+   * Convierte PART o LABOUR al nombre completo de la clase del modelo
+   */
+  private function convertToModelClass(string $type): string
+  {
+    return match ($type) {
+      DiscountRequestsWorkOrder::MODEL_PART, 'PART' => ApWorkOrderParts::class,
+      DiscountRequestsWorkOrder::MODEL_LABOUR, 'LABOUR' => WorkOrderLabour::class,
+      default => $type, // Si ya viene con el nombre completo de la clase, lo retorna tal cual
+    };
+  }
+
   public function list(Request $request)
   {
     return $this->getFilteredResults(
@@ -61,8 +73,11 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
         throw new Exception('Para un descuento PARTIAL, debe especificar el ítem (parte o labor).');
       }
 
+      // Convertir PART o LABOUR al nombre completo de la clase
+      $partLabourModel = $this->convertToModelClass($data['part_labour_model']);
+
       $exists = DiscountRequestsWorkOrder::where('part_labour_id', $data['part_labour_id'])
-        ->where('part_labour_model', $data['part_labour_model'])
+        ->where('part_labour_model', $partLabourModel)
         ->where('type', DiscountRequestsWorkOrder::TYPE_PARTIAL)
         ->exists();
 
@@ -72,11 +87,16 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
     }
 
     $record = DB::transaction(function () use ($data) {
+      // Convertir PART o LABOUR al nombre completo de la clase antes de guardar
+      $partLabourModel = isset($data['part_labour_model'])
+        ? $this->convertToModelClass($data['part_labour_model'])
+        : null;
+
       return DiscountRequestsWorkOrder::create([
         'type' => $data['type'],
         'ap_work_order_id' => $data['ap_work_order_id'],
         'part_labour_id' => $data['part_labour_id'] ?? null,
-        'part_labour_model' => $data['part_labour_model'] ?? null,
+        'part_labour_model' => $partLabourModel,
         'manager_id' => auth()->id(),
         'request_date' => now(),
         'requested_discount_percentage' => $data['requested_discount_percentage'],
@@ -124,11 +144,15 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
     $record = $this->findNotApproved($id);
 
     DB::transaction(function () use ($record) {
+      // Actualizar el estado de la solicitud
       $record->update([
         'reviewed_by_id' => auth()->id(),
         'review_date' => now(),
         'status' => DiscountRequestsWorkOrder::STATUS_APPROVED,
       ]);
+
+      // Aplicar el descuento a la orden de trabajo
+      $this->applyDiscountToWorkOrder($record);
     });
 
     $fresh = $record->fresh();
@@ -166,6 +190,147 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
     }
 
     return $record;
+  }
+
+  private function applyDiscountToWorkOrder(DiscountRequestsWorkOrder $discountRequest): void
+  {
+    $discountRequest->loadMissing(['apWorkOrder']);
+
+    $workOrder = $discountRequest->apWorkOrder;
+    if (!$workOrder) {
+      throw new Exception('Orden de trabajo no encontrada.');
+    }
+
+    if ($discountRequest->type === DiscountRequestsWorkOrder::TYPE_PARTIAL) {
+      // Descuento por ítem específico (parte o labor)
+      $this->applyPartialDiscount($discountRequest);
+    } else {
+      // Descuento global a todos los items del tipo especificado
+      $this->applyGlobalDiscount($discountRequest);
+    }
+
+    // Recalcular totales de la orden de trabajo
+    $workOrder->calculateTotals();
+  }
+
+  private function applyPartialDiscount(DiscountRequestsWorkOrder $discountRequest): void
+  {
+    $partLabourModel = $discountRequest->part_labour_model;
+    $partLabourId = $discountRequest->part_labour_id;
+    $discountPercentage = $discountRequest->requested_discount_percentage;
+
+    if ($partLabourModel === ApWorkOrderParts::class) {
+      // Descuento a una parte específica
+      $part = ApWorkOrderParts::find($partLabourId);
+      if (!$part) {
+        throw new Exception('Parte no encontrada.');
+      }
+
+      // Aplicar el porcentaje de descuento
+      $part->update([
+        'discount_percentage' => $discountPercentage,
+      ]);
+
+      // Recalcular totales de la parte
+      $unitPrice = (float)$part->unit_price;
+      $quantity = (float)$part->quantity_used;
+      $subtotal = $unitPrice * $quantity;
+      $discountAmount = $subtotal * ($discountPercentage / 100);
+      $subtotalAfterDiscount = $subtotal - $discountAmount;
+      $taxAmount = $subtotalAfterDiscount * 0.18;
+      $totalAmount = $subtotalAfterDiscount + $taxAmount;
+
+      $part->update([
+        'subtotal' => $subtotal,
+        'tax_amount' => $taxAmount,
+        'total_amount' => $totalAmount,
+      ]);
+    } elseif ($partLabourModel === WorkOrderLabour::class) {
+      // Descuento a una labor específica
+      $labour = WorkOrderLabour::find($partLabourId);
+      if (!$labour) {
+        throw new Exception('Labor no encontrada.');
+      }
+
+      // Aplicar el porcentaje de descuento
+      $labour->update([
+        'discount_percentage' => $discountPercentage,
+      ]);
+
+      // Recalcular el costo total de la labor
+      $hourlyRate = (float)$labour->hourly_rate;
+      $timeSpent = $labour->time_spent_decimal; // Usar el accessor para obtener el tiempo en decimal
+      $subtotal = $hourlyRate * $timeSpent;
+      $discountAmount = $subtotal * ($discountPercentage / 100);
+      $totalCost = $subtotal - $discountAmount;
+
+      $labour->update([
+        'total_cost' => $totalCost,
+      ]);
+    }
+  }
+
+  private function applyGlobalDiscount(DiscountRequestsWorkOrder $discountRequest): void
+  {
+    $workOrder = $discountRequest->apWorkOrder;
+    $partLabourModel = $discountRequest->part_labour_model;
+    $discountPercentage = $discountRequest->requested_discount_percentage;
+
+    if ($partLabourModel === ApWorkOrderParts::class) {
+      // Descuento global a todas las partes
+      $parts = $workOrder->parts()->get();
+
+      if ($parts->isEmpty()) {
+        throw new Exception('No se encontraron partes en la orden de trabajo.');
+      }
+
+      foreach ($parts as $part) {
+        // Aplicar el porcentaje de descuento
+        $part->update([
+          'discount_percentage' => $discountPercentage,
+        ]);
+
+        // Recalcular totales de la parte
+        $unitPrice = (float)$part->unit_price;
+        $quantity = (float)$part->quantity_used;
+        $subtotal = $unitPrice * $quantity;
+        $discountAmount = $subtotal * ($discountPercentage / 100);
+        $subtotalAfterDiscount = $subtotal - $discountAmount;
+        $taxAmount = $subtotalAfterDiscount * 0.18;
+        $totalAmount = $subtotalAfterDiscount + $taxAmount;
+
+        $part->update([
+          'subtotal' => $subtotal,
+          'tax_amount' => $taxAmount,
+          'total_amount' => $totalAmount,
+        ]);
+      }
+    } elseif ($partLabourModel === WorkOrderLabour::class) {
+      // Descuento global a todas las labores
+      $labours = $workOrder->labours()->get();
+
+      if ($labours->isEmpty()) {
+        throw new Exception('No se encontraron labores en la orden de trabajo.');
+      }
+
+      foreach ($labours as $labour) {
+        // Aplicar el porcentaje de descuento
+        $labour->update([
+          'discount_percentage' => $discountPercentage,
+        ]);
+
+        // Recalcular el costo total de la labor
+        $hourlyRate = (float)$labour->hourly_rate;
+        $timeSpent = $labour->time_spent_decimal;
+        $subtotal = $hourlyRate * $timeSpent;
+        $discountAmount = $subtotal * ($discountPercentage / 100);
+        $totalCost = $subtotal - $discountAmount;
+
+        $labour->update([
+          'total_cost' => $totalCost,
+        ]);
+      }
+    }
   }
 
   private function getItemDetails($record)

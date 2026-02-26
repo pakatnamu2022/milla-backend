@@ -83,29 +83,45 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       throw new Exception('No puedes editar una marca que no corresponde al modulo respectivo.');
     }
 
-    $familyId = $data['family_id'] ?? null;
-    $modelYear = $data['model_year'] ?? null;
+    if ($data['type_operation_id'] === ApMasters::TIPO_OPERACION_COMERCIAL) {
+      $familyId = $data['family_id'] ?? null;
+      $modelYear = $data['model_year'] ?? null;
 
-    $familiaChanged = $familyId !== null && $modelVn->family_id != $familyId;
-    $anioChanged = $modelYear !== null && $modelVn->model_year != $modelYear;
+      $familiaChanged = $familyId !== null && $modelVn->family_id != $familyId;
+      $anioChanged = $modelYear !== null && $modelVn->model_year != $modelYear;
+      $versionChanged = isset($data['version']) && $modelVn->version != $data['version'];
 
-    if ($familiaChanged || $anioChanged) {
-      $existe = ApModelsVn::where('family_id', $familyId)
-        ->where('model_year', $modelYear)
-        ->where('id', '!=', $data['id'])
-        ->whereNull('deleted_at')
-        ->exists();
+      if ($familiaChanged || $anioChanged || $versionChanged) {
+        $existe = ApModelsVn::where('family_id', $familyId ?? $modelVn->family_id)
+          ->where('model_year', $modelYear ?? $modelVn->model_year)
+          ->where('version', $data['version'] ?? $modelVn->version)
+          ->where('id', '!=', $data['id'])
+          ->whereNull('deleted_at')
+          ->exists();
 
-      if ($existe) {
-        throw new Exception('Ya existe un modelo con esa familia y año.');
+        if ($existe) {
+          throw new Exception('Ya existe un modelo con esa familia y año.');
+        }
+
+        // Generate new code using model method (separates correlatives by operation type)
+        $data['code'] = ApModelsVn::generateNextCode(
+          $familyId ?? $modelVn->family_id,
+          $modelYear ?? $modelVn->model_year,
+          $modelVn->type_operation_id
+        );
       }
+    } else {
+      $familyId = $data['family_id'] ?? null;
+      $familiaChanged = $familyId !== null && $modelVn->family_id != $familyId;
 
-      // Generate new code using model method (separates correlatives by operation type)
-      $data['code'] = ApModelsVn::generateNextCode(
-        $familyId,
-        $modelYear,
-        $modelVn->type_operation_id
-      );
+      if ($familiaChanged) {
+        // Generate new code using model method (separates correlatives by operation type)
+        $data['code'] = ApModelsVn::generateNextCode(
+          $familyId,
+          date('Y'),
+          $modelVn->type_operation_id
+        );
+      }
     }
 
     $modelVn->update($data);
