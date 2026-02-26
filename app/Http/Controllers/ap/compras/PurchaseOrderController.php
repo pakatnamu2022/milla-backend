@@ -107,6 +107,23 @@ class PurchaseOrderController extends Controller
   }
 
 
+  public function nextCorrelative(Request $request)
+  {
+    try {
+      $request->validate([
+        'sede_id'           => 'required|integer|exists:config_sede,id',
+        'type_operation_id' => 'required|integer|exists:ap_masters,id',
+      ]);
+
+      return $this->success($this->service->nextCorrelative(
+        $request->sede_id,
+        $request->type_operation_id
+      ));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   /**
    * Despacha el job para sincronizar la nota de crédito a Dynamics
    * @param $id

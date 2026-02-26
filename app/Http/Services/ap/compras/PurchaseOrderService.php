@@ -150,6 +150,42 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     return $data;
   }
 
+  /**
+   * Obtiene el próximo número correlativo para una orden de compra
+   * @param int $sedeId
+   * @param int $typeOperationId
+   * @return array
+   * @throws Exception
+   */
+  public function nextCorrelative(int $sedeId, int $typeOperationId): array
+  {
+    $series = AssignSalesSeries::where('sede_id', $sedeId)
+      ->where('type_operation_id', $typeOperationId)
+      ->where('type', AssignSalesSeries::PURCHASE)
+      ->where('status', true)
+      ->whereNull('deleted_at')
+      ->first();
+
+    if (!$series) {
+      throw new Exception('No hay una serie asignada para la sede y tipo de operación proporcionados');
+    }
+
+    $maxCorrelative = PurchaseOrder::where('sede_id', $sedeId)
+      ->where('type_operation_id', $typeOperationId)
+      ->where('status', true)
+      ->whereNull('deleted_at')
+      ->max('number_correlative');
+
+    $numberCorrelative = $maxCorrelative ? $maxCorrelative + 1 : $series->correlative_start;
+    $number = $series->series . $this->completeNumber($numberCorrelative, 7);
+
+    return [
+      'series' => 'OC' . $series->series,
+      'number_correlative' => $numberCorrelative,
+      'number' => 'OC' . $number,
+    ];
+  }
+
   public function hasVehicleInItems(array $items): bool
   {
     foreach ($items as $item) {

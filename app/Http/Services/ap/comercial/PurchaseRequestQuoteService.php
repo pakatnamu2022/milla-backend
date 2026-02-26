@@ -41,8 +41,6 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $worker = $workerService->getAuthenticatedWorkerWithArea();
     $purchaseRequestQuoteQuery = $this->getPurchaseRequestQuoteQuery($worker, $request);
 
-//    throw new Exception(json_encode($purchaseRequestQuoteQuery->pluck('id')->toArray()));
-
     return $this->getFilteredResults(
       $purchaseRequestQuoteQuery,
       $request,
@@ -162,7 +160,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
   public function show($id)
   {
-    return new PurchaseRequestQuoteResource($this->find($id));
+    return (new PurchaseRequestQuoteResource($this->find($id)))->showExtra();
   }
 
   public function update(mixed $data)

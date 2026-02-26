@@ -10,19 +10,17 @@ class UserSeriesAssignmentResource extends JsonResource
   public function toArray(Request $request): array
   {
     return [
-      'worker_id' => $this->id,
-      'worker_name' => $this->person->nombre_completo,
-      'vouchers' => $this->whenLoaded('vouchers', function () {
-        return $this->vouchers->map(function ($voucher) {
-          return [
-            'id' => $voucher->id,
-            'series' => $voucher->series,
-            'sede' => $voucher->sede->abreviatura,
-            'type_receipt' => $voucher->typeReceipt?->description,
-            'type_operation' => $voucher->typeOperation?->description,
-          ];
-        });
-      })
+      'worker_id' => $this->worker_id,
+      'worker_name' => $this->user->person?->nombre_completo,
+      'vouchers' => $this->vouchers ? $this->vouchers->map(function ($voucher) {
+        return [
+          'id' => $voucher->id,
+          'series' => $voucher->series,
+          'sede' => $voucher->sede->abreviatura,
+          'type_receipt' => $voucher->typeReceipt?->description,
+          'type_operation' => $voucher->typeOperation?->description,
+        ];
+      }) : [],
     ];
   }
 }
