@@ -61,6 +61,7 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
     if ($type === DiscountRequestsWorkOrder::TYPE_GLOBAL) {
       $exists = DiscountRequestsWorkOrder::where('ap_work_order_id', $data['ap_work_order_id'])
         ->where('type', DiscountRequestsWorkOrder::TYPE_GLOBAL)
+        ->where('part_labour_model', $this->convertToModelClass($data['part_labour_model'] ?? ''))
         ->exists();
 
       if ($exists) {

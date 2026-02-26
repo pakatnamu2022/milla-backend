@@ -17,7 +17,7 @@ class StoreDiscountRequestsWorkOrderRequest extends FormRequest
       'ap_work_order_id' => 'required|integer|exists:ap_work_orders,id',
       'type' => 'required|in:GLOBAL,PARTIAL',
       'part_labour_id' => 'nullable|integer|required_if:type,PARTIAL',
-      'part_labour_model' => 'nullable|string|required_if:type,PARTIAL|in:PART,LABOUR',
+      'part_labour_model' => 'required|string|in:PART,LABOUR',
       'requested_discount_percentage' => 'required|numeric|min:0|max:100',
       'requested_discount_amount' => 'required|numeric|min:0',
     ];
