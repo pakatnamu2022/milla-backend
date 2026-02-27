@@ -869,7 +869,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         ->first();
 
       if ($rmRecord) {
-        $isAnnulled = true;
+        $isAnnulled = $rmRecord->VOIDSTTS == "1";
       }
     }
 
@@ -2210,7 +2210,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
               ->first();
 
             if ($rmRecord) {
-              $isAnnulled = true;
+              $isAnnulled = $rmRecord->VOIDSTTS == "1";
             }
           }
 
