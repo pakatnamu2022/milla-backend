@@ -894,6 +894,15 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $budgets = $request->budgets->keyBy('expense_type_id');
     $mealsBudget = $budgets->get(ExpenseType::MEALS_ID);
 
+    // If the request has a hotel reservation without breakfast included,
+    // breakfast was budgeted separately (BREAKFAST_ID) and must be tracked
+    // outside of the shared MEALS daily limit.
+    $breakfastBudget = null;
+    $hotelReservation = $request->hotelReservation?->hotelAgreement;
+    if ($hotelReservation && !$hotelReservation->includes_breakfast) {
+      $breakfastBudget = $budgets->get(ExpenseType::BREAKFAST_ID);
+    }
+
     // Chronological order to respect daily accumulation correctly
     $expenses = PerDiemExpense::where('per_diem_request_id', $request->id)
       ->where('rejected', false)
@@ -916,7 +925,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         $date,
         $mealsBudget,
         $budgets,
-        $dailySpent
+        $dailySpent,
+        $breakfastBudget,
       );
 
       $expense->update([
@@ -924,8 +934,11 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'employee_amount' => $employeeAmount,
       ]);
 
-      // Accumulate spent for daily-limit tracking
-      if (in_array($typeId, [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
+      // Accumulate spent for daily-limit tracking.
+      // Breakfast is tracked separately when it has its own budget.
+      if ($typeId === ExpenseType::BREAKFAST_ID && $breakfastBudget) {
+        $dailySpent[$date][ExpenseType::BREAKFAST_ID] = ($dailySpent[$date][ExpenseType::BREAKFAST_ID] ?? 0) + $companyAmount;
+      } elseif (in_array($typeId, [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
         $dailySpent[$date][ExpenseType::MEALS_ID] = ($dailySpent[$date][ExpenseType::MEALS_ID] ?? 0) + $companyAmount;
       } elseif (!in_array($typeId, [ExpenseType::TRANSPORTATION_ID, ExpenseType::GASOLINE_ID, ExpenseType::TOLLS_ID])) {
         $dailySpent[$date][$typeId] = ($dailySpent[$date][$typeId] ?? 0) + $companyAmount;
@@ -937,6 +950,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
    * Calculate company_amount and employee_amount for a single expense,
    * given the current budget map and already-spent daily totals.
    *
+   * @param mixed $breakfastBudget When non-null, breakfast has its own budget
+   *                               separate from the MEALS daily limit.
    * @return array{float, float}  [company_amount, employee_amount]
    */
   private function computeExpenseAmounts(
@@ -945,12 +960,21 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     string $date,
            $mealsBudget,
            $budgets,
-    array  $dailySpent
+    array  $dailySpent,
+           $breakfastBudget = null,
   ): array
   {
     // No daily limit: company covers 100%
-    if (in_array($typeId, [ExpenseType::TRANSPORTATION_ID, ExpenseType::GASOLINE_ID, ExpenseType::TOLLS_ID])) {
+    if (in_array($typeId, [ExpenseType::TRANSPORTATION_ID, ExpenseType::GASOLINE_ID, ExpenseType::TOLLS_ID, ExpenseType::ACCOMMODATION_ID])) {
       return [$receiptAmount, 0.0];
+    }
+
+    // Breakfast with its own budget (hotel without breakfast included)
+    if ($typeId === ExpenseType::BREAKFAST_ID && $breakfastBudget) {
+      $alreadySpent = $dailySpent[$date][ExpenseType::BREAKFAST_ID] ?? 0;
+      $available = max(0, $breakfastBudget->daily_amount - $alreadySpent);
+      $companyAmount = min($receiptAmount, $available);
+      return [$companyAmount, $receiptAmount - $companyAmount];
     }
 
     // Meals share the MEALS budget daily limit
