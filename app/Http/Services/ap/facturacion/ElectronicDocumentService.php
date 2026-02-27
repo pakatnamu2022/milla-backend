@@ -333,11 +333,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Validar orden de trabajo si viene work_order_id
       if (isset($data['work_order_id']) && $data['work_order_id']) {
         $this->validateWorkOrderInvoice($data);
-
-        // Setear códigos de productos para items de work order
-        if (isset($data['items']) && is_array($data['items'])) {
-          $data['items'] = $this->setWorkOrderItemCodes($data['work_order_id'], $data['items']);
-        }
       }
 
       /**
@@ -2275,60 +2270,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'error' => $e->getMessage(),
       ]);
       // No lanzar excepción para evitar que falle la consulta de Nubefact
-    }
-  }
-
-  /**
-   * Set product codes for work order items
-   * - For labour items: set default code 'MO-TALLER'
-   * - For part items: get dyn_code from Products table
-   *
-   * @param int $workOrderId
-   * @param array $items
-   * @return array
-   */
-  private function setWorkOrderItemCodes(int $workOrderId, array $items): array
-  {
-    try {
-      // Load work order with parts and their products
-      $workOrder = ApWorkOrder::with(['parts.product', 'labours'])->find($workOrderId);
-
-      if (!$workOrder) {
-        return $items;
-      }
-
-      // Process each item
-      foreach ($items as &$item) {
-        // Skip if codigo is already set
-        if (!empty($item['codigo'])) {
-          continue;
-        }
-
-        // Si es mano de obra (labour)
-        if (isset($item['work_order_labour_id']) && $item['work_order_labour_id']) {
-          $item['codigo'] = 'MO-TALLER'; // Código por defecto para mano de obra
-          continue;
-        }
-
-        // Si es repuesto (part)
-        if (isset($item['work_order_part_id']) && $item['work_order_part_id']) {
-          // Buscar el part en la work order
-          $part = $workOrder->parts->firstWhere('id', $item['work_order_part_id']);
-
-          if ($part && $part->product && !empty($part->product->dyn_code)) {
-            $item['codigo'] = $part->product->dyn_code;
-          }
-        }
-      }
-
-      return $items;
-    } catch (Exception $e) {
-      Log::error('Error setting work order item codes', [
-        'work_order_id' => $workOrderId,
-        'error' => $e->getMessage(),
-      ]);
-      // Return items unchanged if error
-      return $items;
     }
   }
 
