@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -152,6 +153,12 @@ class InventoryMovement extends Model
   {
     return $this->hasMany(InventoryMovementDetail::class, 'inventory_movement_id');
   }
+
+  public function transferReception(): HasOne
+  {
+    return $this->hasOne(TransferReception::class, 'transfer_movement_id');
+  }
+
 
   public function reference(): MorphTo
   {

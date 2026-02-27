@@ -146,6 +146,12 @@ return [
       'icon' => 'Truck',
       'policy_method' => 'receive',
     ],
+    'history' => [
+      'label' => 'Historial',
+      'description' => 'Permite visualizar el historial de cambios o acciones',
+      'icon' => 'History',
+      'policy_method' => 'history',
+    ],
   ],
 
   /*

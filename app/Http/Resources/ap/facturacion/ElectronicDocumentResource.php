@@ -31,6 +31,8 @@ class ElectronicDocumentResource extends JsonResource
       'ap_vehicle_movement_id' => $this->ap_vehicle_movement_id,
       'client_id' => $this->client_id,
       'purchase_request_quote_id' => $this->purchase_request_quote_id,
+      'order_quotation_id' => $this->order_quotation_id,
+      'work_order_id' => $this->work_order_id,
       'credit_note_id' => $this->creditNote?->anulado ? null : $this->creditNote?->id,
       'debit_note_id' => $this->debitNote?->anulado ? null : $this->debitNote?->id,
       'sunat_concept_identity_document_type_id' => $this->sunat_concept_identity_document_type_id,
