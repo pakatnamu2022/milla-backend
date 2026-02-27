@@ -101,6 +101,9 @@ class ElectronicDocumentResource extends JsonResource
       'codigo_hash' => $this->codigo_hash,
       'status' => $this->status,
       'migration_status' => $this->migration_status,
+      'was_dyn_requested' => $this->was_dyn_requested,
+      'is_accounted' => $this->is_accounted,
+      'is_annulled' => $this->is_annulled,
       'error_message' => $this->error_message,
       'is_advance_payment' => (boolean)$this->is_advance_payment,
 

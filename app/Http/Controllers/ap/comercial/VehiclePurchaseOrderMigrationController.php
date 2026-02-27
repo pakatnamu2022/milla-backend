@@ -195,7 +195,7 @@ class VehiclePurchaseOrderMigrationController extends Controller
   /**
    * Despacha manualmente el job de migración para una OC (útil para reintentar fallidas)
    */
-  public function dispatch(int $id): JsonResponse
+  public function dispatchMigration(int $id): JsonResponse
   {
     try {
       $purchaseOrder = PurchaseOrder::find($id);
@@ -228,22 +228,22 @@ class VehiclePurchaseOrderMigrationController extends Controller
       PurchaseOrder::whereNotIn('migration_status', [VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED])
         ->get()
         ->each(function (PurchaseOrder $po) use (&$dispatched) {
-          $logs   = VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $po->id)->get();
+          $logs = VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $po->id)->get();
           $reason = $this->buildDispatchReason($logs);
 
           VerifyAndMigratePurchaseOrderJob::dispatch($po->id);
 
           $dispatched[] = [
-            'id'               => $po->id,
-            'number'           => $po->number,
+            'id' => $po->id,
+            'number' => $po->number,
             'migration_status' => $po->migration_status,
-            'reason'           => $reason,
+            'reason' => $reason,
           ];
         });
 
       return $this->success([
         'total_dispatched' => count($dispatched),
-        'dispatched'       => $dispatched,
+        'dispatched' => $dispatched,
       ]);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
@@ -258,9 +258,9 @@ class VehiclePurchaseOrderMigrationController extends Controller
   {
     if ($logs->isEmpty()) {
       return [
-        'type'        => 'no_logs',
+        'type' => 'no_logs',
         'description' => 'Sin logs de migración — despacho inicial',
-        'steps'       => [],
+        'steps' => [],
       ];
     }
 
@@ -268,25 +268,25 @@ class VehiclePurchaseOrderMigrationController extends Controller
 
     if ($nonCompleted->isEmpty()) {
       return [
-        'type'        => 'retry',
+        'type' => 'retry',
         'description' => 'Todos los pasos tienen logs — reintentando migración',
-        'steps'       => [],
+        'steps' => [],
       ];
     }
 
-    $hasFailed  = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_FAILED);
+    $hasFailed = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_FAILED);
     $hasPending = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_PENDING);
 
     $steps = $nonCompleted->map(fn($log) => [
-      'step'            => $log->step,
-      'status'          => $log->status,
-      'attempts'        => $log->attempts,
-      'error'           => $log->error_message,
+      'step' => $log->step,
+      'status' => $log->status,
+      'attempts' => $log->attempts,
+      'error' => $log->error_message,
       'last_attempt_at' => $log->last_attempt_at?->format('Y-m-d H:i:s'),
     ])->values()->toArray();
 
     return [
-      'type'        => $hasFailed ? 'failed_steps' : ($hasPending ? 'pending_steps' : 'in_progress_steps'),
+      'type' => $hasFailed ? 'failed_steps' : ($hasPending ? 'pending_steps' : 'in_progress_steps'),
       'description' => $hasFailed
         ? 'Tiene pasos fallidos pendientes de reintento'
         : ($hasPending ? 'Tiene pasos pendientes de ejecutar' : 'Tiene pasos en progreso'),

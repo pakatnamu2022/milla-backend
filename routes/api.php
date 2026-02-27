@@ -1042,7 +1042,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/orders', [VehiclePurchaseOrderMigrationController::class, 'index']);
         Route::get('/{id}/logs', [VehiclePurchaseOrderMigrationController::class, 'logs']);
         Route::get('/{id}/history', [VehiclePurchaseOrderMigrationController::class, 'history']);
-        Route::post('/{id}/dispatch', [VehiclePurchaseOrderMigrationController::class, 'dispatch']);
+        Route::post('/{id}/dispatch-migration', [VehiclePurchaseOrderMigrationController::class, 'dispatchMigration']);
         Route::post('/dispatch-all', [VehiclePurchaseOrderMigrationController::class, 'dispatchAll']);
       });
 

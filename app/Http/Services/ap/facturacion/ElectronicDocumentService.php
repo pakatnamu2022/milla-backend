@@ -2184,11 +2184,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    */
   public function syncAccountingStatusFromDynamics(): array
   {
-    $documents = ElectronicDocument::where('was_dyn_requested', true)
+    $documents = ElectronicDocument::where('was_dyn_requested', false)
       ->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
       ->get();
 
-    $updated = 0;
+    $results = [];
     $errors = [];
 
     foreach ($documents as $document) {
@@ -2198,8 +2198,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
           ->first();
 
+        $source = null;
+
         if ($sopRecord) {
           $isAnnulled = $sopRecord->VOIDSTTS == "1";
+          $source = 'SOP30200';
 
           // Segunda opinión: si SOP30200 no lo marca como anulado, consultamos RM20101
           if (!$isAnnulled) {
@@ -2211,6 +2214,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
             if ($rmRecord) {
               $isAnnulled = $rmRecord->VOIDSTTS == "1";
+              $source = 'RM20101';
             }
           }
 
@@ -2219,13 +2223,20 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
             'is_annulled' => $isAnnulled,
           ]);
         } else {
+          $isAnnulled = false;
           $document->update([
             'is_accounted' => false,
             'is_annulled' => false,
           ]);
         }
 
-        $updated++;
+        $results[] = [
+          'document_id' => $document->id,
+          'full_number' => $document->full_number,
+          'is_accounted' => $document->is_accounted,
+          'is_annulled' => $isAnnulled,
+          'source' => $source,
+        ];
       } catch (Throwable $e) {
         $errors[] = [
           'document_id' => $document->id,
@@ -2243,7 +2254,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     return [
       'total' => $documents->count(),
-      'updated' => $updated,
+      'updated' => count($results),
+      'results' => $results,
       'errors' => $errors,
     ];
   }
