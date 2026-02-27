@@ -273,6 +273,15 @@ class ShippingGuidesController extends Controller
     }
   }
 
+  public function dispatchAll()
+  {
+    try {
+      return $this->success($this->service->dispatchAll());
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function checkResources($id)
   {
     try {

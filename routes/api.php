@@ -1043,6 +1043,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/{id}/logs', [VehiclePurchaseOrderMigrationController::class, 'logs']);
         Route::get('/{id}/history', [VehiclePurchaseOrderMigrationController::class, 'history']);
         Route::post('/{id}/dispatch', [VehiclePurchaseOrderMigrationController::class, 'dispatch']);
+        Route::post('/dispatch-all', [VehiclePurchaseOrderMigrationController::class, 'dispatchAll']);
       });
 
       // Vehicle Documents (Guías de Remisión/Traslado)
@@ -1053,6 +1054,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('shippingGuides/{id}/logs', [ShippingGuidesController::class, 'logs']);
       Route::get('shippingGuides/{id}/history', [ShippingGuidesController::class, 'history']);
       Route::post('shippingGuides/{id}/dispatch-migration', [ShippingGuidesController::class, 'dispatchMigration']);
+      Route::post('shippingGuides/dispatch-all', [ShippingGuidesController::class, 'dispatchAll']);
       Route::get('shippingGuides/{id}/check-resources', [ShippingGuidesController::class, 'checkResources']);
       Route::get('shippingGuides/next-document-number', [ShippingGuidesController::class, 'nextDocumentNumber']);
       Route::post('shippingGuides/consignment', [ShippingGuidesController::class, 'storeConsignment']);
@@ -1378,6 +1380,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Sincronización con Dynamics 365
       Route::post('electronic-documents/{id}/sync-dynamics', [ElectronicDocumentController::class, 'syncToDynamics']);
+      Route::post('electronic-documents/sync-accounting-status', [ElectronicDocumentController::class, 'syncAccountingStatus']);
 
       // Preview de asientos contables
       Route::get('accounting-entries/preview/{shippingGuideId}', [AccountingEntryController::class, 'preview']);
@@ -1389,6 +1392,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('electronic-documents/{id}/logs', [ElectronicDocumentController::class, 'logs']);
       Route::get('electronic-documents/{id}/history', [ElectronicDocumentController::class, 'history']);
       Route::post('electronic-documents/{id}/dispatch-migration', [ElectronicDocumentController::class, 'dispatchMigration']);
+      Route::post('electronic-documents/dispatch-all', [ElectronicDocumentController::class, 'dispatchAll']);
 
       // Report
       Route::get('electronic-documents-report', [ElectronicDocumentController::class, 'report']);

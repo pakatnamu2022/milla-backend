@@ -318,6 +318,18 @@ class ElectronicDocumentController extends Controller
   }
 
   /**
+   * Despacha jobs de migración para todos los documentos electrónicos no completados
+   */
+  public function dispatchAll(): JsonResponse
+  {
+    try {
+      return $this->success($this->service->dispatchAll());
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Despacha manualmente el job de sincronización (útil para reintentar fallidos)
    */
   public function dispatchMigration(int $id): JsonResponse
@@ -458,6 +470,19 @@ class ElectronicDocumentController extends Controller
         ],
         'timeline' => $timeline,
       ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Sync accounting status (is_accounted, is_annulled) from Dynamics for all
+   * documents that have been requested to Dynamics and whose migration is completed.
+   */
+  public function syncAccountingStatus(): JsonResponse
+  {
+    try {
+      return $this->success($this->service->syncAccountingStatusFromDynamics());
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

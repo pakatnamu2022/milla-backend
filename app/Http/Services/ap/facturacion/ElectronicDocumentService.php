@@ -15,6 +15,7 @@ use App\Jobs\SyncSalesDocumentJob;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -60,9 +61,81 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('El documento ya está sincronizado completamente');
     }
 
+    $document->update(['was_dyn_requested' => true]);
+
     SyncSalesDocumentJob::dispatch($document->id);
 
     return "Job de sincronización despachado para el documento {$document->full_number}";
+  }
+
+  /**
+   * Despacha jobs de migración para todos los documentos electrónicos no completados
+   * y retorna un resumen con el motivo de cada despacho.
+   */
+  public function dispatchAll(): array
+  {
+    $dispatched = [];
+
+    ElectronicDocument::whereNotIn('migration_status', [VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED])
+      ->get()
+      ->each(function (ElectronicDocument $doc) use (&$dispatched) {
+        $logs = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $doc->id)->get();
+        $reason = $this->buildDispatchAllReason($logs);
+
+        SyncSalesDocumentJob::dispatch($doc->id);
+
+        $dispatched[] = [
+          'id' => $doc->id,
+          'number' => $doc->full_number,
+          'migration_status' => $doc->migration_status,
+          'reason' => $reason,
+        ];
+      });
+
+    return [
+      'total_dispatched' => count($dispatched),
+      'dispatched' => $dispatched,
+    ];
+  }
+
+  private function buildDispatchAllReason($logs): array
+  {
+    if ($logs->isEmpty()) {
+      return [
+        'type' => 'no_logs',
+        'description' => 'Sin logs de migración — despacho inicial',
+        'steps' => [],
+      ];
+    }
+
+    $nonCompleted = $logs->filter(fn($log) => $log->status !== VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED);
+
+    if ($nonCompleted->isEmpty()) {
+      return [
+        'type' => 'retry',
+        'description' => 'Todos los pasos tienen logs — reintentando migración',
+        'steps' => [],
+      ];
+    }
+
+    $hasFailed = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_FAILED);
+    $hasPending = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_PENDING);
+
+    $steps = $nonCompleted->map(fn($log) => [
+      'step' => $log->step,
+      'status' => $log->status,
+      'attempts' => $log->attempts,
+      'error' => $log->error_message,
+      'last_attempt_at' => $log->last_attempt_at?->format('Y-m-d H:i:s'),
+    ])->values()->toArray();
+
+    return [
+      'type' => $hasFailed ? 'failed_steps' : ($hasPending ? 'pending_steps' : 'in_progress_steps'),
+      'description' => $hasFailed
+        ? 'Tiene pasos fallidos pendientes de reintento'
+        : ($hasPending ? 'Tiene pasos pendientes de ejecutar' : 'Tiene pasos en progreso'),
+      'steps' => $steps,
+    ];
   }
 
   /**
@@ -158,7 +231,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ->max('numero');
 
     $correlativeNumber = $maxCorrelative !== null
-      ? ((int) $maxCorrelative) + 1
+      ? ((int)$maxCorrelative) + 1
       : $assignSeries->correlative_start + 1;
 
     $number = $this->completeNumber($correlativeNumber);
@@ -767,12 +840,21 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   {
     $document = $this->find($id);
 
+    /**
+     * TODO: CONSIDERAR ESTA TABLA CUANDO SE HABILITE EL JOB
+     */
     $documentDynamics30200 = DB::connection('dbtest')
       ->table('SOP30200')
       ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
       ->first();
 
-    if (!$documentDynamics30200) {
+    $documentDynamicsRM20101 = DB::connection('dbtest')
+      ->table('RM20101')
+      ->where('DOCNUMBR', 'like', '%' . $document->full_number . '%')
+      ->whereNot('RMDTYPAL', '9') // Excluir documentos de tipo 9 (cobros)
+      ->first();
+
+    if (!$documentDynamicsRM20101) {
       $documentDynamics10100 = DB::connection('dbtest')
         ->table('SOP10100')
         ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
@@ -786,7 +868,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     return [
-      'annulled' => $documentDynamics30200->VOIDSTTS == "1",
+      'annulled' => $documentDynamicsRM20101->VOIDSTTS == "1",
     ];
   }
 
@@ -1610,6 +1692,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('No se puede sincronizar un documento anulado');
     }
 
+    $document->update(['was_dyn_requested' => true]);
+
     // Dispatch the sync job con deduplicación
     $this->dispatchJobWithDeduplication($id);
 
@@ -2084,5 +2168,71 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ]);
       // No lanzar excepción para evitar que falle la consulta de Nubefact
     }
+  }
+
+  /**
+   * Consulta Dynamics y actualiza is_accounted e is_annulled para todos los
+   * documentos que han sido solicitados a Dynamics y cuya migración está completada.
+   *
+   * @return array
+   */
+  public function syncAccountingStatusFromDynamics(): array
+  {
+    $documents = ElectronicDocument::where('was_dyn_requested', true)
+      ->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
+      ->get();
+
+    $updated = 0;
+    $errors = [];
+
+    foreach ($documents as $document) {
+      try {
+        /**
+         * TODO: CONSIDERAR CUANDO SE HABILITE EL JOB
+         */
+        $sopRecord = DB::connection('dbtest')
+          ->table('SOP30200')
+          ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
+          ->first();
+
+        $sopRecord = DB::connection('dbtest')
+          ->table('RM20101')
+          ->where('DOCNUMBR', 'like', '%' . $document->full_number . '%')
+          ->whereNot('RMDTYPAL', '9') // Excluir documentos de tipo 9 (cobros)
+          ->first();
+
+        if ($sopRecord) {
+          $document->update([
+            'is_accounted' => true,
+            'is_annulled' => $sopRecord->VOIDSTTS == "1",
+          ]);
+        } else {
+          $document->update([
+            'is_accounted' => false,
+            'is_annulled' => false,
+          ]);
+        }
+
+        $updated++;
+      } catch (\Throwable $e) {
+        $errors[] = [
+          'document_id' => $document->id,
+          'full_number' => $document->full_number,
+          'error' => $e->getMessage(),
+        ];
+
+        Log::error('Error al sincronizar estado contable desde Dynamics', [
+          'document_id' => $document->id,
+          'full_number' => $document->full_number,
+          'error' => $e->getMessage(),
+        ]);
+      }
+    }
+
+    return [
+      'total' => $documents->count(),
+      'updated' => $updated,
+      'errors' => $errors,
+    ];
   }
 }

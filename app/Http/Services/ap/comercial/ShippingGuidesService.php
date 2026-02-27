@@ -13,6 +13,7 @@ use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuideAccessory;
 use App\Models\ap\comercial\ShippingGuides;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\gestionsistema\DigitalFile;
 use App\Models\gp\maestroGeneral\SunatConcepts;
@@ -803,5 +804,75 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     VerifyAndMigrateShippingGuideJob::dispatch($guide->id);
 
     return "Job de migración despachado para la guía {$guide->document_number}";
+  }
+
+  /**
+   * Despacha jobs de migración para todas las guías de remisión no completadas
+   * y retorna un resumen con el motivo de cada despacho.
+   */
+  public function dispatchAll(): array
+  {
+    $dispatched = [];
+
+    ShippingGuides::whereNotIn('migration_status', [VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED])
+      ->get()
+      ->each(function (ShippingGuides $guide) use (&$dispatched) {
+        $logs   = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $guide->id)->get();
+        $reason = $this->buildDispatchAllReason($logs);
+
+        VerifyAndMigrateShippingGuideJob::dispatch($guide->id);
+
+        $dispatched[] = [
+          'id'               => $guide->id,
+          'number'           => $guide->document_number,
+          'migration_status' => $guide->migration_status,
+          'reason'           => $reason,
+        ];
+      });
+
+    return [
+      'total_dispatched' => count($dispatched),
+      'dispatched'       => $dispatched,
+    ];
+  }
+
+  private function buildDispatchAllReason($logs): array
+  {
+    if ($logs->isEmpty()) {
+      return [
+        'type'        => 'no_logs',
+        'description' => 'Sin logs de migración — despacho inicial',
+        'steps'       => [],
+      ];
+    }
+
+    $nonCompleted = $logs->filter(fn($log) => $log->status !== VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED);
+
+    if ($nonCompleted->isEmpty()) {
+      return [
+        'type'        => 'retry',
+        'description' => 'Todos los pasos tienen logs — reintentando migración',
+        'steps'       => [],
+      ];
+    }
+
+    $hasFailed  = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_FAILED);
+    $hasPending = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_PENDING);
+
+    $steps = $nonCompleted->map(fn($log) => [
+      'step'            => $log->step,
+      'status'          => $log->status,
+      'attempts'        => $log->attempts,
+      'error'           => $log->error_message,
+      'last_attempt_at' => $log->last_attempt_at?->format('Y-m-d H:i:s'),
+    ])->values()->toArray();
+
+    return [
+      'type'        => $hasFailed ? 'failed_steps' : ($hasPending ? 'pending_steps' : 'in_progress_steps'),
+      'description' => $hasFailed
+        ? 'Tiene pasos fallidos pendientes de reintento'
+        : ($hasPending ? 'Tiene pasos pendientes de ejecutar' : 'Tiene pasos en progreso'),
+      'steps' => $steps,
+    ];
   }
 }
