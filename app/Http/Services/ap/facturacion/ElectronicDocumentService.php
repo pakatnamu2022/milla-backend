@@ -91,9 +91,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
             ->where('EmpresaId', Company::AP_DYNAMICS)
             ->where('DocumentoId', $documentoId)
             ->update([
-              'Procesar' => 0,
+              'Procesar' => 1,
               'ProcesoEstado' => 0,
-              'ProcesoError' => null,
+              'ProcesoError' => '',
             ]);
 
           $resetActions[] = "Cabecera reseteada en GPIN: {$documentoId}";
