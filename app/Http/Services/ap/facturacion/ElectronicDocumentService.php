@@ -2288,11 +2288,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /*
-     * Consulta Dynamics y actualiza is_accounted e is_annulled para todos los
-     * documentos que han sido solicitados a Dynamics y cuya migración está completada.
-     *
-     * @return array
-     */
+   * Consulta Dynamics y actualiza is_accounted e is_annulled para todos los
+   * documentos que han sido solicitados a Dynamics y cuya migración está completada.
+   *
+   * @return array
+   */
   public function syncAccountingStatusFromDynamics(): array
   {
     $documents = ElectronicDocument::where('was_dyn_requested', false)
