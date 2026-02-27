@@ -145,7 +145,10 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $typeVoucherId = SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE;
       }
 
-      // 5. Crear la guía de remisión
+      // 5. Generar correlativo dinámico
+      $correlativeDyn = ShippingGuides::generateNextCorrelativeDyn();
+
+      // 6. Crear la guía de remisión
       $documentData = [
         'document_type' => $data['document_type'],
         'type_voucher_id' => $typeVoucherId,
@@ -153,6 +156,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'document_series_id' => $documentSeriesId,
         'series' => $series,
         'correlative' => $correlative,
+        'correlative_dyn' => $correlativeDyn,
         'document_number' => $documentNumber,
         'issue_date' => $data['issue_date'],
         'requires_sunat' => $data['requires_sunat'] ?? false,
@@ -269,6 +273,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $typeVoucherId = SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE;
       }
 
+      // Generar correlativo dinámico
+      $correlativeDyn = ShippingGuides::generateNextCorrelativeDyn();
+
       $documentData = [
         'document_type' => $data['document_type'],
         'type_voucher_id' => $typeVoucherId,
@@ -276,6 +283,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'document_series_id' => $documentSeriesId,
         'series' => $series,
         'correlative' => $correlative,
+        'correlative_dyn' => $correlativeDyn,
         'document_number' => $documentNumber,
         'issue_date' => $data['issue_date'],
         'requires_sunat' => $data['requires_sunat'] ?? false,

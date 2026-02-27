@@ -431,6 +431,9 @@ class InventoryMovementService extends BaseService
       $correlative = $nextCorrelative['correlative'];
       $documentNumber = $assignedSeries->series . '-' . $correlative;
 
+      // Generar correlativo dinámico
+      $correlativeDyn = ShippingGuides::generateNextCorrelativeDyn();
+
       // Create Shipping Guide (NOT sent to Nubefact yet)
       $shippingGuide = ShippingGuides::create([
         'document_type' => $transferData['document_type'],
@@ -439,6 +442,7 @@ class InventoryMovementService extends BaseService
         'document_series_id' => $transferData['document_series_id'],
         'series' => $assignedSeries->series,
         'correlative' => $correlative,
+        'correlative_dyn' => $correlativeDyn,
         'issue_date' => $transferData['movement_date'] ?? now(),
         'requires_sunat' => true,
         'is_sunat_registered' => false, // NOT sent yet
