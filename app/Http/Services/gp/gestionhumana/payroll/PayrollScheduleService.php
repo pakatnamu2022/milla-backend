@@ -90,7 +90,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         'period_id' => $data['period_id'],
         'work_date' => $data['work_date'],
         'notes' => $data['notes'] ?? null,
-        'status' => $data['status'] ?? PayrollSchedule::STATUS_SCHEDULED,
+        'status' => $data['status'] ?? PayrollSchedule::STATUS_WORKED,
       ]);
 
       DB::commit();
@@ -143,7 +143,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
             $existingSchedule->update([
               'code' => $scheduleData['code'],
               'notes' => $scheduleData['notes'] ?? null,
-              'status' => $scheduleData['status'] ?? PayrollSchedule::STATUS_SCHEDULED,
+              'status' => $scheduleData['status'] ?? PayrollSchedule::STATUS_WORKED,
             ]);
             $createdSchedules[] = $existingSchedule;
           } else {
@@ -154,7 +154,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
               'period_id' => $periodId,
               'work_date' => $scheduleData['work_date'],
               'notes' => $scheduleData['notes'] ?? null,
-              'status' => $scheduleData['status'] ?? PayrollSchedule::STATUS_SCHEDULED,
+              'status' => $scheduleData['status'] ?? PayrollSchedule::STATUS_WORKED,
             ]);
             $createdSchedules[] = $schedule;
           }
