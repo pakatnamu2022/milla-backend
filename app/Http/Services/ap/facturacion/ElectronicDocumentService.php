@@ -47,6 +47,150 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
+   * Despacha manualmente el job de sincronización para un documento (útil para reintentar fallidos).
+   *
+   * Antes de despachar:
+   * - Resetea a "pending" los logs que no estén completados.
+   * - Si la cabecera (sales_document) ya existe en GPIN y está fallida,
+   *   hace un UPDATE en la tabla intermedia para que GPIN la vuelva a procesar.
+   */
+  public function dispatchMigration(int $id): array
+  {
+    $document = ElectronicDocument::find($id);
+
+    if (!$document) {
+      throw new Exception('Documento electrónico no encontrado');
+    }
+
+    if ($document->migration_status === 'completed') {
+      throw new Exception('El documento ya está sincronizado completamente');
+    }
+
+    $documentoId = $document->full_number;
+    $resetActions = [];
+
+    // Revisar los logs y preparar el terreno antes de redespachar
+    $logs = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $id)->get();
+
+    foreach ($logs as $log) {
+      if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+        continue;
+      }
+
+      // Si la cabecera ya fue insertada en GPIN pero falló, resetearla para que GPIN la reprocese
+      if ($log->step === VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT) {
+        $existsInGpin = DB::connection('dbtp')
+          ->table('neInTbVenta')
+          ->where('EmpresaId', Company::AP_DYNAMICS)
+          ->where('DocumentoId', $documentoId)
+          ->exists();
+
+        if ($existsInGpin) {
+          DB::connection('dbtp')
+            ->table('neInTbVenta')
+            ->where('EmpresaId', Company::AP_DYNAMICS)
+            ->where('DocumentoId', $documentoId)
+            ->update([
+              'Procesar' => 0,
+              'ProcesoEstado' => 0,
+              'ProcesoError' => null,
+            ]);
+
+          $resetActions[] = "Cabecera reseteada en GPIN: {$documentoId}";
+        }
+      }
+
+      // Resetear el log a pending para que el job lo reintente limpiamente
+      $log->update([
+        'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+        'error_message' => null,
+        'proceso_estado' => 0,
+      ]);
+
+      $resetActions[] = "Log reseteado a pending: {$log->step}";
+    }
+
+    $document->update(['was_dyn_requested' => true]);
+
+    SyncSalesDocumentJob::dispatch($document->id);
+
+    return [
+      'message' => "Job de sincronización despachado para el documento {$documentoId}",
+      'resets' => $resetActions,
+    ];
+  }
+
+  /**
+   * Despacha jobs de migración para todos los documentos electrónicos no completados
+   * y retorna un resumen con el motivo de cada despacho.
+   */
+  public function dispatchAll(): array
+  {
+    $dispatched = [];
+
+    ElectronicDocument::whereNotIn('migration_status', [VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED])
+      ->get()
+      ->each(function (ElectronicDocument $doc) use (&$dispatched) {
+        $logs = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $doc->id)->get();
+        $reason = $this->buildDispatchAllReason($logs);
+
+        SyncSalesDocumentJob::dispatch($doc->id);
+
+        $dispatched[] = [
+          'id' => $doc->id,
+          'number' => $doc->full_number,
+          'migration_status' => $doc->migration_status,
+          'reason' => $reason,
+        ];
+      });
+
+    return [
+      'total_dispatched' => count($dispatched),
+      'dispatched' => $dispatched,
+    ];
+  }
+
+  private function buildDispatchAllReason($logs): array
+  {
+    if ($logs->isEmpty()) {
+      return [
+        'type' => 'no_logs',
+        'description' => 'Sin logs de migración — despacho inicial',
+        'steps' => [],
+      ];
+    }
+
+    $nonCompleted = $logs->filter(fn($log) => $log->status !== VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED);
+
+    if ($nonCompleted->isEmpty()) {
+      return [
+        'type' => 'retry',
+        'description' => 'Todos los pasos tienen logs — reintentando migración',
+        'steps' => [],
+      ];
+    }
+
+    $hasFailed = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_FAILED);
+    $hasPending = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_PENDING);
+
+    $steps = $nonCompleted->map(fn($log) => [
+      'step' => $log->step,
+      'status' => $log->status,
+      'attempts' => $log->attempts,
+      'error' => $log->error_message,
+      'last_attempt_at' => $log->last_attempt_at?->format('Y-m-d H:i:s'),
+    ])->values()->toArray();
+
+    return [
+      'type' => $hasFailed ? 'failed_steps' : ($hasPending ? 'pending_steps' : 'in_progress_steps'),
+      'description' => $hasFailed
+        ? 'Tiene pasos fallidos pendientes de reintento'
+        : ($hasPending ? 'Tiene pasos pendientes de ejecutar' : 'Tiene pasos en progreso'),
+      'steps' => $steps,
+    ];
+  }
+
+  /**
    * Despacha un job de sincronización con deduplicación para evitar jobs duplicados
    * Usa cache de base de datos como lock para prevenir dispatch de jobs múltiples
    * para el mismo documento electrónico
@@ -771,8 +915,23 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
     }
 
+    $isAnnulled = $documentDynamics30200->VOIDSTTS == "1";
+
+    // Segunda opinión: si SOP30200 no lo marca como anulado, consultamos RM20101
+    if (!$isAnnulled) {
+      $rmRecord = DB::connection('dbtest')
+        ->table('RM20101')
+        ->where('DOCNUMBR', 'like', '%' . $document->full_number . '%')
+        ->whereNot('RMDTYPAL', '9') // Excluir documentos de tipo 9 (cobros)
+        ->first();
+
+      if ($rmRecord) {
+        $isAnnulled = $rmRecord->VOIDSTTS == "1";
+      }
+    }
+
     return [
-      'annulled' => $documentDynamics30200->VOIDSTTS == "1",
+      'annulled' => $isAnnulled,
     ];
   }
 
@@ -1596,6 +1755,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('No se puede sincronizar un documento anulado');
     }
 
+    $document->update(['was_dyn_requested' => true]);
+
     // Dispatch the sync job con deduplicación
     $this->dispatchJobWithDeduplication($id);
 
@@ -2124,5 +2285,89 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Return items unchanged if error
       return $items;
     }
+  }
+
+
+   * Consulta Dynamics y actualiza is_accounted e is_annulled para todos los
+   * documentos que han sido solicitados a Dynamics y cuya migración está completada.
+   *
+   * @return array
+   */
+  public function syncAccountingStatusFromDynamics(): array
+  {
+    $documents = ElectronicDocument::where('was_dyn_requested', false)
+      ->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
+      ->get();
+
+    $results = [];
+    $errors = [];
+
+    foreach ($documents as $document) {
+      try {
+        $sopRecord = DB::connection('dbtest')
+          ->table('SOP30200')
+          ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
+          ->first();
+
+        $source = null;
+
+        if ($sopRecord) {
+          $isAnnulled = $sopRecord->VOIDSTTS == "1";
+          $source = 'SOP30200';
+
+          // Segunda opinión: si SOP30200 no lo marca como anulado, consultamos RM20101
+          if (!$isAnnulled) {
+            $rmRecord = DB::connection('dbtest')
+              ->table('RM20101')
+              ->where('DOCNUMBR', 'like', '%' . $document->full_number . '%')
+              ->whereNot('RMDTYPAL', '9') // Excluir documentos de tipo 9 (cobros)
+              ->first();
+
+            if ($rmRecord) {
+              $isAnnulled = $rmRecord->VOIDSTTS == "1";
+              $source = 'RM20101';
+            }
+          }
+
+          $document->update([
+            'is_accounted' => true,
+            'is_annulled' => $isAnnulled,
+          ]);
+        } else {
+          $isAnnulled = false;
+          $document->update([
+            'is_accounted' => false,
+            'is_annulled' => false,
+          ]);
+        }
+
+        $results[] = [
+          'document_id' => $document->id,
+          'full_number' => $document->full_number,
+          'is_accounted' => $document->is_accounted,
+          'is_annulled' => $isAnnulled,
+          'source' => $source,
+        ];
+      } catch (Throwable $e) {
+        $errors[] = [
+          'document_id' => $document->id,
+          'full_number' => $document->full_number,
+          'error' => $e->getMessage(),
+        ];
+
+        Log::error('Error al sincronizar estado contable desde Dynamics', [
+          'document_id' => $document->id,
+          'full_number' => $document->full_number,
+          'error' => $e->getMessage(),
+        ]);
+      }
+    }
+
+    return [
+      'total' => $documents->count(),
+      'updated' => count($results),
+      'results' => $results,
+      'errors' => $errors,
+    ];
   }
 }

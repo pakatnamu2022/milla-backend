@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Console\Commands\Concerns\ValidatesPendingJobs;
 use App\Http\Services\DatabaseSyncService;
 use App\Jobs\VerifyAndMigratePurchaseOrderJob;
 use App\Models\ap\compras\PurchaseOrder;
@@ -10,7 +9,6 @@ use Illuminate\Console\Command;
 
 class VerifyPurchaseOrderMigrationCommand extends Command
 {
-  use ValidatesPendingJobs;
 
   /**
    * The name and signature of the console command.
@@ -69,17 +67,11 @@ class VerifyPurchaseOrderMigrationCommand extends Command
     }
 
     if ($all) {
-      // Validar límite de jobs pendientes antes de despachar (solo si usa cola)
-      if (!$useSync && !$this->canDispatchMoreJobs(VerifyAndMigratePurchaseOrderJob::class)) {
-        return 0;
-      }
-
       // Verificar todas las órdenes pendientes (limitado por --limit)
       $limit = (int)$this->option('limit');
       $pendingOrders = PurchaseOrder::whereIn('migration_status', [
         'pending',
         'in_progress',
-        'failed'
       ])
         ->orderBy('id', 'desc')
         ->limit($limit)
