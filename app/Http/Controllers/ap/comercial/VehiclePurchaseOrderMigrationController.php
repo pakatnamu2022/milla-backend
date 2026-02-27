@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
+use App\Jobs\VerifyAndMigratePurchaseOrderJob;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use Illuminate\Http\JsonResponse;
@@ -189,6 +190,108 @@ class VehiclePurchaseOrderMigrationController extends Controller
         'timeline' => $timeline,
       ],
     ]);
+  }
+
+  /**
+   * Despacha manualmente el job de migración para una OC (útil para reintentar fallidas)
+   */
+  public function dispatch(int $id): JsonResponse
+  {
+    try {
+      $purchaseOrder = PurchaseOrder::find($id);
+
+      if (!$purchaseOrder) {
+        return $this->error('Orden de compra no encontrada');
+      }
+
+      if ($purchaseOrder->migration_status === 'completed') {
+        return $this->errorValidation('La orden ya está migrada completamente');
+      }
+
+      VerifyAndMigratePurchaseOrderJob::dispatch($purchaseOrder->id);
+
+      return $this->success("Job de migración despachado para la orden {$purchaseOrder->number}");
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Despacha jobs de migración para todas las órdenes de compra no completadas
+   * y devuelve un resumen detallado del motivo de cada despacho.
+   */
+  public function dispatchAll(): JsonResponse
+  {
+    try {
+      $dispatched = [];
+
+      PurchaseOrder::whereNotIn('migration_status', [VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED])
+        ->get()
+        ->each(function (PurchaseOrder $po) use (&$dispatched) {
+          $logs   = VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $po->id)->get();
+          $reason = $this->buildDispatchReason($logs);
+
+          VerifyAndMigratePurchaseOrderJob::dispatch($po->id);
+
+          $dispatched[] = [
+            'id'               => $po->id,
+            'number'           => $po->number,
+            'migration_status' => $po->migration_status,
+            'reason'           => $reason,
+          ];
+        });
+
+      return $this->success([
+        'total_dispatched' => count($dispatched),
+        'dispatched'       => $dispatched,
+      ]);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Construye el resumen del motivo por el que una entidad va a ser despachada,
+   * inspeccionando sus logs de migración.
+   */
+  private function buildDispatchReason($logs): array
+  {
+    if ($logs->isEmpty()) {
+      return [
+        'type'        => 'no_logs',
+        'description' => 'Sin logs de migración — despacho inicial',
+        'steps'       => [],
+      ];
+    }
+
+    $nonCompleted = $logs->filter(fn($log) => $log->status !== VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED);
+
+    if ($nonCompleted->isEmpty()) {
+      return [
+        'type'        => 'retry',
+        'description' => 'Todos los pasos tienen logs — reintentando migración',
+        'steps'       => [],
+      ];
+    }
+
+    $hasFailed  = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_FAILED);
+    $hasPending = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_PENDING);
+
+    $steps = $nonCompleted->map(fn($log) => [
+      'step'            => $log->step,
+      'status'          => $log->status,
+      'attempts'        => $log->attempts,
+      'error'           => $log->error_message,
+      'last_attempt_at' => $log->last_attempt_at?->format('Y-m-d H:i:s'),
+    ])->values()->toArray();
+
+    return [
+      'type'        => $hasFailed ? 'failed_steps' : ($hasPending ? 'pending_steps' : 'in_progress_steps'),
+      'description' => $hasFailed
+        ? 'Tiene pasos fallidos pendientes de reintento'
+        : ($hasPending ? 'Tiene pasos pendientes de ejecutar' : 'Tiene pasos en progreso'),
+      'steps' => $steps,
+    ];
   }
 
   /**
