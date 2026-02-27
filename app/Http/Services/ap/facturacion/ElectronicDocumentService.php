@@ -47,9 +47,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
-   * Despacha manualmente el job de sincronización para un documento (útil para reintentar fallidos)
+   * Despacha manualmente el job de sincronización para un documento (útil para reintentar fallidos).
+   *
+   * Antes de despachar:
+   * - Resetea a "pending" los logs que no estén completados.
+   * - Si la cabecera (sales_document) ya existe en GPIN y está fallida,
+   *   hace un UPDATE en la tabla intermedia para que GPIN la vuelva a procesar.
    */
-  public function dispatchMigration(int $id): string
+  public function dispatchMigration(int $id): array
   {
     $document = ElectronicDocument::find($id);
 
@@ -61,11 +66,58 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('El documento ya está sincronizado completamente');
     }
 
+    $documentoId = $document->full_number;
+    $resetActions = [];
+
+    // Revisar los logs y preparar el terreno antes de redespachar
+    $logs = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $id)->get();
+
+    foreach ($logs as $log) {
+      if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+        continue;
+      }
+
+      // Si la cabecera ya fue insertada en GPIN pero falló, resetearla para que GPIN la reprocese
+      if ($log->step === VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT) {
+        $existsInGpin = DB::connection('dbtp')
+          ->table('neInTbVenta')
+          ->where('EmpresaId', Company::AP_DYNAMICS)
+          ->where('DocumentoId', $documentoId)
+          ->exists();
+
+        if ($existsInGpin) {
+          DB::connection('dbtp')
+            ->table('neInTbVenta')
+            ->where('EmpresaId', Company::AP_DYNAMICS)
+            ->where('DocumentoId', $documentoId)
+            ->update([
+              'Procesar' => 0,
+              'ProcesoEstado' => 0,
+              'ProcesoError' => null,
+            ]);
+
+          $resetActions[] = "Cabecera reseteada en GPIN: {$documentoId}";
+        }
+      }
+
+      // Resetear el log a pending para que el job lo reintente limpiamente
+      $log->update([
+        'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+        'error_message' => null,
+        'proceso_estado' => 0,
+      ]);
+
+      $resetActions[] = "Log reseteado a pending: {$log->step}";
+    }
+
     $document->update(['was_dyn_requested' => true]);
 
     SyncSalesDocumentJob::dispatch($document->id);
 
-    return "Job de sincronización despachado para el documento {$document->full_number}";
+    return [
+      'message' => "Job de sincronización despachado para el documento {$documentoId}",
+      'resets' => $resetActions,
+    ];
   }
 
   /**
