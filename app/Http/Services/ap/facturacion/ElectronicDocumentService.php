@@ -840,21 +840,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   {
     $document = $this->find($id);
 
-    /**
-     * TODO: CONSIDERAR ESTA TABLA CUANDO SE HABILITE EL JOB
-     */
     $documentDynamics30200 = DB::connection('dbtest')
       ->table('SOP30200')
       ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
       ->first();
 
-    $documentDynamicsRM20101 = DB::connection('dbtest')
-      ->table('RM20101')
-      ->where('DOCNUMBR', 'like', '%' . $document->full_number . '%')
-      ->whereNot('RMDTYPAL', '9') // Excluir documentos de tipo 9 (cobros)
-      ->first();
-
-    if (!$documentDynamicsRM20101) {
+    if (!$documentDynamics30200) {
       $documentDynamics10100 = DB::connection('dbtest')
         ->table('SOP10100')
         ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
@@ -867,8 +858,23 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
     }
 
+    $isAnnulled = $documentDynamics30200->VOIDSTTS == "1";
+
+    // Segunda opinión: si SOP30200 no lo marca como anulado, consultamos RM20101
+    if (!$isAnnulled) {
+      $rmRecord = DB::connection('dbtest')
+        ->table('RM20101')
+        ->where('DOCNUMBR', 'like', '%' . $document->full_number . '%')
+        ->whereNot('RMDTYPAL', '9') // Excluir documentos de tipo 9 (cobros)
+        ->first();
+
+      if ($rmRecord) {
+        $isAnnulled = true;
+      }
+    }
+
     return [
-      'annulled' => $documentDynamicsRM20101->VOIDSTTS == "1",
+      'annulled' => $isAnnulled,
     ];
   }
 
@@ -2187,24 +2193,30 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     foreach ($documents as $document) {
       try {
-        /**
-         * TODO: CONSIDERAR CUANDO SE HABILITE EL JOB
-         */
         $sopRecord = DB::connection('dbtest')
           ->table('SOP30200')
           ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
           ->first();
 
-        $sopRecord = DB::connection('dbtest')
-          ->table('RM20101')
-          ->where('DOCNUMBR', 'like', '%' . $document->full_number . '%')
-          ->whereNot('RMDTYPAL', '9') // Excluir documentos de tipo 9 (cobros)
-          ->first();
-
         if ($sopRecord) {
+          $isAnnulled = $sopRecord->VOIDSTTS == "1";
+
+          // Segunda opinión: si SOP30200 no lo marca como anulado, consultamos RM20101
+          if (!$isAnnulled) {
+            $rmRecord = DB::connection('dbtest')
+              ->table('RM20101')
+              ->where('DOCNUMBR', 'like', '%' . $document->full_number . '%')
+              ->whereNot('RMDTYPAL', '9') // Excluir documentos de tipo 9 (cobros)
+              ->first();
+
+            if ($rmRecord) {
+              $isAnnulled = true;
+            }
+          }
+
           $document->update([
             'is_accounted' => true,
-            'is_annulled' => $sopRecord->VOIDSTTS == "1",
+            'is_annulled' => $isAnnulled,
           ]);
         } else {
           $document->update([
@@ -2214,7 +2226,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
 
         $updated++;
-      } catch (\Throwable $e) {
+      } catch (Throwable $e) {
         $errors[] = [
           'document_id' => $document->id,
           'full_number' => $document->full_number,
