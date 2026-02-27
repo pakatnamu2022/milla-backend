@@ -108,4 +108,38 @@ class PayrollScheduleController extends Controller
       return $this->error($e->getMessage());
     }
   }
+
+  /**
+   * Generate payroll calculations for a period
+   * Creates PayrollCalculation records from attendance schedules
+   */
+  public function generateCalculations(int $periodId)
+  {
+    try {
+      $result = $this->service->generatePayrollCalculations($periodId);
+      return $this->success([
+        'data' => $result,
+        'message' => "Successfully generated {$result['calculations_created']} payroll calculations"
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Recalculate payroll calculations for a period
+   * Deletes and regenerates calculations based on current schedules
+   */
+  public function recalculateCalculations(int $periodId)
+  {
+    try {
+      $result = $this->service->recalculatePayrollCalculations($periodId);
+      return $this->success([
+        'data' => $result,
+        'message' => "Successfully recalculated {$result['calculations_created']} payroll calculations"
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }

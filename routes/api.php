@@ -1571,6 +1571,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     // Schedules
     Route::post('schedules/bulk', [PayrollScheduleController::class, 'storeBulk']);
     Route::get('schedules/summary/{periodId}', [PayrollScheduleController::class, 'summary']);
+    Route::post('schedules/generate-calculations/{periodId}', [PayrollScheduleController::class, 'generateCalculations']);
+    Route::post('schedules/recalculate-calculations/{periodId}', [PayrollScheduleController::class, 'recalculateCalculations']);
     Route::apiResource('schedules', PayrollScheduleController::class);
 
     // Calculations
