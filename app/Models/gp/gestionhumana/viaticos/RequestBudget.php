@@ -91,8 +91,8 @@ class RequestBudget extends BaseModel
       }
 
       // Include if expense type's parent matches this budget's type
-      if ($expense->expenseType &&
-          $expense->expenseType->parent_id === $this->expense_type_id) {
+      if ($expense->expenseType && $expense->expenseType->id !== ExpenseType::BREAKFAST_ID &&
+        $expense->expenseType->parent_id === $this->expense_type_id) {
         return true;
       }
 
@@ -100,6 +100,6 @@ class RequestBudget extends BaseModel
     });
 
     // Sum company_amount
-    return (float) $relevantExpenses->sum('company_amount');
+    return (float)$relevantExpenses->sum('company_amount');
   }
 }

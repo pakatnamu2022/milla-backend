@@ -10,7 +10,7 @@ class UpdatePerDiemRateRequest extends StoreRequest
   {
     return [
       'per_diem_policy_id' => ['sometimes', 'required', 'integer', 'exists:gh_per_diem_policy,id'],
-      'district_id' => ['sometimes', 'required', 'integer', 'exists:gs_district,id'],
+      'district_id' => ['sometimes', 'required', 'integer', 'exists:district,id'],
       'per_diem_category_id' => ['sometimes', 'required', 'integer', 'exists:gh_per_diem_category,id'],
       'expense_type_id' => ['sometimes', 'required', 'integer', 'exists:gh_expense_type,id'],
       'daily_amount' => ['sometimes', 'required', 'numeric', 'min:0'],

@@ -109,7 +109,7 @@ class PerDiemRate extends BaseModel
         $query->where('is_current', true);
       })
       ->whereHas('expenseType', function ($query) {
-        $query->whereNull('parent_id');
+//        $query->whereNull('parent_id');
       })
       ->where('district_id', $districtId)
       ->where('per_diem_category_id', $categoryId)
