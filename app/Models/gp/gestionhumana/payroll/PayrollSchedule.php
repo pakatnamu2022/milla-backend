@@ -18,6 +18,8 @@ class PayrollSchedule extends BaseModel
     'code',
     'period_id',
     'work_date',
+    'hours_worked',
+    'extra_hours',
     'notes',
     'status',
   ];

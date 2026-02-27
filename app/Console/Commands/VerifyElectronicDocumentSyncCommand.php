@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Console\Commands\Concerns\ValidatesPendingJobs;
 use App\Http\Services\DatabaseSyncService;
 use App\Jobs\SyncSalesDocumentJob;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
@@ -11,8 +10,6 @@ use Illuminate\Console\Command;
 
 class VerifyElectronicDocumentSyncCommand extends Command
 {
-  use ValidatesPendingJobs;
-
   /**
    * The name and signature of the console command.
    *
@@ -75,11 +72,6 @@ class VerifyElectronicDocumentSyncCommand extends Command
    */
   private function processAllPendingDocuments(bool $useSync): int
   {
-    // Validar límite de jobs pendientes antes de despachar (solo si usa cola)
-    if (!$useSync && !$this->canDispatchMoreJobs(SyncSalesDocumentJob::class)) {
-      return 0;
-    }
-
     $pendingDocuments = $this->getPendingDocuments();
 
     if ($pendingDocuments->isEmpty()) {
@@ -107,6 +99,9 @@ class VerifyElectronicDocumentSyncCommand extends Command
       : "Jobs despachados a la cola.";
 
     $this->info($message);
+    foreach ($pendingDocuments as $document) {
+      $this->line(" - {$document->full_number}");
+    }
 
     return 0;
   }
@@ -118,16 +113,13 @@ class VerifyElectronicDocumentSyncCommand extends Command
   {
     $limit = (int)$this->option('limit');
 
-    $pendingDocumentIds = VehiclePurchaseOrderMigrationLog::whereNotNull('electronic_document_id')
-      ->whereIn('status', [
-        VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
-        VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
-        VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
-      ])
-      ->distinct()
-      ->pluck('electronic_document_id');
-
-    return ElectronicDocument::whereIn('id', $pendingDocumentIds)
+    return ElectronicDocument::where(function ($q) {
+      $q->whereNull('migration_status')
+        ->orWhereIn('migration_status', [
+          VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+          VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
+        ]);
+    })
       ->where('status', ElectronicDocument::STATUS_ACCEPTED)
       ->where('anulado', false)
       ->where('aceptada_por_sunat', true)

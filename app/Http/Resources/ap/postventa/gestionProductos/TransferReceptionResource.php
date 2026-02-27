@@ -33,7 +33,6 @@ class TransferReceptionResource extends JsonResource
       'updated_at' => $this->updated_at,
 
       // Relationships
-      'transfer_movement' => new InventoryMovementResource($this->transferMovement),
       'shipping_guide' => $this->shippingGuide,
       'warehouse' => $this->warehouse,
       'received_name' => $this->receivedByUser ? $this->receivedByUser->name : null,

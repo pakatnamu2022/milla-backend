@@ -16,6 +16,13 @@ class PayrollCalculationResource extends JsonResource
   {
     return [
       'id' => $this->id,
+
+      // Base worker info
+      'salary' => (float) $this->salary,
+      'shift_hours' => (float) $this->shift_hours,
+      'base_hour_value' => (float) $this->base_hour_value,
+
+      // Legacy hours (mantener por compatibilidad)
       'total_normal_hours' => (float) $this->total_normal_hours,
       'total_extra_hours_25' => (float) $this->total_extra_hours_25,
       'total_extra_hours_35' => (float) $this->total_extra_hours_35,
@@ -23,16 +30,24 @@ class PayrollCalculationResource extends JsonResource
       'total_holiday_hours' => (float) $this->total_holiday_hours,
       'days_worked' => (int) $this->days_worked,
       'days_absent' => (int) $this->days_absent,
+
+      // Totals
       'gross_salary' => (float) $this->gross_salary,
       'total_earnings' => (float) $this->total_earnings,
       'total_deductions' => (float) $this->total_deductions,
+      'total_contributions' => (float) $this->total_contributions,
       'net_salary' => (float) $this->net_salary,
       'employer_cost' => (float) $this->employer_cost,
+
+      // Status and permissions
       'status' => $this->status,
       'can_modify' => $this->canModify(),
       'can_approve' => $this->canApprove(),
+
+      // Timestamps
       'calculated_at' => $this->calculated_at,
       'approved_at' => $this->approved_at,
+      'paid_at' => $this->paid_at,
 
       // Relations
       'worker' => $this->worker ? [

@@ -407,12 +407,66 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       $documentId = $this->route('id');
       $document = ElectronicDocument::find($documentId);
 
+      if (!$document) {
+        return;
+      }
+
       // Validar que el documento no haya sido aceptado por SUNAT
-      if ($document && $document->status === ElectronicDocument::STATUS_ACCEPTED && $document->aceptada_por_sunat) {
+      if ($document->status === ElectronicDocument::STATUS_ACCEPTED && $document->aceptada_por_sunat) {
         $validator->errors()->add(
           'status',
           'No se puede editar un documento que ya fue aceptado por SUNAT'
         );
+      }
+
+      // ============================================================================
+      // VALIDACIONES ADICIONALES PARA order_quotation_id
+      // ============================================================================
+
+      // Validar que no se intente cambiar order_quotation_id si ya está asociado
+      if ($this->has('order_quotation_id') && $document->order_quotation_id) {
+        $newQuotationId = $this->input('order_quotation_id');
+
+        // Si se intenta cambiar a otro ID diferente
+        if ($newQuotationId && $newQuotationId != $document->order_quotation_id) {
+          $validator->errors()->add(
+            'order_quotation_id',
+            'No se puede cambiar la cotización de un documento que ya está asociado a una. Debe eliminar el documento y crear uno nuevo.'
+          );
+        }
+
+        // Si se intenta quitar (pasar null)
+        if ($newQuotationId === null) {
+          $validator->errors()->add(
+            'order_quotation_id',
+            'No se puede quitar la cotización de un documento que ya está asociado a una. Debe eliminar el documento y crear uno nuevo.'
+          );
+        }
+      }
+
+      // ============================================================================
+      // VALIDACIONES ADICIONALES PARA work_order_id
+      // ============================================================================
+
+      // Validar que no se intente cambiar work_order_id si ya está asociado
+      if ($this->has('work_order_id') && $document->work_order_id) {
+        $newWorkOrderId = $this->input('work_order_id');
+
+        // Si se intenta cambiar a otro ID diferente
+        if ($newWorkOrderId && $newWorkOrderId != $document->work_order_id) {
+          $validator->errors()->add(
+            'work_order_id',
+            'No se puede cambiar la orden de trabajo de un documento que ya está asociado a una. Debe eliminar el documento y crear uno nuevo.'
+          );
+        }
+
+        // Si se intenta quitar (pasar null)
+        if ($newWorkOrderId === null) {
+          $validator->errors()->add(
+            'work_order_id',
+            'No se puede quitar la orden de trabajo de un documento que ya está asociado a una. Debe eliminar el documento y crear uno nuevo.'
+          );
+        }
       }
 
       // Validar que la serie corresponda al tipo de documento (solo si ambos están presentes)

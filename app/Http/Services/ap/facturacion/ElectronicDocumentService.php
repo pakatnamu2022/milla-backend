@@ -47,6 +47,150 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
+   * Despacha manualmente el job de sincronización para un documento (útil para reintentar fallidos).
+   *
+   * Antes de despachar:
+   * - Resetea a "pending" los logs que no estén completados.
+   * - Si la cabecera (sales_document) ya existe en GPIN y está fallida,
+   *   hace un UPDATE en la tabla intermedia para que GPIN la vuelva a procesar.
+   */
+  public function dispatchMigration(int $id): array
+  {
+    $document = ElectronicDocument::find($id);
+
+    if (!$document) {
+      throw new Exception('Documento electrónico no encontrado');
+    }
+
+    if ($document->migration_status === 'completed') {
+      throw new Exception('El documento ya está sincronizado completamente');
+    }
+
+    $documentoId = $document->full_number;
+    $resetActions = [];
+
+    // Revisar los logs y preparar el terreno antes de redespachar
+    $logs = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $id)->get();
+
+    foreach ($logs as $log) {
+      if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+        continue;
+      }
+
+      // Si la cabecera ya fue insertada en GPIN pero falló, resetearla para que GPIN la reprocese
+      if ($log->step === VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT) {
+        $existsInGpin = DB::connection('dbtp')
+          ->table('neInTbVenta')
+          ->where('EmpresaId', Company::AP_DYNAMICS)
+          ->where('DocumentoId', $documentoId)
+          ->exists();
+
+        if ($existsInGpin) {
+          DB::connection('dbtp')
+            ->table('neInTbVenta')
+            ->where('EmpresaId', Company::AP_DYNAMICS)
+            ->where('DocumentoId', $documentoId)
+            ->update([
+              'Procesar' => 0,
+              'ProcesoEstado' => 0,
+              'ProcesoError' => null,
+            ]);
+
+          $resetActions[] = "Cabecera reseteada en GPIN: {$documentoId}";
+        }
+      }
+
+      // Resetear el log a pending para que el job lo reintente limpiamente
+      $log->update([
+        'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+        'error_message' => null,
+        'proceso_estado' => 0,
+      ]);
+
+      $resetActions[] = "Log reseteado a pending: {$log->step}";
+    }
+
+    $document->update(['was_dyn_requested' => true]);
+
+    SyncSalesDocumentJob::dispatch($document->id);
+
+    return [
+      'message' => "Job de sincronización despachado para el documento {$documentoId}",
+      'resets' => $resetActions,
+    ];
+  }
+
+  /**
+   * Despacha jobs de migración para todos los documentos electrónicos no completados
+   * y retorna un resumen con el motivo de cada despacho.
+   */
+  public function dispatchAll(): array
+  {
+    $dispatched = [];
+
+    ElectronicDocument::whereNotIn('migration_status', [VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED])
+      ->get()
+      ->each(function (ElectronicDocument $doc) use (&$dispatched) {
+        $logs = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $doc->id)->get();
+        $reason = $this->buildDispatchAllReason($logs);
+
+        SyncSalesDocumentJob::dispatch($doc->id);
+
+        $dispatched[] = [
+          'id' => $doc->id,
+          'number' => $doc->full_number,
+          'migration_status' => $doc->migration_status,
+          'reason' => $reason,
+        ];
+      });
+
+    return [
+      'total_dispatched' => count($dispatched),
+      'dispatched' => $dispatched,
+    ];
+  }
+
+  private function buildDispatchAllReason($logs): array
+  {
+    if ($logs->isEmpty()) {
+      return [
+        'type' => 'no_logs',
+        'description' => 'Sin logs de migración — despacho inicial',
+        'steps' => [],
+      ];
+    }
+
+    $nonCompleted = $logs->filter(fn($log) => $log->status !== VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED);
+
+    if ($nonCompleted->isEmpty()) {
+      return [
+        'type' => 'retry',
+        'description' => 'Todos los pasos tienen logs — reintentando migración',
+        'steps' => [],
+      ];
+    }
+
+    $hasFailed = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_FAILED);
+    $hasPending = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_PENDING);
+
+    $steps = $nonCompleted->map(fn($log) => [
+      'step' => $log->step,
+      'status' => $log->status,
+      'attempts' => $log->attempts,
+      'error' => $log->error_message,
+      'last_attempt_at' => $log->last_attempt_at?->format('Y-m-d H:i:s'),
+    ])->values()->toArray();
+
+    return [
+      'type' => $hasFailed ? 'failed_steps' : ($hasPending ? 'pending_steps' : 'in_progress_steps'),
+      'description' => $hasFailed
+        ? 'Tiene pasos fallidos pendientes de reintento'
+        : ($hasPending ? 'Tiene pasos pendientes de ejecutar' : 'Tiene pasos en progreso'),
+      'steps' => $steps,
+    ];
+  }
+
+  /**
    * Despacha un job de sincronización con deduplicación para evitar jobs duplicados
    * Usa cache de base de datos como lock para prevenir dispatch de jobs múltiples
    * para el mismo documento electrónico
@@ -189,6 +333,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Validar orden de trabajo si viene work_order_id
       if (isset($data['work_order_id']) && $data['work_order_id']) {
         $this->validateWorkOrderInvoice($data);
+
+        // Setear códigos de productos para items de work order
+        if (isset($data['items']) && is_array($data['items'])) {
+          $data['items'] = $this->setWorkOrderItemCodes($data['work_order_id'], $data['items']);
+        }
       }
 
       /**
@@ -353,53 +502,59 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
       }
 
-      // Validar que si la cotización está cambiando y ya tiene factura, no se puede cambiar
-      if (isset($data['order_quotation_id']) && $data['order_quotation_id'] && $document->order_quotation_id && $data['order_quotation_id'] != $document->order_quotation_id) {
-        throw new Exception('No se puede cambiar la cotización de un documento que ya está asociado a una cotización');
+      // ============================================================================
+      // VALIDACIONES PARA order_quotation_id
+      // ============================================================================
+
+      // Determinar el order_quotation_id efectivo (el del documento o el nuevo)
+      $effectiveQuotationId = isset($data['order_quotation_id']) ? $data['order_quotation_id'] : $document->order_quotation_id;
+
+      // Validar que no se pueda CAMBIAR la cotización si ya está asociada a una
+      if (isset($data['order_quotation_id']) && $document->order_quotation_id && $data['order_quotation_id'] != $document->order_quotation_id) {
+        throw new Exception('No se puede cambiar la cotización de un documento que ya está asociado a una cotización. Debe eliminar el documento y crear uno nuevo.');
       }
 
-      // Validar cotización si se está agregando o si ya existe
-      if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
-        $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+      // Validar que no se pueda QUITAR la cotización si ya está asociada
+      if (isset($data['order_quotation_id']) && $data['order_quotation_id'] === null && $document->order_quotation_id) {
+        throw new Exception('No se puede quitar la cotización de un documento que ya está asociado a una. Debe eliminar el documento y crear uno nuevo.');
+      }
+
+      // Validar la cotización si existe (ya sea del documento o nueva)
+      if ($effectiveQuotationId) {
+        $quotation = ApOrderQuotations::find($effectiveQuotationId);
+
+        if (!$quotation) {
+          throw new Exception('La cotización especificada no existe.');
+        }
+
+        // Validar que la cotización no esté descartada
         if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
           throw new Exception('No se puede asociar un documento electrónico a una cotización descartada.');
         }
 
-        // Validar stock de productos si no es un anticipo
+        // Determinar si es anticipo (considerar cambios en is_advance_payment)
         $isAdvancePayment = isset($data['is_advance_payment']) ? $data['is_advance_payment'] : $document->is_advance_payment;
+
+        // Validar stock de productos si no es un anticipo
         $this->validateQuotationStock($quotation, $isAdvancePayment);
-      }
 
-      // Validar orden de trabajo si viene work_order_id
-      if (isset($data['work_order_id']) && $data['work_order_id']) {
-        // Si el documento ya tenía una work_order_id diferente, no permitir cambio
-        if ($document->work_order_id && $data['work_order_id'] != $document->work_order_id) {
-          throw new Exception('No se puede cambiar la orden de trabajo de un documento que ya está asociado a una orden');
-        }
-        $this->validateWorkOrderInvoice(array_merge($document->toArray(), $data));
-      }
+        // Validar anticipos si es anticipo o si está cambiando el monto
+        if ($isAdvancePayment == 1) {
+          $total = isset($data['total']) ? (float)$data['total'] : (float)$document->total;
 
-      // Validar anticipo si está siendo actualizado
-      if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
-        $total = isset($data['total']) ? (float)$data['total'] : (float)$document->total;
-        if ($total <= 0) {
-          throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
-        }
-
-        // Validar que la suma de anticipos no exceda el monto de la cotización
-        if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
-          $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+          if ($total <= 0) {
+            throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
+          }
 
           // Sumar todos los anticipos aceptados por SUNAT para esta cotización (excluyendo el actual)
-          $totalAnticiposExistentes = ElectronicDocument::where('order_quotation_id', $data['order_quotation_id'])
-            ->where('id', '!=', $id) // Excluir el documento actual
+          $totalAnticiposExistentes = ElectronicDocument::where('order_quotation_id', $effectiveQuotationId)
+            ->where('id', '!=', $id)
             ->where('is_advance_payment', 1)
             ->where('aceptada_por_sunat', true)
             ->where('anulado', false)
             ->whereNull('deleted_at')
             ->sum('total');
 
-          // Sumar el anticipo actualizado
           $totalAnticiposConNuevo = $totalAnticiposExistentes + $total;
 
           // Validar que no exceda el total de la cotización
@@ -414,9 +569,48 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
       }
 
-      // Validar que para venta interna (is_advance_payment = 0) la suma de anticipos + monto factura = total entidad
-      if (isset($data['is_advance_payment']) || isset($data['total']) || isset($data['order_quotation_id']) || isset($data['work_order_id'])) {
-        $this->validateInternalSaleTotal(array_merge($document->toArray(), $data));
+      // ============================================================================
+      // VALIDACIONES PARA work_order_id
+      // ============================================================================
+
+      // Determinar el work_order_id efectivo (el del documento o el nuevo)
+      $effectiveWorkOrderId = isset($data['work_order_id']) ? $data['work_order_id'] : $document->work_order_id;
+
+      // Validar que no se pueda CAMBIAR la orden de trabajo si ya está asociada a una
+      if (isset($data['work_order_id']) && $document->work_order_id && $data['work_order_id'] != $document->work_order_id) {
+        throw new Exception('No se puede cambiar la orden de trabajo de un documento que ya está asociado a una orden. Debe eliminar el documento y crear uno nuevo.');
+      }
+
+      // Validar que no se pueda QUITAR la orden de trabajo si ya está asociada
+      if (isset($data['work_order_id']) && $data['work_order_id'] === null && $document->work_order_id) {
+        throw new Exception('No se puede quitar la orden de trabajo de un documento que ya está asociado a una. Debe eliminar el documento y crear uno nuevo.');
+      }
+
+      // Validar la orden de trabajo si existe (ya sea del documento o nueva)
+      if ($effectiveWorkOrderId) {
+        // Preparar datos para validación incluyendo tanto los datos del documento como los nuevos
+        $validationData = array_merge($document->toArray(), $data);
+        $validationData['work_order_id'] = $effectiveWorkOrderId;
+
+        $this->validateWorkOrderInvoice($validationData);
+
+        // Setear códigos de productos para items de work order si se están actualizando items
+        if (isset($data['items']) && is_array($data['items'])) {
+          $data['items'] = $this->setWorkOrderItemCodes($effectiveWorkOrderId, $data['items']);
+        }
+      }
+
+      // Validar venta interna para order_quotation_id o work_order_id
+      // Solo si es venta interna (is_advance_payment = 0) y tiene alguna de estas entidades
+      if (($effectiveQuotationId || $effectiveWorkOrderId)) {
+        // Determinar si es venta interna
+        $isAdvancePayment = isset($data['is_advance_payment']) ? $data['is_advance_payment'] : $document->is_advance_payment;
+
+        if ($isAdvancePayment == 0) {
+          // Preparar datos para validación
+          $validationData = array_merge($document->toArray(), $data);
+          $this->validateInternalSaleTotal($validationData);
+        }
       }
 
       // Manejar cambios en ap_vehicle_id
@@ -766,8 +960,23 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
     }
 
+    $isAnnulled = $documentDynamics30200->VOIDSTTS == "1";
+
+    // Segunda opinión: si SOP30200 no lo marca como anulado, consultamos RM20101
+    if (!$isAnnulled) {
+      $rmRecord = DB::connection('dbtest')
+        ->table('RM20101')
+        ->where('DOCNUMBR', 'like', '%' . $document->full_number . '%')
+        ->whereNot('RMDTYPAL', '9') // Excluir documentos de tipo 9 (cobros)
+        ->first();
+
+      if ($rmRecord) {
+        $isAnnulled = $rmRecord->VOIDSTTS == "1";
+      }
+    }
+
     return [
-      'annulled' => $documentDynamics30200->VOIDSTTS == "1",
+      'annulled' => $isAnnulled,
     ];
   }
 
@@ -1591,6 +1800,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('No se puede sincronizar un documento anulado');
     }
 
+    $document->update(['was_dyn_requested' => true]);
+
     // Dispatch the sync job con deduplicación
     $this->dispatchJobWithDeduplication($id);
 
@@ -2065,5 +2276,143 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ]);
       // No lanzar excepción para evitar que falle la consulta de Nubefact
     }
+  }
+
+  /**
+   * Set product codes for work order items
+   * - For labour items: set default code 'MO-TALLER'
+   * - For part items: get dyn_code from Products table
+   *
+   * @param int $workOrderId
+   * @param array $items
+   * @return array
+   */
+  private function setWorkOrderItemCodes(int $workOrderId, array $items): array
+  {
+    try {
+      // Load work order with parts and their products
+      $workOrder = ApWorkOrder::with(['parts.product', 'labours'])->find($workOrderId);
+
+      if (!$workOrder) {
+        return $items;
+      }
+
+      // Process each item
+      foreach ($items as &$item) {
+        // Skip if codigo is already set
+        if (!empty($item['codigo'])) {
+          continue;
+        }
+
+        // Si es mano de obra (labour)
+        if (isset($item['work_order_labour_id']) && $item['work_order_labour_id']) {
+          $item['codigo'] = 'MO-TALLER'; // Código por defecto para mano de obra
+          continue;
+        }
+
+        // Si es repuesto (part)
+        if (isset($item['work_order_part_id']) && $item['work_order_part_id']) {
+          // Buscar el part en la work order
+          $part = $workOrder->parts->firstWhere('id', $item['work_order_part_id']);
+
+          if ($part && $part->product && !empty($part->product->dyn_code)) {
+            $item['codigo'] = $part->product->dyn_code;
+          }
+        }
+      }
+
+      return $items;
+    } catch (Exception $e) {
+      Log::error('Error setting work order item codes', [
+        'work_order_id' => $workOrderId,
+        'error' => $e->getMessage(),
+      ]);
+      // Return items unchanged if error
+      return $items;
+    }
+  }
+
+  /*
+   * Consulta Dynamics y actualiza is_accounted e is_annulled para todos los
+   * documentos que han sido solicitados a Dynamics y cuya migración está completada.
+   *
+   * @return array
+   */
+  public function syncAccountingStatusFromDynamics(): array
+  {
+    $documents = ElectronicDocument::where('was_dyn_requested', false)
+      ->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
+      ->get();
+
+    $results = [];
+    $errors = [];
+
+    foreach ($documents as $document) {
+      try {
+        $sopRecord = DB::connection('dbtest')
+          ->table('SOP30200')
+          ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
+          ->first();
+
+        $source = null;
+
+        if ($sopRecord) {
+          $isAnnulled = $sopRecord->VOIDSTTS == "1";
+          $source = 'SOP30200';
+
+          // Segunda opinión: si SOP30200 no lo marca como anulado, consultamos RM20101
+          if (!$isAnnulled) {
+            $rmRecord = DB::connection('dbtest')
+              ->table('RM20101')
+              ->where('DOCNUMBR', 'like', '%' . $document->full_number . '%')
+              ->whereNot('RMDTYPAL', '9') // Excluir documentos de tipo 9 (cobros)
+              ->first();
+
+            if ($rmRecord) {
+              $isAnnulled = $rmRecord->VOIDSTTS == "1";
+              $source = 'RM20101';
+            }
+          }
+
+          $document->update([
+            'is_accounted' => true,
+            'is_annulled' => $isAnnulled,
+          ]);
+        } else {
+          $isAnnulled = false;
+          $document->update([
+            'is_accounted' => false,
+            'is_annulled' => false,
+          ]);
+        }
+
+        $results[] = [
+          'document_id' => $document->id,
+          'full_number' => $document->full_number,
+          'is_accounted' => $document->is_accounted,
+          'is_annulled' => $isAnnulled,
+          'source' => $source,
+        ];
+      } catch (Throwable $e) {
+        $errors[] = [
+          'document_id' => $document->id,
+          'full_number' => $document->full_number,
+          'error' => $e->getMessage(),
+        ];
+
+        Log::error('Error al sincronizar estado contable desde Dynamics', [
+          'document_id' => $document->id,
+          'full_number' => $document->full_number,
+          'error' => $e->getMessage(),
+        ]);
+      }
+    }
+
+    return [
+      'total' => $documents->count(),
+      'updated' => count($results),
+      'results' => $results,
+      'errors' => $errors,
+    ];
   }
 }

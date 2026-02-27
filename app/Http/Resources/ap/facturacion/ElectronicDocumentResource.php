@@ -31,6 +31,8 @@ class ElectronicDocumentResource extends JsonResource
       'ap_vehicle_movement_id' => $this->ap_vehicle_movement_id,
       'client_id' => $this->client_id,
       'purchase_request_quote_id' => $this->purchase_request_quote_id,
+      'order_quotation_id' => $this->order_quotation_id,
+      'work_order_id' => $this->work_order_id,
       'credit_note_id' => $this->creditNote?->anulado ? null : $this->creditNote?->id,
       'debit_note_id' => $this->debitNote?->anulado ? null : $this->debitNote?->id,
       'sunat_concept_identity_document_type_id' => $this->sunat_concept_identity_document_type_id,
@@ -101,6 +103,9 @@ class ElectronicDocumentResource extends JsonResource
       'codigo_hash' => $this->codigo_hash,
       'status' => $this->status,
       'migration_status' => $this->migration_status,
+      'was_dyn_requested' => $this->was_dyn_requested,
+      'is_accounted' => $this->is_accounted,
+      'is_annulled' => $this->is_annulled,
       'error_message' => $this->error_message,
       'is_advance_payment' => (boolean)$this->is_advance_payment,
 

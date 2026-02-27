@@ -22,6 +22,9 @@ class PayrollCalculation extends BaseModel
     'worker_id',
     'company_id',
     'sede_id',
+    'salary',
+    'shift_hours',
+    'base_hour_value',
     'total_normal_hours',
     'total_extra_hours_25',
     'total_extra_hours_35',
@@ -32,6 +35,7 @@ class PayrollCalculation extends BaseModel
     'gross_salary',
     'total_earnings',
     'total_deductions',
+    'total_contributions',
     'net_salary',
     'employer_cost',
     'status',
@@ -39,9 +43,14 @@ class PayrollCalculation extends BaseModel
     'calculated_by',
     'approved_at',
     'approved_by',
+    'paid_at',
+    'paid_by',
   ];
 
   protected $casts = [
+    'salary' => 'decimal:2',
+    'shift_hours' => 'decimal:2',
+    'base_hour_value' => 'decimal:2',
     'total_normal_hours' => 'decimal:2',
     'total_extra_hours_25' => 'decimal:2',
     'total_extra_hours_35' => 'decimal:2',
@@ -52,10 +61,12 @@ class PayrollCalculation extends BaseModel
     'gross_salary' => 'decimal:2',
     'total_earnings' => 'decimal:2',
     'total_deductions' => 'decimal:2',
+    'total_contributions' => 'decimal:2',
     'net_salary' => 'decimal:2',
     'employer_cost' => 'decimal:2',
     'calculated_at' => 'datetime',
     'approved_at' => 'datetime',
+    'paid_at' => 'datetime',
   ];
 
   // Calculation statuses

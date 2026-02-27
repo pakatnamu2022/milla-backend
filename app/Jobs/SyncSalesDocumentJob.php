@@ -75,6 +75,8 @@ class SyncSalesDocumentJob implements ShouldQueue
       return;
     }
 
+    $document->markAsInProgress();
+
     // 1. Sincronizar cliente (si no existe en Dynamics)
     $this->syncClient($document, $syncService);
 
@@ -83,6 +85,24 @@ class SyncSalesDocumentJob implements ShouldQueue
 
     // 3. Sincronizar documento de venta (cabecera)
     $this->syncSalesDocument($document, $syncService);
+
+    // 4. Verificar si algún paso falló y actualizar el estado del documento
+    $this->checkAndUpdateCompletionStatus($document);
+  }
+
+  protected function checkAndUpdateCompletionStatus(ElectronicDocument $document): void
+  {
+    $logs = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $document->id)->get();
+
+    if ($logs->isEmpty()) {
+      return;
+    }
+
+    $hasFailed = $logs->contains(fn($log) => $log->status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED);
+
+    if ($hasFailed) {
+      $document->markAsFailed();
+    }
   }
 
   /**
