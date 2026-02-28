@@ -112,7 +112,7 @@ class InventoryMovementService extends BaseService
         'warehouse_id' => $reception->warehouse_id,
         'reference_type' => PurchaseReception::class,
         'reference_id' => $reception->id,
-        'user_id' => Auth::id(),
+        'user_id' => $reception->received_by,
         'status' => InventoryMovement::STATUS_APPROVED,
         'notes' => "Ingreso por recepción {$reception->reception_number} de {$reception->purchaseOrder->number}",
         'total_items' => 0,
