@@ -124,7 +124,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         $number_correlative += 1000;
       }
 
-      $number = $this->completeNumber($number_correlative, 7);
+      $number = $this->completeNumber($number_correlative, 8);
 
       $data['number_correlative'] = $number_correlative;
       $data['number'] = $series->series . $number;
