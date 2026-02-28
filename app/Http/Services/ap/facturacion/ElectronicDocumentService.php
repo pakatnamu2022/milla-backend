@@ -84,6 +84,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           ->table('neInTbVenta')
           ->where('EmpresaId', Company::AP_DYNAMICS)
           ->where('DocumentoId', $documentoId)
+          ->where('Procesar', 1) // Solo resetear si está marcada para procesar, para evitar interferir con documentos no relacionados
+          ->where('ProcesoEstado', 0) // Solo resetear si el proceso no ha sido marcado como exitoso, para evitar interferir con documentos ya procesados correctamente
           ->exists();
 
         if ($existsInGpin) {
@@ -92,9 +94,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
             ->where('EmpresaId', Company::AP_DYNAMICS)
             ->where('DocumentoId', $documentoId)
             ->update([
-              'Procesar' => 0,
+              'Procesar' => 1,
               'ProcesoEstado' => 0,
-              'ProcesoError' => null,
+              'ProcesoError' => '',
             ]);
 
           $resetActions[] = "Cabecera reseteada en GPIN: {$documentoId}";
@@ -2345,8 +2347,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    */
   public function syncAccountingStatusFromDynamics(): array
   {
-    $documents = ElectronicDocument::where('was_dyn_requested', false)
-      ->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
+    $documents = ElectronicDocument::where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
       ->get();
 
     $results = [];

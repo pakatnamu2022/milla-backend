@@ -16,6 +16,7 @@ use App\Models\ap\comercial\ShippingGuideAccessory;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\gestionsistema\DigitalFile;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
@@ -825,9 +826,76 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       throw new Exception('La guía ya está migrada completamente');
     }
 
+    $resetActions = [];
+
+    // Revisar los logs y preparar el terreno antes de redespachar
+    $logs = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $guide->id)->get();
+
+    foreach ($logs as $log) {
+      if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+        continue;
+      }
+
+      // Cabecera de transferencia de inventario
+      if (in_array($log->step, [
+        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
+        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL,
+      ]) && !empty($guide->dyn_series)) {
+        $existsInGpin = DB::connection('dbtp')
+          ->table('neInTbTransferenciaInventario')
+          ->where('EmpresaId', Company::AP_DYNAMICS)
+          ->where('TransferenciaId', $guide->dyn_series)
+          ->exists();
+
+        if ($existsInGpin) {
+          DB::connection('dbtp')
+            ->table('neInTbTransferenciaInventario')
+            ->where('EmpresaId', Company::AP_DYNAMICS)
+            ->where('TransferenciaId', $guide->dyn_series)
+            ->update(['Procesar' => 1, 'ProcesoEstado' => 0, 'ProcesoError' => '']);
+
+          $resetActions[] = "Cabecera transferencia reseteada en GPIN: {$guide->dyn_series}";
+        }
+      }
+
+      // Cabecera de transacción de inventario (venta)
+      if (in_array($log->step, [
+        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE,
+        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_REVERSAL,
+      ]) && !empty($guide->dyn_series)) {
+        $existsInGpin = DB::connection('dbtp')
+          ->table('neInTbTransaccionInventario')
+          ->where('EmpresaId', Company::AP_DYNAMICS)
+          ->where('TransaccionId', $guide->dyn_series)
+          ->exists();
+
+        if ($existsInGpin) {
+          DB::connection('dbtp')
+            ->table('neInTbTransaccionInventario')
+            ->where('EmpresaId', Company::AP_DYNAMICS)
+            ->where('TransaccionId', $guide->dyn_series)
+            ->update(['Procesar' => 1, 'ProcesoEstado' => 0, 'ProcesoError' => '']);
+
+          $resetActions[] = "Cabecera transacción reseteada en GPIN: {$guide->dyn_series}";
+        }
+      }
+
+      // Resetear el log a pending para que el job lo reintente limpiamente
+      $log->update([
+        'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+        'error_message' => null,
+        'proceso_estado' => 0,
+      ]);
+
+      $resetActions[] = "Log reseteado a pending: {$log->step}";
+    }
+
     VerifyAndMigrateShippingGuideJob::dispatch($guide->id);
 
-    return "Job de migración despachado para la guía {$guide->document_number}";
+    return [
+      'message' => "Job de migración despachado para la guía {$guide->document_number}",
+      'resets' => $resetActions,
+    ];
   }
 
   /**

@@ -1470,6 +1470,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::delete('per-diem-requests/{requestId}/eliminar-deposito/{fileId}', [PerDiemRequestController::class, 'eliminarDeposito']);
     Route::get('per-diem-requests/{id}/generate-mobility-payroll-pdf', [PerDiemRequestController::class, 'generateMobilityPayrollPDF']);
     Route::post('per-diem-requests/{id}/reset-approvals', [PerDiemRequestController::class, 'resetApprovals']);
+    Route::post('per-diem-requests/{id}/regenerate-budgets', [PerDiemRequestController::class, 'regenerateBudgets']);
     Route::post('per-diem-requests/{id}/resend-emails', [PerDiemRequestController::class, 'resendEmails']);
     Route::apiResource('per-diem-requests', PerDiemRequestController::class)->only([
       'index',

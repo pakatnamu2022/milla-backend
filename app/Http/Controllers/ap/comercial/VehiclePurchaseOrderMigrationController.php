@@ -7,8 +7,10 @@ use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
 use App\Jobs\VerifyAndMigratePurchaseOrderJob;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
+use App\Models\gp\gestionsistema\Company;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class VehiclePurchaseOrderMigrationController extends Controller
 {
@@ -193,7 +195,11 @@ class VehiclePurchaseOrderMigrationController extends Controller
   }
 
   /**
-   * Despacha manualmente el job de migración para una OC (útil para reintentar fallidas)
+   * Despacha manualmente el job de migración para una OC (útil para reintentar fallidas).
+   *
+   * Antes de despachar:
+   * - Resetea a "pending" los logs que no estén completados.
+   * - Si la cabecera (OC o recepción) ya existe en GPIN, la resetea para que GPIN la reprocese.
    */
   public function dispatchMigration(int $id): JsonResponse
   {
@@ -208,9 +214,70 @@ class VehiclePurchaseOrderMigrationController extends Controller
         return $this->errorValidation('La orden ya está migrada completamente');
       }
 
+      $resetActions = [];
+
+      // Revisar los logs y preparar el terreno antes de redespachar
+      $logs = VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $id)->get();
+
+      foreach ($logs as $log) {
+        if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+          continue;
+        }
+
+        // Cabecera de orden de compra
+        if ($log->step === VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER) {
+          $existsInGpin = DB::connection('dbtp')
+            ->table('neInTbOrdenCompra')
+            ->where('EmpresaId', Company::AP_DYNAMICS)
+            ->where('OrdenCompraId', $purchaseOrder->number)
+            ->exists();
+
+          if ($existsInGpin) {
+            DB::connection('dbtp')
+              ->table('neInTbOrdenCompra')
+              ->where('EmpresaId', Company::AP_DYNAMICS)
+              ->where('OrdenCompraId', $purchaseOrder->number)
+              ->update(['Procesar' => 1, 'ProcesoEstado' => 0, 'ProcesoError' => '']);
+
+            $resetActions[] = "Cabecera OC reseteada en GPIN: {$purchaseOrder->number}";
+          }
+        }
+
+        // Cabecera de recepción
+        if ($log->step === VehiclePurchaseOrderMigrationLog::STEP_RECEPTION && !empty($purchaseOrder->number_guide)) {
+          $existsInGpin = DB::connection('dbtp')
+            ->table('neInTbRecepcion')
+            ->where('EmpresaId', Company::AP_DYNAMICS)
+            ->where('RecepcionId', $purchaseOrder->number_guide)
+            ->exists();
+
+          if ($existsInGpin) {
+            DB::connection('dbtp')
+              ->table('neInTbRecepcion')
+              ->where('EmpresaId', Company::AP_DYNAMICS)
+              ->where('RecepcionId', $purchaseOrder->number_guide)
+              ->update(['Procesar' => 1, 'ProcesoEstado' => 0, 'ProcesoError' => '']);
+
+            $resetActions[] = "Cabecera recepción reseteada en GPIN: {$purchaseOrder->number_guide}";
+          }
+        }
+
+        // Resetear el log a pending para que el job lo reintente limpiamente
+        $log->update([
+          'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+          'error_message' => null,
+          'proceso_estado' => 0,
+        ]);
+
+        $resetActions[] = "Log reseteado a pending: {$log->step}";
+      }
+
       VerifyAndMigratePurchaseOrderJob::dispatch($purchaseOrder->id);
 
-      return $this->success("Job de migración despachado para la orden {$purchaseOrder->number}");
+      return $this->success([
+        'message' => "Job de migración despachado para la orden {$purchaseOrder->number}",
+        'resets' => $resetActions,
+      ]);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
