@@ -34,7 +34,6 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
   public function find($id)
   {
     $purchaseRequest = ApOrderPurchaseRequests::with([
-      'apOrderQuotation',
       'purchaseOrder',
       'warehouse',
       'details.product'
@@ -85,7 +84,6 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       }
 
       return new ApOrderPurchaseRequestsResource($purchaseRequest->load([
-        'apOrderQuotation',
         'purchaseOrder',
         'warehouse',
         'details.product'
@@ -97,7 +95,6 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
   {
     $orderPurchaseRequest = $this->find($id);
     $orderPurchaseRequest->load([
-      'apOrderQuotation',
       'purchaseOrder',
       'warehouse',
       'details.product'
@@ -143,7 +140,6 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
       // Reload relations
       $purchaseRequest->load([
-        'apOrderQuotation',
         'purchaseOrder',
         'warehouse',
         'details.product'

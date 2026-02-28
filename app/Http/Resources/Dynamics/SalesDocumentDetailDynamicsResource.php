@@ -39,8 +39,15 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     // Línea del detalle
     $linea = $this->line_number > 0 ? $this->line_number : throw new Exception('El ítem no tiene número de línea definido.');
 
-    // Obtener el código del artículo
-    $articuloId = $this->accountPlan->code_dynamics ?? throw new Exception('El ítem no tiene una cuenta contable asociada con código Dynamics.');
+    // Obtener el código del artículo:
+    // - OT o cotización: el frontend envía `codigo` con el dyn_code del producto/repuesto (o 'DHF-00122' para mano de obra).
+    // - Flujo estándar: se usa el code_dynamics de la cuenta contable.
+    $hasSpecialOrigin = $this->document->order_quotation_id || $this->document->work_order_id;
+    if ($hasSpecialOrigin) {
+      $articuloId = $this->codigo ?? throw new Exception('El ítem no tiene código Dynamics (codigo) definido para OT/cotización.');
+    } else {
+      $articuloId = $this->accountPlan->code_dynamics ?? throw new Exception('El ítem no tiene una cuenta contable asociada con código Dynamics.');
+    }
 
     // Sitio (almacén) - puede venir del contexto // TODO: Verificar almacen
     $sitioId = $this->document->warehouse() ?? throw new Exception('El documento no tiene un almacén asociado.');

@@ -37,7 +37,7 @@ class ApOrderPurchaseRequestsResource extends JsonResource
       'supply_type' => $this->supply_type,
 
       // Relationships
-      'ap_order_quotation' => new ApOrderQuotationsResource($this->whenLoaded('apOrderQuotation')),
+      'ap_order_quotation' => new ApOrderQuotationsResource($this->apOrderQuotation),
       'purchase_order' => new PurchaseOrderResource($this->whenLoaded('purchaseOrder')),
       'warehouse' => new WarehouseResource($this->whenLoaded('warehouse')),
       'details' => ApOrderPurchaseRequestDetailsResource::collection($this->whenLoaded('details')),

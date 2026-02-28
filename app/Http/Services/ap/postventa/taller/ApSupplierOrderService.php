@@ -6,6 +6,8 @@ use App\Http\Resources\ap\postventa\taller\ApSupplierOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Utils\Constants;
+use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
+use App\Models\ap\postventa\taller\ApOrderPurchaseRequests;
 use App\Models\ap\postventa\taller\ApSupplierOrder;
 use App\Models\ap\postventa\taller\ApSupplierOrderDetails;
 use App\Models\gp\maestroGeneral\ExchangeRate;
@@ -20,6 +22,7 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
   public function list(Request $request)
   {
     $query = ApSupplierOrder::query()->with([
+      'receptions',
       'supplier',
       'sede',
       'warehouse',
@@ -143,6 +146,7 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
       'createdBy',
       'details.product',
       'requestDetails.orderPurchaseRequest.requestedBy.person',
+      'receptions.purchaseOrder',
     ]);
     return new ApSupplierOrderResource($apSupplierOrder);
   }
@@ -152,7 +156,7 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
     return DB::transaction(function () use ($data) {
       $supplierOrder = $this->find($data['id']);
 
-      if (!is_null($supplierOrder->ap_purchase_order_id) || $supplierOrder->is_take) {
+      if (!is_null($supplierOrder->ap_purchase_order_id)) {
         throw new Exception('No se puede editar una orden al proveedor que ya se le ha registrado una factura.');
       }
 
@@ -214,7 +218,7 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
   {
     $supplierOrder = $this->find($id);
 
-    if (!is_null($supplierOrder->ap_purchase_order_id) || $supplierOrder->is_take) {
+    if (!is_null($supplierOrder->ap_purchase_order_id)) {
       throw new Exception('No se puede eliminar una orden al proveedor que ya se le ha registrado una factura.');
     }
 
@@ -226,7 +230,21 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
       if (!empty($requestDetailIds)) {
         DB::table('ap_order_purchase_request_details')
           ->whereIn('id', $requestDetailIds)
-          ->update(['status' => 'pending']);
+          ->update(['status' => ApOrderPurchaseRequestDetails::STATUS_PENDING]);
+
+        // Revert status of parent purchase request headers back to 'pending'
+        $headerIds = DB::table('ap_order_purchase_request_details')
+          ->whereIn('id', $requestDetailIds)
+          ->pluck('order_purchase_request_id')
+          ->unique()
+          ->values()
+          ->toArray();
+
+        if (!empty($headerIds)) {
+          DB::table('ap_order_purchase_requests')
+            ->whereIn('id', $headerIds)
+            ->update(['status' => ApOrderPurchaseRequests::PENDING]);
+        }
 
         // Detach the relationship
         $supplierOrder->requestDetails()->detach();
@@ -240,31 +258,6 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
     });
 
     return response()->json(['message' => 'Orden de proveedor eliminada correctamente.']);
-  }
-
-  /**
-   * Mark supplier order as taken
-   * @param int $id
-   * @return \Illuminate\Http\JsonResponse
-   */
-  public function markAsTaken(int $id)
-  {
-    $supplierOrder = $this->find($id);
-
-    $supplierOrder->update(['is_take' => true]);
-
-    return response()->json([
-      'message' => 'Orden marcada como tomada correctamente',
-      'data' => new ApSupplierOrderResource($supplierOrder->fresh([
-        'supplier',
-        'sede',
-        'warehouse',
-        'typeCurrency',
-        'createdBy',
-        'details.product',
-        'details.unitMeasurement'
-      ]))
-    ]);
   }
 
   /**
@@ -314,6 +307,20 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
     // Actualizar el status de los detalles a 'ordered'
     DB::table('ap_order_purchase_request_details')
       ->whereIn('id', $requestDetailIds)
-      ->update(['status' => 'ordered']);
+      ->update(['status' => ApOrderPurchaseRequestDetails::STATUS_ORDERED]);
+
+    // Actualizar el status de las cabeceras a 'ordered'
+    $headerIds = DB::table('ap_order_purchase_request_details')
+      ->whereIn('id', $requestDetailIds)
+      ->pluck('order_purchase_request_id')
+      ->unique()
+      ->values()
+      ->toArray();
+
+    if (!empty($headerIds)) {
+      DB::table('ap_order_purchase_requests')
+        ->whereIn('id', $headerIds)
+        ->update(['status' => ApOrderPurchaseRequests::ORDERED]);
+    }
   }
 }
