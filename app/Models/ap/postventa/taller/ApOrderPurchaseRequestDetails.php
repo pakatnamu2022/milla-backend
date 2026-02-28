@@ -59,16 +59,6 @@ class ApOrderPurchaseRequestDetails extends Model
     return $this->belongsTo(Products::class, 'product_id');
   }
 
-  public function purchaseOrders(): BelongsToMany
-  {
-    return $this->belongsToMany(
-      PurchaseOrder::class,
-      'ap_order_purchase_request_detail_purchase_order',
-      'ap_order_purchase_request_detail_id',
-      'purchase_order_id'
-    )->withTimestamps();
-  }
-
   public function supplierOrders(): BelongsToMany
   {
     return $this->belongsToMany(
