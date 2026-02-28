@@ -35,6 +35,46 @@ class InventoryMovementService extends BaseService
 
   public function list(Request $request)
   {
+    $query = InventoryMovement::query();
+
+    // Si hay búsqueda, agregar la búsqueda en la relación polimórfica reference
+    if ($request->has('search') && !empty($request->search)) {
+      $search = $request->search;
+      $query->where(function ($q) use ($search) {
+        // Búsqueda en campos directos del modelo
+        $q->where('movement_number', 'like', '%' . $search . '%')
+          // Búsqueda en relación user
+          ->orWhereHas('user', function ($userQuery) use ($search) {
+            $userQuery->where('name', 'like', '%' . $search . '%');
+          })
+          // Búsqueda en relación warehouse
+          ->orWhereHas('warehouse', function ($warehouseQuery) use ($search) {
+            $warehouseQuery->where('dyn_code', 'like', '%' . $search . '%');
+          })
+          // Búsqueda en relación warehouseDestination
+          ->orWhereHas('warehouseDestination', function ($warehouseQuery) use ($search) {
+            $warehouseQuery->where('dyn_code', 'like', '%' . $search . '%');
+          })
+          // Búsqueda en la relación polimórfica reference (ShippingGuides.document_number)
+          ->orWhereHasMorph('reference', [ShippingGuides::class], function ($referenceQuery) use ($search) {
+            $referenceQuery->where('document_number', 'like', '%' . $search . '%')
+              ->orWhere('dyn_series', 'like', '%' . $search . '%');
+          });
+      });
+
+      // Remover el parámetro search para evitar que se procese de nuevo en getFilteredResults
+      $modifiedRequest = clone $request;
+      $modifiedRequest->query->remove('search');
+
+      return $this->getFilteredResults(
+        $query,
+        $modifiedRequest,
+        array_diff_key(InventoryMovement::filters, ['search' => '']),
+        InventoryMovement::sorts,
+        InventoryMovementResource::class,
+      );
+    }
+
     return $this->getFilteredResults(
       InventoryMovement::class,
       $request,
@@ -391,6 +431,9 @@ class InventoryMovementService extends BaseService
       $correlative = $nextCorrelative['correlative'];
       $documentNumber = $assignedSeries->series . '-' . $correlative;
 
+      // Generar correlativo dinámico
+      $correlativeDyn = ShippingGuides::generateNextCorrelativeDyn();
+
       // Create Shipping Guide (NOT sent to Nubefact yet)
       $shippingGuide = ShippingGuides::create([
         'document_type' => $transferData['document_type'],
@@ -399,6 +442,7 @@ class InventoryMovementService extends BaseService
         'document_series_id' => $transferData['document_series_id'],
         'series' => $assignedSeries->series,
         'correlative' => $correlative,
+        'correlative_dyn' => $correlativeDyn,
         'issue_date' => $transferData['movement_date'] ?? now(),
         'requires_sunat' => true,
         'is_sunat_registered' => false, // NOT sent yet
@@ -1057,8 +1101,8 @@ class InventoryMovementService extends BaseService
 
       // Get warehouse from sede
       $warehouse = Warehouse::where('sede_id', $quotation->sede_id)
-        ->where('is_physical_warehouse', 1)
-        ->where('status', 1)
+        ->where('is_physical_warehouse', true)
+        ->where('status', true)
         ->first();
 
       if (!$warehouse) {

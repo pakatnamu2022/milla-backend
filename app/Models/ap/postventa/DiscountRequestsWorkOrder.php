@@ -58,6 +58,9 @@ class DiscountRequestsWorkOrder extends Model
   const TYPE_GLOBAL = 'GLOBAL';
   const TYPE_PARTIAL = 'PARTIAL';
 
+  const MODEL_PART = 'PART';
+  const MODEL_LABOUR = 'LABOUR';
+
   const STATUS_PENDING = 'pending';
   const STATUS_APPROVED = 'approved';
   const STATUS_REJECTED = 'rejected';

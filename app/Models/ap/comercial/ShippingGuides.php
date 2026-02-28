@@ -30,6 +30,7 @@ class ShippingGuides extends BaseModel
     'series',
     'dyn_series',
     'correlative',
+    'correlative_dyn',
     'document_number',
     'issue_date', // fecha de translado
     'requires_sunat',
@@ -394,5 +395,44 @@ class ShippingGuides extends BaseModel
       'correlative_number' => $correlativeNumber,
       'correlative' => $correlative,
     ];
+  }
+
+  /**
+   * Genera el siguiente correlativo dinámico para Dynamics
+   * Cuenta TODOS los registros (incluyendo soft deleted) y suma 1
+   * Formato: 000000001, 000000002, etc. (9 dígitos)
+   */
+  public static function generateNextCorrelativeDyn(): string
+  {
+    // Obtener el último correlative_dyn (incluyendo soft deleted)
+    $lastCorrelativeDyn = self::withTrashed()
+      ->orderBy('correlative_dyn', 'desc')
+      ->value('correlative_dyn');
+
+    if ($lastCorrelativeDyn) {
+      // Incrementar el último correlativo
+      $nextNumber = (int)$lastCorrelativeDyn + 1;
+    } else {
+      // Si no existe ninguno, empezar en 1
+      $nextNumber = 1;
+    }
+
+    // Formatear a 9 dígitos con ceros a la izquierda
+    return str_pad($nextNumber, 9, '0', STR_PAD_LEFT);
+  }
+
+  /**
+   * Obtiene el TransferenciaId usado en Dynamics para transferencias de productos
+   * Formato: PTRA-000000XXX usando correlative_dyn
+   */
+  public function getDynamicsTransferTransactionId(bool $isReversal = false): string
+  {
+    $transactionId = 'PTRA-' . $this->correlative_dyn;
+
+    if ($isReversal) {
+      $transactionId .= '*';
+    }
+
+    return $transactionId;
   }
 }

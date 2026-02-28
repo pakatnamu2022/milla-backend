@@ -300,6 +300,9 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         // Creamos el movimiento de vehículo de entrega completada
         $vehicleMovement = $this->vehicleMovementService->storeCompletedDeliveryVehicleMovement($vehicle, $originAddress, $destinationAddress);
 
+        // Generar correlativo dinámico
+        $correlativeDyn = ShippingGuides::generateNextCorrelativeDyn();
+
         // Crear la guía de remisión
         $shippingGuideData = [
           'document_type' => 'GUIA_REMISION',
@@ -308,6 +311,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           'document_series_id' => $documentSeriesId,
           'series' => $series,
           'correlative' => $correlative,
+          'correlative_dyn' => $correlativeDyn,
           'document_number' => $documentNumber,
           'issue_date' => now(),
           'requires_sunat' => true,

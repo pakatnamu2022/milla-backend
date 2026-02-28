@@ -127,4 +127,13 @@ class WorkOrderController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function vehicleHistory($vehicleId)
+  {
+    try {
+      return $this->success($this->service->getVehicleHistory($vehicleId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

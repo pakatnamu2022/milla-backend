@@ -9,6 +9,7 @@ use App\Http\Resources\Dynamics\ShippingGuideSeriesDynamicsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
+use App\Jobs\SyncShippingGuideDynamicsJob;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuideAccessory;
@@ -37,8 +38,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     NubefactShippingGuideApiService $nubefactService,
     DigitalFileService              $digitalFileService,
     VehicleMovementService          $vehicleMovementService
-  )
-  {
+  ) {
     $this->nubefactService = $nubefactService;
     $this->digitalFileService = $digitalFileService;
     $this->vehicleMovementService = $vehicleMovementService;
@@ -146,7 +146,10 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $typeVoucherId = SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE;
       }
 
-      // 5. Crear la guía de remisión
+      // 5. Generar correlativo dinámico
+      $correlativeDyn = ShippingGuides::generateNextCorrelativeDyn();
+
+      // 6. Crear la guía de remisión
       $documentData = [
         'document_type' => $data['document_type'],
         'type_voucher_id' => $typeVoucherId,
@@ -154,6 +157,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'document_series_id' => $documentSeriesId,
         'series' => $series,
         'correlative' => $correlative,
+        'correlative_dyn' => $correlativeDyn,
         'document_number' => $documentNumber,
         'issue_date' => $data['issue_date'],
         'requires_sunat' => $data['requires_sunat'] ?? false,
@@ -270,6 +274,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $typeVoucherId = SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE;
       }
 
+      // Generar correlativo dinámico
+      $correlativeDyn = ShippingGuides::generateNextCorrelativeDyn();
+
       $documentData = [
         'document_type' => $data['document_type'],
         'type_voucher_id' => $typeVoucherId,
@@ -277,6 +284,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'document_series_id' => $documentSeriesId,
         'series' => $series,
         'correlative' => $correlative,
+        'correlative_dyn' => $correlativeDyn,
         'document_number' => $documentNumber,
         'issue_date' => $data['issue_date'],
         'requires_sunat' => $data['requires_sunat'] ?? false,
@@ -664,7 +672,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           $guide->markAsAccepted($responseData);
           DB::commit();
           $message = 'La guía ha sido aceptada por SUNAT';
-
         } elseif (isset($responseData['aceptada_por_sunat']) && $responseData['aceptada_por_sunat'] && $guide->aceptada_por_sunat) {
           // CASO 2: Ya estaba aceptada (consulta posterior)
           $guide->update([
@@ -687,7 +694,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           ]);
           $message = 'Estado consultado. La guía aún no ha sido aceptada por SUNAT.';
         }
-
       } else {
         $message = 'Error al consultar: ' . ($response['error'] ?? 'Error desconocido');
       }
@@ -794,7 +800,25 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     ];
   }
 
-  public function dispatchMigration(int $id): array
+  public function syncWithDynamics($id)
+  {
+    $shippingGuide = $this->find($id);
+
+    if (!$shippingGuide->document_number) {
+      throw new Exception('La guía de remisión no tiene número de documento asignado');
+    }
+
+    // Despachar el job para sincronizar con Dynamics
+    SyncShippingGuideDynamicsJob::dispatch($shippingGuide->id);
+
+    return [
+      'message' => 'Job de sincronización con Dynamics despachado exitosamente',
+      'shipping_guide' => new ShippingGuidesResource($shippingGuide->fresh()),
+    ];
+  }
+
+
+  public function dispatchMigration(int $id): string
   {
     $guide = $this->find($id);
 

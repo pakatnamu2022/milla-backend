@@ -1051,6 +1051,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('shippingGuides/{id}/send-to-nubefact', [ShippingGuidesController::class, 'sendToNubefact']);
       Route::post('shippingGuides/{id}/query-from-nubefact', [ShippingGuidesController::class, 'queryFromNubefact']);
       Route::post('shippingGuides/{id}/mark-as-received', [ShippingGuidesController::class, 'markAsReceived']);
+      Route::post('shippingGuides/{id}/sync-with-dynamics', [ShippingGuidesController::class, 'syncWithDynamics']);
       Route::get('shippingGuides/{id}/logs', [ShippingGuidesController::class, 'logs']);
       Route::get('shippingGuides/{id}/history', [ShippingGuidesController::class, 'history']);
       Route::post('shippingGuides/{id}/dispatch-migration', [ShippingGuidesController::class, 'dispatchMigration']);
@@ -1134,6 +1135,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Products - Gestión de Productos
       Route::get('products/low-stock', [ProductsController::class, 'lowStock']);
       Route::get('products/featured', [ProductsController::class, 'featured']);
+      Route::get('products/{id}/warehouses-availability', [ProductsController::class, 'getWarehousesAvailability']);
       Route::post('products/{id}/update-stock', [ProductsController::class, 'updateStock']);
       Route::post('products/assign-to-warehouse', [ProductsController::class, 'assignToWarehouse']);
       Route::apiResource('products', ProductsController::class)->only([
@@ -1203,6 +1205,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Work Orders - Órdenes de Trabajo
+      Route::get('workOrders/vehicle/{vehicleId}/history', [WorkOrderController::class, 'vehicleHistory']);
       Route::get('workOrders/{id}/payment-summary', [WorkOrderController::class, 'getPaymentSummary']);
       Route::get('workOrders/{id}/pre-liquidation', [WorkOrderController::class, 'getPreLiquidationPdf']);
       Route::patch('workOrders/{id}/unlink-quotation', [WorkOrderController::class, 'unlinkQuotation']);
@@ -1568,6 +1571,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     // Schedules
     Route::post('schedules/bulk', [PayrollScheduleController::class, 'storeBulk']);
     Route::get('schedules/summary/{periodId}', [PayrollScheduleController::class, 'summary']);
+    Route::post('schedules/generate-calculations/{periodId}', [PayrollScheduleController::class, 'generateCalculations']);
+    Route::post('schedules/recalculate-calculations/{periodId}', [PayrollScheduleController::class, 'recalculateCalculations']);
     Route::apiResource('schedules', PayrollScheduleController::class);
 
     // Calculations

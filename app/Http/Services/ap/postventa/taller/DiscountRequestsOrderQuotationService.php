@@ -132,11 +132,15 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     $record = $this->findNotApproved($id);
 
     DB::transaction(function () use ($record) {
+      // Actualizar el estado de la solicitud
       $record->update([
         'reviewed_by_id' => auth()->id(),
         'review_date' => now(),
         'status' => DiscountRequestsOrderQuotation::STATUS_APPROVED,
       ]);
+
+      // Aplicar el descuento a la cotización
+      $this->applyDiscountToQuotation($record);
     });
 
     $fresh = $record->fresh();
@@ -174,6 +178,128 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     }
 
     return $record;
+  }
+
+  private function applyDiscountToQuotation(DiscountRequestsOrderQuotation $discountRequest): void
+  {
+    $discountRequest->loadMissing(['apOrderQuotation', 'apOrderQuotationDetail']);
+
+    $quotation = $discountRequest->apOrderQuotation;
+    if (!$quotation) {
+      throw new Exception('Cotización no encontrada.');
+    }
+
+    if ($discountRequest->type === DiscountRequestsOrderQuotation::TYPE_PARTIAL) {
+      // Descuento por ítem específico
+      $this->applyPartialDiscount($discountRequest);
+    } else {
+      // Descuento global a todos los detalles del tipo de item
+      $this->applyGlobalDiscount($discountRequest);
+    }
+
+    // Recalcular totales de la cotización
+    $this->recalculateQuotationTotals($quotation);
+  }
+
+  private function applyPartialDiscount(DiscountRequestsOrderQuotation $discountRequest): void
+  {
+    $detail = $discountRequest->apOrderQuotationDetail;
+    if (!$detail) {
+      throw new Exception('Detalle de cotización no encontrado.');
+    }
+
+    $discountPercentage = $discountRequest->requested_discount_percentage;
+
+    // Aplicar el porcentaje de descuento al detalle
+    $detail->update([
+      'discount_percentage' => $discountPercentage,
+    ]);
+
+    // Recalcular el total del detalle
+    $unitPrice = (float)$detail->unit_price;
+    $quantity = (float)$detail->quantity;
+    $subtotal = $unitPrice * $quantity;
+    $discountAmount = $subtotal * ($discountPercentage / 100);
+    $totalAmount = $subtotal - $discountAmount;
+
+    $detail->update([
+      'total_amount' => $totalAmount,
+    ]);
+  }
+
+  private function applyGlobalDiscount(DiscountRequestsOrderQuotation $discountRequest): void
+  {
+    $quotation = $discountRequest->apOrderQuotation;
+    $itemType = $discountRequest->item_type;
+    $discountPercentage = $discountRequest->requested_discount_percentage;
+
+    // Obtener todos los detalles del tipo de item especificado
+    $details = $quotation->details()
+      ->where('item_type', $itemType)
+      ->get();
+
+    if ($details->isEmpty()) {
+      throw new Exception('No se encontraron detalles del tipo ' . $itemType . ' en la cotización.');
+    }
+
+    // Aplicar el descuento a cada detalle
+    foreach ($details as $detail) {
+      $detail->update([
+        'discount_percentage' => $discountPercentage,
+      ]);
+
+      // Recalcular el total del detalle
+      $unitPrice = (float)$detail->unit_price;
+      $quantity = (float)$detail->quantity;
+      $subtotal = $unitPrice * $quantity;
+      $discountAmount = $subtotal * ($discountPercentage / 100);
+      $totalAmount = $subtotal - $discountAmount;
+
+      $detail->update([
+        'total_amount' => $totalAmount,
+      ]);
+    }
+  }
+
+  private function recalculateQuotationTotals($quotation): void
+  {
+    // Recargar los detalles para tener los valores actualizados
+    $quotation->load('details');
+
+    // Calcular subtotal (suma de todos los totales de detalles)
+    $subtotal = 0;
+    $totalDiscountAmount = 0;
+
+    foreach ($quotation->details as $detail) {
+      $unitPrice = (float)$detail->unit_price;
+      $quantity = (float)$detail->quantity;
+      $discountPercentage = (float)($detail->discount_percentage ?? 0);
+
+      $itemSubtotal = $unitPrice * $quantity;
+      $itemDiscount = $itemSubtotal * ($discountPercentage / 100);
+
+      $subtotal += $itemSubtotal;
+      $totalDiscountAmount += $itemDiscount;
+    }
+
+    // Calcular el porcentaje de descuento global
+    $discountPercentage = $subtotal > 0 ? ($totalDiscountAmount / $subtotal) * 100 : 0;
+
+    // Calcular impuestos (18% sobre el subtotal después del descuento)
+    $subtotalAfterDiscount = $subtotal - $totalDiscountAmount;
+    $taxAmount = $subtotalAfterDiscount * 0.18;
+
+    // Calcular total
+    $totalAmount = $subtotalAfterDiscount + $taxAmount;
+
+    // Actualizar la cotización
+    $quotation->update([
+      'subtotal' => $subtotal,
+      'discount_percentage' => $discountPercentage,
+      'discount_amount' => $totalDiscountAmount,
+      'tax_amount' => $taxAmount,
+      'total_amount' => $totalAmount,
+    ]);
   }
 
   private function sendApprovalNotification(DiscountRequestsOrderQuotation $record): void

@@ -335,6 +335,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Validar orden de trabajo si viene work_order_id
       if (isset($data['work_order_id']) && $data['work_order_id']) {
         $this->validateWorkOrderInvoice($data);
+
+        // Setear códigos de productos para items de work order
+        if (isset($data['items']) && is_array($data['items'])) {
+          $data['items'] = $this->setWorkOrderItemCodes($data['work_order_id'], $data['items']);
+        }
       }
 
       /**
@@ -499,53 +504,59 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
       }
 
-      // Validar que si la cotización está cambiando y ya tiene factura, no se puede cambiar
-      if (isset($data['order_quotation_id']) && $data['order_quotation_id'] && $document->order_quotation_id && $data['order_quotation_id'] != $document->order_quotation_id) {
-        throw new Exception('No se puede cambiar la cotización de un documento que ya está asociado a una cotización');
+      // ============================================================================
+      // VALIDACIONES PARA order_quotation_id
+      // ============================================================================
+
+      // Determinar el order_quotation_id efectivo (el del documento o el nuevo)
+      $effectiveQuotationId = isset($data['order_quotation_id']) ? $data['order_quotation_id'] : $document->order_quotation_id;
+
+      // Validar que no se pueda CAMBIAR la cotización si ya está asociada a una
+      if (isset($data['order_quotation_id']) && $document->order_quotation_id && $data['order_quotation_id'] != $document->order_quotation_id) {
+        throw new Exception('No se puede cambiar la cotización de un documento que ya está asociado a una cotización. Debe eliminar el documento y crear uno nuevo.');
       }
 
-      // Validar cotización si se está agregando o si ya existe
-      if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
-        $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+      // Validar que no se pueda QUITAR la cotización si ya está asociada
+      if (isset($data['order_quotation_id']) && $data['order_quotation_id'] === null && $document->order_quotation_id) {
+        throw new Exception('No se puede quitar la cotización de un documento que ya está asociado a una. Debe eliminar el documento y crear uno nuevo.');
+      }
+
+      // Validar la cotización si existe (ya sea del documento o nueva)
+      if ($effectiveQuotationId) {
+        $quotation = ApOrderQuotations::find($effectiveQuotationId);
+
+        if (!$quotation) {
+          throw new Exception('La cotización especificada no existe.');
+        }
+
+        // Validar que la cotización no esté descartada
         if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
           throw new Exception('No se puede asociar un documento electrónico a una cotización descartada.');
         }
 
-        // Validar stock de productos si no es un anticipo
+        // Determinar si es anticipo (considerar cambios en is_advance_payment)
         $isAdvancePayment = isset($data['is_advance_payment']) ? $data['is_advance_payment'] : $document->is_advance_payment;
+
+        // Validar stock de productos si no es un anticipo
         $this->validateQuotationStock($quotation, $isAdvancePayment);
-      }
 
-      // Validar orden de trabajo si viene work_order_id
-      if (isset($data['work_order_id']) && $data['work_order_id']) {
-        // Si el documento ya tenía una work_order_id diferente, no permitir cambio
-        if ($document->work_order_id && $data['work_order_id'] != $document->work_order_id) {
-          throw new Exception('No se puede cambiar la orden de trabajo de un documento que ya está asociado a una orden');
-        }
-        $this->validateWorkOrderInvoice(array_merge($document->toArray(), $data));
-      }
+        // Validar anticipos si es anticipo o si está cambiando el monto
+        if ($isAdvancePayment == 1) {
+          $total = isset($data['total']) ? (float)$data['total'] : (float)$document->total;
 
-      // Validar anticipo si está siendo actualizado
-      if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
-        $total = isset($data['total']) ? (float)$data['total'] : (float)$document->total;
-        if ($total <= 0) {
-          throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
-        }
-
-        // Validar que la suma de anticipos no exceda el monto de la cotización
-        if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
-          $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+          if ($total <= 0) {
+            throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
+          }
 
           // Sumar todos los anticipos aceptados por SUNAT para esta cotización (excluyendo el actual)
-          $totalAnticiposExistentes = ElectronicDocument::where('order_quotation_id', $data['order_quotation_id'])
-            ->where('id', '!=', $id) // Excluir el documento actual
+          $totalAnticiposExistentes = ElectronicDocument::where('order_quotation_id', $effectiveQuotationId)
+            ->where('id', '!=', $id)
             ->where('is_advance_payment', 1)
             ->where('aceptada_por_sunat', true)
             ->where('anulado', false)
             ->whereNull('deleted_at')
             ->sum('total');
 
-          // Sumar el anticipo actualizado
           $totalAnticiposConNuevo = $totalAnticiposExistentes + $total;
 
           // Validar que no exceda el total de la cotización
@@ -560,9 +571,48 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
       }
 
-      // Validar que para venta interna (is_advance_payment = 0) la suma de anticipos + monto factura = total entidad
-      if (isset($data['is_advance_payment']) || isset($data['total']) || isset($data['order_quotation_id']) || isset($data['work_order_id'])) {
-        $this->validateInternalSaleTotal(array_merge($document->toArray(), $data));
+      // ============================================================================
+      // VALIDACIONES PARA work_order_id
+      // ============================================================================
+
+      // Determinar el work_order_id efectivo (el del documento o el nuevo)
+      $effectiveWorkOrderId = isset($data['work_order_id']) ? $data['work_order_id'] : $document->work_order_id;
+
+      // Validar que no se pueda CAMBIAR la orden de trabajo si ya está asociada a una
+      if (isset($data['work_order_id']) && $document->work_order_id && $data['work_order_id'] != $document->work_order_id) {
+        throw new Exception('No se puede cambiar la orden de trabajo de un documento que ya está asociado a una orden. Debe eliminar el documento y crear uno nuevo.');
+      }
+
+      // Validar que no se pueda QUITAR la orden de trabajo si ya está asociada
+      if (isset($data['work_order_id']) && $data['work_order_id'] === null && $document->work_order_id) {
+        throw new Exception('No se puede quitar la orden de trabajo de un documento que ya está asociado a una. Debe eliminar el documento y crear uno nuevo.');
+      }
+
+      // Validar la orden de trabajo si existe (ya sea del documento o nueva)
+      if ($effectiveWorkOrderId) {
+        // Preparar datos para validación incluyendo tanto los datos del documento como los nuevos
+        $validationData = array_merge($document->toArray(), $data);
+        $validationData['work_order_id'] = $effectiveWorkOrderId;
+
+        $this->validateWorkOrderInvoice($validationData);
+
+        // Setear códigos de productos para items de work order si se están actualizando items
+        if (isset($data['items']) && is_array($data['items'])) {
+          $data['items'] = $this->setWorkOrderItemCodes($effectiveWorkOrderId, $data['items']);
+        }
+      }
+
+      // Validar venta interna para order_quotation_id o work_order_id
+      // Solo si es venta interna (is_advance_payment = 0) y tiene alguna de estas entidades
+      if (($effectiveQuotationId || $effectiveWorkOrderId)) {
+        // Determinar si es venta interna
+        $isAdvancePayment = isset($data['is_advance_payment']) ? $data['is_advance_payment'] : $document->is_advance_payment;
+
+        if ($isAdvancePayment == 0) {
+          // Preparar datos para validación
+          $validationData = array_merge($document->toArray(), $data);
+          $this->validateInternalSaleTotal($validationData);
+        }
       }
 
       // Manejar cambios en ap_vehicle_id
@@ -2231,6 +2281,60 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
+   * Set product codes for work order items
+   * - For labour items: set default code 'MO-TALLER'
+   * - For part items: get dyn_code from Products table
+   *
+   * @param int $workOrderId
+   * @param array $items
+   * @return array
+   */
+  private function setWorkOrderItemCodes(int $workOrderId, array $items): array
+  {
+    try {
+      // Load work order with parts and their products
+      $workOrder = ApWorkOrder::with(['parts.product', 'labours'])->find($workOrderId);
+
+      if (!$workOrder) {
+        return $items;
+      }
+
+      // Process each item
+      foreach ($items as &$item) {
+        // Skip if codigo is already set
+        if (!empty($item['codigo'])) {
+          continue;
+        }
+
+        // Si es mano de obra (labour)
+        if (isset($item['work_order_labour_id']) && $item['work_order_labour_id']) {
+          $item['codigo'] = 'MO-TALLER'; // Código por defecto para mano de obra
+          continue;
+        }
+
+        // Si es repuesto (part)
+        if (isset($item['work_order_part_id']) && $item['work_order_part_id']) {
+          // Buscar el part en la work order
+          $part = $workOrder->parts->firstWhere('id', $item['work_order_part_id']);
+
+          if ($part && $part->product && !empty($part->product->dyn_code)) {
+            $item['codigo'] = $part->product->dyn_code;
+          }
+        }
+      }
+
+      return $items;
+    } catch (Exception $e) {
+      Log::error('Error setting work order item codes', [
+        'work_order_id' => $workOrderId,
+        'error' => $e->getMessage(),
+      ]);
+      // Return items unchanged if error
+      return $items;
+    }
+  }
+
+  /*
    * Consulta Dynamics y actualiza is_accounted e is_annulled para todos los
    * documentos que han sido solicitados a Dynamics y cuya migración está completada.
    *
