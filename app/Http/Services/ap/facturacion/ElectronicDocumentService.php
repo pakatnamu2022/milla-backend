@@ -785,6 +785,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // El servicio devuelve ['success' => bool, 'data' => array] o ['success' => bool, 'error' => string, 'data' => array]
       if (!$response['success']) {
         $errorMessage = is_array($response['error']) ? implode(', ', $response['error']) : ($response['error'] ?? 'Error desconocido');
+
         throw new Exception('Error de Nubefact: ' . $errorMessage);
       }
 
