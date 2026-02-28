@@ -6,6 +6,7 @@ use App\Http\Requests\StoreRequest;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\taller\ApSupplierOrder;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Validation\Rule;
 
 class StoreApSupplierOrderRequest extends StoreRequest
 {
@@ -15,7 +16,8 @@ class StoreApSupplierOrderRequest extends StoreRequest
       'order_number' => [
         'required',
         'string',
-        'unique:ap_supplier_order,order_number',
+        Rule::unique('ap_supplier_order', 'order_number')
+          ->whereNull('deleted_at'),
       ],
       'supplier_id' => [
         'required',
@@ -46,11 +48,6 @@ class StoreApSupplierOrderRequest extends StoreRequest
         'string',
         'in:' . ApSupplierOrder::STOCK . ',' . ApSupplierOrder::LIMA . ',' . ApSupplierOrder::IMPORTACION,
       ],
-      'is_take' => [
-        'sometimes',
-        'boolean',
-      ],
-
       'request_detail_ids' => ['nullable', 'array'],
 
       // Details validation
@@ -97,7 +94,7 @@ class StoreApSupplierOrderRequest extends StoreRequest
       'order_number.required' => 'El número de orden es obligatorio.',
       'order_number.string' => 'El número de orden debe ser una cadena de texto.',
       'order_number.unique' => 'El número de orden ya existe.',
-      
+
       'supplier_id.required' => 'El proveedor es obligatorio.',
       'supplier_id.integer' => 'El proveedor debe ser un entero.',
       'supplier_id.exists' => 'El proveedor seleccionado no es válido.',
@@ -119,8 +116,6 @@ class StoreApSupplierOrderRequest extends StoreRequest
 
       'supply_type.required' => 'El tipo de suministro es obligatorio.',
       'supply_type.in' => 'El tipo de suministro debe ser: STOCK, LIMA o IMPORTACION.',
-
-      'is_take.boolean' => 'El campo is_take debe ser verdadero o falso.',
 
       // Details messages
       'details.required' => 'Los detalles de la orden son obligatorios.',

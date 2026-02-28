@@ -34,11 +34,11 @@ class ApSupplierOrderResource extends JsonResource
       'net_amount' => $this->net_amount,
       'tax_amount' => $this->tax_amount,
       'total_amount' => $this->total_amount,
-      'is_take' => $this->is_take,
       'status' => $this->status,
       'created_at' => $this->created_at,
       'updated_at' => $this->updated_at,
       'has_receptions' => $this->hasActiveReceptions(),
+      'has_invoice' => $this->receptions()->whereNotNull('purchase_order_id')->whereNull('deleted_at')->exists(),
 
       // Relationships
       'supplier' => new BusinessPartnersResource($this->whenLoaded('supplier')),
@@ -47,6 +47,16 @@ class ApSupplierOrderResource extends JsonResource
       'type_currency' => new TypeCurrencyResource($this->whenLoaded('typeCurrency')),
       'created_by_user' => new UserCompleteResource($this->whenLoaded('createdBy')),
       'details' => ApSupplierOrderDetailsResource::collection($this->whenLoaded('details')),
+      'invoice_numbers' => $this->when($this->relationLoaded('receptions'), function () {
+        return $this->receptions
+          ->whereNotNull('purchase_order_id')
+          ->map(fn($reception) => $reception->purchaseOrder)
+          ->filter()
+          ->map(fn($po) => trim(($po->invoice_series ?? '') . '-' . ($po->invoice_number ?? ''), '-'))
+          ->filter()
+          ->values();
+      }),
+
       'purchase_requests' => $this->when($this->relationLoaded('requestDetails'), function () {
         return $this->requestDetails
           ->pluck('orderPurchaseRequest')

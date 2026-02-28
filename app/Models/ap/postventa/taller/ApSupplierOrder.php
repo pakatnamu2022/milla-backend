@@ -33,7 +33,6 @@ class ApSupplierOrder extends Model
     'tax_amount',
     'total_amount',
     'exchange_rate',
-    'is_take',
     'status',
   ];
 
@@ -46,7 +45,6 @@ class ApSupplierOrder extends Model
     'created_by' => '=',
     'order_date' => 'between',
     'supply_type' => 'in',
-    'is_take' => '=',
     'status' => '=',
   ];
 

@@ -77,6 +77,12 @@ class ApOrderPurchaseRequests extends Model
   const LIMA = 'LIMA';
   const IMPORTACION = 'IMPORTACION';
 
+  // STATUS CONSTANTS
+  const PENDING = 'pending';
+  const ORDERED = 'ordered';
+  const RECEIVED = 'received';
+  const CANCELLED = 'cancelled';
+
   public function apOrderQuotation(): BelongsTo
   {
     return $this->belongsTo(ApOrderQuotations::class, 'ap_order_quotation_id');

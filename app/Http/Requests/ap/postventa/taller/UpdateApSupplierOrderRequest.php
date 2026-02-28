@@ -55,10 +55,6 @@ class UpdateApSupplierOrderRequest extends StoreRequest
         'string',
         'in:' . ApSupplierOrder::STOCK . ',' . ApSupplierOrder::LIMA . ',' . ApSupplierOrder::IMPORTACION,
       ],
-      'is_take' => [
-        'sometimes',
-        'boolean',
-      ],
       'status' => [
         'sometimes',
         'required',
@@ -127,8 +123,6 @@ class UpdateApSupplierOrderRequest extends StoreRequest
 
       'supply_type.required' => 'El tipo de suministro es obligatorio.',
       'supply_type.in' => 'El tipo de suministro debe ser: STOCK, LIMA o IMPORTACION.',
-
-      'is_take.boolean' => 'El campo is_take debe ser verdadero o falso.',
 
       'status.required' => 'El estado es obligatorio.',
       'status.in' => 'El estado debe ser: pending, approved, rejected o completed.',
