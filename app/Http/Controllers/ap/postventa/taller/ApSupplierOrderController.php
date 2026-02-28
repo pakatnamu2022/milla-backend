@@ -65,15 +65,6 @@ class ApSupplierOrderController extends Controller
     }
   }
 
-  public function markAsTaken($id)
-  {
-    try {
-      return $this->service->markAsTaken($id);
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
   public function updateStatus(Request $request, $id)
   {
     try {

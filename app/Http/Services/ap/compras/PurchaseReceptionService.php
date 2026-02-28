@@ -13,6 +13,8 @@ use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\postventa\gestionProductos\Products;
+use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
+use App\Models\ap\postventa\taller\ApOrderPurchaseRequests;
 use App\Models\ap\postventa\taller\ApSupplierOrder;
 use App\Models\ap\postventa\taller\ApSupplierOrderDetails;
 use Carbon\Carbon;
@@ -417,6 +419,45 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       $inventoryMovementService->createFromPurchaseReception($reception);
     } catch (Exception $e) {
       throw new Exception('Error al crear el movimiento de inventario y actualizar stock: ' . $e->getMessage());
+    }
+
+    // 9. Marcar detalles de solicitud de compra y su cabecera como recepcionados
+    $this->markRequestDetailsAsReceived($purchaseOrder);
+  }
+
+  protected function markRequestDetailsAsReceived(PurchaseOrder $purchaseOrder): void
+  {
+    // Obtener IDs de los detalles de solicitud vinculados a esta orden de compra
+    $detailIds = DB::table('ap_order_purchase_request_detail_purchase_order')
+      ->where('purchase_order_id', $purchaseOrder->id)
+      ->pluck('ap_order_purchase_request_detail_id');
+
+    if ($detailIds->isEmpty()) {
+      return;
+    }
+
+    // Marcar los detalles como recepcionados
+    ApOrderPurchaseRequestDetails::whereIn('id', $detailIds)
+      ->update(['status' => ApOrderPurchaseRequestDetails::STATUS_RECEIVED]);
+
+    // Obtener los IDs únicos de las cabeceras (solicitudes de compra)
+    $requestIds = ApOrderPurchaseRequestDetails::whereIn('id', $detailIds)
+      ->pluck('order_purchase_request_id')
+      ->unique();
+
+    // Para cada cabecera, si todos sus detalles están recepcionados → marcar la cabecera
+    foreach ($requestIds as $requestId) {
+      $hasPending = ApOrderPurchaseRequestDetails::where('order_purchase_request_id', $requestId)
+        ->where('status', '!=', ApOrderPurchaseRequestDetails::STATUS_RECEIVED)
+        ->whereNull('deleted_at')
+        ->exists();
+
+      if (!$hasPending) {
+        ApOrderPurchaseRequests::where('id', $requestId)->update([
+          'status' => ApOrderPurchaseRequests::RECEIVED,
+          'received_date' => now(),
+        ]);
+      }
     }
   }
 }

@@ -301,7 +301,6 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         if ($supplierOrder) {
           $supplierOrder->update([
             'ap_purchase_order_id' => $purchaseOrder->id,
-            'is_take' => true
           ]);
         }
       }

@@ -24,6 +24,7 @@ use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\ApMasters;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\gestionsistema\Company;
@@ -335,11 +336,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Validar orden de trabajo si viene work_order_id
       if (isset($data['work_order_id']) && $data['work_order_id']) {
         $this->validateWorkOrderInvoice($data);
-
-        // Setear códigos de productos para items de work order
-        if (isset($data['items']) && is_array($data['items'])) {
-          $data['items'] = $this->setWorkOrderItemCodes($data['work_order_id'], $data['items']);
-        }
       }
 
       /**
@@ -421,6 +417,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Crear los items
       if (isset($data['items']) && is_array($data['items'])) {
+        // Enriquecer el campo `codigo` de cada item antes de crearlos
+        if (!empty($data['order_quotation_id'])) {
+          $this->enrichItemsCodigoFromQuotation($data['items'], (int)$data['order_quotation_id']);
+        } elseif (!empty($data['work_order_id'])) {
+          $this->enrichItemsCodigoFromWorkOrder($data['items'], (int)$data['work_order_id']);
+        }
+
         $data['items'] = collect($data['items'])->sortBy('anticipo_regularizacion')->values()->all();
         foreach ($data['items'] as $index => $itemData) {
           $itemData['line_number'] = $index + 1;
@@ -2281,56 +2284,58 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
-   * Set product codes for work order items
-   * - For labour items: set default code 'MO-TALLER'
-   * - For part items: get dyn_code from Products table
-   *
-   * @param int $workOrderId
-   * @param array $items
-   * @return array
+   * Enriquece el campo `codigo` de cada item desde los detalles de una cotización.
+   * El frontend envía `order_quotation_detail_id` como campo transitorio en cada item.
+   * Solo aplica a detalles con item_type = PRODUCT y product_id definido.
    */
-  private function setWorkOrderItemCodes(int $workOrderId, array $items): array
+  private function enrichItemsCodigoFromQuotation(array &$items, int $quotationId): void
   {
-    try {
-      // Load work order with parts and their products
-      $workOrder = ApWorkOrder::with(['parts.product', 'labours'])->find($workOrderId);
+    $details = ApOrderQuotationDetails::with('product')
+      ->where('order_quotation_id', $quotationId)
+      ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
+      ->whereNotNull('product_id')
+      ->get()
+      ->keyBy('id');
 
-      if (!$workOrder) {
-        return $items;
+    foreach ($items as &$item) {
+      if (empty($item['order_quotation_detail_id'])) {
+        continue;
       }
 
-      // Process each item
-      foreach ($items as &$item) {
-        // Skip if codigo is already set
-        if (!empty($item['codigo'])) {
-          continue;
-        }
+      $detail = $details->get($item['order_quotation_detail_id']);
 
-        // Si es mano de obra (labour)
-        if (isset($item['work_order_labour_id']) && $item['work_order_labour_id']) {
-          $item['codigo'] = 'MO-TALLER'; // Código por defecto para mano de obra
-          continue;
-        }
-
-        // Si es repuesto (part)
-        if (isset($item['work_order_part_id']) && $item['work_order_part_id']) {
-          // Buscar el part en la work order
-          $part = $workOrder->parts->firstWhere('id', $item['work_order_part_id']);
-
-          if ($part && $part->product && !empty($part->product->dyn_code)) {
-            $item['codigo'] = $part->product->dyn_code;
-          }
-        }
+      if ($detail && $detail->product && $detail->product->dyn_code) {
+        $item['codigo'] = $detail->product->dyn_code;
       }
+    }
+  }
 
-      return $items;
-    } catch (Exception $e) {
-      Log::error('Error setting work order item codes', [
-        'work_order_id' => $workOrderId,
-        'error' => $e->getMessage(),
-      ]);
-      // Return items unchanged if error
-      return $items;
+  /**
+   * Enriquece el campo `codigo` de cada item desde una orden de trabajo.
+   * El frontend envía `work_order_part_id` o `work_order_labour_id` como campo transitorio.
+   * - Repuestos (parts): usa el dyn_code del producto.
+   * - Mano de obra (labours): valor fijo 'DHF-00122'.
+   * Ambos campos son transitorios y no se almacenan en ap_billing_electronic_document_items.
+   */
+  private function enrichItemsCodigoFromWorkOrder(array &$items, int $workOrderId): void
+  {
+    $workOrder = ApWorkOrder::with(['parts.product'])->find($workOrderId);
+
+    if (!$workOrder) {
+      return;
+    }
+
+    $parts = $workOrder->parts->keyBy('id');
+
+    foreach ($items as &$item) {
+      if (!empty($item['work_order_part_id'])) {
+        $part = $parts->get($item['work_order_part_id']);
+        if ($part && $part->product && $part->product->dyn_code) {
+          $item['codigo'] = $part->product->dyn_code;
+        }
+      } elseif (!empty($item['work_order_labour_id'])) {
+        $item['codigo'] = 'DHF-00122';
+      }
     }
   }
 

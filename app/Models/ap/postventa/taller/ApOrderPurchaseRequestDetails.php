@@ -43,6 +43,12 @@ class ApOrderPurchaseRequestDetails extends Model
     'requested_delivery_date' => 'datetime',
   ];
 
+  // Status constants
+  const STATUS_PENDING = 'pending';
+  const STATUS_ORDERED = 'ordered';
+  const STATUS_RECEIVED = 'received';
+  const STATUS_REJECTED = 'rejected';
+
   public function orderPurchaseRequest(): BelongsTo
   {
     return $this->belongsTo(ApOrderPurchaseRequests::class, 'order_purchase_request_id');

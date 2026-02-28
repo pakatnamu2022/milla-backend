@@ -5,7 +5,6 @@ namespace App\Http\Requests\ap\postventa\taller;
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use Illuminate\Contracts\Validation\Validator;
-use Illuminate\Validation\ValidationException;
 
 class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
 {
@@ -169,9 +168,16 @@ class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
       $duplicates = $productIds->duplicates()->values();
 
       if ($duplicates->isNotEmpty()) {
+        $productDescriptions = collect($details)
+          ->whereIn('product_id', $duplicates->toArray())
+          ->unique('product_id')
+          ->pluck('description', 'product_id');
+
+        $duplicateNames = $duplicates->map(fn($id) => $productDescriptions[$id] ?? "ID: {$id}");
+
         $validator->errors()->add(
           'details',
-          'Se han detectado productos duplicados. Los productos con ID: ' . $duplicates->implode(', ') . ' deben ser consolidados en un solo item.'
+          'Se han detectado productos duplicados. Los siguientes productos deben ser consolidados en un solo item: ' . $duplicateNames->implode(', ') . '.'
         );
       }
 
