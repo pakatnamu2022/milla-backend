@@ -115,7 +115,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
 
       // Subir archivo y actualizar URL
       if (!empty($files)) {
-//        $this->uploadAndAttachFiles($reservation, $files);
+        $this->uploadAndAttachFiles($reservation, $files);
       }
 
       // Confirm request: change status to in_progress and regenerate budgets if status is approved
@@ -131,8 +131,6 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
           $perDiemRequest->district_id,
           $perDiemRequest->per_diem_category_id
         );
-
-//        throw new Exception(json_encode(PerDiemRateResource::collection($rates)));
 
         // Regenerate budgets with hotel consideration using PerDiemRequestService
         $perDiemRequestService = app(PerDiemRequestService::class);
