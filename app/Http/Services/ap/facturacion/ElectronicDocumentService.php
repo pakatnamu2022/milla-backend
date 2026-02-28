@@ -24,6 +24,7 @@ use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\ApMasters;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\gestionsistema\Company;
@@ -414,6 +415,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Crear los items
       if (isset($data['items']) && is_array($data['items'])) {
+        // Enriquecer el campo `codigo` de cada item antes de crearlos
+        if (!empty($data['order_quotation_id'])) {
+          $this->enrichItemsCodigoFromQuotation($data['items'], (int)$data['order_quotation_id']);
+        } elseif (!empty($data['work_order_id'])) {
+          $this->enrichItemsCodigoFromWorkOrder($data['items'], (int)$data['work_order_id']);
+        }
+
         $data['items'] = collect($data['items'])->sortBy('anticipo_regularizacion')->values()->all();
         foreach ($data['items'] as $index => $itemData) {
           $itemData['line_number'] = $index + 1;
@@ -2270,6 +2278,62 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'error' => $e->getMessage(),
       ]);
       // No lanzar excepción para evitar que falle la consulta de Nubefact
+    }
+  }
+
+  /**
+   * Enriquece el campo `codigo` de cada item desde los detalles de una cotización.
+   * El frontend envía `order_quotation_detail_id` como campo transitorio en cada item.
+   * Solo aplica a detalles con item_type = PRODUCT y product_id definido.
+   */
+  private function enrichItemsCodigoFromQuotation(array &$items, int $quotationId): void
+  {
+    $details = ApOrderQuotationDetails::with('product')
+      ->where('order_quotation_id', $quotationId)
+      ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
+      ->whereNotNull('product_id')
+      ->get()
+      ->keyBy('id');
+
+    foreach ($items as &$item) {
+      if (empty($item['order_quotation_detail_id'])) {
+        continue;
+      }
+
+      $detail = $details->get($item['order_quotation_detail_id']);
+
+      if ($detail && $detail->product && $detail->product->dyn_code) {
+        $item['codigo'] = $detail->product->dyn_code;
+      }
+    }
+  }
+
+  /**
+   * Enriquece el campo `codigo` de cada item desde una orden de trabajo.
+   * El frontend envía `work_order_part_id` o `work_order_labour_id` como campo transitorio.
+   * - Repuestos (parts): usa el dyn_code del producto.
+   * - Mano de obra (labours): valor fijo 'DHF-00122'.
+   * Ambos campos son transitorios y no se almacenan en ap_billing_electronic_document_items.
+   */
+  private function enrichItemsCodigoFromWorkOrder(array &$items, int $workOrderId): void
+  {
+    $workOrder = ApWorkOrder::with(['parts.product'])->find($workOrderId);
+
+    if (!$workOrder) {
+      return;
+    }
+
+    $parts = $workOrder->parts->keyBy('id');
+
+    foreach ($items as &$item) {
+      if (!empty($item['work_order_part_id'])) {
+        $part = $parts->get($item['work_order_part_id']);
+        if ($part && $part->product && $part->product->dyn_code) {
+          $item['codigo'] = $part->product->dyn_code;
+        }
+      } elseif (!empty($item['work_order_labour_id'])) {
+        $item['codigo'] = 'DHF-00122';
+      }
     }
   }
 
