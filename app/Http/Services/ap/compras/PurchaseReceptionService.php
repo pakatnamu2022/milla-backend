@@ -207,7 +207,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
           ->whereNull('deleted_at');
       })
         ->where('product_id', $orderDetail->product_id)
-        ->where('reception_type', 'ORDERED')
+        ->where('reception_type', PurchaseReceptionDetail::RECEPTION_TYPE_ORDERED)
         ->sum('quantity_received');
 
       // Si algún item no está completamente recibido, retornar false
@@ -236,7 +236,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     }
 
     // Validate that we don't receive more than ordered (for ORDERED type)
-    if ($detail['reception_type'] === 'ORDERED') {
+    if ($detail['reception_type'] === PurchaseReceptionDetail::RECEPTION_TYPE_ORDERED) {
       $productId = $detail['product_id'];
 
       // Buscar el producto en los detalles de la orden de proveedor
@@ -257,7 +257,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
           ->whereNull('deleted_at');
       })
         ->where('product_id', $productId)
-        ->where('reception_type', 'ORDERED')
+        ->where('reception_type', PurchaseReceptionDetail::RECEPTION_TYPE_ORDERED)
         ->sum('quantity_received');
 
       $quantityAccepted = $quantityReceived - $observedQuantity;
@@ -362,19 +362,28 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
   public function processReceptionStock(PurchaseOrder $purchaseOrder): void
   {
+    \Log::info('🟢 [INICIO] processReceptionStock - PurchaseOrder ID: ' . $purchaseOrder->id);
+
     $stockService = new ProductWarehouseStockService();
     $reception = $purchaseOrder->reception; // Relación ya vinculada
 
     // 1. Validar que la recepción exista
     if (!$reception) {
+      \Log::error('❌ No hay recepción vinculada a la factura ID: ' . $purchaseOrder->id);
       throw new Exception("No hay recepción vinculada a esta factura");
     }
 
+    \Log::info('✅ Recepción encontrada - ID: ' . $reception->id . ', Warehouse: ' . $reception->warehouse_id . ', Total items: ' . $reception->details->count());
+
     // 2. Procesar cada detalle de la recepción
-    foreach ($reception->details as $receptionDetail) {
+    foreach ($reception->details as $index => $receptionDetail) {
+      \Log::info("📦 Procesando detalle #{$index}: Producto ID {$receptionDetail->product_id}, Tipo: {$receptionDetail->reception_type}");
+
       $quantityReceived = $receptionDetail->quantity_received;
       $observedQuantity = $receptionDetail->observed_quantity ?? 0;
       $totalProcessed = $quantityReceived + $observedQuantity;
+
+      \Log::info("   └─ Cantidades - Recibido: {$quantityReceived}, Observado: {$observedQuantity}, Total: {$totalProcessed}");
 
       // 3. Buscar el PurchaseOrderItem correspondiente a este producto
       $orderItem = $purchaseOrder->items()
@@ -382,20 +391,25 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         ->first();
 
       if (!$orderItem) {
+        \Log::error("❌ No se encontró el item de la factura para el producto ID {$receptionDetail->product_id}");
         throw new Exception("No se encontró el item de la factura para el producto ID {$receptionDetail->product_id}");
       }
+
+      \Log::info("   └─ OrderItem encontrado - ID: {$orderItem->id}");
 
       // 4. Vincular el detalle de recepción con el item de la factura
       $receptionDetail->update(['purchase_order_item_id' => $orderItem->id]);
 
       // 5. Actualizar cantidades en PurchaseOrderItem (solo para items ORDERED)
-      if ($receptionDetail->reception_type === 'ORDERED') {
+      if ($receptionDetail->reception_type === PurchaseReceptionDetail::RECEPTION_TYPE_ORDERED) {
+        \Log::info("   └─ Actualizando cantidades en OrderItem (tipo ORDERED)");
         $orderItem->quantity_received += $quantityReceived;
         $orderItem->quantity_pending = $orderItem->quantity - $orderItem->quantity_received;
         $orderItem->save();
 
         // 6. Actualizar quantity_pending_credit_note si hay observaciones
         if ($observedQuantity > 0) {
+          \Log::info("   └─ Agregando {$observedQuantity} a pending credit note");
           $stockService->addPendingCreditNote(
             $receptionDetail->product_id,
             $reception->warehouse_id,
@@ -404,25 +418,36 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         }
 
         // 7. Remover de in-transit (total procesado: recibido + observado)
+        \Log::info("   └─ Removiendo {$totalProcessed} de in-transit stock");
         $stockService->removeInTransitStock(
           $receptionDetail->product_id,
           $reception->warehouse_id,
           $totalProcessed
         );
+      } else {
+        \Log::info("   └─ Detalle saltado (tipo no es ORDERED): {$receptionDetail->reception_type}");
       }
     }
 
     // 8. Crear movimiento de inventario y actualizar stock físico
+    \Log::info('🔄 Iniciando creación de movimiento de inventario...');
     $digitalFileService = new DigitalFileService();
     $inventoryMovementService = new InventoryMovementService($digitalFileService);
     try {
       $inventoryMovementService->createFromPurchaseReception($reception);
+      \Log::info('✅ Movimiento de inventario creado exitosamente');
     } catch (Exception $e) {
+      \Log::error('❌ Error al crear el movimiento de inventario: ' . $e->getMessage());
+      \Log::error('Stack trace: ' . $e->getTraceAsString());
       throw new Exception('Error al crear el movimiento de inventario y actualizar stock: ' . $e->getMessage());
     }
 
     // 9. Marcar detalles de solicitud de compra y su cabecera como recepcionados
+    \Log::info('🔄 Marcando request details como recibidos...');
     $this->markRequestDetailsAsReceived($purchaseOrder);
+    \Log::info('✅ Request details marcados como recibidos');
+
+    \Log::info('🏁 [FIN] processReceptionStock - PurchaseOrder ID: ' . $purchaseOrder->id);
   }
 
   protected function markRequestDetailsAsReceived(PurchaseOrder $purchaseOrder): void
