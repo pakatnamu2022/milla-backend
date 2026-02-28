@@ -496,6 +496,24 @@ class PerDiemRequestController extends Controller
   }
 
   /**
+   * Regenerate budgets from current rates and recalculate all expenses.
+   * Only allowed when status is 'in_progress'.
+   */
+  public function regenerateBudgets(int $id)
+  {
+    try {
+      $perDiemRequest = $this->service->regenerateBudgetsAll($id);
+
+      return $this->success([
+        'data' => $perDiemRequest,
+        'message' => 'Presupuestos regenerados y gastos recalculados exitosamente.',
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Reset approvals for a per diem request
    * Creates missing boss approvals and resets approved/rejected ones to pending
    */

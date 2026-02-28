@@ -3,6 +3,7 @@
 namespace App\Http\Services\gp\gestionhumana\viaticos;
 
 use App\Http\Resources\gp\gestionhumana\viaticos\HotelReservationResource;
+use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRateResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
@@ -152,6 +153,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
       throw $e;
     }
   }
+
 
   /**
    * Update a hotel reservation
