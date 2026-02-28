@@ -331,7 +331,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $approverId = auth()->user()->person->id;
 
     // Merge authorizer_id filter
-    $request->merge(['authorizer_id' => $approverId]);
+    $request->merge(['approvers_id' => $approverId]);
 
     // Handle approval_status filter: 'pending' (default), 'approved', 'all'
     $approvalStatus = $request->query('approval_status', 'pending');
@@ -348,6 +348,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       'sedeService',
       'district',
       'policy',
+      'approvals',
     ]);
 
     return $this->getFilteredResults(
