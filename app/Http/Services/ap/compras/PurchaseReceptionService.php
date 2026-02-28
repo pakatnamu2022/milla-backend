@@ -431,8 +431,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
     // 8. Crear movimiento de inventario y actualizar stock físico
     \Log::info('🔄 Iniciando creación de movimiento de inventario...');
-    $digitalFileService = new DigitalFileService();
-    $inventoryMovementService = new InventoryMovementService($digitalFileService);
+    $inventoryMovementService = new InventoryMovementService();
     try {
       $inventoryMovementService->createFromPurchaseReception($reception);
       \Log::info('✅ Movimiento de inventario creado exitosamente');

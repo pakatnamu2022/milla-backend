@@ -2332,7 +2332,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $item['codigo'] = $part->product->dyn_code;
         }
       } elseif (!empty($item['work_order_labour_id'])) {
-        $item['codigo'] = 'DHF-00122';
+        $item['codigo'] = 'V0000011';
       }
     }
   }

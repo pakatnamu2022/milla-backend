@@ -456,7 +456,7 @@ return [
         'DescripcionGenerica' => fn($data) => substr($data['description'] ?? $data['name'], 0, 200),
         'Nota' => fn($data) => '',
         'ClaseArticulo' => fn($data) => $data['class_dyn'] ?? '',
-        'PlanUnidadMedida' => fn($data) => 'UNIDAD',
+        'PlanUnidadMedida' => fn($data) => $data['unit_measurement_description'] ?? 'UNIDAD',
         'CostoEstandar' => fn($data) => $data['cost_price'] ?? 0,
         'CostoActual' => fn($data) => $data['cost_price'] ?? 0,
         'PesoEnvio' => 0,
