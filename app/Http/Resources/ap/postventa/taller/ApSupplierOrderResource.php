@@ -56,6 +56,15 @@ class ApSupplierOrderResource extends JsonResource
           ->filter()
           ->values();
       }),
+      'number_oc_dyn' => $this->when($this->relationLoaded('receptions'), function () {
+        return $this->receptions
+          ->whereNotNull('purchase_order_id')
+          ->map(fn($reception) => $reception->purchaseOrder)
+          ->filter()
+          ->map(fn($po) => trim(($po->number ?? ''), '-'))
+          ->filter()
+          ->values();
+      }),
 
       'purchase_requests' => $this->when($this->relationLoaded('requestDetails'), function () {
         return $this->requestDetails

@@ -1023,11 +1023,11 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
     // Separar gastos por quien los asume (empresa vs colaborador)
     $gastosEmpresa = $perDiemRequest->expenses->filter(function ($expense) {
-      return $expense->is_company_expense === true && $expense->validated == 1;
+      return $expense->is_company_expense === true;
     });
 
     $gastosColaborador = $perDiemRequest->expenses->filter(function ($expense) {
-      return $expense->is_company_expense === false && $expense->validated == 1;
+      return $expense->is_company_expense === false;
     });
 
     // ===== GASTOS DE LA EMPRESA =====

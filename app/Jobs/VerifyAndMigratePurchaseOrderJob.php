@@ -581,15 +581,17 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         $receptionDetailResource = new PurchaseOrderProductReceptionDetailResource($purchaseOrder);
         $receptionDetailData = $receptionDetailResource->toArray(request());
 
-        $receptionLog->markAsInProgress();
-        $syncService->sync('ap_vehicle_purchase_order_reception', $receptionData, 'create');
-        $receptionLog->updateProcesoEstado(0);
-
+        // Sincronizar detalle primero
         $receptionDetailLog->markAsInProgress();
         foreach ($receptionDetailData as $detailRow) {
           $syncService->sync('ap_vehicle_purchase_order_reception_det', $detailRow, 'create');
         }
         $receptionDetailLog->updateProcesoEstado(0);
+
+        // Sincronizar cabecera después
+        $receptionLog->markAsInProgress();
+        $syncService->sync('ap_vehicle_purchase_order_reception', $receptionData, 'create');
+        $receptionLog->updateProcesoEstado(0);
 
       } catch (Exception $e) {
         Log::error('Error al sincronizar recepción de productos: ' . $e->getMessage());
@@ -726,17 +728,17 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
         $resourcePurchaseOrderDetail = new PurchaseOrderItemDynamicsResource($purchaseOrder->items);
         $resourceDataPurchaseOrderDetail = $resourcePurchaseOrderDetail->toArray(request());
 
-        // Sincronizar header
-        $purchaseOrderLog->markAsInProgress();
-        $syncService->sync('ap_purchase_order', $resourceDataPurchaseOrder, 'create');
-        $purchaseOrderLog->updateProcesoEstado(0);
-
-        // Sincronizar detalle (cada item)
+        // Sincronizar detalle primero (cada item)
         $purchaseOrderDetailLog->markAsInProgress();
         foreach ($resourceDataPurchaseOrderDetail as $detail) {
           $syncService->sync('ap_purchase_order_item', $detail, 'create');
         }
         $purchaseOrderDetailLog->updateProcesoEstado(0);
+
+        // Sincronizar header después
+        $purchaseOrderLog->markAsInProgress();
+        $syncService->sync('ap_purchase_order', $resourceDataPurchaseOrder, 'create');
+        $purchaseOrderLog->updateProcesoEstado(0);
       } catch (Exception $e) {
         Log::error('Error al sincronizar orden de compra genérica: ' . $e->getMessage());
         $purchaseOrderLog->markAsFailed("Error al sincronizar orden de compra genérica: {$e->getMessage()}");
