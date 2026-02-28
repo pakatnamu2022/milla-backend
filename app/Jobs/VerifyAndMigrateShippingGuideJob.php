@@ -491,7 +491,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     } else {
       // Si no tiene dyn_series, construirlo desde el correlativo
       $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'TVEN-' : 'TSAL-';
-      $transactionId = $prefix . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
+      $transactionId = $prefix . $shippingGuide->document_number;
     }
 
     // Si es una reversión, agregar asterisco
@@ -513,7 +513,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     } else {
       // Si no tiene dyn_series, construirlo desde el correlativo
       $prefix = $this->getTransferPrefix($shippingGuide);
-      $transactionId = $prefix . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
+      $transactionId = $prefix . $shippingGuide->document_number;
     }
 
     // Si es una reversión, agregar asterisco
@@ -740,7 +740,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       // Generar el TransactionId si no existe
       if (empty($shippingGuide->dyn_series)) {
         $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'TVEN-' : 'TSAL-';
-        $transactionId = $prefix . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
+        $transactionId = $prefix . $shippingGuide->document_number;
         // Actualizar dyn_series en ShippingGuides
         $shippingGuide->update([
           'dyn_series' => $transactionId,
@@ -899,7 +899,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
     try {
       // Preparar TransferenciaId con asterisco si está cancelada
-      $transferId = $prefix . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
+      $transferId = $prefix . $shippingGuide->document_number;
       if ($isCancelled) {
         $transferId .= '*';
       }
@@ -949,7 +949,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     }
 
     $prefix = $this->getTransferPrefix($shippingGuide);
-    $transferIdOriginal = $prefix . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
+    $transferIdOriginal = $prefix . $shippingGuide->document_number;
     $transferIdFormatted = $transferIdOriginal;
 
     // Si está cancelada, agregar asterisco al final del TransferenciaId
@@ -1151,7 +1151,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
     try {
       // Preparar TransferenciaId con asterisco si está cancelada
-      $transferId = $prefix . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
+      $transferId = $prefix . $shippingGuide->document_number;
       if ($isCancelled) {
         $transferId .= '*';
       }
