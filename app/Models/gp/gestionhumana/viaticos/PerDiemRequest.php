@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Log;
 
 class PerDiemRequest extends BaseModel
 {
@@ -72,6 +73,7 @@ class PerDiemRequest extends BaseModel
 
   const filters = [
     'search' => ['code', 'purpose', 'employee.nombre_completo'],
+    'approvers_id' => 'accessor_in',
     'status' => '=',
     'settlement_status' => '=',
     'employee_id' => '=',
@@ -215,6 +217,15 @@ class PerDiemRequest extends BaseModel
   public function approvals(): HasMany
   {
     return $this->hasMany(PerDiemApproval::class);
+  }
+
+  /**
+   * Field "approvers_id" to get array of approval IDs for this request
+   * @return mixed[]
+   */
+  public function getApproversIdAttribute()
+  {
+    return $this->approvals->pluck('approver_id')->toArray();
   }
 
   /**

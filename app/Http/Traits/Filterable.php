@@ -4,6 +4,7 @@ namespace App\Http\Traits;
 
 use App\Http\Utils\Constants;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -241,7 +242,8 @@ trait Filterable
         return false;
 
       case 'accessor_in':
-        return in_array($itemValue, (array)$value);
+        // $itemValue es el array del accessor; $value es el escalar buscado
+        return in_array($value, (array)$itemValue);
 
       default:
         return $itemValue == $value;
