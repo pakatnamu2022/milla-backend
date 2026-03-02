@@ -4,6 +4,7 @@ use App\Http\Controllers\ap\ApMastersController;
 use App\Http\Controllers\GeneralMaster\GeneralMasterController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
+use App\Http\Controllers\ap\comercial\ApVehicleInventoryController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
@@ -1108,6 +1109,18 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Exhibition Vehicles
       Route::get('exhibitionVehicles/export', [ApExhibitionVehiclesController::class, 'export']);
       Route::apiResource('exhibitionVehicles', ApExhibitionVehiclesController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Vehicle Inventory (Vehículos Inventariados)
+      Route::get('vehicleInventory/template', [ApVehicleInventoryController::class, 'downloadTemplate']);
+      Route::post('vehicleInventory/import', [ApVehicleInventoryController::class, 'import']);
+      Route::post('vehicleInventory/{id}/evaluate', [ApVehicleInventoryController::class, 'evaluate']);
+      Route::apiResource('vehicleInventory', ApVehicleInventoryController::class)->only([
         'index',
         'show',
         'store',

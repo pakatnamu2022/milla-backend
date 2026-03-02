@@ -293,12 +293,13 @@ class VehiclePurchaseOrderMigrationController extends Controller
       $dispatched = [];
 
       PurchaseOrder::whereNotIn('migration_status', [VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED])
+        ->where('status', 1)
         ->get()
         ->each(function (PurchaseOrder $po) use (&$dispatched) {
           $logs = VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $po->id)->get();
           $reason = $this->buildDispatchReason($logs);
 
-          VerifyAndMigratePurchaseOrderJob::dispatch($po->id);
+          $this->dispatchMigration($po->id);
 
           $dispatched[] = [
             'id' => $po->id,
