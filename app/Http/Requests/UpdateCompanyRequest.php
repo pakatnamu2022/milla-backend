@@ -2,27 +2,50 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
 
-class UpdateCompanyRequest extends FormRequest
+use Sabberworm\CSS\Rule\Rule;
+
+class UpdateCompanyRequest extends StoreRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return false;
-    }
-
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
-    public function rules(): array
-    {
-        return [
-            //
-        ];
-    }
+  public function rules(): array
+  {
+    return [
+      'email' => [
+        'nullable',
+        'string',
+        'max:100',
+        Rule::unique('companies', 'email')
+          ->whereNull('deleted_at')
+          ->ignore($this->route('company')),
+      ],
+      'website' => [
+        'nullable',
+        'string',
+        'max:100',
+        Rule::unique('companies', 'website')
+          ->whereNull('deleted_at')
+          ->ignore($this->route('company')),
+      ],
+      'phone' => [
+        'nullable',
+        'string',
+        'max:20',
+      ],
+      'address' => [
+        'nullable',
+        'string',
+        'max:200',
+      ],
+      'detraction_amount' => [
+        'nullable',
+        'numeric',
+        'min:0',
+      ],
+      'billing_detraction_type_id' => [
+        'nullable',
+        'integer',
+        'exists:sunat_concepts,id',
+      ],
+    ];
+  }
 }

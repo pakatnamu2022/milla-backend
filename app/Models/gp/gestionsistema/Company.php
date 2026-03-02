@@ -4,6 +4,7 @@ namespace App\Models\gp\gestionsistema;
 
 use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\Sede;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Company extends BaseModel
@@ -24,6 +25,8 @@ class Company extends BaseModel
     'phone',
     'address',
     'city',
+    'detraction_amount',
+    'billing_detraction_type_id'
   ];
 
   const filters = [
@@ -66,5 +69,10 @@ class Company extends BaseModel
   public function sedes()
   {
     return $this->hasMany(Sede::class, 'empresa_id', 'id');
+  }
+
+  public function detractions()
+  {
+    return $this->belongsTo(SunatConcepts::class, 'billing_detraction_type_id');
   }
 }

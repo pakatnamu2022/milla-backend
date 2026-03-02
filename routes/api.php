@@ -156,9 +156,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::apiResource('company', CompanyController::class)->only([
     'index',
     'show',
-    'store',
     'update',
-    'destroy'
   ]);
 
   //  DIGITAL FILE

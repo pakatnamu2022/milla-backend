@@ -18,6 +18,7 @@ use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
@@ -2336,6 +2337,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return;
     }
 
+    $labourCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_ID)?->code ?? 'V0000011';
+
     // Indexar parts y labours por ID para búsqueda rápida
     $parts = $workOrder->parts->keyBy('id');
     $labours = $workOrder->labours->keyBy('id');
@@ -2362,7 +2365,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Intentar buscar como labour
       $labour = $labours->get($itemId);
       if ($labour) {
-        $item['codigo'] = 'V0000011';
+        $item['codigo'] = $labourCode;
       }
     }
   }
