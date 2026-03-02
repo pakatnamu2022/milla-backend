@@ -62,7 +62,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
   public function store(mixed $data): ApVehicleDeliveryResource
   {
     try {
-      DB::transaction(function () use ($data) {
+      return DB::transaction(function () use ($data) {
         $user = auth()->user();
         $data['advisor_id'] = $user->partner_id;
 
