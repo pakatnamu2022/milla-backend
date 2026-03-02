@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Models\ap\comercial\ApVehicleInventory;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -202,6 +203,11 @@ class Vehicles extends BaseModel
   public function exhibitionVehicle(): HasOne
   {
     return $this->hasOne(ApExhibitionVehicles::class, 'vehicle_id');
+  }
+
+  public function inventoryRecord(): HasOne
+  {
+    return $this->hasOne(ApVehicleInventory::class, 'ap_vehicle_id');
   }
 
   /**
