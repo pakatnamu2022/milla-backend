@@ -137,6 +137,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'sale_price' => $data['sale_price'],
         'doc_sale_price' => $data['doc_sale_price'],
         'sede_id' => $data['sede_id'] ?? null,
+        'quote_deadline' => $data['quote_deadline'] ?? null,
       ];
 
       // Crear el registro principal
