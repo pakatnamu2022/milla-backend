@@ -41,6 +41,7 @@ class SnapshotAssignBrandConsultant extends Command
       ->where('year', $previousYear)
       ->where('month', $previousMonthNumber)
       ->where('status', true)
+      ->whereNull('deleted_at')
       ->get();
 
     if ($assignments->isEmpty()) {
