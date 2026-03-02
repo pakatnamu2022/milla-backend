@@ -187,6 +187,11 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('No se puede agregar repuestos a una orden de trabajo sin inspección vehicular');
       }
 
+      // Validar que no existan avances de factura
+      if ($workOrder->advancesWorkOrder()->exists()) {
+        throw new Exception('No se puede agregar repuestos porque la orden de trabajo ya tiene avances de factura');
+      }
+
       // Validar que no exista el mismo producto en la orden de trabajo
       $existingPart = ApWorkOrderParts::where('work_order_id', $data['work_order_id'])
         ->where('product_id', $data['product_id'])
@@ -247,6 +252,11 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
   {
     return DB::transaction(function () use ($data) {
       $workOrderPart = $this->find($data['id']);
+
+      // Validar que no existan avances de factura
+      if ($workOrderPart->workOrder->advancesWorkOrder()->exists()) {
+        throw new Exception('No se puede actualizar el repuesto porque la orden de trabajo ya tiene avances de factura');
+      }
 
       $oldProductId = $workOrderPart->product_id;
       $oldWarehouseId = $workOrderPart->warehouse_id;
@@ -325,6 +335,11 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     return DB::transaction(function () use ($id) {
       $workOrderPart = $this->find($id);
 
+      // Validar que no existan avances de factura
+      if ($workOrderPart->workOrder->advancesWorkOrder()->exists()) {
+        throw new Exception('No se puede eliminar el repuesto porque la orden de trabajo ya tiene avances de factura');
+      }
+
       // Validar si existe una solicitud de descuento activa
       $discountRequest = DiscountRequestsWorkOrder::where('part_labour_id', $id)
         ->where('part_labour_model', ApWorkOrderParts::class)
@@ -383,6 +398,16 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $workOrderId = $data['work_order_id'];
       $warehouseId = $data['warehouse_id'];
       $quotationDetailIds = $data['quotation_detail_ids'];
+
+      // Validar que no existan avances de factura
+      $workOrder = ApWorkOrder::find($workOrderId);
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      if ($workOrder->advancesWorkOrder()->exists()) {
+        throw new Exception('No se puede agregar repuestos porque la orden de trabajo ya tiene avances de factura');
+      }
 
       // Obtener solo los detalles seleccionados
       $quotationDetails = ApOrderQuotationDetails::with('product')
