@@ -10,6 +10,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
@@ -154,6 +155,20 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
     // Sin cotización, factor = 1
     return 1;
+  }
+
+  /**
+   * Traducir estado de solicitud de descuento
+   */
+  private function translateDiscountStatus(string $status): string
+  {
+    $translations = [
+      DiscountRequestsWorkOrder::STATUS_PENDING => 'pendiente',
+      DiscountRequestsWorkOrder::STATUS_APPROVED => 'aprobado',
+      DiscountRequestsWorkOrder::STATUS_REJECTED => 'rechazado',
+    ];
+
+    return $translations[$status] ?? $status;
   }
 
   public function store(mixed $data)
@@ -309,6 +324,20 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
   {
     return DB::transaction(function () use ($id) {
       $workOrderPart = $this->find($id);
+
+      // Validar si existe una solicitud de descuento activa
+      $discountRequest = DiscountRequestsWorkOrder::where('part_labour_id', $id)
+        ->where('part_labour_model', ApWorkOrderParts::class)
+        ->whereIn('status', [
+          DiscountRequestsWorkOrder::STATUS_PENDING,
+          DiscountRequestsWorkOrder::STATUS_APPROVED,
+          DiscountRequestsWorkOrder::STATUS_REJECTED
+        ])
+        ->first();
+
+      if ($discountRequest) {
+        throw new Exception('No se puede eliminar el repuesto porque tiene una solicitud de descuento en estado ' . $this->translateDiscountStatus($discountRequest->status));
+      }
 
       // Liberar el stock reservado
       $stock = ProductWarehouseStock::where('product_id', $workOrderPart->product_id)

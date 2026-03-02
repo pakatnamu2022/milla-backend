@@ -2050,6 +2050,17 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('Orden de trabajo no encontrada.');
     }
 
+    // Validate that if there are labours, at least one must have worker_id assigned and not be deleted
+    if ($workOrder->labours && $workOrder->labours->count() > 0) {
+      $laboursWithWorker = $workOrder->labours->filter(function ($labour) {
+        return $labour->worker_id !== null && $labour->deleted_at === null;
+      });
+
+      if ($laboursWithWorker->count() === 0) {
+        throw new Exception('La orden de trabajo debe tener al menos una mano de obra con trabajador asignado.');
+      }
+    }
+
     // Calculate work order total using centralized method (includes labour, parts, discount, and tax)
     $totals = WorkOrderService::calculateWorkOrderTotal($workOrder);
     $workOrderTotal = $totals['total_amount'];
@@ -2313,28 +2324,44 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
   /**
    * Enriquece el campo `codigo` de cada item desde una orden de trabajo.
-   * El frontend envía `work_order_part_id` o `work_order_labour_id` como campo transitorio.
-   * - Repuestos (parts): usa el dyn_code del producto.
-   * - Mano de obra (labours): valor fijo 'DHF-00122'.
-   * Ambos campos son transitorios y no se almacenan en ap_billing_electronic_document_items.
+   * Usa el campo `codigo` del item (enviado por el frontend) como ID de part o labour.
+   * - Repuestos (parts con product_id): usa el dyn_code del producto.
+   * - Mano de obra (labours sin product_id): valor fijo 'V0000011'.
    */
   private function enrichItemsCodigoFromWorkOrder(array &$items, int $workOrderId): void
   {
-    $workOrder = ApWorkOrder::with(['parts.product'])->find($workOrderId);
+    $workOrder = ApWorkOrder::with(['parts.product', 'labours'])->find($workOrderId);
 
     if (!$workOrder) {
       return;
     }
 
+    // Indexar parts y labours por ID para búsqueda rápida
     $parts = $workOrder->parts->keyBy('id');
+    $labours = $workOrder->labours->keyBy('id');
 
-    foreach ($items as &$item) {
-      if (!empty($item['work_order_part_id'])) {
-        $part = $parts->get($item['work_order_part_id']);
-        if ($part && $part->product && $part->product->dyn_code) {
-          $item['codigo'] = $part->product->dyn_code;
-        }
-      } elseif (!empty($item['work_order_labour_id'])) {
+    foreach ($items as $index => &$item) {
+      // Saltar items de anticipo
+      if (!empty($item['anticipo_regularizacion'])) {
+        continue;
+      }
+
+      $itemId = $item['codigo'] ?? null;
+
+      if (!$itemId) {
+        continue;
+      }
+
+      // Intentar buscar como part
+      $part = $parts->get($itemId);
+      if ($part && $part->product && $part->product->dyn_code) {
+        $item['codigo'] = $part->product->dyn_code;
+        continue;
+      }
+
+      // Intentar buscar como labour
+      $labour = $labours->get($itemId);
+      if ($labour) {
         $item['codigo'] = 'V0000011';
       }
     }

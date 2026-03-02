@@ -7,6 +7,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
 use Illuminate\Http\Request;
@@ -110,6 +111,20 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
     return $hours + ($minutes / 60);
   }
 
+  /**
+   * Traducir estado de solicitud de descuento
+   */
+  private function translateDiscountStatus(string $status): string
+  {
+    $translations = [
+      DiscountRequestsWorkOrder::STATUS_PENDING => 'pendiente',
+      DiscountRequestsWorkOrder::STATUS_APPROVED => 'aprobado',
+      DiscountRequestsWorkOrder::STATUS_REJECTED => 'rechazado',
+    ];
+
+    return $translations[$status] ?? $status;
+  }
+
   public function show($id)
   {
     return new WorkOrderLabourResource($this->find($id));
@@ -157,6 +172,20 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
   {
     $workOrderLabour = $this->find($id);
     $workOrder = $workOrderLabour->workOrder;
+
+    // Validar si existe una solicitud de descuento activa
+    $discountRequest = DiscountRequestsWorkOrder::where('part_labour_id', $id)
+      ->where('part_labour_model', WorkOrderLabour::class)
+      ->whereIn('status', [
+        DiscountRequestsWorkOrder::STATUS_PENDING,
+        DiscountRequestsWorkOrder::STATUS_APPROVED,
+        DiscountRequestsWorkOrder::STATUS_REJECTED
+      ])
+      ->first();
+
+    if ($discountRequest) {
+      throw new Exception('No se puede eliminar la mano de obra porque tiene una solicitud de descuento en estado ' . $this->translateDiscountStatus($discountRequest->status));
+    }
 
     DB::transaction(function () use ($workOrderLabour, $workOrder) {
       $workOrderLabour->delete();

@@ -41,6 +41,7 @@ class SnapshotAssignmentLeadershipPeriods extends Command
       ->where('year', $previousYear)
       ->where('month', $previousMonthNumber)
       ->where('status', true)
+      ->whereNull('deleted_at')
       ->get();
 
     if ($assignments->isEmpty()) {
@@ -52,6 +53,7 @@ class SnapshotAssignmentLeadershipPeriods extends Command
     $alreadyExists = DB::table('ap_assignment_leadership_periods')
       ->where('year', $currentYear)
       ->where('month', $currentMonth)
+      ->whereNull('deleted_at')
       ->exists();
 
     if ($alreadyExists) {
