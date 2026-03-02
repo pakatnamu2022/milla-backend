@@ -5,6 +5,7 @@ namespace App\Http\Requests\ap\compras;
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\Warehouse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class StorePurchaseOrderRequest extends StoreRequest
@@ -57,9 +58,6 @@ class StorePurchaseOrderRequest extends StoreRequest
         'required',
         'string',
         'max:20',
-        Rule::unique('ap_purchase_order')
-          ->where('invoice_series', $this->invoice_series)
-          ->whereNull('deleted_at')
       ],
       'emission_date' => ['required', 'date', 'date_format:Y-m-d'],
       'due_date' => ['nullable', 'date', 'date_format:Y-m-d', 'after_or_equal:emission_date'],
@@ -114,6 +112,25 @@ class StorePurchaseOrderRequest extends StoreRequest
     ]);
   }
 
+  public function withValidator($validator)
+  {
+    $validator->after(function ($validator) {
+      if ($this->has('invoice_series') && $this->has('invoice_number') && $this->has('supplier_id')) {
+        $exists = DB::table('ap_purchase_order')
+          ->where('invoice_series', $this->invoice_series)
+          ->where('invoice_number', $this->invoice_number)
+          ->where('supplier_id', $this->supplier_id)
+          ->whereNull('deleted_at')
+          ->exists();
+
+        if ($exists) {
+          $validator->errors()->add('invoice_number', 'La factura ya existe para este proveedor.');
+        }
+      }
+    });
+
+  }
+
   public function attributes()
   {
     return [
@@ -157,17 +174,4 @@ class StorePurchaseOrderRequest extends StoreRequest
     ];
   }
 
-  public function messages()
-  {
-    return [
-      'ap_supplier_order_id.exists' => 'La orden de proveedor relacionada no es válida',
-      'items.required' => 'Debe agregar al menos un item a la orden de compra',
-      'items.min' => 'Debe agregar al menos un item a la orden de compra',
-      'due_date.after_or_equal' => 'La fecha de vencimiento debe ser igual o posterior a la fecha de emisión',
-      'subtotal.required' => 'El subtotal es requerido (debe venir de la factura)',
-      'igv.required' => 'El IGV es requerido (debe venir de la factura)',
-      'total.required' => 'El total es requerido (debe venir de la factura)',
-      'invoice_number.unique' => 'Ya existe una factura con la serie :invoice_series y el número :input',
-    ];
-  }
 }
