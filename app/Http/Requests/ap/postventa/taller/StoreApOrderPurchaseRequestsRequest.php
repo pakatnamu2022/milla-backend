@@ -3,8 +3,8 @@
 namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
-use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
-use Illuminate\Contracts\Validation\Validator;
+use App\Models\ap\ApMasters;
+use Illuminate\Validation\Rule;
 
 class StoreApOrderPurchaseRequestsRequest extends StoreRequest
 {
@@ -40,7 +40,11 @@ class StoreApOrderPurchaseRequestsRequest extends StoreRequest
         'in:pending,approved,rejected',
       ],
       'supply_type' => [
-        'required',
+        Rule::requiredIf(fn() => in_array($this->input('area_id'), [
+          ApMasters::AREA_MESON,
+          ApMasters::AREA_POSVENTA
+        ])),
+        'nullable',
         'string',
         'in:STOCK,LIMA,IMPORTACION',
       ],

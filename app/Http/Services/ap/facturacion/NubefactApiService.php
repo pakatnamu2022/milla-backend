@@ -2,7 +2,6 @@
 
 namespace App\Http\Services\ap\facturacion;
 
-use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;

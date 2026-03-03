@@ -3,6 +3,8 @@
 namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use Illuminate\Contracts\Validation\Validator;
 
 class StoreApOrderQuotationDetailsRequest extends StoreRequest
 {
@@ -86,7 +88,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
       ],
       'supply_type' => [
         'nullable',
-        'in:LIMA,IMPORTACION,M.O',
+        'in:STOCK,LIMA,IMPORTACION,M.O',
       ],
     ];
   }
@@ -136,5 +138,52 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
       'retail_price_external.numeric' => 'El precio minorista externo debe ser un número.',
       'retail_price_external.min' => 'El precio no puede ser diferente de 0 y negativo.',
     ];
+  }
+
+  protected function withValidator(Validator $validator): void
+  {
+    $validator->after(function ($validator) {
+      // Solo validar stock si es un producto (no mano de obra)
+      if ($this->input('item_type') !== 'PRODUCT') {
+        return;
+      }
+
+      $productId = $this->input('product_id');
+      $supplyType = $this->input('supply_type');
+
+      // Si no hay producto o supply_type, no validar
+      if (!$productId || !$supplyType) {
+        return;
+      }
+
+      // No validar stock para M.O (Mano de Obra)
+      if ($supplyType === 'M.O') {
+        return;
+      }
+
+      if ($supplyType === 'STOCK') {
+        // Validar que el producto tenga stock disponible en cualquier sede
+        $totalStock = ProductWarehouseStock::where('product_id', $productId)
+          ->sum('quantity');
+
+        if ($totalStock <= 0) {
+          $validator->errors()->add(
+            'product_id',
+            'El producto seleccionado no tiene stock disponible en ninguna sede. Para tipo de suministro STOCK, el producto debe tener stock disponible.'
+          );
+        }
+      } elseif (in_array($supplyType, ['LIMA', 'IMPORTACION'])) {
+        // Validar que el producto NO tenga stock (debe ser 0)
+        $totalStock = ProductWarehouseStock::where('product_id', $productId)
+          ->sum('quantity');
+
+        if ($totalStock > 0) {
+          $validator->errors()->add(
+            'product_id',
+            "El producto seleccionado tiene stock disponible ({$totalStock} unidades). Para tipo de suministro {$supplyType}, el producto no debe tener stock en ninguna sede."
+          );
+        }
+      }
+    });
   }
 }

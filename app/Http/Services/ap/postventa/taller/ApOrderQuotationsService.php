@@ -8,6 +8,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\gp\maestroGeneral\Sede;
@@ -38,6 +39,23 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   {
     return $this->getFilteredResults(
       ApOrderQuotations::class,
+      $request,
+      ApOrderQuotations::filters,
+      ApOrderQuotations::sorts,
+      ApOrderQuotationsResource::class
+    );
+  }
+
+  public function listForPurchaseRequest(Request $request)
+  {
+    // Query base con las condiciones requeridas para solicitudes de compra
+    $query = ApOrderQuotations::query()
+      ->where('area_id', ApMasters::AREA_TALLER) // Área de taller
+      ->whereNotNull('chief_approval_by')
+      ->whereNotNull('manager_approval_by');
+
+    return $this->getFilteredResults(
+      $query,
       $request,
       ApOrderQuotations::filters,
       ApOrderQuotations::sorts,
@@ -493,7 +511,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     if ($quotation->createdBy) {
       $data['advisor_name'] = $quotation->createdBy->person->nombre_completo ?? 'N/A';
       $data['advisor_phone'] = $quotation->createdBy->person->cel_personal ?? 'N/A';
-      $data['advisor_email'] = $quotation->createdBy->person->email ?? 'N/A';
+      $data['advisor_email'] = $quotation->createdBy->person->email2 ?? 'N/A';
     } else {
       $data['advisor_name'] = 'N/A';
       $data['advisor_phone'] = 'N/A';
@@ -616,7 +634,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     if ($quotation->createdBy) {
       $data['advisor_name'] = $quotation->createdBy->person->nombre_completo ?? 'N/A';
       $data['advisor_phone'] = $quotation->createdBy->person->cel_personal ?? 'N/A';
-      $data['advisor_email'] = $quotation->createdBy->person->email ?? 'N/A';
+      $data['advisor_email'] = $quotation->createdBy->person->email2 ?? 'N/A';
     } else {
       $data['advisor_name'] = 'N/A';
       $data['advisor_phone'] = 'N/A';
@@ -741,9 +759,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
    * - Jefe de Taller (143) → chief_approval_by
    * - Gerente de Taller (142) → manager_approval_by
    */
-  public function approve($id)
+  public function approve($data)
   {
-    return DB::transaction(function () use ($id) {
+    return DB::transaction(function () use ($data) {
+      $id = $data['id'];
       $quotation = $this->find($id);
       $user = auth()->user();
 
@@ -753,18 +772,26 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       $positionId = $user->person?->position?->id;
 
-      if (in_array($positionId, Position::POSITION_JEFE_PV_IDS)) {
-        if ($quotation->chief_approval_by) {
-          throw new Exception('Esta cotización ya fue aprobada por el Jefe de Taller.');
+      // Validar aprobación de gerente
+      if (isset($data['manager_approval_by'])) {
+        if (!in_array($positionId, Position::POSITION_GERENTE_PV_IDS)) {
+          throw new Exception('Solo los Gerentes de Taller pueden aprobar.');
         }
-        $quotation->update(['chief_approval_by' => $user->id]);
-      } elseif (in_array($positionId, Position::POSITION_GERENTE_PV_IDS)) {
         if ($quotation->manager_approval_by) {
           throw new Exception('Esta cotización ya fue aprobada por el Gerente de Taller.');
         }
         $quotation->update(['manager_approval_by' => $user->id]);
-      } else {
-        throw new Exception('Solo los Jefes de Taller o Gerentes de Taller pueden aprobar cotizaciones.');
+      }
+
+      // Validar aprobación de jefe
+      if (isset($data['chief_approval_by'])) {
+        if (!in_array($positionId, Position::POSITION_JEFE_PV_IDS)) {
+          throw new Exception('Solo los Jefes de Taller pueden aprobar.');
+        }
+        if ($quotation->chief_approval_by) {
+          throw new Exception('Esta cotización ya fue aprobada por el Jefe de Taller.');
+        }
+        $quotation->update(['chief_approval_by' => $user->id]);
       }
 
       $quotation->load([

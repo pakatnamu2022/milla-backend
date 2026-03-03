@@ -219,8 +219,10 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       }
 
       if ($stock->available_quantity < $data['quantity_used']) {
+        $product = Products::find($data['product_id']);
+        $productInfo = $product ? "{$product->code} - {$product->name}" : "ID {$data['product_id']}";
         throw new Exception(
-          "Stock insuficiente. Disponible: {$stock->available_quantity}, Requerido: {$data['quantity_used']}"
+          "Stock insuficiente para el producto {$productInfo}. Disponible: {$stock->available_quantity}, Requerido: {$data['quantity_used']}"
         );
       }
 
@@ -300,8 +302,10 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         }
 
         if ($newStock->available_quantity < $newQuantity) {
+          $product = Products::find($newProductId);
+          $productInfo = $product ? "{$product->code} - {$product->name}" : "ID {$newProductId}";
           throw new Exception(
-            "Stock insuficiente. Disponible: {$newStock->available_quantity}, Requerido: {$newQuantity}"
+            "Stock insuficiente para el producto {$productInfo}. Disponible: {$newStock->available_quantity}, Requerido: {$newQuantity}"
           );
         }
 
@@ -433,7 +437,8 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
         // Validar que no exista el mismo producto en la orden de trabajo
         if (in_array($detail->product_id, $existingProductIds)) {
-          throw new Exception("El producto ID {$detail->product_id} ya ha sido agregado a la orden de trabajo");
+          $productInfo = $detail->product ? "{$detail->product->code} - {$detail->product->name}" : "ID {$detail->product_id}";
+          throw new Exception("El producto {$productInfo} ya ha sido agregado a la orden de trabajo");
         }
 
         // Preparar datos para crear el repuesto
@@ -461,12 +466,14 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
           ->first();
 
         if (!$stock) {
-          throw new Exception("No se encontró registro de stock para el producto ID {$detail->product_id} en el almacén seleccionado");
+          $productInfo = $detail->product ? "{$detail->product->code} - {$detail->product->name}" : "ID {$detail->product_id}";
+          throw new Exception("No se encontró registro de stock para el producto {$productInfo} en el almacén seleccionado");
         }
 
         if ($stock->available_quantity < $detail->quantity) {
+          $productInfo = $detail->product ? "{$detail->product->code} - {$detail->product->name}" : "ID {$detail->product_id}";
           throw new Exception(
-            "Stock insuficiente para producto ID {$detail->product_id}. Disponible: {$stock->available_quantity}, Requerido: {$detail->quantity}"
+            "Stock insuficiente para el producto {$productInfo}. Disponible: {$stock->available_quantity}, Requerido: {$detail->quantity}"
           );
         }
 
@@ -476,7 +483,8 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         // Reservar el stock
         $reserveSuccess = $stock->reserveStock($detail->quantity);
         if (!$reserveSuccess) {
-          throw new Exception("No se pudo reservar el stock para el producto ID {$detail->product_id}");
+          $productInfo = $detail->product ? "{$detail->product->code} - {$detail->product->name}" : "ID {$detail->product_id}";
+          throw new Exception("No se pudo reservar el stock para el producto {$productInfo}");
         }
 
         // Cargar las relaciones necesarias
