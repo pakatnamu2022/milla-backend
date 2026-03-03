@@ -93,6 +93,7 @@ class VerifyProductReceptionMigrationCommand extends Command
       })
         ->with('shippingGuide:id,correlative,migration_status,area_id,aceptada_por_sunat')
         ->where('status', TransferReception::STATUS_PENDING) // Solo recepciones pendientes
+        ->whereDoesntHave('migrationLogs', fn($q) => $q->where('attempts', '>=', 5))
         ->whereNull('deleted_at') // Excluir recepciones eliminadas
         ->orderBy('id', 'desc')
         ->limit($limit)

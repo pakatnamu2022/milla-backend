@@ -56,6 +56,7 @@ class VehicleMovement extends BaseModel
   const SOLD_NOT_DELIVERED = 'VENDIDO NO ENTREGADO';
   const SOLD_DELIVERED = 'VENDIDO ENTREGADO';
   const CONSIGNMENT = 'EN CONSIGNACION';
+  const INVOICED = 'FACTURADO';
 
   public function vehicleStatus(): BelongsTo
   {

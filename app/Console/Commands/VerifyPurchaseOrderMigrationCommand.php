@@ -74,6 +74,7 @@ class VerifyPurchaseOrderMigrationCommand extends Command
         'in_progress',
       ])
         ->orderBy('id', 'desc')
+        ->whereDoesntHave('migrationLogs', fn($q) => $q->where('attempts', '>=', 5))
         ->limit($limit)
         ->get();
 

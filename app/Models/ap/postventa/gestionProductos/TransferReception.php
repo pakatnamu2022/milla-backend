@@ -3,6 +3,7 @@
 namespace App\Models\ap\postventa\gestionProductos;
 
 use App\Models\ap\comercial\ShippingGuides;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\User;
 use App\Traits\HasReceptionBehavior;
@@ -76,6 +77,11 @@ class TransferReception extends Model
     static::deleting(function ($reception) {
       $reception->details()->delete();
     });
+  }
+
+  public function migrationLogs(): HasMany
+  {
+    return $this->hasMany(VehiclePurchaseOrderMigrationLog::class, 'electronic_document_id');
   }
 
   // Mutators

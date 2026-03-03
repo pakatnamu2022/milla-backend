@@ -77,6 +77,27 @@ class PurchaseRequestQuote extends Model
     'updated_at',
   ];
 
+  public function getIsInvoicedAttribute(): bool
+  {
+    return $this->electronicDocuments()
+      ->where('aceptada_por_sunat', 1)
+      ->where('anulado', 0)
+      ->where(function ($query) {
+        $query->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_FACTURA)
+          ->orWhere('sunat_concept_document_type_id', ElectronicDocument::TYPE_BOLETA);
+      })
+      ->where('anulado', 0)
+      ->whereNull('deleted_at')
+      ->where('is_advance_payment', 0)
+      ->exists();
+  }
+
+
+  /**
+   * Determina si la cotización está pagada comparando el total de los documentos electrónicos asociados con el precio de venta de la cotización.
+   * Solo se consideran los documentos electrónicos que han sido aceptados por SUNAT, que no están anulados, que no han sido eliminados y que no son pagos anticipados.
+   * @return bool
+   */
   public function getIsPaidAttribute(): bool
   {
     $total = $this->electronicDocuments()

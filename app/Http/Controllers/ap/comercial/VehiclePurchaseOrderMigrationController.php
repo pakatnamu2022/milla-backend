@@ -363,6 +363,34 @@ class VehiclePurchaseOrderMigrationController extends Controller
   }
 
   /**
+   * Resetea un log de migración a "pending" para que pueda ser reprocesado.
+   * Útil para forzar el reintento de un paso específico sin redespachar toda la entidad.
+   */
+  public function resetLog(int $logId): JsonResponse
+  {
+    $log = VehiclePurchaseOrderMigrationLog::find($logId);
+
+    if (!$log) {
+      return $this->error('Log de migración no encontrado');
+    }
+
+    if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+      return $this->errorValidation('El log ya está completado y no puede resetearse');
+    }
+
+    $log->update([
+      'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+      'error_message' => null,
+      'proceso_estado' => 0,
+    ]);
+
+    return $this->success([
+      'message' => "Log #{$logId} (paso: {$log->step}) reseteado a pending",
+      'log' => new VehiclePurchaseOrderMigrationLogResource($log->fresh()),
+    ]);
+  }
+
+  /**
    * Get statistics about migration process
    */
   public function statistics(): JsonResponse

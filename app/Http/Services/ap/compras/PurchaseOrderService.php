@@ -30,6 +30,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class PurchaseOrderService extends BaseService implements BaseServiceInterface
@@ -862,5 +863,56 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     return [
       'message' => "Job de sincronización de factura para la orden de compra {$purchaseOrder->number} ha sido despachado."
     ];
+  }
+
+  /**
+   * Vincula los anticipos de la cotización al vehículo de la OC,
+   * creando un movimiento FACTURADO por cada anticipo sin vehículo asociado,
+   * usando la fecha del anticipo como fecha del movimiento.
+   * Solo aplica si la OC tiene quotation_id y un vehículo.
+   */
+  public function linkAnticipationsToVehicle(PurchaseOrder $purchaseOrder): void
+  {
+    if (!$purchaseOrder->quotation_id) {
+      return;
+    }
+
+    $vehicle = $purchaseOrder->vehicle;
+    if (!$vehicle) {
+      return;
+    }
+
+    $quotation = $purchaseOrder->quotation;
+    if (!$quotation) {
+      return;
+    }
+
+    $anticipos = $quotation->electronicDocuments()
+      ->where('is_advance_payment', true)
+      ->whereNull('ap_vehicle_movement_id')
+      ->where('anulado', false)
+      ->get();
+
+    foreach ($anticipos as $anticipo) {
+      try {
+        $movement = VehicleMovement::create([
+          'movement_type' => ApVehicleStatus::FACTURADO,
+          'ap_vehicle_id' => $vehicle->id,
+          'ap_vehicle_status_id' => ApVehicleStatus::FACTURADO,
+          'movement_date' => $anticipo->fecha_de_emision,
+          'observation' => 'Anticipo facturado: ' . $anticipo->full_number,
+          'previous_status_id' => $vehicle->ap_vehicle_status_id,
+          'new_status_id' => ApVehicleStatus::FACTURADO,
+        ]);
+
+        $anticipo->update(['ap_vehicle_movement_id' => $movement->id]);
+      } catch (Throwable $e) {
+        Log::error("Error al vincular anticipo #{$anticipo->id} al vehículo #{$vehicle->id} en OC #{$purchaseOrder->id}: {$e->getMessage()}");
+      }
+    }
+
+    if ($anticipos->isNotEmpty()) {
+      $vehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::FACTURADO]);
+    }
   }
 }

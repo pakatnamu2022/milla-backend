@@ -1010,8 +1010,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       Route::get('purchaseRequestQuote/{id}/invoices', [PurchaseRequestQuoteController::class, 'getInvoices']);
       Route::get('purchaseRequestQuote/pdf/{purchaseRequestQuote}', [PurchaseRequestQuoteController::class, 'reportPDF']); // Descargar
-      Route::post('purchaseRequestQuote/assignVehicle/{id}', [PurchaseRequestQuoteController::class, 'assignVehicle']); // Descargar
-      Route::post('purchaseRequestQuote/unassignVehicle/{id}', [PurchaseRequestQuoteController::class, 'unassignVehicle']); // Descargar
+      Route::post('purchaseRequestQuote/assignVehicle/{id}', [PurchaseRequestQuoteController::class, 'assignVehicle']);
+      Route::post('purchaseRequestQuote/unassignVehicle/{id}', [PurchaseRequestQuoteController::class, 'unassignVehicle']);
+      Route::post('purchaseRequestQuote/swapVehicle/{id}', [PurchaseRequestQuoteController::class, 'swapVehicle']);
       Route::apiResource('purchaseRequestQuote', PurchaseRequestQuoteController::class)->only([
         'index',
         'show',
@@ -1045,6 +1046,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/{id}/history', [VehiclePurchaseOrderMigrationController::class, 'history']);
         Route::post('/{id}/dispatch-migration', [VehiclePurchaseOrderMigrationController::class, 'dispatchMigration']);
         Route::post('/dispatch-all', [VehiclePurchaseOrderMigrationController::class, 'dispatchAll']);
+        Route::post('/logs/{logId}/reset', [VehiclePurchaseOrderMigrationController::class, 'resetLog']);
       });
 
       // Vehicle Documents (Guías de Remisión/Traslado)
