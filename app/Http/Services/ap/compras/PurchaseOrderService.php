@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\compras;
 use App\Http\Resources\ap\compras\PurchaseOrderDynamicsResource;
 use App\Http\Resources\ap\compras\PurchaseOrderItemDynamicsResource;
 use App\Http\Resources\ap\compras\PurchaseOrderResource;
+use App\Http\Services\ap\comercial\PurchaseRequestQuoteService;
 use App\Http\Services\ap\comercial\VehiclesService;
 use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
 use App\Http\Services\BaseService;
@@ -29,6 +30,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class PurchaseOrderService extends BaseService implements BaseServiceInterface
@@ -241,6 +243,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     try {
       // Guardar items temporalmente
       $items = $data['items'] ?? [];
+      $vehicleId = null;
 
       if (isset($data['ap_supplier_order_id'])) {
         $supplierOrder = ApSupplierOrder::find($data['ap_supplier_order_id']);
@@ -274,6 +277,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         $consignmentVehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN]);
 
         $data['vehicle_movement_id'] = $pedidoMovement->id;
+        $vehicleId = $consignmentVehicle->id;
       }
 
       // Verificar si la orden incluye un vehículo
@@ -281,8 +285,9 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
       // Si tiene vehículo, crear el flujo completo: Vehicle → VehicleMovement
       if ($hasVehicle) {
-        $vehicleMovementId = $this->createVehicleAndMovement($data);
-        $data['vehicle_movement_id'] = $vehicleMovementId;
+        $result = $this->createVehicleAndMovement($data);
+        $data['vehicle_movement_id'] = $result['movement_id'];
+        $vehicleId = $result['vehicle_id'];
       }
 
       // Enriquecer datos de la orden
@@ -295,6 +300,15 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
       // Crear la orden de compra
       $purchaseOrder = PurchaseOrder::create($data);
+
+      // Si tiene cotización, asignar el vehículo creado
+      if (isset($data['quotation_id']) && $vehicleId) {
+        $quoteService = new PurchaseRequestQuoteService();
+        $quoteService->assignVehicle([
+          'id' => $data['quotation_id'],
+          'ap_vehicle_id' => $vehicleId,
+        ]);
+      }
 
       // si ap_supplier_order_id actualizar su ap_purchase_order_id
       if (isset($data['ap_supplier_order_id'])) {
@@ -348,10 +362,10 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
   /**
    * Crea el vehículo y su movimiento inicial
    * @param array $data
-   * @return int ID del VehicleMovement creado
+   * @return array{movement_id: int, vehicle_id: int}
    * @throws Exception
    */
-  protected function createVehicleAndMovement(array $data): int
+  protected function createVehicleAndMovement(array $data): array
   {
     // 1. Crear el vehículo
     $vehicleService = new VehiclesService();
@@ -382,7 +396,10 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       'created_by' => auth()->id(),
     ]);
 
-    return $vehicleMovement->id;
+    return [
+      'movement_id' => $vehicleMovement->id,
+      'vehicle_id' => $vehicle->id,
+    ];
   }
 
 
@@ -846,5 +863,56 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     return [
       'message' => "Job de sincronización de factura para la orden de compra {$purchaseOrder->number} ha sido despachado."
     ];
+  }
+
+  /**
+   * Vincula los anticipos de la cotización al vehículo de la OC,
+   * creando un movimiento FACTURADO por cada anticipo sin vehículo asociado,
+   * usando la fecha del anticipo como fecha del movimiento.
+   * Solo aplica si la OC tiene quotation_id y un vehículo.
+   */
+  public function linkAnticipationsToVehicle(PurchaseOrder $purchaseOrder): void
+  {
+    if (!$purchaseOrder->quotation_id) {
+      return;
+    }
+
+    $vehicle = $purchaseOrder->vehicle;
+    if (!$vehicle) {
+      return;
+    }
+
+    $quotation = $purchaseOrder->quotation;
+    if (!$quotation) {
+      return;
+    }
+
+    $anticipos = $quotation->electronicDocuments()
+      ->where('is_advance_payment', true)
+      ->whereNull('ap_vehicle_movement_id')
+      ->where('anulado', false)
+      ->get();
+
+    foreach ($anticipos as $anticipo) {
+      try {
+        $movement = VehicleMovement::create([
+          'movement_type' => ApVehicleStatus::FACTURADO,
+          'ap_vehicle_id' => $vehicle->id,
+          'ap_vehicle_status_id' => ApVehicleStatus::FACTURADO,
+          'movement_date' => $anticipo->fecha_de_emision,
+          'observation' => 'Anticipo facturado: ' . $anticipo->full_number,
+          'previous_status_id' => $vehicle->ap_vehicle_status_id,
+          'new_status_id' => ApVehicleStatus::FACTURADO,
+        ]);
+
+        $anticipo->update(['ap_vehicle_movement_id' => $movement->id]);
+      } catch (Throwable $e) {
+        Log::error("Error al vincular anticipo #{$anticipo->id} al vehículo #{$vehicle->id} en OC #{$purchaseOrder->id}: {$e->getMessage()}");
+      }
+    }
+
+    if ($anticipos->isNotEmpty()) {
+      $vehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::FACTURADO]);
+    }
   }
 }

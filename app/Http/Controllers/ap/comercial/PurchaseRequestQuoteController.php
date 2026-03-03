@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\AssignVehicleToQuoteRequest;
+use App\Http\Requests\ap\comercial\SwapVehicleRequest;
 use App\Http\Requests\ap\comercial\IndexPurchaseRequestQuoteRequest;
 use App\Http\Requests\ap\comercial\StorePurchaseRequestQuoteRequest;
 use App\Http\Requests\ap\comercial\UpdatePurchaseRequestQuoteRequest;
@@ -73,6 +74,15 @@ class PurchaseRequestQuoteController extends Controller
   {
     try {
       return $this->success($this->service->unassignVehicle($id));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function swapVehicle(SwapVehicleRequest $request, int $id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->swapVehicle($id, $request->validated()['ap_vehicle_id']));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }

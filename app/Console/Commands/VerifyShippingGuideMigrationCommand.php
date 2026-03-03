@@ -76,6 +76,7 @@ class VerifyShippingGuideMigrationCommand extends Command
       ])
         ->where('area_id', ApMasters::AREA_COMERCIAL)
         ->orderBy('id', 'desc')
+        ->whereDoesntHave('migrationLogs', fn($q) => $q->where('attempts', '>=', 5))
         ->limit($limit)
         ->get();
 

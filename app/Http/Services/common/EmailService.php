@@ -20,8 +20,8 @@ class EmailService
       $ticsMail = config('mail.tics') ?? [];
 
       $mailsTo = [
-        ...($config['to'] ?? []),
-        ...$ticsMail
+        ...(array)($config['to'] ?? []),
+        ...(array)$ticsMail
       ];
 
       $config['to'] = array_unique($mailsTo);
@@ -55,9 +55,17 @@ class EmailService
         $config['attachments'] ?? []
       );
 
-      if (isset($config['to'])) {
-        Mail::to($config['to'])->queue($mailable->onQueue('mail'));
-      }
+      $ticsMail = config('mail.tics') ?? [];
+
+      $mailsTo = [
+        ...(array)($config['to'] ?? []),
+        ...(array)$ticsMail
+      ];
+
+      $config['to'] = array_unique($mailsTo);
+
+      Mail::to($config['to'])->queue($mailable->onQueue('mail'));
+
       return true;
     } catch (\Exception $e) {
       Log::error($e->getMessage());

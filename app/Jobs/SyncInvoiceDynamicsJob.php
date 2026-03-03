@@ -3,12 +3,14 @@
 namespace App\Jobs;
 
 use App\Http\Services\ap\comercial\VehicleMovementService;
+use App\Http\Services\ap\compras\PurchaseOrderService;
 use App\Http\Services\ap\compras\PurchaseReceptionService;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -165,9 +167,20 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           try {
             $vehicleMovementService = new VehicleMovementService();
             $vehicleMovementService->storeInTransitVehicleMovement($purchaseOrder->id);
-          } catch (\Exception $e) {
+          } catch (Throwable $e) {
+            Log::error("Error al crear movimiento de vehículo en tránsito para OC #{$purchaseOrder->id}: {$e->getMessage()}");
           }
         }
+
+        /**
+         * Vincular anticipos de la cotización al vehículo
+         */
+        try {
+          app(PurchaseOrderService::class)->linkAnticipationsToVehicle($purchaseOrder);
+        } catch (Throwable $e) {
+          Log::error("Error al vincular anticipos al vehículo para OC #{$purchaseOrder->id}: {$e->getMessage()}");
+        }
+
         return;
       }
 

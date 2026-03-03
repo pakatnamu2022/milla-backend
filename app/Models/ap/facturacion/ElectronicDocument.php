@@ -377,6 +377,11 @@ class ElectronicDocument extends BaseModel
     return $this->hasMany(NubefactLog::class, 'ap_billing_electronic_document_id');
   }
 
+  public function migrationLogs(): HasMany
+  {
+    return $this->hasMany(VehiclePurchaseOrderMigrationLog::class, 'electronic_document_id');
+  }
+
   public function creator(): BelongsTo
   {
     return $this->belongsTo(User::class, 'created_by');
