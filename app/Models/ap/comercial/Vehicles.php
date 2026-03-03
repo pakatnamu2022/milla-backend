@@ -288,6 +288,8 @@ class Vehicles extends BaseModel
       $documents = ElectronicDocument::where('purchase_request_quote_id', $purchaseRequestQuote->id)
         ->where('aceptada_por_sunat', true)
         ->where('anulado', false)
+        ->where('is_accounted', true)
+        ->where('is_annulled', false)
         ->get();
 
       // Calcular total pagado
@@ -318,9 +320,61 @@ class Vehicles extends BaseModel
     }
   }
 
+  public static function vehiclePaid($vehicleId)
+  {
+    try {
+      // Obtener el documento electrónico usando el método centralizado
+      $data = self::getElectronicDocumentWithClient($vehicleId);
+      $electronicDocument = $data->electronicDocument;
+
+      $purchaseRequestQuote = $electronicDocument->purchaseRequestQuote;
+      $totalSalePrice = $purchaseRequestQuote->sale_price;
+
+      // Obtener todos los documentos electrónicos asociados a esta cotización
+      $documents = ElectronicDocument::where('purchase_request_quote_id', $purchaseRequestQuote->id)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', false)
+        ->where('is_accounted', true)
+        ->where('is_annulled', false)
+        ->get();
+
+      // Calcular total pagado
+      $totalPaid = 0;
+      foreach ($documents as $doc) {
+        // Facturas y boletas suman al total pagado
+        if (in_array($doc->sunat_concept_document_type_id, [
+          ElectronicDocument::TYPE_FACTURA,
+          ElectronicDocument::TYPE_BOLETA
+        ])) {
+          $totalPaid += $doc->total;
+        } // Notas de crédito restan del total pagado
+        elseif ($doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO) {
+          $totalPaid -= $doc->total;
+        } // Notas de débito suman al total pagado
+        elseif ($doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_DEBITO) {
+          $totalPaid += $doc->total;
+        }
+      }
+
+      // Calcular deuda pendiente
+      $pendingDebt = $totalSalePrice - $totalPaid;
+
+      // Consideramos pagado si la diferencia es menor a 0.01
+      return $pendingDebt;
+    } catch (\Exception $e) {
+      return false;
+    }
+  }
+
   public function getIsPaidAttribute(): bool
   {
     return self::isVehiclePaid($this->id);
+  }
+
+
+  public function getPaidAttribute()
+  {
+    return self::vehiclePaid($this->id);
   }
 
   public function getPurchasePriceAttribute(): float

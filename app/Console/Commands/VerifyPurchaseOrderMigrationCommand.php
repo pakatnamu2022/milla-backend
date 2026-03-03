@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Http\Services\DatabaseSyncService;
 use App\Jobs\VerifyAndMigratePurchaseOrderJob;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\compras\PurchaseOrder;
 use Illuminate\Console\Command;
 
@@ -70,8 +71,9 @@ class VerifyPurchaseOrderMigrationCommand extends Command
       // Verificar todas las órdenes pendientes (limitado por --limit)
       $limit = (int)$this->option('limit');
       $pendingOrders = PurchaseOrder::whereIn('migration_status', [
-        'pending',
-        'in_progress',
+        VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+        VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
+        VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
       ])
         ->orderBy('id', 'desc')
         ->whereDoesntHave('migrationLogs', fn($q) => $q->where('attempts', '>=', 5))
