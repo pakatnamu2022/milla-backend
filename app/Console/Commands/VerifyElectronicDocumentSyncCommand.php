@@ -124,6 +124,7 @@ class VerifyElectronicDocumentSyncCommand extends Command
       ->where('anulado', false)
       ->where('aceptada_por_sunat', true)
       ->whereNull('deleted_at')
+      ->whereDoesntHave('migrationLogs', fn($q) => $q->where('attempts', '>=', 5))
       ->orderBy('id', 'desc')
       ->limit($limit)
       ->get();

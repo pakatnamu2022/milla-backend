@@ -108,6 +108,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
         'error_message' => null,
         'proceso_estado' => 0,
+        'attempts' => 0,
       ]);
 
       $resetActions[] = "Log reseteado a pending: {$log->step}";
