@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\facturacion;
 
+use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
@@ -383,8 +384,7 @@ class NubefactApiService
     // Detracción
     if ($document->detraccion) {
       $payload['detraccion'] = true;
-      $payload['detraccion_tipo'] = true;
-      $payload['codigo_tipo_operacion'] = $document->detractionType->code_nubefact ?? null;
+      $payload['detraccion_tipo'] = $document->detractionType->code_nubefact ?? null;
       $payload['detraccion_total'] = $document->detraccion_total;
       $payload['detraccion_porcentaje'] = $document->detraccion_porcentaje;
 

@@ -58,6 +58,12 @@ class Company extends BaseModel
     'city' => 'asc',
   ];
 
+  // IDs DE EMPRESAS
+  const COMPANY_TP_ID = 1;
+  const COMPANY_DP_ID = 2;
+  const COMPANY_AP_ID = 3;
+  const COMPANY_GP_ID = 4;
+
   const TEST_DYNAMICS = 'CTEST';
 
   const AP_DYNAMICS = 'CTEST';

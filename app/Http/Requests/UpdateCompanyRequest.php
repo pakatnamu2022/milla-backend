@@ -3,7 +3,7 @@
 namespace App\Http\Requests;
 
 
-use Sabberworm\CSS\Rule\Rule;
+use Illuminate\Validation\Rule;
 
 class UpdateCompanyRequest extends StoreRequest
 {
@@ -15,7 +15,6 @@ class UpdateCompanyRequest extends StoreRequest
         'string',
         'max:100',
         Rule::unique('companies', 'email')
-          ->whereNull('deleted_at')
           ->ignore($this->route('company')),
       ],
       'website' => [
@@ -23,7 +22,6 @@ class UpdateCompanyRequest extends StoreRequest
         'string',
         'max:100',
         Rule::unique('companies', 'website')
-          ->whereNull('deleted_at')
           ->ignore($this->route('company')),
       ],
       'phone' => [
@@ -46,6 +44,15 @@ class UpdateCompanyRequest extends StoreRequest
         'integer',
         'exists:sunat_concepts,id',
       ],
+    ];
+  }
+
+  public function messages(): array
+  {
+    return [
+      'email.unique' => 'El correo electrónico ya está en uso por otra empresa.',
+      'website.unique' => 'El sitio web ya está en uso por otra empresa.',
+      'billing_detraction_type_id.exists' => 'El tipo de detracción de facturación no existe.',
     ];
   }
 }
