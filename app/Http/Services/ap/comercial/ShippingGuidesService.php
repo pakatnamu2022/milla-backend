@@ -38,7 +38,8 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     NubefactShippingGuideApiService $nubefactService,
     DigitalFileService              $digitalFileService,
     VehicleMovementService          $vehicleMovementService
-  ) {
+  )
+  {
     $this->nubefactService = $nubefactService;
     $this->digitalFileService = $digitalFileService;
     $this->vehicleMovementService = $vehicleMovementService;
@@ -119,7 +120,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $maxCorrelative = ShippingGuides::where('document_series_id', $data['document_series_id'])
           ->max('correlative');
         $correlativeNumber = $maxCorrelative !== null
-          ? ((int) $maxCorrelative) + 1
+          ? ((int)$maxCorrelative) + 1
           : $assignSeries->correlative_start + 1;
 
         $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
@@ -250,7 +251,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $maxCorrelative = ShippingGuides::where('document_series_id', $data['document_series_id'])
           ->max('correlative');
         $correlativeNumber = $maxCorrelative !== null
-          ? ((int) $maxCorrelative) + 1
+          ? ((int)$maxCorrelative) + 1
           : $assignSeries->correlative_start + 1;
 
         $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
@@ -774,7 +775,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       ->max('correlative');
 
     $correlativeNumber = $maxCorrelative !== null
-      ? ((int) $maxCorrelative) + 1
+      ? ((int)$maxCorrelative) + 1
       : $assignSeries->correlative_start + 1;
 
     $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
@@ -818,7 +819,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
   }
 
 
-  public function dispatchMigration(int $id): string
+  public function dispatchMigration(int $id): array
   {
     $guide = $this->find($id);
 
@@ -837,48 +838,48 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       }
 
       // Cabecera de transferencia de inventario
-      if (in_array($log->step, [
-        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
-        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL,
-      ]) && !empty($guide->dyn_series)) {
-        $existsInGpin = DB::connection('dbtp')
-          ->table('neInTbTransferenciaInventario')
-          ->where('EmpresaId', Company::AP_DYNAMICS)
-          ->where('TransferenciaId', $guide->dyn_series)
-          ->exists();
-
-        if ($existsInGpin) {
-          DB::connection('dbtp')
-            ->table('neInTbTransferenciaInventario')
-            ->where('EmpresaId', Company::AP_DYNAMICS)
-            ->where('TransferenciaId', $guide->dyn_series)
-            ->update(['Procesar' => 1, 'ProcesoEstado' => 0, 'ProcesoError' => '']);
-
-          $resetActions[] = "Cabecera transferencia reseteada en GPIN: {$guide->dyn_series}";
-        }
-      }
+//      if (in_array($log->step, [
+//          VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
+//          VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL,
+//        ]) && !empty($guide->dyn_series)) {
+//        $existsInGpin = DB::connection('dbtp')
+//          ->table('neInTbTransferenciaInventario')
+//          ->where('EmpresaId', Company::AP_DYNAMICS)
+//          ->where('TransferenciaId', $guide->dyn_series)
+//          ->exists();
+//
+//        if ($existsInGpin) {
+//          DB::connection('dbtp')
+//            ->table('neInTbTransferenciaInventario')
+//            ->where('EmpresaId', Company::AP_DYNAMICS)
+//            ->where('TransferenciaId', $guide->dyn_series)
+//            ->update(['Procesar' => 1, 'ProcesoEstado' => 0, 'ProcesoError' => '']);
+//
+//          $resetActions[] = "Cabecera transferencia reseteada en GPIN: {$guide->dyn_series}";
+//        }
+//      }
 
       // Cabecera de transacción de inventario (venta)
-      if (in_array($log->step, [
-        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE,
-        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_REVERSAL,
-      ]) && !empty($guide->dyn_series)) {
-        $existsInGpin = DB::connection('dbtp')
-          ->table('neInTbTransaccionInventario')
-          ->where('EmpresaId', Company::AP_DYNAMICS)
-          ->where('TransaccionId', $guide->dyn_series)
-          ->exists();
-
-        if ($existsInGpin) {
-          DB::connection('dbtp')
-            ->table('neInTbTransaccionInventario')
-            ->where('EmpresaId', Company::AP_DYNAMICS)
-            ->where('TransaccionId', $guide->dyn_series)
-            ->update(['Procesar' => 1, 'ProcesoEstado' => 0, 'ProcesoError' => '']);
-
-          $resetActions[] = "Cabecera transacción reseteada en GPIN: {$guide->dyn_series}";
-        }
-      }
+//      if (in_array($log->step, [
+//          VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE,
+//          VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_REVERSAL,
+//        ]) && !empty($guide->dyn_series)) {
+//        $existsInGpin = DB::connection('dbtp')
+//          ->table('neInTbTransaccionInventario')
+//          ->where('EmpresaId', Company::AP_DYNAMICS)
+//          ->where('TransaccionId', $guide->dyn_series)
+//          ->exists();
+//
+//        if ($existsInGpin) {
+//          DB::connection('dbtp')
+//            ->table('neInTbTransaccionInventario')
+//            ->where('EmpresaId', Company::AP_DYNAMICS)
+//            ->where('TransaccionId', $guide->dyn_series)
+//            ->update(['Procesar' => 1, 'ProcesoEstado' => 0, 'ProcesoError' => '']);
+//
+//          $resetActions[] = "Cabecera transacción reseteada en GPIN: {$guide->dyn_series}";
+//        }
+//      }
 
       // Resetear el log a pending para que el job lo reintente limpiamente
       $log->update([
@@ -909,22 +910,22 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     ShippingGuides::whereNotIn('migration_status', [VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED])
       ->get()
       ->each(function (ShippingGuides $guide) use (&$dispatched) {
-        $logs   = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $guide->id)->get();
+        $logs = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $guide->id)->get();
         $reason = $this->buildDispatchAllReason($logs);
 
         VerifyAndMigrateShippingGuideJob::dispatch($guide->id);
 
         $dispatched[] = [
-          'id'               => $guide->id,
-          'number'           => $guide->document_number,
+          'id' => $guide->id,
+          'number' => $guide->document_number,
           'migration_status' => $guide->migration_status,
-          'reason'           => $reason,
+          'reason' => $reason,
         ];
       });
 
     return [
       'total_dispatched' => count($dispatched),
-      'dispatched'       => $dispatched,
+      'dispatched' => $dispatched,
     ];
   }
 
@@ -932,9 +933,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
   {
     if ($logs->isEmpty()) {
       return [
-        'type'        => 'no_logs',
+        'type' => 'no_logs',
         'description' => 'Sin logs de migración — despacho inicial',
-        'steps'       => [],
+        'steps' => [],
       ];
     }
 
@@ -942,25 +943,25 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
     if ($nonCompleted->isEmpty()) {
       return [
-        'type'        => 'retry',
+        'type' => 'retry',
         'description' => 'Todos los pasos tienen logs — reintentando migración',
-        'steps'       => [],
+        'steps' => [],
       ];
     }
 
-    $hasFailed  = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_FAILED);
+    $hasFailed = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_FAILED);
     $hasPending = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_PENDING);
 
     $steps = $nonCompleted->map(fn($log) => [
-      'step'            => $log->step,
-      'status'          => $log->status,
-      'attempts'        => $log->attempts,
-      'error'           => $log->error_message,
+      'step' => $log->step,
+      'status' => $log->status,
+      'attempts' => $log->attempts,
+      'error' => $log->error_message,
       'last_attempt_at' => $log->last_attempt_at?->format('Y-m-d H:i:s'),
     ])->values()->toArray();
 
     return [
-      'type'        => $hasFailed ? 'failed_steps' : ($hasPending ? 'pending_steps' : 'in_progress_steps'),
+      'type' => $hasFailed ? 'failed_steps' : ($hasPending ? 'pending_steps' : 'in_progress_steps'),
       'description' => $hasFailed
         ? 'Tiene pasos fallidos pendientes de reintento'
         : ($hasPending ? 'Tiene pasos pendientes de ejecutar' : 'Tiene pasos en progreso'),

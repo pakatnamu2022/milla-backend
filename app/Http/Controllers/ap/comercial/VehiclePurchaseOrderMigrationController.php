@@ -225,42 +225,42 @@ class VehiclePurchaseOrderMigrationController extends Controller
         }
 
         // Cabecera de orden de compra
-        if ($log->step === VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER) {
-          $existsInGpin = DB::connection('dbtp')
-            ->table('neInTbOrdenCompra')
-            ->where('EmpresaId', Company::AP_DYNAMICS)
-            ->where('OrdenCompraId', $purchaseOrder->number)
-            ->exists();
-
-          if ($existsInGpin) {
-            DB::connection('dbtp')
-              ->table('neInTbOrdenCompra')
-              ->where('EmpresaId', Company::AP_DYNAMICS)
-              ->where('OrdenCompraId', $purchaseOrder->number)
-              ->update(['Procesar' => 1, 'ProcesoEstado' => 0, 'ProcesoError' => '']);
-
-            $resetActions[] = "Cabecera OC reseteada en GPIN: {$purchaseOrder->number}";
-          }
-        }
+//        if ($log->step === VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER) {
+//          $existsInGpin = DB::connection('dbtp')
+//            ->table('neInTbOrdenCompra')
+//            ->where('EmpresaId', Company::AP_DYNAMICS)
+//            ->where('OrdenCompraId', $purchaseOrder->number)
+//            ->exists();
+//
+//          if ($existsInGpin) {
+//            DB::connection('dbtp')
+//              ->table('neInTbOrdenCompra')
+//              ->where('EmpresaId', Company::AP_DYNAMICS)
+//              ->where('OrdenCompraId', $purchaseOrder->number)
+//              ->update(['Procesar' => 1, 'ProcesoEstado' => 0, 'ProcesoError' => '']);
+//
+//            $resetActions[] = "Cabecera OC reseteada en GPIN: {$purchaseOrder->number}";
+//          }
+//        }
 
         // Cabecera de recepción
-        if ($log->step === VehiclePurchaseOrderMigrationLog::STEP_RECEPTION && !empty($purchaseOrder->number_guide)) {
-          $existsInGpin = DB::connection('dbtp')
-            ->table('neInTbRecepcion')
-            ->where('EmpresaId', Company::AP_DYNAMICS)
-            ->where('RecepcionId', $purchaseOrder->number_guide)
-            ->exists();
-
-          if ($existsInGpin) {
-            DB::connection('dbtp')
-              ->table('neInTbRecepcion')
-              ->where('EmpresaId', Company::AP_DYNAMICS)
-              ->where('RecepcionId', $purchaseOrder->number_guide)
-              ->update(['Procesar' => 1, 'ProcesoEstado' => 0, 'ProcesoError' => '']);
-
-            $resetActions[] = "Cabecera recepción reseteada en GPIN: {$purchaseOrder->number_guide}";
-          }
-        }
+//        if ($log->step === VehiclePurchaseOrderMigrationLog::STEP_RECEPTION && !empty($purchaseOrder->number_guide)) {
+//          $existsInGpin = DB::connection('dbtp')
+//            ->table('neInTbRecepcion')
+//            ->where('EmpresaId', Company::AP_DYNAMICS)
+//            ->where('RecepcionId', $purchaseOrder->number_guide)
+//            ->exists();
+//
+//          if ($existsInGpin) {
+//            DB::connection('dbtp')
+//              ->table('neInTbRecepcion')
+//              ->where('EmpresaId', Company::AP_DYNAMICS)
+//              ->where('RecepcionId', $purchaseOrder->number_guide)
+//              ->update(['Procesar' => 1, 'ProcesoEstado' => 0, 'ProcesoError' => '']);
+//
+//            $resetActions[] = "Cabecera recepción reseteada en GPIN: {$purchaseOrder->number_guide}";
+//          }
+//        }
 
         // Resetear el log a pending para que el job lo reintente limpiamente
         $log->update([
