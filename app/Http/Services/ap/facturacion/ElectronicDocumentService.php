@@ -873,7 +873,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return response()->json([
         'success' => true,
         'message' => 'Estado consultado correctamente',
-        'data' => new ElectronicDocumentResource($document->fresh()),
         'sunat_response' => $nubefactData
       ]);
     } catch (Exception $e) {

@@ -536,6 +536,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         $log->proceso_estado === 1;
     });
 
+
     $hasFailed = $logs->contains(function ($log) {
       return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED;
     });
@@ -548,6 +549,10 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         'migrated_at' => now(),
       ]);
     } elseif ($hasFailed) {
+      Log::error('Migración de guía de remisión fallida', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'document_number' => $shippingGuide->document_number,
+      ]);
       $shippingGuide->update([
         'status_dynamic' => 0,
         'migration_status' => 'failed',

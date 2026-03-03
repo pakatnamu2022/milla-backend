@@ -113,6 +113,7 @@ class VerifyShippingGuideMigrationCommand extends Command
         $bar->start();
 
         foreach ($pendingGuides as $guide) {
+          $this->info("Despachando job de verificación para la guía: {$guide->document_number}");
           VerifyAndMigrateShippingGuideJob::dispatch($guide->id);
           $bar->advance();
         }
