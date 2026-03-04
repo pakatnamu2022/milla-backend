@@ -34,7 +34,7 @@ class AccountingEntryHeaderDynamicsResource extends JsonResource
       'Referencia' => $this->full_number,
       'Fecha' => $this->date->format('Y-m-d H:i:s'),
       'MonedaId' => $this->currency->iso_code,
-      'TipoTasaId' => 'VENDER',
+      'TipoTasaId' => 'NEGOCIADOR',
       'TipoCambio' => (float)$this->tipo_de_cambio ?? throw new Exception('Tipo de cambio no existe'),
       'Error' => '',
       'Estado' => 0,
