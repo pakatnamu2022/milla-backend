@@ -14,8 +14,6 @@ class StoreApAccountingAccountPlanRequest extends StoreRequest
         'required',
         'string',
         'max:20',
-        Rule::unique('ap_accounting_account_plan', 'account')
-          ->whereNull('deleted_at'),
       ],
       'code_dynamics' => [
         'required',
@@ -43,7 +41,6 @@ class StoreApAccountingAccountPlanRequest extends StoreRequest
       'account.required' => 'La cuenta es obligatoria.',
       'account.string' => 'La cuenta debe ser una cadena de texto.',
       'account.max' => 'La cuenta no debe exceder los 20 caracteres.',
-      'account.unique' => 'La cuenta ingresada ya existe en los registros.',
 
       'description.required' => 'La descripción es obligatoria.',
       'description.string' => 'La descripción debe ser una cadena de texto.',

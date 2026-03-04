@@ -152,6 +152,12 @@ return [
       'icon' => 'History',
       'policy_method' => 'history',
     ],
+    'maintenance' => [
+      'label' => 'Mantenimiento',
+      'description' => 'Permite realizar tareas de mantenimiento del sistema',
+      'icon' => 'Tool',
+      'policy_method' => 'maintenance',
+    ],
   ],
 
   /*

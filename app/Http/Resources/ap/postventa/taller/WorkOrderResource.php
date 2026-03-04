@@ -6,6 +6,7 @@ use App\Http\Resources\ap\ApMastersResource;
 use App\Http\Resources\ap\comercial\BusinessPartnersResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
+use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -56,6 +57,7 @@ class WorkOrderResource extends JsonResource
       'allow_remove_associated_quote' => (bool)$this->allow_remove_associated_quote,
       'allow_editing_inspection' => (bool)$this->allow_editing_inspection,
       'status' => new ApMastersResource($this->status),
+      'has_management_discount' => $this->discountRequests && $this->discountRequests->where('status', DiscountRequestsWorkOrder::STATUS_APPROVED)->isNotEmpty(),
 
       // Loaded Relationships
       'labours' => WorkOrderLabourResource::collection($this->whenLoaded('labours')),

@@ -8,6 +8,7 @@ use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
@@ -231,5 +232,10 @@ class ApWorkOrder extends Model
   public function advancesWorkOrder(): HasMany
   {
     return $this->hasMany(ElectronicDocument::class, 'work_order_id');
+  }
+
+  public function discountRequests()
+  {
+    return $this->hasMany(DiscountRequestsWorkOrder::class, 'ap_work_order_id');
   }
 }

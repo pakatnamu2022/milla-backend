@@ -14,9 +14,6 @@ class UpdateApAccountingAccountPlanRequest extends StoreRequest
         'nullable',
         'string',
         'max:20',
-        Rule::unique('ap_accounting_account_plan', 'account')
-          ->whereNull('deleted_at')
-          ->ignore($this->route('accountingAccountPlan'))
       ],
       'code_dynamics' => [
         'nullable',
@@ -46,7 +43,6 @@ class UpdateApAccountingAccountPlanRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'account.unique' => 'La cuenta ya existe.',
       'account.max' => 'La cuenta no debe ser mayor a 20 caracteres.',
 
       'description.unique' => 'La descripción ya existe.',
