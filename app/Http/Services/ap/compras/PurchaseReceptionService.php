@@ -91,19 +91,27 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         $totalQuantity += $detail['quantity_received'];
       }
 
-      // CÁLCULO AUTOMÁTICO DE STATUS:
-      // Verificar si todos los items de la orden de proveedor están completamente recibidos
+      // CÁLCULO AUTOMÁTICO DE STATUS Y RECEPTION_TYPE:
+
+      // 1. Verificar si con esta recepción se completó la orden de proveedor
       $allItemsFullyReceived = $this->checkIfAllItemsReceived($supplierOrder);
 
-      // - APPROVED: Si se recepcionó todo lo pedido
-      // - PARTIAL: Si falta mercancía
+      // 2. Calcular STATUS (estado general después de esta recepción):
+      // - APPROVED: Si ya se recepcionó todo lo pedido (considerando todas las recepciones)
+      // - PARTIAL: Si aún falta mercancía por recepcionar
       $status = $allItemsFullyReceived ? 'APPROVED' : 'PARTIAL';
 
-      // Update reception totals and status
+      // 3. Calcular RECEPTION_TYPE (tipo de esta recepción específica):
+      // - COMPLETE: Si en esta recepción se está recibiendo todo lo que faltaba
+      // - PARTIAL: Si solo se recibe una parte (quedarán más recepciones pendientes)
+      $receptionType = $allItemsFullyReceived ? 'COMPLETE' : 'PARTIAL';
+
+      // Update reception totals, status and reception_type
       $reception->update([
         'total_items' => $totalItems,
         'total_quantity' => $totalQuantity,
         'status' => $status,
+        'reception_type' => $receptionType,
       ]);
 
       // OPCIONAL: Notificar usuarios si la orden tiene solicitudes vinculadas
