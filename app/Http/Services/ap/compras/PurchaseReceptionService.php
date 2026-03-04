@@ -96,8 +96,8 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       $allItemsFullyReceived = $this->checkIfAllItemsReceived($supplierOrder);
 
       // - APPROVED: Si se recepcionó todo lo pedido
-      // - INCOMPLETE: Si falta mercancía
-      $status = $allItemsFullyReceived ? 'APPROVED' : 'INCOMPLETE';
+      // - PARTIAL: Si falta mercancía
+      $status = $allItemsFullyReceived ? 'APPROVED' : 'PARTIAL';
 
       // Update reception totals and status
       $reception->update([
@@ -201,17 +201,24 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     $supplierOrderDetails = $supplierOrder->details;
 
     foreach ($supplierOrderDetails as $orderDetail) {
-      // Calcular cuánto se ha recibido de este producto (incluyendo la recepción actual)
-      $totalReceived = PurchaseReceptionDetail::whereHas('reception', function ($query) use ($supplierOrder) {
+      // Calcular cuánto se ha recibido ACEPTADO de este producto (incluyendo la recepción actual)
+      // Solo contamos quantity_received - observed_quantity (cantidades aceptadas)
+      $receptionDetails = PurchaseReceptionDetail::whereHas('reception', function ($query) use ($supplierOrder) {
         $query->where('ap_supplier_order_id', $supplierOrder->id)
           ->whereNull('deleted_at');
       })
         ->where('product_id', $orderDetail->product_id)
         ->where('reception_type', PurchaseReceptionDetail::RECEPTION_TYPE_ORDERED)
-        ->sum('quantity_received');
+        ->get();
+
+      $totalAccepted = 0;
+      foreach ($receptionDetails as $detail) {
+        $observedQty = $detail->observed_quantity ?? 0;
+        $totalAccepted += ($detail->quantity_received - $observedQty);
+      }
 
       // Si algún item no está completamente recibido, retornar false
-      if ($totalReceived < $orderDetail->quantity) {
+      if ($totalAccepted < $orderDetail->quantity) {
         return false;
       }
     }
