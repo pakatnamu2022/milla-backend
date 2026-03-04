@@ -1656,6 +1656,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   {
     try {
       $vehicle = Vehicles::find($vehicleId);
+      $isFinal = !$document->anticipo_regularizacion;
 
       if (!$vehicle) {
         throw new Exception("Vehículo con ID {$vehicleId} no encontrado");
@@ -1668,17 +1669,17 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $vehicleMovement = VehicleMovement::create([
         'movement_type' => 'VENTA',
         'ap_vehicle_id' => $vehicleId,
-        'ap_vehicle_status_id' => ApVehicleStatus::FACTURADO,
+        'ap_vehicle_status_id' => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
         'movement_date' => now(),
         'observation' => "Venta de vehículo - Documento: {$document->serie}-{$document->numero}",
         'previous_status_id' => $previousStatusId,
-        'new_status_id' => ApVehicleStatus::FACTURADO,
+        'new_status_id' => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
         'created_by' => auth()->id(),
       ]);
 
       // Actualizar el estado del vehículo
       $vehicle->update([
-        'ap_vehicle_status_id' => ApVehicleStatus::FACTURADO,
+        'ap_vehicle_status_id' => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
       ]);
 
       Log::info('Vehicle movement created for electronic document', [
@@ -1687,7 +1688,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'document_id' => $document->id,
         'document_number' => "{$document->serie}-{$document->numero}",
         'previous_status' => $previousStatusId,
-        'new_status' => ApVehicleStatus::FACTURADO,
+        'new_status' => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
       ]);
 
       return $vehicleMovement;

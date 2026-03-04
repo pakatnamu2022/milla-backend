@@ -41,6 +41,7 @@ class ApVehicleStatus extends Model
   const int VENDIDO_ENTREGADO = 6;
   const int FACTURADO = 7;
   const int CONSIGNACION = 8;
+  const int FACTURADO_FINAL = 9;
 
   const array STATUS = [
     self::PEDIDO_VN => 'PEDIDO VN',
@@ -51,6 +52,7 @@ class ApVehicleStatus extends Model
     self::VENDIDO_ENTREGADO => 'VENDIDO ENTREGADO',
     self::FACTURADO => 'FACTURADO',
     self::CONSIGNACION => 'CONSIGNACION',
+    self::FACTURADO_FINAL => 'FACTURADO FINAL',
   ];
 
   const array STATUS_ID = [
@@ -62,6 +64,7 @@ class ApVehicleStatus extends Model
     'VENDIDO ENTREGADO' => self::VENDIDO_ENTREGADO,
     'FACTURADO' => self::FACTURADO,
     'CONSIGNACION' => self::CONSIGNACION,
+    'FACTURADO FINAL' => self::FACTURADO_FINAL,
   ];
 
   const array ALL_STATUS = [
@@ -73,6 +76,7 @@ class ApVehicleStatus extends Model
     self::VENDIDO_ENTREGADO,
     self::FACTURADO,
     self::CONSIGNACION,
+    self::FACTURADO_FINAL,
   ];
 
 
