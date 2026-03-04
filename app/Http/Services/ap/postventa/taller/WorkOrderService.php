@@ -347,11 +347,13 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'parts.product',
       'advancesWorkOrder',
       'vehicleInspection',
-      'orderQuotation.details'
+      'orderQuotation.details',
+      'typeCurrency'
     ]);
 
     $client = $workOrder->vehicle->customer;
     $vehicle = $workOrder->vehicle;
+    $currencySymbol = $workOrder->typeCurrency->symbol ?? 'S/';
 
     // Si tiene cotización asociada, incluir items pendientes de la cotización
     if ($workOrder->order_quotation_id && $workOrder->orderQuotation) {
@@ -367,27 +369,41 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       foreach ($pendingDetails as $detail) {
         if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
           // Mapear ApOrderQuotationDetails a estructura de WorkOrderLabour
+          $quantity = 1; // Para labores, la cantidad es 1
+          $unitPrice = $detail->unit_price ?? 0;
+          $discountPercentage = $detail->discount_percentage ?? 0;
+          $subtotal = $quantity * $unitPrice;
+          $discountAmount = ($subtotal * $discountPercentage) / 100;
+          $total = $subtotal - $discountAmount;
+
           $mappedLabour = new \stdClass();
           $mappedLabour->description = $detail->description;
           $mappedLabour->time_spent = null;
-          $mappedLabour->hourly_rate = $detail->unit_price ?? 0;
-          $mappedLabour->discount_percentage = $detail->discount_percentage ?? 0;
-          $mappedLabour->total_cost = $detail->total_amount ?? 0;
+          $mappedLabour->hourly_rate = $unitPrice;
+          $mappedLabour->discount_percentage = $discountPercentage;
+          $mappedLabour->total_cost = $subtotal; // Total sin descuento
           $mappedLabour->worker_id = null;
           $mappedLabour->worker = null;
 
           $quotationLabours->push($mappedLabour);
         } elseif ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_PRODUCT) {
           // Mapear ApOrderQuotationDetails a estructura de ApWorkOrderParts
+          $quantity = $detail->quantity ?? 0;
+          $unitPrice = $detail->unit_price ?? 0;
+          $discountPercentage = $detail->discount_percentage ?? 0;
+          $subtotal = $quantity * $unitPrice;
+          $discountAmount = ($subtotal * $discountPercentage) / 100;
+          $total = $subtotal - $discountAmount;
+
           $mappedPart = new \stdClass();
           $mappedPart->product_id = $detail->product_id;
-          $mappedPart->quantity_used = $detail->quantity ?? 0;
+          $mappedPart->quantity_used = $quantity;
           $mappedPart->unit_cost = $detail->purchase_price ?? 0;
-          $mappedPart->unit_price = $detail->unit_price ?? 0;
-          $mappedPart->discount_percentage = $detail->discount_percentage ?? 0;
-          $mappedPart->subtotal = ($detail->quantity ?? 0) * ($detail->unit_price ?? 0);
+          $mappedPart->unit_price = $unitPrice;
+          $mappedPart->discount_percentage = $discountPercentage;
+          $mappedPart->subtotal = $subtotal; // Total sin descuento
           $mappedPart->tax_amount = 0;
-          $mappedPart->total_amount = $detail->total_amount ?? 0;
+          $mappedPart->total_amount = $total; // Total con descuento aplicado
           $mappedPart->product = $detail->product;
 
           $quotationParts->push($mappedPart);
@@ -415,6 +431,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'labours' => $labours,
       'parts' => $parts,
       'advances' => $workOrder->advancesWorkOrder,
+      'currencySymbol' => $currencySymbol,
       'totals' => array_merge($totals, [
         'total_advances' => $totalAdvances,
         'remaining_balance' => $remainingBalance,
@@ -448,9 +465,25 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       ? $workOrder->parts->where('group_number', $groupNumber)
       : $workOrder->parts;
 
-    // Calculate costs from existing labours and parts
-    $totalLabourCost = $labours->sum('total_cost') ?? 0;
-    $totalPartsCost = $parts->sum('total_amount') ?? 0;
+    // Calculate costs from existing labours (sin descuento)
+    $totalLabourCostBeforeDiscount = 0;
+    $totalLabourDiscount = 0;
+    foreach ($labours as $labour) {
+      $cost = $labour->total_cost ?? 0;
+      $discount = ($cost * ($labour->discount_percentage ?? 0)) / 100;
+      $totalLabourCostBeforeDiscount += $cost;
+      $totalLabourDiscount += $discount;
+    }
+
+    // Calculate costs from existing parts (sin descuento)
+    $totalPartsCostBeforeDiscount = 0;
+    $totalPartsDiscount = 0;
+    foreach ($parts as $part) {
+      $subtotal = $part->subtotal ?? 0;
+      $discount = ($subtotal * ($part->discount_percentage ?? 0)) / 100;
+      $totalPartsCostBeforeDiscount += $subtotal;
+      $totalPartsDiscount += $discount;
+    }
 
     // Add pending quotation details
     if ($workOrder->orderQuotation && $workOrder->orderQuotation->details) {
@@ -458,25 +491,46 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         ->where('status', ApOrderQuotationDetails::STATUS_PENDING);
 
       foreach ($pendingDetails as $detail) {
+        $quantity = $detail->quantity ?? 0;
+        $unitPrice = $detail->unit_price ?? 0;
+        $discountPercentage = $detail->discount_percentage ?? 0;
+
+        $itemSubtotal = $quantity * $unitPrice;
+        $itemDiscount = ($itemSubtotal * $discountPercentage) / 100;
+
         if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
-          $totalLabourCost += $detail->total_amount ?? 0;
+          $totalLabourCostBeforeDiscount += $itemSubtotal;
+          $totalLabourDiscount += $itemDiscount;
         } elseif ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_PRODUCT) {
-          $totalPartsCost += $detail->total_amount ?? 0;
+          $totalPartsCostBeforeDiscount += $itemSubtotal;
+          $totalPartsDiscount += $itemDiscount;
         }
       }
     }
 
     // Calculate totals
-    $subtotal = $totalLabourCost + $totalPartsCost;
-    $discountAmount = $workOrder->discount_amount ?? 0;
-    $taxAmount = ($subtotal - $discountAmount) * (Constants::VAT_TAX / 100);
-    $totalAmount = $subtotal - $discountAmount + $taxAmount;
+    // Subtotal sin descuento
+    $subtotal = $totalLabourCostBeforeDiscount + $totalPartsCostBeforeDiscount;
+
+    // Total de descuentos (de items + descuento general de la OT)
+    $itemsDiscountAmount = $totalLabourDiscount + $totalPartsDiscount;
+    $workOrderDiscountAmount = $workOrder->discount_amount ?? 0;
+    $totalDiscountAmount = $itemsDiscountAmount + $workOrderDiscountAmount;
+
+    // Total Neto (Subtotal - Descuentos)
+    $netTotal = $subtotal - $totalDiscountAmount;
+
+    // IGV sobre el Total Neto
+    $taxAmount = $netTotal * (Constants::VAT_TAX / 100);
+
+    // Total Final
+    $totalAmount = $netTotal + $taxAmount;
 
     return [
-      'labour_cost' => (float)$totalLabourCost,
-      'parts_cost' => (float)$totalPartsCost,
+      'labour_cost' => (float)($totalLabourCostBeforeDiscount - $totalLabourDiscount),
+      'parts_cost' => (float)($totalPartsCostBeforeDiscount - $totalPartsDiscount),
       'subtotal' => (float)$subtotal,
-      'discount_amount' => (float)$discountAmount,
+      'discount_amount' => (float)$totalDiscountAmount,
       'tax_amount' => (float)$taxAmount,
       'total_amount' => (float)$totalAmount,
     ];
