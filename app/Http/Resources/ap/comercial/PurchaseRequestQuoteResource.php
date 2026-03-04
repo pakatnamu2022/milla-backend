@@ -95,6 +95,8 @@ class PurchaseRequestQuoteResource extends JsonResource
     if ($this->showExtra) {
       $response['ap_vehicle'] = $this->ap_vehicle_id ? VehiclesResource::make($this->vehicle) : null;
       $response['model'] = $this->apModelsVn ? ApModelsVnResource::make($this->apModelsVn) : null;
+    } else {
+      $response['ap_vehicle'] = $this->ap_vehicle_id ? ($this->vehicle->model->version . ' - ' . $this->vehicle->vin) : null;
     }
 
     return $response;

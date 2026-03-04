@@ -26,11 +26,11 @@ class ApFamiliesService extends BaseService implements BaseServiceInterface
 
   public function find($id)
   {
-    $ApFamilies = ApFamilies::where('id', $id)->first();
-    if (!$ApFamilies) {
+    $family = ApFamilies::where('id', $id)->first();
+    if (!$family) {
       throw new Exception('Familia no encontrado');
     }
-    return $ApFamilies;
+    return $family;
   }
 
   public function store(mixed $data)
@@ -38,11 +38,11 @@ class ApFamiliesService extends BaseService implements BaseServiceInterface
     $marca = ApVehicleBrand::findOrFail($data['brand_id']);
     $data['code'] = $marca->codigo_dyn . $this->nextCorrelativeCount(
         ApFamilies::class,
-        2,
+        4,
         ['brand_id' => $data['brand_id']]
       );
-    $ApFamilies = ApFamilies::create($data);
-    return new ApFamiliesResource($ApFamilies);
+    $family = ApFamilies::create($data);
+    return new ApFamiliesResource($family);
   }
 
   public function show($id)
@@ -50,18 +50,38 @@ class ApFamiliesService extends BaseService implements BaseServiceInterface
     return new ApFamiliesResource($this->find($id));
   }
 
+  public function completeBrandSeries($familyId): string
+  {
+    $family = $this->find($familyId);
+    $familySeries = $family->code;
+    $brandSeries = $family->brand->dyn_code;
+
+    if (strlen($familySeries) === 4 && str_contains($familySeries, $brandSeries) && false) {
+      return $familySeries;
+    } else if (strlen($familySeries) === 2) {
+      return $this->completeNumber($brandSeries . $familySeries, 4);
+    } else {
+      return $this->completeNumber(str($this->nextCorrelativeQuery(
+        ApFamilies::where('brand_id', $family->brand_id),
+        'code',
+        2
+      )), 4);
+    }
+  }
+
   public function update(mixed $data)
   {
-    $ApFamilies = $this->find($data['id']);
-    $ApFamilies->update($data);
-    return new ApFamiliesResource($ApFamilies);
+    $family = $this->find($data['id']);
+    $data['code'] = $this->completeBrandSeries($family->id);
+    $family->update($data);
+    return new ApFamiliesResource($family);
   }
 
   public function destroy($id)
   {
-    $ApFamilies = $this->find($id);
-    DB::transaction(function () use ($ApFamilies) {
-      $ApFamilies->delete();
+    $family = $this->find($id);
+    DB::transaction(function () use ($family) {
+      $family->delete();
     });
     return response()->json(['message' => 'Familia eliminado correctamente']);
   }

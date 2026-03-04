@@ -490,7 +490,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       $transactionId = $shippingGuide->dyn_series;
     } else {
       // Si no tiene dyn_series, construirlo desde el correlativo
-      $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'TVEN-' : 'TSAL-';
+      $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'CV-' : 'CS-';
       $transactionId = $prefix . $shippingGuide->document_number;
     }
 
@@ -536,6 +536,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         $log->proceso_estado === 1;
     });
 
+
     $hasFailed = $logs->contains(function ($log) {
       return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED;
     });
@@ -548,6 +549,10 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         'migrated_at' => now(),
       ]);
     } elseif ($hasFailed) {
+      Log::error('Migración de guía de remisión fallida', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'document_number' => $shippingGuide->document_number,
+      ]);
       $shippingGuide->update([
         'status_dynamic' => 0,
         'migration_status' => 'failed',
@@ -739,7 +744,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     try {
       // Generar el TransactionId si no existe
       if (empty($shippingGuide->dyn_series)) {
-        $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'TVEN-' : 'TSAL-';
+        $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'CV-' : 'CS-';
         $transactionId = $prefix . $shippingGuide->document_number;
         // Actualizar dyn_series en ShippingGuides
         $shippingGuide->update([
@@ -1213,15 +1218,15 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
   private function getTransferPrefix(ShippingGuides $shippingGuide): string
   {
     if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
-      return 'CREC-';
+      return 'CR-';
     }
 
     if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
-      return 'CTRA-';
+      return 'CT-';
     }
 
     if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_OTROS) {
-      return 'CCON-';
+      return 'CO-';
     }
 
     return '-';

@@ -80,36 +80,37 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         continue;
       }
 
-      // Si la cabecera ya fue insertada en GPIN pero falló, resetearla para que GPIN la reprocese
-      if ($log->step === VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT) {
-        $existsInGpin = DB::connection('dbtp')
-          ->table('neInTbVenta')
-          ->where('EmpresaId', Company::AP_DYNAMICS)
-          ->where('DocumentoId', $documentoId)
-          ->where('Procesar', 1) // Solo resetear si está marcada para procesar, para evitar interferir con documentos no relacionados
-          ->where('ProcesoEstado', 0) // Solo resetear si el proceso no ha sido marcado como exitoso, para evitar interferir con documentos ya procesados correctamente
-          ->exists();
-
-        if ($existsInGpin) {
-          DB::connection('dbtp')
-            ->table('neInTbVenta')
-            ->where('EmpresaId', Company::AP_DYNAMICS)
-            ->where('DocumentoId', $documentoId)
-            ->update([
-              'Procesar' => 1,
-              'ProcesoEstado' => 0,
-              'ProcesoError' => '',
-            ]);
-
-          $resetActions[] = "Cabecera reseteada en GPIN: {$documentoId}";
-        }
-      }
+//      // Si la cabecera ya fue insertada en GPIN pero falló, resetearla para que GPIN la reprocese
+//      if ($log->step === VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT) {
+//        $existsInGpin = DB::connection('dbtp')
+//          ->table('neInTbVenta')
+//          ->where('EmpresaId', Company::AP_DYNAMICS)
+//          ->where('DocumentoId', $documentoId)
+//          ->where('Procesar', 1) // Solo resetear si está marcada para procesar, para evitar interferir con documentos no relacionados
+//          ->where('ProcesoEstado', 0) // Solo resetear si el proceso no ha sido marcado como exitoso, para evitar interferir con documentos ya procesados correctamente
+//          ->exists();
+//
+//        if ($existsInGpin) {
+//          DB::connection('dbtp')
+//            ->table('neInTbVenta')
+//            ->where('EmpresaId', Company::AP_DYNAMICS)
+//            ->where('DocumentoId', $documentoId)
+//            ->update([
+//              'Procesar' => 1,
+//              'ProcesoEstado' => 0,
+//              'ProcesoError' => '',
+//            ]);
+//
+//          $resetActions[] = "Cabecera reseteada en GPIN: {$documentoId}";
+//        }
+//      }
 
       // Resetear el log a pending para que el job lo reintente limpiamente
       $log->update([
         'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
         'error_message' => null,
         'proceso_estado' => 0,
+        'attempts' => 0,
       ]);
 
       $resetActions[] = "Log reseteado a pending: {$log->step}";
@@ -898,7 +899,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return response()->json([
         'success' => true,
         'message' => 'Estado consultado correctamente',
-        'data' => new ElectronicDocumentResource($document->fresh()),
         'sunat_response' => $nubefactData
       ]);
     } catch (Exception $e) {

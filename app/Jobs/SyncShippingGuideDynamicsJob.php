@@ -58,12 +58,10 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
   protected function processAllShippingGuides(): void
   {
     // Obtener guías que no tienen dyn_series sincronizado
-    $shippingGuides = ShippingGuides::where(function ($query) {
-      $query->whereNull('dyn_series')
-        ->orWhere('dyn_series', '');
-    })
+    $shippingGuides = ShippingGuides::where('is_accounted', 0)
       ->whereNotNull('document_number')
       ->where('status', true)
+      ->where('aceptada_por_sunat', true)
       ->get();
 
     if ($shippingGuides->isEmpty()) {
@@ -128,13 +126,15 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         return;
       }
 
-      // Actualizar el dyn_series de la guía
-      $shippingGuide->update([
-        'dyn_series' => $dynSeriesFromDynamics,
-      ]);
-
       // Verificar si la transferencia ya está contabilizada en Dynamics
       $isAccounted = ($result->Estado === 'CONTABILIZADO');
+
+      // Actualizar el dyn_series de la guía
+      $shippingGuide->update([
+//        'dyn_series' => $dynSeriesFromDynamics,
+        'is_accounted' => $isAccounted,
+      ]);
+
 
       if (!$isAccounted) {
         Log::info('La transferencia aún no está contabilizada en Dynamics', [

@@ -192,7 +192,7 @@ class SyncSalesDocumentJob implements ShouldQueue
       $documentoId
     );
 
-    if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+    if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED && $document->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
       return;
     }
 

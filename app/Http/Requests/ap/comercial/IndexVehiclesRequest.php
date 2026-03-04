@@ -22,7 +22,6 @@ class IndexVehiclesRequest extends IndexRequest
       'ap_vehicle_status_id.*' => [
         'integer',
         Rule::exists('ap_vehicle_status', 'id'),
-        Rule::in([ApVehicleStatus::VEHICULO_EN_TRAVESIA, ApVehicleStatus::INVENTARIO_VN])
       ],
 //      'search' => [
 //        'integer',

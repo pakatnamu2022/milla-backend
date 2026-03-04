@@ -52,9 +52,10 @@ return new class extends Migration {
       $table->boolean('is_evaluated')->default(false)
         ->comment('Si el registro ya fue evaluado');
       $table->timestamp('evaluated_at')->nullable();
-      $table->foreignId('evaluated_by')
-        ->nullable()
-        ->constrained('users')
+      $table->integer('evaluated_by')->nullable();
+      $table->foreign('evaluated_by')
+        ->references('id')
+        ->on('usr_users')
         ->onDelete('set null');
 
       $table->boolean('status')->default(true);

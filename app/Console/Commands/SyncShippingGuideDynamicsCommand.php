@@ -10,6 +10,7 @@ use Illuminate\Console\Command;
 class SyncShippingGuideDynamicsCommand extends Command
 {
   use ValidatesPendingJobs;
+
   /**
    * The name and signature of the console command.
    *
@@ -84,13 +85,10 @@ class SyncShippingGuideDynamicsCommand extends Command
       return Command::SUCCESS;
     }
 
-    $limit = (int) $this->option('limit');
+    $limit = (int)$this->option('limit');
 
     // Obtener guías que no tienen dyn_series sincronizado
-    $shippingGuides = ShippingGuides::where(function ($query) {
-      $query->whereNull('dyn_series')
-        ->orWhere('dyn_series', '');
-    })
+    $shippingGuides = ShippingGuides::where('is_accounted', 0)
       ->whereNotNull('document_number')
       ->where('status', true)
       ->orderBy('id')

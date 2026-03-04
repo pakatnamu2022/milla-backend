@@ -7,6 +7,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\VehicleAccessory;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -114,6 +115,11 @@ class PurchaseOrder extends BaseModel
   public function supplier(): BelongsTo
   {
     return $this->belongsTo(BusinessPartners::class, 'supplier_id');
+  }
+
+  public function migrationLogs(): HasMany
+  {
+    return $this->hasMany(VehiclePurchaseOrderMigrationLog::class, 'electronic_document_id');
   }
 
   public function creator(): BelongsTo

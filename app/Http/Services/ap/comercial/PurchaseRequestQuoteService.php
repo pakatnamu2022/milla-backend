@@ -13,10 +13,13 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\DetailsApprovedAccessoriesQuote;
 use App\Models\ap\comercial\DiscountCoupons;
 use App\Models\ap\comercial\PurchaseRequestQuote;
+use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\repuestos\ApprovedAccessories;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -284,6 +287,125 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   }
 
 
+  public function swapVehicle(int $quoteId, int $newVehicleId): JsonResource
+  {
+    return DB::transaction(function () use ($quoteId, $newVehicleId) {
+      $quote = $this->find($quoteId);
+      $oldVehicle = $quote->vehicle;
+
+      if (!$oldVehicle) {
+        throw new Exception('La cotización no tiene un vehículo asignado actualmente.');
+      }
+
+      if ($oldVehicle->id === $newVehicleId) {
+        throw new Exception('El vehículo nuevo debe ser diferente al vehículo actual.');
+      }
+
+      $newVehicle = Vehicles::find($newVehicleId);
+      if (!$newVehicle) {
+        throw new Exception('Vehículo no encontrado.');
+      }
+
+      // Bloquear si hay documentos de venta final aceptados
+      $hasFinalSale = $quote->electronicDocuments()
+        ->where('is_advance_payment', false)
+        ->where('aceptada_por_sunat', 1)
+        ->where('anulado', 0)
+        ->whereNull('deleted_at')
+        ->exists();
+
+      if ($hasFinalSale) {
+        throw new Exception('No se puede cambiar el vehículo: la cotización tiene documentos de venta final aceptados.');
+      }
+
+      // Obtener IDs de movimientos FACTURADO vinculados a anticipos de esta cotización
+      $anticipoMovementIds = $quote->electronicDocuments()
+        ->where('is_advance_payment', true)
+        ->where('anulado', 0)
+        ->whereNotNull('ap_vehicle_movement_id')
+        ->pluck('ap_vehicle_movement_id');
+
+      $hasAnticipos = $anticipoMovementIds->isNotEmpty();
+
+      // Migrar movimientos FACTURADO al nuevo vehículo
+      if ($hasAnticipos) {
+        VehicleMovement::whereIn('id', $anticipoMovementIds)
+          ->update(['ap_vehicle_id' => $newVehicleId]);
+      }
+
+      // --- Vehículo VIEJO: revertir estado ---
+      $revertToInventory = $oldVehicle->vehicleMovements()
+        ->where('ap_vehicle_status_id', ApVehicleStatus::INVENTARIO_VN)
+        ->whereNull('deleted_at')
+        ->exists();
+
+      if ($revertToInventory) {
+        $warehouse = Warehouse::where('is_received', 1)
+          ->where('article_class_id', $oldVehicle->warehouse->article_class_id)
+          ->where('sede_id', $oldVehicle->warehouse->sede_id)
+          ->where('type_operation_id', $oldVehicle->warehouse->type_operation_id)
+          ->where('status', 1)
+          ->first();
+
+        VehicleMovement::create([
+          'movement_type' => VehicleMovement::INVENTORY,
+          'ap_vehicle_id' => $oldVehicle->id,
+          'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
+          'movement_date' => now(),
+          'observation' => 'Vehículo regresado a inventario por cambio en cotización #' . $quote->correlative,
+          'previous_status_id' => $oldVehicle->ap_vehicle_status_id,
+          'new_status_id' => ApVehicleStatus::INVENTARIO_VN,
+          'created_by' => auth()->id(),
+        ]);
+
+        $oldVehicle->update([
+          'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
+          'warehouse_id' => $warehouse
+            ? $warehouse->id
+            : throw new Exception('No se encontró almacén válido para devolver el vehículo anterior.'),
+        ]);
+      } else {
+        VehicleMovement::create([
+          'movement_type' => VehicleMovement::IN_TRANSIT,
+          'ap_vehicle_id' => $oldVehicle->id,
+          'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+          'movement_date' => now(),
+          'observation' => 'Vehículo regresado a tránsito por cambio en cotización #' . $quote->correlative,
+          'previous_status_id' => $oldVehicle->ap_vehicle_status_id,
+          'new_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+          'created_by' => auth()->id(),
+        ]);
+
+        $oldVehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA]);
+      }
+
+      // --- Vehículo NUEVO: asignar ---
+      $quote->ap_vehicle_id = $newVehicleId;
+      $quote->save();
+
+      // Solo si hay anticipos: registrar movimiento FACTURADO y actualizar estado.
+      // Sin anticipos: el vehículo conserva su estado actual (EN_TRÁNSITO o INVENTARIO_VN),
+      // igual que en el assignVehicle normal que no toca el estado del vehículo.
+      if ($hasAnticipos) {
+        VehicleMovement::create([
+          'movement_type' => VehicleMovement::INVOICED,
+          'ap_vehicle_id' => $newVehicleId,
+          'ap_vehicle_status_id' => ApVehicleStatus::FACTURADO,
+          'movement_date' => now(),
+          'observation' => 'Vehículo con anticipos migrados por cambio en cotización #' . $quote->correlative,
+          'previous_status_id' => $newVehicle->ap_vehicle_status_id,
+          'new_status_id' => ApVehicleStatus::FACTURADO,
+          'created_by' => auth()->id(),
+        ]);
+
+        $newVehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::FACTURADO]);
+      }
+
+      return PurchaseRequestQuoteResource::make($quote->fresh());
+    });
+  }
+
+
   public function destroy($id)
   {
     $PurchaseRequestQuote = $this->find($id);
@@ -508,6 +630,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       })
       ->where('anulado', false)
       ->where('aceptada_por_sunat', true)
+      ->where('is_accounted', true)
       ->orderBy('fecha_de_emision', 'desc')
       ->get();
 
