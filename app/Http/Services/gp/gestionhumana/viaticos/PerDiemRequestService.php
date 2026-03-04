@@ -1039,17 +1039,19 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     // Get all expense types from budgets
     $expenseTypeIds = $request->budgets()->pluck('expense_type_id')->unique()->toArray();
 
-    // Check if TRANSPORTATION should be available
-    // Count existing transportation expenses (excluding rejected ones)
-    $transportationExpensesCount = PerDiemExpense::where('per_diem_request_id', $id)
-      ->where('expense_type_id', ExpenseType::TRANSPORTATION_ID)
-      ->where('rejected', false)
-      ->count();
+//    // Check if TRANSPORTATION should be available
+//    // Count existing transportation expenses (excluding rejected ones)
+//    $transportationExpensesCount = PerDiemExpense::where('per_diem_request_id', $id)
+//      ->where('expense_type_id', ExpenseType::TRANSPORTATION_ID)
+//      ->where('rejected', false)
+//      ->count();
+//
+//    // Add TRANSPORTATION to available types if less than 2 expenses exist
+//    if ($transportationExpensesCount < 2 && !in_array(ExpenseType::TRANSPORTATION_ID, $expenseTypeIds)) {
+//      $expenseTypeIds[] = ExpenseType::TRANSPORTATION_ID;
+//    }
 
-    // Add TRANSPORTATION to available types if less than 2 expenses exist
-    if ($transportationExpensesCount < 2 && !in_array(ExpenseType::TRANSPORTATION_ID, $expenseTypeIds)) {
-      $expenseTypeIds[] = ExpenseType::TRANSPORTATION_ID;
-    }
+    $expenseTypeIds[] = ExpenseType::TRANSPORTATION_ID;
 
     // Add TOLLS and GASOLINE if with_active is true
     if ($request->with_active) {
