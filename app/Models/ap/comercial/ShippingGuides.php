@@ -429,7 +429,7 @@ class ShippingGuides extends BaseModel
    */
   public function getDynamicsTransferTransactionId(bool $isReversal = false): string
   {
-    $transactionId = 'PTRA-' . $this->correlative_dyn;
+    $transactionId = $this->dyn_series;
 
     if ($isReversal) {
       $transactionId .= '*';
