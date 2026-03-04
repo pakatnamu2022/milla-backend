@@ -3,9 +3,7 @@
 namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
-use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\taller\ApSupplierOrder;
-use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\Rule;
 
 class StoreApSupplierOrderRequest extends StoreRequest

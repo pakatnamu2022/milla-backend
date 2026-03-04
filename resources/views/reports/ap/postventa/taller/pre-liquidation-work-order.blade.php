@@ -392,7 +392,7 @@
       <th style="width: 40%;">DESCRIPCIÓN</th>
       <th style="width: 10%;">MC</th>
       <th style="width: 10%;">CANTIDAD / HRS</th>
-      <th style="width: 10%;">DESCTO</th>
+      <th style="width: 10%;">% DTO.</th>
       <th style="width: 15%;">P.UNITARIO</th>
       <th style="width: 15%;">TOTAL</th>
     </tr>
@@ -500,34 +500,36 @@
             </td>
           </tr>
           <tr>
-            <td style="border: 1px solid #000; padding: 3px 6px; font-weight: bold; background-color: #f5f5f5;">Total
+            <td style="border: 1px solid #000; padding: 3px 6px; font-weight: bold; background-color: #f5f5f5;">
+              Total {{$currencySymbol}}
             </td>
             <td
               style="border: 1px solid #000; padding: 3px 6px; text-align: right;">{{ formatNumber($totals['subtotal']) }}</td>
           </tr>
           <tr>
             <td style="border: 1px solid #000; padding: 3px 6px; font-weight: bold; background-color: #f5f5f5;">
-              Descuento
+              Descuento {{$currencySymbol}}
             </td>
             <td
               style="border: 1px solid #000; padding: 3px 6px; text-align: right;">{{ formatNumber($totals['discount_amount']) }}</td>
           </tr>
           <tr>
             <td style="border: 1px solid #000; padding: 3px 6px; font-weight: bold; background-color: #f5f5f5;">Total
-              Neto
+              Neto {{$currencySymbol}}
             </td>
             <td
               style="border: 1px solid #000; padding: 3px 6px; text-align: right;">{{ formatNumber($totals['subtotal'] - $totals['discount_amount']) }}</td>
           </tr>
           <tr>
             <td style="border: 1px solid #000; padding: 3px 6px; font-weight: bold; background-color: #f5f5f5;">Total
-              IGV
+              IGV {{$currencySymbol}}
             </td>
             <td
               style="border: 1px solid #000; padding: 3px 6px; text-align: right;">{{ formatNumber($totals['tax_amount']) }}</td>
           </tr>
           <tr>
-            <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #e8eef7;">Total
+            <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #e8eef7;">
+              Total {{$currencySymbol}}
             </td>
             <td
               style="border: 1px solid #000; padding: 4px 6px; text-align: right; font-weight: bold; background-color: #e8eef7;">{{ formatNumber($totals['total_amount']) }}</td>

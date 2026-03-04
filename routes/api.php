@@ -156,9 +156,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::apiResource('company', CompanyController::class)->only([
     'index',
     'show',
-    'store',
     'update',
-    'destroy'
   ]);
 
   //  DIGITAL FILE
@@ -1292,6 +1290,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::put('orderQuotations/{id}/confirm', [ApOrderQuotationsController::class, 'confirm']);
       Route::put('orderQuotations/{id}/approve', [ApOrderQuotationsController::class, 'approve']);
       Route::put('orderQuotations/{id}/delivery-info', [ApOrderQuotationsController::class, 'updateDeliveryInfo']);
+      Route::get('orderQuotations/for-purchase-request/list', [ApOrderQuotationsController::class, 'listForPurchaseRequest']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',

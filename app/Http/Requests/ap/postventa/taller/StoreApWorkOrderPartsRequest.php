@@ -3,8 +3,6 @@
 namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
-use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
-use Illuminate\Validation\Validator;
 
 class StoreApWorkOrderPartsRequest extends StoreRequest
 {
@@ -69,7 +67,7 @@ class StoreApWorkOrderPartsRequest extends StoreRequest
       ],
     ];
   }
-  
+
   public function messages(): array
   {
     return [

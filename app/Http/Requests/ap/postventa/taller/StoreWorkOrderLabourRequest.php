@@ -82,6 +82,11 @@ class StoreWorkOrderLabourRequest extends StoreRequest
         'integer',
         'min:1',
       ],
+      'quotation_detail_id' => [
+        'nullable',
+        'integer',
+        'exists:ap_order_quotation_details,id',
+      ],
     ];
   }
 
@@ -113,6 +118,9 @@ class StoreWorkOrderLabourRequest extends StoreRequest
 
       'group_number.integer' => 'El número de grupo debe ser un entero.',
       'group_number.min' => 'El número de grupo debe ser al menos 1.',
+
+      'quotation_detail_id.integer' => 'El detalle de cotización debe ser un entero.',
+      'quotation_detail_id.exists' => 'El detalle de cotización seleccionado no existe.',
     ];
   }
 }

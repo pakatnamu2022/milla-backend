@@ -173,8 +173,7 @@ class StoreApModelsVnRequest extends StoreRequest
         'exists:ap_families,id',
       ],
       'class_id' => [
-        Rule::requiredIf(fn() => $this->input('class_id') == ApMasters::TIPO_OPERACION_COMERCIAL),
-        'nullable',
+        'required',
         'integer',
         'exists:ap_class_article,id',
       ],

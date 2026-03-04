@@ -36,6 +36,8 @@ class ApAccountingAccountPlan extends Model
     'status',
   ];
 
+  const LABOUR_ACCOUNT_ID = 24;
+
   public function setAccountAttribute($value)
   {
     $this->attributes['account'] = Str::upper(Str::ascii($value));

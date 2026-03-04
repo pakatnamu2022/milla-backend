@@ -372,6 +372,10 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'fecha_de_emision.required' => 'La fecha de emisión es obligatoria',
       'total.required' => 'El total del documento es obligatorio',
       'total.min' => 'El total del documento debe ser al menos 0',
+      'sunat_concept_currency_id.required' => 'La moneda es obligatoria',
+      'sunat_concept_currency_id.exists' => 'La moneda seleccionada no es válida',
+      'tipo_de_cambio.numeric' => 'El tipo de cambio debe ser un número',
+
       'items.required' => 'Debe agregar al menos un item al documento',
       'items.min' => 'Debe agregar al menos un item al documento',
       'items.*.descripcion.required' => 'La descripción del item es obligatoria',

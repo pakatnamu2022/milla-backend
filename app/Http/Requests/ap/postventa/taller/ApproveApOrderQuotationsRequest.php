@@ -22,7 +22,24 @@ class ApproveApOrderQuotationsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // No additional validation needed beyond the route parameter {id}
+            'manager_approval_by' => 'nullable|string|in:Aprobado',
+            'chief_approval_by' => 'nullable|string|in:Aprobado',
         ];
+    }
+
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            $managerApproval = $this->input('manager_approval_by');
+            $chiefApproval = $this->input('chief_approval_by');
+
+            if ($managerApproval && $chiefApproval) {
+                $validator->errors()->add('manager_approval_by', 'Solo puede enviar un tipo de aprobación a la vez.');
+            }
+
+            if (!$managerApproval && !$chiefApproval) {
+                $validator->errors()->add('manager_approval_by', 'Debe enviar manager_approval_by o chief_approval_by.');
+            }
+        });
     }
 }
