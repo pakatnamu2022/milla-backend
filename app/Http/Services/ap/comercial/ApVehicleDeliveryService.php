@@ -469,6 +469,12 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
             'enlace_del_xml' => $responseData['enlace_del_xml'] ?? $shippingGuide->enlace_del_xml,
             'enlace_del_cdr' => $responseData['enlace_del_cdr'] ?? $shippingGuide->enlace_del_cdr,
           ]);
+          if ($responseData['sunat_soap_error'] !== '') {
+            $shippingGuide->update([
+              'status_sunat' => false
+            ]);
+          }
+
           $message = 'Estado de la guía consultado correctamente';
         }
       } else {
