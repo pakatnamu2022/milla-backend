@@ -94,6 +94,7 @@ class ShippingGuides extends BaseModel
     'send_dynamics',
     'is_consignment',
     'dynamics_date',
+    'is_accounted',
   ];
 
   protected $casts = [
@@ -109,6 +110,7 @@ class ShippingGuides extends BaseModel
     'aceptada_por_sunat' => 'boolean',
     'status' => 'boolean',
     'is_received' => 'boolean',
+    'is_accounted' => 'boolean',
   ];
 
   // Issuer types

@@ -240,8 +240,12 @@ class ElectronicDocument extends BaseModel
     $series = AssignSalesSeries::find($this->series_id);
     $sedeId = $series->sede_id;
     if ($this->area_id == ApMasters::AREA_COMERCIAL) {
-      if ($this->ap_vehicle_movement_id) {
-        $ap_vehicle_movement = $this->vehicleMovement;
+      // Si es nota de crédito/débito sin vehicle movement, usar el del documento original
+      $vehicleMovementId = $this->ap_vehicle_movement_id
+        ?? ($this->original_document_id ? $this->originalDocument?->ap_vehicle_movement_id : null);
+
+      if ($vehicleMovementId) {
+        $ap_vehicle_movement = $this->vehicleMovement ?? $this->originalDocument?->vehicleMovement;
         $model = $ap_vehicle_movement->vehicle->model;
         $warehouse = Warehouse::where('article_class_id', $model->class_id)->where('sede_id', $sedeId)
           ->active()->received()->first();
