@@ -5,6 +5,7 @@ namespace App\Http\Requests\ap\postventa\taller;
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Validation\Rule;
 
 class StoreApOrderQuotationDetailsRequest extends StoreRequest
 {
@@ -39,6 +40,9 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
         'required',
         'string',
         'max:255',
+        Rule::unique('ap_order_quotation_details', 'description')
+          ->where('order_quotation_id', $this->input('order_quotation_id'))
+          ->whereNull('deleted_at'),
       ],
       'quantity' => [
         'required',
@@ -107,6 +111,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
       'product_id.integer' => 'El producto debe ser un entero.',
       'product_id.exists' => 'El producto seleccionado no es válido.',
 
+      'description.unique' => 'La descripción ya existe en esta cotización. Por favor, ingrese una descripción diferente.',
       'description.required' => 'La descripción es obligatoria.',
       'description.string' => 'La descripción debe ser una cadena de texto.',
       'description.max' => 'La descripción no puede exceder 255 caracteres.',

@@ -7,8 +7,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
-use App\Models\gp\maestroGeneral\ExchangeRate;
-use Carbon\Carbon;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -44,6 +43,9 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
   public function store(mixed $data)
   {
     return DB::transaction(function () use ($data) {
+      // Validate if quotation is already associated with a work order
+      $this->validateQuotationNotAssociatedWithWorkOrder($data['order_quotation_id']);
+
       // Set created_at
       if (auth()->check()) {
         $data['created_by'] = auth()->user()->id;
@@ -75,6 +77,9 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
     return DB::transaction(function () use ($data) {
       $apOrderQuotationDetails = $this->find($data['id']);
 
+      // Validate if quotation is already associated with a work order
+      $this->validateQuotationNotAssociatedWithWorkOrder($apOrderQuotationDetails->order_quotation_id);
+
       // Calculate total_amount from percentage
       $data['total_amount'] = $this->calculateDetailTotal($data);
 
@@ -99,6 +104,9 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
     $apOrderQuotationDetails = $this->find($id);
     $quotationId = $apOrderQuotationDetails->order_quotation_id;
 
+    // Validate if quotation is already associated with a work order
+    $this->validateQuotationNotAssociatedWithWorkOrder($quotationId);
+
     DB::transaction(function () use ($apOrderQuotationDetails, $quotationId) {
       $apOrderQuotationDetails->delete();
 
@@ -107,6 +115,22 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
     });
 
     return response()->json(['message' => 'Detalle de cotización eliminado correctamente.']);
+  }
+
+  /**
+   * Validate if quotation is already associated with a work order
+   *
+   * @param int $quotationId
+   * @return void
+   * @throws Exception
+   */
+  private function validateQuotationNotAssociatedWithWorkOrder(int $quotationId): void
+  {
+    $workOrder = ApWorkOrder::where('order_quotation_id', $quotationId)->first();
+
+    if ($workOrder) {
+      throw new Exception("Esta cotización ya está asociada a la orden de trabajo {$workOrder->correlative}");
+    }
   }
 
   private function calculateDetailTotal(array $data): float
