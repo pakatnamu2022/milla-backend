@@ -167,7 +167,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         // Verificar si ya existe una guía de remisión
         $existingShippingGuide = null;
         if ($record->shipping_guide_id) {
-          $existingShippingGuide = ShippingGuides::find($record->shipping_guide_id);
+          $existingShippingGuide = ShippingGuides::where('id', $record->shipping_guide_id)->whereNull('cancelled_at')->first();
         }
 
         // Si existe una guía, solo actualizar los campos permitidos
