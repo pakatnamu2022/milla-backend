@@ -40,6 +40,7 @@ class GeneralMaster extends Model
   const int MANAGER_DISCOUNT_PERCENTAGE_PV_ID = 2;
   const int BOSS_DISCOUNT_PERCENTAGE_PV_ID = 3;
   const int ADVISOR_DISCOUNT_PERCENTAGE_PV_ID = 4;
+  const int SUNAT_DETRACTION_PERCENTAGE_ID = 5;
 
   public function setCodeAttribute($value)
   {

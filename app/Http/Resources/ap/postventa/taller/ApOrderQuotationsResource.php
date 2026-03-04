@@ -54,6 +54,8 @@ class ApOrderQuotationsResource extends JsonResource
       'supply_type' => $this->supply_type,
       'customer_signature_delivery_url' => $this->customer_signature_delivery_url,
       'delivery_document_number' => $this->delivery_document_number,
+      'chief_approval_by' => $this->chief_approval_by,
+      'manager_approval_by' => $this->manager_approval_by,
       'status' => $this->status,
 
       // Relations

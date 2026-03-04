@@ -32,6 +32,15 @@ class ApOrderQuotationsController extends Controller
     }
   }
 
+  public function listForPurchaseRequest(Request $request)
+  {
+    try {
+      return $this->service->listForPurchaseRequest($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function store(StoreApOrderQuotationsRequest $request)
   {
     try {
@@ -138,13 +147,12 @@ class ApOrderQuotationsController extends Controller
     }
   }
 
-  /**
-   * @return \Illuminate\Http\JsonResponse
-   */
   public function approve(ApproveApOrderQuotationsRequest $request, $id)
   {
     try {
-      return $this->success($this->service->approve($id));
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->approve($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

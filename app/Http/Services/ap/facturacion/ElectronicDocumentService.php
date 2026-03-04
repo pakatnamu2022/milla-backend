@@ -18,6 +18,7 @@ use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
@@ -27,6 +28,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\GeneralMaster;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -406,6 +408,29 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $data['client_id'] = $client->id;
       $data['tipo_de_cambio'] = $exchangeRate->rate;
 
+      /**
+       * Lógica de detracciones
+       */
+      if (in_array($data['area_id'], [ApMasters::AREA_COMERCIAL, ApMasters::AREA_TALLER])) {
+        $company = Company::find(Company::COMPANY_AP_ID);
+        if ($company && isset($data['total'])) {
+          $total = (float)$data['total'];
+          $detractionAmount = (float)($company->detraction_amount ?? 0);
+
+          if ($total > $detractionAmount && $detractionAmount > 0) {
+            $data['detraccion'] = true;
+            $data['sunat_concept_detraction_type_id'] = $company->billing_detraction_type_id;
+
+            // Obtener el porcentaje de detracción desde GeneralMaster
+            $detractionPercentage = GeneralMaster::find(GeneralMaster::SUNAT_DETRACTION_PERCENTAGE_ID);
+            if ($detractionPercentage) {
+              $porcentaje = (float)$detractionPercentage->value;
+              $data['detraccion_porcentaje'] = $porcentaje;
+              $data['detraccion_total'] = $total * ($porcentaje / 100);
+            }
+          }
+        }
+      }
 
       /**
        * Crear el documento principal
@@ -2337,6 +2362,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return;
     }
 
+    $labourCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_ID)?->code ?? 'V0000011';
+
     // Indexar parts y labours por ID para búsqueda rápida
     $parts = $workOrder->parts->keyBy('id');
     $labours = $workOrder->labours->keyBy('id');
@@ -2363,7 +2390,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Intentar buscar como labour
       $labour = $labours->get($itemId);
       if ($labour) {
-        $item['codigo'] = 'V0000011';
+        $item['codigo'] = $labourCode;
       }
     }
   }

@@ -4,6 +4,7 @@ namespace App\Models\gp\gestionsistema;
 
 use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\Sede;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Company extends BaseModel
@@ -24,6 +25,8 @@ class Company extends BaseModel
     'phone',
     'address',
     'city',
+    'detraction_amount',
+    'billing_detraction_type_id'
   ];
 
   const filters = [
@@ -55,6 +58,12 @@ class Company extends BaseModel
     'city' => 'asc',
   ];
 
+  // IDs DE EMPRESAS
+  const COMPANY_TP_ID = 1;
+  const COMPANY_DP_ID = 2;
+  const COMPANY_AP_ID = 3;
+  const COMPANY_GP_ID = 4;
+
   const TEST_DYNAMICS = 'CTEST';
 
   const AP_DYNAMICS = 'CTEST';
@@ -66,5 +75,10 @@ class Company extends BaseModel
   public function sedes()
   {
     return $this->hasMany(Sede::class, 'empresa_id', 'id');
+  }
+
+  public function detractions()
+  {
+    return $this->belongsTo(SunatConcepts::class, 'billing_detraction_type_id');
   }
 }

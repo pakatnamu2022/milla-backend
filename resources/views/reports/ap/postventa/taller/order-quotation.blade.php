@@ -406,7 +406,7 @@
     <th style="width: 15%;">Observ.</th>
     <th style="width: 10%;">Tpo./Cant.</th>
     <th style="width: 12%;">P.Hora/PVP</th>
-    <th style="width: 8%;">Dto.</th>
+    <th style="width: 8%;">% Dto.</th>
     <th style="width: 10%;">Imp.Neto</th>
   </tr>
   </thead>
@@ -443,12 +443,12 @@
     <tr>
       <td class="label-total">Base Propuesta:</td>
       <td class="value-total">
-        S/ {{ number_format($quotation['subtotal'] / 1.18, 2) }}
+        S/ {{ number_format($quotation['base_imponible'], 2) }}
       </td>
     </tr>
     <tr>
       <td class="label-total">IGV 18.00%:</td>
-      <td class="value-total">S/ {{ number_format($quotation['subtotal'] * 0.18, 2) }}</td>
+      <td class="value-total">S/ {{ number_format($quotation['tax_amount'], 2) }}</td>
     </tr>
     <tr>
       <td class="label-total">Total Propuesta:</td>

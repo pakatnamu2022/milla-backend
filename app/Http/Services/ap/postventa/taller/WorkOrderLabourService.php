@@ -9,6 +9,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -57,6 +58,27 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
 
       if ($workOrder->vehicleInspection === null) {
         throw new Exception('No se puede agregar mano de obra a una orden de trabajo sin inspección de vehículo');
+      }
+
+      // Validar que no existan avances de factura
+      if ($workOrder->advancesWorkOrder()->exists()) {
+        throw new Exception('No se puede agregar mano de obra porque la orden de trabajo ya tiene avances de factura');
+      }
+
+      // Si llega quotation_detail_id, validar y marcar como tomado
+      if (isset($data['quotation_detail_id'])) {
+        $quotationDetail = ApOrderQuotationDetails::find($data['quotation_detail_id']);
+
+        if (!$quotationDetail) {
+          throw new Exception('Detalle de cotización no encontrado');
+        }
+
+        if ($quotationDetail->status === ApOrderQuotationDetails::STATUS_TAKEN) {
+          throw new Exception('Este ítem de cotización ya está siendo utilizado en otra mano de obra');
+        }
+
+        // Marcar como tomado
+        $quotationDetail->update(['status' => ApOrderQuotationDetails::STATUS_TAKEN]);
       }
 
       if ($workOrder->order_quotation_id) {
@@ -173,6 +195,11 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
     $workOrderLabour = $this->find($id);
     $workOrder = $workOrderLabour->workOrder;
 
+    // Validar que no existan avances de factura
+    if ($workOrder->advancesWorkOrder()->exists()) {
+      throw new Exception('No se puede eliminar la mano de obra porque la orden de trabajo ya tiene avances de factura');
+    }
+
     // Validar si existe una solicitud de descuento activa
     $discountRequest = DiscountRequestsWorkOrder::where('part_labour_id', $id)
       ->where('part_labour_model', WorkOrderLabour::class)
@@ -188,6 +215,21 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
     }
 
     DB::transaction(function () use ($workOrderLabour, $workOrder) {
+      // Si la OT tiene order_quotation_id, buscar el item en la cotización y liberarlo
+      if ($workOrder->order_quotation_id) {
+        $quotationDetail = ApOrderQuotationDetails::where('order_quotation_id', $workOrder->order_quotation_id)
+          ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_LABOR)
+          ->where('description', $workOrderLabour->description)
+          ->where('unit_price', $workOrderLabour->hourly_rate)
+          ->where('quantity', $workOrderLabour->time_spent_decimal)
+          ->where('status', ApOrderQuotationDetails::STATUS_TAKEN)
+          ->first();
+
+        if ($quotationDetail) {
+          $quotationDetail->update(['status' => ApOrderQuotationDetails::STATUS_PENDING]);
+        }
+      }
+
       $workOrderLabour->delete();
       $workOrder->calculateTotals();
     });
