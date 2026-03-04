@@ -144,6 +144,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         return;
       }
 
+      // TODO: Validar solo cuando son transferencias POSVENTA ONLY
       // Obtener el TransferReception asociado a la guía
       $transferReception = TransferReception::where('shipping_guide_id', $shippingGuide->id)->first();
 
