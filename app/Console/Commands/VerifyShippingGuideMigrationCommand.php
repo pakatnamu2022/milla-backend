@@ -76,6 +76,7 @@ class VerifyShippingGuideMigrationCommand extends Command
         VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
         VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
       ])
+        ->where('aceptada_por_sunat', true)
         ->where('area_id', ApMasters::AREA_COMERCIAL)
         ->orderBy('id', 'desc')
         ->whereDoesntHave('migrationLogs', fn($q) => $q->where('attempts', '>=', 5))
