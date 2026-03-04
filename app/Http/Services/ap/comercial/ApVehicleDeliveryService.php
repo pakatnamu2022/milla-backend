@@ -472,7 +472,8 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           if ($responseData['sunat_soap_error'] !== '') {
             $shippingGuide->update([
               'aceptada_por_sunat' => false,
-              'deleted_at' => now(),
+              'cancelled_at' => now(),
+              'cancellation_reason' => 'Error en SOAP: ' . $responseData['sunat_soap_error'],
             ]);
           }
 
