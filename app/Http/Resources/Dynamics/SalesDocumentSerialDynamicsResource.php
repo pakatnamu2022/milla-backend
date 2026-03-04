@@ -42,9 +42,12 @@ class SalesDocumentSerialDynamicsResource extends JsonResource
     // Generar el DocumentoId con formato: TipoId-Serie-Correlativo
     $documentoId = $this->document->full_number ?? throw new Exception('El documento no tiene número completo definido.');
 
+    // Para notas de crédito/débito sin vehicle movement, usar el vehículo del documento original
+    $vehicle = $this->document->vehicle ?? $this->document->originalDocument?->vehicle;
+
     $vin = $this->document->area_id == ApMasters::AREA_COMERCIAL &&
-    $this->document->purchaseRequestQuote->has_vehicle ?
-      ($this->document->vehicle->vin ?? throw new Exception('El documento no tiene vehículo asociado con VIN.'))
+    $this->document->purchaseRequestQuote?->has_vehicle ?
+      ($vehicle?->vin ?? throw new Exception('El documento no tiene vehículo asociado con VIN.'))
       : 'SERIE-DEFAULT';
 
     return [

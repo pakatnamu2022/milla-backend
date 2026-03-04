@@ -411,28 +411,19 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     $isPaid = Vehicles::isVehiclePaid($vehicle->id);
 
     // Determinar estado de la deuda
-    $debtStatus = 'sin_deuda';
+    $debtStatus = 'Sin deuda';
     $debtMessage = 'El cliente no tiene deuda pendiente';
 
     if ($pendingDebt > 0.01) {
-      $debtStatus = 'deuda_pendiente';
+      $debtStatus = 'Deuda pendiente';
       $debtMessage = 'El cliente tiene deuda pendiente';
     } elseif ($pendingDebt < -0.01) {
-      $debtStatus = 'sobrepago';
+      $debtStatus = 'Sobrepago';
       $debtMessage = 'El cliente tiene un sobrepago';
     }
 
     return response()->json([
-      'vehicle' => [
-        'id' => $vehicle->id,
-        'vin' => $vehicle->vin,
-        'model_code' => $vehicle->model?->code,
-        'year' => $vehicle->year,
-        'engine_number' => $vehicle->engine_number,
-        'engineType' => $vehicle->engineType->description,
-        'model' => $vehicle->model?->version,
-        'warehouse_physical' => $vehicle->warehousePhysical?->description,
-      ],
+      'vehicle' => VehiclesResource::make($vehicle),
       'client' => [
         'id' => $client->id,
         'num_doc' => $client->num_doc,
