@@ -558,20 +558,43 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       ];
     });
 
-    // Calcular totales según el parámetro with_labor
-    $totalLabor = $quotation->details->where('item_type', 'labor')->sum('total_amount');
-    $totalParts = $quotation->details->where('item_type', 'part')->sum('total_amount');
-    $totalDiscounts = $quotation->details->sum('discount_percentage');
+    // Calcular totales correctamente
+    $totalLabor = 0;
+    $totalParts = 0;
+    $totalDiscounts = 0;
 
-    // Recalcular subtotal y total si no se incluye mano de obra
-    $subtotal = $quotation->subtotal;
-    $total_amount = $quotation->total_amount;
+    foreach ($quotation->details as $detail) {
+      $itemSubtotal = $detail->quantity * $detail->unit_price;
+      $itemDiscount = $itemSubtotal - $detail->total_amount;
+
+      // Total mano de obra (LABOR) - sin descuento
+      if ($detail->item_type === 'LABOR') {
+        $totalLabor += $itemSubtotal;
+      }
+
+      // Total recambios/repuestos (PRODUCT) - sin descuento
+      if ($detail->item_type === 'PRODUCT') {
+        $totalParts += $itemSubtotal;
+      }
+
+      // Total descuentos en monto (dinero)
+      $totalDiscounts += $itemDiscount;
+    }
+
+    // Calcular base imponible (base propuesta): mano de obra + recambios - descuento
+    $baseImponible = $totalLabor + $totalParts - $totalDiscounts;
+
+    // Calcular IGV: 18% sobre la base imponible
+    $igv_amount = $baseImponible * (Constants::VAT_TAX / 100);
+
+    // Calcular total: base imponible + IGV
+    $total_amount = $baseImponible + $igv_amount;
 
     $data['total_labor'] = $totalLabor;
     $data['total_parts'] = $totalParts;
     $data['total_discounts'] = $totalDiscounts;
-    $data['subtotal'] = $subtotal;
-    $data['tax_amount'] = $quotation->tax_amount;
+    $data['base_imponible'] = $baseImponible;
+    $data['tax_amount'] = $igv_amount;
     $data['total_amount'] = $total_amount;
     $data['area'] = $quotation->area ? $quotation->area->description : 'N/A';
 
@@ -593,7 +616,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
     return $pdf->download($fileName);
   }
-
 
   public function generateQuotationRepuestoPDF($id, $showCodes = true)
   {
@@ -713,9 +735,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return $pdf->download($fileName);
   }
 
-  /**
-   * Confirma una cotización guardando la firma del cliente y cambiando el estado a "Por Facturar"
-   */
   public function confirm(mixed $data)
   {
     return DB::transaction(function () use ($data) {

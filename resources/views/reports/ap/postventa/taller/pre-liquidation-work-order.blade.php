@@ -392,7 +392,7 @@
       <th style="width: 40%;">DESCRIPCIÓN</th>
       <th style="width: 10%;">MC</th>
       <th style="width: 10%;">CANTIDAD / HRS</th>
-      <th style="width: 10%;">DESCTO</th>
+      <th style="width: 10%;">% DTO.</th>
       <th style="width: 15%;">P.UNITARIO</th>
       <th style="width: 15%;">TOTAL</th>
     </tr>

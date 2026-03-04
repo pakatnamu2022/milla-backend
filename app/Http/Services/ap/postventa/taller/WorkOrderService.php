@@ -9,6 +9,7 @@ use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\AppointmentPlanning;
 use App\Models\ap\postventa\taller\ApWorkOrder;
@@ -306,11 +307,16 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
   public function getPaymentSummary($workOrderId, $groupNumber = 1)
   {
-    $workOrder = ApWorkOrder::with(['labours', 'advancesWorkOrder', 'parts'])
+    $workOrder = ApWorkOrder::with(['labours', 'advancesWorkOrder', 'parts', 'orderQuotation.details'])
       ->findOrFail($workOrderId);
 
-    // Calculate totals using centralized method
-    $totals = self::calculateWorkOrderTotal($workOrder, $groupNumber);
+    // Si tiene cotización asociada, incluir items pendientes de la cotización
+    if ($workOrder->order_quotation_id && $workOrder->orderQuotation) {
+      $totals = $this->calculateTotalsWithQuotation($workOrder, $groupNumber);
+    } else {
+      // Calculate totals using centralized method
+      $totals = self::calculateWorkOrderTotal($workOrder, $groupNumber);
+    }
 
     // Calculate total advances
     $totalAdvances = $workOrder->advancesWorkOrder->sum('total') ?? 0;
@@ -340,14 +346,63 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'labours.worker',
       'parts.product',
       'advancesWorkOrder',
-      'vehicleInspection'
+      'vehicleInspection',
+      'orderQuotation.details'
     ]);
 
     $client = $workOrder->vehicle->customer;
     $vehicle = $workOrder->vehicle;
 
-    // Calculate totals using centralized method
-    $totals = self::calculateWorkOrderTotal($workOrder);
+    // Si tiene cotización asociada, incluir items pendientes de la cotización
+    if ($workOrder->order_quotation_id && $workOrder->orderQuotation) {
+      $totals = $this->calculateTotalsWithQuotation($workOrder);
+
+      // Obtener items pendientes de la cotización para mostrar en el PDF
+      $quotationLabours = collect();
+      $quotationParts = collect();
+
+      $pendingDetails = $workOrder->orderQuotation->details
+        ->where('status', ApOrderQuotationDetails::STATUS_PENDING);
+
+      foreach ($pendingDetails as $detail) {
+        if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
+          // Mapear ApOrderQuotationDetails a estructura de WorkOrderLabour
+          $mappedLabour = new \stdClass();
+          $mappedLabour->description = $detail->description;
+          $mappedLabour->time_spent = null;
+          $mappedLabour->hourly_rate = $detail->unit_price ?? 0;
+          $mappedLabour->discount_percentage = $detail->discount_percentage ?? 0;
+          $mappedLabour->total_cost = $detail->total_amount ?? 0;
+          $mappedLabour->worker_id = null;
+          $mappedLabour->worker = null;
+
+          $quotationLabours->push($mappedLabour);
+        } elseif ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_PRODUCT) {
+          // Mapear ApOrderQuotationDetails a estructura de ApWorkOrderParts
+          $mappedPart = new \stdClass();
+          $mappedPart->product_id = $detail->product_id;
+          $mappedPart->quantity_used = $detail->quantity ?? 0;
+          $mappedPart->unit_cost = $detail->purchase_price ?? 0;
+          $mappedPart->unit_price = $detail->unit_price ?? 0;
+          $mappedPart->discount_percentage = $detail->discount_percentage ?? 0;
+          $mappedPart->subtotal = ($detail->quantity ?? 0) * ($detail->unit_price ?? 0);
+          $mappedPart->tax_amount = 0;
+          $mappedPart->total_amount = $detail->total_amount ?? 0;
+          $mappedPart->product = $detail->product;
+
+          $quotationParts->push($mappedPart);
+        }
+      }
+
+      // Combinar con los existentes (usar concat en lugar de merge para objetos stdClass)
+      $labours = $workOrder->labours->concat($quotationLabours);
+      $parts = $workOrder->parts->concat($quotationParts);
+    } else {
+      // Calculate totals using centralized method
+      $totals = self::calculateWorkOrderTotal($workOrder);
+      $labours = $workOrder->labours;
+      $parts = $workOrder->parts;
+    }
 
     // Calcular anticipos y saldo
     $totalAdvances = $workOrder->advancesWorkOrder->sum('total') ?? 0;
@@ -357,8 +412,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'workOrder' => $workOrder,
       'client' => $client,
       'vehicle' => $vehicle,
-      'labours' => $workOrder->labours,
-      'parts' => $workOrder->parts,
+      'labours' => $labours,
+      'parts' => $parts,
       'advances' => $workOrder->advancesWorkOrder,
       'totals' => array_merge($totals, [
         'total_advances' => $totalAdvances,
@@ -371,6 +426,60 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $pdf->setPaper('a4', 'portrait');
 
     return $pdf->stream("pre-liquidacion-{$workOrder->correlative}.pdf");
+  }
+
+  /**
+   * Calculate work order total amount including pending quotation details
+   * Only used when work order has an associated quotation
+   *
+   * @param ApWorkOrder $workOrder
+   * @param int|null $groupNumber Optional group number filter
+   * @return array Array with breakdown: labour_cost, parts_cost, subtotal, discount_amount, tax_amount, total_amount
+   */
+  private function calculateTotalsWithQuotation(ApWorkOrder $workOrder, ?int $groupNumber = null): array
+  {
+    // Filter labours by group_number if provided
+    $labours = $groupNumber !== null
+      ? $workOrder->labours->where('group_number', $groupNumber)
+      : $workOrder->labours;
+
+    // Filter parts by group_number if provided
+    $parts = $groupNumber !== null
+      ? $workOrder->parts->where('group_number', $groupNumber)
+      : $workOrder->parts;
+
+    // Calculate costs from existing labours and parts
+    $totalLabourCost = $labours->sum('total_cost') ?? 0;
+    $totalPartsCost = $parts->sum('total_amount') ?? 0;
+
+    // Add pending quotation details
+    if ($workOrder->orderQuotation && $workOrder->orderQuotation->details) {
+      $pendingDetails = $workOrder->orderQuotation->details
+        ->where('status', ApOrderQuotationDetails::STATUS_PENDING);
+
+      foreach ($pendingDetails as $detail) {
+        if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
+          $totalLabourCost += $detail->total_amount ?? 0;
+        } elseif ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_PRODUCT) {
+          $totalPartsCost += $detail->total_amount ?? 0;
+        }
+      }
+    }
+
+    // Calculate totals
+    $subtotal = $totalLabourCost + $totalPartsCost;
+    $discountAmount = $workOrder->discount_amount ?? 0;
+    $taxAmount = ($subtotal - $discountAmount) * (Constants::VAT_TAX / 100);
+    $totalAmount = $subtotal - $discountAmount + $taxAmount;
+
+    return [
+      'labour_cost' => (float)$totalLabourCost,
+      'parts_cost' => (float)$totalPartsCost,
+      'subtotal' => (float)$subtotal,
+      'discount_amount' => (float)$discountAmount,
+      'tax_amount' => (float)$taxAmount,
+      'total_amount' => (float)$totalAmount,
+    ];
   }
 
   private function recalculateCurrencyChange(ApWorkOrder $workOrder, int $oldCurrencyId, int $newCurrencyId): void
