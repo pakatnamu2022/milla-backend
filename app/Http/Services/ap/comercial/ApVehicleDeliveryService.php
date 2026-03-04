@@ -404,7 +404,6 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           $shippingGuide->markAsAccepted($responseData);
           $vehicleDelivery->update([
             'status_nubefact' => true,
-            'status_sunat' => true,
             'real_delivery_date' => now()
           ]);
           $message = 'Guía enviada y aceptada por SUNAT correctamente';
@@ -475,6 +474,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
               'cancelled_at' => now(),
               'cancellation_reason' => 'Error en SOAP: ' . $responseData['sunat_soap_error'],
             ]);
+            $vehicleDelivery->update(['sent_at' => null]);
           }
 
           $message = 'Estado de la guía consultado correctamente';
