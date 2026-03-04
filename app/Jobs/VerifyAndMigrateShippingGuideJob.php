@@ -490,7 +490,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       $transactionId = $shippingGuide->dyn_series;
     } else {
       // Si no tiene dyn_series, construirlo desde el correlativo
-      $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'V-' : 'S-';
+      $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'CV-' : 'CS-';
       $transactionId = $prefix . $shippingGuide->document_number;
     }
 
@@ -744,7 +744,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     try {
       // Generar el TransactionId si no existe
       if (empty($shippingGuide->dyn_series)) {
-        $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'V-' : 'S-';
+        $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'CV-' : 'CS-';
         $transactionId = $prefix . $shippingGuide->document_number;
         // Actualizar dyn_series en ShippingGuides
         $shippingGuide->update([
