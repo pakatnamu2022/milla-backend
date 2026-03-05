@@ -16,7 +16,6 @@ use App\Models\gp\gestionhumana\personal\Worker;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class PayrollScheduleService extends BaseService implements BaseServiceInterface
 {
@@ -625,12 +624,6 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
 
       $schedulesByWorker = $schedules->groupBy('worker_id');
 
-      Log::info('=== INICIO RECÁLCULO DE PLANILLA ===', [
-        'period_id' => $periodId,
-        'total_workers' => $schedulesByWorker->count(),
-        'total_schedules' => $schedules->count(),
-      ]);
-
       foreach ($schedulesByWorker as $workerId => $workerSchedules) {
         try {
           $worker = $workerSchedules->first()->worker;
@@ -639,32 +632,14 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           $sueldo = (float)($worker->sueldo ?? 0);
           $horasJornada = (float)($worker->horas_jornada ?: 8);
 
-          Log::info("--- Procesando trabajador ---", [
-            'worker_id' => $workerId,
-            'worker_name' => $worker->nombre_completo,
-            'salario_mensual' => $sueldo,
-            'horas_jornada' => $horasJornada,
-          ]);
-
           if ($sueldo == 0 || $horasJornada == 0) {
             $errors[] = "Worker {$worker->nombre_completo}: Invalid salary or shift hours";
-            Log::warning("Trabajador omitido por salario/horas inválidas", [
-              'worker_id' => $workerId,
-              'salario' => $sueldo,
-              'horas_jornada' => $horasJornada,
-            ]);
             continue;
           }
 
           // Base hour value
           //$valorHoraBase = $sueldo / 30 / $horasJornada;
           $valorHoraBase = $sueldo / 30 / 8;
-
-          Log::info("Valor hora base calculado", [
-            'formula' => 'salario / 30 / horas_jornada',
-            'calculo' => "{$sueldo} / 30 / {$horasJornada}",
-            'valor_hora_base' => round($valorHoraBase, 4),
-          ]);
 
           // Night surcharge constant (35%)
           $recargoNocturno = 1.35;
@@ -689,34 +664,15 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           // Group by code and count days
           $codeGroups = $workerSchedules->groupBy('code');
 
-          Log::info("Códigos de asistencia encontrados", [
-            'worker_id' => $workerId,
-            'codigos' => $codeGroups->keys()->toArray(),
-            'total_codigos' => $codeGroups->count(),
-          ]);
-
-          Log::info("╔═══════════════════════════════════════════════════════════════════════════════╗");
-          Log::info("║                     DETALLE DE CÁLCULO POR CÓDIGO                            ║");
-          Log::info("╚═══════════════════════════════════════════════════════════════════════════════╝");
-
           foreach ($codeGroups as $code => $codeSchedules) {
             $diasTrabajados = $codeSchedules->count();
-
-            Log::info("  » Procesando código: {$code}", [
-              'dias_trabajados' => $diasTrabajados,
-            ]);
 
             // Get rules for this code
             $rules = $attendanceRules->get($code);
 
             if (!$rules || $rules->isEmpty()) {
-              Log::warning("  ⚠ No se encontraron reglas para el código: {$code}");
               continue; // Skip if no rules defined for this code
             }
-
-            Log::info("  Reglas encontradas para {$code}", [
-              'total_reglas' => $rules->count(),
-            ]);
 
             foreach ($rules as $rule) {
               // Determine hours to use
@@ -742,25 +698,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
                 $total = -$total;
               }
 
-              Log::info("    ↳ PASO A PASO del cálculo:", [
-                'PASO_1_horas_a_usar' => $rule->use_shift ? "use_shift=1 → Toma horas_jornada: {$horas}" : "use_shift=0 → Toma rule.hours: {$horas}",
-                'PASO_2_valor_base' => round($valorHoraBase, 4),
-                'PASO_3_recargo_nocturno' => $esNocturno ? "× 1.35 = " . round($valorHoraBase * 1.35, 4) : "No aplica",
-                'PASO_4_aplicar_multiplier' => "× {$rule->multiplier} = " . round($valorHoraConMultiplicador, 4),
-                'PASO_5_formula_final' => "{$horas} hrs × " . round($valorHoraConMultiplicador, 4) . " × {$diasTrabajados} días",
-                'PASO_6_total_calculado' => round($total, 2),
-                'PASO_7_es_deduccion' => $esDeduccion ? "SÍ (pay=0) → Se resta" : "NO (pay=1) → Se suma",
-              ]);
-
               $totalEarnings += $total;
-
-              Log::info("    ✓ Regla procesada", [
-                'code' => $code,
-                'description' => $rule->description,
-                'hour_type' => $rule->hour_type,
-                'total_de_esta_regla' => round($total, 2),
-                'ACUMULADO_hasta_ahora' => round($totalEarnings, 2),
-              ]);
 
               // Create detail record
               PayrollCalculationDetail::create([
@@ -789,14 +727,6 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
             'net_salary' => $totalEarnings,
           ]);
 
-          Log::info("✓ Totales calculados para trabajador", [
-            'worker_id' => $workerId,
-            'worker_name' => $worker->nombre_completo,
-            'total_earnings' => round($totalEarnings > 0 ? $totalEarnings : 0, 2),
-            'total_deductions' => round($totalEarnings < 0 ? abs($totalEarnings) : 0, 2),
-            'net_salary' => round($totalEarnings, 2),
-          ]);
-
           $createdCalculations[] = $calculation->id;
         } catch (Exception $e) {
           $errors[] = "Worker ID {$workerId}: " . $e->getMessage();
@@ -804,12 +734,6 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       }
 
       DB::commit();
-
-      Log::info('=== FIN RECÁLCULO DE PLANILLA ===', [
-        'period_id' => $periodId,
-        'calculations_created' => count($createdCalculations),
-        'errors_count' => count($errors),
-      ]);
 
       return [
         'success' => true,
@@ -820,11 +744,6 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       ];
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error en recálculo de planilla', [
-        'period_id' => $periodId,
-        'error' => $e->getMessage(),
-        'trace' => $e->getTraceAsString(),
-      ]);
       throw $e;
     }
   }
