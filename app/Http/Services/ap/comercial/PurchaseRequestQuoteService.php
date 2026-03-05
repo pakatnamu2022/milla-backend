@@ -5,6 +5,8 @@ namespace App\Http\Services\ap\comercial;
 use App\Http\Resources\ap\comercial\PurchaseRequestQuoteResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
+use App\Http\Services\ap\facturacion\ElectronicDocumentService;
+use App\Http\Services\ap\facturacion\NubefactApiService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionhumana\personal\WorkerService;
@@ -611,6 +613,25 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   public function getInvoices(int $purchaseRequestQuoteId)
   {
     $purchaseRequestQuote = $this->find($purchaseRequestQuoteId);
+
+    // Consultar estado en Nubefact para los documentos pendientes antes de retornar
+    $electronicDocumentService = new ElectronicDocumentService(new NubefactApiService());
+    $pendingDocuments = $purchaseRequestQuote->electronicDocuments()
+      ->whereNull('credit_note_id')
+      ->where(function ($query) {
+        $query->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_FACTURA)
+          ->orWhere('sunat_concept_document_type_id', ElectronicDocument::TYPE_BOLETA);
+      })
+      ->where('anulado', false)
+      ->get(['id']);
+
+    foreach ($pendingDocuments as $doc) {
+      try {
+        $electronicDocumentService->queryFromNubefact($doc->id);
+      } catch (Exception $e) {
+        // Continuar con los demás documentos si uno falla
+      }
+    }
 
     // Obtener los documentos electrónicos con sus relaciones
     $documents = $purchaseRequestQuote->electronicDocuments()
