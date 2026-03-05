@@ -347,6 +347,10 @@ class AuthService
       return response()->json(['message' => 'La contraseña actual es incorrecta'], 422);
     }
 
+    if (Hash::check($request->new_password, $user->password)) {
+      return response()->json(['message' => 'La nueva contraseña no puede ser igual a la contraseña actual'], 422);
+    }
+
     $user->update([
       'password' => Hash::make($request->new_password),
       'verified_at' => now()
