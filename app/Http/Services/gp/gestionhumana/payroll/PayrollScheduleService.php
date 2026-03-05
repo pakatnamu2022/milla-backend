@@ -6,6 +6,7 @@ use App\Http\Resources\gp\gestionhumana\payroll\PayrollPeriodResource;
 use App\Http\Resources\gp\gestionhumana\payroll\PayrollScheduleResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\GeneralMaster;
 use App\Models\gp\gestionhumana\payroll\AttendanceRule;
 use App\Models\gp\gestionhumana\payroll\PayrollCalculation;
 use App\Models\gp\gestionhumana\payroll\PayrollCalculationDetail;
@@ -15,6 +16,7 @@ use App\Models\gp\gestionhumana\personal\Worker;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PayrollScheduleService extends BaseService implements BaseServiceInterface
 {
@@ -60,21 +62,22 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
   private function calculateHours($code, $worker)
   {
     $rule = AttendanceRule::where('code', $code)->first();
-    $horasJornada = (float)($worker->horas_jornada ?: 8);
+    $workingHours = GeneralMaster::find(GeneralMaster::WORKING_HOURS_ID)->value ?? 8;
+    $horasJornada = (float)($worker->horas_jornada ?: $workingHours);
 
     if (!$rule) {
       return ['hours_worked' => $horasJornada, 'extra_hours' => 0];
     }
 
-    $horas = $rule->use_shift ? $horasJornada : (float)$rule->hours;
+    $horas = $rule->use_shift ? $horasJornada : $workingHours;
 
     // Si son horas normales
-    if ($horas <= $horasJornada) {
+    if ($horasJornada <= $workingHours) {
       return ['hours_worked' => $horas, 'extra_hours' => 0];
     }
 
     // Si hay horas extras
-    return ['hours_worked' => $horasJornada, 'extra_hours' => $horas - $horasJornada];
+    return ['hours_worked' => $workingHours, 'extra_hours' => $horasJornada - $workingHours];
   }
 
   /**
@@ -322,7 +325,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       }
 
       // Base hour value
-      $valorHoraBase = $sueldo / 30 / $horasJornada;
+      //$valorHoraBase = $sueldo / 30 / $horasJornada;
+      $valorHoraBase = $sueldo / 30 / 8;
 
       // Night surcharge constant (35%)
       $recargoNocturno = 1.35;
@@ -454,7 +458,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           }
 
           // Base hour value
-          $valorHoraBase = $sueldo / 30 / $horasJornada;
+          //$valorHoraBase = $sueldo / 30 / $horasJornada;
+          $valorHoraBase = $sueldo / 30 / 8;
 
           // Night surcharge constant (35%)
           $recargoNocturno = 1.35;
@@ -578,8 +583,10 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         throw new Exception('Period not found');
       }
 
-      // Check if period allows recalculation
-      $existingCalculations = PayrollCalculation::where('period_id', $periodId)->get();
+      // Check if period allows recalculation (include soft deleted)
+      $existingCalculations = PayrollCalculation::withTrashed()
+        ->where('period_id', $periodId)
+        ->get();
 
       // Don't allow recalculation if any calculation is APPROVED or PAID
       $lockedCalculations = $existingCalculations->filter(function ($calc) {
@@ -590,16 +597,306 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         throw new Exception("Cannot recalculate: {$lockedCalculations->count()} calculations are already APPROVED or PAID. Please delete them manually first.");
       }
 
-      // Delete existing calculations (this will cascade delete details)
-      PayrollCalculation::where('period_id', $periodId)->delete();
+      // Force delete existing calculation details first
+      if ($existingCalculations->isNotEmpty()) {
+        PayrollCalculationDetail::whereIn('calculation_id', $existingCalculations->pluck('id'))->forceDelete();
+      }
+
+      // Force delete existing calculations (permanent delete, not soft delete)
+      PayrollCalculation::withTrashed()
+        ->where('period_id', $periodId)
+        ->forceDelete();
+
+      // Get all worked schedules for this period
+      $schedules = PayrollSchedule::with(['worker'])
+        ->where('period_id', $periodId)
+        ->where('status', PayrollSchedule::STATUS_WORKED)
+        ->get();
+
+      if ($schedules->isEmpty()) {
+        throw new Exception('No worked schedules found for this period');
+      }
+
+      // Get all attendance rules
+      $attendanceRules = AttendanceRule::all()->groupBy('code');
+
+      $createdCalculations = [];
+      $errors = [];
+
+      $schedulesByWorker = $schedules->groupBy('worker_id');
+
+      Log::info('=== INICIO RECÁLCULO DE PLANILLA ===', [
+        'period_id' => $periodId,
+        'total_workers' => $schedulesByWorker->count(),
+        'total_schedules' => $schedules->count(),
+      ]);
+
+      foreach ($schedulesByWorker as $workerId => $workerSchedules) {
+        try {
+          $worker = $workerSchedules->first()->worker;
+
+          // Worker salary and shift info
+          $sueldo = (float)($worker->sueldo ?? 0);
+          $horasJornada = (float)($worker->horas_jornada ?: 8);
+
+          Log::info("--- Procesando trabajador ---", [
+            'worker_id' => $workerId,
+            'worker_name' => $worker->nombre_completo,
+            'salario_mensual' => $sueldo,
+            'horas_jornada' => $horasJornada,
+          ]);
+
+          if ($sueldo == 0 || $horasJornada == 0) {
+            $errors[] = "Worker {$worker->nombre_completo}: Invalid salary or shift hours";
+            Log::warning("Trabajador omitido por salario/horas inválidas", [
+              'worker_id' => $workerId,
+              'salario' => $sueldo,
+              'horas_jornada' => $horasJornada,
+            ]);
+            continue;
+          }
+
+          // Base hour value
+          //$valorHoraBase = $sueldo / 30 / $horasJornada;
+          $valorHoraBase = $sueldo / 30 / 8;
+
+          Log::info("Valor hora base calculado", [
+            'formula' => 'salario / 30 / horas_jornada',
+            'calculo' => "{$sueldo} / 30 / {$horasJornada}",
+            'valor_hora_base' => round($valorHoraBase, 4),
+          ]);
+
+          // Night surcharge constant (35%)
+          $recargoNocturno = 1.35;
+
+          // Create PayrollCalculation
+          $calculation = PayrollCalculation::create([
+            'period_id' => $periodId,
+            'worker_id' => $workerId,
+            'company_id' => $worker->company_id ?? null,
+            'sede_id' => $worker->sede_id ?? null,
+            'salary' => $sueldo,
+            'shift_hours' => $horasJornada,
+            'base_hour_value' => $valorHoraBase,
+            'status' => PayrollCalculation::STATUS_CALCULATED,
+            'calculated_at' => now(),
+            'calculated_by' => auth()->id(),
+          ]);
+
+          $totalEarnings = 0;
+          $calculationOrder = 1;
+
+          // Group by code and count days
+          $codeGroups = $workerSchedules->groupBy('code');
+
+          Log::info("Códigos de asistencia encontrados", [
+            'worker_id' => $workerId,
+            'codigos' => $codeGroups->keys()->toArray(),
+            'total_codigos' => $codeGroups->count(),
+          ]);
+
+          Log::info("╔═══════════════════════════════════════════════════════════════════════════════╗");
+          Log::info("║                     DETALLE DE CÁLCULO POR CÓDIGO                            ║");
+          Log::info("╚═══════════════════════════════════════════════════════════════════════════════╝");
+
+          foreach ($codeGroups as $code => $codeSchedules) {
+            $diasTrabajados = $codeSchedules->count();
+
+            Log::info("  » Procesando código: {$code}", [
+              'dias_trabajados' => $diasTrabajados,
+            ]);
+
+            // Get rules for this code
+            $rules = $attendanceRules->get($code);
+
+            if (!$rules || $rules->isEmpty()) {
+              Log::warning("  ⚠ No se encontraron reglas para el código: {$code}");
+              continue; // Skip if no rules defined for this code
+            }
+
+            Log::info("  Reglas encontradas para {$code}", [
+              'total_reglas' => $rules->count(),
+            ]);
+
+            foreach ($rules as $rule) {
+              // Determine hours to use
+              $horas = $rule->use_shift ? $horasJornada : (float)$rule->hours;
+
+              // Calculate hour value with night surcharge if applicable
+              $valorHora = $valorHoraBase;
+              $esNocturno = strtoupper($rule->hour_type) === 'NOCTURNO';
+
+              if ($esNocturno) {
+                $valorHora *= $recargoNocturno;
+              }
+
+              // Apply multiplier
+              $valorHoraConMultiplicador = $valorHora * (float)$rule->multiplier;
+
+              // Calculate total for this rule
+              $total = $horas * $valorHoraConMultiplicador * $diasTrabajados;
+
+              // If pay = 0, subtract instead of add (make it negative)
+              $esDeduccion = !$rule->pay;
+              if ($esDeduccion) {
+                $total = -$total;
+              }
+
+              Log::info("    ↳ PASO A PASO del cálculo:", [
+                'PASO_1_horas_a_usar' => $rule->use_shift ? "use_shift=1 → Toma horas_jornada: {$horas}" : "use_shift=0 → Toma rule.hours: {$horas}",
+                'PASO_2_valor_base' => round($valorHoraBase, 4),
+                'PASO_3_recargo_nocturno' => $esNocturno ? "× 1.35 = " . round($valorHoraBase * 1.35, 4) : "No aplica",
+                'PASO_4_aplicar_multiplier' => "× {$rule->multiplier} = " . round($valorHoraConMultiplicador, 4),
+                'PASO_5_formula_final' => "{$horas} hrs × " . round($valorHoraConMultiplicador, 4) . " × {$diasTrabajados} días",
+                'PASO_6_total_calculado' => round($total, 2),
+                'PASO_7_es_deduccion' => $esDeduccion ? "SÍ (pay=0) → Se resta" : "NO (pay=1) → Se suma",
+              ]);
+
+              $totalEarnings += $total;
+
+              Log::info("    ✓ Regla procesada", [
+                'code' => $code,
+                'description' => $rule->description,
+                'hour_type' => $rule->hour_type,
+                'total_de_esta_regla' => round($total, 2),
+                'ACUMULADO_hasta_ahora' => round($totalEarnings, 2),
+              ]);
+
+              // Create detail record
+              PayrollCalculationDetail::create([
+                'calculation_id' => $calculation->id,
+                'concept_id' => null, // For attendance, we don't have a concept_id
+                'concept_code' => $code,
+                'concept_name' => $rule->description ?? $code,
+                'type' => $rule->pay ? 'EARNING' : 'DEDUCTION',
+                'category' => 'ATTENDANCE',
+                'hour_type' => $rule->hour_type,
+                'hours' => $horas,
+                'days_worked' => $diasTrabajados,
+                'multiplier' => (float)$rule->multiplier,
+                'use_shift' => $rule->use_shift,
+                'hour_value' => $valorHoraConMultiplicador,
+                'amount' => $total,
+                'calculation_order' => $calculationOrder++,
+              ]);
+            }
+          }
+
+          // Update calculation totals
+          $calculation->update([
+            'total_earnings' => $totalEarnings > 0 ? $totalEarnings : 0,
+            'total_deductions' => $totalEarnings < 0 ? abs($totalEarnings) : 0,
+            'net_salary' => $totalEarnings,
+          ]);
+
+          Log::info("✓ Totales calculados para trabajador", [
+            'worker_id' => $workerId,
+            'worker_name' => $worker->nombre_completo,
+            'total_earnings' => round($totalEarnings > 0 ? $totalEarnings : 0, 2),
+            'total_deductions' => round($totalEarnings < 0 ? abs($totalEarnings) : 0, 2),
+            'net_salary' => round($totalEarnings, 2),
+          ]);
+
+          $createdCalculations[] = $calculation->id;
+        } catch (Exception $e) {
+          $errors[] = "Worker ID {$workerId}: " . $e->getMessage();
+        }
+      }
 
       DB::commit();
 
-      // Now generate new calculations
-      return $this->generatePayrollCalculations($periodId);
+      Log::info('=== FIN RECÁLCULO DE PLANILLA ===', [
+        'period_id' => $periodId,
+        'calculations_created' => count($createdCalculations),
+        'errors_count' => count($errors),
+      ]);
+
+      return [
+        'success' => true,
+        'period_id' => $periodId,
+        'calculations_created' => count($createdCalculations),
+        'calculation_ids' => $createdCalculations,
+        'errors' => $errors,
+      ];
     } catch (Exception $e) {
       DB::rollBack();
+      Log::error('Error en recálculo de planilla', [
+        'period_id' => $periodId,
+        'error' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+      ]);
       throw $e;
     }
+  }
+
+  /**
+   * Get daily attendances for all workers in a period
+   * Returns attendance data grouped by worker with daily codes and summary
+   *
+   * @param int $periodId
+   * @return array
+   * @throws Exception
+   */
+  public function getAttendancesByPeriod(int $periodId)
+  {
+    $period = PayrollPeriod::find($periodId);
+    if (!$period) {
+      throw new Exception('Period not found');
+    }
+
+    // Get all schedules for this period with worker information
+    $schedules = PayrollSchedule::with(['worker'])
+      ->where('period_id', $periodId)
+      ->orderBy('work_date', 'asc')
+      ->get();
+
+    if ($schedules->isEmpty()) {
+      return [
+        'period_id' => $periodId,
+        'period_name' => $period->name ?? "{$period->start_date} - {$period->end_date}",
+        'start_date' => $period->start_date,
+        'end_date' => $period->end_date,
+        'attendances' => [],
+      ];
+    }
+
+    // Group schedules by worker
+    $attendancesByWorker = $schedules->groupBy('worker_id')->map(function ($workerSchedules) {
+      $worker = $workerSchedules->first()->worker;
+
+      // Prepare daily attendances array
+      $dailyAttendances = $workerSchedules->map(function ($schedule) {
+        return [
+          'date' => $schedule->work_date->format('Y-m-d'),
+          'code' => $schedule->code,
+          'status' => $schedule->status,
+        ];
+      })->values();
+
+      // Count occurrences of each code for summary
+      $codeCounts = $workerSchedules->groupBy('code')->map(function ($codeGroup) {
+        return $codeGroup->count();
+      });
+
+      return [
+        'worker_id' => $worker->id,
+        'worker_name' => $worker->nombre_completo ?? '',
+        'document_number' => $worker->vat ?? '',
+        'daily_attendances' => $dailyAttendances,
+        'summary' => [
+          'codes' => $codeCounts,
+          'total_days' => $dailyAttendances->count(),
+        ],
+      ];
+    })->values();
+
+    return [
+      'period_id' => $periodId,
+      'period_name' => $period->name ?? "{$period->start_date} - {$period->end_date}",
+      'start_date' => $period->start_date,
+      'end_date' => $period->end_date,
+      'total_workers' => $attendancesByWorker->count(),
+      'attendances' => $attendancesByWorker,
+    ];
   }
 }

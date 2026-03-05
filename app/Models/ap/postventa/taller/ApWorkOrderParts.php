@@ -21,13 +21,21 @@ class ApWorkOrderParts extends Model
     'product_id',
     'warehouse_id',
     'quantity_used',
-    'unit_cost',
     'unit_price',
     'discount_percentage',
-    'subtotal',
+    'total_cost',
     'tax_amount',
-    'total_amount',
+    'net_amount',
     'registered_by'
+  ];
+
+  protected $casts = [
+    'quantity_used' => 'decimal:2',
+    'unit_price' => 'decimal:2',
+    'discount_percentage' => 'decimal:2',
+    'total_cost' => 'decimal:2',
+    'tax_amount' => 'decimal:2',
+    'net_amount' => 'decimal:2',
   ];
 
   const filters = [

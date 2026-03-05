@@ -15,9 +15,15 @@ class AttendanceRuleSeeder extends Seeder
     $rules = [
       // D - Turno Día
       ['code' => 'D', 'description' => 'TURNO DIA', 'hour_type' => 'DIURNO', 'hours' => 8, 'multiplier' => 1, 'pay' => true, 'use_shift' => true],
+      ['code' => 'D', 'description' => 'TURNO DIA CON HORAS EXTRAS', 'hour_type' => 'DIURNO', 'hours' => 2, 'multiplier' => 1.25, 'pay' => true, 'use_shift' => false],
+      ['code' => 'D', 'description' => 'TURNO DIA CON HORAS EXTRAS', 'hour_type' => 'DIURNO', 'hours' => 2, 'multiplier' => 1.35, 'pay' => true, 'use_shift' => false],
+      ['code' => 'D', 'description' => 'TURNO DIA CON HORAS EXTRAS', 'hour_type' => 'REFRIGERIO', 'hours' => 0.75, 'multiplier' => 1.25, 'pay' => false, 'use_shift' => false],
 
-      // N - Turno Noche
-      ['code' => 'N', 'description' => 'TURNO NOCHE', 'hour_type' => 'NOCTURNO', 'hours' => 8, 'multiplier' => 1, 'pay' => true, 'use_shift' => true],
+      // N - Nocturno con horas extras
+      ['code' => 'N', 'description' => 'TURNO NOCHE CON HORAS EXTRAS', 'hour_type' => 'DIURNO', 'hours' => 2, 'multiplier' => 1, 'pay' => true, 'use_shift' => false],
+      ['code' => 'N', 'description' => 'TURNO NOCHE CON HORAS EXTRAS', 'hour_type' => 'NOCTURNO', 'hours' => 6, 'multiplier' => 1, 'pay' => true, 'use_shift' => false],
+      ['code' => 'N', 'description' => 'TURNO NOCHE CON HORAS EXTRAS', 'hour_type' => 'NOCTURNO', 'hours' => 2, 'multiplier' => 1.25, 'pay' => true, 'use_shift' => false],
+      ['code' => 'N', 'description' => 'TURNO NOCHE CON HORAS EXTRAS', 'hour_type' => 'DIURNO', 'hours' => 1, 'multiplier' => 1.35, 'pay' => true, 'use_shift' => false],
 
       // DDT - Descanso Trabajado Día
       ['code' => 'DDT', 'description' => 'DESCANSO TRABAJADO DIA', 'hour_type' => 'DIURNO', 'hours' => 12, 'multiplier' => 1, 'pay' => true, 'use_shift' => false],
@@ -31,12 +37,12 @@ class AttendanceRuleSeeder extends Seeder
       ['code' => 'DD', 'description' => 'DESCANSO', 'hour_type' => 'DIURNO', 'hours' => 8, 'multiplier' => 1, 'pay' => true, 'use_shift' => false],
 
       // FEN - Feriado Noche
-      ['code' => 'FEN', 'description' => 'FERIADO NOCHE', 'hour_type' => 'NOCTURNO', 'hours' => 8, 'multiplier' => 1, 'pay' => true, 'use_shift' => false],
-      ['code' => 'FEN', 'description' => 'FERIADO NOCHE', 'hour_type' => 'DIURNO', 'hours' => 3, 'multiplier' => 1, 'pay' => true, 'use_shift' => false],
+      ['code' => 'FNT', 'description' => 'FERIADO NOCHE', 'hour_type' => 'NOCTURNO', 'hours' => 8, 'multiplier' => 1, 'pay' => true, 'use_shift' => false],
+      ['code' => 'FNT', 'description' => 'FERIADO NOCHE', 'hour_type' => 'DIURNO', 'hours' => 3, 'multiplier' => 1, 'pay' => true, 'use_shift' => false],
 
       // FED - Feriado Diurno
-      ['code' => 'FED', 'description' => 'FERIADO DIURNO', 'hour_type' => 'DIURNO', 'hours' => 12, 'multiplier' => 1, 'pay' => true, 'use_shift' => false],
-      ['code' => 'FED', 'description' => 'FERIADO DIURNO', 'hour_type' => 'REFRIGERIO', 'hours' => 0.75, 'multiplier' => 1, 'pay' => false, 'use_shift' => false],
+      ['code' => 'FDT', 'description' => 'FERIADO DIURNO', 'hour_type' => 'DIURNO', 'hours' => 12, 'multiplier' => 1, 'pay' => true, 'use_shift' => false],
+      ['code' => 'FDT', 'description' => 'FERIADO DIURNO', 'hour_type' => 'REFRIGERIO', 'hours' => 0.75, 'multiplier' => 1, 'pay' => false, 'use_shift' => false],
 
       // LSGH - Licencia Sin Goce
       ['code' => 'LSGH', 'description' => 'LICENCIA S/GOCE', 'hour_type' => 'DIURNO', 'hours' => 8, 'multiplier' => 0, 'pay' => false, 'use_shift' => false],
@@ -49,17 +55,6 @@ class AttendanceRuleSeeder extends Seeder
 
       // DM - Descanso Médico
       ['code' => 'DM', 'description' => 'DESCANSO MEDICO', 'hour_type' => 'DIURNO', 'hours' => 8, 'multiplier' => 1, 'pay' => true, 'use_shift' => false],
-
-      // DT - Diurno con horas extras
-      ['code' => 'DT', 'description' => 'TURNO DIA CON HORAS EXTRAS', 'hour_type' => 'DIURNO', 'hours' => 2, 'multiplier' => 1.25, 'pay' => true, 'use_shift' => false],
-      ['code' => 'DT', 'description' => 'TURNO DIA CON HORAS EXTRAS', 'hour_type' => 'DIURNO', 'hours' => 2, 'multiplier' => 1.35, 'pay' => true, 'use_shift' => false],
-      ['code' => 'DT', 'description' => 'TURNO DIA CON HORAS EXTRAS', 'hour_type' => 'REFRIGERIO', 'hours' => 0.75, 'multiplier' => 1.25, 'pay' => false, 'use_shift' => false],
-
-      // NT - Nocturno con horas extras
-      ['code' => 'NT', 'description' => 'TURNO NOCHE CON HORAS EXTRAS', 'hour_type' => 'DIURNO', 'hours' => 2, 'multiplier' => 1, 'pay' => true, 'use_shift' => false],
-      ['code' => 'NT', 'description' => 'TURNO NOCHE CON HORAS EXTRAS', 'hour_type' => 'NOCTURNO', 'hours' => 6, 'multiplier' => 1, 'pay' => true, 'use_shift' => false],
-      ['code' => 'NT', 'description' => 'TURNO NOCHE CON HORAS EXTRAS', 'hour_type' => 'NOCTURNO', 'hours' => 2, 'multiplier' => 1.25, 'pay' => true, 'use_shift' => false],
-      ['code' => 'NT', 'description' => 'TURNO NOCHE CON HORAS EXTRAS', 'hour_type' => 'NOCTURNO', 'hours' => 1, 'multiplier' => 1.35, 'pay' => true, 'use_shift' => false],
     ];
 
     foreach ($rules as $rule) {

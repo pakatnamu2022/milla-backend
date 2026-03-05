@@ -34,11 +34,6 @@ class StoreApWorkOrderPartsRequest extends StoreRequest
         'numeric',
         'min:0.01',
       ],
-      'unit_cost' => [
-        'nullable',
-        'numeric',
-        'min:0',
-      ],
       'unit_price' => [
         'nullable',
         'numeric',
@@ -50,7 +45,7 @@ class StoreApWorkOrderPartsRequest extends StoreRequest
         'min:0',
         'max:100',
       ],
-      'subtotal' => [
+      'total_cost' => [
         'nullable',
         'numeric',
         'min:0',
@@ -60,7 +55,7 @@ class StoreApWorkOrderPartsRequest extends StoreRequest
         'numeric',
         'min:0',
       ],
-      'total_amount' => [
+      'net_amount' => [
         'nullable',
         'numeric',
         'min:0',
@@ -91,11 +86,6 @@ class StoreApWorkOrderPartsRequest extends StoreRequest
       'quantity_used.numeric' => 'La cantidad utilizada debe ser un número.',
       'quantity_used.min' => 'La cantidad utilizada debe ser mayor a 0.',
 
-      'unit_cost.required' => 'El costo unitario es obligatorio.',
-      'unit_cost.numeric' => 'El costo unitario debe ser un número.',
-      'unit_cost.min' => 'El costo unitario no puede ser negativo.',
-
-      'unit_price.required' => 'El precio unitario es obligatorio.',
       'unit_price.numeric' => 'El precio unitario debe ser un número.',
       'unit_price.min' => 'El precio unitario no puede ser negativo.',
 
@@ -103,16 +93,14 @@ class StoreApWorkOrderPartsRequest extends StoreRequest
       'discount_percentage.min' => 'El porcentaje de descuento no puede ser negativo.',
       'discount_percentage.max' => 'El porcentaje de descuento no puede ser mayor a 100.',
 
-      'subtotal.required' => 'El subtotal es obligatorio.',
-      'subtotal.numeric' => 'El subtotal debe ser un número.',
-      'subtotal.min' => 'El subtotal no puede ser negativo.',
+      'total_cost.numeric' => 'El costo total debe ser un número.',
+      'total_cost.min' => 'El costo total no puede ser negativo.',
 
       'tax_amount.numeric' => 'El monto de impuestos debe ser un número.',
       'tax_amount.min' => 'El monto de impuestos no puede ser negativo.',
 
-      'total_amount.required' => 'El monto total es obligatorio.',
-      'total_amount.numeric' => 'El monto total debe ser un número.',
-      'total_amount.min' => 'El monto total no puede ser negativo.',
+      'net_amount.numeric' => 'El monto neto debe ser un número.',
+      'net_amount.min' => 'El monto neto no puede ser negativo.',
     ];
   }
 }

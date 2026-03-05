@@ -158,6 +158,18 @@ return [
       'icon' => 'Tool',
       'policy_method' => 'maintenance',
     ],
+    'request' => [
+      'label' => 'Solicitar',
+      'description' => 'Permite realizar solicitudes dentro del sistema',
+      'icon' => 'Send',
+      'policy_method' => 'request',
+    ],
+    'editDiscount' => [
+      'label' => 'Editar Descuento',
+      'description' => 'Permite editar descuentos en cotizaciones o facturas',
+      'icon' => 'Edit3',
+      'policy_method' => 'editDiscount',
+    ],
   ],
 
   /*

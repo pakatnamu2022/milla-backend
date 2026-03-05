@@ -126,10 +126,12 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
    */
   private function validateQuotationNotAssociatedWithWorkOrder(int $quotationId): void
   {
-    $workOrder = ApWorkOrder::where('order_quotation_id', $quotationId)->first();
+    $workOrder = ApWorkOrder::where('order_quotation_id', $quotationId)
+      ->whereHas('advancesWorkOrder')
+      ->first();
 
     if ($workOrder) {
-      throw new Exception("Esta cotización ya está asociada a la orden de trabajo {$workOrder->correlative}");
+      throw new Exception("Esta cotización no puede ser modificada. La orden de trabajo {$workOrder->correlative} al que se encuentra asociada ya tiene avances registrados.");
     }
   }
 

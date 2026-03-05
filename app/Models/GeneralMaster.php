@@ -42,6 +42,10 @@ class GeneralMaster extends Model
   const int ADVISOR_DISCOUNT_PERCENTAGE_PV_ID = 4;
   const int SUNAT_DETRACTION_PERCENTAGE_ID = 5;
 
+  //CONSTANTES DE PLANILLA
+  const int DAYS_MONTH_ID = 6;
+  const int WORKING_HOURS_ID = 7;
+
   public function setCodeAttribute($value)
   {
     $this->attributes['code'] = Str::upper(Str::ascii($value));
