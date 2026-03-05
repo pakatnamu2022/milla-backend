@@ -36,7 +36,6 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'purchase_request_quote_id',
       'order_quotation_id',
       'sunat_concept_currency_id',
-      'sunat_concept_detraction_type_id',
       'documento_que_se_modifica_tipo',
       'documento_que_se_modifica_numero',
       'sunat_concept_credit_note_type_id',
@@ -279,7 +278,6 @@ class StoreElectronicDocumentRequest extends StoreRequest
 
       // Detracción
       'detraccion' => 'nullable|boolean',
-      'sunat_concept_detraction_type_id' => 'nullable|integer|exists:sunat_concepts,id',
       'detraccion_total' => 'nullable|numeric|min:0',
       'detraccion_porcentaje' => 'nullable|numeric|min:0|max:100',
       'medio_de_pago_detraccion' => 'nullable|integer|between:1,12',
@@ -445,16 +443,6 @@ class StoreElectronicDocumentRequest extends StoreRequest
           $validator->errors()->add(
             'sunat_concept_debit_note_type_id',
             'Debe especificar el tipo de nota de débito'
-          );
-        }
-      }
-
-      // Validar que si hay detracción, tenga todos los campos necesarios
-      if ($this->input('detraccion') === true) {
-        if (!$this->has('sunat_concept_detraction_type_id')) {
-          $validator->errors()->add(
-            'sunat_concept_detraction_type_id',
-            'Debe especificar el tipo de detracción'
           );
         }
       }

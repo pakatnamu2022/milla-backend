@@ -28,10 +28,9 @@ class UpdateApAccountingAccountPlanRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('accountingAccountPlan')),
       ],
-      'accounting_type_id' => [
+      'is_detraction' => [
         'nullable',
-        'integer',
-        'exists:ap_masters,id',
+        'boolean',
       ],
       'status' => [
         'nullable',
@@ -48,7 +47,7 @@ class UpdateApAccountingAccountPlanRequest extends StoreRequest
       'description.unique' => 'La descripción ya existe.',
       'description.max' => 'La descripción no debe ser mayor a 255 caracteres.',
 
-      'accounting_type_id.exists' => 'El tipo de account contable no existe.',
+      'is_detraction.boolean' => 'El campo detracción debe ser verdadero o falso.',
     ];
   }
 }
