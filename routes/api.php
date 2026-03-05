@@ -105,7 +105,6 @@ use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableControll
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollPeriodController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\AttendanceRuleController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkTypeSegmentController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\AreaController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
@@ -1332,7 +1331,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Supplier Orders - Órdenes de Proveedor
-      Route::put('supplierOrders/{id}/mark-as-taken', [ApSupplierOrderController::class, 'markAsTaken']);
       Route::put('supplierOrders/{id}/update-status', [ApSupplierOrderController::class, 'updateStatus']);
       Route::apiResource('supplierOrders', ApSupplierOrderController::class)->only([
         'index',
@@ -1562,14 +1560,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     // Attendance Rules
     Route::get('attendance-rules/codes', [AttendanceRuleController::class, 'codes']);
     Route::apiResource('attendance-rules', AttendanceRuleController::class);
-
-    // Work Type Segments
-    Route::prefix('work-types/segments')->group(function () {
-      Route::get('/', [PayrollWorkTypeSegmentController::class, 'index']);
-      Route::post('/', [PayrollWorkTypeSegmentController::class, 'store']);
-      Route::put('/{id}', [PayrollWorkTypeSegmentController::class, 'update']);
-      Route::delete('/{id}', [PayrollWorkTypeSegmentController::class, 'destroy']);
-    });
 
     // Formula Variables
     Route::apiResource('formula-variables', PayrollFormulaVariableController::class);
