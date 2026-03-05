@@ -36,6 +36,11 @@ class StoreTaxClassTypesRequest extends StoreRequest
         'string',
         'max:100',
       ],
+      'type_detraction_id' => [
+        'nullable',
+        'integer',
+        'exists:sunat_concepts,id',
+      ],
     ];
   }
 
@@ -59,6 +64,9 @@ class StoreTaxClassTypesRequest extends StoreRequest
       'type.required' => 'El tipo es obligatorio.',
       'type.string' => 'El tipo debe ser una cadena de texto.',
       'type.max' => 'El tipo no debe exceder los 100 caracteres.',
+
+      'type_detraction_id.integer' => 'El tipo de detracción debe ser un número entero.',
+      'type_detraction_id.exists' => 'El tipo de detracción seleccionado no existe.',
     ];
   }
 }

@@ -2,7 +2,6 @@
 
 namespace App\Models\ap\configuracionComercial\venta;
 
-use App\Models\ap\ApMasters;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -17,14 +16,14 @@ class ApAccountingAccountPlan extends Model
     'account',
     'code_dynamics',
     'description',
-    'accounting_type_id',
+    'is_detraction',
     'status',
   ];
 
   const filters = [
     'search' => ['account', 'description', 'code_dynamics'],
     'code_dynamics' => '=',
-    'accounting_type_id' => '=',
+    'is_detraction' => '=',
     'status' => '=',
   ];
 
@@ -32,7 +31,7 @@ class ApAccountingAccountPlan extends Model
     'account',
     'code_dynamics',
     'description',
-    'accounting_type_id',
+    'is_detraction',
     'status',
   ];
 
@@ -46,10 +45,5 @@ class ApAccountingAccountPlan extends Model
   public function setDescriptionAttribute($value)
   {
     $this->attributes['description'] = Str::upper(Str::ascii($value));
-  }
-
-  public function typeAccount()
-  {
-    return $this->belongsTo(ApMasters::class, 'accounting_type_id');
   }
 }
