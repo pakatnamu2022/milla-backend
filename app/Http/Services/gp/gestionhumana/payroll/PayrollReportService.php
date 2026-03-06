@@ -93,42 +93,38 @@ class PayrollReportService
       ->orderBy('worker_id')
       ->get();
 
-    if ($calculations->isEmpty()) {
-      throw new Exception('No calculations found for this period');
-    }
-
     $rows = $calculations->map(fn($c) => [
-      'empresa'         => $c->company->name ?? ($c->sede->abreviatura ?? '-'),
-      'nombre'          => $c->worker->nombre_completo ?? '-',
-      'dni'             => $c->worker->vat ?? '-',
-      'days_worked'     => (int) $c->days_worked,
-      'basic_salary'    => (float) $c->basic_salary,
-      'night_bonus'     => (float) $c->night_bonus,
-      'gross_salary'    => (float) $c->gross_salary,
-      'overtime_25'     => (float) $c->overtime_25,
-      'overtime_35'     => (float) $c->overtime_35,
-      'holiday_pay'     => (float) $c->holiday_pay,
-      'compensatory_pay'=> (float) $c->compensatory_pay,
-      'net_salary'      => (float) $c->net_salary,
+      'empresa' => $c->company->name ?? ($c->sede->abreviatura ?? '-'),
+      'nombre' => $c->worker->nombre_completo ?? '-',
+      'dni' => $c->worker->vat ?? '-',
+      'days_worked' => (int)$c->days_worked,
+      'basic_salary' => (float)$c->basic_salary,
+      'night_bonus' => (float)$c->night_bonus,
+      'gross_salary' => (float)$c->gross_salary,
+      'overtime_25' => (float)$c->overtime_25,
+      'overtime_35' => (float)$c->overtime_35,
+      'holiday_pay' => (float)$c->holiday_pay,
+      'compensatory_pay' => (float)$c->compensatory_pay,
+      'net_salary' => (float)$c->net_salary,
     ]);
 
     return [
       'period' => [
-        'id'   => $period->id,
+        'id' => $period->id,
         'code' => $period->code,
         'name' => $period->name,
       ],
-      'rows'   => $rows,
+      'rows' => $rows,
       'totals' => [
-        'days_worked'      => $rows->sum('days_worked'),
-        'basic_salary'     => round($rows->sum('basic_salary'), 2),
-        'night_bonus'      => round($rows->sum('night_bonus'), 2),
-        'gross_salary'     => round($rows->sum('gross_salary'), 2),
-        'overtime_25'      => round($rows->sum('overtime_25'), 2),
-        'overtime_35'      => round($rows->sum('overtime_35'), 2),
-        'holiday_pay'      => round($rows->sum('holiday_pay'), 2),
+        'days_worked' => $rows->sum('days_worked'),
+        'basic_salary' => round($rows->sum('basic_salary'), 2),
+        'night_bonus' => round($rows->sum('night_bonus'), 2),
+        'gross_salary' => round($rows->sum('gross_salary'), 2),
+        'overtime_25' => round($rows->sum('overtime_25'), 2),
+        'overtime_35' => round($rows->sum('overtime_35'), 2),
+        'holiday_pay' => round($rows->sum('holiday_pay'), 2),
         'compensatory_pay' => round($rows->sum('compensatory_pay'), 2),
-        'net_salary'       => round($rows->sum('net_salary'), 2),
+        'net_salary' => round($rows->sum('net_salary'), 2),
       ],
     ];
   }
@@ -163,16 +159,16 @@ class PayrollReportService
       'deductions' => $calculation->deductions,
       'employer_contributions' => $calculation->employerContributions,
       'summary' => [
-        'days_worked'      => (int) $calculation->days_worked,
-        'basic_salary'     => (float) $calculation->basic_salary,
-        'night_bonus'      => (float) $calculation->night_bonus,
-        'gross_salary'     => (float) $calculation->gross_salary,
-        'overtime_25'      => (float) $calculation->overtime_25,
-        'overtime_35'      => (float) $calculation->overtime_35,
-        'holiday_pay'      => (float) $calculation->holiday_pay,
-        'compensatory_pay' => (float) $calculation->compensatory_pay,
-        'total_deductions' => (float) $calculation->total_deductions,
-        'net_salary'       => (float) $calculation->net_salary,
+        'days_worked' => (int)$calculation->days_worked,
+        'basic_salary' => (float)$calculation->basic_salary,
+        'night_bonus' => (float)$calculation->night_bonus,
+        'gross_salary' => (float)$calculation->gross_salary,
+        'overtime_25' => (float)$calculation->overtime_25,
+        'overtime_35' => (float)$calculation->overtime_35,
+        'holiday_pay' => (float)$calculation->holiday_pay,
+        'compensatory_pay' => (float)$calculation->compensatory_pay,
+        'total_deductions' => (float)$calculation->total_deductions,
+        'net_salary' => (float)$calculation->net_salary,
       ],
       'generated_at' => now(),
     ];

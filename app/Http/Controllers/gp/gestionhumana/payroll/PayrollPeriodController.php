@@ -96,7 +96,7 @@ class PayrollPeriodController extends Controller
   /**
    * Close a period
    */
-  public function processing(int $id)
+  public function process(int $id)
   {
     try {
       return $this->success([
