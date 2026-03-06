@@ -3,10 +3,24 @@
 namespace App\Http\Requests\gp\gestionhumana\payroll;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\gp\gestionhumana\payroll\AttendanceRule;
 use Illuminate\Validation\Rule;
 
 class UpdateAttendanceRuleRequest extends StoreRequest
 {
+  public function withValidator($validator): void
+  {
+    $validator->after(function ($validator) {
+      $code = $this->code ?? $this->route('attendance_rule')?->code;
+      $existing = AttendanceRule::where('code', $code)
+        ->where('id', '!=', $this->route('attendance_rule')?->id)
+        ->first();
+      if ($existing && $existing->description !== $this->description) {
+        $validator->errors()->add('description', 'La descripción no coincide con la registrada para este código.');
+      }
+    });
+  }
+
   public function rules(): array
   {
     return [
