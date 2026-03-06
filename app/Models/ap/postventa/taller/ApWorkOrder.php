@@ -39,7 +39,9 @@ class ApWorkOrder extends Model
     'sede_id',
     'opening_date',
     'estimated_delivery_date',
+    'estimated_delivery_time',
     'actual_delivery_date',
+    'actual_delivery_time',
     'diagnosis_date',
     'observations',
     'total_labor_cost',
@@ -63,7 +65,9 @@ class ApWorkOrder extends Model
   protected $casts = [
     'opening_date' => 'date',
     'estimated_delivery_date' => 'date',
+    'estimated_delivery_time' => 'datetime:H:i',
     'actual_delivery_date' => 'datetime',
+    'actual_delivery_time' => 'datetime:H:i',
     'diagnosis_date' => 'datetime',
     'is_invoiced' => 'boolean',
     'is_guarantee' => 'boolean',
@@ -216,8 +220,8 @@ class ApWorkOrder extends Model
   // Helper methods
   public function calculateTotals(): void
   {
-    $this->total_labor_cost = $this->labours()->sum('total_cost');
-    $this->total_parts_cost = $this->parts()->sum('subtotal');
+    $this->total_labor_cost = $this->labours()->sum('net_amount');
+    $this->total_parts_cost = $this->parts()->sum('net_amount');
 
     $this->subtotal = $this->total_labor_cost + $this->total_parts_cost;
     $this->discount_amount = $this->subtotal * (($this->discount_percentage ?? 0) / 100);

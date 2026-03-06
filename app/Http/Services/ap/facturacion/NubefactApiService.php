@@ -37,7 +37,7 @@ class NubefactApiService
     $this->setApiCredentials($document->sede_id);
     $payload = $this->buildDocumentPayload($document);
     $endpoint = $this->getEndpointForDocumentType($document->documentType->code_nubefact);
-
+    
     $logData = [
       'ap_billing_electronic_document_id' => $document->id,
       'operation' => 'generar_comprobante',

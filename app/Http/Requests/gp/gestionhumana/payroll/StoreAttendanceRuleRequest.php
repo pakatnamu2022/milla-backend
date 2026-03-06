@@ -3,9 +3,20 @@
 namespace App\Http\Requests\gp\gestionhumana\payroll;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\gp\gestionhumana\payroll\AttendanceRule;
 
 class StoreAttendanceRuleRequest extends StoreRequest
 {
+  public function withValidator($validator): void
+  {
+    $validator->after(function ($validator) {
+      $existing = AttendanceRule::where('code', $this->code)->first();
+      if ($existing && $existing->description !== $this->description) {
+        $validator->errors()->add('description', 'La descripción no coincide con la registrada para este código.');
+      }
+    });
+  }
+
   public function rules(): array
   {
     return [

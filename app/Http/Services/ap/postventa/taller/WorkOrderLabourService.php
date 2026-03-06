@@ -103,12 +103,15 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         $discountPercentage = $data['discount_percentage'] ?? 0;
         $costBase = $timeSpentDecimal * floatval($data['hourly_rate']) * $factor;
 
+        // Calculamos el monto total
+        $data['total_cost'] = $costBase;
+
         // Aplicar descuento si existe
         if ($discountPercentage > 0) {
           $discountAmount = $costBase * ($discountPercentage / 100);
-          $data['total_cost'] = $costBase - $discountAmount;
+          $data['net_amount'] = $costBase - $discountAmount;
         } else {
-          $data['total_cost'] = $costBase;
+          $data['net_amount'] = $costBase;
         }
       }
       $data['hourly_rate'] = floatval($data['hourly_rate']) * $factor;
@@ -177,9 +180,9 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         // Aplicar descuento si existe
         if ($discountPercentage > 0) {
           $discountAmount = $costBase * ($discountPercentage / 100);
-          $data['total_cost'] = $costBase - $discountAmount;
+          $data['net_amount'] = $costBase - $discountAmount;
         } else {
-          $data['total_cost'] = $costBase;
+          $data['net_amount'] = $costBase;
         }
       }
 

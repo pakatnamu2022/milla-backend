@@ -49,7 +49,7 @@ class StoreWorkOrderRequest extends StoreRequest
         'required',
         'date',
       ],
-      'estimated_delivery_date' => [
+      'estimated_delivery_time' => [
         'required',
         'date',
       ],
@@ -176,8 +176,8 @@ class StoreWorkOrderRequest extends StoreRequest
       'opening_date.required' => 'La fecha de apertura es obligatoria.',
       'opening_date.date' => 'La fecha de apertura debe ser una fecha válida.',
 
-      'estimated_delivery_date.required' => 'La fecha estimada de entrega es obligatoria.',
-      'estimated_delivery_date.date' => 'La fecha estimada de entrega debe ser una fecha válida.',
+      'estimated_delivery_time.required' => 'La fecha y hora estimada de entrega es obligatoria.',
+      'estimated_delivery_time.date' => 'La fecha y hora estimada de entrega debe ser una fecha válida.',
 
       'diagnosis_date.required' => 'La fecha de diagnóstico es obligatoria.',
       'diagnosis_date.date' => 'La fecha de diagnóstico debe ser una fecha válida.',

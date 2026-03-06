@@ -68,7 +68,7 @@ class UpdateWorkOrderRequest extends StoreRequest
         'required',
         'date',
       ],
-      'estimated_delivery_date' => [
+      'estimated_delivery_time' => [
         'sometimes',
         'nullable',
         'date',
@@ -192,7 +192,7 @@ class UpdateWorkOrderRequest extends StoreRequest
       'opening_date.required' => 'La fecha de apertura es obligatoria.',
       'opening_date.date' => 'La fecha de apertura debe ser una fecha válida.',
 
-      'estimated_delivery_date.date' => 'La fecha estimada de entrega debe ser una fecha válida.',
+      'estimated_delivery_time.date' => 'La fecha y hora estimada de entrega debe ser una fecha válida.',
 
       'actual_delivery_date.date' => 'La fecha real de entrega debe ser una fecha válida.',
 

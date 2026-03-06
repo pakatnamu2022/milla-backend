@@ -105,7 +105,6 @@ use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableControll
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollPeriodController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\AttendanceRuleController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkTypeSegmentController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\AreaController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
@@ -1332,7 +1331,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Supplier Orders - Órdenes de Proveedor
-      Route::put('supplierOrders/{id}/mark-as-taken', [ApSupplierOrderController::class, 'markAsTaken']);
       Route::put('supplierOrders/{id}/update-status', [ApSupplierOrderController::class, 'updateStatus']);
       Route::apiResource('supplierOrders', ApSupplierOrderController::class)->only([
         'index',
@@ -1563,14 +1561,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('attendance-rules/codes', [AttendanceRuleController::class, 'codes']);
     Route::apiResource('attendance-rules', AttendanceRuleController::class);
 
-    // Work Type Segments
-    Route::prefix('work-types/segments')->group(function () {
-      Route::get('/', [PayrollWorkTypeSegmentController::class, 'index']);
-      Route::post('/', [PayrollWorkTypeSegmentController::class, 'store']);
-      Route::put('/{id}', [PayrollWorkTypeSegmentController::class, 'update']);
-      Route::delete('/{id}', [PayrollWorkTypeSegmentController::class, 'destroy']);
-    });
-
     // Formula Variables
     Route::apiResource('formula-variables', PayrollFormulaVariableController::class);
 
@@ -1586,6 +1576,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     // Schedules
     Route::post('schedules/bulk', [PayrollScheduleController::class, 'storeBulk']);
     Route::get('schedules/summary/{periodId}', [PayrollScheduleController::class, 'summary']);
+    Route::get('schedules/attendances/{periodId}', [PayrollScheduleController::class, 'getAttendances']);
     Route::post('schedules/generate-calculations/{periodId}', [PayrollScheduleController::class, 'generateCalculations']);
     Route::post('schedules/recalculate-calculations/{periodId}', [PayrollScheduleController::class, 'recalculateCalculations']);
     Route::apiResource('schedules', PayrollScheduleController::class);
@@ -1595,8 +1586,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('calculations/approve-all', [PayrollCalculationController::class, 'approveAll']);
     Route::post('calculations/{id}/approve', [PayrollCalculationController::class, 'approve']);
     Route::get('calculations/summary/{periodId}', [PayrollCalculationController::class, 'summary']);
+    Route::get('calculations/report/{periodId}', [PayrollCalculationController::class, 'report']);
     Route::get('calculations/export', [PayrollCalculationController::class, 'export']);
     Route::get('calculations/{id}/payslip', [PayrollCalculationController::class, 'payslip']);
+    Route::post('calculations/{id}/summarize', [PayrollCalculationController::class, 'summarize']);
     Route::apiResource('calculations', PayrollCalculationController::class)->only(['index', 'show']);
   });
 });
