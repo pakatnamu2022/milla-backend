@@ -54,6 +54,7 @@ class ApVehicleInspectionResource extends JsonResource
       'inspected_by' => $this->inspected_by,
       'inspected_by_name' => $this->inspectionBy ? $this->inspectionBy->name : null,
       'customer_signature_url' => $this->customer_signature_url,
+      'washed' => $this->washed,
       'photo_front_url' => $this->photo_front_url,
       'photo_back_url' => $this->photo_back_url,
       'photo_left_url' => $this->photo_left_url,

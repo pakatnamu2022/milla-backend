@@ -21,6 +21,7 @@ class ApVehicleInspection extends Model
     'fuel_level',
     'oil_level',
     'dirty_unit',
+    'washed',
     'unit_ok',
     'title_deed',
     'soat',
@@ -60,6 +61,7 @@ class ApVehicleInspection extends Model
 
   protected $casts = [
     'dirty_unit' => 'boolean',
+    'washed' => 'boolean',
     'unit_ok' => 'boolean',
     'title_deed' => 'boolean',
     'soat' => 'boolean',

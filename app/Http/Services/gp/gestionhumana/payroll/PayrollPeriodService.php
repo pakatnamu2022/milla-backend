@@ -176,7 +176,7 @@ class PayrollPeriodService extends BaseService implements BaseServiceInterface
       $period = $this->find($id);
 
       if ($period->status !== PayrollPeriod::STATUS_APPROVED) {
-        throw new Exception('Cannot close period: it must be in APPROVED status');
+        throw new Exception('No se puede cerrar periodo: debe estar en estado APROBADO');
       }
 
       $period->update(['status' => PayrollPeriod::STATUS_CLOSED]);
@@ -200,7 +200,7 @@ class PayrollPeriodService extends BaseService implements BaseServiceInterface
       $period = $this->find($id);
 
       if (!in_array($period->status, [PayrollPeriod::STATUS_OPEN, PayrollPeriod::STATUS_CALCULATED])) {
-        throw new Exception('Cannot set period to processing: invalid current status');
+        throw new Exception('No se puede establecer el período de procesamiento: estado actual no válido');
       }
 
       $period->update(['status' => PayrollPeriod::STATUS_PROCESSING]);

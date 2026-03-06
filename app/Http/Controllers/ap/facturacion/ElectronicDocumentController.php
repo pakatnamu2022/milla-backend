@@ -70,7 +70,6 @@ class ElectronicDocumentController extends Controller
   public function store(StoreElectronicDocumentRequest $request): JsonResponse
   {
     try {
-//      throw new Exception(json_encode($request->validated()));
       return $this->success($this->service->store($request->validated()));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
