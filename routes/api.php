@@ -1223,6 +1223,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::patch('workOrders/{id}/unlink-quotation', [WorkOrderController::class, 'unlinkQuotation']);
       Route::patch('workOrders/{id}/authorization', [WorkOrderController::class, 'authorization']);
       Route::patch('workOrders/{id}/invoice-to', [WorkOrderController::class, 'invoiceTo']);
+      Route::get('workOrders/{id}/delivery-report', [WorkOrderController::class, 'generateDeliveryReport']);
       Route::apiResource('workOrders', WorkOrderController::class)->only([
         'index',
         'show',
@@ -1571,6 +1572,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     // Periods
     Route::get('periods/current', [PayrollPeriodController::class, 'current']);
     Route::post('periods/{id}/close', [PayrollPeriodController::class, 'close']);
+    Route::post('periods/{id}/processing', [PayrollPeriodController::class, 'processing']);
     Route::apiResource('periods', PayrollPeriodController::class);
 
     // Schedules

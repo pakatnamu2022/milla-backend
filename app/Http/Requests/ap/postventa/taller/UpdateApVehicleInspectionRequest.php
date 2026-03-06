@@ -37,6 +37,7 @@ class UpdateApVehicleInspectionRequest extends StoreRequest
       'tool_kit' => 'nullable|boolean',
       'jack_and_lever' => 'nullable|boolean',
       'general_observations' => 'nullable|string',
+      'washed' => 'nullable|boolean',
     ];
   }
 
