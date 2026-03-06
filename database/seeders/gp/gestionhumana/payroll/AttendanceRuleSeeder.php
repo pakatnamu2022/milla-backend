@@ -14,7 +14,7 @@ class AttendanceRuleSeeder extends Seeder
   {
     $rules = [
       // D - Turno Día
-      ['code' => 'D', 'description' => 'TURNO DIA', 'hour_type' => 'DIURNO', 'hours' => 8, 'multiplier' => 1, 'pay' => true, 'use_shift' => true],
+      ['code' => 'D', 'description' => 'TURNO DIA CON HORAS EXTRAS', 'hour_type' => 'DIURNO', 'hours' => 8, 'multiplier' => 1, 'pay' => true, 'use_shift' => false],
       ['code' => 'D', 'description' => 'TURNO DIA CON HORAS EXTRAS', 'hour_type' => 'DIURNO', 'hours' => 2, 'multiplier' => 1.25, 'pay' => true, 'use_shift' => false],
       ['code' => 'D', 'description' => 'TURNO DIA CON HORAS EXTRAS', 'hour_type' => 'DIURNO', 'hours' => 2, 'multiplier' => 1.35, 'pay' => true, 'use_shift' => false],
       ['code' => 'D', 'description' => 'TURNO DIA CON HORAS EXTRAS', 'hour_type' => 'REFRIGERIO', 'hours' => 0.75, 'multiplier' => 1.25, 'pay' => false, 'use_shift' => false],

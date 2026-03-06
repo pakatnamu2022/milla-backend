@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\payroll\CalculatePayrollRequest;
 use App\Http\Services\gp\gestionhumana\payroll\PayrollCalculatorService;
 use App\Http\Services\gp\gestionhumana\payroll\PayrollReportService;
+use App\Http\Services\gp\gestionhumana\payroll\PayrollSummaryService;
+use App\Models\gp\gestionhumana\payroll\PayrollCalculation;
 use Exception;
 use Illuminate\Http\Request;
 
@@ -13,13 +15,16 @@ class PayrollCalculationController extends Controller
 {
   protected PayrollCalculatorService $calculatorService;
   protected PayrollReportService $reportService;
+  protected PayrollSummaryService $summaryService;
 
   public function __construct(
     PayrollCalculatorService $calculatorService,
-    PayrollReportService $reportService
+    PayrollReportService $reportService,
+    PayrollSummaryService $summaryService
   ) {
     $this->calculatorService = $calculatorService;
     $this->reportService = $reportService;
+    $this->summaryService = $summaryService;
   }
 
   /**
@@ -128,12 +133,47 @@ class PayrollCalculationController extends Controller
   }
 
   /**
+   * Get payroll report for a period
+   */
+  public function report(int $periodId)
+  {
+    try {
+      return $this->success($this->reportService->getPayrollReport($periodId));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Get payslip data for a worker
    */
   public function payslip(int $id)
   {
     try {
       return $this->success($this->reportService->getPayslipData($id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Recalculate and persist payslip summary for an existing calculation.
+   * Useful for calculations created before summary columns were added.
+   */
+  public function summarize(int $id)
+  {
+    try {
+      $calculation = PayrollCalculation::with('details')->find($id);
+      if (!$calculation) {
+        return $this->error('Calculation not found');
+      }
+
+      $updated = $this->summaryService->persist($calculation);
+
+      return $this->success([
+        'data' => $this->summaryService->calculate($updated->load('details')),
+        'message' => 'Payslip summary recalculated successfully',
+      ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

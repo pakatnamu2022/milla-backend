@@ -19,6 +19,13 @@ use Illuminate\Support\Facades\DB;
 
 class PayrollScheduleService extends BaseService implements BaseServiceInterface
 {
+  protected PayrollSummaryService $summaryService;
+
+  public function __construct(PayrollSummaryService $summaryService)
+  {
+    $this->summaryService = $summaryService;
+  }
+
   /**
    * Get all schedules with filters and pagination
    */
@@ -472,6 +479,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
             'salary' => $sueldo,
             'shift_hours' => $horasJornada,
             'base_hour_value' => $valorHoraBase,
+            'days_worked' => $workerSchedules->count(),
             'status' => PayrollCalculation::STATUS_CALCULATED,
             'calculated_at' => now(),
             'calculated_by' => auth()->id(),
@@ -536,12 +544,13 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
             }
           }
 
-          // Update calculation totals
+          // Update raw totals, then compute and persist the payslip summary
           $calculation->update([
             'total_earnings' => $totalEarnings > 0 ? $totalEarnings : 0,
             'total_deductions' => $totalEarnings < 0 ? abs($totalEarnings) : 0,
-            'net_salary' => $totalEarnings,
           ]);
+
+          $this->summaryService->persist($calculation->load('details'));
 
           $createdCalculations[] = $calculation->id;
         } catch (Exception $e) {
@@ -653,6 +662,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
             'salary' => $sueldo,
             'shift_hours' => $horasJornada,
             'base_hour_value' => $valorHoraBase,
+            'days_worked' => $workerSchedules->count(),
             'status' => PayrollCalculation::STATUS_CALCULATED,
             'calculated_at' => now(),
             'calculated_by' => auth()->id(),
@@ -720,12 +730,13 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
             }
           }
 
-          // Update calculation totals
+          // Update raw totals, then compute and persist the payslip summary
           $calculation->update([
             'total_earnings' => $totalEarnings > 0 ? $totalEarnings : 0,
             'total_deductions' => $totalEarnings < 0 ? abs($totalEarnings) : 0,
-            'net_salary' => $totalEarnings,
           ]);
+
+          $this->summaryService->persist($calculation->load('details'));
 
           $createdCalculations[] = $calculation->id;
         } catch (Exception $e) {

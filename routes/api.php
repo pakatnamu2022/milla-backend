@@ -1586,8 +1586,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('calculations/approve-all', [PayrollCalculationController::class, 'approveAll']);
     Route::post('calculations/{id}/approve', [PayrollCalculationController::class, 'approve']);
     Route::get('calculations/summary/{periodId}', [PayrollCalculationController::class, 'summary']);
+    Route::get('calculations/report/{periodId}', [PayrollCalculationController::class, 'report']);
     Route::get('calculations/export', [PayrollCalculationController::class, 'export']);
     Route::get('calculations/{id}/payslip', [PayrollCalculationController::class, 'payslip']);
+    Route::post('calculations/{id}/summarize', [PayrollCalculationController::class, 'summarize']);
     Route::apiResource('calculations', PayrollCalculationController::class)->only(['index', 'show']);
   });
 });
