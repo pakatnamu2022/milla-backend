@@ -105,8 +105,8 @@ class PayrollPeriodService extends BaseService implements BaseServiceInterface
 
       $period = $this->find($data['id']);
 
-      if (!$period->canModify()) {
-        throw new Exception('Cannot modify period: it is in ' . $period->status . ' status');
+      if ($period->status !== PayrollPeriod::STATUS_OPEN) {
+        throw new Exception('No se puede editar el período: solo se permite editar cuando está en estado ABIERTO. Estado actual: ' . $period->status);
       }
 
       $period->update([
@@ -133,18 +133,18 @@ class PayrollPeriodService extends BaseService implements BaseServiceInterface
       $period = $this->find($id);
 
       if ($period->status !== PayrollPeriod::STATUS_OPEN) {
-        throw new Exception('Cannot delete period: it is not in OPEN status');
+        throw new Exception('No se puede eliminar el período: solo se permite eliminar cuando está en estado ABIERTO. Estado actual: ' . $period->status);
       }
 
       // Check if period has schedules or calculations
       if ($period->schedules()->exists() || $period->calculations()->exists()) {
-        throw new Exception('Cannot delete period: it has associated schedules or calculations');
+        throw new Exception('No se puede eliminar el período: tiene horarios o cálculos asociados');
       }
 
       $period->delete();
 
       DB::commit();
-      return response()->json(['message' => 'Period deleted successfully']);
+      return response()->json(['message' => 'Período eliminado exitosamente']);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -176,7 +176,7 @@ class PayrollPeriodService extends BaseService implements BaseServiceInterface
       $period = $this->find($id);
 
       if ($period->status !== PayrollPeriod::STATUS_APPROVED) {
-        throw new Exception('Cannot close period: it must be in APPROVED status');
+        throw new Exception('No se puede cerrar periodo: debe estar en estado APROBADO');
       }
 
       $period->update(['status' => PayrollPeriod::STATUS_CLOSED]);
@@ -200,7 +200,7 @@ class PayrollPeriodService extends BaseService implements BaseServiceInterface
       $period = $this->find($id);
 
       if (!in_array($period->status, [PayrollPeriod::STATUS_OPEN, PayrollPeriod::STATUS_CALCULATED])) {
-        throw new Exception('Cannot set period to processing: invalid current status');
+        throw new Exception('No se puede establecer el período de procesamiento: estado actual no válido');
       }
 
       $period->update(['status' => PayrollPeriod::STATUS_PROCESSING]);

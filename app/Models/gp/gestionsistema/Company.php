@@ -25,8 +25,7 @@ class Company extends BaseModel
     'phone',
     'address',
     'city',
-    'detraction_amount',
-    'billing_detraction_type_id'
+    'detraction_amount'
   ];
 
   const filters = [
@@ -75,10 +74,5 @@ class Company extends BaseModel
   public function sedes()
   {
     return $this->hasMany(Sede::class, 'empresa_id', 'id');
-  }
-
-  public function detractions()
-  {
-    return $this->belongsTo(SunatConcepts::class, 'billing_detraction_type_id');
   }
 }

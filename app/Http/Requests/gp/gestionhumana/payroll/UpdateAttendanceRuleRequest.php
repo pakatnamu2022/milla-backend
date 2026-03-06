@@ -11,9 +11,12 @@ class UpdateAttendanceRuleRequest extends StoreRequest
   public function withValidator($validator): void
   {
     $validator->after(function ($validator) {
-      $code = $this->code ?? $this->route('attendance_rule')?->code;
+      $attendanceRuleId = $this->route('attendance_rule');
+      $currentRule = AttendanceRule::find($attendanceRuleId);
+
+      $code = $this->code ?? $currentRule?->code;
       $existing = AttendanceRule::where('code', $code)
-        ->where('id', '!=', $this->route('attendance_rule')?->id)
+        ->where('id', '!=', $attendanceRuleId)
         ->first();
       if ($existing && $existing->description !== $this->description) {
         $validator->errors()->add('description', 'La descripción no coincide con la registrada para este código.');

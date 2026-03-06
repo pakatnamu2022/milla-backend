@@ -11,16 +11,18 @@ class UpdatePayrollPeriodRequest extends StoreRequest
   public function rules(): array
   {
     return [
+      'year' => ['sometimes', 'integer', 'min:2020', 'max:2100'],
+      'month' => ['sometimes', 'integer', 'min:1', 'max:12'],
       'payment_date' => ['nullable', 'date'],
-      'status' => ['required', Rule::in(PayrollPeriod::STATUSES)],
     ];
   }
 
   public function attributes(): array
   {
     return [
+      'year' => 'year',
+      'month' => 'month',
       'payment_date' => 'payment date',
-      'status' => 'status',
     ];
   }
 }

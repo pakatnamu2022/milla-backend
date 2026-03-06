@@ -96,6 +96,21 @@ class PayrollPeriodController extends Controller
   /**
    * Close a period
    */
+  public function process(int $id)
+  {
+    try {
+      return $this->success([
+        'data' => $this->service->setProcessing($id),
+        'message' => 'Period closed successfully'
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Close a period
+   */
   public function close(int $id)
   {
     try {

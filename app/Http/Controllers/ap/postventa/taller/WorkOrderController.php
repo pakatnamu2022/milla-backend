@@ -128,6 +128,18 @@ class WorkOrderController extends Controller
     }
   }
 
+  public function generateDeliveryReport($id)
+  {
+    try {
+      return $this->service->generateDeliveryReport($id);
+    } catch (Exception $e) {
+      return response()->json([
+        'message' => 'Error al generar el reporte de recepción',
+        'error' => $e->getMessage()
+      ], 500);
+    }
+  }
+
   public function vehicleHistory($vehicleId)
   {
     try {

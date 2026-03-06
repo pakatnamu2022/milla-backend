@@ -154,10 +154,11 @@ class PayrollPeriod extends BaseModel
 
   /**
    * Check if period can be modified
+   * Only OPEN periods can be modified, updated or deleted
    */
   public function canModify(): bool
   {
-    return in_array($this->status, [self::STATUS_OPEN, self::STATUS_PROCESSING]);
+    return $this->status === self::STATUS_OPEN;
   }
 
   /**

@@ -54,12 +54,17 @@ class SunatConcepts extends Model
   // IDs específicos de tipos de transacción (basados en query)
   const ID_VENTA_INTERNA = 33;                // Venta Interna (code: 01)
   const ID_VENTA_INTERNA_ANTICIPOS = 36;      // Venta Interna - Anticipos (code: 04)
+  const ID_SUJETA_DETRACCION = 129;
 
   // IDs específicos de tipos de IGV (basados en query)
   const ID_IGV_GRAVADO_ONEROSA = 49;          // Gravado - Operación Onerosa (code: 10, tribute: 1000) - SUNAT
   const ID_IGV_EXPORTACION = 67;              // Exportación de Bienes o Servicios (code: 40, tribute: 9995)
   const ID_IGV_ANTICIPO_GRAVADO = 49;        // Gravado - Operación Onerosa (code: 1, tribute: 1000) - Código Nubefact para anticipos
   // Nota: El tributo 9996 se genera automáticamente cuando sunat_transaction = 04
+
+  // IDs Detraction Types (basados en query)
+  const ID_DETRACTION_SERVICIOS = 120;         // Servicios (code: 037)
+  const ID_DETRACTION_MANTENIMIENTO_REPACION = 105; // Mantenimiento y Reparación de Bienes (code: 020)
 
   const filters = [
     'id' => '=',
