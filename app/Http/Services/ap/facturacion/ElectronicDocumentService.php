@@ -414,10 +414,28 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if (in_array($data['area_id'], [ApMasters::AREA_COMERCIAL, ApMasters::AREA_TALLER])) {
         $company = Company::find(Company::COMPANY_AP_ID);
         if ($company && isset($data['total'])) {
-          $total = (float)$data['total'];
           $detractionAmount = (float)($company->detraction_amount ?? 0);
+          $entityTotal = 0;
 
-          if ($total > $detractionAmount && $detractionAmount > 0) {
+          // Determinar el monto total de la entidad relacionada
+          if (isset($data['work_order_id']) && $data['work_order_id']) {
+            $workOrder = ApWorkOrder::with(['labours', 'parts'])->find($data['work_order_id']);
+            if ($workOrder) {
+              $totals = WorkOrderService::calculateWorkOrderTotal($workOrder);
+              $entityTotal = (float)$totals['total_amount'];
+            }
+          } elseif (isset($data['purchase_request_quote_id']) && $data['purchase_request_quote_id']) {
+            $purchaseRequestQuote = PurchaseRequestQuote::find($data['purchase_request_quote_id']);
+            if ($purchaseRequestQuote) {
+              $entityTotal = (float)$purchaseRequestQuote->doc_sale_price;
+            }
+          }
+
+          // Si hay entidad relacionada, verificar su monto total
+          // Si no hay entidad relacionada, verificar el monto del documento
+          $amountToCheck = $entityTotal > 0 ? $entityTotal : (float)$data['total'];
+
+          if ($amountToCheck >= $detractionAmount && $detractionAmount > 0) {
             $data['detraccion'] = true;
             $data['sunat_concept_detraction_type_id'] = $company->billing_detraction_type_id;
 
@@ -426,7 +444,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
             if ($detractionPercentage) {
               $porcentaje = (float)$detractionPercentage->value;
               $data['detraccion_porcentaje'] = $porcentaje;
-              $data['detraccion_total'] = $total * ($porcentaje / 100);
+              // La detracción se calcula sobre el total del documento actual
+              $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
             }
           }
         }
@@ -2073,6 +2092,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     if (!$workOrder) {
       throw new Exception('Orden de trabajo no encontrada.');
+    }
+
+    if ($workOrder->status_id == ApMasters::CANCELED_WORK_ORDER_ID) {
+      throw new Exception('No se puede facturar una orden de trabajo cancelada.');
+    }
+
+    if ($workOrder->status_id == ApMasters::AT_WORK_WORK_ORDER_ID) {
+      throw new Exception('No se puede facturar una OT que aún no ha sido finalizado su trabajo.');
     }
 
     // Validate that if there are labours, at least one must have worker_id assigned and not be deleted
