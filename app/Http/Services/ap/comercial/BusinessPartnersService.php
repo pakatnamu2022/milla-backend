@@ -281,6 +281,29 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       ->get();
 
     if ($opportunities->count() > 0) {
+      // Cerrar oportunidades sin seguimiento: última acción sin resultado y con más de 5 días
+      foreach ($opportunities as $opportunity) {
+        $lastAction = $opportunity->actions()
+          ->orderByDesc('datetime')
+          ->first();
+
+        if (
+          $lastAction &&
+          $lastAction->result === false &&
+          $lastAction->datetime->diffInDays(now()) >= 5
+        ) {
+          $opportunity->update(['opportunity_status_id' => Opportunity::CLOSED_ID]);
+        }
+      }
+
+      // Recargar oportunidades abiertas tras el cierre automático
+      $opportunities = Opportunity::where('client_id', $businessPartner->id)
+        ->whereIn('opportunity_status_id', $statusIds)
+        ->with('family.brand')
+        ->get();
+    }
+
+    if ($opportunities->count() > 0) {
       // Obtener el lead y su marca de vehículo
       $lead = PotentialBuyers::findOrFail($leadId);
       $newBrandId = $lead->vehicle_brand_id;

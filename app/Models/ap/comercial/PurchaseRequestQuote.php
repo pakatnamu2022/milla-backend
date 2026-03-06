@@ -95,7 +95,7 @@ class PurchaseRequestQuote extends Model
 
   /**
    * Determina si la cotización está pagada comparando el total de los documentos electrónicos asociados con el precio de venta de la cotización.
-   * Solo se consideran los documentos electrónicos que han sido aceptados por SUNAT, que no están anulados, que no han sido eliminados y que no son pagos anticipados.
+   * Solo se consideran los documentos electrónicos que han sido aceptados por SUNAT, que no están anulados, que no han sido eliminados.
    * @return bool
    */
   public function getIsPaidAttribute(): bool
@@ -108,7 +108,6 @@ class PurchaseRequestQuote extends Model
       })
       ->where('anulado', 0)
       ->whereNull('deleted_at')
-      ->where('is_advance_payment', 0)
       ->sum('total');
     return $this->sale_price == $total;
   }

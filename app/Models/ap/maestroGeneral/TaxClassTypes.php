@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\maestroGeneral;
 
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
@@ -14,6 +15,7 @@ class TaxClassTypes extends Model
     'description',
     'tax_class',
     'igv',
+    'type_detraction_id',
     'type',
     'status',
   ];
@@ -48,5 +50,10 @@ class TaxClassTypes extends Model
   public function setTypeAttribute($value)
   {
     $this->attributes['type'] = Str::upper(Str::ascii($value));
+  }
+
+  public function typeDetraction()
+  {
+    return $this->belongsTo(SunatConcepts::class, 'type_detraction_id');
   }
 }

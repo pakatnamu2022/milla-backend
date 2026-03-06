@@ -167,7 +167,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         // Verificar si ya existe una guía de remisión
         $existingShippingGuide = null;
         if ($record->shipping_guide_id) {
-          $existingShippingGuide = ShippingGuides::find($record->shipping_guide_id);
+          $existingShippingGuide = ShippingGuides::where('id', $record->shipping_guide_id)->whereNull('cancelled_at')->first();
         }
 
         // Si existe una guía, solo actualizar los campos permitidos
@@ -404,7 +404,6 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           $shippingGuide->markAsAccepted($responseData);
           $vehicleDelivery->update([
             'status_nubefact' => true,
-            'status_sunat' => true,
             'real_delivery_date' => now()
           ]);
           $message = 'Guía enviada y aceptada por SUNAT correctamente';
@@ -458,7 +457,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         if (isset($responseData['aceptada_por_sunat']) && $responseData['aceptada_por_sunat'] && !$shippingGuide->aceptada_por_sunat) {
           DB::beginTransaction();
           $shippingGuide->markAsAccepted($responseData);
-          $vehicleDelivery->update(['status_sunat' => true, 'real_delivery_date' => now()]);
+          $vehicleDelivery->update(['aceptada_por_sunat' => true, 'real_delivery_date' => now()]);
           DB::commit();
           $message = 'La guía ha sido aceptada por SUNAT';
         } else {
@@ -469,6 +468,15 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
             'enlace_del_xml' => $responseData['enlace_del_xml'] ?? $shippingGuide->enlace_del_xml,
             'enlace_del_cdr' => $responseData['enlace_del_cdr'] ?? $shippingGuide->enlace_del_cdr,
           ]);
+          if ($responseData['sunat_soap_error'] !== '') {
+            $shippingGuide->update([
+              'aceptada_por_sunat' => false,
+              'cancelled_at' => now(),
+              'cancellation_reason' => 'Error en SOAP: ' . $responseData['sunat_soap_error'],
+            ]);
+            $vehicleDelivery->update(['sent_at' => null]);
+          }
+
           $message = 'Estado de la guía consultado correctamente';
         }
       } else {

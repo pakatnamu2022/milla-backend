@@ -30,7 +30,6 @@ class ShippingGuides extends BaseModel
     'series',
     'dyn_series',
     'correlative',
-    'correlative_dyn',
     'document_number',
     'issue_date', // fecha de translado
     'requires_sunat',
@@ -408,8 +407,8 @@ class ShippingGuides extends BaseModel
   {
     // Obtener el último correlative_dyn (incluyendo soft deleted)
     $lastCorrelativeDyn = self::withTrashed()
-      ->orderBy('correlative_dyn', 'desc')
-      ->value('correlative_dyn');
+      ->orderBy('correlative', 'desc')
+      ->value('correlative');
 
     if ($lastCorrelativeDyn) {
       // Incrementar el último correlativo
