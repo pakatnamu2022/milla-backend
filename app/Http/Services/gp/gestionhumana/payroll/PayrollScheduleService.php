@@ -105,8 +105,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       if (!$period) {
         throw new Exception('Period not found');
       }
-      if (!$period->canModify()) {
-        throw new Exception('Cannot add schedule: period is in ' . $period->status . ' status');
+      if ($period->status !== PayrollPeriod::STATUS_OPEN) {
+        throw new Exception('No se puede agregar horario: el período debe estar en estado ABIERTO (OPEN). Estado actual: ' . $period->status);
       }
 
       // Check for duplicate
@@ -156,8 +156,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       if (!$period) {
         throw new Exception('Period not found');
       }
-      if (!$period->canModify()) {
-        throw new Exception('Cannot add schedules: period is in ' . $period->status . ' status');
+      if ($period->status !== PayrollPeriod::STATUS_OPEN) {
+        throw new Exception('No se pueden agregar horarios: el período debe estar en estado ABIERTO (OPEN). Estado actual: ' . $period->status);
       }
 
       $createdSchedules = [];
@@ -235,8 +235,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       $schedule = $this->find($data['id']);
 
       // Validate period is modifiable
-      if (!$schedule->period->canModify()) {
-        throw new Exception('Cannot update schedule: period is in ' . $schedule->period->status . ' status');
+      if ($schedule->period->status !== PayrollPeriod::STATUS_OPEN) {
+        throw new Exception('No se puede actualizar el horario: el período debe estar en estado ABIERTO (OPEN). Estado actual: ' . $schedule->period->status);
       }
 
       $updateData = [
@@ -273,8 +273,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       $schedule = $this->find($id);
 
       // Validate period is modifiable
-      if (!$schedule->period->canModify()) {
-        throw new Exception('Cannot delete schedule: period is in ' . $schedule->period->status . ' status');
+      if ($schedule->period->status !== PayrollPeriod::STATUS_OPEN) {
+        throw new Exception('No se puede eliminar el horario: el período debe estar en estado ABIERTO (OPEN). Estado actual: ' . $schedule->period->status);
       }
 
       $schedule->delete();
@@ -549,6 +549,11 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
             'total_earnings' => $totalEarnings > 0 ? $totalEarnings : 0,
             'total_deductions' => $totalEarnings < 0 ? abs($totalEarnings) : 0,
           ]);
+
+          // Update period a status CALCULATED if not already
+          if ($period->status !== PayrollPeriod::STATUS_CALCULATED) {
+            $period->update(['status' => PayrollPeriod::STATUS_CALCULATED]);
+          }
 
           $this->summaryService->persist($calculation->load('details'));
 
