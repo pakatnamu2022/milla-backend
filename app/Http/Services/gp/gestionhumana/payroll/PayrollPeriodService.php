@@ -159,7 +159,7 @@ class PayrollPeriodService extends BaseService implements BaseServiceInterface
     $period = PayrollPeriod::getCurrentPeriod($companyId);
 
     if (!$period) {
-      throw new Exception('No open period found');
+      throw new Exception('No se ha encontrado un período abierto para la empresa especificada');
     }
 
     return new PayrollPeriodResource($period->load('company'));

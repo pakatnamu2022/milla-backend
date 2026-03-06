@@ -75,6 +75,13 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         $data['vehicle_vin'] = $vehicle->vin;
       }
 
+      // Extract date from estimated_delivery_time and set to estimated_delivery_date
+      if (isset($data['estimated_delivery_time'])) {
+        $estimatedDeliveryTime = Carbon::parse($data['estimated_delivery_time']);
+        $data['estimated_delivery_date'] = $estimatedDeliveryTime->format('Y-m-d') . ' 00:00:00';
+        $data['estimated_delivery_time'] = $estimatedDeliveryTime->format('Y-m-d H:i:s');
+      }
+
       // Set created_by
       if (auth()->check()) {
         $data['created_by'] = auth()->user()->id;
@@ -136,6 +143,13 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
         throw new Exception('No se puede modificar una orden de trabajo cerrada');
+      }
+
+      // Extract date from estimated_delivery_time and set to estimated_delivery_date
+      if (isset($data['estimated_delivery_time'])) {
+        $estimatedDeliveryTime = Carbon::parse($data['estimated_delivery_time']);
+        $data['estimated_delivery_date'] = $estimatedDeliveryTime->format('Y-m-d') . ' 00:00:00';
+        $data['estimated_delivery_time'] = $estimatedDeliveryTime->format('Y-m-d H:i:s');
       }
 
       // Detectar si cambió el tipo de moneda
@@ -285,21 +299,46 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       ? $workOrder->parts->where('group_number', $groupNumber)
       : $workOrder->parts;
 
-    // Calculate costs
-    $totalLabourCost = $labours->sum('total_cost') ?? 0;
-    $totalPartsCost = $parts->sum('total_amount') ?? 0;
+    // Calculate costs (sin descuento de items)
+    $totalLabourCostBeforeDiscount = $labours->sum('total_cost') ?? 0;
+    $totalPartsCostBeforeDiscount = $parts->sum('total_cost') ?? 0;
 
-    // Calculate totals
-    $subtotal = $totalLabourCost + $totalPartsCost;
-    $discountAmount = $workOrder->discount_amount ?? 0;
-    $taxAmount = ($subtotal - $discountAmount) * (Constants::VAT_TAX / 100);
-    $totalAmount = $subtotal - $discountAmount + $taxAmount;
+    // Calculate net amounts (con descuento de items aplicado)
+    $totalLabourNetAmount = $labours->sum('net_amount') ?? 0;
+    $totalPartsNetAmount = $parts->sum('net_amount') ?? 0;
+
+    // Subtotal sin descuentos
+    $subtotal = $totalLabourCostBeforeDiscount + $totalPartsCostBeforeDiscount;
+
+    // Total de descuentos de items
+    $itemsDiscountAmount = ($totalLabourCostBeforeDiscount - $totalLabourNetAmount) + ($totalPartsCostBeforeDiscount - $totalPartsNetAmount);
+
+    // Descuento general de la orden de trabajo
+    $workOrderDiscountAmount = $workOrder->discount_amount ?? 0;
+
+    // Total de descuentos
+    $totalDiscountAmount = $itemsDiscountAmount + $workOrderDiscountAmount;
+
+    // Net amount (suma de net_amount de items)
+    $netAmount = $totalLabourNetAmount + $totalPartsNetAmount;
+
+    // Net amount final (restar descuento general de OT)
+    $netAmountFinal = $netAmount - $workOrderDiscountAmount;
+
+    // IGV sobre el net amount final
+    $taxAmount = $netAmountFinal * (Constants::VAT_TAX / 100);
+
+    // Total final
+    $totalAmount = $netAmountFinal + $taxAmount;
 
     return [
-      'labour_cost' => (float)$totalLabourCost,
-      'parts_cost' => (float)$totalPartsCost,
-      'subtotal' => (float)$subtotal,
-      'discount_amount' => (float)$discountAmount,
+      'labour_cost' => (float)$totalLabourCostBeforeDiscount,
+      'parts_cost' => (float)$totalPartsCostBeforeDiscount,
+      'labour_cost_desc' => (float)$totalLabourNetAmount,
+      'parts_cost_desc' => (float)$totalPartsNetAmount,
+      'total_cost' => (float)$subtotal,
+      'net_amount' => (float)$netAmount,
+      'discount_amount' => (float)$totalDiscountAmount,
       'tax_amount' => (float)$taxAmount,
       'total_amount' => (float)$totalAmount,
     ];
@@ -479,9 +518,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $totalPartsCostBeforeDiscount = 0;
     $totalPartsDiscount = 0;
     foreach ($parts as $part) {
-      $subtotal = $part->subtotal ?? 0;
-      $discount = ($subtotal * ($part->discount_percentage ?? 0)) / 100;
-      $totalPartsCostBeforeDiscount += $subtotal;
+      $cost = $part->total_cost ?? 0;
+      $netAmount = $part->net_amount ?? 0;
+      $discount = $cost - $netAmount;
+      $totalPartsCostBeforeDiscount += $cost;
       $totalPartsDiscount += $discount;
     }
 
@@ -517,19 +557,27 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $workOrderDiscountAmount = $workOrder->discount_amount ?? 0;
     $totalDiscountAmount = $itemsDiscountAmount + $workOrderDiscountAmount;
 
-    // Total Neto (Subtotal - Descuentos)
-    $netTotal = $subtotal - $totalDiscountAmount;
+    // Net amount (suma de net_amount de items)
+    $netAmountLabour = $totalLabourCostBeforeDiscount - $totalLabourDiscount;
+    $netAmountParts = $totalPartsCostBeforeDiscount - $totalPartsDiscount;
+    $netAmount = $netAmountLabour + $netAmountParts;
 
-    // IGV sobre el Total Neto
-    $taxAmount = $netTotal * (Constants::VAT_TAX / 100);
+    // Net amount final (restar descuento general de OT)
+    $netAmountFinal = $netAmount - $workOrderDiscountAmount;
+
+    // IGV sobre el net amount final
+    $taxAmount = $netAmountFinal * (Constants::VAT_TAX / 100);
 
     // Total Final
-    $totalAmount = $netTotal + $taxAmount;
+    $totalAmount = $netAmountFinal + $taxAmount;
 
     return [
-      'labour_cost' => (float)($totalLabourCostBeforeDiscount - $totalLabourDiscount),
-      'parts_cost' => (float)($totalPartsCostBeforeDiscount - $totalPartsDiscount),
-      'subtotal' => (float)$subtotal,
+      'labour_cost' => (float)$totalLabourCostBeforeDiscount,
+      'parts_cost' => (float)$totalPartsCostBeforeDiscount,
+      'labour_cost_desc' => (float)$netAmountLabour,
+      'parts_cost_desc' => (float)$netAmountParts,
+      'total_cost' => (float)$subtotal,
+      'net_amount' => (float)$netAmount,
       'discount_amount' => (float)$totalDiscountAmount,
       'tax_amount' => (float)$taxAmount,
       'total_amount' => (float)$totalAmount,
@@ -597,10 +645,12 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     foreach ($labours as $labour) {
       $newHourlyRate = $labour->hourly_rate * $factor;
       $newTotalCost = $labour->total_cost * $factor;
+      $newNetAmount = $labour->net_amount * $factor;
 
       $labour->update([
         'hourly_rate' => round($newHourlyRate, 2),
         'total_cost' => round($newTotalCost, 2),
+        'net_amount' => round($newNetAmount, 2),
       ]);
     }
   }
@@ -610,18 +660,16 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $parts = ApWorkOrderParts::where('work_order_id', $workOrderId)->get();
 
     foreach ($parts as $part) {
-      $newUnitCost = $part->unit_cost * $factor;
       $newUnitPrice = $part->unit_price * $factor;
-      $newSubtotal = $part->subtotal * $factor;
+      $newTotalCost = $part->total_cost * $factor;
+      $newNetAmount = $part->net_amount * $factor;
       $newTaxAmount = $part->tax_amount * $factor;
-      $newTotalAmount = $part->total_amount * $factor;
 
       $part->update([
-        'unit_cost' => round($newUnitCost, 2),
         'unit_price' => round($newUnitPrice, 2),
-        'subtotal' => round($newSubtotal, 2),
+        'total_cost' => round($newTotalCost, 2),
+        'net_amount' => round($newNetAmount, 2),
         'tax_amount' => round($newTaxAmount, 2),
-        'total_amount' => round($newTotalAmount, 2),
       ]);
     }
   }

@@ -39,6 +39,14 @@ class PayrollCalculationResource extends JsonResource
       'net_salary' => (float) $this->net_salary,
       'employer_cost' => (float) $this->employer_cost,
 
+      // Payslip summary (boleta de pago)
+      'basic_salary' => (float) $this->basic_salary,
+      'night_bonus' => (float) $this->night_bonus,
+      'overtime_25' => (float) $this->overtime_25,
+      'overtime_35' => (float) $this->overtime_35,
+      'holiday_pay' => (float) $this->holiday_pay,
+      'compensatory_pay' => (float) $this->compensatory_pay,
+
       // Status and permissions
       'status' => $this->status,
       'can_modify' => $this->canModify(),

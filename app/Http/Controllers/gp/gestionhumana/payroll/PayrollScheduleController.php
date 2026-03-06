@@ -142,4 +142,17 @@ class PayrollScheduleController extends Controller
       return $this->error($e->getMessage());
     }
   }
+
+  /**
+   * Get daily attendances for all workers in a period
+   * Returns data for frontend to map each worker's attendance codes
+   */
+  public function getAttendances(int $periodId)
+  {
+    try {
+      return $this->success($this->service->getAttendancesByPeriod($periodId));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }

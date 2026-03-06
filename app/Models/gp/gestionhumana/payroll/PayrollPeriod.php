@@ -121,7 +121,7 @@ class PayrollPeriod extends BaseModel
    */
   public static function getCurrentPeriod(?int $companyId = null)
   {
-    $query = self::open()->orderBy('year', 'desc')->orderBy('month', 'desc');
+    $query = self::orderBy('year', 'desc')->orderBy('month', 'desc');
 
     if ($companyId) {
       $query->where('company_id', $companyId);

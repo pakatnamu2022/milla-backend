@@ -8,7 +8,6 @@ use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\ApMasters;
-use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
@@ -69,46 +68,27 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     // Calcular factor de tipo de cambio basándose en la OT y cotización
     $factor = $this->calculateExchangeRateFactor($workOrderId);
 
-    // Si no se proporciona unit_cost, obtener el último costo de compra
-    if (!isset($data['unit_cost']) || $data['unit_cost'] === null) {
-      $lastPurchase = PurchaseReceptionDetail::where('product_id', $productId)
-        ->whereHas('reception', function ($query) {
-          $query->where('status', 'COMPLETED');
-        })
-        ->with(['purchaseOrderItem'])
-        ->latest('created_at')
-        ->first();
-
-      // Si hay una compra reciente, usar ese precio, sino usar el cost_price del producto
-      $data['unit_cost'] = $lastPurchase && $lastPurchase->purchaseOrderItem
-        ? $lastPurchase->purchaseOrderItem->unit_price
-        : ($product->cost_price ?? 0);
-    }
-
     // Si no se proporciona unit_price, usar el precio de venta del producto
     if (!isset($data['unit_price']) || $data['unit_price'] === null) {
       $data['unit_price'] = $product->sale_price ?? 0;
     }
 
-    // Aplicar factor de tipo de cambio a los precios unitarios
-    $data['unit_cost'] = floatval($data['unit_cost']) * $factor;
+    // Aplicar factor de tipo de cambio al precio unitario
     $data['unit_price'] = floatval($data['unit_price']) * $factor;
 
-    // Calcular subtotal (precio unitario * cantidad)
-    $subtotalBase = $data['unit_price'] * $quantity;
+    // Calcular total_cost (monto sin descuento)
+    $data['total_cost'] = $data['unit_price'] * $quantity;
 
-    // Aplicar descuento al subtotal
+    // Calcular net_amount (monto con descuento aplicado)
     if ($discountPercentage > 0) {
-      $discountAmount = $subtotalBase * ($discountPercentage / 100);
-      $data['subtotal'] = $subtotalBase - $discountAmount;
+      $discountAmount = $data['total_cost'] * ($discountPercentage / 100);
+      $data['net_amount'] = $data['total_cost'] - $discountAmount;
     } else {
-      $data['subtotal'] = $subtotalBase;
+      $data['net_amount'] = $data['total_cost'];
     }
 
+    // tax_amount en 0 por defecto
     $data['tax_amount'] = 0;
-
-    // Calcular total_amount
-    $data['total_amount'] = $data['subtotal'] + $data['tax_amount'];
   }
 
   /**
@@ -319,6 +299,26 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         }
       }
 
+      // Recalcular totales si cambió algún campo relevante
+      if (isset($data['quantity_used']) || isset($data['unit_price']) || isset($data['discount_percentage']) || isset($data['product_id'])) {
+        // Preparar datos para recalcular
+        $recalcData = [
+          'work_order_id' => $workOrderPart->work_order_id,
+          'product_id' => $newProductId,
+          'quantity_used' => $newQuantity,
+          'unit_price' => $data['unit_price'] ?? $workOrderPart->unit_price,
+          'discount_percentage' => $data['discount_percentage'] ?? $workOrderPart->discount_percentage,
+        ];
+
+        $this->calculatePricesAndTotals($recalcData);
+
+        // Agregar los campos calculados a $data
+        $data['total_cost'] = $recalcData['total_cost'];
+        $data['net_amount'] = $recalcData['net_amount'];
+        $data['tax_amount'] = $recalcData['tax_amount'];
+        $data['unit_price'] = $recalcData['unit_price'];
+      }
+
       // Update work order part
       $workOrderPart->update($data);
       $workOrderPart->workOrder->calculateTotals();
@@ -448,7 +448,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
           'warehouse_id' => $warehouseId,
           'quantity_used' => $detail->quantity,
           'unit_price' => $detail->unit_price,
-          'discount_percentage' => $detail->discount ?? 0,
+          'discount_percentage' => $detail->discount_percentage ?? 0,
           'group_number' => $data['group_number'],
         ];
 

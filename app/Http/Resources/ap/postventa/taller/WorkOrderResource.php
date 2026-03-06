@@ -36,6 +36,7 @@ class WorkOrderResource extends JsonResource
       'sede_name' => $this->sede ? $this->sede->abreviatura : null,
       'opening_date' => $this->opening_date?->format('Y-m-d H:i:s'),
       'estimated_delivery_date' => $this->estimated_delivery_date?->format('Y-m-d H:i:s'),
+      'estimated_delivery_time' => $this->estimated_delivery_time?->format('H:i:s'),
       'actual_delivery_date' => $this->actual_delivery_date?->format('Y-m-d H:i:s'),
       'diagnosis_date' => $this->diagnosis_date?->format('Y-m-d H:i:s'),
       'observations' => $this->observations,
