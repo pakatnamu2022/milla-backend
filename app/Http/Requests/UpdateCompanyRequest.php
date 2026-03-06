@@ -39,11 +39,6 @@ class UpdateCompanyRequest extends StoreRequest
         'numeric',
         'min:0',
       ],
-      'billing_detraction_type_id' => [
-        'nullable',
-        'integer',
-        'exists:sunat_concepts,id',
-      ],
     ];
   }
 
@@ -52,7 +47,6 @@ class UpdateCompanyRequest extends StoreRequest
     return [
       'email.unique' => 'El correo electrónico ya está en uso por otra empresa.',
       'website.unique' => 'El sitio web ya está en uso por otra empresa.',
-      'billing_detraction_type_id.exists' => 'El tipo de detracción de facturación no existe.',
     ];
   }
 }
