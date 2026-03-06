@@ -316,71 +316,18 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   {
     DB::beginTransaction();
     try {
+      // ================================================================
+      // 1. PREPARACIÓN INICIAL (común para todos)
+      // ================================================================
+
       /**
-       * Validar y calcular el siguiente número correlativo si no se proporciona
+       * Validar y calcular el siguiente número correlativo
        */
       $nextNumberData = $this->nextDocumentNumberCorrelative(
         $data['sunat_concept_document_type_id'],
         $data['serie']
       );
       $data['numero'] = $nextNumberData['number'];
-
-      // Validar que si la cotización status = Aperturado
-      if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
-        $quotation = ApOrderQuotations::find($data['order_quotation_id']);
-        if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
-          throw new Exception('No se puede generar un documento electrónico para una cotización descartada.');
-        }
-
-        // Validar stock de productos si no es un anticipo
-        $this->validateQuotationStock($quotation, $data['is_advance_payment']);
-      }
-
-      // Validar orden de trabajo si viene work_order_id
-      if (isset($data['work_order_id']) && $data['work_order_id']) {
-        $this->validateWorkOrderInvoice($data);
-      }
-
-      /**
-       * Validar que un anticipo no sea por 0 soles
-       */
-      if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
-        $total = (float)($data['total'] ?? 0);
-        if ($total <= 0) {
-          throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
-        }
-
-        // Validar que la suma de anticipos no exceda el monto de la cotización
-        if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
-          $quotation = ApOrderQuotations::find($data['order_quotation_id']);
-
-          // Sumar todos los anticipos aceptados por SUNAT para esta cotización
-          $totalAnticiposExistentes = ElectronicDocument::where('order_quotation_id', $data['order_quotation_id'])
-            ->where('is_advance_payment', 1)
-            ->where('aceptada_por_sunat', true)
-            ->where('anulado', false)
-            ->whereNull('deleted_at')
-            ->sum('total');
-
-          // Sumar el nuevo anticipo
-          $totalAnticiposConNuevo = $totalAnticiposExistentes + $total;
-
-          // Validar que no exceda el total de la cotización
-          if ($totalAnticiposConNuevo > $quotation->total_amount) {
-            throw new Exception(sprintf(
-              'La suma de anticipos (%.2f) excede el monto total de la cotización (%.2f). Ya hay %.2f en anticipos existentes.',
-              $totalAnticiposConNuevo,
-              $quotation->total_amount,
-              $totalAnticiposExistentes
-            ));
-          }
-        }
-      }
-
-      /**
-       * Validar que para venta interna (is_advance_payment = 0) la suma de anticipos + monto factura = total entidad
-       */
-      $this->validateInternalSaleTotal($data);
 
       /**
        * Validar que la serie sea correcta
@@ -390,7 +337,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       /**
-       * Obtener la tasa de cambio actual si la moneda es USD
+       * Obtener la tasa de cambio y datos del cliente
        */
       $exchangeRate = (new ExchangeRateService())->getCurrentUSDRate();
 
@@ -408,48 +355,42 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $data['client_id'] = $client->id;
       $data['tipo_de_cambio'] = $exchangeRate->rate;
 
+      // ================================================================
+      // 2. VALIDACIONES POR TIPO DE ENTIDAD
+      // ================================================================
+
+      $this->validateAndEnrichForQuotation($data);
+      $this->validateAndEnrichForWorkOrder($data);
+      $this->validateAndEnrichForPurchaseRequest($data);
+
+      // ================================================================
+      // 3. VALIDACIONES COMUNES
+      // ================================================================
+
       /**
-       * Lógica de detracciones
+       * Validar que un anticipo no sea por 0 soles
        */
-      if (in_array($data['area_id'], [ApMasters::AREA_COMERCIAL, ApMasters::AREA_TALLER])) {
-        $company = Company::find(Company::COMPANY_AP_ID);
-        if ($company && isset($data['total'])) {
-          $detractionAmount = (float)($company->detraction_amount ?? 0);
-          $entityTotal = 0;
-
-          // Determinar el monto total de la entidad relacionada
-          if (isset($data['work_order_id']) && $data['work_order_id']) {
-            $workOrder = ApWorkOrder::with(['labours', 'parts'])->find($data['work_order_id']);
-            if ($workOrder) {
-              $totals = WorkOrderService::calculateWorkOrderTotal($workOrder);
-              $entityTotal = (float)$totals['total_amount'];
-            }
-          } elseif (isset($data['purchase_request_quote_id']) && $data['purchase_request_quote_id']) {
-            $purchaseRequestQuote = PurchaseRequestQuote::find($data['purchase_request_quote_id']);
-            if ($purchaseRequestQuote) {
-              $entityTotal = (float)$purchaseRequestQuote->doc_sale_price;
-            }
-          }
-
-          // Si hay entidad relacionada, verificar su monto total
-          // Si no hay entidad relacionada, verificar el monto del documento
-          $amountToCheck = $entityTotal > 0 ? $entityTotal : (float)$data['total'];
-
-          if ($amountToCheck >= $detractionAmount && $detractionAmount > 0) {
-            $data['detraccion'] = true;
-            $data['sunat_concept_detraction_type_id'] = $company->billing_detraction_type_id;
-
-            // Obtener el porcentaje de detracción desde GeneralMaster
-            $detractionPercentage = GeneralMaster::find(GeneralMaster::SUNAT_DETRACTION_PERCENTAGE_ID);
-            if ($detractionPercentage) {
-              $porcentaje = (float)$detractionPercentage->value;
-              $data['detraccion_porcentaje'] = $porcentaje;
-              // La detracción se calcula sobre el total del documento actual
-              $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
-            }
-          }
+      if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
+        $total = (float)($data['total'] ?? 0);
+        if ($total <= 0) {
+          throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
         }
       }
+
+      /**
+       * Validar que para venta interna (is_advance_payment = 0) la suma de anticipos + monto factura = total entidad
+       */
+      $this->validateInternalSaleTotal($data);
+
+      // ================================================================
+      // 4. APLICAR LÓGICA DE DETRACCIONES
+      // ================================================================
+
+      $this->applyDetractionLogic($data);
+
+      // ================================================================
+      // 5. CREACIÓN DEL DOCUMENTO Y RELACIONES
+      // ================================================================
 
       /**
        * Crear el documento principal
@@ -460,7 +401,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'status' => ElectronicDocument::STATUS_DRAFT,
       ]));
 
-      // Crear los items
+      /**
+       * Crear los items
+       */
       if (isset($data['items']) && is_array($data['items'])) {
         // Enriquecer el campo `codigo` de cada item antes de crearlos
         if (!empty($data['order_quotation_id'])) {
@@ -476,21 +419,27 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
       }
 
-      // Crear guías de remisión si existen
+      /**
+       * Crear guías de remisión si existen
+       */
       if (isset($data['guias']) && is_array($data['guias'])) {
         foreach ($data['guias'] as $guiaData) {
           $document->guides()->create($guiaData);
         }
       }
 
-      // Crear cuotas si es venta al crédito
+      /**
+       * Crear cuotas si es venta al crédito
+       */
       if (isset($data['venta_al_credito']) && is_array($data['venta_al_credito'])) {
         foreach ($data['venta_al_credito'] as $cuotaData) {
           $document->installments()->create($cuotaData);
         }
       }
 
-      // Crear movimiento de vehículo si viene ap_vehicle_id
+      /**
+       * Crear movimiento de vehículo si viene ap_vehicle_id
+       */
       if (isset($data['ap_vehicle_id']) && $data['ap_vehicle_id']) {
         $vehicleMovement = $this->createVehicleMovement($data['ap_vehicle_id'], $document);
 
@@ -500,17 +449,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         ]);
       }
 
-      // Marcar cotización con has_invoice_generated si viene order_quotation_id
-      if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
-        $this->updateQuotationInvoiceStatus($data['order_quotation_id']);
-      }
+      // ================================================================
+      // 6. POST-PROCESAMIENTO POR ENTIDAD
+      // ================================================================
 
-      // Marcar orden de trabajo con has_invoice_generated si viene work_order_id
-      // Si is_advance_payment = 0 (venta interna), cerrar la OT
-      if (isset($data['work_order_id']) && $data['work_order_id']) {
-        $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
-        $this->updateWorkOrderInvoiceStatus($data['work_order_id'], $isAdvancePayment);
-      }
+      $this->afterCreateForQuotation($document, $data);
+      $this->afterCreateForWorkOrder($document, $data);
+      $this->afterCreateForPurchaseRequest($document, $data);
 
       DB::commit();
       return new ElectronicDocumentResource($document->load(['items', 'guides', 'installments', 'vehicleMovement']));
@@ -898,8 +843,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           // y crear salida de inventario automáticamente
           $this->createInventoryMovementIfQuotationFullyPaid($document->order_quotation_id);
         }
-      }
 
+        // Actualizar estado de orden de trabajo si el documento tiene work_order_id
+        if ($document->work_order_id) {
+          $this->updateWorkOrderInvoiceStatus($document->work_order_id, $document->is_advance_payment);
+        }
+      }
       // Verificar si el documento fue anulado en Nubefact
       if (isset($nubefactData['anulado']) && $nubefactData['anulado'] === true) {
         // Si el documento no está marcado como cancelado en nuestra BD, actualizarlo
@@ -2287,6 +2236,19 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Siempre marcar que se generó factura
       $workOrder->update(['has_invoice_generated' => true]);
 
+      // Calcular total pagado (suma de todos los documentos aceptados por SUNAT)
+      $totalPaid = ElectronicDocument::where('work_order_id', $workOrderId)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', false)
+        ->whereNull('deleted_at')
+        ->sum('total');
+
+      // Verificar si la suma de anticipos coincide con el monto total de la OT
+      // Marcar como totalmente facturado si el total pagado >= monto final de la OT
+      if ((float)$totalPaid >= (float)$workOrder->final_amount) {
+        $workOrder->update(['is_invoiced' => true]);
+      }
+
       // Si no es anticipo (es venta interna), cerrar la orden de trabajo
       if (!$isAdvancePayment) {
         $workOrder->update(['status_id' => ApMasters::CLOSED_WORK_ORDER_ID]);
@@ -2419,6 +2381,279 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $item['codigo'] = $labourCode;
       }
     }
+  }
+
+  // ========================================================================
+  // MÉTODOS DE VALIDACIÓN Y ENRIQUECIMIENTO POR TIPO DE ENTIDAD
+  // ========================================================================
+
+  /**
+   * Validar y enriquecer datos para Order Quotation
+   *
+   * @param array $data
+   * @return void
+   * @throws Exception
+   */
+  private function validateAndEnrichForQuotation(array &$data): void
+  {
+    if (!isset($data['order_quotation_id']) || !$data['order_quotation_id']) {
+      return;
+    }
+
+    $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+
+    // Validar que cotización no esté descartada
+    if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+      throw new Exception('No se puede generar un documento electrónico para una cotización descartada.');
+    }
+
+    // Validar stock de productos si no es un anticipo
+    $this->validateQuotationStock($quotation, $data['is_advance_payment']);
+
+    // Validar suma de anticipos si es anticipo
+    if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
+      $total = (float)($data['total'] ?? 0);
+
+      // Sumar todos los anticipos aceptados por SUNAT para esta cotización
+      $totalAnticiposExistentes = ElectronicDocument::where('order_quotation_id', $data['order_quotation_id'])
+        ->where('is_advance_payment', 1)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', false)
+        ->whereNull('deleted_at')
+        ->sum('total');
+
+      // Sumar el nuevo anticipo
+      $totalAnticiposConNuevo = $totalAnticiposExistentes + $total;
+
+      // Validar que no exceda el total de la cotización
+      if ($totalAnticiposConNuevo > $quotation->total_amount) {
+        throw new Exception(sprintf(
+          'La suma de anticipos (%.2f) excede el monto total de la cotización (%.2f). Ya hay %.2f en anticipos existentes.',
+          $totalAnticiposConNuevo,
+          $quotation->total_amount,
+          $totalAnticiposExistentes
+        ));
+      }
+    }
+  }
+
+  /**
+   * Validar y enriquecer datos para Work Order
+   *
+   * @param array $data
+   * @return void
+   * @throws Exception
+   */
+  private function validateAndEnrichForWorkOrder(array &$data): void
+  {
+    if (!isset($data['work_order_id']) || !$data['work_order_id']) {
+      return;
+    }
+
+    $this->validateWorkOrderInvoice($data);
+  }
+
+  /**
+   * Validar y enriquecer datos para Purchase Request Quote
+   *
+   * @param array $data
+   * @return void
+   * @throws Exception
+   */
+  private function validateAndEnrichForPurchaseRequest(array &$data): void
+  {
+    if (!isset($data['purchase_request_quote_id']) || !$data['purchase_request_quote_id']) {
+      return;
+    }
+
+    // Agregar validaciones específicas para purchase request si es necesario
+  }
+
+  // ========================================================================
+  // MÉTODOS DE LÓGICA DE DETRACCIONES POR TIPO DE ENTIDAD
+  // ========================================================================
+
+  /**
+   * Aplicar lógica de detracción para Order Quotation
+   *
+   * @param array $data
+   * @param Company $company
+   * @return float Entity total
+   */
+  private function applyDetractionForQuotation(array &$data, Company $company): float
+  {
+    // Para quotation, no hay una entidad total específica en este contexto
+    // Solo retornar 0, la detracción se calculará sobre el monto del documento
+    return 0;
+  }
+
+  /**
+   * Aplicar lógica de detracción para Work Order
+   *
+   * @param array $data
+   * @param Company $company
+   * @return float Entity total
+   */
+  private function applyDetractionForWorkOrder(array &$data, Company $company): float
+  {
+    $workOrder = ApWorkOrder::with(['labours', 'parts'])->find($data['work_order_id']);
+
+    if (!$workOrder) {
+      return 0;
+    }
+
+    $totals = WorkOrderService::calculateWorkOrderTotal($workOrder);
+    $entityTotal = (float)$totals['total_amount'];
+    $detractionAmount = (float)($company->detraction_amount ?? 0);
+
+    /**
+     * Calcular sunat_concept_transaction_type_id para work_order
+     * Ignorar el valor enviado por el frontend y calcularlo según reglas de negocio
+     */
+    $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'];
+
+    // Determinar el concepto base según el tipo de documento
+    if ($isAdvancePayment) {
+      // Es un anticipo
+      $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
+    } else {
+      // Es venta interna final
+      $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA;
+    }
+
+    // Si el monto total de la work_order supera o iguala el monto de detracción,
+    // aplicar ID_SUJETA_DETRACCION a todos los documentos de esta orden
+    if ($entityTotal >= $detractionAmount && $detractionAmount > 0) {
+      $transactionConceptId = SunatConcepts::ID_SUJETA_DETRACCION;
+    }
+
+    // Sobrescribir el valor enviado por el frontend
+    $data['sunat_concept_transaction_type_id'] = $transactionConceptId;
+
+    return $entityTotal;
+  }
+
+  /**
+   * Aplicar lógica de detracción para Purchase Request Quote
+   *
+   * @param array $data
+   * @param Company $company
+   * @return float Entity total
+   */
+  private function applyDetractionForPurchaseRequest(array &$data, Company $company): float
+  {
+    $purchaseRequestQuote = PurchaseRequestQuote::find($data['purchase_request_quote_id']);
+
+    if (!$purchaseRequestQuote) {
+      return 0;
+    }
+
+    return (float)$purchaseRequestQuote->doc_sale_price;
+  }
+
+  /**
+   * Aplicar lógica de detracciones (orquestador principal)
+   *
+   * @param array $data
+   * @return void
+   */
+  private function applyDetractionLogic(array &$data): void
+  {
+    if (!in_array($data['area_id'], [ApMasters::AREA_COMERCIAL, ApMasters::AREA_TALLER])) {
+      return;
+    }
+
+    $company = Company::find(Company::COMPANY_AP_ID);
+    if (!$company || !isset($data['total'])) {
+      return;
+    }
+
+    $detractionAmount = (float)($company->detraction_amount ?? 0);
+    $entityTotal = 0;
+
+    // Determinar el tipo de entidad y aplicar su lógica específica
+    if (isset($data['work_order_id']) && $data['work_order_id']) {
+      $entityTotal = $this->applyDetractionForWorkOrder($data, $company);
+    } elseif (isset($data['purchase_request_quote_id']) && $data['purchase_request_quote_id']) {
+      $entityTotal = $this->applyDetractionForPurchaseRequest($data, $company);
+    }
+
+    // Si hay entidad relacionada, verificar su monto total
+    // Si no hay entidad relacionada, verificar el monto del documento
+    $amountToCheck = $entityTotal > 0 ? $entityTotal : (float)$data['total'];
+
+    if ($amountToCheck >= $detractionAmount && $detractionAmount > 0 && $data['area_id'] == ApMasters::AREA_TALLER) {
+      $data['detraccion'] = true;
+      $data['sunat_concept_detraction_type_id'] = match ((int)$data['area_id']) {
+        ApMasters::AREA_TALLER => SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION,
+        default => SunatConcepts::ID_DETRACTION_SERVICIOS
+      };
+
+      // Obtener el porcentaje de detracción desde GeneralMaster
+      $detractionPercentage = GeneralMaster::find(GeneralMaster::SUNAT_DETRACTION_PERCENTAGE_ID);
+      if ($detractionPercentage) {
+        $porcentaje = (float)$detractionPercentage->value;
+        $data['detraccion_porcentaje'] = $porcentaje;
+        // La detracción se calcula sobre el total del documento actual
+        $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
+      }
+    }
+  }
+
+  // ========================================================================
+  // MÉTODOS DE POST-PROCESAMIENTO POR TIPO DE ENTIDAD
+  // ========================================================================
+
+  /**
+   * Post-procesamiento para Order Quotation
+   *
+   * @param ElectronicDocument $document
+   * @param array $data
+   * @return void
+   */
+  private function afterCreateForQuotation(ElectronicDocument $document, array &$data): void
+  {
+    if (!isset($data['order_quotation_id']) || !$data['order_quotation_id']) {
+      return;
+    }
+
+    // Marcar quotation con has_invoice_generated
+    $this->updateQuotationInvoiceStatus($data['order_quotation_id']);
+  }
+
+  /**
+   * Post-procesamiento para Work Order
+   *
+   * @param ElectronicDocument $document
+   * @param array $data
+   * @return void
+   */
+  private function afterCreateForWorkOrder(ElectronicDocument $document, array &$data): void
+  {
+    if (!isset($data['work_order_id']) || !$data['work_order_id']) {
+      return;
+    }
+
+    // Marcar work_order con has_invoice_generated
+    // Si is_advance_payment = 0 (venta interna), cerrar la OT
+    $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
+    $this->updateWorkOrderInvoiceStatus($data['work_order_id'], $isAdvancePayment);
+  }
+
+  /**
+   * Post-procesamiento para Purchase Request Quote
+   *
+   * @param ElectronicDocument $document
+   * @param array $data
+   * @return void
+   */
+  private function afterCreateForPurchaseRequest(ElectronicDocument $document, array &$data): void
+  {
+    if (!isset($data['purchase_request_quote_id']) || !$data['purchase_request_quote_id']) {
+      return;
+    }
+
+    // Agregar post-procesamiento específico si es necesario
   }
 
   /*

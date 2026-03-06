@@ -37,7 +37,7 @@ class NubefactApiService
     $this->setApiCredentials($document->sede_id);
     $payload = $this->buildDocumentPayload($document);
     $endpoint = $this->getEndpointForDocumentType($document->documentType->code_nubefact);
-    
+
     $logData = [
       'ap_billing_electronic_document_id' => $document->id,
       'operation' => 'generar_comprobante',
@@ -315,6 +315,7 @@ class NubefactApiService
       'enviar_automaticamente_a_la_sunat' => $document->enviar_automaticamente_a_la_sunat,
       'enviar_automaticamente_al_cliente' => $document->enviar_automaticamente_al_cliente,
       'codigo_unico' => $document->codigo_unico ?? uniqid('DOC_'),
+      'observaciones' => $document->observaciones ?? '',
     ];
 
     // Agregar emails adicionales si existen
