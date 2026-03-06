@@ -376,7 +376,13 @@ class PotentialBuyersService extends BaseService
 
       if ($collection->isNotEmpty() && $collection->first()->isNotEmpty()) {
         $firstRow = $collection->first()->first();
-        $columnCount = count($firstRow);
+
+        // Filtrar columnas completamente vacías (null o string vacío)
+        $filteredRow = $firstRow->filter(function ($value) {
+          return !is_null($value) && trim($value) !== '';
+        });
+
+        $columnCount = count($filteredRow);
 
         // Se esperan 11 columnas (marca hasta campana)
         if ($columnCount !== 11) {
