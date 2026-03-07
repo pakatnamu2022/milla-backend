@@ -900,7 +900,11 @@
       </tr>
       <tr>
         <td colspan="2" class="label-row" style="font-size: 7px; padding: 3px 8px;">
-          RECALL: SI<span class="mini-checkbox" style="width: 10px; height: 10px; display: inline-block; margin-left: 3px; margin-right: 10px; vertical-align: middle; float: none;"></span>NO<span class="mini-checkbox" style="width: 10px; height: 10px; display: inline-block; margin-left: 3px; margin-right: 15px; vertical-align: middle; float: none;"></span>NOMBRE RECALL: {{ $typeRecall ?? 'N/A' }}
+          RECALL: SI<span class="mini-checkbox"
+                          style="width: 10px; height: 10px; display: inline-block; margin-left: 3px; margin-right: 10px; vertical-align: middle; float: none;"></span>NO<span
+            class="mini-checkbox"
+            style="width: 10px; height: 10px; display: inline-block; margin-left: 3px; margin-right: 15px; vertical-align: middle; float: none;"></span>NOMBRE
+          RECALL: {{ $typeRecall ?? 'N/A' }}
         </td>
       </tr>
       <tr>
@@ -962,30 +966,6 @@
   </tr>
 </table>
 
-<!-- Sección: Datos del Cliente -->
-<div class="section-title">DATOS DEL CLIENTE</div>
-<table class="data-table">
-  <tr>
-    <td class="label-cell">Cliente:</td>
-    <td colspan="3">{{ $customer ? $customer->full_name : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">DNI/RUC:</td>
-    <td>{{ $customer ? $customer->num_doc : 'N/A' }}</td>
-    <td class="label-cell">Teléfono:</td>
-    <td>{{ $customer ? $customer->phone : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Dirección:</td>
-    <td colspan="3">{{ $customer ? $customer->direction : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">E-mail:</td>
-    <td>{{ $customer ? $customer->email : 'N/A' }}</td>
-    <td class="label-cell">Celular:</td>
-    <td>{{ $customer ? $customer->phone : 'N/A' }}</td>
-  </tr>
-</table>
 
 <!-- Sección: Items de Trabajo -->
 <div class="section-title">ITEMS DE TRABAJO</div>
