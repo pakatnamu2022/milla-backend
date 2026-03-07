@@ -55,13 +55,37 @@
     .header-left {
       width: 50%;
       padding-right: 10px;
-      padding-top: 10px;
+      padding-top: 7px;
     }
 
     .header-right {
       width: 50%;
       padding-left: 10px;
       text-align: right;
+    }
+
+    .company-info-container {
+      display: table;
+      width: 100%;
+      margin-top: 2px;
+    }
+
+    .company-logo {
+      display: table-cell;
+      vertical-align: middle;
+      width: 60px;
+    }
+
+    .company-logo img {
+      max-width: 60px;
+      max-height: 45px;
+      height: auto;
+      display: block;
+    }
+
+    .company-text {
+      display: table-cell;
+      vertical-align: middle;
     }
 
     .company-name {
@@ -117,7 +141,7 @@
 
     .guarantee-check-box {
       display: inline-block;
-      border: 2px solid #000;
+      border: 1px solid #000;
       vertical-align: middle;
       width: 120px;
     }
@@ -128,7 +152,7 @@
       padding: 5px;
       text-align: center;
       background-color: #f0f0f0;
-      border-bottom: 2px solid #000;
+      border-bottom: 1px solid #000;
     }
 
     .guarantee-check-options {
@@ -529,10 +553,17 @@
     <tr>
       <!-- Columna Izquierda: Información de la Empresa -->
       <td class="header-left">
-        <div class="company-name">
-          AUTOMOTORES<br>
-          PAKATNAMU SAC
-          <span class="company-website">www.automotorespakatnamu.com</span>
+        <div class="company-info-container">
+          <div class="company-logo">
+            <img src="{{ getBase64Image('images/ap/ap.png') }}" alt="Logo AP">
+          </div>
+          <div class="company-text">
+            <div class="company-name">
+              AUTOMOTORES<br>
+              PAKATNAMU SAC
+              <span class="company-website">www.automotorespakatnamu.com</span>
+            </div>
+          </div>
         </div>
         <div class="company-addresses">
           <strong>CHICLAYO</strong>: CARRETERA PANAMERICANA NORTE N°1006<br>
