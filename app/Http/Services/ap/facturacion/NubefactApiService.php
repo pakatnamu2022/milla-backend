@@ -36,6 +36,8 @@ class NubefactApiService
   {
     $this->setApiCredentials($document->sede_id);
     $payload = $this->buildDocumentPayload($document);
+
+//    throw new Exception(json_encode($payload));
     $endpoint = $this->getEndpointForDocumentType($document->documentType->code_nubefact);
 
     $logData = [
@@ -353,7 +355,7 @@ class NubefactApiService
 
     // Medio de pago
     if ($document->medio_de_pago) {
-      $payload['medio_de_pago'] = $document->medio_de_pago;
+      $payload['medio_de_pago'] = $document->medio_de_pago === 'contado' ? $document->condiciones_de_pago ?? '' : $document->medio_de_pago;
     }
 
     // Placa de vehículo

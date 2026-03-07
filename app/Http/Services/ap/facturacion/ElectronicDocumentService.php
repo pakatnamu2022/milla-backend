@@ -22,6 +22,7 @@ use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\ApMasters;
@@ -339,7 +340,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       /**
        * Obtener la tasa de cambio y datos del cliente
        */
-      $exchangeRate = (new ExchangeRateService())->getCurrentUSDRate();
+      $emissionDate = is_string($data['fecha_de_emision'])
+        ? $data['fecha_de_emision']
+        : \Carbon\Carbon::parse($data['fecha_de_emision'])->format('Y-m-d');
+
+      $exchangeRate = (new ExchangeRateService())->getExchangeRate(TypeCurrency::USD_ID, $emissionDate);
+      if (!$exchangeRate) {
+        throw new Exception("No se ha registrado la tasa de cambio para la fecha de emisión ({$emissionDate}).");
+      }
 
       $client = BusinessPartners::find($data['client_id']);
       $documentType = SunatConcepts::where('tribute_code', $client->document_type_id)
@@ -386,7 +394,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // 4. APLICAR LÓGICA DE DETRACCIONES
       // ================================================================
 
-      $this->applyDetractionLogic($data);
+      if (isset($data['detraction']) && $data['detraction'] === true) {
+        $this->applyDetractionLogic($data);
+      }
 
       // ================================================================
       // 5. CREACIÓN DEL DOCUMENTO Y RELACIONES
@@ -395,11 +405,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       /**
        * Crear el documento principal
        */
-      $document = ElectronicDocument::create(array_merge($data, [
+
+      $data = array_merge($data, [
         'exchange_rate_id' => $exchangeRate->id,
         'created_by' => auth()->id(),
         'status' => ElectronicDocument::STATUS_DRAFT,
-      ]));
+      ]);
+
+//      throw new Exception(json_encode($data));
+      $document = ElectronicDocument::create($data);
 
       /**
        * Crear los items
@@ -2598,6 +2612,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         // La detracción se calcula sobre el total del documento actual
         $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
       }
+    } else if ($data['area_id'] == ApMasters::AREA_COMERCIAL) {
+      throw new Exception("Entrando a lógica de detracción para área comercial. Revisar reglas de negocio específicas para esta área.");
     }
   }
 
