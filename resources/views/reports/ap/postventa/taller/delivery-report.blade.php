@@ -413,94 +413,6 @@
       text-align: right;
     }
 
-    .guarantee-recall-container {
-      display: table;
-      width: 100%;
-      margin-bottom: 5px;
-    }
-
-    .recall-box {
-      display: table-cell;
-      width: 50%;
-      padding-right: 5px;
-      vertical-align: top;
-    }
-
-    .guarantee-box {
-      display: table-cell;
-      width: 50%;
-      padding-left: 5px;
-      vertical-align: top;
-    }
-
-    .recall-info-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 8px;
-      margin-top: 5px;
-    }
-
-    .recall-info-table th {
-      background-color: #172e66;
-      color: white;
-      font-weight: bold;
-      padding: 5px;
-      text-align: left;
-      border: 1px solid #000;
-      font-size: 9px;
-    }
-
-    .recall-info-table td {
-      padding: 5px;
-      border: 1px solid #000;
-      vertical-align: top;
-    }
-
-    .recall-info-table .label-cell {
-      font-weight: bold;
-      width: 30%;
-      background-color: #f0f0f0;
-    }
-
-    .status-box {
-      border: 2px solid #172e66;
-      padding: 8px;
-      background-color: #f9f9f9;
-    }
-
-    .status-box-title {
-      font-weight: bold;
-      font-size: 9px;
-      text-align: center;
-      margin-bottom: 5px;
-      color: #172e66;
-    }
-
-    .status-options {
-      display: table;
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .status-option {
-      display: table-cell;
-      width: 50%;
-      text-align: center;
-      padding: 5px;
-      border: 1.5px solid #000;
-      font-size: 9px;
-      font-weight: bold;
-    }
-
-    .status-option.checked {
-      background-color: #d0d0d0;
-    }
-
-    .status-option.checked::after {
-      content: " X";
-      color: #000;
-      font-size: 11px;
-    }
 
     .damage-evidence-table {
       width: 100%;
@@ -539,6 +451,99 @@
       margin-top: 5px;
       color: #333;
       text-align: center;
+    }
+
+    .schedule-info-container {
+      display: table;
+      width: 100%;
+      margin-top: 10px;
+      margin-bottom: 10px;
+      border-collapse: collapse;
+    }
+
+    .schedule-left {
+      display: table-cell;
+      width: 50%;
+      padding-right: 5px;
+      vertical-align: top;
+    }
+
+    .schedule-right {
+      display: table-cell;
+      width: 50%;
+      padding-left: 5px;
+      vertical-align: top;
+    }
+
+    .schedule-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8px;
+    }
+
+    .schedule-table th {
+      background-color: #172e66;
+      color: white;
+      font-weight: bold;
+      padding: 5px;
+      text-align: center;
+      border: 1px solid #000;
+      font-size: 9px;
+    }
+
+    .schedule-table td {
+      padding: 5px;
+      border: 1px solid #000;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    .schedule-table .label-col {
+      background-color: #f0f0f0;
+      font-weight: bold;
+      text-align: left;
+      padding-left: 8px;
+    }
+
+    .appointment-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8px;
+    }
+
+    .appointment-table th {
+      background-color: #172e66;
+      color: white;
+      font-weight: bold;
+      padding: 5px;
+      text-align: center;
+      border: 1px solid #000;
+      font-size: 9px;
+    }
+
+    .appointment-table td {
+      padding: 5px;
+      border: 1px solid #000;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    .appointment-table .label-col {
+      background-color: #f0f0f0;
+      font-weight: bold;
+      width: 35%;
+    }
+
+    .appointment-table .info-col {
+      width: 45%;
+    }
+
+    .appointment-table .responsible-col {
+      background-color: #e8e8e8;
+      font-weight: bold;
+      text-align: center;
+      vertical-align: middle;
+      width: 20%;
     }
   </style>
 </head>
@@ -597,34 +602,77 @@
   </table>
 </div>
 
-<!-- Sección: Información de la Orden de Trabajo -->
-<div class="section-title">INFORMACIÓN DE LA ORDEN DE TRABAJO</div>
-
-<!-- Cuadros de Estado: Recall y Garantía -->
-<div class="guarantee-recall-container">
-  <!-- Lado Izquierdo: Estado de Recall -->
-  <div class="recall-box">
-    <div class="status-box">
-      <div class="status-box-title">VEHÍCULO EN RECALL</div>
-      <div class="status-options">
-        <div class="status-option {{ $isRecall ? 'checked' : '' }}">SI</div>
-        <div class="status-option {{ !$isRecall ? 'checked' : '' }}">NO</div>
-      </div>
-    </div>
+<!-- Sección: Información de Recepción y Entrega -->
+<div class="schedule-info-container">
+  <!-- Tabla Izquierda: Recepción y Entrega -->
+  <div class="schedule-left">
+    <table class="schedule-table">
+      <thead>
+      <tr>
+        <th style="width: 40%;"></th>
+        <th style="width: 30%;">FECHA</th>
+        <th style="width: 30%;">HORA</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+        <td class="label-col">Recepción Programada</td>
+        <td>15/03/2026</td>
+        <td>09:00 AM</td>
+      </tr>
+      <tr>
+        <td class="label-col">Recepción Real</td>
+        <td>15/03/2026</td>
+        <td>09:15 AM</td>
+      </tr>
+      <tr>
+        <td class="label-col">Entrega Programada</td>
+        <td>18/03/2026</td>
+        <td>05:00 PM</td>
+      </tr>
+      <tr>
+        <td class="label-col">Entrega Real</td>
+        <td>18/03/2026</td>
+        <td>04:45 PM</td>
+      </tr>
+      </tbody>
+    </table>
   </div>
 
-  <!-- Lado Derecho: Estado de Garantía -->
-  <div class="guarantee-box">
-    <div class="status-box">
-      <div class="status-box-title">VEHÍCULO EN GARANTÍA</div>
-      <div class="status-options">
-        <div class="status-option {{ $isGuarantee ? 'checked' : '' }}">SI</div>
-        <div class="status-option {{ !$isGuarantee ? 'checked' : '' }}">NO</div>
-      </div>
-    </div>
+  <!-- Tabla Derecha: Citas y Repuestos -->
+  <div class="schedule-right">
+    <table class="appointment-table">
+      <thead>
+      <tr>
+        <th colspan="3">CITAS Y REPUESTOS</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+        <td class="label-col">Confirmación de Cita</td>
+        <td class="info-col">14/03/2026 - 03:30 PM</td>
+        <td class="responsible-col" rowspan="3">
+          <div style="writing-mode: vertical-rl; white-space: nowrap;">
+            RESPONSABLE CITAS<br><br>
+            María González Pérez
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="label-col">Repuestos Pedido</td>
+        <td class="info-col">10/03/2026 - 10:00 AM</td>
+      </tr>
+      <tr>
+        <td class="label-col">Repuestos Llegada</td>
+        <td class="info-col">14/03/2026 - 02:00 PM</td>
+      </tr>
+      </tbody>
+    </table>
   </div>
 </div>
 
+<!-- Sección: Información de la Orden de Trabajo -->
+<div class="section-title">INFORMACIÓN DE LA ORDEN DE TRABAJO</div>
 <table class="data-table">
   <tr>
     <td class="label-cell">Número OT:</td>
