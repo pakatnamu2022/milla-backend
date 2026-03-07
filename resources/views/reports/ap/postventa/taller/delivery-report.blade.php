@@ -941,51 +941,60 @@
       <table style="width: 100%; border-collapse: collapse;">
         <tr>
           <!-- Columna 1: Detalle de Trabajo -->
-          <td style="width: 40%; vertical-align: top; padding: 8px; border-right: 1px solid #ddd;">
+          <td style="width: 40%; vertical-align: top; padding: 8px; border-right: 0.5px solid #ccc;">
             <div
               style="font-weight: bold; margin-bottom: 8px; font-size: 9px; text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
               DETALLE DE TRABAJO
             </div>
             <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox" style="margin-right: 5px;"></span>
+              <span class="mini-checkbox"
+                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
               <span style="font-size: 8px;">Cambio de Aceite y Filtro</span>
               <span style="display: inline-block; margin-left: 10px;">
-                <span class="mini-checkbox" style="margin-right: 5px;"></span>
+                <span class="mini-checkbox"
+                      style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
                 <span style="font-size: 8px;">Alineamiento y balanceo</span>
               </span>
             </div>
             <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox" style="margin-right: 5px;"></span>
+              <span class="mini-checkbox"
+                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
               <span style="font-size: 8px;">Revisión de niveles y luces</span>
             </div>
             <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox" style="margin-right: 5px;"></span>
+              <span class="mini-checkbox"
+                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
               <span style="font-size: 8px;">Cambio de pastillas de freno y rectificación de disco</span>
             </div>
             <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox" style="margin-right: 5px;"></span>
+              <span class="mini-checkbox"
+                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
               <span style="font-size: 8px;">Engrase general</span>
               <span style="display: inline-block; margin-left: 10px;">
-                <span class="mini-checkbox" style="margin-right: 5px;"></span>
+                <span class="mini-checkbox"
+                      style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
                 <span style="font-size: 8px;">Otros: __________</span>
               </span>
             </div>
             <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox" style="margin-right: 5px;"></span>
+              <span class="mini-checkbox"
+                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
               <span style="font-size: 8px;">Rotación de llantas, revisión y limpieza de frenos</span>
             </div>
             <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox" style="margin-right: 5px;"></span>
+              <span class="mini-checkbox"
+                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
               <span style="font-size: 8px;">Inspección de filtro de aire, batería, neumáticos, suspensión y freno de mano</span>
             </div>
             <div>
-              <span class="mini-checkbox" style="margin-right: 5px;"></span>
+              <span class="mini-checkbox"
+                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
               <span style="font-size: 8px;">Revisión de presión e inflado de llantas</span>
             </div>
           </td>
 
           <!-- Columna 2: Requerimientos de Cliente -->
-          <td style="width: 30%; vertical-align: top; padding: 8px; border-right: 1px solid #ddd;">
+          <td style="width: 30%; vertical-align: top; padding: 8px; border-right: 0.5px solid #ccc;">
             <div
               style="font-weight: bold; margin-bottom: 8px; font-size: 9px; text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
               REQUERIMIENTOS DE CLIENTE
@@ -1004,19 +1013,19 @@
             <div style="font-size: 8px; margin-bottom: 15px;">
               <div style="margin-bottom: 10px;">
                 <strong>Día:</strong> <span style="margin-left: 3px;">L</span> <span class="mini-checkbox"
-                                                                                     style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin: 0 3px;"></span>
+                                                                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
                 <span>M</span> <span class="mini-checkbox"
-                                     style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin: 0 3px;"></span>
+                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
                 <span>M</span> <span class="mini-checkbox"
-                                     style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin: 0 3px;"></span>
+                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
                 <span>J</span> <span class="mini-checkbox"
-                                     style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin: 0 3px;"></span>
+                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
                 <span>V</span> <span class="mini-checkbox"
-                                     style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin: 0 3px;"></span>
+                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
                 <span>S</span> <span class="mini-checkbox"
-                                     style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin: 0 3px;"></span>
+                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
                 <span>D</span> <span class="mini-checkbox"
-                                     style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin: 0 3px;"></span>
+                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
               </div>
               <div>
                 <strong>Hora:</strong>
