@@ -28,34 +28,127 @@
       padding: 15px;
     }
 
+    .red-line {
+      width: 100%;
+      height: 10px;
+      background-color: #ff0000;
+      margin-bottom: 0;
+    }
+
     .header {
       margin-bottom: 15px;
+      margin-top: 0;
     }
 
     .header table {
       width: 100%;
       border: none;
+      border-spacing: 0;
     }
 
     .header td {
       border: none;
+      vertical-align: top;
+      padding: 0;
+    }
+
+    .header-left {
+      width: 50%;
+      padding-right: 10px;
+      padding-top: 10px;
+    }
+
+    .header-right {
+      width: 50%;
+      padding-left: 10px;
+      text-align: right;
+    }
+
+    .company-name {
+      font-size: 14px;
+      color: #ff0000;
+      font-weight: bold;
+      line-height: 1.2;
+    }
+
+    .company-website {
+      font-size: 7px;
+      color: #000;
+      display: inline;
+      margin-left: 5px;
+    }
+
+    .company-addresses {
+      font-size: 8px;
+      color: #000;
+      margin-top: 5px;
+      line-height: 1.4;
+    }
+
+    .company-addresses strong {
+      font-weight: bold;
+    }
+
+    .work-order-title {
+      background-color: #000;
+      color: white;
+      font-size: 20px;
+      font-weight: bold;
+      padding: 5px 10px;
+      display: inline-block;
+      margin: 0;
+    }
+
+    .logos-guarantee-container {
+      margin-top: 20px;
+      gap: 5px;
+    }
+
+    .logo-section {
+      display: inline-block;
       vertical-align: middle;
     }
 
-    .logo {
-      text-align: center;
-    }
-
-    .logo img {
-      max-width: 80px;
+    .logo-section img {
+      max-height: 50px;
       height: auto;
+      display: block;
     }
 
-    .center-title {
-      text-align: center;
-      font-size: 14px;
+    .guarantee-check-box {
+      display: inline-block;
+      border: 2px solid #000;
+      vertical-align: middle;
+      width: 120px;
+    }
+
+    .guarantee-check-title {
+      font-size: 8px;
       font-weight: bold;
       padding: 5px;
+      text-align: center;
+      background-color: #f0f0f0;
+      border-bottom: 2px solid #000;
+    }
+
+    .guarantee-check-options {
+      display: table;
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .guarantee-option {
+      display: table-cell;
+      width: 50%;
+      font-size: 9px;
+      font-weight: bold;
+      text-align: center;
+      padding: 5px;
+      border-right: 1px solid #000;
+    }
+
+    .guarantee-option:last-child {
+      border-right: none;
     }
 
     .section-title {
@@ -273,7 +366,7 @@
 
     .signature-box {
       border-top: 2px solid #000;
-      margin-top: 0px;
+      margin-top: 0;
       padding-top: 5px;
       font-size: 9px;
       font-weight: bold;
@@ -282,7 +375,7 @@
     .signature-img {
       max-width: 200px;
       max-height: 80px;
-      margin-bottom: 0px;
+      margin-bottom: 0;
       display: block;
       margin-left: auto;
       margin-right: auto;
@@ -427,19 +520,47 @@
 </head>
 <body>
 
+<!-- Línea Roja Superior -->
+<div class="red-line"></div>
+
 <!-- Encabezado -->
 <div class="header">
   <table>
     <tr>
-      <td class="logo" style="width: 25%;">
-        <img src="{{ getBase64Image('images/ap/derco.jpg') }}" alt="Derco Logo">
+      <!-- Columna Izquierda: Información de la Empresa -->
+      <td class="header-left">
+        <div class="company-name">
+          AUTOMOTORES<br>
+          PAKATNAMU SAC
+          <span class="company-website">www.automotorespakatnamu.com</span>
+        </div>
+        <div class="company-addresses">
+          <strong>CHICLAYO</strong>: CARRETERA PANAMERICANA NORTE N°1006<br>
+          <strong>PIURA</strong>: AV. SANCHEZ CERRO MZA 248 LOTE 02 ZONA INDUSTRIAL<br>
+          <strong>CAJAMARCA</strong>: MZA. B LOTE 19 OTR. EL BOSQUE III ETAPA (MAYOPATA FRENTE VIA EVITAMIENTO NORTE
+          S/N)<br>
+          <strong>JAEN</strong>: AV.PAKAMUROS N° 2485 (REF. CAMPO FERIAL - LINDEROS CARRETERA A SAN IGNACIO)
+        </div>
       </td>
-      <td class="center-title" style="width: 50%;">
-        ORDEN DE RECEPCIÓN<br>
-        AUTOMOTORES PAKATNAMU S.A.C.
-      </td>
-      <td class="logo" style="width: 25%;">
-        <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="Automotores Logo">
+
+      <!-- Columna Derecha: Orden de Trabajo y Garantía -->
+      <td class="header-right">
+        <div class="work-order-title">ORDEN DE TRABAJO</div>
+        <div class="logos-guarantee-container">
+          <div class="logo-section">
+            <img src="{{ getBase64Image('images/ap/derco-center.png') }}" alt="Derco Center">
+          </div>
+          <div class="logo-section">
+            <img src="{{ getBase64Image('images/ap/logo-garantia-derco.jpg') }}" alt="Garantía Derco">
+          </div>
+          <div class="guarantee-check-box">
+            <div class="guarantee-check-title">VEHÍCULO EN GARANTÍA</div>
+            <div class="guarantee-check-options">
+              <div class="guarantee-option">SI</div>
+              <div class="guarantee-option">NO</div>
+            </div>
+          </div>
+        </div>
       </td>
     </tr>
   </table>
