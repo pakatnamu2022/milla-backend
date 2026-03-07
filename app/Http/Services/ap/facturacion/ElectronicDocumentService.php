@@ -395,6 +395,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // ================================================================
 
       if (isset($data['detraction']) && $data['detraction'] === true) {
+        dd();
         $this->applyDetractionLogic($data);
       }
 
@@ -2589,7 +2590,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     // Determinar el tipo de entidad y aplicar su lógica específica
     if (isset($data['work_order_id']) && $data['work_order_id']) {
       $entityTotal = $this->applyDetractionForWorkOrder($data, $company);
-    } elseif (isset($data['purchase_request_quote_id']) && $data['purchase_request_quote_id']) {
+    } else {
       $entityTotal = $this->applyDetractionForPurchaseRequest($data, $company);
     }
 
@@ -2597,7 +2598,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     // Si no hay entidad relacionada, verificar el monto del documento
     $amountToCheck = $entityTotal > 0 ? $entityTotal : (float)$data['total'];
 
-    if ($amountToCheck >= $detractionAmount && $detractionAmount > 0 && $data['area_id'] == ApMasters::AREA_TALLER) {
+    if ($amountToCheck >= $detractionAmount && $detractionAmount > 0) {
       $data['detraccion'] = true;
       $data['sunat_concept_detraction_type_id'] = match ((int)$data['area_id']) {
         ApMasters::AREA_TALLER => SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION,
@@ -2613,7 +2614,18 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
       }
     } else if ($data['area_id'] == ApMasters::AREA_COMERCIAL) {
-      throw new Exception("Entrando a lógica de detracción para área comercial. Revisar reglas de negocio específicas para esta área.");
+      // Para el área comercial, solo marcar como sujeta a detracción sin importar el monto
+      $data['detraccion'] = true;
+      $data['sunat_concept_detraction_type_id'] = SunatConcepts::ID_DETRACTION_SERVICIOS;
+
+      // Obtener el porcentaje de detracción desde GeneralMaster
+      $detractionPercentage = GeneralMaster::find(GeneralMaster::SUNAT_DETRACTION_PERCENTAGE_ID);
+      if ($detractionPercentage) {
+        $porcentaje = (float)$detractionPercentage->value;
+        $data['detraccion_porcentaje'] = $porcentaje;
+        // La detracción se calcula sobre el total del documento actual
+        $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
+      }
     }
   }
 
