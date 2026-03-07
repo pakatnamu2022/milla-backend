@@ -125,25 +125,32 @@
 
     .logos-guarantee-container {
       margin-top: 20px;
-      gap: 5px;
+      display: table;
+      width: 100%;
+      border-collapse: collapse;
     }
 
     .logo-section {
-      display: inline-block;
+      display: table-cell;
       vertical-align: middle;
+      padding-right: 10px;
+      text-align: right;
+      height: 60px;
     }
 
     .logo-section img {
       max-height: 50px;
       height: auto;
-      display: block;
+      display: inline-block;
+      vertical-align: middle;
     }
 
     .guarantee-check-box {
-      display: inline-block;
+      display: table-cell;
       border: 1px solid #000;
       vertical-align: middle;
       width: 120px;
+      height: 60px;
     }
 
     .guarantee-check-title {
@@ -545,6 +552,90 @@
       vertical-align: middle;
       width: 20%;
     }
+
+    .client-vehicle-container {
+      display: table;
+      width: 100%;
+      margin-top: 10px;
+      margin-bottom: 10px;
+      border-collapse: collapse;
+    }
+
+    .client-info-side {
+      display: table-cell;
+      width: 50%;
+      padding-right: 5px;
+      vertical-align: top;
+    }
+
+    .vehicle-info-side {
+      display: table-cell;
+      width: 50%;
+      padding-left: 5px;
+      vertical-align: top;
+    }
+
+    .info-detail-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8px;
+    }
+
+    .info-detail-table td {
+      padding: 5px;
+      border: 1px solid #000;
+      vertical-align: middle;
+    }
+
+    .info-detail-table .header-row {
+      background-color: #172e66;
+      color: white;
+      font-weight: bold;
+      text-align: left;
+      padding: 5px 8px;
+      font-size: 9px;
+    }
+
+    .info-detail-table .label-row {
+      background-color: #f0f0f0;
+      font-weight: bold;
+      text-align: left;
+      padding: 5px 8px;
+    }
+
+    .info-detail-table .value-row {
+      background-color: white;
+      text-align: left;
+      padding: 5px 8px;
+    }
+
+    .info-detail-table .checkbox-option {
+      display: inline-block;
+      margin-right: 15px;
+      vertical-align: middle;
+      min-width: 140px;
+    }
+
+    .info-detail-table .mini-checkbox {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 1.5px solid #000;
+      margin-left: 5px;
+      vertical-align: middle;
+      position: relative;
+      top: 1px;
+      float: right;
+    }
+
+    .info-detail-table .two-col-row td {
+      width: 50%;
+    }
+
+    .info-detail-table .activities-content {
+      min-height: 40px;
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
@@ -602,7 +693,6 @@
   </table>
 </div>
 
-<!-- Sección: Información de Recepción y Entrega -->
 <div class="schedule-info-container">
   <!-- Tabla Izquierda: Recepción y Entrega -->
   <div class="schedule-left">
@@ -671,54 +761,176 @@
   </div>
 </div>
 
-<!-- Sección: Información de la Orden de Trabajo -->
-<div class="section-title">INFORMACIÓN DE LA ORDEN DE TRABAJO</div>
-<table class="data-table">
-  <tr>
-    <td class="label-cell">Número OT:</td>
-    <td>{{ $workOrder->correlative }}</td>
-    <td class="label-cell">Fecha OT:</td>
-    <td>{{ $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Tipo OT:</td>
-    <td>{{ $status ? $status->description : 'N/A' }}</td>
-    <td class="label-cell">Sucursal:</td>
-    <td>{{ $sede ? $sede->abreviatura : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Asesor:</td>
-    <td>{{ $advisor ? $advisor->nombre_completo : 'N/A' }}</td>
-    <td class="label-cell">Telf. Asesor:</td>
-    <td>{{ $advisorPhone }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Fecha de Recepción:</td>
-    <td>{{ $inspection->inspection_date ? $inspection->inspection_date->format('d/m/Y') : 'N/A' }}</td>
-    <td class="label-cell">Hora de Recepción:</td>
-    <td>{{ $inspection->inspection_date ? $inspection->inspection_date->format('H:i') : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Fecha de Entrega Estimada:</td>
-    <td>{{ $workOrder->estimated_delivery_date ? $workOrder->estimated_delivery_date->format('d/m/Y') : 'N/A' }}</td>
-    <td class="label-cell">Hora de Compromiso:</td>
-    <td>{{ $workOrder->estimated_delivery_date ? $workOrder->estimated_delivery_date->format('H:i') : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Número de Cita:</td>
-    <td colspan="3">{{ $appointmentNumber }}</td>
-  </tr>
-  @if($isRecall && ($typeRecall || $descriptionRecall))
-    <tr>
-      <td class="label-cell">Tipo de Recall:</td>
-      <td colspan="3">{{ $typeRecall ?: 'N/A' }}</td>
-    </tr>
-    <tr>
-      <td class="label-cell">Descripción de Recall:</td>
-      <td colspan="3">{{ $descriptionRecall ?: 'N/A' }}</td>
-    </tr>
-  @endif
-</table>
+<!-- Sección: Información del Cliente y Vehículo -->
+<div class="client-vehicle-container">
+  <!-- Tabla Izquierda: Información del Cliente -->
+  <div class="client-info-side">
+    <table class="info-detail-table">
+      <tr>
+        <td class="header-row">INFORMACIÓN DE CLIENTE</td>
+      </tr>
+      <tr>
+        <td class="label-row">Nombre del cliente</td>
+      </tr>
+      <tr>
+        <td class="value-row">{{ $customer ? $customer->full_name : 'Juan Carlos Rodríguez Méndez' }}</td>
+      </tr>
+      <tr>
+        <td class="label-row">Dirección (Domicilio / Trabajo):</td>
+      </tr>
+      <tr>
+        <td
+          class="value-row">{{ $customer ? $customer->direction : 'Av. Los Pinos 458, Urb. Santa Victoria, Chiclayo' }}</td>
+      </tr>
+      <tr>
+        <td class="label-row">Correo electrónico</td>
+      </tr>
+      <tr>
+        <td class="value-row">{{ $customer ? $customer->email : 'juan.rodriguez@email.com' }}</td>
+      </tr>
+      <tr>
+        <td class="label-row">Teléfono de contacto</td>
+      </tr>
+      <tr>
+        <td class="value-row">{{ $customer ? $customer->phone : '-' }}</td>
+      </tr>
+      <tr>
+        <td class="label-row">
+          Vehículo conducido por: (Dueño / Familiar / Otro)
+        </td>
+      </tr>
+      <tr>
+        <td class="value-row">Dueño</td>
+      </tr>
+      <tr>
+        <td class="label-row">Cita hora y fecha</td>
+      </tr>
+      <tr>
+        <td class="value-row">14/03/2026 - 03:30 PM</td>
+      </tr>
+    </table>
+
+    <!-- Tabla: Solicitud de Cliente -->
+    <table class="info-detail-table" style="margin-top: 10px;">
+      <tr>
+        <td class="header-row" colspan="2">SOLICITUD DE CLIENTE</td>
+      </tr>
+      <tr>
+        <td class="value-row" style="width: 50%; border-right: 1px solid #fff; border-bottom: 1px solid #fff;">
+          <span style="display: inline-block; width: 110px;">Cliente con cita</span><span class="mini-checkbox"
+                                                                                          style="float: none; margin-left: 5px;"></span>
+        </td>
+        <td class="value-row" style="width: 50%; border-bottom: 1px solid #fff;">
+          <span style="display: inline-block; width: 110px;">Cliente sin cita</span><span class="mini-checkbox"
+                                                                                          style="float: none; margin-left: 5px;"></span>
+        </td>
+      </tr>
+      <tr>
+        <td class="value-row" style="border-right: 1px solid #fff; border-bottom: 1px solid #fff;">
+          <span style="display: inline-block;">Mtto Preventivo ( ) km</span>
+          <span style="display: inline-block; width: 30px; border-bottom: 1px solid #000; margin: 0 5px;"></span>
+        </td>
+        <td class="value-row" style="border-bottom: 1px solid #fff;">
+          <span style="display: inline-block; width: 110px;">Mtto. correlativo</span><span class="mini-checkbox"
+                                                                                           style="float: none; margin-left: 5px;"></span>
+        </td>
+      </tr>
+      <tr>
+        <td class="value-row" style="border-right: 1px solid #fff; border-bottom: 1px solid #fff;">
+          <span style="display: inline-block; width: 110px;">Servicio interno</span><span class="mini-checkbox"
+                                                                                          style="float: none; margin-left: 5px;"></span>
+        </td>
+        <td class="value-row" style="border-bottom: 1px solid #fff;">
+          <span style="display: inline-block; width: 110px;">Garantía / Recall</span><span class="mini-checkbox"
+                                                                                           style="float: none; margin-left: 5px;"></span>
+        </td>
+      </tr>
+      <tr>
+        <td class="value-row" style="border-right: 1px solid #fff;">
+          <span style="display: inline-block; width: 110px;">Cliente espera</span><span class="mini-checkbox"
+                                                                                        style="float: none; margin-left: 5px;"></span>
+        </td>
+        <td class="value-row">
+          <span style="display: inline-block; width: 110px;">Reparación repetida</span><span class="mini-checkbox"
+                                                                                             style="float: none; margin-left: 5px;"></span>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Tabla Derecha: Información del Vehículo -->
+  <div class="vehicle-info-side">
+    <table class="info-detail-table">
+      <tr>
+        <td colspan="2" class="header-row">INFORMACIÓN DE VEHÍCULO</td>
+      </tr>
+      <tr class="two-col-row">
+        <td class="label-row">Placa: <span style="font-weight: normal;">{{ $vehicle->plate ?? 'ABC-123' }}</span></td>
+        <td class="label-row">Marca: <span
+            style="font-weight: normal;">{{ $vehicle->model->family->brand->name ?? 'TOYOTA' }}</span></td>
+      </tr>
+      <tr class="two-col-row">
+        <td class="label-row">Modelo: <span
+            style="font-weight: normal;">{{ $vehicle->model->family->description ?? 'HILUX' }}</span></td>
+        <td class="label-row">Año de fabricación: <span
+            style="font-weight: normal;">{{ $vehicle->year ?? '2024' }}</span>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" class="label-row">VIN / N° Chasis: <span
+            style="font-weight: normal;">{{ $vehicle->vin ?? 'MHFXXX7A9J1234567' }}</span></td>
+      </tr>
+      <tr class="two-col-row">
+        <td class="label-row">Hora inicio trabajo: <span style="font-weight: normal;">09:15 AM</span></td>
+        <td class="label-row">Hora fin trabajo: <span style="font-weight: normal;">04:30 PM</span></td>
+      </tr>
+      <tr>
+        <td colspan="2" class="label-row">Técnico: <span
+            style="font-weight: normal;">Carlos Alberto Sánchez Torres</span></td>
+      </tr>
+      <tr>
+        <td colspan="2" class="header-row">RESULTADOS DE TRABAJO / OBSERVACIONES</td>
+      </tr>
+      <tr>
+        <td colspan="2" class="value-row activities-content">
+          Se realizó el mantenimiento preventivo de 10,000 km según especificaciones del fabricante. Se cambió aceite de
+          motor, filtro de aceite, filtro de aire y se realizó inspección general de frenos y suspensión. Todo en
+          perfecto estado.
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" class="label-row" style="white-space: nowrap; font-size: 7px; padding: 3px 8px;">
+          RECALL: <span class="checkbox-option" style="min-width: 50px; margin-right: 8px;">SI<span
+              class="mini-checkbox" style="width: 10px; height: 10px;"></span></span> <span
+            class="checkbox-option" style="min-width: 50px; margin-right: 8px;">NO<span class="mini-checkbox"
+                                                                                        style="width: 10px; height: 10px;"></span></span>
+          NOMBRE RECALL: <span
+            style="font-weight: normal;">{{ $typeRecall ?? 'N/A' }}</span>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" class="label-row">TIPO RECALL: <span
+            style="font-weight: normal;">{{ $descriptionRecall ?? 'Sistema de Airbag' }}</span></td>
+      </tr>
+      <tr>
+        <td colspan="2" class="header-row">ACTIVIDADES REALIZADAS</td>
+      </tr>
+      <tr>
+        <td colspan="2" class="value-row activities-content">
+          • Cambio de aceite de motor sintético 5W-30<br>
+          • Reemplazo de filtro de aceite original<br>
+          • Reemplazo de filtro de aire del motor<br>
+          • Inspección y limpieza de frenos delanteros y traseros<br>
+          • Revisión de niveles de líquidos (refrigerante, frenos, dirección)<br>
+          • Inspección visual de suspensión y dirección<br>
+          • Rotación de neumáticos y verificación de presión<br>
+          • Escaneo computarizado del sistema electrónico
+        </td>
+      </tr>
+    </table>
+  </div>
+</div>
+
 
 <!-- Sección: Información del Vehículo -->
 <div class="section-title">INFORMACIÓN DEL VEHÍCULO</div>
