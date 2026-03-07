@@ -930,6 +930,121 @@
   </div>
 </div>
 
+<!-- Sección: Detalle de Trabajo, Requerimientos y Seguimiento -->
+<div class="section-title" style="margin-top: 10px;">DETALLE DE TRABAJO | REQUERIMIENTOS DE CLIENTE | SEGUIMIENTO POST
+  SERVICIO
+</div>
+<table class="data-table">
+  <tr>
+    <td colspan="3" style="padding: 0;">
+      <!-- Tabla interna de 3 columnas -->
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <!-- Columna 1: Detalle de Trabajo -->
+          <td style="width: 40%; vertical-align: top; padding: 8px; border-right: 1px solid #ddd;">
+            <div
+              style="font-weight: bold; margin-bottom: 8px; font-size: 9px; text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+              DETALLE DE TRABAJO
+            </div>
+            <div style="margin-bottom: 5px;">
+              <span class="mini-checkbox" style="margin-right: 5px;"></span>
+              <span style="font-size: 8px;">Cambio de Aceite y Filtro</span>
+              <span style="display: inline-block; margin-left: 10px;">
+                <span class="mini-checkbox" style="margin-right: 5px;"></span>
+                <span style="font-size: 8px;">Alineamiento y balanceo</span>
+              </span>
+            </div>
+            <div style="margin-bottom: 5px;">
+              <span class="mini-checkbox" style="margin-right: 5px;"></span>
+              <span style="font-size: 8px;">Revisión de niveles y luces</span>
+            </div>
+            <div style="margin-bottom: 5px;">
+              <span class="mini-checkbox" style="margin-right: 5px;"></span>
+              <span style="font-size: 8px;">Cambio de pastillas de freno y rectificación de disco</span>
+            </div>
+            <div style="margin-bottom: 5px;">
+              <span class="mini-checkbox" style="margin-right: 5px;"></span>
+              <span style="font-size: 8px;">Engrase general</span>
+              <span style="display: inline-block; margin-left: 10px;">
+                <span class="mini-checkbox" style="margin-right: 5px;"></span>
+                <span style="font-size: 8px;">Otros: __________</span>
+              </span>
+            </div>
+            <div style="margin-bottom: 5px;">
+              <span class="mini-checkbox" style="margin-right: 5px;"></span>
+              <span style="font-size: 8px;">Rotación de llantas, revisión y limpieza de frenos</span>
+            </div>
+            <div style="margin-bottom: 5px;">
+              <span class="mini-checkbox" style="margin-right: 5px;"></span>
+              <span style="font-size: 8px;">Inspección de filtro de aire, batería, neumáticos, suspensión y freno de mano</span>
+            </div>
+            <div>
+              <span class="mini-checkbox" style="margin-right: 5px;"></span>
+              <span style="font-size: 8px;">Revisión de presión e inflado de llantas</span>
+            </div>
+          </td>
+
+          <!-- Columna 2: Requerimientos de Cliente -->
+          <td style="width: 30%; vertical-align: top; padding: 8px; border-right: 1px solid #ddd;">
+            <div
+              style="font-weight: bold; margin-bottom: 8px; font-size: 9px; text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+              REQUERIMIENTOS DE CLIENTE
+            </div>
+            <div style="font-size: 8px; line-height: 1.5; min-height: 120px;">
+              <!-- Espacio para descripción de requerimientos del cliente -->
+            </div>
+          </td>
+
+          <!-- Columna 3: Seguimiento Post Servicio -->
+          <td style="width: 30%; vertical-align: top; padding: 8px;">
+            <div
+              style="font-weight: bold; margin-bottom: 8px; font-size: 9px; text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+              SEGUIMIENTO POST SERVICIO
+            </div>
+            <div style="font-size: 8px; margin-bottom: 15px;">
+              <div style="margin-bottom: 10px;">
+                <strong>Día:</strong> <span style="margin-left: 3px;">L</span> <span class="mini-checkbox"
+                                                                                     style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin: 0 3px;"></span>
+                <span>M</span> <span class="mini-checkbox"
+                                     style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin: 0 3px;"></span>
+                <span>M</span> <span class="mini-checkbox"
+                                     style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin: 0 3px;"></span>
+                <span>J</span> <span class="mini-checkbox"
+                                     style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin: 0 3px;"></span>
+                <span>V</span> <span class="mini-checkbox"
+                                     style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin: 0 3px;"></span>
+                <span>S</span> <span class="mini-checkbox"
+                                     style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin: 0 3px;"></span>
+                <span>D</span> <span class="mini-checkbox"
+                                     style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin: 0 3px;"></span>
+              </div>
+              <div>
+                <strong>Hora:</strong>
+                <span style="margin-left: 5px;">
+                  De:
+                  <span
+                    style="display: inline-block; width: 18px; border-bottom: 1px solid #000; margin: 0 2px;"></span>
+                  :
+                  <span
+                    style="display: inline-block; width: 18px; border-bottom: 1px solid #000; margin: 0 2px;"></span>
+                </span>
+                <span style="margin-left: 10px;">
+                  A:
+                  <span
+                    style="display: inline-block; width: 18px; border-bottom: 1px solid #000; margin: 0 2px;"></span>
+                  :
+                  <span
+                    style="display: inline-block; width: 18px; border-bottom: 1px solid #000; margin: 0 2px;"></span>
+                </span>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
 
 <!-- Sección: Información del Vehículo -->
 <div class="section-title">INFORMACIÓN DEL VEHÍCULO</div>
