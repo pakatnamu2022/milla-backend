@@ -899,13 +899,8 @@
         </td>
       </tr>
       <tr>
-        <td colspan="2" class="label-row" style="white-space: nowrap; font-size: 7px; padding: 3px 8px;">
-          RECALL: <span class="checkbox-option" style="min-width: 50px; margin-right: 8px;">SI<span
-              class="mini-checkbox" style="width: 10px; height: 10px;"></span></span> <span
-            class="checkbox-option" style="min-width: 50px; margin-right: 8px;">NO<span class="mini-checkbox"
-                                                                                        style="width: 10px; height: 10px;"></span></span>
-          NOMBRE RECALL: <span
-            style="font-weight: normal;">{{ $typeRecall ?? 'N/A' }}</span>
+        <td colspan="2" class="label-row" style="font-size: 7px; padding: 3px 8px;">
+          RECALL: SI<span class="mini-checkbox" style="width: 10px; height: 10px; display: inline-block; margin-left: 3px; margin-right: 10px; vertical-align: middle; float: none;"></span>NO<span class="mini-checkbox" style="width: 10px; height: 10px; display: inline-block; margin-left: 3px; margin-right: 15px; vertical-align: middle; float: none;"></span>NOMBRE RECALL: {{ $typeRecall ?? 'N/A' }}
         </td>
       </tr>
       <tr>
