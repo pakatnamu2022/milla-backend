@@ -655,7 +655,7 @@
     .info-detail-table .value-row {
       background-color: white;
       text-align: left;
-      padding: 5px 8px;
+      padding: 2px 8px;
     }
 
     .info-detail-table .checkbox-option {
@@ -987,7 +987,7 @@
       <table style="width: 100%; border-collapse: collapse;">
         <tr>
           <!-- Columna 1: Detalle de Trabajo -->
-          <td style="width: 40%; vertical-align: top; padding: 8px; border-right: 0.5px solid #ccc;">
+          <td style="width: 40%; vertical-align: top; padding: 8px; border-right: 0.5px solid #000000;">
             <div
               style="background-color: #172e66; color: white; font-weight: bold; text-align: center; padding: 5px 8px; font-size: 9px; margin-bottom: 8px;">
               DETALLE DE TRABAJO
@@ -1040,7 +1040,7 @@
           </td>
 
           <!-- Columna 2: Requerimientos de Cliente -->
-          <td style="width: 30%; vertical-align: top; padding: 8px; border-right: 0.5px solid #ccc;">
+          <td style="width: 30%; vertical-align: top; padding: 8px; border-right: 0.5px solid #000000;">
             <div
               style="background-color: #172e66; color: white; font-weight: bold; text-align: center; padding: 5px 8px; font-size: 9px; margin-bottom: 8px;">
               REQUERIMIENTOS DE CLIENTE
