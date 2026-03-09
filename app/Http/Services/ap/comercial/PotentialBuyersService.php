@@ -13,6 +13,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\PotentialBuyers;
 use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
 use App\Models\gp\gestionhumana\personal\Worker;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -616,18 +617,67 @@ class PotentialBuyersService extends BaseService
     }
   }
 
-  public function assignWorkersToUnassigned(): array
+  public function assignWorkersToUnassigned($date_from, $date_to, $all = false): array
   {
     DB::beginTransaction();
     try {
-      // Obtener todos los registros del mes anterior y mes actual sin asignar
-      $unassignedBuyers = PotentialBuyers::whereBetween('cr eated_at', [
-        now()->subMonth()->startOfMonth(),
-        now()->endOfMonth()
-      ])
-        ->where('use', 0)
-        ->where('type', PotentialBuyers::LEADS)
-        ->get();
+      // Validar que las fechas estén dentro del mes actual
+      $startOfMonth = now()->startOfMonth();
+      $endOfMonth = now()->endOfMonth();
+
+      $dateFrom = Carbon::parse($date_from);
+      $dateTo = Carbon::parse($date_to);
+
+      if ($dateFrom->lt($startOfMonth) || $dateTo->gt($endOfMonth)) {
+        return [
+          'success' => false,
+          'message' => 'Las fechas deben estar dentro del mes actual',
+          'error' => "El rango permitido es desde {$startOfMonth->format('Y-m-d')} hasta {$endOfMonth->format('Y-m-d')}"
+        ];
+      }
+
+      if ($dateFrom->gt($dateTo)) {
+        return [
+          'success' => false,
+          'message' => 'La fecha inicial no puede ser mayor a la fecha final',
+          'error' => 'Rango de fechas inválido'
+        ];
+      }
+
+      // Si $all = true, validar que NO exista ningún registro con use = 1 en el rango
+      if ($all) {
+        $takenLeadsCount = PotentialBuyers::whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
+          ->where('use', 1)
+          ->where('type', PotentialBuyers::LEADS)
+          ->count();
+
+        if ($takenLeadsCount > 0) {
+          return [
+            'success' => false,
+            'message' => 'Ya se han tomado leads en este rango, por esa razón ya no se puede redistribuir',
+            'error' => "Se encontraron {$takenLeadsCount} leads con use=1 en el rango de fechas especificado"
+          ];
+        }
+
+        // Si no hay leads tomados, LIMPIAR todas las asignaciones del rango primero
+        PotentialBuyers::whereBetween(DB::raw('DATE(created_at)'), [$dateFrom->format('Y-m-d'), $dateTo->format('Y-m-d')])
+          ->where('use', 0)
+          ->where('type', PotentialBuyers::LEADS)
+          ->update(['worker_id' => null]);
+
+        // Luego obtener todos los leads sin asignar para redistribuir desde cero
+        $unassignedBuyers = PotentialBuyers::whereBetween(DB::raw('DATE(created_at)'), [$dateFrom->format('Y-m-d'), $dateTo->format('Y-m-d')])
+          ->where('use', 0)
+          ->whereNull('worker_id')
+          ->where('type', PotentialBuyers::LEADS)
+          ->get();
+      } else {
+        // Si $all = false, solo tomar los que tienen worker_id NULL
+        $unassignedBuyers = PotentialBuyers::whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
+          ->whereNull('worker_id')
+          ->where('type', PotentialBuyers::LEADS)
+          ->get();
+      }
 
       if ($unassignedBuyers->isEmpty()) {
         return [
@@ -681,11 +731,11 @@ class PotentialBuyersService extends BaseService
               ->pluck('id')
               ->toArray();
 
-            // Consultar cuántos leads tiene cada asesor HOY para esta combinación
+            // Consultar cuántos leads tiene cada asesor en el rango especificado para esta combinación
             // Usa created_at (fecha de creación en BD) para balance inteligente
             $leadCounts = PotentialBuyers::where('sede_id', $buyer->sede_id)
               ->where('vehicle_brand_id', $buyer->vehicle_brand_id)
-              ->whereDate('created_at', today())
+              ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom->format('Y-m-d'), $dateTo->format('Y-m-d')])
               ->whereIn('worker_id', $workers)
               ->groupBy('worker_id')
               ->selectRaw('worker_id, COUNT(*) as count')
