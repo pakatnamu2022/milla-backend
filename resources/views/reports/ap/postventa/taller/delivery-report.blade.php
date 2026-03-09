@@ -980,7 +980,7 @@
 </div>
 
 <!-- Sección: Detalle de Trabajo, Requerimientos y Seguimiento -->
-<table class="data-table">
+<table style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-top: 10px; margin-bottom: 10px;">
   <tr>
     <td colspan="3" style="padding: 0;">
       <!-- Tabla interna de 3 columnas -->
