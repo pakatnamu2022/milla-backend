@@ -64,9 +64,13 @@ class PotentialBuyers extends Model
     'boss_id' => 'custom',
   ];
 
-  const CREATED = 0;
-  const USED = 1;
-  const DISCARTED = 2;
+  //Constants Type
+  const string LEADS = 'LEADS';
+  const string VISITA = 'VISITA';
+
+  const int CREATED = 0;
+  const int USED = 1;
+  const int DISCARTED = 2;
 
   const sorts = [
     'registration_date',

@@ -136,10 +136,20 @@ class PotentialBuyersController extends Controller
     }
   }
 
-  public function assignWorkers()
+  public function assignWorkers(Request $request)
   {
+    $request->validate([
+      'date_from' => 'required|date',
+      'date_to' => 'required|date',
+      'all' => 'sometimes|boolean'
+    ]);
+
     try {
-      $result = $this->service->assignWorkersToUnassigned();
+      $dateFrom = $request->input('date_from');
+      $dateTo = $request->input('date_to');
+      $all = $request->input('all', false);
+
+      $result = $this->service->assignWorkersToUnassigned($dateFrom, $dateTo, $all);
 
       if ($result['success']) {
         return $this->success($result, $result['message']);
