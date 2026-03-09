@@ -141,7 +141,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $logs = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $doc->id)->get();
         $reason = $this->buildDispatchAllReason($logs);
 
-        SyncSalesDocumentJob::dispatch($doc->id);
+        $this->dispatchMigration($doc->id);
 
         $dispatched[] = [
           'id' => $doc->id,
