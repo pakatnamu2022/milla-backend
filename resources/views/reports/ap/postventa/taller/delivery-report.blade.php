@@ -28,34 +28,158 @@
       padding: 15px;
     }
 
+    .red-line {
+      width: 100%;
+      height: 10px;
+      background-color: #ff0000;
+      margin-bottom: 0;
+    }
+
     .header {
       margin-bottom: 15px;
+      margin-top: 0;
     }
 
     .header table {
       width: 100%;
       border: none;
+      border-spacing: 0;
     }
 
     .header td {
       border: none;
+      vertical-align: top;
+      padding: 0;
+    }
+
+    .header-left {
+      width: 50%;
+      padding-right: 10px;
+      padding-top: 7px;
+    }
+
+    .header-right {
+      width: 50%;
+      padding-left: 10px;
+      text-align: right;
+    }
+
+    .company-info-container {
+      display: table;
+      width: 100%;
+      margin-top: 2px;
+    }
+
+    .company-logo {
+      display: table-cell;
+      vertical-align: middle;
+      width: 60px;
+    }
+
+    .company-logo img {
+      max-width: 60px;
+      max-height: 45px;
+      height: auto;
+      display: block;
+    }
+
+    .company-text {
+      display: table-cell;
       vertical-align: middle;
     }
 
-    .logo {
-      text-align: center;
-    }
-
-    .logo img {
-      max-width: 80px;
-      height: auto;
-    }
-
-    .center-title {
-      text-align: center;
+    .company-name {
       font-size: 14px;
+      color: #ff0000;
+      font-weight: bold;
+      line-height: 1.2;
+    }
+
+    .company-website {
+      font-size: 7px;
+      color: #000;
+      display: inline;
+      margin-left: 5px;
+    }
+
+    .company-addresses {
+      font-size: 8px;
+      color: #000;
+      margin-top: 5px;
+      line-height: 1.4;
+    }
+
+    .company-addresses strong {
+      font-weight: bold;
+    }
+
+    .work-order-title {
+      background-color: #000;
+      color: white;
+      font-size: 20px;
+      font-weight: bold;
+      padding: 5px 10px;
+      display: inline-block;
+      margin: 0;
+    }
+
+    .logos-guarantee-container {
+      margin-top: 20px;
+      display: table;
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .logo-section {
+      display: table-cell;
+      vertical-align: middle;
+      padding-right: 10px;
+      text-align: right;
+      height: 60px;
+    }
+
+    .logo-section img {
+      max-height: 50px;
+      height: auto;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    .guarantee-check-box {
+      display: table-cell;
+      border: 1px solid #000;
+      vertical-align: middle;
+      width: 120px;
+      height: 60px;
+    }
+
+    .guarantee-check-title {
+      font-size: 8px;
       font-weight: bold;
       padding: 5px;
+      text-align: center;
+      background-color: #f0f0f0;
+      border-bottom: 1px solid #000;
+    }
+
+    .guarantee-check-options {
+      display: table;
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .guarantee-option {
+      display: table-cell;
+      width: 50%;
+      font-size: 9px;
+      font-weight: bold;
+      text-align: center;
+      padding: 5px;
+      border-right: 1px solid #000;
+    }
+
+    .guarantee-option:last-child {
+      border-right: none;
     }
 
     .section-title {
@@ -273,7 +397,7 @@
 
     .signature-box {
       border-top: 2px solid #000;
-      margin-top: 0px;
+      margin-top: 0;
       padding-top: 5px;
       font-size: 9px;
       font-weight: bold;
@@ -282,7 +406,7 @@
     .signature-img {
       max-width: 200px;
       max-height: 80px;
-      margin-bottom: 0px;
+      margin-bottom: 0;
       display: block;
       margin-left: auto;
       margin-right: auto;
@@ -296,94 +420,6 @@
       text-align: right;
     }
 
-    .guarantee-recall-container {
-      display: table;
-      width: 100%;
-      margin-bottom: 5px;
-    }
-
-    .recall-box {
-      display: table-cell;
-      width: 50%;
-      padding-right: 5px;
-      vertical-align: top;
-    }
-
-    .guarantee-box {
-      display: table-cell;
-      width: 50%;
-      padding-left: 5px;
-      vertical-align: top;
-    }
-
-    .recall-info-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 8px;
-      margin-top: 5px;
-    }
-
-    .recall-info-table th {
-      background-color: #172e66;
-      color: white;
-      font-weight: bold;
-      padding: 5px;
-      text-align: left;
-      border: 1px solid #000;
-      font-size: 9px;
-    }
-
-    .recall-info-table td {
-      padding: 5px;
-      border: 1px solid #000;
-      vertical-align: top;
-    }
-
-    .recall-info-table .label-cell {
-      font-weight: bold;
-      width: 30%;
-      background-color: #f0f0f0;
-    }
-
-    .status-box {
-      border: 2px solid #172e66;
-      padding: 8px;
-      background-color: #f9f9f9;
-    }
-
-    .status-box-title {
-      font-weight: bold;
-      font-size: 9px;
-      text-align: center;
-      margin-bottom: 5px;
-      color: #172e66;
-    }
-
-    .status-options {
-      display: table;
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .status-option {
-      display: table-cell;
-      width: 50%;
-      text-align: center;
-      padding: 5px;
-      border: 1.5px solid #000;
-      font-size: 9px;
-      font-weight: bold;
-    }
-
-    .status-option.checked {
-      background-color: #d0d0d0;
-    }
-
-    .status-option.checked::after {
-      content: " X";
-      color: #000;
-      font-size: 11px;
-    }
 
     .damage-evidence-table {
       width: 100%;
@@ -423,102 +459,622 @@
       color: #333;
       text-align: center;
     }
+
+    .schedule-info-container {
+      display: table;
+      width: 100%;
+      margin-top: 10px;
+      margin-bottom: 10px;
+      border-collapse: collapse;
+    }
+
+    .schedule-left {
+      display: table-cell;
+      width: 50%;
+      padding-right: 5px;
+      vertical-align: top;
+    }
+
+    .schedule-right {
+      display: table-cell;
+      width: 50%;
+      padding-left: 5px;
+      vertical-align: top;
+    }
+
+    .schedule-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8px;
+    }
+
+    .schedule-table th {
+      background-color: #172e66;
+      color: white;
+      font-weight: bold;
+      padding: 5px;
+      text-align: center;
+      border: 1px solid #000;
+      font-size: 9px;
+    }
+
+    .schedule-table td {
+      padding: 5px;
+      border: 1px solid #000;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    .schedule-table .label-col {
+      background-color: #f0f0f0;
+      font-weight: bold;
+      text-align: left;
+      padding-left: 8px;
+    }
+
+    .appointment-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8px;
+    }
+
+    .appointment-table th {
+      background-color: #172e66;
+      color: white;
+      font-weight: bold;
+      padding: 5px;
+      text-align: center;
+      border: 1px solid #000;
+      font-size: 9px;
+    }
+
+    .appointment-table td {
+      padding: 5px;
+      border: 1px solid #000;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    .appointment-table .label-col {
+      background-color: #f0f0f0;
+      font-weight: bold;
+      width: 35%;
+    }
+
+    .appointment-table .info-col {
+      width: 45%;
+    }
+
+    .appointment-table .responsible-col {
+      background-color: #e8e8e8;
+      font-weight: bold;
+      text-align: center;
+      vertical-align: middle;
+      width: 20%;
+    }
+
+    .client-vehicle-container {
+      display: table;
+      width: 100%;
+      margin-top: 10px;
+      margin-bottom: 10px;
+      border-collapse: collapse;
+    }
+
+    .client-info-side {
+      display: table-cell;
+      width: 50%;
+      padding-right: 5px;
+      vertical-align: top;
+    }
+
+    .vehicle-info-side {
+      display: table-cell;
+      width: 50%;
+      padding-left: 5px;
+      vertical-align: top;
+    }
+
+    .info-detail-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8px;
+    }
+
+    .info-detail-table td {
+      padding: 5px;
+      border: 1px solid #000;
+      vertical-align: middle;
+    }
+
+    .info-detail-table .header-row {
+      background-color: #172e66;
+      color: white;
+      font-weight: bold;
+      text-align: left;
+      padding: 5px 8px;
+      font-size: 9px;
+    }
+
+    .info-detail-table .label-row {
+      background-color: #f0f0f0;
+      font-weight: bold;
+      text-align: left;
+      padding: 5px 8px;
+    }
+
+    .info-detail-table .value-row {
+      background-color: white;
+      text-align: left;
+      padding: 5px 8px;
+    }
+
+    .info-detail-table .checkbox-option {
+      display: inline-block;
+      margin-right: 15px;
+      vertical-align: middle;
+      min-width: 140px;
+    }
+
+    .info-detail-table .mini-checkbox {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 1.5px solid #000;
+      margin-left: 5px;
+      vertical-align: middle;
+      position: relative;
+      top: 1px;
+      float: right;
+    }
+
+    .info-detail-table .two-col-row td {
+      width: 50%;
+    }
+
+    .info-detail-table .activities-content {
+      min-height: 40px;
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
+
+<!-- Línea Roja Superior -->
+<div class="red-line"></div>
 
 <!-- Encabezado -->
 <div class="header">
   <table>
     <tr>
-      <td class="logo" style="width: 25%;">
-        <img src="{{ getBase64Image('images/ap/derco.jpg') }}" alt="Derco Logo">
+      <!-- Columna Izquierda: Información de la Empresa -->
+      <td class="header-left">
+        <div class="company-info-container">
+          <div class="company-logo">
+            <img src="{{ getBase64Image('images/ap/ap.png') }}" alt="Logo AP">
+          </div>
+          <div class="company-text">
+            <div class="company-name">
+              AUTOMOTORES<br>
+              PAKATNAMU SAC
+              <span class="company-website">www.automotorespakatnamu.com</span>
+            </div>
+          </div>
+        </div>
+        <div class="company-addresses">
+          <strong>CHICLAYO</strong>: CARRETERA PANAMERICANA NORTE N°1006<br>
+          <strong>PIURA</strong>: AV. SANCHEZ CERRO MZA 248 LOTE 02 ZONA INDUSTRIAL<br>
+          <strong>CAJAMARCA</strong>: MZA. B LOTE 19 OTR. EL BOSQUE III ETAPA (MAYOPATA FRENTE VIA EVITAMIENTO NORTE
+          S/N)<br>
+          <strong>JAEN</strong>: AV.PAKAMUROS N° 2485 (REF. CAMPO FERIAL - LINDEROS CARRETERA A SAN IGNACIO)
+        </div>
       </td>
-      <td class="center-title" style="width: 50%;">
-        ORDEN DE RECEPCIÓN<br>
-        AUTOMOTORES PAKATNAMU S.A.C.
-      </td>
-      <td class="logo" style="width: 25%;">
-        <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="Automotores Logo">
+
+      <!-- Columna Derecha: Orden de Trabajo y Garantía -->
+      <td class="header-right">
+        <div class="work-order-title">ORDEN DE TRABAJO</div>
+        <div class="logos-guarantee-container">
+          <div class="logo-section">
+            <img src="{{ getBase64Image('images/ap/derco-center.png') }}" alt="Derco Center">
+          </div>
+          <div class="logo-section">
+            <img src="{{ getBase64Image('images/ap/logo-garantia-derco.jpg') }}" alt="Garantía Derco">
+          </div>
+          <div class="guarantee-check-box">
+            <div class="guarantee-check-title">VEHÍCULO EN GARANTÍA</div>
+            <div class="guarantee-check-options">
+              <div class="guarantee-option">SI</div>
+              <div class="guarantee-option">NO</div>
+            </div>
+          </div>
+        </div>
       </td>
     </tr>
   </table>
 </div>
 
-<!-- Sección: Información de la Orden de Trabajo -->
-<div class="section-title">INFORMACIÓN DE LA ORDEN DE TRABAJO</div>
-
-<!-- Cuadros de Estado: Recall y Garantía -->
-<div class="guarantee-recall-container">
-  <!-- Lado Izquierdo: Estado de Recall -->
-  <div class="recall-box">
-    <div class="status-box">
-      <div class="status-box-title">VEHÍCULO EN RECALL</div>
-      <div class="status-options">
-        <div class="status-option {{ $isRecall ? 'checked' : '' }}">SI</div>
-        <div class="status-option {{ !$isRecall ? 'checked' : '' }}">NO</div>
-      </div>
-    </div>
+<div class="schedule-info-container">
+  <!-- Tabla Izquierda: Recepción y Entrega -->
+  <div class="schedule-left">
+    <table class="schedule-table">
+      <thead>
+      <tr>
+        <th style="width: 40%;"></th>
+        <th style="width: 30%;">FECHA</th>
+        <th style="width: 30%;">HORA</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+        <td class="label-col">Recepción Programada</td>
+        <td>15/03/2026</td>
+        <td>09:00 AM</td>
+      </tr>
+      <tr>
+        <td class="label-col">Recepción Real</td>
+        <td>15/03/2026</td>
+        <td>09:15 AM</td>
+      </tr>
+      <tr>
+        <td class="label-col">Entrega Programada</td>
+        <td>18/03/2026</td>
+        <td>05:00 PM</td>
+      </tr>
+      <tr>
+        <td class="label-col">Entrega Real</td>
+        <td>18/03/2026</td>
+        <td>04:45 PM</td>
+      </tr>
+      </tbody>
+    </table>
   </div>
 
-  <!-- Lado Derecho: Estado de Garantía -->
-  <div class="guarantee-box">
-    <div class="status-box">
-      <div class="status-box-title">VEHÍCULO EN GARANTÍA</div>
-      <div class="status-options">
-        <div class="status-option {{ $isGuarantee ? 'checked' : '' }}">SI</div>
-        <div class="status-option {{ !$isGuarantee ? 'checked' : '' }}">NO</div>
-      </div>
-    </div>
+  <!-- Tabla Derecha: Citas y Repuestos -->
+  <div class="schedule-right">
+    <table class="appointment-table">
+      <thead>
+      <tr>
+        <th colspan="3">CITAS Y REPUESTOS</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+        <td class="label-col">Confirmación de Cita</td>
+        <td class="info-col">14/03/2026 - 03:30 PM</td>
+        <td class="responsible-col" rowspan="3">
+          <div style="writing-mode: vertical-rl; white-space: nowrap;">
+            RESPONSABLE CITAS<br><br>
+            María González Pérez
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="label-col">Repuestos Pedido</td>
+        <td class="info-col">10/03/2026 - 10:00 AM</td>
+      </tr>
+      <tr>
+        <td class="label-col">Repuestos Llegada</td>
+        <td class="info-col">14/03/2026 - 02:00 PM</td>
+      </tr>
+      </tbody>
+    </table>
   </div>
 </div>
 
+<!-- Sección: Información del Cliente y Vehículo -->
+<div class="client-vehicle-container">
+  <!-- Tabla Izquierda: Información del Cliente -->
+  <div class="client-info-side">
+    <table class="info-detail-table">
+      <tr>
+        <td class="header-row">INFORMACIÓN DE CLIENTE</td>
+      </tr>
+      <tr>
+        <td class="label-row">Nombre del cliente</td>
+      </tr>
+      <tr>
+        <td class="value-row">{{ $customer ? $customer->full_name : 'Juan Carlos Rodríguez Méndez' }}</td>
+      </tr>
+      <tr>
+        <td class="label-row">Dirección (Domicilio / Trabajo):</td>
+      </tr>
+      <tr>
+        <td
+          class="value-row">{{ $customer ? $customer->direction : 'Av. Los Pinos 458, Urb. Santa Victoria, Chiclayo' }}</td>
+      </tr>
+      <tr>
+        <td class="label-row">Correo electrónico</td>
+      </tr>
+      <tr>
+        <td class="value-row">{{ $customer ? $customer->email : 'juan.rodriguez@email.com' }}</td>
+      </tr>
+      <tr>
+        <td class="label-row">Teléfono de contacto</td>
+      </tr>
+      <tr>
+        <td class="value-row">{{ $customer ? $customer->phone : '-' }}</td>
+      </tr>
+      <tr>
+        <td class="label-row">
+          Vehículo conducido por: (Dueño / Familiar / Otro)
+        </td>
+      </tr>
+      <tr>
+        <td class="value-row">Dueño</td>
+      </tr>
+      <tr>
+        <td class="label-row">Cita hora y fecha</td>
+      </tr>
+      <tr>
+        <td class="value-row">14/03/2026 - 03:30 PM</td>
+      </tr>
+    </table>
+
+    <!-- Tabla: Solicitud de Cliente -->
+    <table class="info-detail-table" style="margin-top: 10px;">
+      <tr>
+        <td class="header-row" colspan="2">SOLICITUD DE CLIENTE</td>
+      </tr>
+      <tr>
+        <td class="value-row" style="width: 50%; border-right: 1px solid #fff; border-bottom: 1px solid #fff;">
+          <span style="display: inline-block; width: 110px;">Cliente con cita</span><span class="mini-checkbox"
+                                                                                          style="float: none; margin-left: 5px;"></span>
+        </td>
+        <td class="value-row" style="width: 50%; border-bottom: 1px solid #fff;">
+          <span style="display: inline-block; width: 110px;">Cliente sin cita</span><span class="mini-checkbox"
+                                                                                          style="float: none; margin-left: 5px;"></span>
+        </td>
+      </tr>
+      <tr>
+        <td class="value-row" style="border-right: 1px solid #fff; border-bottom: 1px solid #fff;">
+          <span style="display: inline-block;">Mtto Preventivo ( ) km</span>
+          <span style="display: inline-block; width: 30px; border-bottom: 1px solid #000; margin: 0 5px;"></span>
+        </td>
+        <td class="value-row" style="border-bottom: 1px solid #fff;">
+          <span style="display: inline-block; width: 110px;">Mtto. correlativo</span><span class="mini-checkbox"
+                                                                                           style="float: none; margin-left: 5px;"></span>
+        </td>
+      </tr>
+      <tr>
+        <td class="value-row" style="border-right: 1px solid #fff; border-bottom: 1px solid #fff;">
+          <span style="display: inline-block; width: 110px;">Servicio interno</span><span class="mini-checkbox"
+                                                                                          style="float: none; margin-left: 5px;"></span>
+        </td>
+        <td class="value-row" style="border-bottom: 1px solid #fff;">
+          <span style="display: inline-block; width: 110px;">Garantía / Recall</span><span class="mini-checkbox"
+                                                                                           style="float: none; margin-left: 5px;"></span>
+        </td>
+      </tr>
+      <tr>
+        <td class="value-row" style="border-right: 1px solid #fff;">
+          <span style="display: inline-block; width: 110px;">Cliente espera</span><span class="mini-checkbox"
+                                                                                        style="float: none; margin-left: 5px;"></span>
+        </td>
+        <td class="value-row">
+          <span style="display: inline-block; width: 110px;">Reparación repetida</span><span class="mini-checkbox"
+                                                                                             style="float: none; margin-left: 5px;"></span>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Tabla Derecha: Información del Vehículo -->
+  <div class="vehicle-info-side">
+    <table class="info-detail-table">
+      <tr>
+        <td colspan="2" class="header-row">INFORMACIÓN DE VEHÍCULO</td>
+      </tr>
+      <tr class="two-col-row">
+        <td class="label-row">Placa: <span style="font-weight: normal;">{{ $vehicle->plate ?? 'ABC-123' }}</span></td>
+        <td class="label-row">Marca: <span
+            style="font-weight: normal;">{{ $vehicle->model->family->brand->name ?? 'TOYOTA' }}</span></td>
+      </tr>
+      <tr class="two-col-row">
+        <td class="label-row">Modelo: <span
+            style="font-weight: normal;">{{ $vehicle->model->family->description ?? 'HILUX' }}</span></td>
+        <td class="label-row">Año de fabricación: <span
+            style="font-weight: normal;">{{ $vehicle->year ?? '2024' }}</span>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" class="label-row">VIN / N° Chasis: <span
+            style="font-weight: normal;">{{ $vehicle->vin ?? 'MHFXXX7A9J1234567' }}</span></td>
+      </tr>
+      <tr class="two-col-row">
+        <td class="label-row">Hora inicio trabajo: <span style="font-weight: normal;">09:15 AM</span></td>
+        <td class="label-row">Hora fin trabajo: <span style="font-weight: normal;">04:30 PM</span></td>
+      </tr>
+      <tr>
+        <td colspan="2" class="label-row">Técnico: <span
+            style="font-weight: normal;">Carlos Alberto Sánchez Torres</span></td>
+      </tr>
+      <tr>
+        <td colspan="2" class="header-row">RESULTADOS DE TRABAJO / OBSERVACIONES</td>
+      </tr>
+      <tr>
+        <td colspan="2" class="value-row activities-content">
+          Se realizó el mantenimiento preventivo de 10,000 km según especificaciones del fabricante. Se cambió aceite de
+          motor, filtro de aceite, filtro de aire y se realizó inspección general de frenos y suspensión. Todo en
+          perfecto estado.
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" class="label-row" style="font-size: 7px; padding: 3px 8px;">
+          RECALL: SI<span class="mini-checkbox"
+                          style="width: 10px; height: 10px; display: inline-block; margin-left: 3px; margin-right: 10px; vertical-align: middle; float: none;"></span>NO<span
+            class="mini-checkbox"
+            style="width: 10px; height: 10px; display: inline-block; margin-left: 3px; margin-right: 15px; vertical-align: middle; float: none;"></span>NOMBRE
+          RECALL: {{ $typeRecall ?? 'N/A' }}
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" class="label-row">TIPO RECALL: <span
+            style="font-weight: normal;">{{ $descriptionRecall ?? 'Sistema de Airbag' }}</span></td>
+      </tr>
+      <tr>
+        <td colspan="2" class="header-row">ACTIVIDADES REALIZADAS</td>
+      </tr>
+      <tr>
+        <td colspan="2" class="value-row activities-content">
+          • Cambio de aceite de motor sintético 5W-30<br>
+          • Reemplazo de filtro de aceite original<br>
+          • Reemplazo de filtro de aire del motor<br>
+          • Inspección y limpieza de frenos delanteros y traseros<br>
+          • Revisión de niveles de líquidos (refrigerante, frenos, dirección)<br>
+          • Inspección visual de suspensión y dirección<br>
+          • Rotación de neumáticos y verificación de presión<br>
+          • Escaneo computarizado del sistema electrónico
+        </td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- Sección: Detalle de Trabajo, Requerimientos y Seguimiento -->
 <table class="data-table">
   <tr>
-    <td class="label-cell">Número OT:</td>
-    <td>{{ $workOrder->correlative }}</td>
-    <td class="label-cell">Fecha OT:</td>
-    <td>{{ $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : 'N/A' }}</td>
+    <td colspan="3" style="padding: 0;">
+      <!-- Tabla interna de 3 columnas -->
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <!-- Columna 1: Detalle de Trabajo -->
+          <td style="width: 40%; vertical-align: top; padding: 8px; border-right: 0.5px solid #ccc;">
+            <div
+              style="background-color: #172e66; color: white; font-weight: bold; text-align: center; padding: 5px 8px; font-size: 9px; margin-bottom: 8px;">
+              DETALLE DE TRABAJO
+            </div>
+            <div style="margin-bottom: 5px;">
+              <span class="mini-checkbox"
+                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
+              <span style="font-size: 8px;">Cambio de Aceite y Filtro</span>
+              <span style="display: inline-block; margin-left: 10px;">
+                <span class="mini-checkbox"
+                      style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
+                <span style="font-size: 8px;">Alineamiento y balanceo</span>
+              </span>
+            </div>
+            <div style="margin-bottom: 5px;">
+              <span class="mini-checkbox"
+                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
+              <span style="font-size: 8px;">Revisión de niveles y luces</span>
+            </div>
+            <div style="margin-bottom: 5px;">
+              <span class="mini-checkbox"
+                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
+              <span style="font-size: 8px;">Cambio de pastillas de freno y rectificación de disco</span>
+            </div>
+            <div style="margin-bottom: 5px;">
+              <span class="mini-checkbox"
+                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
+              <span style="font-size: 8px;">Engrase general</span>
+              <span style="display: inline-block; margin-left: 10px;">
+                <span class="mini-checkbox"
+                      style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
+                <span style="font-size: 8px;">Otros: __________</span>
+              </span>
+            </div>
+            <div style="margin-bottom: 5px;">
+              <span class="mini-checkbox"
+                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
+              <span style="font-size: 8px;">Rotación de llantas, revisión y limpieza de frenos</span>
+            </div>
+            <div style="margin-bottom: 5px;">
+              <span class="mini-checkbox"
+                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
+              <span style="font-size: 8px;">Inspección de filtro de aire, batería, neumáticos, suspensión y freno de mano</span>
+            </div>
+            <div>
+              <span class="mini-checkbox"
+                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
+              <span style="font-size: 8px;">Revisión de presión e inflado de llantas</span>
+            </div>
+          </td>
+
+          <!-- Columna 2: Requerimientos de Cliente -->
+          <td style="width: 30%; vertical-align: top; padding: 8px; border-right: 0.5px solid #ccc;">
+            <div
+              style="background-color: #172e66; color: white; font-weight: bold; text-align: center; padding: 5px 8px; font-size: 9px; margin-bottom: 8px;">
+              REQUERIMIENTOS DE CLIENTE
+            </div>
+            <div style="font-size: 8px; line-height: 1.5; min-height: 120px;">
+              <!-- Espacio para descripción de requerimientos del cliente -->
+            </div>
+          </td>
+
+          <!-- Columna 3: Seguimiento Post Servicio -->
+          <td style="width: 30%; vertical-align: top; padding: 8px;">
+            <div
+              style="background-color: #172e66; color: white; font-weight: bold; text-align: center; padding: 5px 8px; font-size: 9px; margin-bottom: 8px;">
+              SEGUIMIENTO POST SERVICIO
+            </div>
+            <div style="font-size: 8px; margin-bottom: 15px;">
+              <div style="margin-bottom: 10px;">
+                <strong>Día:</strong> <span style="margin-left: 3px;">L</span> <span class="mini-checkbox"
+                                                                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
+                <span>M</span> <span class="mini-checkbox"
+                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
+                <span>M</span> <span class="mini-checkbox"
+                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
+                <span>J</span> <span class="mini-checkbox"
+                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
+                <span>V</span> <span class="mini-checkbox"
+                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
+                <span>S</span> <span class="mini-checkbox"
+                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
+                <span>D</span> <span class="mini-checkbox"
+                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
+              </div>
+              <div>
+                <strong>Hora:</strong>
+                <span style="margin-left: 5px;">
+                  De:
+                  <span
+                    style="display: inline-block; width: 18px; border-bottom: 1px solid #000; margin: 0 2px;"></span>
+                  :
+                  <span
+                    style="display: inline-block; width: 18px; border-bottom: 1px solid #000; margin: 0 2px;"></span>
+                </span>
+                <span style="margin-left: 10px;">
+                  A:
+                  <span
+                    style="display: inline-block; width: 18px; border-bottom: 1px solid #000; margin: 0 2px;"></span>
+                  :
+                  <span
+                    style="display: inline-block; width: 18px; border-bottom: 1px solid #000; margin: 0 2px;"></span>
+                </span>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </td>
   </tr>
+  <!-- Pie de tabla -->
   <tr>
-    <td class="label-cell">Tipo OT:</td>
-    <td>{{ $status ? $status->description : 'N/A' }}</td>
-    <td class="label-cell">Sucursal:</td>
-    <td>{{ $sede ? $sede->abreviatura : 'N/A' }}</td>
+    <td colspan="3" style="padding: 0;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td
+            style="padding: 8px; background-color: #f5f5f5; font-size: 9px; border-right: 1px solid #000000; width: 25%;">
+            <strong>Reajuste hora de entrega:</strong> 14:30
+          </td>
+          <td
+            style="padding: 8px; background-color: #f5f5f5; font-size: 9px; border-right: 1px solid #000000; width: 25%;">
+            <strong>Precio estimado:</strong> S/ 450.00
+          </td>
+          <td
+            style="padding: 8px; background-color: #f5f5f5; font-size: 9px; border-right: 1px solid #000000; width: 25%;">
+            <strong>Precio estimado final:</strong> S/ 480.00
+          </td>
+          <td style="padding: 8px; background-color: #f5f5f5; font-size: 9px; width: 25%;">
+            <strong>Asesor de servicio:</strong> Juan Pérez
+          </td>
+        </tr>
+      </table>
+    </td>
   </tr>
-  <tr>
-    <td class="label-cell">Asesor:</td>
-    <td>{{ $advisor ? $advisor->nombre_completo : 'N/A' }}</td>
-    <td class="label-cell">Telf. Asesor:</td>
-    <td>{{ $advisorPhone }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Fecha de Recepción:</td>
-    <td>{{ $inspection->inspection_date ? $inspection->inspection_date->format('d/m/Y') : 'N/A' }}</td>
-    <td class="label-cell">Hora de Recepción:</td>
-    <td>{{ $inspection->inspection_date ? $inspection->inspection_date->format('H:i') : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Fecha de Entrega Estimada:</td>
-    <td>{{ $workOrder->estimated_delivery_date ? $workOrder->estimated_delivery_date->format('d/m/Y') : 'N/A' }}</td>
-    <td class="label-cell">Hora de Compromiso:</td>
-    <td>{{ $workOrder->estimated_delivery_date ? $workOrder->estimated_delivery_date->format('H:i') : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Número de Cita:</td>
-    <td colspan="3">{{ $appointmentNumber }}</td>
-  </tr>
-  @if($isRecall && ($typeRecall || $descriptionRecall))
-    <tr>
-      <td class="label-cell">Tipo de Recall:</td>
-      <td colspan="3">{{ $typeRecall ?: 'N/A' }}</td>
-    </tr>
-    <tr>
-      <td class="label-cell">Descripción de Recall:</td>
-      <td colspan="3">{{ $descriptionRecall ?: 'N/A' }}</td>
-    </tr>
-  @endif
 </table>
+
 
 <!-- Sección: Información del Vehículo -->
 <div class="section-title">INFORMACIÓN DEL VEHÍCULO</div>
@@ -555,30 +1111,6 @@
   </tr>
 </table>
 
-<!-- Sección: Datos del Cliente -->
-<div class="section-title">DATOS DEL CLIENTE</div>
-<table class="data-table">
-  <tr>
-    <td class="label-cell">Cliente:</td>
-    <td colspan="3">{{ $customer ? $customer->full_name : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">DNI/RUC:</td>
-    <td>{{ $customer ? $customer->num_doc : 'N/A' }}</td>
-    <td class="label-cell">Teléfono:</td>
-    <td>{{ $customer ? $customer->phone : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Dirección:</td>
-    <td colspan="3">{{ $customer ? $customer->direction : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">E-mail:</td>
-    <td>{{ $customer ? $customer->email : 'N/A' }}</td>
-    <td class="label-cell">Celular:</td>
-    <td>{{ $customer ? $customer->phone : 'N/A' }}</td>
-  </tr>
-</table>
 
 <!-- Sección: Items de Trabajo -->
 <div class="section-title">ITEMS DE TRABAJO</div>
