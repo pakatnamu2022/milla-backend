@@ -209,11 +209,11 @@ class PotentialBuyersService extends BaseService
       $duplicatedRecords = [];
       $createdIds = [];
 
-      // Variables para la asignación de asesores (mismo sistema que assignWorkersToUnassigned)
+      // Variables para la asignación de asesores con balance inteligente
       $currentYear = date('Y');
       $currentMonth = date('m');
       $workersCache = [];
-      $distributionCounter = [];
+      $workersWithCounts = []; // Array con [id, count] ordenado por count
 
       // Procesar los datos importados con validación de duplicados y longitud de documento
       foreach ($importResult['data'] as $index => $rowData) {
@@ -255,7 +255,7 @@ class PotentialBuyersService extends BaseService
           $rowData['status_num_doc'] = $statusNumDoc;
           $rowData['user_id'] = auth()->id();
 
-          // Asignar asesor usando la misma lógica de assignWorkersToUnassigned
+          // Asignar asesor usando balance inteligente basado en conteo actual
           if (!empty($rowData['sede_id']) && !empty($rowData['vehicle_brand_id'])) {
             // Crear clave única para esta combinación de sede + marca
             $cacheKey = "{$rowData['sede_id']}_{$rowData['vehicle_brand_id']}";
@@ -276,24 +276,54 @@ class PotentialBuyersService extends BaseService
                   ->pluck('id')
                   ->toArray();
 
+                // Consultar cuántos leads tiene cada asesor HOY para esta combinación
+                // Usa created_at (fecha de creación en BD) no registration_date (fecha del Excel)
+                $leadCounts = PotentialBuyers::where('sede_id', $rowData['sede_id'])
+                  ->where('vehicle_brand_id', $rowData['vehicle_brand_id'])
+                  ->whereDate('created_at', today())
+                  ->whereIn('worker_id', $workers)
+                  ->groupBy('worker_id')
+                  ->selectRaw('worker_id, COUNT(*) as count')
+                  ->pluck('count', 'worker_id')
+                  ->toArray();
+
+                // Crear lista de asesores con su conteo actual
+                $workersWithCountsArray = [];
+                foreach ($workers as $workerId) {
+                  $workersWithCountsArray[] = [
+                    'id' => $workerId,
+                    'count' => $leadCounts[$workerId] ?? 0 // Si no tiene leads, es 0
+                  ];
+                }
+
+                // Ordenar por count ASC (el que tiene menos primero)
+                usort($workersWithCountsArray, function ($a, $b) {
+                  return $a['count'] <=> $b['count'];
+                });
+
                 $workersCache[$cacheKey] = $workers;
-                $distributionCounter[$cacheKey] = 0;
+                $workersWithCounts[$cacheKey] = $workersWithCountsArray;
               } else {
                 $workersCache[$cacheKey] = [];
+                $workersWithCounts[$cacheKey] = [];
               }
             }
 
-            // Si hay asesores disponibles para esta combinación, asignar con round-robin
+            // Si hay asesores disponibles para esta combinación, asignar al que tiene menos leads
             if (!empty($workersCache[$cacheKey])) {
-              $workers = $workersCache[$cacheKey];
-              $currentIndex = $distributionCounter[$cacheKey] % count($workers);
-              $assignedWorkerId = $workers[$currentIndex];
+              // Asignar siempre al primer asesor de la lista (que tiene menos leads)
+              $assignedWorkerId = $workersWithCounts[$cacheKey][0]['id'];
 
               // Asignar el worker_id al registro
               $rowData['worker_id'] = $assignedWorkerId;
 
-              // Incrementar el contador para el siguiente registro
-              $distributionCounter[$cacheKey]++;
+              // Incrementar el contador local para este asesor
+              $workersWithCounts[$cacheKey][0]['count']++;
+
+              // Re-ordenar la lista para mantener el balance
+              usort($workersWithCounts[$cacheKey], function ($a, $b) {
+                return $a['count'] <=> $b['count'];
+              });
             }
           }
 
@@ -414,11 +444,11 @@ class PotentialBuyersService extends BaseService
       $duplicatedRecords = [];
       $createdIds = [];
 
-      // Variables para la asignación de asesores (mismo sistema que assignWorkersToUnassigned)
+      // Variables para la asignación de asesores con balance inteligente
       $currentYear = date('Y');
       $currentMonth = date('m');
       $workersCache = [];
-      $distributionCounter = [];
+      $workersWithCounts = []; // Array con [id, count] ordenado por count
 
       // Procesar los datos importados con validación de duplicados y longitud de documento
       foreach ($importResult['data'] as $index => $rowData) {
@@ -460,7 +490,7 @@ class PotentialBuyersService extends BaseService
           $rowData['status_num_doc'] = $statusNumDoc;
           $rowData['user_id'] = auth()->id();
 
-          // Asignar asesor usando la misma lógica de assignWorkersToUnassigned
+          // Asignar asesor usando balance inteligente basado en conteo actual
           if (!empty($rowData['sede_id']) && !empty($rowData['vehicle_brand_id'])) {
             // Crear clave única para esta combinación de sede + marca
             $cacheKey = "{$rowData['sede_id']}_{$rowData['vehicle_brand_id']}";
@@ -481,24 +511,54 @@ class PotentialBuyersService extends BaseService
                   ->pluck('id')
                   ->toArray();
 
+                // Consultar cuántos leads tiene cada asesor HOY para esta combinación
+                // Usa created_at (fecha de creación en BD) no registration_date (fecha del Excel)
+                $leadCounts = PotentialBuyers::where('sede_id', $rowData['sede_id'])
+                  ->where('vehicle_brand_id', $rowData['vehicle_brand_id'])
+                  ->whereDate('created_at', today())
+                  ->whereIn('worker_id', $workers)
+                  ->groupBy('worker_id')
+                  ->selectRaw('worker_id, COUNT(*) as count')
+                  ->pluck('count', 'worker_id')
+                  ->toArray();
+
+                // Crear lista de asesores con su conteo actual
+                $workersWithCountsArray = [];
+                foreach ($workers as $workerId) {
+                  $workersWithCountsArray[] = [
+                    'id' => $workerId,
+                    'count' => $leadCounts[$workerId] ?? 0 // Si no tiene leads, es 0
+                  ];
+                }
+
+                // Ordenar por count ASC (el que tiene menos primero)
+                usort($workersWithCountsArray, function ($a, $b) {
+                  return $a['count'] <=> $b['count'];
+                });
+
                 $workersCache[$cacheKey] = $workers;
-                $distributionCounter[$cacheKey] = 0;
+                $workersWithCounts[$cacheKey] = $workersWithCountsArray;
               } else {
                 $workersCache[$cacheKey] = [];
+                $workersWithCounts[$cacheKey] = [];
               }
             }
 
-            // Si hay asesores disponibles para esta combinación, asignar con round-robin
+            // Si hay asesores disponibles para esta combinación, asignar al que tiene menos leads
             if (!empty($workersCache[$cacheKey])) {
-              $workers = $workersCache[$cacheKey];
-              $currentIndex = $distributionCounter[$cacheKey] % count($workers);
-              $assignedWorkerId = $workers[$currentIndex];
+              // Asignar siempre al primer asesor de la lista (que tiene menos leads)
+              $assignedWorkerId = $workersWithCounts[$cacheKey][0]['id'];
 
               // Asignar el worker_id al registro
               $rowData['worker_id'] = $assignedWorkerId;
 
-              // Incrementar el contador para el siguiente registro
-              $distributionCounter[$cacheKey]++;
+              // Incrementar el contador local para este asesor
+              $workersWithCounts[$cacheKey][0]['count']++;
+
+              // Re-ordenar la lista para mantener el balance
+              usort($workersWithCounts[$cacheKey], function ($a, $b) {
+                return $a['count'] <=> $b['count'];
+              });
             }
           }
 
@@ -560,12 +620,13 @@ class PotentialBuyersService extends BaseService
   {
     DB::beginTransaction();
     try {
-      // Obtener todos los registros del mes anterior y mes actual
-      $unassignedBuyers = PotentialBuyers::whereBetween('created_at', [
+      // Obtener todos los registros del mes anterior y mes actual sin asignar
+      $unassignedBuyers = PotentialBuyers::whereBetween('cr eated_at', [
         now()->subMonth()->startOfMonth(),
         now()->endOfMonth()
       ])
         ->where('use', 0)
+        ->where('type', PotentialBuyers::LEADS)
         ->get();
 
       if ($unassignedBuyers->isEmpty()) {
@@ -583,7 +644,7 @@ class PotentialBuyersService extends BaseService
       $currentYear = date('Y');
       $currentMonth = date('m');
       $workersCache = [];
-      $distributionCounter = [];
+      $workersWithCounts = []; // Array con [id, count] ordenado por count
       $assigned = 0;
       $unassigned = 0;
 
@@ -610,6 +671,7 @@ class PotentialBuyersService extends BaseService
 
             if (empty($workerIds)) {
               $workersCache[$cacheKey] = [];
+              $workersWithCounts[$cacheKey] = [];
               $unassigned++;
               continue;
             }
@@ -619,8 +681,33 @@ class PotentialBuyersService extends BaseService
               ->pluck('id')
               ->toArray();
 
+            // Consultar cuántos leads tiene cada asesor HOY para esta combinación
+            // Usa created_at (fecha de creación en BD) para balance inteligente
+            $leadCounts = PotentialBuyers::where('sede_id', $buyer->sede_id)
+              ->where('vehicle_brand_id', $buyer->vehicle_brand_id)
+              ->whereDate('created_at', today())
+              ->whereIn('worker_id', $workers)
+              ->groupBy('worker_id')
+              ->selectRaw('worker_id, COUNT(*) as count')
+              ->pluck('count', 'worker_id')
+              ->toArray();
+
+            // Crear lista de asesores con su conteo actual
+            $workersWithCountsArray = [];
+            foreach ($workers as $workerId) {
+              $workersWithCountsArray[] = [
+                'id' => $workerId,
+                'count' => $leadCounts[$workerId] ?? 0 // Si no tiene leads, es 0
+              ];
+            }
+
+            // Ordenar por count ASC (el que tiene menos primero)
+            usort($workersWithCountsArray, function ($a, $b) {
+              return $a['count'] <=> $b['count'];
+            });
+
             $workersCache[$cacheKey] = $workers;
-            $distributionCounter[$cacheKey] = 0;
+            $workersWithCounts[$cacheKey] = $workersWithCountsArray;
           }
 
           // Si no hay asesores disponibles para esta combinación
@@ -629,16 +716,20 @@ class PotentialBuyersService extends BaseService
             continue;
           }
 
-          // Obtener el asesor actual según round-robin
-          $workers = $workersCache[$cacheKey];
-          $currentIndex = $distributionCounter[$cacheKey] % count($workers);
-          $assignedWorkerId = $workers[$currentIndex];
+          // Asignar al asesor que tiene MENOS leads
+          $assignedWorkerId = $workersWithCounts[$cacheKey][0]['id'];
 
           // Actualizar el buyer con el worker_id
           $buyer->update(['worker_id' => $assignedWorkerId]);
 
-          // Incrementar el contador para el siguiente registro
-          $distributionCounter[$cacheKey]++;
+          // Incrementar el contador local para este asesor
+          $workersWithCounts[$cacheKey][0]['count']++;
+
+          // Re-ordenar la lista para mantener el balance
+          usort($workersWithCounts[$cacheKey], function ($a, $b) {
+            return $a['count'] <=> $b['count'];
+          });
+
           $assigned++;
 
         } catch (Exception $e) {
