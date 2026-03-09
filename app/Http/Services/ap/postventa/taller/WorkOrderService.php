@@ -739,26 +739,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
   public function generateDeliveryReport($id)
   {
-    // Obtenemos la orden de trabajo
-    //$workOrder = ApWorkOrder::findOrFail($id);
-
     // Obtener la inspección con todas las relaciones necesarias
     $inspection = ApVehicleInspection::with('damages', 'workOrder.vehicle.customer', 'workOrder.advisor')
       ->where('ap_work_order_id', $id)->where('is_cancelled', false)->first();
-
-//    // Obtener la inspección con todas las relaciones necesarias
-//    $inspection = ApVehicleInspection::with([
-//      'damages',
-//      'workOrder.vehicle.model.family.brand',
-//      'workOrder.vehicle.color',
-//      'workOrder.vehicle.customer',
-//      'workOrder.advisor', // Worker extiende de Person, no tiene relación person
-//      'workOrder.sede',
-//      'workOrder.status',
-//      'workOrder.items.typePlanning',
-//      'workOrder.appointmentPlanning',
-//      'inspectionBy.person' // User sí tiene relación person
-//    ])->findOrFail($id);
 
     $workOrder = $inspection->workOrder;
     $vehicle = $workOrder->vehicle;
