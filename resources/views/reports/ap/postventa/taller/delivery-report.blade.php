@@ -1101,7 +1101,7 @@
   <!-- Pie de tabla -->
   <tr>
     <td colspan="3" style="padding: 0;">
-      <table style="width: 100%; border-collapse: collapse;">
+      <table style="width: 100%; border-collapse: collapse; border-top: 1px solid #000;">
         <tr>
           <td
             style="padding: 8px; background-color: #f5f5f5; font-size: 9px; border-right: 1px solid #000000; width: 25%;">
