@@ -22,6 +22,7 @@ use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\ApMasters;
@@ -140,7 +141,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $logs = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $doc->id)->get();
         $reason = $this->buildDispatchAllReason($logs);
 
-        SyncSalesDocumentJob::dispatch($doc->id);
+        $this->dispatchMigration($doc->id);
 
         $dispatched[] = [
           'id' => $doc->id,
@@ -339,7 +340,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       /**
        * Obtener la tasa de cambio y datos del cliente
        */
-      $exchangeRate = (new ExchangeRateService())->getCurrentUSDRate();
+      $emissionDate = is_string($data['fecha_de_emision'])
+        ? $data['fecha_de_emision']
+        : \Carbon\Carbon::parse($data['fecha_de_emision'])->format('Y-m-d');
+
+      $exchangeRate = (new ExchangeRateService())->getExchangeRate(TypeCurrency::USD_ID, $emissionDate);
+      if (!$exchangeRate) {
+        throw new Exception("No se ha registrado la tasa de cambio para la fecha de emisión ({$emissionDate}).");
+      }
 
       $client = BusinessPartners::find($data['client_id']);
       $documentType = SunatConcepts::where('tribute_code', $client->document_type_id)
@@ -361,7 +369,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       $this->validateAndEnrichForQuotation($data);
       $this->validateAndEnrichForWorkOrder($data);
-      $this->validateAndEnrichForPurchaseRequest($data);
 
       // ================================================================
       // 3. VALIDACIONES COMUNES
@@ -395,11 +402,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       /**
        * Crear el documento principal
        */
-      $document = ElectronicDocument::create(array_merge($data, [
+
+      $data = array_merge($data, [
         'exchange_rate_id' => $exchangeRate->id,
         'created_by' => auth()->id(),
         'status' => ElectronicDocument::STATUS_DRAFT,
-      ]));
+      ]);
+
+//      throw new Exception(json_encode($data));
+      $document = ElectronicDocument::create($data);
 
       /**
        * Crear los items
@@ -455,7 +466,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       $this->afterCreateForQuotation($document, $data);
       $this->afterCreateForWorkOrder($document, $data);
-      $this->afterCreateForPurchaseRequest($document, $data);
 
       DB::commit();
       return new ElectronicDocumentResource($document->load(['items', 'guides', 'installments', 'vehicleMovement']));
@@ -2454,22 +2464,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $this->validateWorkOrderInvoice($data);
   }
 
-  /**
-   * Validar y enriquecer datos para Purchase Request Quote
-   *
-   * @param array $data
-   * @return void
-   * @throws Exception
-   */
-  private function validateAndEnrichForPurchaseRequest(array &$data): void
-  {
-    if (!isset($data['purchase_request_quote_id']) || !$data['purchase_request_quote_id']) {
-      return;
-    }
-
-    // Agregar validaciones específicas para purchase request si es necesario
-  }
-
   // ========================================================================
   // MÉTODOS DE LÓGICA DE DETRACCIONES POR TIPO DE ENTIDAD
   // ========================================================================
@@ -2535,24 +2529,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
-   * Aplicar lógica de detracción para Purchase Request Quote
-   *
-   * @param array $data
-   * @param Company $company
-   * @return float Entity total
-   */
-  private function applyDetractionForPurchaseRequest(array &$data, Company $company): float
-  {
-    $purchaseRequestQuote = PurchaseRequestQuote::find($data['purchase_request_quote_id']);
-
-    if (!$purchaseRequestQuote) {
-      return 0;
-    }
-
-    return (float)$purchaseRequestQuote->doc_sale_price;
-  }
-
-  /**
    * Aplicar lógica de detracciones (orquestador principal)
    *
    * @param array $data
@@ -2575,20 +2551,33 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     // Determinar el tipo de entidad y aplicar su lógica específica
     if (isset($data['work_order_id']) && $data['work_order_id']) {
       $entityTotal = $this->applyDetractionForWorkOrder($data, $company);
-    } elseif (isset($data['purchase_request_quote_id']) && $data['purchase_request_quote_id']) {
-      $entityTotal = $this->applyDetractionForPurchaseRequest($data, $company);
+    } else {
+      $data['sunat_concept_transaction_type_id'] = SunatConcepts::ID_SUJETA_DETRACCION;
     }
 
     // Si hay entidad relacionada, verificar su monto total
     // Si no hay entidad relacionada, verificar el monto del documento
     $amountToCheck = $entityTotal > 0 ? $entityTotal : (float)$data['total'];
 
-    if ($amountToCheck >= $detractionAmount && $detractionAmount > 0 && $data['area_id'] == ApMasters::AREA_TALLER) {
+    if ($amountToCheck >= $detractionAmount && $detractionAmount > 0 && $data['area_id'] != ApMasters::AREA_COMERCIAL) {
       $data['detraccion'] = true;
       $data['sunat_concept_detraction_type_id'] = match ((int)$data['area_id']) {
         ApMasters::AREA_TALLER => SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION,
         default => SunatConcepts::ID_DETRACTION_SERVICIOS
       };
+
+      // Obtener el porcentaje de detracción desde GeneralMaster
+      $detractionPercentage = GeneralMaster::find(GeneralMaster::SUNAT_DETRACTION_PERCENTAGE_ID);
+      if ($detractionPercentage) {
+        $porcentaje = (float)$detractionPercentage->value;
+        $data['detraccion_porcentaje'] = $porcentaje;
+        // La detracción se calcula sobre el total del documento actual
+        $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
+      }
+    } else if (isset($data['detraccion'])) {
+      // Para el área comercial, solo marcar como sujeta a detracción sin importar el monto
+      $data['detraccion'] = true;
+      $data['sunat_concept_detraction_type_id'] = SunatConcepts::ID_DETRACTION_SERVICIOS;
 
       // Obtener el porcentaje de detracción desde GeneralMaster
       $detractionPercentage = GeneralMaster::find(GeneralMaster::SUNAT_DETRACTION_PERCENTAGE_ID);
@@ -2639,22 +2628,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     // Si is_advance_payment = 0 (venta interna), cerrar la OT
     $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
     $this->updateWorkOrderInvoiceStatus($data['work_order_id'], $isAdvancePayment);
-  }
-
-  /**
-   * Post-procesamiento para Purchase Request Quote
-   *
-   * @param ElectronicDocument $document
-   * @param array $data
-   * @return void
-   */
-  private function afterCreateForPurchaseRequest(ElectronicDocument $document, array &$data): void
-  {
-    if (!isset($data['purchase_request_quote_id']) || !$data['purchase_request_quote_id']) {
-      return;
-    }
-
-    // Agregar post-procesamiento específico si es necesario
   }
 
   /*
