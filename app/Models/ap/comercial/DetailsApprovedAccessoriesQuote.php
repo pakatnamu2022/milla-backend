@@ -16,6 +16,7 @@ class DetailsApprovedAccessoriesQuote extends Model
     'type',
     'quantity',
     'price',
+    'additional_price',
     'total',
     'purchase_request_quote_id',
     'approved_accessory_id',

@@ -591,13 +591,15 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $type = $accessory['type'];
       $quantity = $accessory['quantity'];
       $price = $approvedAccessory->price;
-      $total = $quantity * $price;
+      $additionalPrice = max(0, $accessory['additional_price'] ?? 0);
+      $total = $quantity * ($price + $additionalPrice);
 
       DetailsApprovedAccessoriesQuote::create([
         'approved_accessory_id' => $accessory['accessory_id'],
         'type' => $type,
         'quantity' => $quantity,
         'price' => $price,
+        'additional_price' => $additionalPrice,
         'total' => $total,
         'purchase_request_quote_id' => $purchaseRequestQuoteId,
       ]);
