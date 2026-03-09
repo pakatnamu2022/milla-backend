@@ -931,9 +931,6 @@
 </div>
 
 <!-- Sección: Detalle de Trabajo, Requerimientos y Seguimiento -->
-<div class="section-title" style="margin-top: 10px;">DETALLE DE TRABAJO | REQUERIMIENTOS DE CLIENTE | SEGUIMIENTO POST
-  SERVICIO
-</div>
 <table class="data-table">
   <tr>
     <td colspan="3" style="padding: 0;">
@@ -943,7 +940,7 @@
           <!-- Columna 1: Detalle de Trabajo -->
           <td style="width: 40%; vertical-align: top; padding: 8px; border-right: 0.5px solid #ccc;">
             <div
-              style="font-weight: bold; margin-bottom: 8px; font-size: 9px; text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+              style="background-color: #172e66; color: white; font-weight: bold; text-align: center; padding: 5px 8px; font-size: 9px; margin-bottom: 8px;">
               DETALLE DE TRABAJO
             </div>
             <div style="margin-bottom: 5px;">
@@ -996,7 +993,7 @@
           <!-- Columna 2: Requerimientos de Cliente -->
           <td style="width: 30%; vertical-align: top; padding: 8px; border-right: 0.5px solid #ccc;">
             <div
-              style="font-weight: bold; margin-bottom: 8px; font-size: 9px; text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+              style="background-color: #172e66; color: white; font-weight: bold; text-align: center; padding: 5px 8px; font-size: 9px; margin-bottom: 8px;">
               REQUERIMIENTOS DE CLIENTE
             </div>
             <div style="font-size: 8px; line-height: 1.5; min-height: 120px;">
@@ -1007,7 +1004,7 @@
           <!-- Columna 3: Seguimiento Post Servicio -->
           <td style="width: 30%; vertical-align: top; padding: 8px;">
             <div
-              style="font-weight: bold; margin-bottom: 8px; font-size: 9px; text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+              style="background-color: #172e66; color: white; font-weight: bold; text-align: center; padding: 5px 8px; font-size: 9px; margin-bottom: 8px;">
               SEGUIMIENTO POST SERVICIO
             </div>
             <div style="font-size: 8px; margin-bottom: 15px;">
@@ -1047,6 +1044,30 @@
                 </span>
               </div>
             </div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <!-- Pie de tabla -->
+  <tr>
+    <td colspan="3" style="padding: 0;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td
+            style="padding: 8px; background-color: #f5f5f5; font-size: 9px; border-right: 1px solid #000000; width: 25%;">
+            <strong>Reajuste hora de entrega:</strong> 14:30
+          </td>
+          <td
+            style="padding: 8px; background-color: #f5f5f5; font-size: 9px; border-right: 1px solid #000000; width: 25%;">
+            <strong>Precio estimado:</strong> S/ 450.00
+          </td>
+          <td
+            style="padding: 8px; background-color: #f5f5f5; font-size: 9px; border-right: 1px solid #000000; width: 25%;">
+            <strong>Precio estimado final:</strong> S/ 480.00
+          </td>
+          <td style="padding: 8px; background-color: #f5f5f5; font-size: 9px; width: 25%;">
+            <strong>Asesor de servicio:</strong> Juan Pérez
           </td>
         </tr>
       </table>
