@@ -677,34 +677,34 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       DB::beginTransaction();
 
       $request = $this->find($id);
-//      $currentUserId = auth()->user()->person->id ?? null;
-//
-//      if ($request->settlement_status != PerDiemRequest::SETTLEMENT_SUBMITTED) {
-//        throw new Exception('Solo se pueden aprobar liquidaciones que han sido enviadas para revisión');
-//      }
-//
-//      if ($request->settlement_status === PerDiemRequest::SETTLEMENT_SUBMITTED) {
-//        $allowedApprovers = array_filter([$request->authorizer_id, $request->second_authorizer_id]);
-//        if (!in_array($currentUserId, $allowedApprovers)) {
-//          throw new Exception('La aprobación de la liquidación debe ser realizada por el jefe directo o el segundo jefe');
-//        }
-//
-//        $request->update([
-//          'settlement_status' => PerDiemRequest::SETTLEMENT_APPROVED,
-//        ]);
-//
-//        $approvalNote = "LIQUIDACIÓN APROBADA POR JEFE";
-//      }
-//
-//      // If there are comments, add them to notes
-//      $currentNotes = $request->notes ?? '';
-//      $newNotes = $currentNotes ? $currentNotes . "\n\n" . $approvalNote : $approvalNote;
-//
-//      if (!empty($data['comments'])) {
-//        $newNotes .= " - COMENTARIOS: " . strtoupper($data['comments']);
-//      }
-//
-//      $request->update(['notes' => $newNotes]);
+      $currentUserId = auth()->user()->person->id ?? null;
+
+      if ($request->settlement_status != PerDiemRequest::SETTLEMENT_SUBMITTED) {
+        throw new Exception('Solo se pueden aprobar liquidaciones que han sido enviadas para revisión');
+      }
+
+      if ($request->settlement_status === PerDiemRequest::SETTLEMENT_SUBMITTED) {
+        $allowedApprovers = array_filter([$request->authorizer_id, $request->second_authorizer_id]);
+        if (!in_array($currentUserId, $allowedApprovers)) {
+          throw new Exception('La aprobación de la liquidación debe ser realizada por el jefe directo o el segundo jefe');
+        }
+
+        $request->update([
+          'settlement_status' => PerDiemRequest::SETTLEMENT_APPROVED,
+        ]);
+
+        $approvalNote = "LIQUIDACIÓN APROBADA POR JEFE";
+      }
+
+      // If there are comments, add them to notes
+      $currentNotes = $request->notes ?? '';
+      $newNotes = $currentNotes ? $currentNotes . "\n\n" . $approvalNote : $approvalNote;
+
+      if (!empty($data['comments'])) {
+        $newNotes .= " - COMENTARIOS: " . strtoupper($data['comments']);
+      }
+
+      $request->update(['notes' => $newNotes]);
 
       // Enviar notificaciones en segundo plano a los 3 actores
       $this->sendSettlementNotifications($request->fresh(['employee', 'company', 'sedeService', 'district', 'authorizer']));

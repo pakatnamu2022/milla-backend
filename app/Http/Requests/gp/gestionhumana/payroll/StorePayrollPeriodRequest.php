@@ -12,7 +12,7 @@ class StorePayrollPeriodRequest extends StoreRequest
       'year' => ['required', 'integer', 'min:2020', 'max:2100'],
       'month' => ['required', 'integer', 'min:1', 'max:12'],
       'payment_date' => ['nullable', 'date'],
-      'company_id' => ['nullable', 'integer', 'exists:companies,id'],
+      'company_id' => ['required', 'integer', 'exists:companies,id'],
     ];
   }
 
