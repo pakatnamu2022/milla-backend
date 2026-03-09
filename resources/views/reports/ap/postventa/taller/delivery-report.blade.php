@@ -194,25 +194,6 @@
       margin-bottom: 5px;
     }
 
-    table.data-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 10px;
-      font-size: 8px;
-    }
-
-    table.data-table td {
-      padding: 4px;
-      border: 1px solid #000;
-      vertical-align: top;
-    }
-
-    .label-cell {
-      font-weight: bold;
-      width: 20%;
-      background-color: #f0f0f0;
-    }
-
     table.items-table {
       width: 100%;
       border-collapse: collapse;
@@ -371,7 +352,6 @@
       width: 100%;
       max-width: 180px;
       margin: 0 auto;
-      border: 1px solid #000;
       padding: 5px;
       background-color: #f9f9f9;
       page-break-inside: avoid;
@@ -380,7 +360,7 @@
     .vehicle-image-wrapper {
       position: relative;
       width: 100%;
-      height: 180px;
+      height: 240px;
       display: block;
     }
 
@@ -1145,42 +1125,6 @@
 </table>
 
 
-<!-- Sección: Información del Vehículo -->
-<div class="section-title">INFORMACIÓN DEL VEHÍCULO</div>
-<table class="data-table">
-  <tr>
-    <td class="label-cell">Marca:</td>
-    <td>{{ $vehicle->model->family->brand->name ?? 'N/A' }}</td>
-    <td class="label-cell">Modelo:</td>
-    <td>{{ $vehicle->model->family->description ?? 'N/A' }} {{ $vehicle->model->version ?? '' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Placa:</td>
-    <td>{{ $vehicle->plate ?? 'N/A' }}</td>
-    <td class="label-cell">Color:</td>
-    <td>{{ $vehicle->color->description ?? 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">VIN:</td>
-    <td>{{ $vehicle->vin ?? 'N/A' }}</td>
-    <td class="label-cell">N° Motor:</td>
-    <td>{{ $vehicle->engine_number ?? 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Año:</td>
-    <td>{{ $vehicle->year ?? 'N/A' }}</td>
-    <td class="label-cell">Km:</td>
-    <td>{{ $inspection->mileage ?? 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Nivel Combustible:</td>
-    <td>{{ $inspection->fuel_level ?? 'N/A' }}</td>
-    <td class="label-cell">Nivel de Aceite:</td>
-    <td>{{ $inspection->oil_level ?? 'N/A' }}</td>
-  </tr>
-</table>
-
-
 <!-- Sección: Items de Trabajo -->
 <div class="section-title">ITEMS DE TRABAJO</div>
 <table class="items-table">
@@ -1214,7 +1158,7 @@
     <td style="width: 33%; vertical-align: top; padding: 5px;">
       <div style="font-weight: bold; margin-bottom: 4px; font-size: 8px; text-align: center;">ESTADO DEL VEHÍCULO</div>
       <div class="vehicle-state-container" style="max-width: 100%; margin: 0;">
-        <div class="vehicle-image-wrapper" style="height: 180px;">
+        <div class="vehicle-image-wrapper" style="height: 240px;">
           <img src="{{ getBase64Image('images/ap/body_car.png') }}" alt="Estado del Vehículo">
           @if($damages->count() > 0)
             @foreach($damages as $index => $damage)
