@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ap\postventa\repuestos;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use Illuminate\Validation\Rule;
 
@@ -10,9 +11,13 @@ class StoreApprovedAccessoriesRequest extends StoreRequest
 {
   public function prepareForValidation(): void
   {
-    $this->merge([
-      'type_currency_id' => TypeCurrency::PEN_ID,
-    ]);
+    $typeOperationId = (int) $this->input('type_operation_id');
+    $currencyId = match ($typeOperationId) {
+      ApMasters::TIPO_OPERACION_COMERCIAL => TypeCurrency::USD_ID,
+      ApMasters::TIPO_OPERACION_POSTVENTA => TypeCurrency::PEN_ID,
+      default                             => TypeCurrency::PEN_ID,
+    };
+    $this->merge(['type_currency_id' => $currencyId]);
   }
 
   public function rules(): array
@@ -25,7 +30,11 @@ class StoreApprovedAccessoriesRequest extends StoreRequest
         Rule::unique('approved_accessories', 'code')
           ->whereNull('deleted_at'),
       ],
-      'type' => ['required', Rule::in(['SERVICIO', 'REPUESTO'])],
+      'type_operation_id' => [
+        'required', 'integer',
+        Rule::in([ApMasters::TIPO_OPERACION_COMERCIAL, ApMasters::TIPO_OPERACION_POSTVENTA]),
+        'exists:ap_masters,id',
+      ],
       'description' => ['required', 'string'],
       'price' => ['required', 'numeric'],
       'type_currency_id' => ['required', 'exists:type_currency,id'],
@@ -41,13 +50,13 @@ class StoreApprovedAccessoriesRequest extends StoreRequest
       'code.max' => 'El código no debe exceder los 20 caracteres.',
       'code.unique' => 'El código ya está en uso.',
 
-      'type.required' => 'El tipo es obligatorio.',
-      'type.in' => 'El tipo debe ser SERVICIO o REPUESTO.',
+      'type_operation_id.required' => 'El tipo de operación es obligatorio.',
+      'type_operation_id.integer' => 'El tipo de operación debe ser un número entero.',
+      'type_operation_id.in' => 'El tipo de operación debe ser Comercial o Posventa.',
+      'type_operation_id.exists' => 'El tipo de operación seleccionado no es válido.',
 
       'description.required' => 'La descripción es obligatoria.',
       'description.string' => 'La descripción debe ser una cadena de texto.',
-
-      'exchange_rate.numeric' => 'La tasa de cambio debe ser un número.',
 
       'price.required' => 'El precio es obligatorio.',
       'price.numeric' => 'El precio debe ser un número.',

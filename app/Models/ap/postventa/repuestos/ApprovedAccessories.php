@@ -17,7 +17,7 @@ class ApprovedAccessories extends Model
 
   protected $fillable = [
     'code',
-    'type',
+    'type_operation_id',
     'description',
     'price',
     'status',
@@ -26,15 +26,15 @@ class ApprovedAccessories extends Model
   ];
 
   const filters = [
-    'search' => ['code', 'description', 'type'],
+    'search' => ['code', 'description'],
     'status' => '=',
     'type_currency_id' => '=',
+    'type_operation_id' => '=',
     'body_type_id' => '=',
   ];
 
   const sorts = [
     'code',
-    'type',
     'description',
     'price',
   ];
@@ -43,13 +43,6 @@ class ApprovedAccessories extends Model
   {
     if ($value) {
       $this->attributes['code'] = Str::upper($value);
-    }
-  }
-
-  public function setTypeAttribute($value): void
-  {
-    if ($value) {
-      $this->attributes['type'] = Str::upper($value);
     }
   }
 
@@ -63,6 +56,11 @@ class ApprovedAccessories extends Model
   public function typeCurrency(): BelongsTo
   {
     return $this->belongsTo(TypeCurrency::class, 'type_currency_id');
+  }
+
+  public function typeOperation(): BelongsTo
+  {
+    return $this->belongsTo(ApMasters::class, 'type_operation_id');
   }
 
   public function bodyType(): BelongsTo

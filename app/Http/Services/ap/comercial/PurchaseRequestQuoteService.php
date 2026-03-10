@@ -601,6 +601,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'price' => $price,
         'additional_price' => $additionalPrice,
         'total' => $total,
+        'type_currency_id' => $approvedAccessory->type_currency_id,
         'purchase_request_quote_id' => $purchaseRequestQuoteId,
       ]);
     }
