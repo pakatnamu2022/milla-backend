@@ -504,7 +504,7 @@
               Total {{$currencySymbol}}
             </td>
             <td
-              style="border: 1px solid #000; padding: 3px 6px; text-align: right;">{{ formatNumber($totals['subtotal']) }}</td>
+              style="border: 1px solid #000; padding: 3px 6px; text-align: right;">{{ formatNumber($totals['total_cost']) }}</td>
           </tr>
           <tr>
             <td style="border: 1px solid #000; padding: 3px 6px; font-weight: bold; background-color: #f5f5f5;">
@@ -518,7 +518,7 @@
               Neto {{$currencySymbol}}
             </td>
             <td
-              style="border: 1px solid #000; padding: 3px 6px; text-align: right;">{{ formatNumber($totals['subtotal'] - $totals['discount_amount']) }}</td>
+              style="border: 1px solid #000; padding: 3px 6px; text-align: right;">{{ formatNumber($totals['total_cost'] - $totals['discount_amount']) }}</td>
           </tr>
           <tr>
             <td style="border: 1px solid #000; padding: 3px 6px; font-weight: bold; background-color: #f5f5f5;">Total
