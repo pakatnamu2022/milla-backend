@@ -872,37 +872,37 @@
         <td class="header-row-gray" colspan="2">SOLICITUD DE CLIENTE</td>
       </tr>
       <tr>
-        <td class="value-row" style="width: 50%; border-right: 1px solid #fff; border-bottom: 1px solid #fff;">
+        <td class="value-row" style="width: 50%; border-right: 0.5px solid #ddd; border-bottom: 0.5px solid #ddd;">
           <span style="display: inline-block; width: 110px;">Cliente con cita</span><span class="mini-checkbox"
                                                                                           style="float: none; margin-left: 5px;"></span>
         </td>
-        <td class="value-row" style="width: 50%; border-bottom: 1px solid #fff;">
+        <td class="value-row" style="width: 50%; border-bottom: 0.5px solid #ddd;">
           <span style="display: inline-block; width: 110px;">Cliente sin cita</span><span class="mini-checkbox"
                                                                                           style="float: none; margin-left: 5px;"></span>
         </td>
       </tr>
       <tr>
-        <td class="value-row" style="border-right: 1px solid #fff; border-bottom: 1px solid #fff;">
+        <td class="value-row" style="border-right: 0.5px solid #ddd; border-bottom: 0.5px solid #ddd;">
           <span style="display: inline-block;">Mtto Preventivo ( ) km</span>
           <span style="display: inline-block; width: 30px; border-bottom: 1px solid #000; margin: 0 5px;"></span>
         </td>
-        <td class="value-row" style="border-bottom: 1px solid #fff;">
+        <td class="value-row" style="border-bottom: 0.5px solid #ddd;">
           <span style="display: inline-block; width: 110px;">Mtto. correlativo</span><span class="mini-checkbox"
                                                                                            style="float: none; margin-left: 5px;"></span>
         </td>
       </tr>
       <tr>
-        <td class="value-row" style="border-right: 1px solid #fff; border-bottom: 1px solid #fff;">
+        <td class="value-row" style="border-right: 0.5px solid #ddd; border-bottom: 0.5px solid #ddd;">
           <span style="display: inline-block; width: 110px;">Servicio interno</span><span class="mini-checkbox"
                                                                                           style="float: none; margin-left: 5px;"></span>
         </td>
-        <td class="value-row" style="border-bottom: 1px solid #fff;">
+        <td class="value-row" style="border-bottom: 0.5px solid #ddd;">
           <span style="display: inline-block; width: 110px;">Garantía / Recall</span><span class="mini-checkbox"
                                                                                            style="float: none; margin-left: 5px;"></span>
         </td>
       </tr>
       <tr>
-        <td class="value-row" style="border-right: 1px solid #fff;">
+        <td class="value-row" style="border-right: 0.5px solid #ddd;">
           <span style="display: inline-block; width: 110px;">Cliente espera</span><span class="mini-checkbox"
                                                                                         style="float: none; margin-left: 5px;"></span>
         </td>
@@ -994,58 +994,66 @@
       <table style="width: 100%; border-collapse: collapse;">
         <tr>
           <!-- Columna 1: Detalle de Trabajo -->
-          <td style="width: 40%; vertical-align: top; border-right: 0.5px solid #000000;">
-            <div
-              style="background-color: #172e66; color: white; font-weight: bold; text-align: center; padding: 5px 8px; font-size: 9px; margin-bottom: 8px;">
-              DETALLE DE TRABAJO
-            </div>
-            <div style="padding: 8px;">
-              <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox"
-                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-                <span style="font-size: 8px;">Cambio de Aceite y Filtro</span>
-                <span style="display: inline-block; margin-left: 10px;">
-                <span class="mini-checkbox"
-                      style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-                <span style="font-size: 8px;">Alineamiento y balanceo</span>
-              </span>
-              </div>
-              <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox"
-                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-                <span style="font-size: 8px;">Revisión de niveles y luces</span>
-              </div>
-              <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox"
-                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-                <span style="font-size: 8px;">Cambio de pastillas de freno y rectificación de disco</span>
-              </div>
-              <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox"
-                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-                <span style="font-size: 8px;">Engrase general</span>
-                <span style="display: inline-block; margin-left: 10px;">
-                <span class="mini-checkbox"
-                      style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-                <span style="font-size: 8px;">Otros: __________</span>
-              </span>
-              </div>
-              <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox"
-                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-                <span style="font-size: 8px;">Rotación de llantas, revisión y limpieza de frenos</span>
-              </div>
-              <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox"
-                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-                <span style="font-size: 8px;">Inspección de filtro de aire, batería, neumáticos, suspensión y freno de mano</span>
-              </div>
-              <div>
-              <span class="mini-checkbox"
-                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-                <span style="font-size: 8px;">Revisión de presión e inflado de llantas</span>
-              </div>
-            </div>
+          <td style="width: 40%; vertical-align: top; border-right: 0.5px solid #000000; padding: 0;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td colspan="2"
+                    style="background-color: #172e66; color: white; font-weight: bold; text-align: center; padding: 5px 8px; font-size: 9px;">
+                  DETALLE DE TRABAJO
+                </td>
+              </tr>
+              <tr>
+                <td style="width: 50%; padding: 5px 8px; font-size: 8px; border-right: 0.5px solid #ddd;">
+                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
+                  <span style="display: inline-block; width: 140px;">Cambio de Aceite y Filtro</span>
+                </td>
+                <td style="width: 50%; padding: 5px 8px; font-size: 8px;">
+                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
+                  <span style="display: inline-block; width: 140px;">Alineamiento y balanceo</span>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
+                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
+                  <span>Revisión de niveles y luces</span>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
+                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
+                  <span>Cambio de pastillas de freno y rectificación de disco</span>
+                </td>
+              </tr>
+              <tr>
+                <td
+                  style="width: 50%; padding: 5px 8px; font-size: 8px; border-right: 0.5px solid #ddd; border-top: 0.5px solid #ddd;">
+                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
+                  <span style="display: inline-block; width: 90px;">Engrase general</span>
+                </td>
+                <td style="width: 50%; padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
+                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
+                  <span>Otros: __________</span>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
+                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
+                  <span>Rotación de llantas, revisión y limpieza de frenos</span>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
+                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
+                  <span>Inspección de filtro de aire, batería, neumáticos, suspensión y freno de mano</span>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
+                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
+                  <span>Revisión de presión e inflado de llantas</span>
+                </td>
+              </tr>
+            </table>
           </td>
 
           <!-- Columna 2: Requerimientos de Cliente -->
