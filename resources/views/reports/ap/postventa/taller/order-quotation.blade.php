@@ -413,7 +413,7 @@
   <tbody>
   @foreach($quotation['details'] as $detail)
     <tr>
-      <td class="text-center">{{ $detail['code'] }}</td>
+      <td class="text-center">{{ $quotation['show_codes'] ?? true ? $detail['code'] : '' }}</td>
       <td class="text-left">{{ $detail['description'] }}</td>
       <td class="text-left">{{ $detail['supply_type'] }}</td>
       <td class="text-center">{{ number_format($detail['quantity'], 2) }}</td>

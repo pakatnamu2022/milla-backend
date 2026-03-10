@@ -344,7 +344,7 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
 
       // Notificar al solicitante
       $this->emailService->queue([
-        'to' => 'wsuclupef2001@gmail.com', //$requester?->email,
+        'to' => $requester?->email2,
         'subject' => $subject,
         'template' => 'emails.discount-request-approved',
         'data' => array_merge($sharedData, ['recipient_name' => $requester?->name ?? 'Usuario']),
@@ -352,7 +352,7 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
 
       // Notificar al aprobador
       $this->emailService->queue([
-        'to' => 'wsuclupef2001@gmail.com', //$approver?->email,
+        'to' => $approver?->email2,
         'subject' => $subject,
         'template' => 'emails.discount-request-approved',
         'data' => array_merge($sharedData, ['recipient_name' => $approver?->name ?? 'Gerente']),
@@ -404,7 +404,7 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
 
       // Notificar al solicitante
       $this->emailService->queue([
-        'to' => 'wsuclupef2001@gmail.com', //$requester?->email,
+        'to' => $requester?->email2,
         'subject' => $subject,
         'template' => 'emails.discount-request-rejected',
         'data' => array_merge($sharedData, ['recipient_name' => $requester?->name ?? 'Usuario']),
@@ -412,7 +412,7 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
 
       // Notificar al que rechazó
       $this->emailService->queue([
-        'to' => 'wsuclupef2001@gmail.com', //$rejector?->email,
+        'to' => $rejector?->email2,
         'subject' => $subject,
         'template' => 'emails.discount-request-rejected',
         'data' => array_merge($sharedData, ['recipient_name' => $rejector?->name ?? 'Gerente']),
@@ -469,8 +469,7 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
       ];
 
       $this->emailService->queue([
-        //'to' => $manager?->email2,
-        'to' => 'wsuclupef2001@gmail.com',
+        'to' => $manager?->email2,
         'subject' => 'Nueva solicitud de descuento — Cotización #' . ($quotation->quotation_number ?? $record->ap_order_quotation_id),
         'template' => 'emails.discount-request-notification',
         'data' => $data,

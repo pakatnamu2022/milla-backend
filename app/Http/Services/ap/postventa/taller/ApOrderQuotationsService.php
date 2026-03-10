@@ -466,7 +466,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return "{$prefix}{$newNumber}";
   }
 
-  public function generateQuotationPDF($id)
+  public function generateQuotationPDF($id, $showCodes = true)
   {
     $quotation = ApOrderQuotations::with([
       'vehicle.model.family.brand',
@@ -487,6 +487,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'expiration_date' => $quotation->expiration_date,
       'observations' => $quotation->observations ?? '',
       'validity_days' => $quotation->validity_days,
+      'show_codes' => $showCodes,
     ];
 
     // Datos del cliente
@@ -544,9 +545,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $details = $quotation->details;
 
     // Detalles de la cotización
-    $data['details'] = $details->map(function ($detail) {
+    $data['details'] = $details->map(function ($detail) use ($showCodes) {
       return [
-        'code' => $detail->product ? $detail->product->code : '-',
+        'code' => $showCodes && $detail->product ? $detail->product->code : '',
         'description' => $detail->description,
         'observations' => $detail->observations ?? '',
         'quantity' => $detail->quantity,
