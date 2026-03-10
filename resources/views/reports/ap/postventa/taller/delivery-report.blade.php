@@ -299,22 +299,22 @@
 
     .mini-checkbox {
       display: inline-block;
-      width: 7px;
-      height: 7px;
-      border: 1px solid #000;
-      margin-right: 3px;
-      margin-top: 1px;
+      width: 10px;
+      height: 10px;
+      border: 1.5px solid #000;
+      margin-right: 5px;
       background-color: white;
       vertical-align: middle;
+      text-align: center;
+      line-height: 10px;
     }
 
     .mini-checkbox.checked::before {
-      content: "✓";
-      font-size: 6px;
-      line-height: 7px;
-      display: block;
-      text-align: center;
+      content: "X";
+      font-size: 8px;
       font-weight: bold;
+      color: #000;
+      display: block;
     }
 
     .odometer-value {
@@ -340,10 +340,13 @@
       vertical-align: middle;
       background-color: white;
     }
-
+    
     .checkbox.checked::before {
       content: "X";
+      font-size: 8px;
+      font-weight: bold;
       color: #000;
+      display: block;
     }
 
     .vehicle-state-container {
@@ -923,18 +926,18 @@
       <tr class="two-col-row">
         <td class="label-row">Placa: <span style="font-weight: normal;">{{ $vehicle->plate ?? 'ABC-123' }}</span></td>
         <td class="label-row">Marca: <span
-            style="font-weight: normal;">{{ $vehicle->model->family->brand->name ?? 'TOYOTA' }}</span></td>
+            style="font-weight: normal;">{{ $vehicle->model->family->brand->name ?? '-' }}</span></td>
       </tr>
       <tr class="two-col-row">
         <td class="label-row">Modelo: <span
-            style="font-weight: normal;">{{ $vehicle->model->family->description ?? 'HILUX' }}</span></td>
+            style="font-weight: normal;">{{ $vehicle->model->family->description ?? '-' }}</span></td>
         <td class="label-row">Año de fabricación: <span
             style="font-weight: normal;">{{ $vehicle->year ?? '2024' }}</span>
         </td>
       </tr>
       <tr>
         <td colspan="2" class="label-row">VIN / N° Chasis: <span
-            style="font-weight: normal;">{{ $vehicle->vin ?? 'MHFXXX7A9J1234567' }}</span></td>
+            style="font-weight: normal;">{{ $vehicle->vin ?? '-' }}</span></td>
       </tr>
       <tr class="two-col-row">
         <td class="label-row">Hora inicio trabajo: <span style="font-weight: normal;">09:15 AM</span></td>
@@ -1004,52 +1007,61 @@
               </tr>
               <tr>
                 <td style="width: 50%; padding: 5px 8px; font-size: 8px; border-right: 0.5px solid #ddd;">
-                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
+                  <span class="mini-checkbox {{ $inspection->oil_change ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
                   <span style="display: inline-block; width: 140px;">Cambio de Aceite y Filtro</span>
                 </td>
                 <td style="width: 50%; padding: 5px 8px; font-size: 8px;">
-                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
+                  <span class="mini-checkbox {{ $inspection->alignment_balancing ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
                   <span style="display: inline-block; width: 140px;">Alineamiento y balanceo</span>
                 </td>
               </tr>
               <tr>
                 <td colspan="2" style="padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
-                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
+                  <span class="mini-checkbox {{ $inspection->check_level_lights ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
                   <span>Revisión de niveles y luces</span>
                 </td>
               </tr>
               <tr>
                 <td colspan="2" style="padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
-                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
+                  <span class="mini-checkbox {{ $inspection->pad_replace_disc_resurface ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
                   <span>Cambio de pastillas de freno y rectificación de disco</span>
                 </td>
               </tr>
               <tr>
                 <td
                   style="width: 50%; padding: 5px 8px; font-size: 8px; border-right: 0.5px solid #ddd; border-top: 0.5px solid #ddd;">
-                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
+                  <span class="mini-checkbox {{ $inspection->general_lubrication ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
                   <span style="display: inline-block; width: 90px;">Engrase general</span>
                 </td>
                 <td style="width: 50%; padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
-                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
-                  <span>Otros: __________</span>
+                  <span class="mini-checkbox {{ $inspection->other_work_details ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
+                  <span>Otros: {{ $inspection->other_work_details ?? '__________' }}</span>
                 </td>
               </tr>
               <tr>
                 <td colspan="2" style="padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
-                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
+                  <span class="mini-checkbox {{ $inspection->rotation_inspection_cleaning ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
                   <span>Rotación de llantas, revisión y limpieza de frenos</span>
                 </td>
               </tr>
               <tr>
                 <td colspan="2" style="padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
-                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
+                  <span class="mini-checkbox {{ $inspection->insp_filter_basic_checks ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
                   <span>Inspección de filtro de aire, batería, neumáticos, suspensión y freno de mano</span>
                 </td>
               </tr>
               <tr>
                 <td colspan="2" style="padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
-                  <span class="mini-checkbox" style="float: none; margin-right: 5px;"></span>
+                  <span class="mini-checkbox {{ $inspection->tire_pressure_inflation_check ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
                   <span>Revisión de presión e inflado de llantas</span>
                 </td>
               </tr>
@@ -1063,7 +1075,7 @@
               REQUERIMIENTOS DE CLIENTE
             </div>
             <div style="font-size: 8px; line-height: 1.5; min-height: 120px; padding: 8px;">
-              <!-- Espacio para descripción de requerimientos del cliente -->
+              {{ $inspection->customer_requirement ?? '' }}
             </div>
           </td>
 
@@ -1272,19 +1284,19 @@
         <tr>
           <td class="inventory-box-content">
             <div class="inventory-box-item">
-              <span class="mini-checkbox checked"></span>
+              <span class="mini-checkbox {{ $inspection->explanation_work_performed ? 'checked' : '' }}"></span>
               <span>Explicación de trabajos realizados</span>
             </div>
             <div class="inventory-box-item">
-              <span class="mini-checkbox checked"></span>
+              <span class="mini-checkbox {{ $inspection->price_explanation ? 'checked' : '' }}"></span>
               <span>Explicación de precios</span>
             </div>
             <div class="inventory-box-item">
-              <span class="mini-checkbox checked"></span>
+              <span class="mini-checkbox {{ $inspection->confirm_additional_work ? 'checked' : '' }}"></span>
               <span>Confirmación de realización de trabajos adicionales</span>
             </div>
             <div class="inventory-box-item">
-              <span class="mini-checkbox checked"></span>
+              <span class="mini-checkbox {{ $inspection->clarification_customer_concerns ? 'checked' : '' }}"></span>
               <span>Aclaración de inquietudes del cliente</span>
             </div>
           </td>
@@ -1299,19 +1311,19 @@
         <tr>
           <td class="inventory-box-content">
             <div class="inventory-box-item">
-              <span class="mini-checkbox checked"></span>
+              <span class="mini-checkbox {{ $inspection->exterior_cleaning ? 'checked' : '' }}"></span>
               <span>Limpieza exterior</span>
             </div>
             <div class="inventory-box-item">
-              <span class="mini-checkbox checked"></span>
+              <span class="mini-checkbox {{ $inspection->interior_cleaning ? 'checked' : '' }}"></span>
               <span>Limpieza interior</span>
             </div>
             <div class="inventory-box-item">
-              <span class="mini-checkbox checked"></span>
+              <span class="mini-checkbox {{ $inspection->keeps_spare_parts ? 'checked' : '' }}"></span>
               <span>Se queda con repuestos</span>
             </div>
             <div class="inventory-box-item">
-              <span class="mini-checkbox checked"></span>
+              <span class="mini-checkbox {{ $inspection->valuable_objects ? 'checked' : '' }}"></span>
               <span>Objetos de valor</span>
             </div>
           </td>
@@ -1326,11 +1338,11 @@
         <tr>
           <td class="inventory-box-content">
             <div class="inventory-box-item">
-              <span class="mini-checkbox checked"></span>
+              <span class="mini-checkbox {{ $inspection->courtesy_seat_cover ? 'checked' : '' }}"></span>
               <span>Cobertor de asiento</span>
             </div>
             <div class="inventory-box-item">
-              <span class="mini-checkbox checked"></span>
+              <span class="mini-checkbox {{ $inspection->paper_floor ? 'checked' : '' }}"></span>
               <span>Piso de papel</span>
             </div>
           </td>
