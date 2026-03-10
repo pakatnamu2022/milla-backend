@@ -318,7 +318,9 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     // Verificar tanto la versión normal como la reversión
     $steps = [
       VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE,
-      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_REVERSAL
+      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_REVERSAL,
+      VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_HEADER,
+      VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_DETAIL,
     ];
 
     foreach ($steps as $step) {

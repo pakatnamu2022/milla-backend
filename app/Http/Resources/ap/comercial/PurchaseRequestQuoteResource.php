@@ -83,7 +83,11 @@ class PurchaseRequestQuoteResource extends JsonResource
           'type' => $accessory->type,
           'quantity' => $accessory->quantity,
           'price' => $accessory->price,
+          'additional_price' => $accessory->additional_price,
           'total' => $accessory->total,
+          'type_currency_id' => $accessory->type_currency_id,
+          'type_currency_code' => $accessory->typeCurrency->code ?? null,
+          'type_currency_symbol' => $accessory->typeCurrency->symbol ?? null,
         ];
       }),
       'sede_id' => $this->sede_id ?? null,
