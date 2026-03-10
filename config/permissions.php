@@ -170,6 +170,18 @@ return [
       'icon' => 'Edit3',
       'policy_method' => 'editDiscount',
     ],
+    'seeReception' => [
+      'label' => 'Ver Recepción',
+      'description' => 'Permite visualizar la información de recepción comercial del vehículo',
+      'icon' => 'Eye',
+      'policy_method' => 'seeReception',
+    ],
+    'requestCancellation' => [
+      'label' => 'Solicitar Anulación',
+      'description' => 'Permite solicitar la anulación de un registro o documento',
+      'icon' => 'XCircle',
+      'policy_method' => 'requestCancellation',
+    ],
   ],
 
   /*
