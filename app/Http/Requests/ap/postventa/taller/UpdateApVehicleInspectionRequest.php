@@ -38,6 +38,30 @@ class UpdateApVehicleInspectionRequest extends StoreRequest
       'jack_and_lever' => 'nullable|boolean',
       'general_observations' => 'nullable|string',
       'washed' => 'nullable|boolean',
+      // Detalles de trabajo
+      'oil_change' => 'nullable|boolean',
+      'check_level_lights' => 'nullable|boolean',
+      'general_lubrication' => 'nullable|boolean',
+      'rotation_inspection_cleaning' => 'nullable|boolean',
+      'insp_filter_basic_checks' => 'nullable|boolean',
+      'tire_pressure_inflation_check' => 'nullable|boolean',
+      'alignment_balancing' => 'nullable|boolean',
+      'pad_replace_disc_resurface' => 'nullable|boolean',
+      'other_work_details' => 'nullable|string',
+      // Requerimiento del cliente
+      'customer_requirement' => 'nullable|string',
+      // Explicación de resultados
+      'explanation_work_performed' => 'nullable|boolean',
+      'price_explanation' => 'nullable|boolean',
+      'confirm_additional_work' => 'nullable|boolean',
+      'clarification_customer_concerns' => 'nullable|boolean',
+      'exterior_cleaning' => 'nullable|boolean',
+      'interior_cleaning' => 'nullable|boolean',
+      'keeps_spare_parts' => 'nullable|boolean',
+      'valuable_objects' => 'nullable|boolean',
+      // Items de cortesía
+      'courtesy_seat_cover' => 'nullable|boolean',
+      'paper_floor' => 'nullable|boolean',
     ];
   }
 

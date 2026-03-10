@@ -17,6 +17,7 @@ class ApVehicleInspection extends Model
   protected $fillable = [
     'ap_work_order_id',
     'inspection_date',
+    'inspection_date',
     'mileage',
     'fuel_level',
     'oil_level',
@@ -50,6 +51,30 @@ class ApVehicleInspection extends Model
     'photo_left_url',
     'photo_right_url',
     'inspected_by',
+    // Detalles de trabajo
+    'oil_change',
+    'check_level_lights',
+    'general_lubrication',
+    'rotation_inspection_cleaning',
+    'insp_filter_basic_checks',
+    'tire_pressure_inflation_check',
+    'alignment_balancing',
+    'pad_replace_disc_resurface',
+    'other_work_details',
+    // Requerimiento del cliente
+    'customer_requirement',
+    // Explicación de resultados
+    'explanation_work_performed',
+    'price_explanation',
+    'confirm_additional_work',
+    'clarification_customer_concerns',
+    'exterior_cleaning',
+    'interior_cleaning',
+    'keeps_spare_parts',
+    'valuable_objects',
+    // Items de cortesía
+    'courtesy_seat_cover',
+    'paper_floor',
     //campos de cancelar
     'is_cancelled',
     'cancellation_requested_by',

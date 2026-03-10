@@ -125,17 +125,19 @@
 
     .logos-guarantee-container {
       margin-top: 20px;
-      display: table;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
       width: 100%;
-      border-collapse: collapse;
+      gap: 5px;
     }
 
     .logo-section {
-      display: table-cell;
+      display: inline-block;
       vertical-align: middle;
-      padding-right: 10px;
       text-align: right;
       height: 60px;
+      line-height: 60px;
     }
 
     .logo-section img {
@@ -146,11 +148,11 @@
     }
 
     .guarantee-check-box {
-      display: table-cell;
+      display: inline-block;
       border: 1px solid #000;
       vertical-align: middle;
       width: 120px;
-      height: 60px;
+      height: 42px;
     }
 
     .guarantee-check-title {
@@ -158,7 +160,6 @@
       font-weight: bold;
       padding: 5px;
       text-align: center;
-      background-color: #f0f0f0;
       border-bottom: 1px solid #000;
     }
 
@@ -961,18 +962,16 @@
             style="font-weight: normal;">{{ $descriptionRecall ?? 'Sistema de Airbag' }}</span></td>
       </tr>
       <tr>
-        <td colspan="2" class="header-row">ACTIVIDADES REALIZADAS</td>
+        <td colspan="2" class="header-row">TRABAJOS REALIZADOS</td>
       </tr>
       <tr>
         <td colspan="2" class="value-row activities-content">
-          • Cambio de aceite de motor sintético 5W-30<br>
-          • Reemplazo de filtro de aceite original<br>
-          • Reemplazo de filtro de aire del motor<br>
-          • Inspección y limpieza de frenos delanteros y traseros<br>
-          • Revisión de niveles de líquidos (refrigerante, frenos, dirección)<br>
-          • Inspección visual de suspensión y dirección<br>
-          • Rotación de neumáticos y verificación de presión<br>
-          • Escaneo computarizado del sistema electrónico
+          @forelse($items as $index => $item)
+            {{ $index + 1 }}. {{ $item->description }}. TIPO: {{$item->typePlanning->description}}.
+            OPERACIÓN: {{$item->typeOperation->description}}<br>
+          @empty
+            No hay actividades registradas
+          @endforelse
         </td>
       </tr>
     </table>
@@ -1124,31 +1123,6 @@
   </tr>
 </table>
 
-
-<!-- Sección: Items de Trabajo -->
-<div class="section-title">ITEMS DE TRABAJO</div>
-<table class="items-table">
-  <thead>
-  <tr>
-    <th style="width: 10%;">N°</th>
-    <th style="width: 20%;">Tipo</th>
-    <th style="width: 70%;">Descripción</th>
-  </tr>
-  </thead>
-  <tbody>
-  @forelse($items as $index => $item)
-    <tr>
-      <td class="text-center">{{ $index + 1 }}</td>
-      <td>{{ $item->typePlanning ? $item->typePlanning->description : 'N/A' }}</td>
-      <td>{{ $item->description }}</td>
-    </tr>
-  @empty
-    <tr>
-      <td colspan="3" class="text-center">No hay items de trabajo registrados</td>
-    </tr>
-  @endforelse
-  </tbody>
-</table>
 
 <!-- Sección: Inspección del Vehículo (Inventario + Estado) -->
 <div class="section-title" style="page-break-before: avoid;">INSPECCIÓN DEL VEHÍCULO</div>

@@ -46,7 +46,30 @@ class StoreApVehicleInspectionRequest extends StoreRequest
       'photo_back' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
       'photo_left' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
       'photo_right' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
-
+      // Detalles de trabajo
+      'oil_change' => 'nullable|boolean',
+      'check_level_lights' => 'nullable|boolean',
+      'general_lubrication' => 'nullable|boolean',
+      'rotation_inspection_cleaning' => 'nullable|boolean',
+      'insp_filter_basic_checks' => 'nullable|boolean',
+      'tire_pressure_inflation_check' => 'nullable|boolean',
+      'alignment_balancing' => 'nullable|boolean',
+      'pad_replace_disc_resurface' => 'nullable|boolean',
+      'other_work_details' => 'nullable|string',
+      // Requerimiento del cliente
+      'customer_requirement' => 'nullable|string',
+      // Explicaciones de resultados
+      'explanation_work_performed' => 'nullable|boolean',
+      'price_explanation' => 'nullable|boolean',
+      'confirm_additional_work' => 'nullable|boolean',
+      'clarification_customer_concerns' => 'nullable|boolean',
+      'exterior_cleaning' => 'nullable|boolean',
+      'interior_cleaning' => 'nullable|boolean',
+      'keeps_spare_parts' => 'nullable|boolean',
+      'valuable_objects' => 'nullable|boolean',
+      //Items de cortesía
+      'courtesy_seat_cover' => 'nullable|boolean',
+      'paper_floor' => 'nullable|boolean',
       // Damages array
       'damages' => 'nullable|array',
       'damages.*.damage_type' => 'required_with:damages|string|max:100',
