@@ -273,7 +273,6 @@
     }
 
     .inventory-box {
-      border: 1px solid #172e66;
       margin-bottom: 3px;
       background-color: #f8f9fc;
       page-break-inside: avoid;
@@ -283,10 +282,9 @@
       font-weight: bold;
       font-size: 7px;
       text-align: center;
-      color: white;
-      background-color: #172e66;
+      background-color: #d0d0d0;
+      color: #0a0a0a;
       padding: 2px;
-      border-bottom: 1px solid #172e66;
     }
 
     .inventory-box-content {
@@ -325,9 +323,8 @@
       text-align: center;
       padding: 4px;
       background-color: white;
-      border: 1px solid #172e66;
+      border: 1px solid #0a0a0a;
       margin-top: 2px;
-      color: #172e66;
     }
 
     .checkbox {
@@ -646,6 +643,15 @@
       font-size: 9px;
     }
 
+    .info-detail-table .header-row-gray {
+      background-color: #d0d0d0;
+      color: #0a0a0a;
+      font-weight: bold;
+      text-align: left;
+      padding: 5px 8px;
+      font-size: 9px;
+    }
+
     .info-detail-table .label-row {
       background-color: #f0f0f0;
       font-weight: bold;
@@ -863,7 +869,7 @@
     <!-- Tabla: Solicitud de Cliente -->
     <table class="info-detail-table" style="margin-top: 10px;">
       <tr>
-        <td class="header-row" colspan="2">SOLICITUD DE CLIENTE</td>
+        <td class="header-row-gray" colspan="2">SOLICITUD DE CLIENTE</td>
       </tr>
       <tr>
         <td class="value-row" style="width: 50%; border-right: 1px solid #fff; border-bottom: 1px solid #fff;">
@@ -939,7 +945,9 @@
             style="font-weight: normal;">Carlos Alberto Sánchez Torres</span></td>
       </tr>
       <tr>
-        <td colspan="2" class="header-row">RESULTADOS DE TRABAJO / OBSERVACIONES</td>
+        <td colspan="2" class="header-row-gray">RESULTADOS DE TRABAJO /
+          OBSERVACIONES
+        </td>
       </tr>
       <tr>
         <td colspan="2" class="value-row activities-content">
@@ -962,7 +970,7 @@
             style="font-weight: normal;">{{ $descriptionRecall ?? 'Sistema de Airbag' }}</span></td>
       </tr>
       <tr>
-        <td colspan="2" class="header-row">TRABAJOS REALIZADOS</td>
+        <td colspan="2" class="header-row-gray">TRABAJOS REALIZADOS</td>
       </tr>
       <tr>
         <td colspan="2" class="value-row activities-content">
@@ -986,79 +994,82 @@
       <table style="width: 100%; border-collapse: collapse;">
         <tr>
           <!-- Columna 1: Detalle de Trabajo -->
-          <td style="width: 40%; vertical-align: top; padding: 8px; border-right: 0.5px solid #000000;">
+          <td style="width: 40%; vertical-align: top; border-right: 0.5px solid #000000;">
             <div
               style="background-color: #172e66; color: white; font-weight: bold; text-align: center; padding: 5px 8px; font-size: 9px; margin-bottom: 8px;">
               DETALLE DE TRABAJO
             </div>
-            <div style="margin-bottom: 5px;">
+            <div style="padding: 8px;">
+              <div style="margin-bottom: 5px;">
               <span class="mini-checkbox"
                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-              <span style="font-size: 8px;">Cambio de Aceite y Filtro</span>
-              <span style="display: inline-block; margin-left: 10px;">
+                <span style="font-size: 8px;">Cambio de Aceite y Filtro</span>
+                <span style="display: inline-block; margin-left: 10px;">
                 <span class="mini-checkbox"
                       style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
                 <span style="font-size: 8px;">Alineamiento y balanceo</span>
               </span>
-            </div>
-            <div style="margin-bottom: 5px;">
+              </div>
+              <div style="margin-bottom: 5px;">
               <span class="mini-checkbox"
                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-              <span style="font-size: 8px;">Revisión de niveles y luces</span>
-            </div>
-            <div style="margin-bottom: 5px;">
+                <span style="font-size: 8px;">Revisión de niveles y luces</span>
+              </div>
+              <div style="margin-bottom: 5px;">
               <span class="mini-checkbox"
                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-              <span style="font-size: 8px;">Cambio de pastillas de freno y rectificación de disco</span>
-            </div>
-            <div style="margin-bottom: 5px;">
+                <span style="font-size: 8px;">Cambio de pastillas de freno y rectificación de disco</span>
+              </div>
+              <div style="margin-bottom: 5px;">
               <span class="mini-checkbox"
                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-              <span style="font-size: 8px;">Engrase general</span>
-              <span style="display: inline-block; margin-left: 10px;">
+                <span style="font-size: 8px;">Engrase general</span>
+                <span style="display: inline-block; margin-left: 10px;">
                 <span class="mini-checkbox"
                       style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
                 <span style="font-size: 8px;">Otros: __________</span>
               </span>
-            </div>
-            <div style="margin-bottom: 5px;">
+              </div>
+              <div style="margin-bottom: 5px;">
               <span class="mini-checkbox"
                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-              <span style="font-size: 8px;">Rotación de llantas, revisión y limpieza de frenos</span>
-            </div>
-            <div style="margin-bottom: 5px;">
+                <span style="font-size: 8px;">Rotación de llantas, revisión y limpieza de frenos</span>
+              </div>
+              <div style="margin-bottom: 5px;">
               <span class="mini-checkbox"
                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-              <span style="font-size: 8px;">Inspección de filtro de aire, batería, neumáticos, suspensión y freno de mano</span>
-            </div>
-            <div>
+                <span style="font-size: 8px;">Inspección de filtro de aire, batería, neumáticos, suspensión y freno de mano</span>
+              </div>
+              <div>
               <span class="mini-checkbox"
                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-              <span style="font-size: 8px;">Revisión de presión e inflado de llantas</span>
+                <span style="font-size: 8px;">Revisión de presión e inflado de llantas</span>
+              </div>
             </div>
           </td>
 
           <!-- Columna 2: Requerimientos de Cliente -->
-          <td style="width: 30%; vertical-align: top; padding: 8px; border-right: 0.5px solid #000000;">
+          <td style="width: 30%; vertical-align: top; border-right: 0.5px solid #000000;">
             <div
               style="background-color: #172e66; color: white; font-weight: bold; text-align: center; padding: 5px 8px; font-size: 9px; margin-bottom: 8px;">
               REQUERIMIENTOS DE CLIENTE
             </div>
-            <div style="font-size: 8px; line-height: 1.5; min-height: 120px;">
+            <div style="font-size: 8px; line-height: 1.5; min-height: 120px; padding: 8px;">
               <!-- Espacio para descripción de requerimientos del cliente -->
             </div>
           </td>
 
           <!-- Columna 3: Seguimiento Post Servicio -->
-          <td style="width: 30%; vertical-align: top; padding: 8px;">
+          <td style="width: 30%; vertical-align: top;">
             <div
               style="background-color: #172e66; color: white; font-weight: bold; text-align: center; padding: 5px 8px; font-size: 9px; margin-bottom: 8px;">
               SEGUIMIENTO POST SERVICIO
             </div>
-            <div style="font-size: 8px; margin-bottom: 15px;">
-              <div style="margin-bottom: 10px;">
-                <strong>Día:</strong> <span style="margin-left: 3px;">L</span> <span class="mini-checkbox"
-                                                                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
+            <div style="font-size: 8px; margin-bottom: 15px; padding: 8px;">
+              <strong>Día:</strong>
+              <div style="margin-top: 10px; margin-bottom: 10px;">
+                <span style="margin-left: 3px;">L</span> <span class="mini-checkbox"
+                                                               style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
                 <span>M</span> <span class="mini-checkbox"
                                      style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
                 <span>M</span> <span class="mini-checkbox"
@@ -1123,6 +1134,44 @@
   </tr>
 </table>
 
+<!-- Sección: Evidencias de Daños -->
+@if($damages->count() > 0)
+  @php
+    $damagesWithPhotos = $damages->filter(function($damage) {
+      return !empty($damage->photo_url);
+    });
+  @endphp
+
+  @if($damagesWithPhotos->count() > 0)
+    <div class="section-title">EVIDENCIAS DE DAÑOS</div>
+    <table class="damage-evidence-table">
+      @foreach($damagesWithPhotos->chunk(3) as $damageRow)
+        <tr>
+          @foreach($damageRow as $index => $damage)
+            <td>
+              <div class="damage-evidence-label">
+                DAÑO N° {{ $damages->search($damage) + 1 }} - {{ $damage->damage_type }}
+              </div>
+              @if(isset($damage->photo_base64) && $damage->photo_base64)
+                <img src="{{ $damage->photo_base64 }}" alt="Evidencia Daño" class="damage-evidence-img">
+              @endif
+              @if($damage->description)
+                <div class="damage-evidence-description">
+                  {{ $damage->description }}
+                </div>
+              @endif
+            </td>
+          @endforeach
+          @if($damageRow->count() < 3)
+            @for($i = 0; $i < (3 - $damageRow->count()); $i++)
+              <td></td>
+            @endfor
+          @endif
+        </tr>
+      @endforeach
+    </table>
+  @endif
+@endif
 
 <!-- Sección: Inspección del Vehículo (Inventario + Estado) -->
 <div class="section-title" style="page-break-before: avoid;">INSPECCIÓN DEL VEHÍCULO</div>
@@ -1130,7 +1179,7 @@
   <tr>
     <!-- Columna 1: Estado del Vehículo -->
     <td style="width: 33%; vertical-align: top; padding: 5px;">
-      <div style="font-weight: bold; margin-bottom: 4px; font-size: 8px; text-align: center;">ESTADO DEL VEHÍCULO</div>
+      <div class="inventory-box-title">ESTADO DEL VEHÍCULO</div>
       <div class="vehicle-state-container" style="max-width: 100%; margin: 0;">
         <div class="vehicle-image-wrapper" style="height: 240px;">
           <img src="{{ getBase64Image('images/ap/body_car.png') }}" alt="Estado del Vehículo">
@@ -1152,7 +1201,7 @@
 
     <!-- Columna 2: Lista de Inventario -->
     <td style="width: 33%; vertical-align: top; padding: 5px;">
-      <div style="font-weight: bold; margin-bottom: 4px; font-size: 8px;">INVENTARIO</div>
+      <div class="inventory-box-title" style="margin-bottom: 5px">INVENTARIO</div>
       <div style="font-size: 7.5px;">
         <table style="width: 100%; border-collapse: collapse;">
           @php
@@ -1326,45 +1375,6 @@
     <strong>Observaciones Generales:</strong><br>
     {{ $inspection->general_observations }}
   </div>
-@endif
-
-@if($damages->count() > 0)
-  @php
-    $damagesWithPhotos = $damages->filter(function($damage) {
-      return !empty($damage->photo_url);
-    });
-  @endphp
-
-  @if($damagesWithPhotos->count() > 0)
-    <!-- Sección: Evidencias de Daños -->
-    <div class="section-title">EVIDENCIAS DE DAÑOS</div>
-    <table class="damage-evidence-table">
-      @foreach($damagesWithPhotos->chunk(3) as $damageRow)
-        <tr>
-          @foreach($damageRow as $index => $damage)
-            <td>
-              <div class="damage-evidence-label">
-                DAÑO N° {{ $damages->search($damage) + 1 }} - {{ $damage->damage_type }}
-              </div>
-              @if(isset($damage->photo_base64) && $damage->photo_base64)
-                <img src="{{ $damage->photo_base64 }}" alt="Evidencia Daño" class="damage-evidence-img">
-              @endif
-              @if($damage->description)
-                <div class="damage-evidence-description">
-                  {{ $damage->description }}
-                </div>
-              @endif
-            </td>
-          @endforeach
-          @if($damageRow->count() < 3)
-            @for($i = 0; $i < (3 - $damageRow->count()); $i++)
-              <td></td>
-            @endfor
-          @endif
-        </tr>
-      @endforeach
-    </table>
-  @endif
 @endif
 
 <!-- Sección: Información Importante -->

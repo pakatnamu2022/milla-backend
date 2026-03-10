@@ -109,6 +109,29 @@ class ApVehicleInspection extends Model
     'tool_kit' => 'boolean',
     'jack_and_lever' => 'boolean',
     'inspection_date' => 'datetime',
+    // Detalles de trabajo
+    'oil_change' => 'boolean',
+    'check_level_lights' => 'boolean',
+    'general_lubrication' => 'boolean',
+    'rotation_inspection_cleaning' => 'boolean',
+    'insp_filter_basic_checks' => 'boolean',
+    'tire_pressure_inflation_check' => 'boolean',
+    'alignment_balancing' => 'boolean',
+    'pad_replace_disc_resurface' => 'boolean',
+    // Explicación de resultados
+    'confirm_additional_work' => 'boolean',
+    'clarification_customer_concerns' => 'boolean',
+    'exterior_cleaning' => 'boolean',
+    'interior_cleaning' => 'boolean',
+    'keeps_spare_parts' => 'boolean',
+    'valuable_objects' => 'boolean',
+    // Items de cortesía
+    'courtesy_seat_cover' => 'boolean',
+    'paper_floor' => 'boolean',
+    // Campos de cancelación
+    'is_cancelled' => 'boolean',
+    'cancellation_requested_at' => 'datetime',
+    'cancellation_confirmed_at' => 'datetime',
   ];
 
   const filters = [
@@ -145,6 +168,16 @@ class ApVehicleInspection extends Model
   public function setCancellationReasonAttribute($value)
   {
     $this->attributes['cancellation_reason'] = strtoupper($value);
+  }
+
+  public function setOtherWorkDetailsAttribute($value)
+  {
+    $this->attributes['other_work_details'] = strtoupper($value);
+  }
+
+  public function setCustomerRequirementAttribute($value)
+  {
+    $this->attributes['customer_requirement'] = strtoupper($value);
   }
 
   public function damages()
