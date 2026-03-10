@@ -12,7 +12,8 @@ class ApprovedAccessoriesResource extends JsonResource
     return [
       'id' => $this->id,
       'code' => $this->code,
-      'type' => $this->type,
+      'type_operation_id' => $this->type_operation_id,
+      'type_operation' => $this->typeOperation->description ?? null,
       'description' => $this->description,
       'price' => $this->price,
       'status' => $this->status,

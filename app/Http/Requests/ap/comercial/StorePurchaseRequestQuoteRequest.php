@@ -41,6 +41,7 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'accessories' => ['nullable', 'array'],
       'accessories.*.accessory_id' => ['required', 'exists:approved_accessories,id'],
       'accessories.*.quantity' => ['required', 'integer', 'min:1'],
+      'accessories.*.additional_price' => ['nullable', 'numeric', 'min:0'],
 
       'type_currency_id' => ['required', 'exists:ap_masters,id'],
 
@@ -113,6 +114,8 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'accessories.*.quantity.required' => 'La cantidad es obligatoria para cada accesorio.',
       'accessories.*.quantity.integer' => 'La cantidad debe ser un número entero.',
       'accessories.*.quantity.min' => 'La cantidad debe ser al menos 1.',
+      'accessories.*.additional_price.numeric' => 'El precio adicional debe ser un número.',
+      'accessories.*.additional_price.min' => 'El precio adicional debe ser mayor o igual a 0.',
 
       'type_currency_id.required' => 'El campo tipo de moneda es obligatorio.',
       'type_currency_id.exists' => 'El tipo de moneda seleccionado no es válido.',

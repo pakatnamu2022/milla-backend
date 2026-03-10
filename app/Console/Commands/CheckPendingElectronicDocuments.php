@@ -51,6 +51,7 @@ class CheckPendingElectronicDocuments extends Command
       // Dispatch un job por cada documento pendiente
       foreach ($pendingDocuments as $document) {
         CheckElectronicDocumentStatusJob::dispatch($document->id);
+        $this->info("Documento {$document->full_number} en estado '{$document->status}' - Job de verificación despachado");
       }
 
       return Command::SUCCESS;

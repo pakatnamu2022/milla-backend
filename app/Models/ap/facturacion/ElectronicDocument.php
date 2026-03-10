@@ -218,7 +218,9 @@ class ElectronicDocument extends BaseModel
     });
 
     static::saved(function ($model) {
-      if ($model->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED && $model->area_id === ApMasters::AREA_COMERCIAL) {
+      if ($model->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED
+        && $model->area_id === ApMasters::AREA_COMERCIAL
+        && $model->purchaseRequestQuote) {
         $quote = $model->purchaseRequestQuote;
         $opportunity = Opportunity::find($quote->opportunity_id);
         $opportunity->update([
