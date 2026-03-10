@@ -125,17 +125,19 @@
 
     .logos-guarantee-container {
       margin-top: 20px;
-      display: table;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
       width: 100%;
-      border-collapse: collapse;
+      gap: 5px;
     }
 
     .logo-section {
-      display: table-cell;
+      display: inline-block;
       vertical-align: middle;
-      padding-right: 10px;
       text-align: right;
       height: 60px;
+      line-height: 60px;
     }
 
     .logo-section img {
@@ -146,11 +148,11 @@
     }
 
     .guarantee-check-box {
-      display: table-cell;
+      display: inline-block;
       border: 1px solid #000;
       vertical-align: middle;
       width: 120px;
-      height: 60px;
+      height: 42px;
     }
 
     .guarantee-check-title {
@@ -158,7 +160,6 @@
       font-weight: bold;
       padding: 5px;
       text-align: center;
-      background-color: #f0f0f0;
       border-bottom: 1px solid #000;
     }
 
@@ -194,25 +195,6 @@
       margin-bottom: 5px;
     }
 
-    table.data-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 10px;
-      font-size: 8px;
-    }
-
-    table.data-table td {
-      padding: 4px;
-      border: 1px solid #000;
-      vertical-align: top;
-    }
-
-    .label-cell {
-      font-weight: bold;
-      width: 20%;
-      background-color: #f0f0f0;
-    }
-
     table.items-table {
       width: 100%;
       border-collapse: collapse;
@@ -235,48 +217,114 @@
       vertical-align: middle;
     }
 
-    .vehicle-inspection-container {
-      width: 100%;
-      margin-bottom: 10px;
-      display: table;
-    }
-
-    .inventory-column {
-      display: table-cell;
-      width: 60%;
-      vertical-align: top;
-      padding-right: 10px;
-    }
-
-    .vehicle-image-column {
-      display: table-cell;
-      width: 40%;
-      vertical-align: top;
-      padding-left: 10px;
-    }
-
-    .inventory-list {
-      border: 1px solid #000;
-      padding: 8px;
-      font-size: 8px;
-      min-height: 270px;
-    }
-
-    .inventory-list table {
+    .vehicle-inspection-table {
       width: 100%;
       border-collapse: collapse;
+      margin-bottom: 8px;
+      font-size: 8px;
+      border: 1px solid #000;
+      page-break-inside: avoid;
     }
 
-    .inventory-list td {
-      width: 50%;
-      padding: 2px;
-      border: none;
+    .vehicle-inspection-table td {
+      padding: 5px;
+      border-right: 1px solid #000;
       vertical-align: top;
+    }
+
+    .vehicle-inspection-table td:last-child {
+      border-right: none;
+    }
+
+    .inspection-cell-vehicle {
+      width: 28%;
+      text-align: center;
+    }
+
+    .inspection-cell-inventory {
+      width: 47%;
+    }
+
+    .inspection-cell-boxes {
+      width: 25%;
     }
 
     .inventory-item {
       margin-bottom: 2px;
-      line-height: 1.3;
+      line-height: 1.2;
+      font-size: 7.5px;
+    }
+
+    .inventory-extra-fields {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid #ccc;
+    }
+
+    .inventory-extra-item {
+      margin-bottom: 3px;
+      font-size: 7.5px;
+      line-height: 1.2;
+    }
+
+    .inventory-extra-item strong {
+      font-weight: bold;
+      margin-right: 3px;
+    }
+
+    .inventory-box {
+      margin-bottom: 3px;
+      background-color: #f8f9fc;
+      page-break-inside: avoid;
+    }
+
+    .inventory-box-title {
+      font-weight: bold;
+      font-size: 7px;
+      text-align: center;
+      background-color: #d0d0d0;
+      color: #0a0a0a;
+      padding: 2px;
+    }
+
+    .inventory-box-content {
+      font-size: 6.5px;
+      line-height: 1.2;
+      padding: 3px;
+    }
+
+    .inventory-box-item {
+      margin-bottom: 1px;
+    }
+
+    .mini-checkbox {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border: 1.5px solid #000;
+      margin-right: 5px;
+      background-color: white;
+      vertical-align: middle;
+      text-align: center;
+      line-height: 10px;
+    }
+
+    .mini-checkbox.checked::before {
+      content: "X";
+      font-size: 8px;
+      font-weight: bold;
+      color: #000;
+      display: block;
+    }
+
+    .odometer-value {
+      font-size: 9px;
+      font-weight: bold;
+      text-align: center;
+      padding: 4px;
+      background-color: white;
+      border: 1px solid #0a0a0a;
+      margin-top: 2px;
     }
 
     .checkbox {
@@ -292,18 +340,20 @@
       vertical-align: middle;
       background-color: white;
     }
-
+    
     .checkbox.checked::before {
       content: "X";
+      font-size: 8px;
+      font-weight: bold;
       color: #000;
+      display: block;
     }
 
     .vehicle-state-container {
       width: 100%;
       max-width: 180px;
       margin: 0 auto;
-      border: 1px solid #000;
-      padding: 10px;
+      padding: 5px;
       background-color: #f9f9f9;
       page-break-inside: avoid;
     }
@@ -311,7 +361,7 @@
     .vehicle-image-wrapper {
       position: relative;
       width: 100%;
-      height: 270px;
+      height: 240px;
       display: block;
     }
 
@@ -343,8 +393,8 @@
     .no-damages-text {
       text-align: center;
       color: #666;
-      font-size: 10px;
-      padding: 15px;
+      font-size: 9px;
+      padding: 8px;
       font-style: italic;
       position: relative;
     }
@@ -596,6 +646,15 @@
       font-size: 9px;
     }
 
+    .info-detail-table .header-row-gray {
+      background-color: #d0d0d0;
+      color: #0a0a0a;
+      font-weight: bold;
+      text-align: left;
+      padding: 5px 8px;
+      font-size: 9px;
+    }
+
     .info-detail-table .label-row {
       background-color: #f0f0f0;
       font-weight: bold;
@@ -606,7 +665,7 @@
     .info-detail-table .value-row {
       background-color: white;
       text-align: left;
-      padding: 5px 8px;
+      padding: 2px 8px;
     }
 
     .info-detail-table .checkbox-option {
@@ -813,40 +872,40 @@
     <!-- Tabla: Solicitud de Cliente -->
     <table class="info-detail-table" style="margin-top: 10px;">
       <tr>
-        <td class="header-row" colspan="2">SOLICITUD DE CLIENTE</td>
+        <td class="header-row-gray" colspan="2">SOLICITUD DE CLIENTE</td>
       </tr>
       <tr>
-        <td class="value-row" style="width: 50%; border-right: 1px solid #fff; border-bottom: 1px solid #fff;">
+        <td class="value-row" style="width: 50%; border-right: 0.5px solid #ddd; border-bottom: 0.5px solid #ddd;">
           <span style="display: inline-block; width: 110px;">Cliente con cita</span><span class="mini-checkbox"
                                                                                           style="float: none; margin-left: 5px;"></span>
         </td>
-        <td class="value-row" style="width: 50%; border-bottom: 1px solid #fff;">
+        <td class="value-row" style="width: 50%; border-bottom: 0.5px solid #ddd;">
           <span style="display: inline-block; width: 110px;">Cliente sin cita</span><span class="mini-checkbox"
                                                                                           style="float: none; margin-left: 5px;"></span>
         </td>
       </tr>
       <tr>
-        <td class="value-row" style="border-right: 1px solid #fff; border-bottom: 1px solid #fff;">
+        <td class="value-row" style="border-right: 0.5px solid #ddd; border-bottom: 0.5px solid #ddd;">
           <span style="display: inline-block;">Mtto Preventivo ( ) km</span>
           <span style="display: inline-block; width: 30px; border-bottom: 1px solid #000; margin: 0 5px;"></span>
         </td>
-        <td class="value-row" style="border-bottom: 1px solid #fff;">
+        <td class="value-row" style="border-bottom: 0.5px solid #ddd;">
           <span style="display: inline-block; width: 110px;">Mtto. correlativo</span><span class="mini-checkbox"
                                                                                            style="float: none; margin-left: 5px;"></span>
         </td>
       </tr>
       <tr>
-        <td class="value-row" style="border-right: 1px solid #fff; border-bottom: 1px solid #fff;">
+        <td class="value-row" style="border-right: 0.5px solid #ddd; border-bottom: 0.5px solid #ddd;">
           <span style="display: inline-block; width: 110px;">Servicio interno</span><span class="mini-checkbox"
                                                                                           style="float: none; margin-left: 5px;"></span>
         </td>
-        <td class="value-row" style="border-bottom: 1px solid #fff;">
+        <td class="value-row" style="border-bottom: 0.5px solid #ddd;">
           <span style="display: inline-block; width: 110px;">Garantía / Recall</span><span class="mini-checkbox"
                                                                                            style="float: none; margin-left: 5px;"></span>
         </td>
       </tr>
       <tr>
-        <td class="value-row" style="border-right: 1px solid #fff;">
+        <td class="value-row" style="border-right: 0.5px solid #ddd;">
           <span style="display: inline-block; width: 110px;">Cliente espera</span><span class="mini-checkbox"
                                                                                         style="float: none; margin-left: 5px;"></span>
         </td>
@@ -867,18 +926,18 @@
       <tr class="two-col-row">
         <td class="label-row">Placa: <span style="font-weight: normal;">{{ $vehicle->plate ?? 'ABC-123' }}</span></td>
         <td class="label-row">Marca: <span
-            style="font-weight: normal;">{{ $vehicle->model->family->brand->name ?? 'TOYOTA' }}</span></td>
+            style="font-weight: normal;">{{ $vehicle->model->family->brand->name ?? '-' }}</span></td>
       </tr>
       <tr class="two-col-row">
         <td class="label-row">Modelo: <span
-            style="font-weight: normal;">{{ $vehicle->model->family->description ?? 'HILUX' }}</span></td>
+            style="font-weight: normal;">{{ $vehicle->model->family->description ?? '-' }}</span></td>
         <td class="label-row">Año de fabricación: <span
             style="font-weight: normal;">{{ $vehicle->year ?? '2024' }}</span>
         </td>
       </tr>
       <tr>
         <td colspan="2" class="label-row">VIN / N° Chasis: <span
-            style="font-weight: normal;">{{ $vehicle->vin ?? 'MHFXXX7A9J1234567' }}</span></td>
+            style="font-weight: normal;">{{ $vehicle->vin ?? '-' }}</span></td>
       </tr>
       <tr class="two-col-row">
         <td class="label-row">Hora inicio trabajo: <span style="font-weight: normal;">09:15 AM</span></td>
@@ -889,7 +948,9 @@
             style="font-weight: normal;">Carlos Alberto Sánchez Torres</span></td>
       </tr>
       <tr>
-        <td colspan="2" class="header-row">RESULTADOS DE TRABAJO / OBSERVACIONES</td>
+        <td colspan="2" class="header-row-gray">RESULTADOS DE TRABAJO /
+          OBSERVACIONES
+        </td>
       </tr>
       <tr>
         <td colspan="2" class="value-row activities-content">
@@ -912,18 +973,16 @@
             style="font-weight: normal;">{{ $descriptionRecall ?? 'Sistema de Airbag' }}</span></td>
       </tr>
       <tr>
-        <td colspan="2" class="header-row">ACTIVIDADES REALIZADAS</td>
+        <td colspan="2" class="header-row-gray">TRABAJOS REALIZADOS</td>
       </tr>
       <tr>
         <td colspan="2" class="value-row activities-content">
-          • Cambio de aceite de motor sintético 5W-30<br>
-          • Reemplazo de filtro de aceite original<br>
-          • Reemplazo de filtro de aire del motor<br>
-          • Inspección y limpieza de frenos delanteros y traseros<br>
-          • Revisión de niveles de líquidos (refrigerante, frenos, dirección)<br>
-          • Inspección visual de suspensión y dirección<br>
-          • Rotación de neumáticos y verificación de presión<br>
-          • Escaneo computarizado del sistema electrónico
+          @forelse($items as $index => $item)
+            {{ $index + 1 }}. {{ $item->description }}. TIPO: {{$item->typePlanning->description}}.
+            OPERACIÓN: {{$item->typeOperation->description}}<br>
+          @empty
+            No hay actividades registradas
+          @endforelse
         </td>
       </tr>
     </table>
@@ -931,86 +990,106 @@
 </div>
 
 <!-- Sección: Detalle de Trabajo, Requerimientos y Seguimiento -->
-<table class="data-table">
+<table style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-top: 10px; margin-bottom: 10px;">
   <tr>
     <td colspan="3" style="padding: 0;">
       <!-- Tabla interna de 3 columnas -->
       <table style="width: 100%; border-collapse: collapse;">
         <tr>
           <!-- Columna 1: Detalle de Trabajo -->
-          <td style="width: 40%; vertical-align: top; padding: 8px; border-right: 0.5px solid #ccc;">
-            <div
-              style="background-color: #172e66; color: white; font-weight: bold; text-align: center; padding: 5px 8px; font-size: 9px; margin-bottom: 8px;">
-              DETALLE DE TRABAJO
-            </div>
-            <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox"
-                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-              <span style="font-size: 8px;">Cambio de Aceite y Filtro</span>
-              <span style="display: inline-block; margin-left: 10px;">
-                <span class="mini-checkbox"
-                      style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-                <span style="font-size: 8px;">Alineamiento y balanceo</span>
-              </span>
-            </div>
-            <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox"
-                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-              <span style="font-size: 8px;">Revisión de niveles y luces</span>
-            </div>
-            <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox"
-                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-              <span style="font-size: 8px;">Cambio de pastillas de freno y rectificación de disco</span>
-            </div>
-            <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox"
-                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-              <span style="font-size: 8px;">Engrase general</span>
-              <span style="display: inline-block; margin-left: 10px;">
-                <span class="mini-checkbox"
-                      style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-                <span style="font-size: 8px;">Otros: __________</span>
-              </span>
-            </div>
-            <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox"
-                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-              <span style="font-size: 8px;">Rotación de llantas, revisión y limpieza de frenos</span>
-            </div>
-            <div style="margin-bottom: 5px;">
-              <span class="mini-checkbox"
-                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-              <span style="font-size: 8px;">Inspección de filtro de aire, batería, neumáticos, suspensión y freno de mano</span>
-            </div>
-            <div>
-              <span class="mini-checkbox"
-                    style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin-right: 5px; vertical-align: middle;"></span>
-              <span style="font-size: 8px;">Revisión de presión e inflado de llantas</span>
-            </div>
+          <td style="width: 40%; vertical-align: top; border-right: 0.5px solid #000000; padding: 0;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td colspan="2"
+                    style="background-color: #172e66; color: white; font-weight: bold; text-align: center; padding: 5px 8px; font-size: 9px;">
+                  DETALLE DE TRABAJO
+                </td>
+              </tr>
+              <tr>
+                <td style="width: 50%; padding: 5px 8px; font-size: 8px; border-right: 0.5px solid #ddd;">
+                  <span class="mini-checkbox {{ $inspection->oil_change ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
+                  <span style="display: inline-block; width: 140px;">Cambio de Aceite y Filtro</span>
+                </td>
+                <td style="width: 50%; padding: 5px 8px; font-size: 8px;">
+                  <span class="mini-checkbox {{ $inspection->alignment_balancing ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
+                  <span style="display: inline-block; width: 140px;">Alineamiento y balanceo</span>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
+                  <span class="mini-checkbox {{ $inspection->check_level_lights ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
+                  <span>Revisión de niveles y luces</span>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
+                  <span class="mini-checkbox {{ $inspection->pad_replace_disc_resurface ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
+                  <span>Cambio de pastillas de freno y rectificación de disco</span>
+                </td>
+              </tr>
+              <tr>
+                <td
+                  style="width: 50%; padding: 5px 8px; font-size: 8px; border-right: 0.5px solid #ddd; border-top: 0.5px solid #ddd;">
+                  <span class="mini-checkbox {{ $inspection->general_lubrication ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
+                  <span style="display: inline-block; width: 90px;">Engrase general</span>
+                </td>
+                <td style="width: 50%; padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
+                  <span class="mini-checkbox {{ $inspection->other_work_details ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
+                  <span>Otros: {{ $inspection->other_work_details ?? '__________' }}</span>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
+                  <span class="mini-checkbox {{ $inspection->rotation_inspection_cleaning ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
+                  <span>Rotación de llantas, revisión y limpieza de frenos</span>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
+                  <span class="mini-checkbox {{ $inspection->insp_filter_basic_checks ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
+                  <span>Inspección de filtro de aire, batería, neumáticos, suspensión y freno de mano</span>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
+                  <span class="mini-checkbox {{ $inspection->tire_pressure_inflation_check ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
+                  <span>Revisión de presión e inflado de llantas</span>
+                </td>
+              </tr>
+            </table>
           </td>
 
           <!-- Columna 2: Requerimientos de Cliente -->
-          <td style="width: 30%; vertical-align: top; padding: 8px; border-right: 0.5px solid #ccc;">
+          <td style="width: 30%; vertical-align: top; border-right: 0.5px solid #000000;">
             <div
               style="background-color: #172e66; color: white; font-weight: bold; text-align: center; padding: 5px 8px; font-size: 9px; margin-bottom: 8px;">
               REQUERIMIENTOS DE CLIENTE
             </div>
-            <div style="font-size: 8px; line-height: 1.5; min-height: 120px;">
-              <!-- Espacio para descripción de requerimientos del cliente -->
+            <div style="font-size: 8px; line-height: 1.5; min-height: 120px; padding: 8px;">
+              {{ $inspection->customer_requirement ?? '' }}
             </div>
           </td>
 
           <!-- Columna 3: Seguimiento Post Servicio -->
-          <td style="width: 30%; vertical-align: top; padding: 8px;">
+          <td style="width: 30%; vertical-align: top;">
             <div
               style="background-color: #172e66; color: white; font-weight: bold; text-align: center; padding: 5px 8px; font-size: 9px; margin-bottom: 8px;">
               SEGUIMIENTO POST SERVICIO
             </div>
-            <div style="font-size: 8px; margin-bottom: 15px;">
-              <div style="margin-bottom: 10px;">
-                <strong>Día:</strong> <span style="margin-left: 3px;">L</span> <span class="mini-checkbox"
-                                                                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
+            <div style="font-size: 8px; margin-bottom: 15px; padding: 8px;">
+              <strong>Día:</strong>
+              <div style="margin-top: 10px; margin-bottom: 10px;">
+                <span style="margin-left: 3px;">L</span> <span class="mini-checkbox"
+                                                               style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
                 <span>M</span> <span class="mini-checkbox"
                                      style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
                 <span>M</span> <span class="mini-checkbox"
@@ -1052,7 +1131,7 @@
   <!-- Pie de tabla -->
   <tr>
     <td colspan="3" style="padding: 0;">
-      <table style="width: 100%; border-collapse: collapse;">
+      <table style="width: 100%; border-collapse: collapse; border-top: 1px solid #000;">
         <tr>
           <td
             style="padding: 8px; background-color: #f5f5f5; font-size: 9px; border-right: 1px solid #000000; width: 25%;">
@@ -1075,136 +1154,217 @@
   </tr>
 </table>
 
+<!-- Sección: Evidencias de Daños -->
+@if($damages->count() > 0)
+  @php
+    $damagesWithPhotos = $damages->filter(function($damage) {
+      return !empty($damage->photo_url);
+    });
+  @endphp
 
-<!-- Sección: Información del Vehículo -->
-<div class="section-title">INFORMACIÓN DEL VEHÍCULO</div>
-<table class="data-table">
-  <tr>
-    <td class="label-cell">Marca:</td>
-    <td>{{ $vehicle->model->family->brand->name ?? 'N/A' }}</td>
-    <td class="label-cell">Modelo:</td>
-    <td>{{ $vehicle->model->family->description ?? 'N/A' }} {{ $vehicle->model->version ?? '' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Placa:</td>
-    <td>{{ $vehicle->plate ?? 'N/A' }}</td>
-    <td class="label-cell">Color:</td>
-    <td>{{ $vehicle->color->description ?? 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">VIN:</td>
-    <td>{{ $vehicle->vin ?? 'N/A' }}</td>
-    <td class="label-cell">N° Motor:</td>
-    <td>{{ $vehicle->engine_number ?? 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Año:</td>
-    <td>{{ $vehicle->year ?? 'N/A' }}</td>
-    <td class="label-cell">Km:</td>
-    <td>{{ $inspection->mileage ?? 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Nivel Combustible:</td>
-    <td>{{ $inspection->fuel_level ?? 'N/A' }}</td>
-    <td class="label-cell">Nivel de Aceite:</td>
-    <td>{{ $inspection->oil_level ?? 'N/A' }}</td>
-  </tr>
-</table>
-
-
-<!-- Sección: Items de Trabajo -->
-<div class="section-title">ITEMS DE TRABAJO</div>
-<table class="items-table">
-  <thead>
-  <tr>
-    <th style="width: 10%;">N°</th>
-    <th style="width: 20%;">Tipo</th>
-    <th style="width: 70%;">Descripción</th>
-  </tr>
-  </thead>
-  <tbody>
-  @forelse($items as $index => $item)
-    <tr>
-      <td class="text-center">{{ $index + 1 }}</td>
-      <td>{{ $item->typePlanning ? $item->typePlanning->description : 'N/A' }}</td>
-      <td>{{ $item->description }}</td>
-    </tr>
-  @empty
-    <tr>
-      <td colspan="3" class="text-center">No hay items de trabajo registrados</td>
-    </tr>
-  @endforelse
-  </tbody>
-</table>
+  @if($damagesWithPhotos->count() > 0)
+    <div class="section-title">EVIDENCIAS DE DAÑOS</div>
+    <table class="damage-evidence-table">
+      @foreach($damagesWithPhotos->chunk(3) as $damageRow)
+        <tr>
+          @foreach($damageRow as $index => $damage)
+            <td>
+              <div class="damage-evidence-label">
+                DAÑO N° {{ $damages->search($damage) + 1 }} - {{ $damage->damage_type }}
+              </div>
+              @if(isset($damage->photo_base64) && $damage->photo_base64)
+                <img src="{{ $damage->photo_base64 }}" alt="Evidencia Daño" class="damage-evidence-img">
+              @endif
+              @if($damage->description)
+                <div class="damage-evidence-description">
+                  {{ $damage->description }}
+                </div>
+              @endif
+            </td>
+          @endforeach
+          @if($damageRow->count() < 3)
+            @for($i = 0; $i < (3 - $damageRow->count()); $i++)
+              <td></td>
+            @endfor
+          @endif
+        </tr>
+      @endforeach
+    </table>
+  @endif
+@endif
 
 <!-- Sección: Inspección del Vehículo (Inventario + Estado) -->
-<div class="section-title">INSPECCIÓN DEL VEHÍCULO</div>
-<div class="vehicle-inspection-container">
-  <!-- Columna Izquierda: Inventario -->
-  <div class="inventory-column">
-    <div style="font-weight: bold; margin-bottom: 5px; font-size: 9px;">INVENTARIO:</div>
-    <div class="inventory-list">
-      <table>
-        @php
-          $inventoryItems = [];
-          foreach($inventoryChecks as $key => $label) {
-            $inventoryItems[] = [
-              'key' => $key,
-              'label' => $label,
-              'checked' => $inspection->{$key}
-            ];
-          }
-          $halfCount = ceil(count($inventoryItems) / 2);
-          $leftColumn = array_slice($inventoryItems, 0, $halfCount);
-          $rightColumn = array_slice($inventoryItems, $halfCount);
-          $maxRows = max(count($leftColumn), count($rightColumn));
-        @endphp
-        @for($i = 0; $i < $maxRows; $i++)
-          <tr>
-            <td>
-              @if(isset($leftColumn[$i]))
-                <div class="inventory-item">
-                  <span class="checkbox {{ $leftColumn[$i]['checked'] ? 'checked' : '' }}"></span>
-                  {{ $leftColumn[$i]['label'] }}
-                </div>
-              @endif
-            </td>
-            <td>
-              @if(isset($rightColumn[$i]))
-                <div class="inventory-item">
-                  <span class="checkbox {{ $rightColumn[$i]['checked'] ? 'checked' : '' }}"></span>
-                  {{ $rightColumn[$i]['label'] }}
-                </div>
-              @endif
-            </td>
-          </tr>
-        @endfor
-      </table>
-    </div>
-  </div>
-
-  <!-- Columna Derecha: Estado del Vehículo -->
-  <div class="vehicle-image-column">
-    <div style="font-weight: bold; margin-bottom: 5px; font-size: 9px; text-align: center;">ESTADO DEL VEHÍCULO:</div>
-    <div class="vehicle-state-container">
-      <div class="vehicle-image-wrapper">
-        <img src="{{ getBase64Image('images/ap/body_car.png') }}" alt="Estado del Vehículo">
-        @if($damages->count() > 0)
-          @foreach($damages as $index => $damage)
-            <div class="damage-marker" style="left: {{ $damage->x_coordinate }}%; top: {{ $damage->y_coordinate }}%;">
-              {{ $index + 1 }}
-            </div>
-          @endforeach
+<div class="section-title" style="page-break-before: avoid;">INSPECCIÓN DEL VEHÍCULO</div>
+<table class="vehicle-inspection-table">
+  <tr>
+    <!-- Columna 1: Estado del Vehículo -->
+    <td style="width: 33%; vertical-align: top; padding: 5px;">
+      <div class="inventory-box-title">ESTADO DEL VEHÍCULO</div>
+      <div class="vehicle-state-container" style="max-width: 100%; margin: 0;">
+        <div class="vehicle-image-wrapper" style="height: 240px;">
+          <img src="{{ getBase64Image('images/ap/body_car.png') }}" alt="Estado del Vehículo">
+          @if($damages->count() > 0)
+            @foreach($damages as $index => $damage)
+              <div class="damage-marker" style="left: {{ $damage->x_coordinate }}%; top: {{ $damage->y_coordinate }}%;">
+                {{ $index + 1 }}
+              </div>
+            @endforeach
+          @endif
+        </div>
+        @if($damages->count() == 0)
+          <div class="no-damages-text">
+            ✓ SIN DAÑOS
+          </div>
         @endif
       </div>
-      @if($damages->count() == 0)
-        <div class="no-damages-text">
-          ✓ VEHÍCULO SIN DAÑOS REPORTADOS
+    </td>
+
+    <!-- Columna 2: Lista de Inventario -->
+    <td style="width: 33%; vertical-align: top; padding: 5px;">
+      <div class="inventory-box-title" style="margin-bottom: 5px">INVENTARIO</div>
+      <div style="font-size: 7.5px;">
+        <table style="width: 100%; border-collapse: collapse;">
+          @php
+            $inventoryItems = [];
+            foreach($inventoryChecks as $key => $label) {
+              $inventoryItems[] = [
+                'key' => $key,
+                'label' => $label,
+                'checked' => $inspection->{$key}
+              ];
+            }
+            $halfCount = ceil(count($inventoryItems) / 2);
+            $leftColumn = array_slice($inventoryItems, 0, $halfCount);
+            $rightColumn = array_slice($inventoryItems, $halfCount);
+            $maxRows = max(count($leftColumn), count($rightColumn));
+          @endphp
+          @for($i = 0; $i < $maxRows; $i++)
+            <tr>
+              <td style="border: none; padding: 1px 2px; width: 50%;">
+                @if(isset($leftColumn[$i]))
+                  <div class="inventory-item">
+                    <span class="checkbox {{ $leftColumn[$i]['checked'] ? 'checked' : '' }}"></span>
+                    {{ $leftColumn[$i]['label'] }}
+                  </div>
+                @endif
+              </td>
+              <td style="border: none; padding: 1px 2px; width: 50%;">
+                @if(isset($rightColumn[$i]))
+                  <div class="inventory-item">
+                    <span class="checkbox {{ $rightColumn[$i]['checked'] ? 'checked' : '' }}"></span>
+                    {{ $rightColumn[$i]['label'] }}
+                  </div>
+                @endif
+              </td>
+            </tr>
+          @endfor
+        </table>
+
+        <!-- Campos adicionales: Aceite y Combustible -->
+        <div class="inventory-extra-fields">
+          <div class="inventory-extra-item">
+            <strong>Nivel de Aceite:</strong>
+            <span>{{ $inspection->oil_level ?? 'N/A' }}</span>
+          </div>
+          <div class="inventory-extra-item">
+            <strong>Nivel de Combustible:</strong>
+            <span>{{ $inspection->fuel_level ?? 'N/A' }}</span>
+          </div>
         </div>
-      @endif
-    </div>
-  </div>
-</div>
+      </div>
+    </td>
+
+    <!-- Columna 3: 4 Cuadros -->
+    <td style="width: 34%; vertical-align: top; padding: 5px;">
+      <!-- Cuadro 1: Explicación de Resultados -->
+      <table class="inventory-box" style="width: 100%; border-collapse: collapse; margin-bottom: 3px;">
+        <tr>
+          <td class="inventory-box-title">EXPLICACIÓN DE RESULTADOS</td>
+        </tr>
+        <tr>
+          <td class="inventory-box-content">
+            <div class="inventory-box-item">
+              <span class="mini-checkbox {{ $inspection->explanation_work_performed ? 'checked' : '' }}"></span>
+              <span>Explicación de trabajos realizados</span>
+            </div>
+            <div class="inventory-box-item">
+              <span class="mini-checkbox {{ $inspection->price_explanation ? 'checked' : '' }}"></span>
+              <span>Explicación de precios</span>
+            </div>
+            <div class="inventory-box-item">
+              <span class="mini-checkbox {{ $inspection->confirm_additional_work ? 'checked' : '' }}"></span>
+              <span>Confirmación de realización de trabajos adicionales</span>
+            </div>
+            <div class="inventory-box-item">
+              <span class="mini-checkbox {{ $inspection->clarification_customer_concerns ? 'checked' : '' }}"></span>
+              <span>Aclaración de inquietudes del cliente</span>
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Cuadro 2: Entrega del Vehículo -->
+      <table class="inventory-box" style="width: 100%; border-collapse: collapse; margin-bottom: 3px;">
+        <tr>
+          <td class="inventory-box-title">ENTREGA DEL VEHÍCULO</td>
+        </tr>
+        <tr>
+          <td class="inventory-box-content">
+            <div class="inventory-box-item">
+              <span class="mini-checkbox {{ $inspection->exterior_cleaning ? 'checked' : '' }}"></span>
+              <span>Limpieza exterior</span>
+            </div>
+            <div class="inventory-box-item">
+              <span class="mini-checkbox {{ $inspection->interior_cleaning ? 'checked' : '' }}"></span>
+              <span>Limpieza interior</span>
+            </div>
+            <div class="inventory-box-item">
+              <span class="mini-checkbox {{ $inspection->keeps_spare_parts ? 'checked' : '' }}"></span>
+              <span>Se queda con repuestos</span>
+            </div>
+            <div class="inventory-box-item">
+              <span class="mini-checkbox {{ $inspection->valuable_objects ? 'checked' : '' }}"></span>
+              <span>Objetos de valor</span>
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Cuadro 3: Items de Cortesía -->
+      <table class="inventory-box" style="width: 100%; border-collapse: collapse; margin-bottom: 3px;">
+        <tr>
+          <td class="inventory-box-title">ITEMS DE CORTESÍA</td>
+        </tr>
+        <tr>
+          <td class="inventory-box-content">
+            <div class="inventory-box-item">
+              <span class="mini-checkbox {{ $inspection->courtesy_seat_cover ? 'checked' : '' }}"></span>
+              <span>Cobertor de asiento</span>
+            </div>
+            <div class="inventory-box-item">
+              <span class="mini-checkbox {{ $inspection->paper_floor ? 'checked' : '' }}"></span>
+              <span>Piso de papel</span>
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Cuadro 4: Odómetro de Ingreso -->
+      <table class="inventory-box" style="width: 100%; border-collapse: collapse; margin-bottom: 3px;">
+        <tr>
+          <td class="inventory-box-title">ODÓMETRO DE INGRESO</td>
+        </tr>
+        <tr>
+          <td class="inventory-box-content">
+            <div class="odometer-value">
+              {{ $inspection->mileage ?? 'N/A' }} KM
+            </div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
 
 @if($damages->count() > 0)
   <div class="damages-list">
@@ -1235,45 +1395,6 @@
     <strong>Observaciones Generales:</strong><br>
     {{ $inspection->general_observations }}
   </div>
-@endif
-
-@if($damages->count() > 0)
-  @php
-    $damagesWithPhotos = $damages->filter(function($damage) {
-      return !empty($damage->photo_url);
-    });
-  @endphp
-
-  @if($damagesWithPhotos->count() > 0)
-    <!-- Sección: Evidencias de Daños -->
-    <div class="section-title">EVIDENCIAS DE DAÑOS</div>
-    <table class="damage-evidence-table">
-      @foreach($damagesWithPhotos->chunk(3) as $damageRow)
-        <tr>
-          @foreach($damageRow as $index => $damage)
-            <td>
-              <div class="damage-evidence-label">
-                DAÑO N° {{ $damages->search($damage) + 1 }} - {{ $damage->damage_type }}
-              </div>
-              @if(isset($damage->photo_base64) && $damage->photo_base64)
-                <img src="{{ $damage->photo_base64 }}" alt="Evidencia Daño" class="damage-evidence-img">
-              @endif
-              @if($damage->description)
-                <div class="damage-evidence-description">
-                  {{ $damage->description }}
-                </div>
-              @endif
-            </td>
-          @endforeach
-          @if($damageRow->count() < 3)
-            @for($i = 0; $i < (3 - $damageRow->count()); $i++)
-              <td></td>
-            @endfor
-          @endif
-        </tr>
-      @endforeach
-    </table>
-  @endif
 @endif
 
 <!-- Sección: Información Importante -->

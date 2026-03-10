@@ -59,7 +59,30 @@ class ApVehicleInspectionResource extends JsonResource
       'photo_back_url' => $this->photo_back_url,
       'photo_left_url' => $this->photo_left_url,
       'photo_right_url' => $this->photo_right_url,
-
+      // Detalles de trabajo
+      'oil_change' => $this->oil_change,
+      'check_level_lights' => $this->check_level_lights,
+      'general_lubrication' => $this->general_lubrication,
+      'rotation_inspection_cleaning' => $this->rotation_inspection_cleaning,
+      'insp_filter_basic_checks' => $this->insp_filter_basic_checks,
+      'tire_pressure_inflation_check' => $this->tire_pressure_inflation_check,
+      'alignment_balancing' => $this->alignment_balancing,
+      'pad_replace_disc_resurface' => $this->pad_replace_disc_resurface,
+      'other_work_details' => $this->other_work_details,
+      // Requerimiento del cliente
+      'customer_requirement' => $this->customer_requirement,
+      // Explicación de resultados
+      'explanation_work_performed' => $this->explanation_work_performed,
+      'price_explanation' => $this->price_explanation,
+      'confirm_additional_work' => $this->confirm_additional_work,
+      'clarification_customer_concerns' => $this->clarification_customer_concerns,
+      'exterior_cleaning' => $this->exterior_cleaning,
+      'interior_cleaning' => $this->interior_cleaning,
+      'keeps_spare_parts' => $this->keeps_spare_parts,
+      'valuable_objects' => $this->valuable_objects,
+      // Items de cortesía
+      'courtesy_seat_cover' => $this->courtesy_seat_cover,
+      'paper_floor' => $this->paper_floor,
       // Cancellation fields
       'is_cancelled' => $this->is_cancelled,
       'cancellation_requested_by' => $this->cancellation_requested_by,
