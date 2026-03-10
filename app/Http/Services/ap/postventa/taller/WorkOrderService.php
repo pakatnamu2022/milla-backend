@@ -364,7 +364,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $totalAdvances = $workOrder->advancesWorkOrder->sum('total') ?? 0;
 
     // Calculate remaining balance (total - advances)
-    $remainingBalance = $totals['total_amount'] - $totalAdvances;
+    $remainingBalance = $totals['net_amount'] - $totalAdvances;
 
     return response()->json([
       'work_order_id' => $workOrder->id,
@@ -424,6 +424,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           $mappedLabour->hourly_rate = $unitPrice;
           $mappedLabour->discount_percentage = $discountPercentage;
           $mappedLabour->total_cost = $subtotal; // Total sin descuento
+          $mappedLabour->net_amount = $total; // Total con descuento aplicado
           $mappedLabour->worker_id = null;
           $mappedLabour->worker = null;
 
@@ -443,9 +444,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           $mappedPart->unit_cost = $detail->purchase_price ?? 0;
           $mappedPart->unit_price = $unitPrice;
           $mappedPart->discount_percentage = $discountPercentage;
-          $mappedPart->subtotal = $subtotal; // Total sin descuento
+          $mappedPart->total_cost = $subtotal; // Total sin descuento
           $mappedPart->tax_amount = 0;
-          $mappedPart->total_amount = $total; // Total con descuento aplicado
+          $mappedPart->net_amount = $total; // Total con descuento aplicado
           $mappedPart->product = $detail->product;
 
           $quotationParts->push($mappedPart);
