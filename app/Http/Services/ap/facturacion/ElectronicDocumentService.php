@@ -2680,9 +2680,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $entityTotal = 0;
 
     // Determinar el tipo de entidad y aplicar su lógica específica
-    if (isset($data['work_order_id']) && $data['work_order_id']) {
+    if (isset($data['work_order_id']) && $data['work_order_id'] && $data['area_id'] == ApMasters::AREA_TALLER) {
       $entityTotal = $this->applyDetractionForWorkOrder($data, $company);
-    } else {
+    } else if (isset($data['detraccion']) && $data['detraccion']) {
       $data['sunat_concept_transaction_type_id'] = SunatConcepts::ID_SUJETA_DETRACCION;
     }
 
