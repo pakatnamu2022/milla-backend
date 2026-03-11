@@ -1064,6 +1064,130 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
+   * Build the items array for a credit note based on its type.
+   * @throws Exception
+   */
+  private function resolveItemsForCreditNote(ElectronicDocument $originalDocument, array $data): array
+  {
+    $concept = SunatConcepts::find($data['sunat_concept_credit_note_type_id']);
+    $typeCode = $concept?->code_nubefact;
+
+    switch ($typeCode) {
+      case SunatConcepts::CODE_CREDIT_NOTE_ANULACION:       // '01'
+      case SunatConcepts::CODE_CREDIT_NOTE_DEVOLUCION_TOTAL: // '06'
+        return $this->buildItemsFromAllOriginalItems($originalDocument);
+
+      case SunatConcepts::CODE_CREDIT_NOTE_DEVOLUCION_ITEM: // '07'
+        return $this->buildItemsFromSelectedIds($originalDocument, $data['detail_ids']);
+
+      case SunatConcepts::CODE_CREDIT_NOTE_DESCUENTO_GLOBAL: // '04'
+        return $this->buildDiscountGlobalItem($originalDocument, $data);
+
+      default:
+        throw new Exception("Tipo de nota de crédito no reconocido: {$typeCode}");
+    }
+  }
+
+  /**
+   * Copy all items from the original document (for Anulación / Devolución total).
+   */
+  private function buildItemsFromAllOriginalItems(ElectronicDocument $document): array
+  {
+    if ($document->items->isEmpty()) {
+      throw new Exception('El documento original no tiene ítems');
+    }
+
+    return $document->items->map(function (ElectronicDocumentItem $item) {
+      return [
+        'account_plan_id'          => $item->account_plan_id,
+        'unidad_de_medida'         => $item->unidad_de_medida,
+        'codigo'                   => $item->codigo,
+        'codigo_producto_sunat'    => $item->codigo_producto_sunat,
+        'descripcion'              => $item->descripcion,
+        'cantidad'                 => $item->cantidad,
+        'valor_unitario'           => $item->valor_unitario,
+        'precio_unitario'          => $item->precio_unitario,
+        'descuento'                => $item->descuento,
+        'subtotal'                 => $item->subtotal,
+        'sunat_concept_igv_type_id' => $item->sunat_concept_igv_type_id,
+        'igv'                      => $item->igv,
+        'total'                    => $item->total,
+      ];
+    })->values()->toArray();
+  }
+
+  /**
+   * Copy specific items from the original document by their IDs (for Devolución por ítem).
+   * @throws Exception
+   */
+  private function buildItemsFromSelectedIds(ElectronicDocument $document, array $detailIds): array
+  {
+    $selectedItems = $document->items->whereIn('id', $detailIds);
+
+    if ($selectedItems->isEmpty()) {
+      throw new Exception('Ninguno de los ítems especificados pertenece al documento original');
+    }
+
+    return $selectedItems->map(function (ElectronicDocumentItem $item) {
+      return [
+        'account_plan_id'          => $item->account_plan_id,
+        'unidad_de_medida'         => $item->unidad_de_medida,
+        'codigo'                   => $item->codigo,
+        'codigo_producto_sunat'    => $item->codigo_producto_sunat,
+        'descripcion'              => $item->descripcion,
+        'cantidad'                 => $item->cantidad,
+        'valor_unitario'           => $item->valor_unitario,
+        'precio_unitario'          => $item->precio_unitario,
+        'descuento'                => $item->descuento,
+        'subtotal'                 => $item->subtotal,
+        'sunat_concept_igv_type_id' => $item->sunat_concept_igv_type_id,
+        'igv'                      => $item->igv,
+        'total'                    => $item->total,
+      ];
+    })->values()->toArray();
+  }
+
+  /**
+   * Build a single discount line item for a global discount credit note (Descuento global).
+   * The user provides discount_amount as the total amount (including IGV when applicable).
+   */
+  private function buildDiscountGlobalItem(ElectronicDocument $document, array $data): array
+  {
+    $discountAmount = (float)$data['discount_amount'];
+
+    // Determine IGV handling based on original document
+    $isGravado = (float)$document->total_gravada > 0;
+
+    if ($isGravado) {
+      $igvTypeId = SunatConcepts::ID_IGV_GRAVADO_ONEROSA;
+      $subtotal = round($discountAmount / 1.18, 2);
+      $igv = round($discountAmount - $subtotal, 2);
+    } else {
+      // Use IGV type from first item of original document (inafecta/exonerada)
+      $firstItem = $document->items->first();
+      $igvTypeId = $firstItem?->sunat_concept_igv_type_id ?? SunatConcepts::ID_IGV_GRAVADO_ONEROSA;
+      $subtotal = $discountAmount;
+      $igv = 0.00;
+    }
+
+    return [[
+      'account_plan_id'          => $data['account_plan_id'],
+      'unidad_de_medida'         => 'NIU',
+      'codigo'                   => null,
+      'codigo_producto_sunat'    => null,
+      'descripcion'              => 'Descuento global',
+      'cantidad'                 => 1,
+      'valor_unitario'           => $subtotal,
+      'precio_unitario'          => $subtotal,
+      'descuento'                => null,
+      'subtotal'                 => $subtotal,
+      'sunat_concept_igv_type_id' => $igvTypeId,
+      'igv'                      => $igv,
+      'total'                    => $discountAmount,
+    ]];
+  }
+
+  /**
    * Create a credit note from an existing document
    * @throws Exception
    */
@@ -1078,7 +1202,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         throw new Exception('Solo se pueden crear notas de crédito para documentos aceptados por SUNAT');
       }
 
-      // Calcular totales desde items si no se proporcionan
+      // Resolver los items según el tipo de nota de crédito
+      $originalDocument->load('items');
+      $data['items'] = $this->resolveItemsForCreditNote($originalDocument, $data);
+
+      // Calcular totales desde items
       if (isset($data['items']) && is_array($data['items'])) {
         $calculatedTotals = $this->calculateTotalsFromItemsNotes($data['items']);
 
@@ -1266,11 +1394,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Obtener el documento original
       $originalDocument = $this->find($data['original_document_id']);
 
-      // Calcular totales desde items si no se proporcionan
+      // Resolver los items según el tipo de nota de crédito
+      $originalDocument->load('items');
+      $data['items'] = $this->resolveItemsForCreditNote($originalDocument, $data);
+
+      // Calcular totales desde items
       if (isset($data['items']) && is_array($data['items'])) {
         $calculatedTotals = $this->calculateTotalsFromItemsNotes($data['items']);
 
-        // Merge calculated totals only if not provided by user
         foreach ($calculatedTotals as $key => $value) {
           if (!isset($data[$key])) {
             $data[$key] = $value;
