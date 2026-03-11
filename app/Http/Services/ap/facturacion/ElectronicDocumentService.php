@@ -2690,7 +2690,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     // Si no hay entidad relacionada, verificar el monto del documento
     $amountToCheck = $entityTotal > 0 ? $entityTotal : (float)$data['total'];
 
-    if ($amountToCheck >= $detractionAmount && $detractionAmount > 0 && $data['area_id'] != ApMasters::AREA_COMERCIAL) {
+    if ($amountToCheck >= $detractionAmount &&
+      $detractionAmount > 0 &&
+      $data['area_id'] != ApMasters::AREA_COMERCIAL &&
+      isset($data['detraccion']) && $data['detraccion']) {
       $data['detraccion'] = true;
       $data['sunat_concept_detraction_type_id'] = match ((int)$data['area_id']) {
         ApMasters::AREA_TALLER => SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION,
