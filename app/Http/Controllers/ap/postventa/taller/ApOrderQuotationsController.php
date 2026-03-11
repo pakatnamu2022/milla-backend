@@ -102,7 +102,15 @@ class ApOrderQuotationsController extends Controller
   public function downloadPDF($id)
   {
     try {
-      return $this->service->generateQuotationPDF($id);
+      // Obtener el parámetro show_codes desde la query string (por defecto true)
+      $showCodes = request()->query('show_codes', true);
+
+      // Convertir a booleano si viene como string
+      if (is_string($showCodes)) {
+        $showCodes = filter_var($showCodes, FILTER_VALIDATE_BOOLEAN);
+      }
+
+      return $this->service->generateQuotationPDF($id, $showCodes);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

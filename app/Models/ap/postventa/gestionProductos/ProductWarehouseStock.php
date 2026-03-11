@@ -20,7 +20,12 @@ class ProductWarehouseStock extends Model
     'available_quantity',
     'minimum_stock',
     'maximum_stock',
+    'cost_price',
+    'sale_price',
+    'tax_rate',
+    'is_taxable',
     'last_movement_date',
+    'status'
   ];
 
   protected $casts = [

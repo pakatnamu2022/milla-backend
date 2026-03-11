@@ -65,14 +65,6 @@ class ProductsService extends BaseService implements BaseServiceInterface
     DB::beginTransaction();
     try {
       // Set default values if not provided
-      if (!isset($data['tax_rate'])) {
-        $data['tax_rate'] = 18.00; // Default IGV for Peru
-      }
-
-      if (!isset($data['is_taxable'])) {
-        $data['is_taxable'] = true;
-      }
-
       if (!isset($data['product_type'])) {
         $data['product_type'] = 'GOOD';
       }
@@ -339,7 +331,7 @@ class ProductsService extends BaseService implements BaseServiceInterface
       throw $e;
     }
   }
-  
+
   public function getWarehousesAvailabilityForProduct($productId)
   {
     // Verify product exists

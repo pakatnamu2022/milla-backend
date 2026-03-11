@@ -291,17 +291,6 @@ class InventoryMovementService extends BaseService
     }
   }
 
-  /**
-   * Create warehouse transfer with shipping guide
-   * Creates TRANSFER_OUT movement and shipping guide (NOT sent to Nubefact yet)
-   * Stock moves to quantity_in_transit
-   * TRANSFER_IN will be created when reception is done
-   *
-   * @param array $transferData Transfer and shipping guide data
-   * @param array $details Product details
-   * @return array [movement, shipping_guide]
-   * @throws Exception
-   */
   public function createTransfer(array $transferData, array $details): array
   {
     DB::beginTransaction();
@@ -431,9 +420,6 @@ class InventoryMovementService extends BaseService
       $correlative = $nextCorrelative['correlative'];
       $documentNumber = $assignedSeries->series . '-' . $correlative;
 
-      // Generar correlativo dinámico
-      $correlativeDyn = ShippingGuides::generateNextCorrelativeDyn();
-
       // Create Shipping Guide (NOT sent to Nubefact yet)
       $shippingGuide = ShippingGuides::create([
         'document_type' => $transferData['document_type'],
@@ -442,7 +428,6 @@ class InventoryMovementService extends BaseService
         'document_series_id' => $transferData['document_series_id'],
         'series' => $assignedSeries->series,
         'correlative' => $correlative,
-        'correlative_dyn' => $correlativeDyn,
         'issue_date' => $transferData['movement_date'] ?? now(),
         'requires_sunat' => true,
         'is_sunat_registered' => false, // NOT sent yet
@@ -535,15 +520,6 @@ class InventoryMovementService extends BaseService
     }
   }
 
-  /**
-   * Update warehouse transfer with simple fields
-   * Only updates movement and shipping guide metadata (NOT products/details)
-   *
-   * @param array $transferData Updated transfer data
-   * @param int $movementId Movement ID
-   * @return array [movement, shipping_guide]
-   * @throws Exception
-   */
   public function updateTransfer(array $transferData, int $movementId): array
   {
     DB::beginTransaction();
@@ -661,15 +637,6 @@ class InventoryMovementService extends BaseService
     }
   }
 
-  /**
-   * Delete warehouse transfer
-   * Only allowed if shipping guide has NOT been sent to SUNAT
-   * Reverses stock from in_transit back to available
-   *
-   * @param int $movementId Movement ID
-   * @return void
-   * @throws Exception
-   */
   public function destroyTransfer(int $movementId): void
   {
     DB::beginTransaction();
@@ -805,16 +772,6 @@ class InventoryMovementService extends BaseService
     }
   }
 
-  /**
-   * Get movement history for a specific product in a warehouse
-   * Returns all inventory movements for a product in a specific warehouse
-   * Includes quantity_in, quantity_out, and balance (running balance)
-   *
-   * @param int $productId Product ID
-   * @param int $warehouseId Warehouse ID
-   * @param Request $request Request with filters
-   * @return \Illuminate\Http\JsonResponse
-   */
   public function getProductMovementHistory(int $productId, int $warehouseId, Request $request)
   {
     // Base query: get all movements that have details for this product in this warehouse
@@ -955,13 +912,6 @@ class InventoryMovementService extends BaseService
     ]);
   }
 
-  /**
-   * Get kardex of all inventory movements
-   * Returns all inventory movements with optional warehouse filter
-   *
-   * @param Request $request Request with filters (warehouse_id optional)
-   * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
-   */
   public function getKardex(Request $request)
   {
     // Base query: get all movements
@@ -1074,15 +1024,6 @@ class InventoryMovementService extends BaseService
     }
   }
 
-  /**
-   * Create sale outbound movement from quotation
-   * Creates SALE movement referencing an ApOrderQuotation
-   * Updates stock automatically
-   *
-   * @param int $quotationId Quotation ID
-   * @return InventoryMovement
-   * @throws Exception
-   */
   public function createSaleFromQuotation(int $quotationId): InventoryMovement
   {
     DB::beginTransaction();
@@ -1187,15 +1128,6 @@ class InventoryMovementService extends BaseService
     }
   }
 
-  /**
-   * Get purchase history for a specific product in a warehouse
-   * Returns all purchase receptions with their prices for a product
-   *
-   * @param int $productId Product ID
-   * @param int $warehouseId Warehouse ID
-   * @param Request $request Request with date filters (date_from, date_to)
-   * @return array
-   */
   public function getProductPurchaseHistory(int $productId, int $warehouseId, Request $request): array
   {
     // Validate product exists
@@ -1320,14 +1252,6 @@ class InventoryMovementService extends BaseService
     ];
   }
 
-  /**
-   * Export movement history for a specific product in a warehouse to Excel
-   *
-   * @param int $productId Product ID
-   * @param int $warehouseId Warehouse ID
-   * @param Request $request Request with date filters (date_from, date_to)
-   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
-   */
   public function exportProductMovementHistory(int $productId, int $warehouseId, Request $request)
   {
     // Validate product exists
@@ -1462,14 +1386,6 @@ class InventoryMovementService extends BaseService
     return Excel::download($export, $filename);
   }
 
-  /**
-   * Export purchase history for a specific product in a warehouse to Excel
-   *
-   * @param int $productId Product ID
-   * @param int $warehouseId Warehouse ID
-   * @param Request $request Request with date filters (date_from, date_to)
-   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
-   */
   public function exportProductPurchaseHistory(int $productId, int $warehouseId, Request $request)
   {
     // Validate product exists
@@ -1563,5 +1479,4 @@ class InventoryMovementService extends BaseService
 
     return Excel::download($export, $filename);
   }
-
 }

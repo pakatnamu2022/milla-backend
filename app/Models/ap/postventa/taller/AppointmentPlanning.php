@@ -50,6 +50,7 @@ class AppointmentPlanning extends Model
     'is_taken' => '=',
     'sede_id' => '=',
     'num_doc_client' => '=',
+    'created_at' => 'date_between',
   ];
 
   const sorts = [
