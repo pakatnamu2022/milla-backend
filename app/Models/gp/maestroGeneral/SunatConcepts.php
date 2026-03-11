@@ -62,6 +62,18 @@ class SunatConcepts extends Model
   const ID_IGV_ANTICIPO_GRAVADO = 49;        // Gravado - Operación Onerosa (code: 1, tribute: 1000) - Código Nubefact para anticipos
   // Nota: El tributo 9996 se genera automáticamente cuando sunat_transaction = 04
 
+  // IDs específicos de tipos de notas de crédito (BILLING_CREDIT_NOTE_TYPE, status=1)
+  const ID_CREDIT_NOTE_ANULACION = 68;            // Anulación de la operación (code: 01)
+  const ID_CREDIT_NOTE_DESCUENTO_GLOBAL = 71;     // Descuento global (code: 04)
+  const ID_CREDIT_NOTE_DEVOLUCION_TOTAL = 73;     // Devolución total (code: 06)
+  const ID_CREDIT_NOTE_DEVOLUCION_ITEM = 74;      // Devolución por ítem (code: 07)
+
+  // Códigos de tipos de notas de crédito (code_nubefact)
+  const CODE_CREDIT_NOTE_ANULACION = '01';
+  const CODE_CREDIT_NOTE_DESCUENTO_GLOBAL = '04';
+  const CODE_CREDIT_NOTE_DEVOLUCION_TOTAL = '06';
+  const CODE_CREDIT_NOTE_DEVOLUCION_ITEM = '07';
+
   // IDs Detraction Types (basados en query)
   const ID_DETRACTION_SERVICIOS = 120;         // Servicios (code: 037)
   const ID_DETRACTION_MANTENIMIENTO_REPACION = 105; // Mantenimiento y Reparación de Bienes (code: 020)
