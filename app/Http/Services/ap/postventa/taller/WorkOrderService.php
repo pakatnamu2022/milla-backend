@@ -364,7 +364,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $totalAdvances = $workOrder->advancesWorkOrder->sum('total') ?? 0;
 
     // Calculate remaining balance (total - advances)
-    $remainingBalance = $totals['total_amount'] - $totalAdvances;
+    $remainingBalance = $totals['net_amount'] - $totalAdvances;
 
     return response()->json([
       'work_order_id' => $workOrder->id,
@@ -424,6 +424,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           $mappedLabour->hourly_rate = $unitPrice;
           $mappedLabour->discount_percentage = $discountPercentage;
           $mappedLabour->total_cost = $subtotal; // Total sin descuento
+          $mappedLabour->net_amount = $total; // Total con descuento aplicado
           $mappedLabour->worker_id = null;
           $mappedLabour->worker = null;
 
@@ -443,9 +444,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           $mappedPart->unit_cost = $detail->purchase_price ?? 0;
           $mappedPart->unit_price = $unitPrice;
           $mappedPart->discount_percentage = $discountPercentage;
-          $mappedPart->subtotal = $subtotal; // Total sin descuento
+          $mappedPart->total_cost = $subtotal; // Total sin descuento
           $mappedPart->tax_amount = 0;
-          $mappedPart->total_amount = $total; // Total con descuento aplicado
+          $mappedPart->net_amount = $total; // Total con descuento aplicado
           $mappedPart->product = $detail->product;
 
           $quotationParts->push($mappedPart);
@@ -740,18 +741,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   public function generateDeliveryReport($id)
   {
     // Obtener la inspección con todas las relaciones necesarias
-    $inspection = ApVehicleInspection::with([
-      'damages',
-      'workOrder.vehicle.model.family.brand',
-      'workOrder.vehicle.color',
-      'workOrder.vehicle.customer',
-      'workOrder.advisor', // Worker extiende de Person, no tiene relación person
-      'workOrder.sede',
-      'workOrder.status',
-      'workOrder.items.typePlanning',
-      'workOrder.appointmentPlanning',
-      'inspectionBy.person' // User sí tiene relación person
-    ])->findOrFail($id);
+    $inspection = ApVehicleInspection::with('damages', 'workOrder.vehicle.customer', 'workOrder.advisor')
+      ->where('ap_work_order_id', $id)->where('is_cancelled', false)->first();
 
     $workOrder = $inspection->workOrder;
     $vehicle = $workOrder->vehicle;

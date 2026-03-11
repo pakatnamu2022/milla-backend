@@ -67,6 +67,11 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
    */
   private function calculateHours($code, $worker)
   {
+    // Si el código es "F" (Falta), no se paga nada - 0 horas trabajadas
+    if ($code === 'F') {
+      return ['hours_worked' => 0, 'extra_hours' => 0];
+    }
+
     $rule = AttendanceRule::where('code', $code)->first();
     $workingHours = GeneralMaster::find(GeneralMaster::WORKING_HOURS_ID)->value ?? 8;
     $horasJornada = (float)($worker->horas_jornada ?: $workingHours);

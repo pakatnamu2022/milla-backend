@@ -28,6 +28,8 @@ jobs:
         timeout: 30s
         command_timeout: 15m
         script: |
+          set -e
+
           cd /opt/milla-api/app
           
           echo "📥 Pulling latest changes..."
@@ -36,10 +38,10 @@ jobs:
           cd /opt/milla-api
           
           echo "🐳 Rebuilding Docker..."
-          docker compose build
-          docker compose up -d
+          docker compose up -d --build --remove-orphans
           
           echo "📦 Installing dependencies..."
+          docker compose exec -T app git config --global --add safe.directory /var/www/html
           docker compose exec -T app composer install --no-dev --optimize-autoloader
           
           if [ "${{ github.event.inputs.run_migrations }}" = "true" ]; then
@@ -51,10 +53,6 @@ jobs:
           
           echo "🧹 Clearing caches..."
           docker compose exec -T app php artisan optimize:clear
-          docker compose exec -T app php artisan config:clear
-          docker compose exec -T app php artisan route:clear
-          docker compose exec -T app php artisan view:clear
-          docker compose exec -T app php artisan cache:clear
           
           echo "🔄 Regenerating autoload..."
           docker compose exec -T app composer dump-autoload --optimize

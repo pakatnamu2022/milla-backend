@@ -410,7 +410,7 @@
           <td class="text-center">{{ formatNumber($part->quantity_used) }}</td>
           <td class="text-right">{{ formatNumber($part->discount_percentage ?? 0) }}</td>
           <td class="text-right">{{ formatNumber($part->unit_price) }}</td>
-          <td class="text-right">{{ formatNumber($part->total_amount) }}</td>
+          <td class="text-right">{{ formatNumber($part->net_amount) }}</td>
         </tr>
       @endforeach
     @endif
@@ -425,9 +425,9 @@
           <td class="text-left">{{ strtoupper($labour->description) }}</td>
           <td class="text-center"></td>
           <td class="text-center">{{ $labour->time_spent }}</td>
-          <td class="text-right">0.00</td>
+          <td class="text-right">{{ formatNumber($labour->discount_percentage ?? 0) }}</td>
           <td class="text-right">{{ formatNumber($labour->hourly_rate) }}</td>
-          <td class="text-right">{{ formatNumber($labour->total_cost) }}</td>
+          <td class="text-right">{{ formatNumber($labour->net_amount ?? $labour->total_cost) }}</td>
         </tr>
       @endforeach
     @endif
@@ -504,7 +504,7 @@
               Total {{$currencySymbol}}
             </td>
             <td
-              style="border: 1px solid #000; padding: 3px 6px; text-align: right;">{{ formatNumber($totals['subtotal']) }}</td>
+              style="border: 1px solid #000; padding: 3px 6px; text-align: right;">{{ formatNumber($totals['total_cost']) }}</td>
           </tr>
           <tr>
             <td style="border: 1px solid #000; padding: 3px 6px; font-weight: bold; background-color: #f5f5f5;">
@@ -518,7 +518,7 @@
               Neto {{$currencySymbol}}
             </td>
             <td
-              style="border: 1px solid #000; padding: 3px 6px; text-align: right;">{{ formatNumber($totals['subtotal'] - $totals['discount_amount']) }}</td>
+              style="border: 1px solid #000; padding: 3px 6px; text-align: right;">{{ formatNumber($totals['net_amount']) }}</td>
           </tr>
           <tr>
             <td style="border: 1px solid #000; padding: 3px 6px; font-weight: bold; background-color: #f5f5f5;">Total

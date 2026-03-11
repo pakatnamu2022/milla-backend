@@ -13,6 +13,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\PotentialBuyers;
 use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
 use App\Models\gp\gestionhumana\personal\Worker;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -209,11 +210,11 @@ class PotentialBuyersService extends BaseService
       $duplicatedRecords = [];
       $createdIds = [];
 
-      // Variables para la asignación de asesores (mismo sistema que assignWorkersToUnassigned)
+      // Variables para la asignación de asesores con balance inteligente
       $currentYear = date('Y');
       $currentMonth = date('m');
       $workersCache = [];
-      $distributionCounter = [];
+      $workersWithCounts = []; // Array con [id, count] ordenado por count
 
       // Procesar los datos importados con validación de duplicados y longitud de documento
       foreach ($importResult['data'] as $index => $rowData) {
@@ -255,7 +256,7 @@ class PotentialBuyersService extends BaseService
           $rowData['status_num_doc'] = $statusNumDoc;
           $rowData['user_id'] = auth()->id();
 
-          // Asignar asesor usando la misma lógica de assignWorkersToUnassigned
+          // Asignar asesor usando balance inteligente basado en conteo actual
           if (!empty($rowData['sede_id']) && !empty($rowData['vehicle_brand_id'])) {
             // Crear clave única para esta combinación de sede + marca
             $cacheKey = "{$rowData['sede_id']}_{$rowData['vehicle_brand_id']}";
@@ -276,24 +277,54 @@ class PotentialBuyersService extends BaseService
                   ->pluck('id')
                   ->toArray();
 
+                // Consultar cuántos leads tiene cada asesor HOY para esta combinación
+                // Usa created_at (fecha de creación en BD) no registration_date (fecha del Excel)
+                $leadCounts = PotentialBuyers::where('sede_id', $rowData['sede_id'])
+                  ->where('vehicle_brand_id', $rowData['vehicle_brand_id'])
+                  ->whereDate('created_at', today())
+                  ->whereIn('worker_id', $workers)
+                  ->groupBy('worker_id')
+                  ->selectRaw('worker_id, COUNT(*) as count')
+                  ->pluck('count', 'worker_id')
+                  ->toArray();
+
+                // Crear lista de asesores con su conteo actual
+                $workersWithCountsArray = [];
+                foreach ($workers as $workerId) {
+                  $workersWithCountsArray[] = [
+                    'id' => $workerId,
+                    'count' => $leadCounts[$workerId] ?? 0 // Si no tiene leads, es 0
+                  ];
+                }
+
+                // Ordenar por count ASC (el que tiene menos primero)
+                usort($workersWithCountsArray, function ($a, $b) {
+                  return $a['count'] <=> $b['count'];
+                });
+
                 $workersCache[$cacheKey] = $workers;
-                $distributionCounter[$cacheKey] = 0;
+                $workersWithCounts[$cacheKey] = $workersWithCountsArray;
               } else {
                 $workersCache[$cacheKey] = [];
+                $workersWithCounts[$cacheKey] = [];
               }
             }
 
-            // Si hay asesores disponibles para esta combinación, asignar con round-robin
+            // Si hay asesores disponibles para esta combinación, asignar al que tiene menos leads
             if (!empty($workersCache[$cacheKey])) {
-              $workers = $workersCache[$cacheKey];
-              $currentIndex = $distributionCounter[$cacheKey] % count($workers);
-              $assignedWorkerId = $workers[$currentIndex];
+              // Asignar siempre al primer asesor de la lista (que tiene menos leads)
+              $assignedWorkerId = $workersWithCounts[$cacheKey][0]['id'];
 
               // Asignar el worker_id al registro
               $rowData['worker_id'] = $assignedWorkerId;
 
-              // Incrementar el contador para el siguiente registro
-              $distributionCounter[$cacheKey]++;
+              // Incrementar el contador local para este asesor
+              $workersWithCounts[$cacheKey][0]['count']++;
+
+              // Re-ordenar la lista para mantener el balance
+              usort($workersWithCounts[$cacheKey], function ($a, $b) {
+                return $a['count'] <=> $b['count'];
+              });
             }
           }
 
@@ -414,11 +445,11 @@ class PotentialBuyersService extends BaseService
       $duplicatedRecords = [];
       $createdIds = [];
 
-      // Variables para la asignación de asesores (mismo sistema que assignWorkersToUnassigned)
+      // Variables para la asignación de asesores con balance inteligente
       $currentYear = date('Y');
       $currentMonth = date('m');
       $workersCache = [];
-      $distributionCounter = [];
+      $workersWithCounts = []; // Array con [id, count] ordenado por count
 
       // Procesar los datos importados con validación de duplicados y longitud de documento
       foreach ($importResult['data'] as $index => $rowData) {
@@ -460,7 +491,7 @@ class PotentialBuyersService extends BaseService
           $rowData['status_num_doc'] = $statusNumDoc;
           $rowData['user_id'] = auth()->id();
 
-          // Asignar asesor usando la misma lógica de assignWorkersToUnassigned
+          // Asignar asesor usando balance inteligente basado en conteo actual
           if (!empty($rowData['sede_id']) && !empty($rowData['vehicle_brand_id'])) {
             // Crear clave única para esta combinación de sede + marca
             $cacheKey = "{$rowData['sede_id']}_{$rowData['vehicle_brand_id']}";
@@ -481,24 +512,54 @@ class PotentialBuyersService extends BaseService
                   ->pluck('id')
                   ->toArray();
 
+                // Consultar cuántos leads tiene cada asesor HOY para esta combinación
+                // Usa created_at (fecha de creación en BD) no registration_date (fecha del Excel)
+                $leadCounts = PotentialBuyers::where('sede_id', $rowData['sede_id'])
+                  ->where('vehicle_brand_id', $rowData['vehicle_brand_id'])
+                  ->whereDate('created_at', today())
+                  ->whereIn('worker_id', $workers)
+                  ->groupBy('worker_id')
+                  ->selectRaw('worker_id, COUNT(*) as count')
+                  ->pluck('count', 'worker_id')
+                  ->toArray();
+
+                // Crear lista de asesores con su conteo actual
+                $workersWithCountsArray = [];
+                foreach ($workers as $workerId) {
+                  $workersWithCountsArray[] = [
+                    'id' => $workerId,
+                    'count' => $leadCounts[$workerId] ?? 0 // Si no tiene leads, es 0
+                  ];
+                }
+
+                // Ordenar por count ASC (el que tiene menos primero)
+                usort($workersWithCountsArray, function ($a, $b) {
+                  return $a['count'] <=> $b['count'];
+                });
+
                 $workersCache[$cacheKey] = $workers;
-                $distributionCounter[$cacheKey] = 0;
+                $workersWithCounts[$cacheKey] = $workersWithCountsArray;
               } else {
                 $workersCache[$cacheKey] = [];
+                $workersWithCounts[$cacheKey] = [];
               }
             }
 
-            // Si hay asesores disponibles para esta combinación, asignar con round-robin
+            // Si hay asesores disponibles para esta combinación, asignar al que tiene menos leads
             if (!empty($workersCache[$cacheKey])) {
-              $workers = $workersCache[$cacheKey];
-              $currentIndex = $distributionCounter[$cacheKey] % count($workers);
-              $assignedWorkerId = $workers[$currentIndex];
+              // Asignar siempre al primer asesor de la lista (que tiene menos leads)
+              $assignedWorkerId = $workersWithCounts[$cacheKey][0]['id'];
 
               // Asignar el worker_id al registro
               $rowData['worker_id'] = $assignedWorkerId;
 
-              // Incrementar el contador para el siguiente registro
-              $distributionCounter[$cacheKey]++;
+              // Incrementar el contador local para este asesor
+              $workersWithCounts[$cacheKey][0]['count']++;
+
+              // Re-ordenar la lista para mantener el balance
+              usort($workersWithCounts[$cacheKey], function ($a, $b) {
+                return $a['count'] <=> $b['count'];
+              });
             }
           }
 
@@ -556,17 +617,67 @@ class PotentialBuyersService extends BaseService
     }
   }
 
-  public function assignWorkersToUnassigned(): array
+  public function assignWorkersToUnassigned($date_from, $date_to, $all = false): array
   {
     DB::beginTransaction();
     try {
-      // Obtener todos los registros del mes anterior y mes actual
-      $unassignedBuyers = PotentialBuyers::whereBetween('created_at', [
-        now()->subMonth()->startOfMonth(),
-        now()->endOfMonth()
-      ])
-        ->where('use', 0)
-        ->get();
+      // Validar que las fechas estén dentro del mes actual
+      $startOfMonth = now()->startOfMonth();
+      $endOfMonth = now()->endOfMonth();
+
+      $dateFrom = Carbon::parse($date_from);
+      $dateTo = Carbon::parse($date_to);
+
+      if ($dateFrom->lt($startOfMonth) || $dateTo->gt($endOfMonth)) {
+        return [
+          'success' => false,
+          'message' => 'Las fechas deben estar dentro del mes actual',
+          'error' => "El rango permitido es desde {$startOfMonth->format('Y-m-d')} hasta {$endOfMonth->format('Y-m-d')}"
+        ];
+      }
+
+      if ($dateFrom->gt($dateTo)) {
+        return [
+          'success' => false,
+          'message' => 'La fecha inicial no puede ser mayor a la fecha final',
+          'error' => 'Rango de fechas inválido'
+        ];
+      }
+
+      // Si $all = true, validar que NO exista ningún registro con use = 1 en el rango
+      if ($all) {
+        $takenLeadsCount = PotentialBuyers::whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
+          ->where('use', 1)
+          ->where('type', PotentialBuyers::LEADS)
+          ->count();
+
+        if ($takenLeadsCount > 0) {
+          return [
+            'success' => false,
+            'message' => 'Ya se han tomado leads en este rango, por esa razón ya no se puede redistribuir',
+            'error' => "Se encontraron {$takenLeadsCount} leads con use=1 en el rango de fechas especificado"
+          ];
+        }
+
+        // Si no hay leads tomados, LIMPIAR todas las asignaciones del rango primero
+        PotentialBuyers::whereBetween(DB::raw('DATE(created_at)'), [$dateFrom->format('Y-m-d'), $dateTo->format('Y-m-d')])
+          ->where('use', 0)
+          ->where('type', PotentialBuyers::LEADS)
+          ->update(['worker_id' => null]);
+
+        // Luego obtener todos los leads sin asignar para redistribuir desde cero
+        $unassignedBuyers = PotentialBuyers::whereBetween(DB::raw('DATE(created_at)'), [$dateFrom->format('Y-m-d'), $dateTo->format('Y-m-d')])
+          ->where('use', 0)
+          ->whereNull('worker_id')
+          ->where('type', PotentialBuyers::LEADS)
+          ->get();
+      } else {
+        // Si $all = false, solo tomar los que tienen worker_id NULL
+        $unassignedBuyers = PotentialBuyers::whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
+          ->whereNull('worker_id')
+          ->where('type', PotentialBuyers::LEADS)
+          ->get();
+      }
 
       if ($unassignedBuyers->isEmpty()) {
         return [
@@ -583,7 +694,7 @@ class PotentialBuyersService extends BaseService
       $currentYear = date('Y');
       $currentMonth = date('m');
       $workersCache = [];
-      $distributionCounter = [];
+      $workersWithCounts = []; // Array con [id, count] ordenado por count
       $assigned = 0;
       $unassigned = 0;
 
@@ -610,6 +721,7 @@ class PotentialBuyersService extends BaseService
 
             if (empty($workerIds)) {
               $workersCache[$cacheKey] = [];
+              $workersWithCounts[$cacheKey] = [];
               $unassigned++;
               continue;
             }
@@ -619,8 +731,33 @@ class PotentialBuyersService extends BaseService
               ->pluck('id')
               ->toArray();
 
+            // Consultar cuántos leads tiene cada asesor en el rango especificado para esta combinación
+            // Usa created_at (fecha de creación en BD) para balance inteligente
+            $leadCounts = PotentialBuyers::where('sede_id', $buyer->sede_id)
+              ->where('vehicle_brand_id', $buyer->vehicle_brand_id)
+              ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom->format('Y-m-d'), $dateTo->format('Y-m-d')])
+              ->whereIn('worker_id', $workers)
+              ->groupBy('worker_id')
+              ->selectRaw('worker_id, COUNT(*) as count')
+              ->pluck('count', 'worker_id')
+              ->toArray();
+
+            // Crear lista de asesores con su conteo actual
+            $workersWithCountsArray = [];
+            foreach ($workers as $workerId) {
+              $workersWithCountsArray[] = [
+                'id' => $workerId,
+                'count' => $leadCounts[$workerId] ?? 0 // Si no tiene leads, es 0
+              ];
+            }
+
+            // Ordenar por count ASC (el que tiene menos primero)
+            usort($workersWithCountsArray, function ($a, $b) {
+              return $a['count'] <=> $b['count'];
+            });
+
             $workersCache[$cacheKey] = $workers;
-            $distributionCounter[$cacheKey] = 0;
+            $workersWithCounts[$cacheKey] = $workersWithCountsArray;
           }
 
           // Si no hay asesores disponibles para esta combinación
@@ -629,16 +766,20 @@ class PotentialBuyersService extends BaseService
             continue;
           }
 
-          // Obtener el asesor actual según round-robin
-          $workers = $workersCache[$cacheKey];
-          $currentIndex = $distributionCounter[$cacheKey] % count($workers);
-          $assignedWorkerId = $workers[$currentIndex];
+          // Asignar al asesor que tiene MENOS leads
+          $assignedWorkerId = $workersWithCounts[$cacheKey][0]['id'];
 
           // Actualizar el buyer con el worker_id
           $buyer->update(['worker_id' => $assignedWorkerId]);
 
-          // Incrementar el contador para el siguiente registro
-          $distributionCounter[$cacheKey]++;
+          // Incrementar el contador local para este asesor
+          $workersWithCounts[$cacheKey][0]['count']++;
+
+          // Re-ordenar la lista para mantener el balance
+          usort($workersWithCounts[$cacheKey], function ($a, $b) {
+            return $a['count'] <=> $b['count'];
+          });
+
           $assigned++;
 
         } catch (Exception $e) {
