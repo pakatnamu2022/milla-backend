@@ -14,6 +14,7 @@ use App\Http\Requests\ap\facturacion\UpdateDebitNoteRequest;
 use App\Http\Requests\ap\facturacion\UpdateElectronicDocumentRequest;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
 use App\Http\Services\ap\facturacion\ElectronicDocumentService;
+use App\Jobs\SyncAccountingStatusJob;
 use App\Http\Traits\HasApiResponse;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -480,11 +481,8 @@ class ElectronicDocumentController extends Controller
    */
   public function syncAccountingStatus(): JsonResponse
   {
-    try {
-      return $this->success($this->service->syncAccountingStatusFromDynamics());
-    } catch (Exception $e) {
-      return $this->error($e->getMessage());
-    }
+    SyncAccountingStatusJob::dispatch();
+    return $this->success(['message' => 'Sincronización de estados contables iniciada en segundo plano.']);
   }
 
   /**
