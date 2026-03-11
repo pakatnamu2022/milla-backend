@@ -502,6 +502,8 @@ class NubefactApiService
       $payload['generado_por_contingencia'] = true;
     }
 
+    Log::info(json_encode($payload));
+
     return $payload;
   }
 
