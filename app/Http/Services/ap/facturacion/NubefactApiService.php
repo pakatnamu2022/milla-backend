@@ -384,7 +384,7 @@ class NubefactApiService
     }
 
     // Detracción
-    if ($document->detraccion) {
+    if ($document->detraccion == 1) {
       $payload['detraccion'] = true;
       $payload['detraccion_tipo'] = $document->detractionType->code_nubefact ?? null;
       $payload['detraccion_total'] = $document->detraccion_total;
@@ -501,6 +501,8 @@ class NubefactApiService
     if ($document->generado_por_contingencia) {
       $payload['generado_por_contingencia'] = true;
     }
+
+    Log::info(json_encode($payload));
 
     return $payload;
   }
