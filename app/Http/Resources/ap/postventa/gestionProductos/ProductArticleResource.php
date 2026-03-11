@@ -25,11 +25,6 @@ class ProductArticleResource extends JsonResource
       'unit_measurement_id' => $this->unit_measurement_id,
       'unit_measurement' => $this->unitMeasurement->dyn_code ?? '',
       'unit_measurement_description' => $this->unitMeasurement->description ?? '',
-      'cost_price' => $this->cost_price,
-      'sale_price' => $this->sale_price,
-      'tax_rate' => $this->tax_rate,
-      'is_taxable' => $this->is_taxable,
-      'sunat_code' => $this->sunat_code,
       'warranty_months' => $this->warranty_months,
       'status' => $this->status,
     ];

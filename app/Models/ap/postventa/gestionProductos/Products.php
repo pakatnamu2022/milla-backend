@@ -21,35 +21,20 @@ class Products extends Model
   protected $fillable = [
     'code',
     'dyn_code',
-    'nubefac_code',
     'name',
     'description',
     'product_category_id',
     'brand_id',
     'unit_measurement_id',
     'ap_class_article_id',
-    'cost_price',
-    'sale_price',
-    'tax_rate',
-    'is_taxable',
-    'sunat_code',
     'warranty_months',
     'status',
-    'ap_class_article',
-  ];
-
-  protected $casts = [
-    'cost_price' => 'decimal:2',
-    'sale_price' => 'decimal:2',
-    'tax_rate' => 'decimal:2',
-    'is_taxable' => 'boolean',
   ];
 
   const filters = [
     'search' => [
       'code',
       'dyn_code',
-      'nubefac_code',
       'name',
       'description',
       'category.name',
@@ -60,9 +45,6 @@ class Products extends Model
     'unit_measurement_id' => '=',
     'ap_class_article' => '=',
     'status' => '=',
-    'is_taxable' => '=',
-    'cost_price' => '>=',
-    'sale_price' => '>=',
     'warehouse_id' => 'scope',
   ];
 
@@ -70,8 +52,6 @@ class Products extends Model
     'code',
     'dyn_code',
     'name',
-    'cost_price',
-    'sale_price',
     'created_at',
   ];
 
@@ -84,11 +64,6 @@ class Products extends Model
   public function setDynCodeAttribute($value)
   {
     $this->attributes['dyn_code'] = $value ? Str::upper(Str::ascii($value)) : null;
-  }
-
-  public function setNubefacCodeAttribute($value)
-  {
-    $this->attributes['nubefac_code'] = $value ? Str::upper(Str::ascii($value)) : null;
   }
 
   public function setNameAttribute($value)
@@ -156,23 +131,6 @@ class Products extends Model
   public function getTotalAvailableStockAttribute(): float
   {
     return $this->warehouseStocks()->sum('available_quantity');
-  }
-
-  // Accessors
-  public function getPriceWithTaxAttribute()
-  {
-    if (!$this->is_taxable) {
-      return $this->sale_price;
-    }
-    return $this->sale_price * (1 + ($this->tax_rate / 100));
-  }
-
-  public function getCostWithTaxAttribute()
-  {
-    if (!$this->is_taxable) {
-      return $this->cost_price;
-    }
-    return $this->cost_price * (1 + ($this->tax_rate / 100));
   }
 
   // Static Methods

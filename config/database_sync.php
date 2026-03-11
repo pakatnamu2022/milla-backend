@@ -457,8 +457,8 @@ return [
         'Nota' => fn($data) => '',
         'ClaseArticulo' => fn($data) => $data['class_dyn'] ?? '',
         'PlanUnidadMedida' => fn($data) => $data['unit_measurement_description'] ?? 'UNIDAD',
-        'CostoEstandar' => fn($data) => $data['cost_price'] ?? 0,
-        'CostoActual' => fn($data) => $data['cost_price'] ?? 0,
+        'CostoEstandar' => fn($data) => 0,
+        'CostoActual' => fn($data) => 0,
         'PesoEnvio' => 0,
         'Seguimiento' => 1, // PARA VEHICULOS ES 2 Y PARA REPUESTOS/PRODUCTOS ES 1
         'Sitio' => fn($data) => '',

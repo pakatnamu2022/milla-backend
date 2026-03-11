@@ -75,19 +75,12 @@ class InventoryMovementController extends Controller
     }
   }
 
-  /**
-   * Create warehouse transfer with shipping guide
-   * Creates TRANSFER_OUT movement + Shipping Guide (NOT sent to Nubefact yet)
-   *
-   * @param StoreTransferInventoryRequest $request
-   * @return JsonResponse
-   */
   public function createTransfer(StoreTransferInventoryRequest $request): JsonResponse
   {
     $request->validated();
     try {
       $data = $request->validated();
-      
+
       $result = $this->service->createTransfer(
         $data,
         $data['details']
@@ -105,15 +98,6 @@ class InventoryMovementController extends Controller
     }
   }
 
-  /**
-   * Update warehouse transfer
-   * Only updates simple fields (NOT products)
-   * Only allowed if shipping guide has NOT been sent to SUNAT
-   *
-   * @param UpdateTransferInventoryRequest $request
-   * @param int $id Movement ID
-   * @return JsonResponse
-   */
   public function updateTransfer(UpdateTransferInventoryRequest $request, int $id): JsonResponse
   {
     $request->validated();
@@ -145,14 +129,6 @@ class InventoryMovementController extends Controller
     }
   }
 
-  /**
-   * Delete warehouse transfer
-   * Only allowed if shipping guide has NOT been sent to SUNAT
-   * Reverses stock from in_transit back to available
-   *
-   * @param int $id Movement ID
-   * @return JsonResponse
-   */
   public function destroyTransfer(int $id): JsonResponse
   {
     try {
@@ -166,15 +142,6 @@ class InventoryMovementController extends Controller
     }
   }
 
-  /**
-   * Get movement history for a specific product in a warehouse
-   * Returns all inventory movements for a product
-   *
-   * @param int $productId Product ID
-   * @param int $warehouseId Warehouse ID
-   * @param Request $request
-   * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\Resources\Json\AnonymousResourceCollection
-   */
   public function getProductMovementHistory(int $productId, int $warehouseId, Request $request)
   {
     try {
@@ -184,21 +151,12 @@ class InventoryMovementController extends Controller
         $request
       );
 
-      // Return with pagination preserved
-      // Format: { data: [], links: {}, meta: {} }
       return $movements;
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
   }
 
-  /**
-   * Get kardex of all inventory movements
-   * Returns all inventory movements with optional warehouse filter
-   *
-   * @param Request $request
-   * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\Resources\Json\AnonymousResourceCollection
-   */
   public function getKardex(Request $request)
   {
     try {
@@ -222,15 +180,6 @@ class InventoryMovementController extends Controller
     }
   }
 
-  /**
-   * Get purchase history for a specific product in a warehouse
-   * Returns all purchases with prices to track cost variations
-   *
-   * @param int $productId Product ID
-   * @param int $warehouseId Warehouse ID
-   * @param Request $request
-   * @return JsonResponse
-   */
   public function getProductPurchaseHistory(int $productId, int $warehouseId, Request $request): JsonResponse
   {
     try {
@@ -252,14 +201,6 @@ class InventoryMovementController extends Controller
     }
   }
 
-  /**
-   * Export movement history for a specific product in a warehouse to Excel
-   *
-   * @param int $productId Product ID
-   * @param int $warehouseId Warehouse ID
-   * @param Request $request
-   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|JsonResponse
-   */
   public function exportProductMovementHistory(int $productId, int $warehouseId, Request $request)
   {
     try {
@@ -280,14 +221,6 @@ class InventoryMovementController extends Controller
     }
   }
 
-  /**
-   * Export purchase history for a specific product in a warehouse to Excel
-   *
-   * @param int $productId Product ID
-   * @param int $warehouseId Warehouse ID
-   * @param Request $request
-   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|JsonResponse
-   */
   public function exportProductPurchaseHistory(int $productId, int $warehouseId, Request $request)
   {
     try {
