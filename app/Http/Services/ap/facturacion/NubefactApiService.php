@@ -393,6 +393,8 @@ class NubefactApiService
       if ($document->medio_de_pago_detraccion) {
         $payload['medio_de_pago_detraccion'] = $document->medio_de_pago_detraccion;
       }
+    } else {
+      $payload['detraccion'] = false;
     }
 
     // ISC
