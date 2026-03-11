@@ -384,7 +384,7 @@ class NubefactApiService
     }
 
     // Detracción
-    if ($document->detraccion) {
+    if ($document->detraccion == 1) {
       $payload['detraccion'] = true;
       $payload['detraccion_tipo'] = $document->detractionType->code_nubefact ?? null;
       $payload['detraccion_total'] = $document->detraccion_total;
