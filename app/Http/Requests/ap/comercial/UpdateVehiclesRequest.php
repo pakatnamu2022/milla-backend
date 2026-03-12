@@ -39,6 +39,7 @@ class UpdateVehiclesRequest extends StoreRequest
       'sede_id' => 'sometimes|required|integer|exists:config_sede,id',
       'warehouse_physical_id' => 'sometimes|nullable|integer|exists:warehouse,id',
       'customer_id' => 'sometimes|nullable|integer|exists:business_partners,id',
+      'is_heavy' => 'sometimes|required|boolean',
     ];
   }
 

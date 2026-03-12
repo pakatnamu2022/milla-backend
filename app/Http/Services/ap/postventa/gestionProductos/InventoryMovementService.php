@@ -7,6 +7,7 @@ use App\Http\Resources\ap\postventa\gestionProductos\InventoryMovementResource;
 use App\Http\Services\BaseService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
@@ -129,12 +130,24 @@ class InventoryMovementService extends BaseService
         $quantityReceived = $detail->quantity_received;
 
         if ($quantityReceived > 0) {
+          // Get order item data (source of truth for invoiced amounts)
+          $orderItem = $detail->purchaseOrderItem;
+          $quantityOrdered = $orderItem->quantity ?? $quantityReceived;
+          $unitPriceOrdered = $orderItem->unit_price ?? 0;
+
+          // Calculate adjusted unit cost based on total invoiced cost
+          // Example: If ordered 10 units at $100 each but received only 8:
+          // - Total invoiced: 10 × $100 = $1,000
+          // - Adjusted unit cost: $1,000 / 8 = $125 per unit
+          $totalInvoicedCost = $quantityOrdered * $unitPriceOrdered;
+          $adjustedUnitCost = $quantityReceived > 0 ? $totalInvoicedCost / $quantityReceived : $unitPriceOrdered;
+
           InventoryMovementDetail::create([
             'inventory_movement_id' => $movement->id,
             'product_id' => $detail->product_id,
             'quantity' => $quantityReceived,
-            'unit_cost' => $detail->unit_cost ?? 0,
-            'total_cost' => $quantityReceived * ($detail->unit_cost ?? 0),
+            'unit_cost' => $adjustedUnitCost,  // Adjusted cost reflecting actual invoiced amount
+            'total_cost' => $totalInvoicedCost,  // Total invoiced cost (what you actually pay)
             'notes' => $detail->reception_type === PurchaseReceptionDetail::RECEPTION_TYPE_ORDERED
               ? "Item de - {$detail->product->name}"
               : "{$detail->reception_type} - {$detail->product->name}",

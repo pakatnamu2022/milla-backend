@@ -23,7 +23,7 @@ class GeneralMaster extends Model
 
   const filters = [
     'search' => ['code', 'description', 'type'],
-    'type' => '=',
+    'type' => 'in_or_equal',
     'status' => '=',
     'code' => '=',
   ];
@@ -45,6 +45,13 @@ class GeneralMaster extends Model
   //CONSTANTES DE PLANILLA
   const int DAYS_MONTH_ID = 6;
   const int WORKING_HOURS_ID = 7;
+  const int NIGHT_SURCHARGE_ID = 8;
+
+  //CONSTANTES POSTVENTA
+  const int COST_PER_MAN_HOUR_VL_ID = 9;
+  const int COST_PER_MAN_HOUR_VP_ID = 10;
+  const int PROFIT_MARGIN_ID = 11;
+  const int FREIGHT_COMMISSION_ID = 12;
 
   public function setCodeAttribute($value)
   {

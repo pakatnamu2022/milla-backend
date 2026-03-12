@@ -2428,13 +2428,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
         try {
           $inventoryMovementService->createSaleFromQuotation($quotationId);
-
-          Log::info('Inventory movement created automatically for fully paid quotation', [
-            'quotation_id' => $quotationId,
-            'quotation_number' => $quotation->quotation_number,
-          ]);
         } catch (Exception $e) {
-          // Loguear el error pero no lanzar excepción para no afectar el flujo principal
           Log::error('Error creating inventory movement for fully paid quotation', [
             'quotation_id' => $quotationId,
             'quotation_number' => $quotation->quotation_number,
