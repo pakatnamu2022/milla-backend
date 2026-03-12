@@ -12,6 +12,7 @@ class StorePayrollPeriodRequest extends StoreRequest
       'year' => ['required', 'integer', 'min:2020', 'max:2100'],
       'month' => ['required', 'integer', 'min:1', 'max:12'],
       'payment_date' => ['nullable', 'date'],
+      'biweekly_date' => ['nullable', 'date'],
       'company_id' => ['required', 'integer', 'exists:companies,id'],
     ];
   }
@@ -22,6 +23,7 @@ class StorePayrollPeriodRequest extends StoreRequest
       'year' => 'year',
       'month' => 'month',
       'payment_date' => 'payment date',
+      'biweekly_date' => 'fecha de quincena',
       'company_id' => 'company',
     ];
   }

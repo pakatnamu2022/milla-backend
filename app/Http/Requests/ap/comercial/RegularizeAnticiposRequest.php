@@ -2,11 +2,10 @@
 
 namespace App\Http\Requests\ap\comercial;
 
-use App\Models\ap\comercial\ApVehicle;
+use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Validator;
 
 class RegularizeAnticiposRequest extends FormRequest
 {
@@ -65,11 +64,11 @@ class RegularizeAnticiposRequest extends FormRequest
   /**
    * Configure el validador
    */
-  public function withValidator(Validator $validator): void
+  public function withValidator($validator): void
   {
-    $validator->after(function (Validator $validator) {
+    $validator->after(function ($validator) {
       $vehicleId = $this->route('id');
-      $vehicle = ApVehicle::with('model')->find($vehicleId);
+      $vehicle = Vehicles::with('model')->find($vehicleId);
 
       if (!$vehicle) {
         $validator->errors()->add('vehicle_id', 'El vehículo no existe');
@@ -119,7 +118,7 @@ class RegularizeAnticiposRequest extends FormRequest
 
       // Validar que la suma de anticipos no excede el precio del vehículo
       $totalAnticipos = $anticipos->sum('total');
-      $vehiclePrice = (float) $vehicle->model->sale_price;
+      $vehiclePrice = (float)$vehicle->model->sale_price;
 
       if ($totalAnticipos > $vehiclePrice) {
         $validator->errors()->add('anticipo_ids', sprintf(
@@ -136,7 +135,7 @@ class RegularizeAnticiposRequest extends FormRequest
       if ($documentTypeId && $serie) {
         if (!ElectronicDocument::validateSerie($documentTypeId, $serie)) {
           $prefix = substr($serie, 0, 1);
-          $expectedPrefix = match($documentTypeId) {
+          $expectedPrefix = match ($documentTypeId) {
             SunatConcepts::ID_FACTURA_ELECTRONICA => 'F',
             SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA => 'B',
             default => 'F o B'

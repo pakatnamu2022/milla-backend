@@ -112,11 +112,13 @@ class PayrollScheduleController extends Controller
   /**
    * Generate payroll calculations for a period
    * Creates PayrollCalculation records from attendance schedules
+   * Optional query param: quincena=1 (primera quincena) | quincena=2 (segunda quincena)
    */
-  public function generateCalculations(int $periodId)
+  public function generateCalculations(Request $request, int $periodId)
   {
     try {
-      $result = $this->service->generatePayrollCalculations($periodId);
+      $quincena = $request->query('quincena') !== null ? (int)$request->query('quincena') : null;
+      $result = $this->service->generatePayrollCalculations($periodId, $quincena);
       return $this->success([
         'data' => $result,
         'message' => "Successfully generated {$result['calculations_created']} payroll calculations"
@@ -129,11 +131,13 @@ class PayrollScheduleController extends Controller
   /**
    * Recalculate payroll calculations for a period
    * Deletes and regenerates calculations based on current schedules
+   * Optional query param: quincena=1 (primera quincena) | quincena=2 (segunda quincena)
    */
-  public function recalculateCalculations(int $periodId)
+  public function recalculateCalculations(Request $request, int $periodId)
   {
     try {
-      $result = $this->service->recalculatePayrollCalculations($periodId);
+      $quincena = $request->query('quincena') !== null ? (int)$request->query('quincena') : null;
+      $result = $this->service->recalculatePayrollCalculations($periodId, $quincena);
       return $this->success([
         'data' => $result,
         'message' => "Successfully recalculated {$result['calculations_created']} payroll calculations"
@@ -146,11 +150,13 @@ class PayrollScheduleController extends Controller
   /**
    * Get daily attendances for all workers in a period
    * Returns data for frontend to map each worker's attendance codes
+   * Optional query param: quincena=1 (primera quincena) | quincena=2 (segunda quincena)
    */
-  public function getAttendances(int $periodId)
+  public function getAttendances(Request $request, int $periodId)
   {
     try {
-      return $this->success($this->service->getAttendancesByPeriod($periodId));
+      $quincena = $request->query('quincena') !== null ? (int)$request->query('quincena') : null;
+      return $this->success($this->service->getAttendancesByPeriod($periodId, $quincena));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

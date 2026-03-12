@@ -83,6 +83,7 @@ class PayrollPeriodService extends BaseService implements BaseServiceInterface
         'start_date' => $startDate,
         'end_date' => $endDate,
         'payment_date' => $data['payment_date'] ?? null,
+        'biweekly_date' => $data['biweekly_date'] ?? null,
         'status' => PayrollPeriod::STATUS_OPEN,
         'company_id' => $companyId,
       ]);
@@ -111,6 +112,7 @@ class PayrollPeriodService extends BaseService implements BaseServiceInterface
 
       $period->update([
         'payment_date' => $data['payment_date'] ?? $period->payment_date,
+        'biweekly_date' => array_key_exists('biweekly_date', $data) ? $data['biweekly_date'] : $period->biweekly_date,
         'status' => $data['status'] ?? $period->status,
       ]);
 
@@ -163,6 +165,49 @@ class PayrollPeriodService extends BaseService implements BaseServiceInterface
     }
 
     return new PayrollPeriodResource($period->load('company'));
+  }
+
+  /**
+   * Reset a period back to OPEN status.
+   * Deletes all associated calculations and details so the period can be edited again.
+   */
+  public function resetPeriod(int $id)
+  {
+    try {
+      DB::beginTransaction();
+
+      $period = $this->find($id);
+
+      if ($period->status === PayrollPeriod::STATUS_OPEN) {
+        throw new Exception('El período ya está en estado ABIERTO.');
+      }
+
+      if ($period->status === PayrollPeriod::STATUS_CLOSED) {
+        throw new Exception('No se puede reabrir un período CERRADO.');
+      }
+
+      // Load existing calculations (including soft-deleted)
+      $calculations = \App\Models\gp\gestionhumana\payroll\PayrollCalculation::withTrashed()
+        ->where('period_id', $id)
+        ->get();
+
+      if ($calculations->isNotEmpty()) {
+        \App\Models\gp\gestionhumana\payroll\PayrollCalculationDetail::whereIn('calculation_id', $calculations->pluck('id'))
+          ->forceDelete();
+
+        \App\Models\gp\gestionhumana\payroll\PayrollCalculation::withTrashed()
+          ->where('period_id', $id)
+          ->forceDelete();
+      }
+
+      $period->update(['status' => PayrollPeriod::STATUS_OPEN]);
+
+      DB::commit();
+      return new PayrollPeriodResource($period->fresh()->load('company'));
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 
   /**

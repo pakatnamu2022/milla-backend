@@ -4,7 +4,6 @@ namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
-use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\Rule;
 
 class StoreApOrderQuotationDetailsRequest extends StoreRequest
@@ -145,7 +144,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
     ];
   }
 
-  protected function withValidator(Validator $validator): void
+  public function withValidator($validator): void
   {
     $validator->after(function ($validator) {
       // Solo validar stock si es un producto (no mano de obra)
