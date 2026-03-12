@@ -77,6 +77,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     $pendingGuides = ShippingGuides::whereIn('migration_status', [
       VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
       VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
+      VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
     ])
       ->where('aceptada_por_sunat', true)
       ->where('area_id', ApMasters::AREA_COMERCIAL) // Solo área comercial (vehículos)

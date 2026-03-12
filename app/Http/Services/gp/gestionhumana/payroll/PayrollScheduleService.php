@@ -646,9 +646,10 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         throw new Exception('The period does not have a biweekly date configured.');
       }
 
-      // Check if period allows recalculation (include soft deleted)
+      // Check if period allows recalculation (include soft deleted), filtered by biweekly half
       $existingCalculations = PayrollCalculation::withTrashed()
         ->where('period_id', $periodId)
+        ->where('biweekly', $biweekly)
         ->get();
 
       // Don't allow recalculation if any calculation is APPROVED or PAID
@@ -665,9 +666,10 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         PayrollCalculationDetail::whereIn('calculation_id', $existingCalculations->pluck('id'))->forceDelete();
       }
 
-      // Force delete existing calculations (permanent delete, not soft delete)
+      // Force delete existing calculations for this biweekly half only
       PayrollCalculation::withTrashed()
         ->where('period_id', $periodId)
+        ->where('biweekly', $biweekly)
         ->forceDelete();
 
       [$dateFrom, $dateTo] = $this->getDateRangeForBiweekly($period, $biweekly);
