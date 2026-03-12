@@ -16,7 +16,7 @@ class SyncShippingGuideDynamicsCommand extends Command
    *
    * @var string
    */
-  protected $signature = 'shipping-guide:sync-dynamics {--id= : ID de la guía de remisión específica} {--all : Sincronizar todas las guías sin dyn_series} {--limit=50 : Número máximo de guías a procesar (default: 50)}';
+  protected $signature = 'shipping-guide:sync-dynamics {--id= : ID de la guía de remisión específica} {--all : Sincronizar todas las guías sin dyn_series}';
 
   /**
    * The console command description.
@@ -85,14 +85,12 @@ class SyncShippingGuideDynamicsCommand extends Command
       return Command::SUCCESS;
     }
 
-    $limit = (int)$this->option('limit');
 
     // Obtener guías que no tienen dyn_series sincronizado
     $shippingGuides = ShippingGuides::where('is_accounted', 0)
       ->whereNotNull('document_number')
       ->where('status', true)
       ->orderBy('id')
-      ->limit($limit)
       ->get();
 
     if ($shippingGuides->isEmpty()) {
