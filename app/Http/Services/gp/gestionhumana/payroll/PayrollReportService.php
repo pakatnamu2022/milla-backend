@@ -81,17 +81,21 @@ class PayrollReportService
   /**
    * Get payroll report for a period (tabla de boleta por trabajador)
    */
-  public function getPayrollReport(int $periodId): array
+  public function getPayrollReport(int $periodId, ?int $biweekly = null): array
   {
     $period = PayrollPeriod::find($periodId);
     if (!$period) {
       throw new Exception('Period not found');
     }
 
-    $calculations = PayrollCalculation::with(['worker', 'company', 'sede'])
-      ->where('period_id', $periodId)
-      ->orderBy('worker_id')
-      ->get();
+    $query = PayrollCalculation::with(['worker', 'company', 'sede'])
+      ->where('period_id', $periodId);
+
+    if ($biweekly !== null) {
+      $query->where('biweekly', $biweekly);
+    }
+
+    $calculations = $query->orderBy('worker_id')->get();
 
     $rows = $calculations->map(fn($c) => [
       'empresa' => $c->company->name ?? ($c->sede->abreviatura ?? '-'),
