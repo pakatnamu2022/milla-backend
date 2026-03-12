@@ -111,7 +111,7 @@ class PurchaseOrderController extends Controller
   {
     try {
       $request->validate([
-        'sede_id'           => 'required|integer|exists:config_sede,id',
+        'sede_id' => 'required|integer|exists:config_sede,id',
         'type_operation_id' => 'required|integer|exists:ap_masters,id',
       ]);
 

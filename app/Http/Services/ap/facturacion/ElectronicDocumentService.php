@@ -1099,19 +1099,19 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     return $document->items->map(function (ElectronicDocumentItem $item) {
       return [
-        'account_plan_id'          => $item->account_plan_id,
-        'unidad_de_medida'         => $item->unidad_de_medida,
-        'codigo'                   => $item->codigo,
-        'codigo_producto_sunat'    => $item->codigo_producto_sunat,
-        'descripcion'              => $item->descripcion,
-        'cantidad'                 => $item->cantidad,
-        'valor_unitario'           => $item->valor_unitario,
-        'precio_unitario'          => $item->precio_unitario,
-        'descuento'                => $item->descuento,
-        'subtotal'                 => $item->subtotal,
+        'account_plan_id' => $item->account_plan_id,
+        'unidad_de_medida' => $item->unidad_de_medida,
+        'codigo' => $item->codigo,
+        'codigo_producto_sunat' => $item->codigo_producto_sunat,
+        'descripcion' => $item->descripcion,
+        'cantidad' => $item->cantidad,
+        'valor_unitario' => $item->valor_unitario,
+        'precio_unitario' => $item->precio_unitario,
+        'descuento' => $item->descuento,
+        'subtotal' => $item->subtotal,
         'sunat_concept_igv_type_id' => $item->sunat_concept_igv_type_id,
-        'igv'                      => $item->igv,
-        'total'                    => $item->total,
+        'igv' => $item->igv,
+        'total' => $item->total,
       ];
     })->values()->toArray();
   }
@@ -1130,19 +1130,19 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     return $selectedItems->map(function (ElectronicDocumentItem $item) {
       return [
-        'account_plan_id'          => $item->account_plan_id,
-        'unidad_de_medida'         => $item->unidad_de_medida,
-        'codigo'                   => $item->codigo,
-        'codigo_producto_sunat'    => $item->codigo_producto_sunat,
-        'descripcion'              => $item->descripcion,
-        'cantidad'                 => $item->cantidad,
-        'valor_unitario'           => $item->valor_unitario,
-        'precio_unitario'          => $item->precio_unitario,
-        'descuento'                => $item->descuento,
-        'subtotal'                 => $item->subtotal,
+        'account_plan_id' => $item->account_plan_id,
+        'unidad_de_medida' => $item->unidad_de_medida,
+        'codigo' => $item->codigo,
+        'codigo_producto_sunat' => $item->codigo_producto_sunat,
+        'descripcion' => $item->descripcion,
+        'cantidad' => $item->cantidad,
+        'valor_unitario' => $item->valor_unitario,
+        'precio_unitario' => $item->precio_unitario,
+        'descuento' => $item->descuento,
+        'subtotal' => $item->subtotal,
         'sunat_concept_igv_type_id' => $item->sunat_concept_igv_type_id,
-        'igv'                      => $item->igv,
-        'total'                    => $item->total,
+        'igv' => $item->igv,
+        'total' => $item->total,
       ];
     })->values()->toArray();
   }
@@ -1171,19 +1171,19 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     return [[
-      'account_plan_id'          => $data['account_plan_id'],
-      'unidad_de_medida'         => 'NIU',
-      'codigo'                   => null,
-      'codigo_producto_sunat'    => null,
-      'descripcion'              => 'Descuento global',
-      'cantidad'                 => 1,
-      'valor_unitario'           => $subtotal,
-      'precio_unitario'          => $subtotal,
-      'descuento'                => null,
-      'subtotal'                 => $subtotal,
+      'account_plan_id' => $data['account_plan_id'],
+      'unidad_de_medida' => 'NIU',
+      'codigo' => null,
+      'codigo_producto_sunat' => null,
+      'descripcion' => 'Descuento global',
+      'cantidad' => 1,
+      'valor_unitario' => $subtotal,
+      'precio_unitario' => $subtotal,
+      'descuento' => null,
+      'subtotal' => $subtotal,
       'sunat_concept_igv_type_id' => $igvTypeId,
-      'igv'                      => $igv,
-      'total'                    => $discountAmount,
+      'igv' => $igv,
+      'total' => $discountAmount,
     ]];
   }
 
@@ -2428,13 +2428,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
         try {
           $inventoryMovementService->createSaleFromQuotation($quotationId);
-
-          Log::info('Inventory movement created automatically for fully paid quotation', [
-            'quotation_id' => $quotationId,
-            'quotation_number' => $quotation->quotation_number,
-          ]);
         } catch (Exception $e) {
-          // Loguear el error pero no lanzar excepción para no afectar el flujo principal
           Log::error('Error creating inventory movement for fully paid quotation', [
             'quotation_id' => $quotationId,
             'quotation_number' => $quotation->quotation_number,

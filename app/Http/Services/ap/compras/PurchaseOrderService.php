@@ -8,6 +8,7 @@ use App\Http\Resources\ap\compras\PurchaseOrderResource;
 use App\Http\Services\ap\comercial\PurchaseRequestQuoteService;
 use App\Http\Services\ap\comercial\VehiclesService;
 use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
+use App\Http\Services\ap\compras\PurchaseReceptionService;
 use App\Http\Services\BaseService;
 use App\Jobs\SyncCreditNoteDynamicsJob;
 use App\Jobs\SyncInvoiceDynamicsJob;
@@ -123,7 +124,6 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
       // Si no es producción, sumar 1000 al correlativo para evitar conflictos para posventa
       if (config('app.env') !== 'production' && $data['type_operation_id'] == ApMasters::TIPO_OPERACION_POSTVENTA) {
-        dd();
         $number_correlative += 1000;
       }
 
@@ -823,6 +823,11 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
           $orderItem->id]);
       }
     }
+
+    //GENERAMOS EL MOVIMIENTO DE STOCK DE ENTRADA POR LA RECEPCIÓN
+    $stockService = new PurchaseReceptionService();
+    $stockService->processReceptionStock($purchaseOrder);
+    //MANERA TEMPORAL
   }
 
   public function checkResources($id)

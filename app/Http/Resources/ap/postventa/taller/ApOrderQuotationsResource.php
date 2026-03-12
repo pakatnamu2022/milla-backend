@@ -7,6 +7,7 @@ use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use App\Models\GeneralMaster;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -57,6 +58,12 @@ class ApOrderQuotationsResource extends JsonResource
       'chief_approval_by' => $this->chief_approval_by,
       'manager_approval_by' => $this->manager_approval_by,
       'status' => $this->status,
+      'cost_man_hours' => $this->when(
+        isset($this->additional['includeCostManHours']) && $this->additional['includeCostManHours'],
+        fn() => $this->vehicle->is_heavy
+          ? GeneralMaster::find(GeneralMaster::COST_PER_MAN_HOUR_VP_ID)->value
+          : GeneralMaster::find(GeneralMaster::COST_PER_MAN_HOUR_VL_ID)->value
+      ),
 
       // Relations
       'details' => ApOrderQuotationDetailsResource::collection($this->details),

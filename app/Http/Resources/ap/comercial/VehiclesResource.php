@@ -45,6 +45,7 @@ class VehiclesResource extends JsonResource
       'type_operation_id' => $this->type_operation_id,
       'owner' => BusinessPartnersResource::make($this->customer),
       'owner_name' => $this->customer?->full_name,
+      'is_heavy' => $this->is_heavy,
     ];
   }
 }

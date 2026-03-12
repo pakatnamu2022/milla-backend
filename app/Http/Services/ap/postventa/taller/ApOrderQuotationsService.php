@@ -220,7 +220,15 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   {
     $quotation = $this->find($id);
     $quotation->load('advancesOrderQuotation');
-    return (new ApOrderQuotationsResource($quotation))->additional(['checkStock' => true]);
+
+    $additionalData = ['checkStock' => true];
+
+    // Incluir cost_man_hours solo si es área de taller
+    if ($quotation->area_id === ApMasters::AREA_TALLER) {
+      $additionalData['includeCostManHours'] = true;
+    }
+
+    return (new ApOrderQuotationsResource($quotation))->additional($additionalData);
   }
 
 

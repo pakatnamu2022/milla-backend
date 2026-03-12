@@ -14,7 +14,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use App\Models\ap\comercial\ApVehicleInventory;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -37,12 +36,14 @@ class Vehicles extends BaseModel
     'ap_vehicle_status_id',
     'type_operation_id',
     'status',
+    'is_heavy',
     'warehouse_physical_id',
     'customer_id'
   ];
 
   protected $casts = [
     'year' => 'integer',
+    'is_heavy' => 'boolean',
   ];
 
   const array filters = [

@@ -77,6 +77,6 @@ class UserResource extends JsonResource
     // Buscar el porcentaje en GeneralMaster
     $generalMaster = GeneralMaster::find($generalMasterId);
 
-    return $generalMaster ? (float) $generalMaster->value : null;
+    return $generalMaster ? (float)$generalMaster->value * 100 : null;
   }
 }
