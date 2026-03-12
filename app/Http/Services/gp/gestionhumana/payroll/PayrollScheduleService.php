@@ -63,6 +63,28 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
   }
 
   /**
+   * Resolve the date range for schedule filtering based on biweekly half.
+   *
+   * biweekly = 1 → start_date  ... biweekly_date
+   * biweekly = 2 → biweekly_date+1 ... end_date
+   * biweekly = null → start_date ... end_date (full month)
+   *
+   * @return array{0: \Carbon\Carbon, 1: \Carbon\Carbon}
+   */
+  private function getDateRangeForBiweekly(PayrollPeriod $period, ?int $biweekly): array
+  {
+    if ($biweekly === 1 && $period->biweekly_date) {
+      return [$period->start_date, $period->biweekly_date];
+    }
+
+    if ($biweekly === 2 && $period->biweekly_date) {
+      return [$period->biweekly_date->copy()->addDay(), $period->end_date];
+    }
+
+    return [$period->start_date, $period->end_date];
+  }
+
+  /**
    * Calculate hours for a schedule based on code and worker
    */
   private function calculateHours($code, $worker)
@@ -308,17 +330,21 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
    *    - total = hours × hour_value × multiplier × days_worked
    *    - If pay = 0: subtract instead of add
    */
-  public function getSummaryByPeriod(int $periodId)
+  public function getSummaryByPeriod(int $periodId, ?int $biweekly = null)
   {
     $period = PayrollPeriod::find($periodId);
     if (!$period) {
       throw new Exception('Period not found');
     }
 
-    // Get all worked schedules for this period
+    [$dateFrom, $dateTo] = $this->getDateRangeForBiweekly($period, $biweekly);
+
+    // Get all worked schedules for this period (filtered by biweekly half if provided)
     $schedules = PayrollSchedule::with(['worker'])
       ->where('period_id', $periodId)
       ->where('status', PayrollSchedule::STATUS_WORKED)
+      ->where('work_date', '>=', $dateFrom)
+      ->where('work_date', '<=', $dateTo)
       ->get();
 
     // Get all attendance rules
@@ -408,6 +434,9 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
 
     return [
       'period' => new PayrollPeriodResource($period),
+      'biweekly' => $biweekly,
+      'date_from' => $dateFrom,
+      'date_to' => $dateTo,
       'workers_count' => $summary->count(),
       'summary' => $summary,
     ];
@@ -421,7 +450,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
    * @return array
    * @throws Exception
    */
-  public function generatePayrollCalculations(int $periodId)
+  public function generatePayrollCalculations(int $periodId, ?int $biweekly = null)
   {
     try {
       DB::beginTransaction();
@@ -431,16 +460,27 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         throw new Exception('Period not found');
       }
 
-      // Check if calculations already exist for this period
-      $existingCount = PayrollCalculation::where('period_id', $periodId)->count();
-      if ($existingCount > 0) {
-        throw new Exception("Ya existen cálculos para este período. Utilice el punto final de recalculación para actualizarlos.");
+      if ($biweekly !== null && !$period->biweekly_date) {
+        throw new Exception('The period does not have a biweekly date configured.');
       }
 
-      // Get all worked schedules for this period
+      // Check if calculations already exist for this period/biweekly combination
+      $existingCount = PayrollCalculation::where('period_id', $periodId)
+        ->where('biweekly', $biweekly)
+        ->count();
+      if ($existingCount > 0) {
+        $halfLabel = $biweekly ? "biweekly={$biweekly}" : 'full month';
+        throw new Exception("Calculations already exist for this period ({$halfLabel}). Use the recalculate endpoint to update them.");
+      }
+
+      [$dateFrom, $dateTo] = $this->getDateRangeForBiweekly($period, $biweekly);
+
+      // Get all worked schedules for the resolved date range
       $schedules = PayrollSchedule::with(['worker'])
         ->where('period_id', $periodId)
         ->where('status', PayrollSchedule::STATUS_WORKED)
+        ->where('work_date', '>=', $dateFrom)
+        ->where('work_date', '<=', $dateTo)
         ->get();
 
       if ($schedules->isEmpty()) {
@@ -478,6 +518,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           // Create PayrollCalculation
           $calculation = PayrollCalculation::create([
             'period_id' => $periodId,
+            'biweekly' => $biweekly,
             'worker_id' => $workerId,
             'company_id' => $worker->company_id ?? null,
             'sede_id' => $worker->sede_id ?? null,
@@ -591,7 +632,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
    * @return array
    * @throws Exception
    */
-  public function recalculatePayrollCalculations(int $periodId)
+  public function recalculatePayrollCalculations(int $periodId, ?int $biweekly = null)
   {
     try {
       DB::beginTransaction();
@@ -601,9 +642,14 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         throw new Exception('Period not found');
       }
 
-      // Check if period allows recalculation (include soft deleted)
+      if ($biweekly !== null && !$period->biweekly_date) {
+        throw new Exception('The period does not have a biweekly date configured.');
+      }
+
+      // Check if period allows recalculation (include soft deleted), filtered by biweekly half
       $existingCalculations = PayrollCalculation::withTrashed()
         ->where('period_id', $periodId)
+        ->where('biweekly', $biweekly)
         ->get();
 
       // Don't allow recalculation if any calculation is APPROVED or PAID
@@ -620,15 +666,20 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         PayrollCalculationDetail::whereIn('calculation_id', $existingCalculations->pluck('id'))->forceDelete();
       }
 
-      // Force delete existing calculations (permanent delete, not soft delete)
+      // Force delete existing calculations for this biweekly half only
       PayrollCalculation::withTrashed()
         ->where('period_id', $periodId)
+        ->where('biweekly', $biweekly)
         ->forceDelete();
 
-      // Get all worked schedules for this period
+      [$dateFrom, $dateTo] = $this->getDateRangeForBiweekly($period, $biweekly);
+
+      // Get all worked schedules for the resolved date range
       $schedules = PayrollSchedule::with(['worker'])
         ->where('period_id', $periodId)
         ->where('status', PayrollSchedule::STATUS_WORKED)
+        ->where('work_date', '>=', $dateFrom)
+        ->where('work_date', '<=', $dateTo)
         ->get();
 
       if ($schedules->isEmpty()) {
@@ -666,6 +717,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           // Create PayrollCalculation
           $calculation = PayrollCalculation::create([
             'period_id' => $periodId,
+            'biweekly' => $biweekly,
             'worker_id' => $workerId,
             'company_id' => $worker->company_id ?? null,
             'sede_id' => $worker->sede_id ?? null,
@@ -777,16 +829,20 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
    * @return array
    * @throws Exception
    */
-  public function getAttendancesByPeriod(int $periodId)
+  public function getAttendancesByPeriod(int $periodId, ?int $biweekly = null)
   {
     $period = PayrollPeriod::find($periodId);
     if (!$period) {
       throw new Exception('Period not found');
     }
 
+    [$dateFrom, $dateTo] = $this->getDateRangeForBiweekly($period, $biweekly);
+
     // Get all schedules for this period with worker information
     $schedules = PayrollSchedule::with(['worker'])
       ->where('period_id', $periodId)
+      ->where('work_date', '>=', $dateFrom)
+      ->where('work_date', '<=', $dateTo)
       ->orderBy('work_date', 'asc')
       ->get();
 
@@ -794,8 +850,10 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       return [
         'period_id' => $periodId,
         'period_name' => $period->name ?? "{$period->start_date} - {$period->end_date}",
-        'start_date' => $period->start_date,
-        'end_date' => $period->end_date,
+        'start_date' => $dateFrom,
+        'end_date' => $dateTo,
+        'biweekly_date' => $period->biweekly_date,
+        'biweekly' => $biweekly,
         'attendances' => [],
       ];
     }
@@ -833,8 +891,10 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
     return [
       'period_id' => $periodId,
       'period_name' => $period->name ?? "{$period->start_date} - {$period->end_date}",
-      'start_date' => $period->start_date,
-      'end_date' => $period->end_date,
+      'start_date' => $dateFrom,
+      'end_date' => $dateTo,
+      'biweekly_date' => $period->biweekly_date,
+      'biweekly' => $biweekly,
       'total_workers' => $attendancesByWorker->count(),
       'attendances' => $attendancesByWorker,
     ];

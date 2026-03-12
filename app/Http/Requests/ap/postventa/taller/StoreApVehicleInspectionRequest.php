@@ -3,9 +3,7 @@
 namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
-use App\Models\ap\postventa\taller\ApVehicleInspection;
 use App\Models\ap\postventa\taller\ApWorkOrder;
-use Illuminate\Validation\Validator;
 
 class StoreApVehicleInspectionRequest extends StoreRequest
 {
@@ -108,17 +106,17 @@ class StoreApVehicleInspectionRequest extends StoreRequest
   /**
    * Configure the validator instance.
    */
-  public function withValidator(Validator $validator): void
+  public function withValidator($validator): void
   {
     $validator->after(function ($validator) {
-      $workOrderId = $this->input('work_order_id');
+      $workOrderId = $this->input('ap_work_order_id');
 
       if ($workOrderId) {
         $existingWorkOrder = ApWorkOrder::find($workOrderId);
 
         if (!$existingWorkOrder) {
           $validator->errors()->add(
-            'work_order_id',
+            'ap_work_order_id',
             'La orden de trabajo no existe o ya fue eliminada.'
           );
           return;
@@ -126,7 +124,7 @@ class StoreApVehicleInspectionRequest extends StoreRequest
 
         if ($existingWorkOrder->vehicleInspection) {
           $validator->errors()->add(
-            'work_order_id',
+            'ap_work_order_id',
             'Esta orden de trabajo ya tiene una inspección vehicular registrada.'
           );
         }

@@ -19,6 +19,7 @@ class PayrollCalculation extends BaseModel
 
   protected $fillable = [
     'period_id',
+    'biweekly',
     'worker_id',
     'company_id',
     'sede_id',
@@ -54,6 +55,7 @@ class PayrollCalculation extends BaseModel
   ];
 
   protected $casts = [
+    'biweekly' => 'integer',
     'salary' => 'decimal:2',
     'shift_hours' => 'decimal:2',
     'base_hour_value' => 'decimal:2',

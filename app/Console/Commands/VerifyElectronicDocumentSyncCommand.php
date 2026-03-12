@@ -118,6 +118,7 @@ class VerifyElectronicDocumentSyncCommand extends Command
         ->orWhereIn('migration_status', [
           VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
           VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
+          VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
         ]);
     })
       ->where('status', ElectronicDocument::STATUS_ACCEPTED)

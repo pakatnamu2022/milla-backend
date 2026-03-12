@@ -4,7 +4,6 @@ namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
-use Illuminate\Contracts\Validation\Validator;
 
 class StoreApOrderQuotationWithProductsRequest extends StoreRequest
 {
@@ -155,7 +154,7 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
     ];
   }
 
-  protected function withValidator(Validator $validator): void
+  public function withValidator($validator): void
   {
     $validator->after(function ($validator) {
       $details = $this->input('details', []);

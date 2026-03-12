@@ -22,6 +22,7 @@ class PayrollPeriod extends BaseModel
     'start_date',
     'end_date',
     'payment_date',
+    'biweekly_date',
     'status',
     'company_id',
   ];
@@ -32,6 +33,7 @@ class PayrollPeriod extends BaseModel
     'start_date' => 'date',
     'end_date' => 'date',
     'payment_date' => 'date',
+    'biweekly_date' => 'date',
   ];
 
   // Period statuses

@@ -67,7 +67,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
     $pendingOrders = PurchaseOrder::whereIn('migration_status', [
       'pending',
       'in_progress',
-//      'failed'
+      'failed'
     ])
       ->whereNull('deleted_at')
       ->get();
