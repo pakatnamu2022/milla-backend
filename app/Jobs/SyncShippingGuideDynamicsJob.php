@@ -197,6 +197,8 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       $results = DB::connection('dbtest')
         ->select("EXEC neIvConsultarTransferenciasInventario '{$transactionId}'");
 
+      Log::info('Trasaccion' . $transactionId);
+
       // El PA debería retornar un resultado con el campo Serie (dyn_series)
       if (!empty($results) && isset($results[0])) {
         return $results[0];
