@@ -91,26 +91,53 @@ class PayrollReportService
     $query = PayrollCalculation::with(['worker', 'company', 'sede'])
       ->where('period_id', $periodId);
 
+    $sumBothHalves = $biweekly === null && $period->biweekly_date;
+
     if ($biweekly !== null) {
       $query->where('biweekly', $biweekly);
+    } elseif ($sumBothHalves) {
+      $query->whereIn('biweekly', [1, 2]);
+    } else {
+      $query->whereNull('biweekly');
     }
 
     $calculations = $query->orderBy('worker_id')->get();
 
-    $rows = $calculations->map(fn($c) => [
-      'empresa' => $c->company->name ?? ($c->sede->abreviatura ?? '-'),
-      'nombre' => $c->worker->nombre_completo ?? '-',
-      'dni' => $c->worker->vat ?? '-',
-      'days_worked' => (int)$c->days_worked,
-      'basic_salary' => (float)$c->basic_salary,
-      'night_bonus' => (float)$c->night_bonus,
-      'gross_salary' => (float)$c->gross_salary,
-      'overtime_25' => (float)$c->overtime_25,
-      'overtime_35' => (float)$c->overtime_35,
-      'holiday_pay' => (float)$c->holiday_pay,
-      'compensatory_pay' => (float)$c->compensatory_pay,
-      'net_salary' => (float)$c->net_salary,
-    ]);
+    if ($sumBothHalves) {
+      // Period with biweekly split: sum both halves per worker
+      $rows = $calculations->groupBy('worker_id')->map(function ($workerCalcs) {
+        $first = $workerCalcs->first();
+        return [
+          'empresa' => $first->company->name ?? ($first->sede->abreviatura ?? '-'),
+          'nombre' => $first->worker->nombre_completo ?? '-',
+          'dni' => $first->worker->vat ?? '-',
+          'days_worked' => (int)$workerCalcs->sum('days_worked'),
+          'basic_salary' => (float)$workerCalcs->sum('basic_salary'),
+          'night_bonus' => (float)$workerCalcs->sum('night_bonus'),
+          'gross_salary' => (float)$workerCalcs->sum('gross_salary'),
+          'overtime_25' => (float)$workerCalcs->sum('overtime_25'),
+          'overtime_35' => (float)$workerCalcs->sum('overtime_35'),
+          'holiday_pay' => (float)$workerCalcs->sum('holiday_pay'),
+          'compensatory_pay' => (float)$workerCalcs->sum('compensatory_pay'),
+          'net_salary' => (float)$workerCalcs->sum('net_salary'),
+        ];
+      })->values();
+    } else {
+      $rows = $calculations->map(fn($c) => [
+        'empresa' => $c->company->name ?? ($c->sede->abreviatura ?? '-'),
+        'nombre' => $c->worker->nombre_completo ?? '-',
+        'dni' => $c->worker->vat ?? '-',
+        'days_worked' => (int)$c->days_worked,
+        'basic_salary' => (float)$c->basic_salary,
+        'night_bonus' => (float)$c->night_bonus,
+        'gross_salary' => (float)$c->gross_salary,
+        'overtime_25' => (float)$c->overtime_25,
+        'overtime_35' => (float)$c->overtime_35,
+        'holiday_pay' => (float)$c->holiday_pay,
+        'compensatory_pay' => (float)$c->compensatory_pay,
+        'net_salary' => (float)$c->net_salary,
+      ]);
+    }
 
     return [
       'period' => [

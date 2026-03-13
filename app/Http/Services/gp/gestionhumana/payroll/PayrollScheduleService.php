@@ -443,8 +443,162 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Generate payroll calculations for a period
-   * Creates PayrollCalculation and PayrollCalculationDetail records based on attendance schedules
+   * Create PayrollCalculation + detail records for all workers with schedules in the given date range.
+   * Used internally by generate and recalculate.
+   *
+   * @param  PayrollPeriod  $period
+   * @param  int|null       $biweekly  Value to stamp on each created calculation (1, 2, or null)
+   * @param  mixed          $dateFrom
+   * @param  mixed          $dateTo
+   * @param  \Illuminate\Support\Collection  $attendanceRules  Grouped by code
+   * @param  array          $errors   Passed by reference — worker-level errors are appended here
+   * @return int[]  IDs of created PayrollCalculation records
+   */
+  private function createCalculationsForPeriod(
+    PayrollPeriod $period,
+    ?int $biweekly,
+    $dateFrom,
+    $dateTo,
+    $attendanceRules,
+    array &$errors
+  ): array {
+    $schedules = PayrollSchedule::with(['worker'])
+      ->where('period_id', $period->id)
+      ->where('status', PayrollSchedule::STATUS_WORKED)
+      ->where('work_date', '>=', $dateFrom)
+      ->where('work_date', '<=', $dateTo)
+      ->get();
+
+    if ($schedules->isEmpty()) {
+      return [];
+    }
+
+    $createdIds = [];
+    $recargoNocturno = 1.35;
+
+    foreach ($schedules->groupBy('worker_id') as $workerId => $workerSchedules) {
+      try {
+        $worker = $workerSchedules->first()->worker;
+        $sueldo = (float)($worker->sueldo ?? 0);
+        $horasJornada = (float)($worker->horas_jornada ?: 8);
+
+        if ($sueldo == 0 || $horasJornada == 0) {
+          $errors[] = "Worker {$worker->nombre_completo}: Invalid salary or shift hours";
+          continue;
+        }
+
+        $valorHoraBase = $sueldo / 30 / 8;
+
+        $calculation = PayrollCalculation::create([
+          'period_id' => $period->id,
+          'biweekly' => $biweekly,
+          'worker_id' => $workerId,
+          'company_id' => $worker->company_id ?? null,
+          'sede_id' => $worker->sede_id ?? null,
+          'salary' => $sueldo,
+          'shift_hours' => $horasJornada,
+          'base_hour_value' => $valorHoraBase,
+          'days_worked' => $workerSchedules->count(),
+          'status' => PayrollCalculation::STATUS_CALCULATED,
+          'calculated_at' => now(),
+          'calculated_by' => auth()->id(),
+        ]);
+
+        $totalEarnings = 0;
+        $calculationOrder = 1;
+
+        foreach ($workerSchedules->groupBy('code') as $code => $codeSchedules) {
+          $diasTrabajados = $codeSchedules->count();
+          $rules = $attendanceRules->get($code);
+
+          if (!$rules || $rules->isEmpty()) {
+            continue;
+          }
+
+          foreach ($rules as $rule) {
+            $horas = $rule->use_shift ? $horasJornada : (float)$rule->hours;
+            $valorHora = $valorHoraBase;
+            if (strtoupper($rule->hour_type) === 'NOCTURNO') {
+              $valorHora *= $recargoNocturno;
+            }
+            $valorHoraConMultiplicador = $valorHora * (float)$rule->multiplier;
+            $total = $horas * $valorHoraConMultiplicador * $diasTrabajados;
+            if (!$rule->pay) {
+              $total = -$total;
+            }
+            $totalEarnings += $total;
+
+            PayrollCalculationDetail::create([
+              'calculation_id' => $calculation->id,
+              'concept_id' => null,
+              'concept_code' => $code,
+              'concept_name' => $rule->description ?? $code,
+              'type' => $rule->pay ? 'EARNING' : 'DEDUCTION',
+              'category' => 'ATTENDANCE',
+              'hour_type' => $rule->hour_type,
+              'hours' => $horas,
+              'days_worked' => $diasTrabajados,
+              'multiplier' => (float)$rule->multiplier,
+              'use_shift' => $rule->use_shift,
+              'hour_value' => $valorHoraConMultiplicador,
+              'amount' => $total,
+              'calculation_order' => $calculationOrder++,
+            ]);
+          }
+        }
+
+        $calculation->update([
+          'total_earnings' => $totalEarnings > 0 ? $totalEarnings : 0,
+          'total_deductions' => $totalEarnings < 0 ? abs($totalEarnings) : 0,
+        ]);
+
+        $this->summaryService->persist($calculation->load('details'));
+        $createdIds[] = $calculation->id;
+      } catch (Exception $e) {
+        $errors[] = "Worker ID {$workerId}: " . $e->getMessage();
+      }
+    }
+
+    return $createdIds;
+  }
+
+  /**
+   * Force-delete all calculations (and their details) for a given period + biweekly value.
+   * Throws if any are APPROVED or PAID.
+   */
+  private function deleteCalculationsForBiweekly(int $periodId, ?int $biweekly): void
+  {
+    $query = PayrollCalculation::withTrashed()->where('period_id', $periodId);
+    $biweekly === null ? $query->whereNull('biweekly') : $query->where('biweekly', $biweekly);
+    $existing = $query->get();
+
+    $locked = $existing->filter(fn($c) => in_array($c->status, [
+      PayrollCalculation::STATUS_APPROVED,
+      PayrollCalculation::STATUS_PAID,
+    ]));
+
+    if ($locked->count() > 0) {
+      $label = $biweekly ? "biweekly={$biweekly}" : 'full month';
+      throw new Exception("Cannot recalculate ({$label}): {$locked->count()} calculations are already APPROVED or PAID.");
+    }
+
+    if ($existing->isNotEmpty()) {
+      PayrollCalculationDetail::whereIn('calculation_id', $existing->pluck('id'))->forceDelete();
+      $deleteQuery = PayrollCalculation::withTrashed()->where('period_id', $periodId);
+      $biweekly === null ? $deleteQuery->whereNull('biweekly') : $deleteQuery->where('biweekly', $biweekly);
+      $deleteQuery->forceDelete();
+    }
+  }
+
+  /**
+   * Generate payroll calculations for a period.
+   *
+   * biweekly=1  → creates records with biweekly=1 (primera quincena)
+   * biweekly=2  → creates records with biweekly=2 (segunda quincena)
+   * biweekly=null + period has biweekly_date
+   *             → creates records for biweekly=1, biweekly=2, AND biweekly=null (consolidado)
+   * biweekly=null + no biweekly_date
+   *             → creates records with biweekly=null (mes completo)
    *
    * @param int $periodId
    * @return array
@@ -464,149 +618,48 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         throw new Exception('The period does not have a biweekly date configured.');
       }
 
-      // Check if calculations already exist for this period/biweekly combination
-      $existingCount = PayrollCalculation::where('period_id', $periodId)
-        ->where('biweekly', $biweekly)
-        ->count();
-      if ($existingCount > 0) {
-        $halfLabel = $biweekly ? "biweekly={$biweekly}" : 'full month';
-        throw new Exception("Calculations already exist for this period ({$halfLabel}). Use the recalculate endpoint to update them.");
+      $attendanceRules = AttendanceRule::all()->groupBy('code');
+      $errors = [];
+      $allCreatedIds = [];
+
+      if ($biweekly === null && $period->biweekly_date) {
+        // Period with biweekly split: create only biweekly=1 and biweekly=2 (no null consolidado)
+        $existingB1 = PayrollCalculation::where('period_id', $periodId)->where('biweekly', 1)->count();
+        $existingB2 = PayrollCalculation::where('period_id', $periodId)->where('biweekly', 2)->count();
+
+        if ($existingB1 > 0 || $existingB2 > 0) {
+          $parts = array_values(array_filter([
+            $existingB1 > 0 ? 'biweekly=1' : null,
+            $existingB2 > 0 ? 'biweekly=2' : null,
+          ]));
+          throw new Exception('Calculations already exist for this period (' . implode(', ', $parts) . '). Use the recalculate endpoint to update them.');
+        }
+
+        [$from1, $to1] = $this->getDateRangeForBiweekly($period, 1);
+        $allCreatedIds = array_merge($allCreatedIds, $this->createCalculationsForPeriod($period, 1, $from1, $to1, $attendanceRules, $errors));
+
+        [$from2, $to2] = $this->getDateRangeForBiweekly($period, 2);
+        $allCreatedIds = array_merge($allCreatedIds, $this->createCalculationsForPeriod($period, 2, $from2, $to2, $attendanceRules, $errors));
+      } else {
+        // Single biweekly half (or full month without biweekly_date)
+        $existingQuery = PayrollCalculation::where('period_id', $periodId);
+        $biweekly === null ? $existingQuery->whereNull('biweekly') : $existingQuery->where('biweekly', $biweekly);
+
+        if ($existingQuery->count() > 0) {
+          $halfLabel = $biweekly ? "biweekly={$biweekly}" : 'full month';
+          throw new Exception("Calculations already exist for this period ({$halfLabel}). Use the recalculate endpoint to update them.");
+        }
+
+        [$dateFrom, $dateTo] = $this->getDateRangeForBiweekly($period, $biweekly);
+        $allCreatedIds = $this->createCalculationsForPeriod($period, $biweekly, $dateFrom, $dateTo, $attendanceRules, $errors);
       }
 
-      [$dateFrom, $dateTo] = $this->getDateRangeForBiweekly($period, $biweekly);
-
-      // Get all worked schedules for the resolved date range
-      $schedules = PayrollSchedule::with(['worker'])
-        ->where('period_id', $periodId)
-        ->where('status', PayrollSchedule::STATUS_WORKED)
-        ->where('work_date', '>=', $dateFrom)
-        ->where('work_date', '<=', $dateTo)
-        ->get();
-
-      if ($schedules->isEmpty()) {
+      if (empty($allCreatedIds)) {
         throw new Exception('No worked schedules found for this period');
       }
 
-      // Get all attendance rules
-      $attendanceRules = AttendanceRule::all()->groupBy('code');
-
-      $createdCalculations = [];
-      $errors = [];
-
-      $schedulesByWorker = $schedules->groupBy('worker_id');
-
-      foreach ($schedulesByWorker as $workerId => $workerSchedules) {
-        try {
-          $worker = $workerSchedules->first()->worker;
-
-          // Worker salary and shift info
-          $sueldo = (float)($worker->sueldo ?? 0);
-          $horasJornada = (float)($worker->horas_jornada ?: 8);
-
-          if ($sueldo == 0 || $horasJornada == 0) {
-            $errors[] = "Worker {$worker->nombre_completo}: Invalid salary or shift hours";
-            continue;
-          }
-
-          // Base hour value
-          //$valorHoraBase = $sueldo / 30 / $horasJornada;
-          $valorHoraBase = $sueldo / 30 / 8;
-
-          // Night surcharge constant (35%)
-          $recargoNocturno = 1.35;
-
-          // Create PayrollCalculation
-          $calculation = PayrollCalculation::create([
-            'period_id' => $periodId,
-            'biweekly' => $biweekly,
-            'worker_id' => $workerId,
-            'company_id' => $worker->company_id ?? null,
-            'sede_id' => $worker->sede_id ?? null,
-            'salary' => $sueldo,
-            'shift_hours' => $horasJornada,
-            'base_hour_value' => $valorHoraBase,
-            'days_worked' => $workerSchedules->count(),
-            'status' => PayrollCalculation::STATUS_CALCULATED,
-            'calculated_at' => now(),
-            'calculated_by' => auth()->id(),
-          ]);
-
-          $totalEarnings = 0;
-          $calculationOrder = 1;
-
-          // Group by code and count days
-          $codeGroups = $workerSchedules->groupBy('code');
-
-          foreach ($codeGroups as $code => $codeSchedules) {
-            $diasTrabajados = $codeSchedules->count();
-
-            // Get rules for this code
-            $rules = $attendanceRules->get($code);
-
-            if (!$rules || $rules->isEmpty()) {
-              continue; // Skip if no rules defined for this code
-            }
-
-            foreach ($rules as $rule) {
-              // Determine hours to use
-              $horas = $rule->use_shift ? $horasJornada : (float)$rule->hours;
-
-              // Calculate hour value with night surcharge if applicable
-              $valorHora = $valorHoraBase;
-              if (strtoupper($rule->hour_type) === 'NOCTURNO') {
-                $valorHora *= $recargoNocturno;
-              }
-
-              // Apply multiplier
-              $valorHora *= (float)$rule->multiplier;
-
-              // Calculate total for this rule
-              $total = $horas * $valorHora * $diasTrabajados;
-
-              // If pay = 0, subtract instead of add (make it negative)
-              if (!$rule->pay) {
-                $total = -$total;
-              }
-
-              $totalEarnings += $total;
-
-              // Create detail record
-              PayrollCalculationDetail::create([
-                'calculation_id' => $calculation->id,
-                'concept_id' => null, // For attendance, we don't have a concept_id
-                'concept_code' => $code,
-                'concept_name' => $rule->description ?? $code,
-                'type' => $rule->pay ? 'EARNING' : 'DEDUCTION',
-                'category' => 'ATTENDANCE',
-                'hour_type' => $rule->hour_type,
-                'hours' => $horas,
-                'days_worked' => $diasTrabajados,
-                'multiplier' => (float)$rule->multiplier,
-                'use_shift' => $rule->use_shift,
-                'hour_value' => $valorHora,
-                'amount' => $total,
-                'calculation_order' => $calculationOrder++,
-              ]);
-            }
-          }
-
-          // Update raw totals, then compute and persist the payslip summary
-          $calculation->update([
-            'total_earnings' => $totalEarnings > 0 ? $totalEarnings : 0,
-            'total_deductions' => $totalEarnings < 0 ? abs($totalEarnings) : 0,
-          ]);
-
-          // Update period a status CALCULATED if not already
-          if ($period->status !== PayrollPeriod::STATUS_CALCULATED) {
-            $period->update(['status' => PayrollPeriod::STATUS_CALCULATED]);
-          }
-
-          $this->summaryService->persist($calculation->load('details'));
-
-          $createdCalculations[] = $calculation->id;
-        } catch (Exception $e) {
-          $errors[] = "Worker ID {$workerId}: " . $e->getMessage();
-        }
+      if ($period->status !== PayrollPeriod::STATUS_CALCULATED) {
+        $period->update(['status' => PayrollPeriod::STATUS_CALCULATED]);
       }
 
       DB::commit();
@@ -614,8 +667,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       return [
         'success' => true,
         'period_id' => $periodId,
-        'calculations_created' => count($createdCalculations),
-        'calculation_ids' => $createdCalculations,
+        'calculations_created' => count($allCreatedIds),
+        'calculation_ids' => $allCreatedIds,
         'errors' => $errors,
       ];
     } catch (Exception $e) {
@@ -625,8 +678,14 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Recalculate payroll calculations for a period
-   * Deletes existing calculations and regenerates them based on current attendance schedules
+   * Recalculate payroll calculations for a period.
+   * Deletes existing calculations and regenerates them based on current attendance schedules.
+   *
+   * biweekly=1 or 2 → deletes and regenerates only that half
+   * biweekly=null + period has biweekly_date
+   *                → deletes and regenerates all three (1, 2, and null consolidado)
+   * biweekly=null + no biweekly_date
+   *                → deletes and regenerates the full-month set
    *
    * @param int $periodId
    * @return array
@@ -646,164 +705,33 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         throw new Exception('The period does not have a biweekly date configured.');
       }
 
-      // Check if period allows recalculation (include soft deleted), filtered by biweekly half
-      $existingCalculations = PayrollCalculation::withTrashed()
-        ->where('period_id', $periodId)
-        ->where('biweekly', $biweekly)
-        ->get();
+      $isFullWithSplit = $biweekly === null && $period->biweekly_date;
 
-      // Don't allow recalculation if any calculation is APPROVED or PAID
-      $lockedCalculations = $existingCalculations->filter(function ($calc) {
-        return in_array($calc->status, [PayrollCalculation::STATUS_APPROVED, PayrollCalculation::STATUS_PAID]);
-      });
-
-      if ($lockedCalculations->count() > 0) {
-        throw new Exception("Cannot recalculate: {$lockedCalculations->count()} calculations are already APPROVED or PAID. Please delete them manually first.");
+      // Delete existing calculations (throws if any are APPROVED/PAID)
+      if ($isFullWithSplit) {
+        $this->deleteCalculationsForBiweekly($periodId, 1);
+        $this->deleteCalculationsForBiweekly($periodId, 2);
+      } else {
+        $this->deleteCalculationsForBiweekly($periodId, $biweekly);
       }
 
-      // Force delete existing calculation details first
-      if ($existingCalculations->isNotEmpty()) {
-        PayrollCalculationDetail::whereIn('calculation_id', $existingCalculations->pluck('id'))->forceDelete();
-      }
-
-      // Force delete existing calculations for this biweekly half only
-      PayrollCalculation::withTrashed()
-        ->where('period_id', $periodId)
-        ->where('biweekly', $biweekly)
-        ->forceDelete();
-
-      [$dateFrom, $dateTo] = $this->getDateRangeForBiweekly($period, $biweekly);
-
-      // Get all worked schedules for the resolved date range
-      $schedules = PayrollSchedule::with(['worker'])
-        ->where('period_id', $periodId)
-        ->where('status', PayrollSchedule::STATUS_WORKED)
-        ->where('work_date', '>=', $dateFrom)
-        ->where('work_date', '<=', $dateTo)
-        ->get();
-
-      if ($schedules->isEmpty()) {
-        throw new Exception('No worked schedules found for this period');
-      }
-
-      // Get all attendance rules
       $attendanceRules = AttendanceRule::all()->groupBy('code');
-
-      $createdCalculations = [];
       $errors = [];
+      $allCreatedIds = [];
 
-      $schedulesByWorker = $schedules->groupBy('worker_id');
+      if ($isFullWithSplit) {
+        [$from1, $to1] = $this->getDateRangeForBiweekly($period, 1);
+        $allCreatedIds = array_merge($allCreatedIds, $this->createCalculationsForPeriod($period, 1, $from1, $to1, $attendanceRules, $errors));
 
-      foreach ($schedulesByWorker as $workerId => $workerSchedules) {
-        try {
-          $worker = $workerSchedules->first()->worker;
+        [$from2, $to2] = $this->getDateRangeForBiweekly($period, 2);
+        $allCreatedIds = array_merge($allCreatedIds, $this->createCalculationsForPeriod($period, 2, $from2, $to2, $attendanceRules, $errors));
+      } else {
+        [$dateFrom, $dateTo] = $this->getDateRangeForBiweekly($period, $biweekly);
+        $allCreatedIds = $this->createCalculationsForPeriod($period, $biweekly, $dateFrom, $dateTo, $attendanceRules, $errors);
+      }
 
-          // Worker salary and shift info
-          $sueldo = (float)($worker->sueldo ?? 0);
-          $horasJornada = (float)($worker->horas_jornada ?: 8);
-
-          if ($sueldo == 0 || $horasJornada == 0) {
-            $errors[] = "Worker {$worker->nombre_completo}: Invalid salary or shift hours";
-            continue;
-          }
-
-          // Base hour value
-          //$valorHoraBase = $sueldo / 30 / $horasJornada;
-          $valorHoraBase = $sueldo / 30 / 8;
-
-          // Night surcharge constant (35%)
-          $recargoNocturno = 1.35;
-
-          // Create PayrollCalculation
-          $calculation = PayrollCalculation::create([
-            'period_id' => $periodId,
-            'biweekly' => $biweekly,
-            'worker_id' => $workerId,
-            'company_id' => $worker->company_id ?? null,
-            'sede_id' => $worker->sede_id ?? null,
-            'salary' => $sueldo,
-            'shift_hours' => $horasJornada,
-            'base_hour_value' => $valorHoraBase,
-            'days_worked' => $workerSchedules->count(),
-            'status' => PayrollCalculation::STATUS_CALCULATED,
-            'calculated_at' => now(),
-            'calculated_by' => auth()->id(),
-          ]);
-
-          $totalEarnings = 0;
-          $calculationOrder = 1;
-
-          // Group by code and count days
-          $codeGroups = $workerSchedules->groupBy('code');
-
-          foreach ($codeGroups as $code => $codeSchedules) {
-            $diasTrabajados = $codeSchedules->count();
-
-            // Get rules for this code
-            $rules = $attendanceRules->get($code);
-
-            if (!$rules || $rules->isEmpty()) {
-              continue; // Skip if no rules defined for this code
-            }
-
-            foreach ($rules as $rule) {
-              // Determine hours to use
-              $horas = $rule->use_shift ? $horasJornada : (float)$rule->hours;
-
-              // Calculate hour value with night surcharge if applicable
-              $valorHora = $valorHoraBase;
-              $esNocturno = strtoupper($rule->hour_type) === 'NOCTURNO';
-
-              if ($esNocturno) {
-                $valorHora *= $recargoNocturno;
-              }
-
-              // Apply multiplier
-              $valorHoraConMultiplicador = $valorHora * (float)$rule->multiplier;
-
-              // Calculate total for this rule
-              $total = $horas * $valorHoraConMultiplicador * $diasTrabajados;
-
-              // If pay = 0, subtract instead of add (make it negative)
-              $esDeduccion = !$rule->pay;
-              if ($esDeduccion) {
-                $total = -$total;
-              }
-
-              $totalEarnings += $total;
-
-              // Create detail record
-              PayrollCalculationDetail::create([
-                'calculation_id' => $calculation->id,
-                'concept_id' => null, // For attendance, we don't have a concept_id
-                'concept_code' => $code,
-                'concept_name' => $rule->description ?? $code,
-                'type' => $rule->pay ? 'EARNING' : 'DEDUCTION',
-                'category' => 'ATTENDANCE',
-                'hour_type' => $rule->hour_type,
-                'hours' => $horas,
-                'days_worked' => $diasTrabajados,
-                'multiplier' => (float)$rule->multiplier,
-                'use_shift' => $rule->use_shift,
-                'hour_value' => $valorHoraConMultiplicador,
-                'amount' => $total,
-                'calculation_order' => $calculationOrder++,
-              ]);
-            }
-          }
-
-          // Update raw totals, then compute and persist the payslip summary
-          $calculation->update([
-            'total_earnings' => $totalEarnings > 0 ? $totalEarnings : 0,
-            'total_deductions' => $totalEarnings < 0 ? abs($totalEarnings) : 0,
-          ]);
-
-          $this->summaryService->persist($calculation->load('details'));
-
-          $createdCalculations[] = $calculation->id;
-        } catch (Exception $e) {
-          $errors[] = "Worker ID {$workerId}: " . $e->getMessage();
-        }
+      if (empty($allCreatedIds)) {
+        throw new Exception('No worked schedules found for this period');
       }
 
       DB::commit();
@@ -811,8 +739,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       return [
         'success' => true,
         'period_id' => $periodId,
-        'calculations_created' => count($createdCalculations),
-        'calculation_ids' => $createdCalculations,
+        'calculations_created' => count($allCreatedIds),
+        'calculation_ids' => $allCreatedIds,
         'errors' => $errors,
       ];
     } catch (Exception $e) {
