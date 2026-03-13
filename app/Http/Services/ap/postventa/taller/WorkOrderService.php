@@ -81,8 +81,13 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Extract date from estimated_delivery_time and set to estimated_delivery_date
       if (isset($data['estimated_delivery_time'])) {
         $estimatedDeliveryTime = Carbon::parse($data['estimated_delivery_time']);
-        $data['estimated_delivery_date'] = $estimatedDeliveryTime->format('Y-m-d') . ' 00:00:00';
+        $data['estimated_delivery_date'] = $estimatedDeliveryTime->toDateTimeString();
         $data['estimated_delivery_time'] = $estimatedDeliveryTime->format('Y-m-d H:i:s');
+      }
+
+      if (!$data['is_recall']) {
+        $data['description_recall'] = '';
+        $data['type_recall'] = '';
       }
 
       // Set created_by
@@ -151,8 +156,13 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Extract date from estimated_delivery_time and set to estimated_delivery_date
       if (isset($data['estimated_delivery_time'])) {
         $estimatedDeliveryTime = Carbon::parse($data['estimated_delivery_time']);
-        $data['estimated_delivery_date'] = $estimatedDeliveryTime->format('Y-m-d') . ' 00:00:00';
+        $data['estimated_delivery_date'] = $estimatedDeliveryTime->toDateTimeString();
         $data['estimated_delivery_time'] = $estimatedDeliveryTime->format('Y-m-d H:i:s');
+      }
+
+      if (!$data['is_recall']) {
+        $data['description_recall'] = '';
+        $data['type_recall'] = '';
       }
 
       // Detectar si cambió el tipo de moneda

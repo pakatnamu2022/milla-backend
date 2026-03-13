@@ -300,6 +300,8 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'placa_vehiculo' => 'nullable|string|max:8',
       'orden_compra_servicio' => 'nullable|string|max:20',
       'codigo_unico' => 'nullable|string|max:20',
+      'card_last4' => 'nullable|string|max:4|min:4',
+      'internal_note' => 'nullable|string|max:255',
 
       // Configuración
       'enviar_automaticamente_a_la_sunat' => 'nullable|boolean',

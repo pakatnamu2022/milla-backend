@@ -108,6 +108,8 @@ class ElectronicDocumentResource extends JsonResource
       'is_annulled' => $this->is_annulled,
       'error_message' => $this->error_message,
       'is_advance_payment' => (boolean)$this->is_advance_payment,
+      'card_last4' => $this->card_last4,
+      'internal_note' => $this->internal_note,
 
       /**
        * Timestamps and users

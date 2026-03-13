@@ -128,6 +128,8 @@ class ElectronicDocument extends BaseModel
     'cancelled_at',
     'created_by',
     'updated_by',
+    'card_last4',
+    'internal_note'
   ];
 
   protected $casts = [
