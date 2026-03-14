@@ -100,10 +100,11 @@ class PayrollScheduleController extends Controller
   /**
    * Get summary of hours by period
    */
-  public function summary(int $periodId)
+  public function summary(Request $request, int $periodId)
   {
     try {
-      return $this->success($this->service->getSummaryByPeriod($periodId));
+      $biweekly = $request->query('biweekly') ? (int)$request->query('biweekly') : null;
+      return $this->success($this->service->getSummaryByPeriod($periodId, $biweekly));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
@@ -112,11 +113,13 @@ class PayrollScheduleController extends Controller
   /**
    * Generate payroll calculations for a period
    * Creates PayrollCalculation records from attendance schedules
+   * Optional query param: biweekly=1 (first half) | biweekly=2 (second half)
    */
-  public function generateCalculations(int $periodId)
+  public function generateCalculations(Request $request, int $periodId)
   {
     try {
-      $result = $this->service->generatePayrollCalculations($periodId);
+      $biweekly = $request->query('biweekly') !== null ? (int)$request->query('biweekly') : null;
+      $result = $this->service->generatePayrollCalculations($periodId, $biweekly);
       return $this->success([
         'data' => $result,
         'message' => "Successfully generated {$result['calculations_created']} payroll calculations"
@@ -129,11 +132,13 @@ class PayrollScheduleController extends Controller
   /**
    * Recalculate payroll calculations for a period
    * Deletes and regenerates calculations based on current schedules
+   * Optional query param: biweekly=1 (first half) | biweekly=2 (second half)
    */
-  public function recalculateCalculations(int $periodId)
+  public function recalculateCalculations(Request $request, int $periodId)
   {
     try {
-      $result = $this->service->recalculatePayrollCalculations($periodId);
+      $biweekly = $request->query('biweekly') !== null ? (int)$request->query('biweekly') : null;
+      $result = $this->service->recalculatePayrollCalculations($periodId, $biweekly);
       return $this->success([
         'data' => $result,
         'message' => "Successfully recalculated {$result['calculations_created']} payroll calculations"
@@ -146,11 +151,13 @@ class PayrollScheduleController extends Controller
   /**
    * Get daily attendances for all workers in a period
    * Returns data for frontend to map each worker's attendance codes
+   * Optional query param: biweekly=1 (first half) | biweekly=2 (second half)
    */
-  public function getAttendances(int $periodId)
+  public function getAttendances(Request $request, int $periodId)
   {
     try {
-      return $this->success($this->service->getAttendancesByPeriod($periodId));
+      $biweekly = $request->query('biweekly') !== null ? (int)$request->query('biweekly') : null;
+      return $this->success($this->service->getAttendancesByPeriod($periodId, $biweekly));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

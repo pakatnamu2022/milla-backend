@@ -135,10 +135,11 @@ class PayrollCalculationController extends Controller
   /**
    * Get payroll report for a period
    */
-  public function report(int $periodId)
+  public function report(Request $request, int $periodId)
   {
     try {
-      return $this->success($this->reportService->getPayrollReport($periodId));
+      $biweekly = $request->query('biweekly') ? (int)$request->query('biweekly') : null;
+      return $this->success($this->reportService->getPayrollReport($periodId, $biweekly));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

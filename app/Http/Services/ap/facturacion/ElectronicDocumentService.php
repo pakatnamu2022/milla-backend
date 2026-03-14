@@ -1817,7 +1817,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   {
     try {
       $vehicle = Vehicles::find($vehicleId);
-      $isFinal = !$document->anticipo_regularizacion;
+      $isFinal = !$document->is_advance_payment;
 
       if (!$vehicle) {
         throw new Exception("Vehículo con ID {$vehicleId} no encontrado");
@@ -2701,9 +2701,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $entityTotal = 0;
 
     // Determinar el tipo de entidad y aplicar su lógica específica
-    if (isset($data['work_order_id']) && $data['work_order_id']) {
+    if (isset($data['work_order_id']) && $data['work_order_id'] && $data['area_id'] == ApMasters::AREA_TALLER) {
       $entityTotal = $this->applyDetractionForWorkOrder($data, $company);
-    } else {
+    } else if (isset($data['detraccion']) && $data['detraccion']) {
       $data['sunat_concept_transaction_type_id'] = SunatConcepts::ID_SUJETA_DETRACCION;
     }
 
@@ -2711,7 +2711,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     // Si no hay entidad relacionada, verificar el monto del documento
     $amountToCheck = $entityTotal > 0 ? $entityTotal : (float)$data['total'];
 
-    if ($amountToCheck >= $detractionAmount && $detractionAmount > 0 && $data['area_id'] != ApMasters::AREA_COMERCIAL) {
+    if ($amountToCheck >= $detractionAmount &&
+      $detractionAmount > 0 &&
+      $data['area_id'] != ApMasters::AREA_COMERCIAL &&
+      isset($data['detraccion']) && $data['detraccion']) {
       $data['detraccion'] = true;
       $data['sunat_concept_detraction_type_id'] = match ((int)$data['area_id']) {
         ApMasters::AREA_TALLER => SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION,

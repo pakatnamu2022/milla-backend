@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Http\Services\ap\comercial\PurchaseRequestQuoteService;
 use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Http\Services\ap\compras\PurchaseOrderService;
 use App\Http\Services\ap\compras\PurchaseReceptionService;
@@ -158,6 +159,24 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         if ($purchaseOrder->reception) {
           $purchaseReceptionService = new PurchaseReceptionService();
           $purchaseReceptionService->processReceptionStock($purchaseOrder);
+        }
+
+        // Solo si la factura no está anulada (invoice != receipt)
+        $isNotVoided = $newInvoice !== $newReceipt;
+
+        /**
+         * Asignar vehículo a la cotización una vez contabilizada la factura
+         */
+        if ($isNotVoided && $purchaseOrder->quotation_id && $purchaseOrder->vehicle) {
+          try {
+            $quoteService = new PurchaseRequestQuoteService();
+            $quoteService->assignVehicle([
+              'id' => $purchaseOrder->quotation_id,
+              'ap_vehicle_id' => $purchaseOrder->vehicle->id,
+            ]);
+          } catch (Throwable $e) {
+            Log::error("Error al asignar vehículo a cotización para OC #{$purchaseOrder->id}: {$e->getMessage()}");
+          }
         }
 
         /**

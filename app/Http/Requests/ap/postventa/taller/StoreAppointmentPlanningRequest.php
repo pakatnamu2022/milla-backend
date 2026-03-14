@@ -6,7 +6,6 @@ use App\Http\Requests\StoreRequest;
 use App\Models\ap\postventa\taller\AppointmentPlanning;
 use Carbon\Carbon;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Validator;
 
 class StoreAppointmentPlanningRequest extends StoreRequest
 {
@@ -134,9 +133,9 @@ class StoreAppointmentPlanningRequest extends StoreRequest
     ];
   }
 
-  public function withValidator(Validator $validator): void
+  public function withValidator($validator): void
   {
-    $validator->after(function (Validator $validator) {
+    $validator->after(function ($validator) {
       $dateAppointment = $this->input('date_appointment');
       $timeAppointment = $this->input('time_appointment');
       $deliveryDate = $this->input('delivery_date');

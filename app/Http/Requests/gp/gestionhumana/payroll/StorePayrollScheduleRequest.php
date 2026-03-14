@@ -3,6 +3,7 @@
 namespace App\Http\Requests\gp\gestionhumana\payroll;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
 use App\Models\gp\gestionhumana\payroll\PayrollSchedule;
 
 class StorePayrollScheduleRequest extends StoreRequest
@@ -17,6 +18,19 @@ class StorePayrollScheduleRequest extends StoreRequest
       'notes' => ['nullable', 'string', 'max:255'],
       'status' => ['nullable', 'string', 'in:' . implode(',', PayrollSchedule::STATUSES)],
     ];
+  }
+
+  public function withValidator($validator): void
+  {
+    $validator->after(function ($validator) {
+      $period = PayrollPeriod::find($this->input('period_id'));
+      if ($period) {
+        $workDate = $this->input('work_date');
+        if ($workDate < $period->start_date || $workDate > $period->payment_date) {
+          $validator->errors()->add('work_date', 'El día de trabajo debe ser entre los días permitidos del periodo');
+        }
+      }
+    });
   }
 
   public function attributes(): array

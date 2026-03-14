@@ -1573,6 +1573,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('periods/current', [PayrollPeriodController::class, 'current']);
     Route::post('periods/{id}/close', [PayrollPeriodController::class, 'close']);
     Route::post('periods/{id}/process', [PayrollPeriodController::class, 'process']);
+    Route::post('periods/{id}/reset', [PayrollPeriodController::class, 'reset']);
     Route::apiResource('periods', PayrollPeriodController::class);
 
     // Schedules

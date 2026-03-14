@@ -109,6 +109,21 @@ class PayrollPeriodController extends Controller
   }
 
   /**
+   * Reset a period to OPEN, deleting all calculations
+   */
+  public function reset(int $id)
+  {
+    try {
+      return $this->success([
+        'data' => $this->service->resetPeriod($id),
+        'message' => 'Período reiniciado a estado ABIERTO exitosamente'
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Close a period
    */
   public function close(int $id)

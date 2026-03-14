@@ -13,7 +13,11 @@ class StoreRequest extends FormRequest
     return true;
   }
 
-  public function failedValidation(Validator $validator)
+  public function withValidator(Validator $validator)
+  {
+  }
+
+  protected function failedValidation(Validator $validator)
   {
     $response = response()->json([
       'message' => $validator->errors()->first(),

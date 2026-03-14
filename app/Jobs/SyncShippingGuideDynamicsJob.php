@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Http\Services\ap\postventa\gestionProductos\TransferReceptionService;
 use App\Models\ap\comercial\ShippingGuides;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\postventa\gestionProductos\TransferReception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -62,6 +63,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       ->whereNotNull('document_number')
       ->where('status', true)
       ->where('aceptada_por_sunat', true)
+      ->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
       ->get();
 
     if ($shippingGuides->isEmpty()) {
