@@ -189,6 +189,17 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       $document = ShippingGuides::create($documentData);
 
+      // Notificar al responsable de recepción en la fecha de entrega
+      $this->notify(
+        title: 'Guía de remisión programada',
+        body: "Se ha generado la guía {$document->document_number}. Recuerde recibirla en la fecha de traslado.",
+        type: 'shipping_guide.created',
+        userIds: [auth()->user()->id], // Aquí podrías agregar lógica para notificar a usuarios específicos responsables de la recepción
+        source: $document,
+        data: ['shipping_guide_id' => $document->id, 'document_number' => $document->document_number],
+        scheduledAt: $document->issue_date,
+      );
+
       // 6. Si hay archivo, subirlo usando DigitalFileService
       if ($file) {
         $digitalFile = $this->digitalFileService->store(

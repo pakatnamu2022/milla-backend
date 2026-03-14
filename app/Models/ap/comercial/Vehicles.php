@@ -65,6 +65,7 @@ class Vehicles extends BaseModel
     'is_paid' => 'accessor_bool',
     'customer_id' => '=',
     'type_operation_id' => '=',
+    'is_received' => 'accessor_bool',
   ];
 
   const array sorts = [
@@ -73,6 +74,15 @@ class Vehicles extends BaseModel
     'engine_number',
     'created_at',
   ];
+
+  /**
+   * Accesor para determinar si el vehículo ha sido recibido en bodega: 'is_received'
+   * @return void
+   */
+  public function getIsReceivedAttribute()
+  {
+    $this->shippingGuideReceiving()->exists();
+  }
 
   public function setPlateAttribute($value)
   {
