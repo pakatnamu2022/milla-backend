@@ -58,7 +58,8 @@ class PurchaseRequestQuoteResource extends JsonResource
       'doc_type_currency' => $this->docTypeCurrency->code ?? null,
       'doc_type_currency_symbol' => $this->docTypeCurrency->symbol ?? null,
       'advisor_name' => $this->opportunity->worker->nombre_completo ?? null,
-      'warranty' => $this->warranty,
+      'warranty_years' => $this->warranty_years,
+      'warranty_km' => $this->warranty_km,
       'consultant' => $this->opportunity->worker ? WorkerResource::make($this->opportunity->worker) : null,
       'bonus_discounts' => $this->discountCoupons->map(function ($discount) {
         return [
