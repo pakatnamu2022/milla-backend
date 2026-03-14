@@ -100,6 +100,7 @@ class ElectronicDocument extends BaseModel
     'financing_type',
     'placa_vehiculo',
     'orden_compra_servicio',
+    'orden_compra_servicio_url',
     'codigo_unico',
     'enviar_automaticamente_a_la_sunat',
     'enviar_automaticamente_al_cliente',
@@ -128,6 +129,8 @@ class ElectronicDocument extends BaseModel
     'cancelled_at',
     'created_by',
     'updated_by',
+    'card_last4',
+    'internal_note'
   ];
 
   protected $casts = [
