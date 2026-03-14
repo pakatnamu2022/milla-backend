@@ -12,14 +12,15 @@ class NotificationResource extends JsonResource
     $pivot = $this->whenLoaded('users', fn() => $this->users->first()?->pivot);
 
     return [
-      'id'              => $this->id,
-      'title'           => $this->title,
-      'body'            => $this->body,
-      'type'            => $this->type,
-      'data'            => $this->data,
-      'read_at'         => $pivot?->read_at,
-      'is_read'         => $pivot?->read_at !== null,
-      'created_at'      => $this->created_at,
+      'id' => $this->id,
+      'title' => $this->title,
+      'body' => $this->body,
+      'type' => $this->type,
+      'route' => $this->route,
+      'data' => $this->data,
+      'read_at' => $pivot?->read_at,
+      'is_read' => $pivot?->read_at !== null,
+      'created_at' => $this->created_at,
     ];
   }
 }

@@ -77,11 +77,11 @@ class Vehicles extends BaseModel
 
   /**
    * Accesor para determinar si el vehículo ha sido recibido en bodega: 'is_received'
-   * @return void
+   * @return bool
    */
   public function getIsReceivedAttribute()
   {
-    $this->shippingGuideReceiving()->exists();
+    return $this->shippingGuides()->exists();
   }
 
   public function setPlateAttribute($value)

@@ -28,6 +28,7 @@ class IndexVehiclesRequest extends IndexRequest
 //        Rule::exists('ap_vehicle_status', 'id'),
 //        Rule::in([ApVehicleStatus::VEHICULO_EN_TRAVESIA, ApVehicleStatus::PEDIDO_VN])
 //      ],
+      'is_received' => 'nullable|boolean|in:0,1',
       'has_purchase_request_quote' => 'nullable|boolean|in:0,1',
       'ap_models_vn_id' => [
         'integer',

@@ -16,6 +16,7 @@ trait SendsNotifications
    * @param  int|int[]     $userIds Single user ID or array of user IDs
    * @param  Model|null    $source  Polymorphic source model (optional)
    * @param  array|null    $data    Extra JSON payload (optional)
+   * @param  string|null   $route   Frontend route path (optional), e.g. 'shipping-guides/42'
    */
   public function notify(
     string $title,
@@ -24,12 +25,14 @@ trait SendsNotifications
     int|array $userIds,
     ?Model $source = null,
     ?array $data = null,
+    ?string $route = null,
     mixed $scheduledAt = null
   ): SysNotification {
     $notification = SysNotification::create([
       'title'           => $title,
       'body'            => $body,
       'type'            => $type,
+      'route'           => $route,
       'data'            => $data,
       'notifiable_type' => $source ? get_class($source) : null,
       'notifiable_id'   => $source?->getKey(),

@@ -197,6 +197,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         userIds: [auth()->user()->id], // Aquí podrías agregar lógica para notificar a usuarios específicos responsables de la recepción
         source: $document,
         data: ['shipping_guide_id' => $document->id, 'document_number' => $document->document_number],
+        route: config('frontend.routes.shipments_receptions_checklist') . "/{$document->id}",
         scheduledAt: $document->issue_date,
       );
 

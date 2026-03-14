@@ -17,6 +17,7 @@ class SysNotification extends BaseModel
     'title',
     'body',
     'type',
+    'route',
     'data',
     'notifiable_type',
     'notifiable_id',
@@ -35,7 +36,7 @@ class SysNotification extends BaseModel
 
   public function users(): BelongsToMany
   {
-    return $this->belongsToMany(User::class, 'sys_notification_user')
+    return $this->belongsToMany(User::class, 'sys_notification_user', 'notification_id', 'user_id')
       ->withPivot('read_at')
       ->withTimestamps();
   }
