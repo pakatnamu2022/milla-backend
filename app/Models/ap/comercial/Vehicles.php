@@ -38,11 +38,13 @@ class Vehicles extends BaseModel
     'type_operation_id',
     'status',
     'warehouse_physical_id',
-    'customer_id'
+    'customer_id',
+    'has_pdi',
   ];
 
   protected $casts = [
     'year' => 'integer',
+    'has_pdi' => 'boolean',
   ];
 
   const array filters = [

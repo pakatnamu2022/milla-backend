@@ -135,7 +135,7 @@ class ShippingGuides extends BaseModel
     'plate' => '=',
     'driver_name' => 'like',
     'status' => '=',
-    'transfer_reason_id' => '=',
+    'transfer_reason_id' => 'in',
     'transfer_modality_id' => '=',
     'area_id' => '=',
     'send_dynamics' => '=',
