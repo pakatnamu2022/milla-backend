@@ -515,7 +515,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       $transactionId = $shippingGuide->dyn_series;
     } else {
       // Si no tiene dyn_series, construirlo desde el correlativo
-      $prefix = $this->getTransferPrefix($shippingGuide);
+      $prefix = $shippingGuide->getTransferPrefix($shippingGuide);
       $transactionId = $prefix . $shippingGuide->document_number;
     }
 
@@ -885,7 +885,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
   protected function syncInventoryTransfer(ShippingGuides $shippingGuide, bool $isCancelled): void
   {
     $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
-    $prefix = $this->getTransferPrefix($shippingGuide);
+    $prefix = $shippingGuide->getTransferPrefix($shippingGuide);
 
     // Si está cancelada, usar el step de reversión para crear un nuevo log
     $step = $isCancelled
@@ -956,7 +956,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       throw new \Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.");
     }
 
-    $prefix = $this->getTransferPrefix($shippingGuide);
+    $prefix = $shippingGuide->getTransferPrefix($shippingGuide);
     $transferIdOriginal = $prefix . $shippingGuide->document_number;
     $transferIdFormatted = $transferIdOriginal;
 
@@ -1137,7 +1137,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
   protected function syncInventoryTransferSerial(ShippingGuides $shippingGuide, bool $isCancelled): void
   {
     $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
-    $prefix = $this->getTransferPrefix($shippingGuide);
+    $prefix = $shippingGuide->getTransferPrefix($shippingGuide);
 
     // Si está cancelada, usar el step de reversión para crear un nuevo log
     $step = $isCancelled
@@ -1216,22 +1216,5 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       'shipping_guide_id' => $this->shippingGuideId,
       'error' => $exception->getMessage(),
     ]);
-  }
-
-  private function getTransferPrefix(ShippingGuides $shippingGuide): string
-  {
-    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
-      return 'CR-';
-    }
-
-    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
-      return 'CT-';
-    }
-
-    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_OTROS) {
-      return 'CO-';
-    }
-
-    return '-';
   }
 }

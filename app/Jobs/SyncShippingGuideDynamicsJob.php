@@ -171,14 +171,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
 
       // Ejecutar generateInventoryMovement del servicio
       $transferReceptionService = new TransferReceptionService();
-      $transferInMovement = $transferReceptionService->generateInventoryMovement($transferReception, $transferOutMovement);
-
-      Log::info('Movimiento de inventario generado exitosamente', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'transfer_reception_id' => $transferReception->id,
-        'transfer_in_movement_id' => $transferInMovement->id
-      ]);
-
+      $transferReceptionService->generateInventoryMovement($transferReception, $transferOutMovement);
     } catch (\Exception $e) {
       Log::error('Error procesando guía de remisión en Dynamics', [
         'shipping_guide_id' => $shippingGuide->id,
