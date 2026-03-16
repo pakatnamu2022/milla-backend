@@ -11,6 +11,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Jobs\SyncShippingGuideDynamicsJob;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
+use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuideAccessory;
 use App\Models\ap\comercial\ShippingGuides;
@@ -150,6 +151,21 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       // 5. Generar correlativo dinámico
       $correlativeDyn = ShippingGuides::generateNextCorrelativeDyn();
 
+      // Resolver RUC y nombre de empresa de transporte si es modalidad pública
+      $rucTransport = null;
+      $companyNameTransport = null;
+      if (
+        isset($data['transfer_modality_id']) &&
+        (int)$data['transfer_modality_id'] === SunatConcepts::TYPE_TRANSPORTATION_PUBLICO &&
+        !empty($data['transport_company_id'])
+      ) {
+        $transportCompany = BusinessPartners::find($data['transport_company_id']);
+        if ($transportCompany) {
+          $rucTransport = $transportCompany->num_doc;
+          $companyNameTransport = $transportCompany->full_name;
+        }
+      }
+
       // 6. Crear la guía de remisión
       $documentData = [
         'document_type' => $data['document_type'],
@@ -169,6 +185,8 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'transmitter_id' => $data['transmitter_id'],
         'receiver_id' => $data['receiver_id'],
         'transport_company_id' => $data['transport_company_id'] ?? null,
+        'ruc_transport' => $rucTransport,
+        'company_name_transport' => $companyNameTransport,
         'driver_doc' => $data['driver_doc'] ?? null,
         'license' => $data['license'] ?? null,
         'plate' => $data['plate'] ?? null,
@@ -289,6 +307,21 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       // Generar correlativo dinámico
       $correlativeDyn = ShippingGuides::generateNextCorrelativeDyn();
 
+      // Resolver RUC y nombre de empresa de transporte si es modalidad pública
+      $rucTransport = null;
+      $companyNameTransport = null;
+      if (
+        isset($data['transfer_modality_id']) &&
+        (int)$data['transfer_modality_id'] === SunatConcepts::TYPE_TRANSPORTATION_PUBLICO &&
+        !empty($data['transport_company_id'])
+      ) {
+        $transportCompany = BusinessPartners::find($data['transport_company_id']);
+        if ($transportCompany) {
+          $rucTransport = $transportCompany->num_doc;
+          $companyNameTransport = $transportCompany->full_name;
+        }
+      }
+
       $documentData = [
         'document_type' => $data['document_type'],
         'type_voucher_id' => $typeVoucherId,
@@ -307,6 +340,8 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'transmitter_id' => $data['transmitter_id'],
         'receiver_id' => $data['receiver_id'],
         'transport_company_id' => $data['transport_company_id'] ?? null,
+        'ruc_transport' => $rucTransport,
+        'company_name_transport' => $companyNameTransport,
         'driver_doc' => $data['driver_doc'] ?? null,
         'license' => $data['license'] ?? null,
         'plate' => $data['plate'] ?? null,
@@ -510,6 +545,23 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $data['cancelled_by'],
         $data['cancelled_at']
       );
+
+      // Resolver RUC y nombre de empresa de transporte si es modalidad pública
+      $transferModalityId = $data['transfer_modality_id'] ?? $document->transfer_modality_id;
+      $transportCompanyId = $data['transport_company_id'] ?? $document->transport_company_id;
+      if (
+        (int)$transferModalityId === SunatConcepts::TYPE_TRANSPORTATION_PUBLICO &&
+        !empty($transportCompanyId)
+      ) {
+        $transportCompany = BusinessPartners::find($transportCompanyId);
+        if ($transportCompany) {
+          $data['ruc_transport'] = $transportCompany->num_doc;
+          $data['company_name_transport'] = $transportCompany->full_name;
+        }
+      } else {
+        $data['ruc_transport'] = null;
+        $data['company_name_transport'] = null;
+      }
 
       $document->update($data);
 

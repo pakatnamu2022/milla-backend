@@ -182,7 +182,20 @@ return [
       'icon' => 'XCircle',
       'policy_method' => 'requestCancellation',
     ],
+    'migrate' => [
+      'label' => 'Migrar',
+      'description' => 'Permite realizar migraciones de datos o configuraciones',
+      'icon' => 'XCircle',
+      'policy_method' => 'migrate',
+    ],
+    'generate' => [
+      'label' => 'Generar',
+      'description' => 'Permite generar documentos, reportes u otros elementos dentro del sistema',
+      'icon' => 'XCircle',
+      'policy_method' => 'generate',
+    ],
   ],
+
 
   /*
   |--------------------------------------------------------------------------
