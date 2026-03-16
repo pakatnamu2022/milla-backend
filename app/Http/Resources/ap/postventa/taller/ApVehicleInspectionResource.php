@@ -20,10 +20,10 @@ class ApVehicleInspectionResource extends JsonResource
     return [
       'id' => $this->id,
       'ap_work_order_id' => $this->ap_work_order_id,
-      'vehicle_id' => $this->workOrder?->vehicle_id,
-      'vehicle_plate' => $this->workOrder?->vehicle->plate,
-      'vehicle_vin' => $this->workOrder?->vehicle->vin,
-      'work_order_correlative' => $this->workOrder ? $this->workOrder->correlative : null,
+      'vehicle_id' => $this->createdByWorkOrder?->vehicle_id,
+      'vehicle_plate' => $this->createdByWorkOrder?->vehicle->plate,
+      'vehicle_vin' => $this->createdByWorkOrder?->vehicle->vin,
+      'work_order_correlative' => $this->createdByWorkOrder ? $this->createdByWorkOrder->correlative : null,
       'mileage' => $this->mileage,
       'fuel_level' => $this->fuel_level,
       'oil_level' => $this->oil_level,
@@ -97,21 +97,21 @@ class ApVehicleInspectionResource extends JsonResource
       'damages' => ApVehicleInspectionDamagesResource::collection($this->whenLoaded('damages')),
 
       // Trazabilidad: daños registrados en la recepción comercial del mismo vehículo
-      'receiving_damages' => $this->getReceivingDamages(),
+//      'receiving_damages' => $this->getReceivingDamages(),
     ];
   }
 
-  private function getReceivingDamages(): array
-  {
-    $damages = $this->workOrder?->vehicle
-      ?->shippingGuideReceiving
-      ?->receivingInspection
-      ?->damages;
-
-    if (!$damages) {
-      return [];
-    }
-
-    return ApReceivingInspectionDamageResource::collection($damages)->resolve();
-  }
+//  private function getReceivingDamages(): array
+//  {
+//    $damages = $this->createdByWorkOrder?->vehicle
+//      ?->shippingGuideReceiving
+//      ?->receivingInspection
+//      ?->damages;
+//
+//    if (!$damages) {
+//      return [];
+//    }
+//
+//    return ApReceivingInspectionDamageResource::collection($damages)->resolve();
+//  }
 }

@@ -21,6 +21,7 @@ use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
 use Exception;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
@@ -130,7 +131,8 @@ class ElectronicDocument extends BaseModel
     'created_by',
     'updated_by',
     'card_last4',
-    'internal_note'
+    'internal_note',
+    'consolidation_type'
   ];
 
   protected $casts = [
@@ -192,6 +194,7 @@ class ElectronicDocument extends BaseModel
     'fecha_de_emision' => '=',
     'created_by' => '=',
     'seriesModel.sede_id' => '=',
+    'consolidation_type' => '=',
   ];
 
   const array sorts = ['id', 'fecha_de_emision', 'numero', 'total'];
@@ -208,6 +211,9 @@ class ElectronicDocument extends BaseModel
   const TYPE_BOLETA = SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA;          // 30
   const TYPE_NOTA_CREDITO = SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA;    // 31
   const TYPE_NOTA_DEBITO = SunatConcepts::ID_NOTA_DEBITO_ELECTRONICA;      // 32
+
+  // Consolidation types
+  const CONSOLIDATION_WORK_ORDERS = 'work_orders';
 
   /**
    * Booted
@@ -477,6 +483,16 @@ class ElectronicDocument extends BaseModel
     return $query->where('anulado', false);
   }
 
+  public function scopeConsolidated($query)
+  {
+    return $query->whereNotNull('consolidation_type');
+  }
+
+  public function scopeConsolidatedWorkOrders($query)
+  {
+    return $query->where('consolidation_type', self::CONSOLIDATION_WORK_ORDERS);
+  }
+
   /**
    * Accessors
    */
@@ -534,6 +550,11 @@ class ElectronicDocument extends BaseModel
   {
     $client = $this->client;
     return $client ? $client->phone : null;
+  }
+
+  public function getIsConsolidatedAttribute(): bool
+  {
+    return !is_null($this->consolidation_type);
   }
 
   /**
@@ -669,6 +690,19 @@ class ElectronicDocument extends BaseModel
     })->exists();
   }
 
+  /**
+   * Helper methods for consolidated invoices
+   */
+  public function isConsolidated(): bool
+  {
+    return !is_null($this->consolidation_type);
+  }
+
+  public function isWorkOrdersConsolidation(): bool
+  {
+    return $this->consolidation_type === self::CONSOLIDATION_WORK_ORDERS;
+  }
+
   public function purchaseRequestQuote(): HasOne
   {
     return $this->hasOne(PurchaseRequestQuote::class, 'id', 'purchase_request_quote_id');
@@ -687,6 +721,16 @@ class ElectronicDocument extends BaseModel
   public function area(): HasOne
   {
     return $this->hasOne(ApMasters::class, 'id', 'area_id');
+  }
+
+  public function internalNotes(): BelongsToMany
+  {
+    return $this->belongsToMany(
+      ApInternalNote::class,
+      'electronic_document_internal_notes',
+      'electronic_document_id',
+      'internal_note_id'
+    )->withTimestamps();
   }
 
   /**

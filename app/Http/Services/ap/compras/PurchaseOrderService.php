@@ -809,11 +809,6 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
           $orderItem->id]);
       }
     }
-
-    //GENERAMOS EL MOVIMIENTO DE STOCK DE ENTRADA POR LA RECEPCIÓN
-    $stockService = new PurchaseReceptionService();
-    $stockService->processReceptionStock($purchaseOrder);
-    //MANERA TEMPORAL
   }
 
   public function checkResources($id)

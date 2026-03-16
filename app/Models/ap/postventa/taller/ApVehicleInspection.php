@@ -5,7 +5,7 @@ namespace App\Models\ap\postventa\taller;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ApVehicleInspection extends Model
@@ -135,11 +135,11 @@ class ApVehicleInspection extends Model
   ];
 
   const filters = [
-    'search' => ['general_observations', 'workOrder.vehicle.plate'],
+    'search' => ['general_observations', 'createdByWorkOrder.vehicle.plate'],
     'fuel_level' => 'between',
     'inspected_by' => '=',
     'ap_work_order_id' => '=',
-    'workOrder.sede_id' => '=',
+    'createdByWorkOrder.sede_id' => '=',
     'is_cancelled' => '=',
   ];
 
@@ -200,8 +200,13 @@ class ApVehicleInspection extends Model
     return $this->belongsTo(User::class, 'cancellation_confirmed_by');
   }
 
-  public function workOrder(): HasOne
+  public function createdByWorkOrder(): BelongsTo
   {
-    return $this->hasOne(ApWorkOrder::class, 'id', 'ap_work_order_id');
+    return $this->belongsTo(ApWorkOrder::class, 'ap_work_order_id');
+  }
+
+  public function workOrders(): HasMany
+  {
+    return $this->hasMany(ApWorkOrder::class, 'vehicle_inspection_id');
   }
 }

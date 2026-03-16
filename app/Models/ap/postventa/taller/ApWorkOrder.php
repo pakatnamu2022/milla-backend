@@ -6,6 +6,7 @@ use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
@@ -29,6 +30,7 @@ class ApWorkOrder extends Model
     'correlative',
     'appointment_planning_id',
     'order_quotation_id',
+    'vehicle_inspection_id',
     'vehicle_id',
     'currency_id',
     'vehicle_plate',
@@ -212,10 +214,15 @@ class ApWorkOrder extends Model
     return $this->hasMany(ApWorkOrderParts::class, 'work_order_id');
   }
 
-  public function vehicleInspection(): HasOne
+  public function vehicleInspection(): BelongsTo
   {
-    return $this->hasOne(ApVehicleInspection::class, 'ap_work_order_id')
+    return $this->belongsTo(ApVehicleInspection::class, 'vehicle_inspection_id')
       ->where('is_cancelled', false);
+  }
+
+  public function createdVehicleInspection(): HasOne
+  {
+    return $this->hasOne(ApVehicleInspection::class, 'ap_work_order_id');
   }
 
   // Helper methods
@@ -242,5 +249,10 @@ class ApWorkOrder extends Model
   public function discountRequests()
   {
     return $this->hasMany(DiscountRequestsWorkOrder::class, 'ap_work_order_id');
+  }
+
+  public function internalNote(): HasOne
+  {
+    return $this->hasOne(ApInternalNote::class, 'work_order_id');
   }
 }
