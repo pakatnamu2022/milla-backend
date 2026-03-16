@@ -64,7 +64,7 @@ class UpdateApOrderPurchaseRequestsRequest extends StoreRequest
       'supply_type' => [
         'required',
         'string',
-        'in:STOCK,LIMA,IMPORTACION',
+        'in:STOCK,LOCAL,LIMA,IMPORTACION',
       ],
 
       // Details validation (optional on update)
@@ -123,7 +123,7 @@ class UpdateApOrderPurchaseRequestsRequest extends StoreRequest
       'status.required' => 'El estado es obligatorio.',
       'status.in' => 'El estado debe ser: pending, approved o rejected.',
       'supply_type.required' => 'El tipo de suministro es obligatorio.',
-      'supply_type.in' => 'El tipo de suministro debe ser: STOCK, LIMA o IMPORTACION.',
+      'supply_type.in' => 'El tipo de suministro debe ser: STOCK, LOCAL, LIMA o IMPORTACION.',
 
       // Details messages
       'details.array' => 'Los detalles deben ser un arreglo.',
