@@ -126,8 +126,6 @@ class TransferReceptionService extends BaseService
           if ($shippingGuide->area_id === ApMasters::AREA_POSVENTA) {
             // Migrar productos de posventa a Dynamics
             MigrateProductReceptionToDynamicsJob::dispatch($reception->id);
-          } else {
-            \Log::info("Recepción de transferencia {$reception->reception_number} no requiere migración a Dynamics por ser de área diferente a posventa.");
           }
         }
       } else {

@@ -319,4 +319,40 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
 
     return new BusinessPartnersResource($businessPartner);
   }
+
+  /**
+   * Reprocesar los establecimientos de un socio comercial
+   */
+  public function reprocessEstablishments($id)
+  {
+    DB::beginTransaction();
+    try {
+      $businessPartner = $this->find($id);
+
+      // Validar que sea RUC
+      if ($businessPartner->document_type_id != Constants::TYPE_DOCUMENT_RUC_ID) {
+        throw new Exception('Solo se pueden procesar establecimientos para RUC');
+      }
+
+      // Eliminar establecimientos existentes
+      $businessPartner->establishments()->delete();
+
+      // Resetear el estado
+      $businessPartner->update(['establishments_status' => 'pending']);
+
+      // Despachar el job para procesar los establecimientos
+      ProcessEstablishments::dispatch($businessPartner->id, $businessPartner->num_doc);
+
+      DB::commit();
+
+      return [
+        'message' => 'Los establecimientos se están reprocesando',
+        'business_partner_id' => $businessPartner->id,
+        'status' => 'pending'
+      ];
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw new Exception($e->getMessage());
+    }
+  }
 }

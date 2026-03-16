@@ -87,11 +87,11 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
     // 2. Crear logs de transferencia (solo después de que productos estén en proceso)
     $this->ensureProductTransferLogsExist($shippingGuide, $reception);
 
-    // 3. Verificar y sincronizar transferencia de inventario (Header)
-    $this->verifyInventoryTransfer($shippingGuide, $reception);
-
-    // 4. Verificar y sincronizar detalle de transferencia (Detail)
+    // 3. Verificar y sincronizar detalle de transferencia (Detail)
     $this->verifyInventoryTransferDetail($shippingGuide, $reception);
+
+    // 4. Verificar y sincronizar transferencia de inventario (Header)
+    $this->verifyInventoryTransfer($shippingGuide, $reception);
 
     // 5. Verificar si todo está completo
     $this->checkAndUpdateCompletionStatus($shippingGuide);

@@ -100,4 +100,13 @@ class BusinessPartnersController extends Controller
       return $this->errorValidation($th->getMessage());
     }
   }
+
+  public function reprocessEstablishments($id)
+  {
+    try {
+      return $this->success($this->service->reprocessEstablishments($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
