@@ -3,7 +3,9 @@
 namespace App\Jobs;
 
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -52,10 +54,16 @@ class SyncAccountingStatusJob implements ShouldQueue
             }
           }
 
+          $wasAccounted = $document->is_accounted;
+
           $document->update([
             'is_accounted' => true,
             'is_annulled' => $isAnnulled,
           ]);
+
+          if (!$wasAccounted && !$isAnnulled) {
+            $this->restoreVehicleToInventoryIfApplicable($document);
+          }
         } else {
           $document->update([
             'is_accounted' => false,
@@ -70,6 +78,44 @@ class SyncAccountingStatusJob implements ShouldQueue
         ]);
       }
     }
+  }
+
+  private function restoreVehicleToInventoryIfApplicable(ElectronicDocument $document): void
+  {
+    if ($document->sunat_concept_document_type_id !== ElectronicDocument::TYPE_NOTA_CREDITO) {
+      return;
+    }
+
+    $restorableTypes = [
+      SunatConcepts::ID_CREDIT_NOTE_ANULACION,
+      SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL,
+    ];
+
+    if (!in_array($document->sunat_concept_credit_note_type_id, $restorableTypes)) {
+      return;
+    }
+
+    $originalDocument = $document->originalDocument;
+
+    if (!$originalDocument || !$originalDocument->ap_vehicle_movement_id) {
+      return;
+    }
+
+    $vehicle = $originalDocument->vehicle;
+
+    if (!$vehicle) {
+      return;
+    }
+
+    $vehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN]);
+
+    Log::info('Vehículo devuelto al inventario por NC contabilizada', [
+      'credit_note_id'       => $document->id,
+      'credit_note_number'   => $document->full_number,
+      'original_document_id' => $originalDocument->id,
+      'vehicle_id'           => $vehicle->id,
+      'vehicle_vin'          => $vehicle->vin,
+    ]);
   }
 
   public function failed(Throwable $exception): void

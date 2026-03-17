@@ -35,19 +35,6 @@ class UpdateDebitNoteRequest extends StoreRequest
 
     // Los totales se auto-calculan, no necesitamos convertir decimales aquí
 
-    // Convertir strings booleanos (solo flags de envío)
-    $booleanFields = [
-      'enviar_automaticamente_a_la_sunat',
-      'enviar_automaticamente_al_cliente',
-    ];
-
-    foreach ($booleanFields as $field) {
-      if ($this->has($field) && $this->input($field) !== null) {
-        $value = $this->input($field);
-        $dataToMerge[$field] = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $value;
-      }
-    }
-
     // Convertir items
     if ($this->has('items') && is_array($this->input('items'))) {
       $items = $this->input('items');
@@ -135,13 +122,10 @@ class UpdateDebitNoteRequest extends StoreRequest
 
       // Fechas
       'fecha_de_emision' => 'required|date',
+      'fecha_nota_debito' => 'required|date',
 
       // Campos opcionales
       'observaciones' => 'nullable|string|max:1000',
-
-      // Configuración
-      'enviar_automaticamente_a_la_sunat' => 'nullable|boolean',
-      'enviar_automaticamente_al_cliente' => 'nullable|boolean',
 
       // Items de la nota de débito (OBLIGATORIOS)
       'items' => 'required|array|min:1',
@@ -192,6 +176,8 @@ class UpdateDebitNoteRequest extends StoreRequest
       'series.required' => 'La serie es obligatoria',
       'serie.size' => 'La serie debe tener exactamente 4 caracteres',
       'fecha_de_emision.required' => 'La fecha de emisión es obligatoria',
+      'fecha_nota_debito.required' => 'La fecha de la nota de débito es obligatoria',
+      'fecha_nota_debito.date' => 'La fecha de la nota de débito no es válida',
       'items.required' => 'Debe agregar al menos un item a la nota de débito',
       'items.min' => 'Debe agregar al menos un item a la nota de débito',
       'items.*.descripcion.required' => 'La descripción del item es obligatoria',

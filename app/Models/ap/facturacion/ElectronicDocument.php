@@ -58,6 +58,7 @@ class ElectronicDocument extends BaseModel
     'cliente_email_1',
     'cliente_email_2',
     'fecha_de_emision',
+    'fecha_nota_debito',
     'fecha_de_vencimiento',
     'sunat_concept_currency_id',
     'tipo_de_cambio',
@@ -135,6 +136,7 @@ class ElectronicDocument extends BaseModel
 
   protected $casts = [
     'fecha_de_emision' => 'date',
+    'fecha_nota_debito' => 'date',
     'fecha_de_vencimiento' => 'date',
     'tipo_de_cambio' => 'decimal:3',
     'porcentaje_de_igv' => 'decimal:2',

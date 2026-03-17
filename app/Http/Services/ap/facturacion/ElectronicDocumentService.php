@@ -1344,6 +1344,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Preparar datos de la nota de débito
       $debitNoteData = array_merge($data, [
         'sunat_concept_document_type_id' => ElectronicDocument::TYPE_NOTA_DEBITO,
+        'enviar_automaticamente_a_la_sunat' => false,
+        'enviar_automaticamente_al_cliente' => false,
         'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
@@ -1550,6 +1552,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Preparar datos para actualización
       $updateData = array_merge($data, [
+        'enviar_automaticamente_a_la_sunat' => false,
+        'enviar_automaticamente_al_cliente' => false,
         'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
