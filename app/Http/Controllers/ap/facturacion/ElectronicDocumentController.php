@@ -12,6 +12,7 @@ use App\Http\Requests\ap\facturacion\StoreElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\UpdateCreditNoteRequest;
 use App\Http\Requests\ap\facturacion\UpdateDebitNoteRequest;
 use App\Http\Requests\ap\facturacion\UpdateElectronicDocumentRequest;
+use App\Http\Requests\ap\facturacion\StoreConsolidatedInvoiceRequest;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
 use App\Http\Services\ap\facturacion\ElectronicDocumentService;
 use App\Jobs\SyncAccountingStatusJob;
@@ -527,6 +528,20 @@ class ElectronicDocumentController extends Controller
         'total' => $reportData->count(),
         'columns' => array_values(array_map(fn($col) => $col['label'], $columns)),
       ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Create a consolidated invoice from multiple work orders' internal notes
+   */
+  public function createConsolidatedInvoice(StoreConsolidatedInvoiceRequest $request): JsonResponse
+  {
+    try {
+      $result = $this->service->createConsolidatedInvoice($request->validated());
+
+      return $this->success($result);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

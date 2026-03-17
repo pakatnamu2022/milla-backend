@@ -9,6 +9,7 @@ use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
@@ -30,6 +31,28 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   public function list(Request $request)
   {
     $query = ApWorkOrder::with('items');
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      ApWorkOrder::filters,
+      ApWorkOrder::sorts,
+      WorkOrderResource::class
+    );
+  }
+
+  public function listWithInternalNotes(Request $request)
+  {
+    $query = ApWorkOrder::with(['items', 'internalNote'])
+      ->whereHas('internalNote');
+
+    // Filtrar por estado de nota interna si se proporciona
+    if ($request->has('internal_note_status')) {
+      $status = $request->input('internal_note_status');
+      $query->whereHas('internalNote', function ($q) use ($status) {
+        $q->where('status', $status);
+      });
+    }
+
     return $this->getFilteredResults(
       $query,
       $request,
@@ -292,14 +315,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     return "OT-{$year}-{$month}-{$newNumber}";
   }
 
-  /**
-   * Calculate work order total amount
-   * This is the single source of truth for work order totals
-   *
-   * @param ApWorkOrder $workOrder
-   * @param int|null $groupNumber Optional group number filter
-   * @return array Array with breakdown: labour_cost, parts_cost, subtotal, discount_amount, tax_amount, total_amount
-   */
   public static function calculateWorkOrderTotal(ApWorkOrder $workOrder, ?int $groupNumber = null): array
   {
     // Filter labours by group_number if provided
@@ -498,14 +513,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     return $pdf->stream("pre-liquidacion-{$workOrder->correlative}.pdf");
   }
 
-  /**
-   * Calculate work order total amount including pending quotation details
-   * Only used when work order has an associated quotation
-   *
-   * @param ApWorkOrder $workOrder
-   * @param int|null $groupNumber Optional group number filter
-   * @return array Array with breakdown: labour_cost, parts_cost, subtotal, discount_amount, tax_amount, total_amount
-   */
   private function calculateTotalsWithQuotation(ApWorkOrder $workOrder, ?int $groupNumber = null): array
   {
     // Filter labours by group_number if provided
@@ -903,5 +910,43 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'vehicle_vin' => $vehicle->vin,
       'data' => $history->values()->toArray()
     ];
+  }
+
+  public function generateInternalNote($id)
+  {
+    $workOrder = $this->find($id);
+
+    if ($workOrder->invoice_to === null) {
+      throw new Exception('La orden de trabajo no tiene un destinatario de factura asignado.');
+    }
+
+    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+      throw new Exception('No se puede generar una nota interna para una orden de trabajo cerrada');
+    }
+
+    //create internal note
+    $internalNote = ApInternalNote::create([
+      'work_order_id' => $workOrder->id,
+      'created_date' => now(),
+    ]);
+
+    //Close work order with internal note
+    $workOrder->update([
+      'status_id' => ApMasters::CLOSED_WORK_ORDER_ID,
+    ]);
+
+    return response()->json([
+      'message' => 'Nota interna generada y orden de trabajo cerrada correctamente',
+      'internal_note_id' => $internalNote->id,
+    ]);
+  }
+
+  public function getByIds(array $ids)
+  {
+    $workOrders = ApWorkOrder::with(['internalNote', 'items', 'labours', 'parts'])
+      ->whereIn('id', $ids)
+      ->get();
+
+    return WorkOrderResource::collection($workOrders);
   }
 }

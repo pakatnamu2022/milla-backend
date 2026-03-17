@@ -1218,13 +1218,16 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Work Orders - Órdenes de Trabajo
+      Route::get('workOrders/with-internal-notes', [WorkOrderController::class, 'listWithInternalNotes']);
       Route::get('workOrders/vehicle/{vehicleId}/history', [WorkOrderController::class, 'vehicleHistory']);
+      Route::post('workOrders/by-ids', [WorkOrderController::class, 'getByIds']);
       Route::get('workOrders/{id}/payment-summary', [WorkOrderController::class, 'getPaymentSummary']);
       Route::get('workOrders/{id}/pre-liquidation', [WorkOrderController::class, 'getPreLiquidationPdf']);
       Route::patch('workOrders/{id}/unlink-quotation', [WorkOrderController::class, 'unlinkQuotation']);
       Route::patch('workOrders/{id}/authorization', [WorkOrderController::class, 'authorization']);
       Route::patch('workOrders/{id}/invoice-to', [WorkOrderController::class, 'invoiceTo']);
       Route::get('workOrders/{id}/delivery-report', [WorkOrderController::class, 'generateDeliveryReport']);
+      Route::post('workOrders/{id}/generate-internal-note', [WorkOrderController::class, 'generateInternalNote']);
       Route::apiResource('workOrders', WorkOrderController::class)->only([
         'index',
         'show',
@@ -1413,6 +1416,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Report
       Route::get('electronic-documents-report', [ElectronicDocumentController::class, 'report']);
+
+      // Consolidated invoice from work orders
+      Route::post('electronic-documents/consolidated-invoice', [ElectronicDocumentController::class, 'createConsolidatedInvoice']);
 
       // CRUD de Documentos Electrónicos
       Route::apiResource('electronic-documents', ElectronicDocumentController::class);
