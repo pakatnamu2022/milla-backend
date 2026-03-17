@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
+use App\Models\ap\comercial\ApDeliveryChecklist;
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
@@ -95,5 +96,10 @@ class ApVehicleDelivery extends Model
   public function client()
   {
     return $this->belongsTo(BusinessPartners::class, 'client_id');
+  }
+
+  public function deliveryChecklist()
+  {
+    return $this->hasOne(ApDeliveryChecklist::class, 'vehicle_delivery_id');
   }
 }

@@ -17,8 +17,13 @@ class UpdateCreditNoteRequest extends StoreRequest
    */
   protected function prepareForValidation()
   {
+    // original_document_id comes from the route {id} parameter
+    $routeId = $this->route('id');
+    if ($routeId !== null) {
+      $this->merge(['original_document_id' => (int) $routeId]);
+    }
+
     $numericFields = [
-      'original_document_id',
       'series',
       'sunat_concept_credit_note_type_id',
     ];

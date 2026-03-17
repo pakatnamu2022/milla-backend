@@ -6,6 +6,7 @@ use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
 use App\Http\Controllers\ap\comercial\ApVehicleInventoryController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
+use App\Http\Controllers\ap\comercial\ApDeliveryChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersEstablishmentController;
@@ -1093,6 +1094,16 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Daily Delivery Report
       Route::get('reports/daily-delivery', [ApDailyDeliveryReportController::class, 'index']);
       Route::get('reports/daily-delivery/export', [ApDailyDeliveryReportController::class, 'export']);
+
+      // Delivery Checklist
+      Route::get('vehiclesDelivery/{vehicleDeliveryId}/checklist', [ApDeliveryChecklistController::class, 'getOrInitialize']);
+      Route::post('deliveryChecklist', [ApDeliveryChecklistController::class, 'store']);
+      Route::put('deliveryChecklist/{id}', [ApDeliveryChecklistController::class, 'update']);
+      Route::post('deliveryChecklist/{id}/confirm', [ApDeliveryChecklistController::class, 'confirm']);
+      Route::post('deliveryChecklist/{id}/items', [ApDeliveryChecklistController::class, 'addItem']);
+      Route::put('deliveryChecklist/{id}/items/{itemId}', [ApDeliveryChecklistController::class, 'updateItem']);
+      Route::delete('deliveryChecklist/{id}/items/{itemId}', [ApDeliveryChecklistController::class, 'removeItem']);
+      Route::get('deliveryChecklist/{id}/pdf', [ApDeliveryChecklistController::class, 'generatePdf']);
 
       // Vehicles Delivery
       Route::post('vehiclesDelivery/{id}/generate-shipping-guide', [ApVehicleDeliveryController::class, 'generateShippingGuide']);
