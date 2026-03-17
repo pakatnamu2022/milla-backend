@@ -25,6 +25,7 @@ class UpdateApReceivingChecklistRequest extends StoreRequest
       'damages.*.y_coordinate' => 'nullable|numeric',
       'damages.*.description' => 'nullable|string',
       'damages.*.photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+      'has_pdi' => 'required|boolean',
     ];
   }
 
@@ -46,6 +47,7 @@ class UpdateApReceivingChecklistRequest extends StoreRequest
       'damages.*.y_coordinate' => 'coordenada Y del daño',
       'damages.*.description' => 'descripción del daño',
       'damages.*.photo' => 'foto del daño',
+      'has_pdi' => 'PDI',
     ];
   }
 }

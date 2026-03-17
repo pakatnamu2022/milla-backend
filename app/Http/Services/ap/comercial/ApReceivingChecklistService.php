@@ -216,6 +216,14 @@ class ApReceivingChecklistService extends BaseService
         'received_date' => now(),
       ]);
 
+      // Actualizar has_pdi en el vehículo asociado si se envía el campo
+      if (array_key_exists('has_pdi', $data)) {
+        $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+        if ($vehicle) {
+          $vehicle->update(['has_pdi' => $data['has_pdi']]);
+        }
+      }
+
       // Crear/actualizar inspección si llegan fotos o daños
       $hasInspectionData = isset($data['photo_front'])
         || isset($data['photo_back'])

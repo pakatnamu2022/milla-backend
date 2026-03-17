@@ -38,11 +38,13 @@ class Vehicles extends BaseModel
     'status',
     'is_heavy',
     'warehouse_physical_id',
-    'customer_id'
+    'customer_id',
+    'has_pdi',
   ];
 
   protected $casts = [
     'year' => 'integer',
+    'has_pdi' => 'boolean',
     'is_heavy' => 'boolean',
   ];
 
@@ -66,6 +68,7 @@ class Vehicles extends BaseModel
     'is_paid' => 'accessor_bool',
     'customer_id' => '=',
     'type_operation_id' => '=',
+    'is_received' => 'accessor_bool',
   ];
 
   const array sorts = [
@@ -74,6 +77,15 @@ class Vehicles extends BaseModel
     'engine_number',
     'created_at',
   ];
+
+  /**
+   * Accesor para determinar si el vehículo ha sido recibido en bodega: 'is_received'
+   * @return bool
+   */
+  public function getIsReceivedAttribute()
+  {
+    return $this->shippingGuides()->exists();
+  }
 
   public function setPlateAttribute($value)
   {

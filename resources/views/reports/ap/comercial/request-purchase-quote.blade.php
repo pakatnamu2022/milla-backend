@@ -228,7 +228,11 @@
     <td>{{ $quote['class'] ?? '' }}</td>
     <td>{{ $quote['brand'] ?? '' }}</td>
     <td>{{ $quote['ap_model_vn'] ?? '' }}</td>
-    <td colspan="2">{{ $quote['warranty'] ?? '' }}</td>
+    <td colspan="2">
+      @if(!empty($quote['warranty_years']) || !empty($quote['warranty_km']))
+        {{ $quote['warranty_years'] ?? '-' }} años / {{ number_format($quote['warranty_km'] ?? 0) }} km
+      @endif
+    </td>
   </tr>
   <tr>
     <td class="label">Motor</td>
