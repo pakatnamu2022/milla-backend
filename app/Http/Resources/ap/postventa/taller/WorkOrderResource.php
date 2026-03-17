@@ -19,6 +19,7 @@ class WorkOrderResource extends JsonResource
       'correlative' => $this->correlative,
       'order_quotation_id' => $this->order_quotation_id,
       'appointment_planning_id' => $this->appointment_planning_id,
+      'vehicle_inspection_id' => $this->vehicle_inspection_id,
       'vehicle_id' => $this->vehicle_id,
       'vehicle' => new VehiclesResource($this->vehicle),
       'vehicle_plate' => $this->vehicle_plate,
@@ -68,7 +69,8 @@ class WorkOrderResource extends JsonResource
       'order_quotation' => new ApOrderQuotationsResource($this->whenLoaded('orderQuotation')),
       'advances' => ElectronicDocumentResource::collection(
         $this->whenLoaded('advancesWorkOrder', fn() => $this->advancesWorkOrder->filter(fn($advance) => $advance->aceptada_por_sunat == 1))
-      )
+      ),
+      'internal_note' => new InternalNoteResource($this->whenLoaded('internalNote')),
     ];
   }
 }

@@ -45,7 +45,7 @@ class ApVehicleInspectionService extends BaseService
   {
     $inspection = ApVehicleInspection::with([
       'damages',
-      'workOrder',
+      'createdByWorkOrder',
       'inspectionBy'
     ])->where('id', $id)->first();
 
@@ -102,7 +102,7 @@ class ApVehicleInspectionService extends BaseService
       DB::commit();
 
       // Recargar con relaciones
-      $inspection->load(['damages', 'workOrder', 'inspectionBy']);
+      $inspection->load(['damages', 'createdByWorkOrder', 'inspectionBy']);
 
       return new ApVehicleInspectionResource($inspection);
     } catch (Exception $e) {
@@ -114,7 +114,7 @@ class ApVehicleInspectionService extends BaseService
   public function show($id)
   {
     $inspection = $this->find($id);
-    $inspection->load(['workOrder.vehicle.shippingGuideReceiving.receivingInspection.damages']);
+    $inspection->load(['createdByWorkOrder.vehicle.shippingGuideReceiving.receivingInspection.damages']);
     return new ApVehicleInspectionResource($inspection);
   }
 
@@ -323,18 +323,18 @@ class ApVehicleInspectionService extends BaseService
     // Obtener la inspección con todas las relaciones necesarias
     $inspection = ApVehicleInspection::with([
       'damages',
-      'workOrder.vehicle.model.family.brand',
-      'workOrder.vehicle.color',
-      'workOrder.vehicle.customer',
-      'workOrder.advisor', // Worker extiende de Person, no tiene relación person
-      'workOrder.sede',
-      'workOrder.status',
-      'workOrder.items.typePlanning',
-      'workOrder.appointmentPlanning',
+      'createdByWorkOrder.vehicle.model.family.brand',
+      'createdByWorkOrder.vehicle.color',
+      'createdByWorkOrder.vehicle.customer',
+      'createdByWorkOrder.advisor', // Worker extiende de Person, no tiene relación person
+      'createdByWorkOrder.sede',
+      'createdByWorkOrder.status',
+      'createdByWorkOrder.items.typePlanning',
+      'createdByWorkOrder.appointmentPlanning',
       'inspectionBy.person' // User sí tiene relación person
     ])->findOrFail($id);
 
-    $workOrder = $inspection->workOrder;
+    $workOrder = $inspection->createdByWorkOrder;
     $vehicle = $workOrder->vehicle;
     $customer = $vehicle->customer;
     $advisor = $workOrder->advisor; // Worker extiende de Person directamente
@@ -426,18 +426,18 @@ class ApVehicleInspectionService extends BaseService
     // Obtener la inspección con todas las relaciones necesarias
     $inspection = ApVehicleInspection::with([
       'damages',
-      'workOrder.vehicle.model.family.brand',
-      'workOrder.vehicle.color',
-      'workOrder.vehicle.customer',
-      'workOrder.advisor', // Worker extiende de Person, no tiene relación person
-      'workOrder.sede',
-      'workOrder.status',
-      'workOrder.items.typePlanning',
-      'workOrder.appointmentPlanning',
+      'createdByWorkOrder.vehicle.model.family.brand',
+      'createdByWorkOrder.vehicle.color',
+      'createdByWorkOrder.vehicle.customer',
+      'createdByWorkOrder.advisor', // Worker extiende de Person, no tiene relación person
+      'createdByWorkOrder.sede',
+      'createdByWorkOrder.status',
+      'createdByWorkOrder.items.typePlanning',
+      'createdByWorkOrder.appointmentPlanning',
       'inspectionBy.person' // User sí tiene relación person
     ])->findOrFail($id);
 
-    $workOrder = $inspection->workOrder;
+    $workOrder = $inspection->createdByWorkOrder;
     $vehicle = $workOrder->vehicle;
     $customer = $vehicle->customer;
     $advisor = $workOrder->advisor; // Worker extiende de Person directamente

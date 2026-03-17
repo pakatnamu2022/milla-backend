@@ -28,6 +28,15 @@ class WorkOrderController extends Controller
     }
   }
 
+  public function listWithInternalNotes(Request $request)
+  {
+    try {
+      return $this->service->listWithInternalNotes($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function store(StoreWorkOrderRequest $request)
   {
     try {
@@ -144,6 +153,32 @@ class WorkOrderController extends Controller
   {
     try {
       return $this->success($this->service->getVehicleHistory($vehicleId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function generateInternalNote($id)
+  {
+    try {
+      return $this->service->generateInternalNote($id);
+    } catch (Exception $e) {
+      return response()->json([
+        'message' => $e->getMessage(),
+        'error' => $e->getMessage()
+      ], 500);
+    }
+  }
+
+  public function getByIds(Request $request)
+  {
+    try {
+      $ids = $request->validate([
+        'ids' => 'required|array',
+        'ids.*' => 'required|integer|exists:ap_work_orders,id'
+      ]);
+
+      return $this->success($this->service->getByIds($ids['ids']));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

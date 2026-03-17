@@ -18,6 +18,7 @@ use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -34,6 +35,7 @@ use App\Models\GeneralMaster;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -84,31 +86,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
         continue;
       }
-
-//      // Si la cabecera ya fue insertada en GPIN pero falló, resetearla para que GPIN la reprocese
-//      if ($log->step === VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT) {
-//        $existsInGpin = DB::connection('dbtp')
-//          ->table('neInTbVenta')
-//          ->where('EmpresaId', Company::AP_DYNAMICS)
-//          ->where('DocumentoId', $documentoId)
-//          ->where('Procesar', 1) // Solo resetear si está marcada para procesar, para evitar interferir con documentos no relacionados
-//          ->where('ProcesoEstado', 0) // Solo resetear si el proceso no ha sido marcado como exitoso, para evitar interferir con documentos ya procesados correctamente
-//          ->exists();
-//
-//        if ($existsInGpin) {
-//          DB::connection('dbtp')
-//            ->table('neInTbVenta')
-//            ->where('EmpresaId', Company::AP_DYNAMICS)
-//            ->where('DocumentoId', $documentoId)
-//            ->update([
-//              'Procesar' => 1,
-//              'ProcesoEstado' => 0,
-//              'ProcesoError' => '',
-//            ]);
-//
-//          $resetActions[] = "Cabecera reseteada en GPIN: {$documentoId}";
-//        }
-//      }
 
       // Resetear el log a pending para que el job lo reintente limpiamente
       $log->update([
@@ -498,10 +475,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return new ElectronicDocumentResource($document->load(['items', 'guides', 'installments', 'vehicleMovement']));
     } catch (Throwable $e) {
       DB::rollBack();
-      Log::error('Error creating electronic document', [
-        'error' => $e->getMessage(),
-        'data' => $data
-      ]);
       throw new Exception('Error al crear el documento electrónico: ' . $e->getMessage());
     }
   }
@@ -738,11 +711,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return new ElectronicDocumentResource($document->fresh(['items', 'guides', 'installments', 'vehicleMovement']));
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error updating electronic document', [
-        'id' => $id,
-        'error' => $e->getMessage(),
-        'data' => $data
-      ]);
       throw new Exception('Error al actualizar el documento electrónico: ' . $e->getMessage());
     }
   }
@@ -771,10 +739,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ]);
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error deleting electronic document', [
-        'id' => $id,
-        'error' => $e->getMessage()
-      ]);
       throw new Exception('Error al eliminar el documento electrónico: ' . $e->getMessage());
     }
   }
@@ -841,10 +805,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ]);
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error sending document to Nubefact', [
-        'id' => $id,
-        'error' => $e->getMessage()
-      ]);
       throw new Exception('Error al enviar el documento a Nubefact: ' . $e->getMessage());
     }
   }
@@ -908,10 +868,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ]);
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error querying document from Nubefact', [
-        'id' => $id,
-        'error' => $e->getMessage()
-      ]);
       throw new Exception('Error al consultar el documento en Nubefact: ' . $e->getMessage());
     }
   }
@@ -959,11 +915,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ]);
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error cancelling document in Nubefact', [
-        'id' => $id,
-        'reason' => $reason,
-        'error' => $e->getMessage()
-      ]);
       throw new Exception('Error al anular el documento: ' . $e->getMessage());
     }
   }
@@ -1287,11 +1238,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return $creditNote;
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error creating credit note', [
-        'original_document_id' => $originalDocumentId,
-        'error' => $e->getMessage(),
-        'data' => $data
-      ]);
       throw new Exception('Error al crear la nota de crédito: ' . $e->getMessage());
     }
   }
@@ -1379,11 +1325,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return $debitNote;
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error creating debit note', [
-        'original_document_id' => $originalDocumentId,
-        'error' => $e->getMessage(),
-        'data' => $data
-      ]);
       throw new Exception('Error al crear la nota de débito: ' . $e->getMessage());
     }
   }
@@ -1476,11 +1417,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return $updatedCreditNote;
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error updating credit note', [
-        'credit_note_id' => $creditNoteId,
-        'error' => $e->getMessage(),
-        'data' => $data
-      ]);
       throw new Exception('Error al actualizar la nota de crédito: ' . $e->getMessage());
     }
   }
@@ -1584,11 +1520,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return $updatedDebitNote;
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error updating debit note', [
-        'debit_note_id' => $debitNoteId,
-        'error' => $e->getMessage(),
-        'data' => $data
-      ]);
       throw new Exception('Error al actualizar la nota de débito: ' . $e->getMessage());
     }
   }
@@ -1611,12 +1542,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'data' => ElectronicDocumentResource::collection($documents)
       ]);
     } catch (Exception $e) {
-      Log::error('Error getting documents by origin entity', [
-        'module' => $areaId,
-        'entity_type' => $entityType,
-        'entity_id' => $entityId,
-        'error' => $e->getMessage()
-      ]);
       throw new Exception('Error al obtener documentos: ' . $e->getMessage());
     }
   }
@@ -1798,10 +1723,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       return $pdf;
     } catch (Exception $e) {
-      Log::error('Error generating PDF for electronic document', [
-        'id' => $id,
-        'error' => $e->getMessage()
-      ]);
       throw new Exception('Error al generar el PDF: ' . $e->getMessage());
     }
   }
@@ -1843,23 +1764,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'ap_vehicle_status_id' => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
       ]);
 
-      Log::info('Vehicle movement created for electronic document', [
-        'vehicle_id' => $vehicleId,
-        'movement_id' => $vehicleMovement->id,
-        'document_id' => $document->id,
-        'document_number' => "{$document->serie}-{$document->numero}",
-        'previous_status' => $previousStatusId,
-        'new_status' => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
-      ]);
-
       return $vehicleMovement;
     } catch (Exception $e) {
-      Log::error('Error creating vehicle movement for electronic document', [
-        'vehicle_id' => $vehicleId,
-        'document_id' => $document->id,
-        'error' => $e->getMessage()
-      ]);
-      throw $e;
+      throw new Exception('Error al crear el movimiento de vehículo: ' . $e->getMessage());
     }
   }
 
@@ -2851,12 +2758,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           'full_number' => $document->full_number,
           'error' => $e->getMessage(),
         ];
-
-        Log::error('Error al sincronizar estado contable desde Dynamics', [
-          'document_id' => $document->id,
-          'full_number' => $document->full_number,
-          'error' => $e->getMessage(),
-        ]);
       }
     }
 
@@ -2866,5 +2767,176 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       'results' => $results,
       'errors' => $errors,
     ];
+  }
+
+  public function createConsolidatedInvoice(array $data): array
+  {
+    DB::beginTransaction();
+    try {
+      // 1. Get and validate internal notes
+      $internalNotes = ApInternalNote::whereIn('id', $data['internal_note_ids'])
+        ->pending()
+        ->with(['workOrder.invoiceTo', 'workOrder.typeCurrency'])
+        ->get();
+
+      if ($internalNotes->isEmpty()) {
+        throw new Exception('No se encontraron notas internas pendientes con los IDs proporcionados');
+      }
+
+      if ($internalNotes->count() !== count($data['internal_note_ids'])) {
+        throw new Exception('Una o más notas internas no están disponibles para facturación (pueden estar ya facturadas o no existir)');
+      }
+
+      // 2. Validate all work orders belong to the same client
+      $clientIds = $internalNotes->pluck('workOrder.invoice_to')->unique();
+      if ($clientIds->count() > 1) {
+        throw new Exception('Todas las órdenes de trabajo deben pertenecer al mismo cliente para consolidar');
+      }
+
+      $clientId = $clientIds->first();
+      if (!$clientId) {
+        throw new Exception('Las órdenes de trabajo no tienen un cliente asignado');
+      }
+
+      // 3. Validate all work orders have the same currency
+      $currencyIds = $internalNotes->pluck('workOrder.currency_id')->unique();
+      if ($currencyIds->count() > 1) {
+        throw new Exception('Todas las órdenes de trabajo deben tener la misma moneda para consolidar');
+      }
+
+      $data['serie'] = AssignSalesSeries::find($data['serie'])->series;
+
+      // 4. Calculate totals from work orders
+      $subtotal = 0;
+      $taxAmount = 0;
+      $total = 0;
+      $workOrdersData = [];
+
+      foreach ($internalNotes as $note) {
+        $workOrder = $note->workOrder;
+        $subtotal += (float)$workOrder->subtotal;
+        $taxAmount += (float)$workOrder->tax_amount;
+        $total += (float)$workOrder->final_amount;
+
+        $workOrdersData[] = [
+          'work_order_id' => $workOrder->id,
+          'correlative' => $workOrder->correlative,
+          'internal_note_number' => $note->number,
+          'subtotal' => $workOrder->subtotal,
+          'tax_amount' => $workOrder->tax_amount,
+          'final_amount' => $workOrder->final_amount,
+        ];
+      }
+
+      // 5. Get client data
+      $client = BusinessPartners::find($clientId);
+      if (!$client) {
+        throw new Exception('Cliente no encontrado');
+      }
+
+      // 6. Get exchange rate
+      $emissionDate = is_string($data['fecha_de_emision'])
+        ? $data['fecha_de_emision']
+        : Carbon::parse($data['fecha_de_emision'])->format('Y-m-d');
+
+      $exchangeRate = (new ExchangeRateService())->getExchangeRate(TypeCurrency::USD_ID, $emissionDate);
+      if (!$exchangeRate) {
+        throw new Exception("No se ha registrado la tasa de cambio para la fecha de emisión ({$emissionDate}).");
+      }
+
+      // 7. Get document type
+      $documentType = SunatConcepts::where('tribute_code', $client->document_type_id)
+        ->where('type', SunatConcepts::TYPE_DOCUMENT)
+        ->first();
+
+      // 8. Get next correlative number
+      $nextNumberData = $this->nextDocumentNumberCorrelative(
+        $data['sunat_concept_document_type_id'],
+        $data['serie']
+      );
+
+      // 9. Validate serie
+      if (!ElectronicDocument::validateSerie($data['sunat_concept_document_type_id'], $data['serie'])) {
+        throw new Exception('La serie no es válida para el tipo de documento seleccionado');
+      }
+
+      // 10. Prepare invoice data
+      $invoiceData = [
+        'sunat_concept_document_type_id' => $data['sunat_concept_document_type_id'],
+        'serie' => $data['serie'],
+        'numero' => $nextNumberData['number'],
+        'full_number' => "{$data['serie']}-{$nextNumberData['number']}",
+        'consolidation_type' => ElectronicDocument::CONSOLIDATION_WORK_ORDERS,
+        'client_id' => $clientId,
+        'sunat_concept_identity_document_type_id' => $documentType->id,
+        'cliente_numero_de_documento' => $client->num_doc,
+        'cliente_denominacion' => $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : ''),
+        'cliente_direccion' => $client->direction,
+        'cliente_email' => $client->email,
+        'fecha_de_emision' => $emissionDate,
+        'fecha_de_vencimiento' => $data['fecha_de_vencimiento'] ?? null,
+        'sunat_concept_currency_id' => $data['sunat_concept_currency_id'],
+        'tipo_de_cambio' => $exchangeRate->rate,
+        'exchange_rate_id' => $exchangeRate->id,
+        'porcentaje_de_igv' => $client->taxClassType->igv,
+        'total_gravada' => round($subtotal, 2),
+        'total_igv' => round($taxAmount, 2),
+        'total' => round($total, 2),
+        'observaciones' => $data['observaciones'] ?? "Factura consolidada de " . $internalNotes->count() . " órdenes de trabajo",
+        'enviar_automaticamente_a_la_sunat' => false,
+        'enviar_automaticamente_al_cliente' => false,
+        'created_by' => auth()->id(),
+        'sunat_concept_transaction_type_id' => $data['sunat_concept_transaction_type_id'] ?? null,
+      ];
+
+      // 11. Create invoice
+      $invoice = ElectronicDocument::create($invoiceData);
+
+      // 12. Create invoice items (one per work order)
+      $lineNumber = 1;
+      foreach ($internalNotes as $note) {
+        $workOrder = $note->workOrder;
+
+        $invoice->items()->create([
+          'line_number' => $lineNumber++,
+          'unidad_de_medida' => 'NIU',
+          'codigo' => $workOrder->correlative,
+          'descripcion' => "Orden de Trabajo {$workOrder->correlative} - Nota Interna {$note->number}",
+          'cantidad' => 1,
+          'valor_unitario' => round((float)$workOrder->subtotal, 2),
+          'precio_unitario' => round((float)$workOrder->final_amount, 2),
+          'subtotal' => round((float)$workOrder->subtotal, 2),
+          'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_ANTICIPO_GRAVADO,
+          'igv' => round((float)$workOrder->tax_amount, 2),
+          'total' => round((float)$workOrder->final_amount, 2),
+        ]);
+      }
+
+      // 13. Attach internal notes to invoice
+      $invoice->internalNotes()->attach($data['internal_note_ids']);
+
+      // 14. Mark internal notes as invoiced
+      foreach ($internalNotes as $note) {
+        $note->markAsInvoiced($emissionDate);
+      }
+
+      DB::commit();
+
+      return [
+        'invoice' => new ElectronicDocumentResource($invoice->load('internalNotes.workOrder', 'items')),
+        'work_orders' => $workOrdersData,
+        'message' => 'Factura consolidada creada exitosamente',
+        'totals' => [
+          'subtotal' => round($subtotal, 2),
+          'tax_amount' => round($taxAmount, 2),
+          'total' => round($total, 2),
+          'work_orders_count' => $internalNotes->count(),
+        ],
+      ];
+
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 }
