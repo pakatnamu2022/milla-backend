@@ -10,6 +10,7 @@ use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\ap\postventa\taller\WorkOrderService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Jobs\SyncSalesDocumentJob;
 use App\Models\ap\comercial\BusinessPartners;
@@ -36,6 +37,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -44,10 +46,12 @@ use Throwable;
 class ElectronicDocumentService extends BaseService implements BaseServiceInterface
 {
   protected NubefactApiService $nubefactService;
+  protected DigitalFileService $digitalFileService;
 
-  public function __construct(NubefactApiService $nubefactService)
+  public function __construct(NubefactApiService $nubefactService, DigitalFileService $digitalFileService)
   {
     $this->nubefactService = $nubefactService;
+    $this->digitalFileService = $digitalFileService;
   }
 
   /**
@@ -394,6 +398,29 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // ================================================================
 
       $this->applyDetractionLogic($data);
+
+      // ================================================================
+      // 4.5. PROCESAR ARCHIVO DE ORDEN DE COMPRA SERVICIO (OPCIONAL)
+      // ================================================================
+
+      /**
+       * Si el frontend envía un archivo para orden de compra de servicio,
+       * subirlo a Digital Ocean y guardar la URL
+       */
+      if (isset($data['orden_compra_servicio_file']) && $data['orden_compra_servicio_file'] instanceof UploadedFile) {
+        $file = $data['orden_compra_servicio_file'];
+        $path = '/ap/facturacion/orden-compra-servicio/';
+        $model = 'ap_billing_electronic_documents';
+
+        // Subir archivo usando DigitalFileService
+        $digitalFile = $this->digitalFileService->store($file, $path, 'public', $model);
+
+        // Guardar la URL en el campo correspondiente
+        $data['orden_compra_servicio_url'] = $digitalFile->url;
+
+        // Remover el archivo del array para no guardarlo en la BD
+        unset($data['orden_compra_servicio_file']);
+      }
 
       // ================================================================
       // 5. CREACIÓN DEL DOCUMENTO Y RELACIONES
@@ -2428,13 +2455,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
         try {
           $inventoryMovementService->createSaleFromQuotation($quotationId);
-
-          Log::info('Inventory movement created automatically for fully paid quotation', [
-            'quotation_id' => $quotationId,
-            'quotation_number' => $quotation->quotation_number,
-          ]);
         } catch (Exception $e) {
-          // Loguear el error pero no lanzar excepción para no afectar el flujo principal
           Log::error('Error creating inventory movement for fully paid quotation', [
             'quotation_id' => $quotationId,
             'quotation_number' => $quotation->quotation_number,

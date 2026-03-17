@@ -956,6 +956,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
       Route::patch('businessPartners/{id}/remove-type', [BusinessPartnersController::class, 'removeType']);
       Route::get('businessPartners/{id}/validateOpportunity', [BusinessPartnersController::class, 'validateOpportunity']);
+      Route::post('businessPartners/{id}/reprocess-establishments', [BusinessPartnersController::class, 'reprocessEstablishments']);
 
       Route::apiResource('businessPartnersEstablishments', BusinessPartnersEstablishmentController::class)->only([
         'index',

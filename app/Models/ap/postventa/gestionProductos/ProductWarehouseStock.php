@@ -21,6 +21,7 @@ class ProductWarehouseStock extends Model
     'minimum_stock',
     'maximum_stock',
     'cost_price',
+    'average_cost',
     'sale_price',
     'tax_rate',
     'is_taxable',
@@ -36,6 +37,9 @@ class ProductWarehouseStock extends Model
     'available_quantity' => 'decimal:2',
     'minimum_stock' => 'decimal:2',
     'maximum_stock' => 'decimal:2',
+    'cost_price' => 'decimal:2',
+    'average_cost' => 'decimal:2',
+    'sale_price' => 'decimal:2',
     'last_movement_date' => 'datetime',
   ];
 

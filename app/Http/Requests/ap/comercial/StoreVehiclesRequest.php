@@ -22,6 +22,7 @@ class StoreVehiclesRequest extends StoreRequest
       'warehouse_physical_id' => 'sometimes|nullable|integer|exists:warehouse,id',
       'type_operation_id' => 'sometimes|nullable|integer|exists:ap_masters,id',
       'customer_id' => 'sometimes|nullable|integer|exists:business_partners,id',
+      'is_heavy' => 'sometimes|boolean',
     ];
   }
 

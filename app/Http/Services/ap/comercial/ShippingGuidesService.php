@@ -148,9 +148,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $typeVoucherId = SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE;
       }
 
-      // 5. Generar correlativo dinámico
-      $correlativeDyn = ShippingGuides::generateNextCorrelativeDyn();
-
       // Resolver RUC y nombre de empresa de transporte si es modalidad pública
       $rucTransport = null;
       $companyNameTransport = null;
@@ -303,9 +300,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       if ($data['document_type'] = ShippingGuides::DOCUMENT_TYPE_GR) {
         $typeVoucherId = SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE;
       }
-
-      // Generar correlativo dinámico
-      $correlativeDyn = ShippingGuides::generateNextCorrelativeDyn();
 
       // Resolver RUC y nombre de empresa de transporte si es modalidad pública
       $rucTransport = null;

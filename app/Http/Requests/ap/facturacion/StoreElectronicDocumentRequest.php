@@ -299,7 +299,10 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'financing_type' => ['nullable', Rule::in(['CONVENIO', 'VEHICULAR', 'CONTADO'])],
       'placa_vehiculo' => 'nullable|string|max:8',
       'orden_compra_servicio' => 'nullable|string|max:20',
+      'orden_compra_servicio_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
       'codigo_unico' => 'nullable|string|max:20',
+      'card_last4' => 'nullable|string|max:4|min:4',
+      'internal_note' => 'nullable|string|max:255',
 
       // Configuración
       'enviar_automaticamente_a_la_sunat' => 'nullable|boolean',

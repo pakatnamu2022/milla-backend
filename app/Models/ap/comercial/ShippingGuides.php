@@ -398,28 +398,21 @@ class ShippingGuides extends BaseModel
     ];
   }
 
-  /**
-   * Genera el siguiente correlativo dinámico para Dynamics
-   * Cuenta TODOS los registros (incluyendo soft deleted) y suma 1
-   * Formato: 000000001, 000000002, etc. (9 dígitos)
-   */
-  public static function generateNextCorrelativeDyn(): string
+  public function getTransferPrefix(ShippingGuides $shippingGuide): string
   {
-    // Obtener el último correlative_dyn (incluyendo soft deleted)
-    $lastCorrelativeDyn = self::withTrashed()
-      ->orderBy('correlative', 'desc')
-      ->value('correlative');
-
-    if ($lastCorrelativeDyn) {
-      // Incrementar el último correlativo
-      $nextNumber = (int)$lastCorrelativeDyn + 1;
-    } else {
-      // Si no existe ninguno, empezar en 1
-      $nextNumber = 1;
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
+      return 'CR-';
     }
 
-    // Formatear a 9 dígitos con ceros a la izquierda
-    return str_pad($nextNumber, 9, '0', STR_PAD_LEFT);
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
+      return 'CT-';
+    }
+
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_OTROS) {
+      return 'CO-';
+    }
+
+    return '-';
   }
 
   /**
@@ -428,7 +421,8 @@ class ShippingGuides extends BaseModel
    */
   public function getDynamicsTransferTransactionId(bool $isReversal = false): string
   {
-    $transactionId = $this->dyn_series;
+    $prefix = $this->getTransferPrefix($this);
+    $transactionId = $prefix . $this->document_number;
 
     if ($isReversal) {
       $transactionId .= '*';

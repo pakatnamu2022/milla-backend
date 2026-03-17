@@ -64,7 +64,7 @@ class ApWorkOrder extends Model
 
   protected $casts = [
     'opening_date' => 'date',
-    'estimated_delivery_date' => 'date',
+    'estimated_delivery_date' => 'datetime',
     'estimated_delivery_time' => 'datetime:H:i',
     'actual_delivery_date' => 'datetime',
     'actual_delivery_time' => 'datetime:H:i',
@@ -108,6 +108,7 @@ class ApWorkOrder extends Model
     'correlative',
     'opening_date',
     'estimated_delivery_date',
+    'estimated_delivery_time',
     'actual_delivery_date',
     'created_at',
   ];
