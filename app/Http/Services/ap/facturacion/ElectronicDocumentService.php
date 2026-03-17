@@ -1205,7 +1205,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       'descripcion' => 'Descuento global',
       'cantidad' => 1,
       'valor_unitario' => $subtotal,
-      'precio_unitario' => $subtotal,
+      'precio_unitario' => $discountAmount,
       'descuento' => null,
       'subtotal' => $subtotal,
       'sunat_concept_igv_type_id' => $igvTypeId,
@@ -1418,8 +1418,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         throw new Exception('No se puede actualizar una nota de crédito anulada');
       }
 
-      // Obtener el documento original
-      $originalDocument = $this->find($data['original_document_id']);
+      // Obtener el documento original desde la nota de crédito
+      $originalDocument = $this->find($creditNote->original_document_id);
 
       // Resolver los items según el tipo de nota de crédito
       $originalDocument->load('items');
@@ -1459,7 +1459,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
-        'original_document_id' => $data['original_document_id'],
+        'original_document_id' => $creditNote->original_document_id,
       ]);
 
       // No permitir cambiar estos campos

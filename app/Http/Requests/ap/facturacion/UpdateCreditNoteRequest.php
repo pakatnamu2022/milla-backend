@@ -17,12 +17,6 @@ class UpdateCreditNoteRequest extends StoreRequest
    */
   protected function prepareForValidation()
   {
-    // original_document_id comes from the route {id} parameter
-    $routeId = $this->route('id');
-    if ($routeId !== null) {
-      $this->merge(['original_document_id' => (int) $routeId]);
-    }
-
     $numericFields = [
       'series',
       'sunat_concept_credit_note_type_id',
@@ -88,15 +82,6 @@ class UpdateCreditNoteRequest extends StoreRequest
     $typeCode = $this->getCreditNoteTypeCode();
 
     $rules = [
-      'original_document_id' => [
-        'required',
-        'integer',
-        Rule::exists('ap_billing_electronic_documents', 'id')
-          ->whereNull('deleted_at')
-          ->where('aceptada_por_sunat', true)
-          ->where('anulado', false)
-      ],
-
       'sunat_concept_credit_note_type_id' => [
         'required',
         'integer',
@@ -148,8 +133,6 @@ class UpdateCreditNoteRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'original_document_id.required' => 'El documento original es obligatorio',
-      'original_document_id.exists' => 'El documento original no existe, no está aceptado por SUNAT o está anulado',
       'sunat_concept_credit_note_type_id.required' => 'El tipo de nota de crédito es obligatorio',
       'sunat_concept_credit_note_type_id.exists' => 'El tipo de nota de crédito seleccionado no es válido',
       'series.required' => 'La serie es obligatoria',
@@ -174,14 +157,20 @@ class UpdateCreditNoteRequest extends StoreRequest
         return;
       }
 
-      $originalDocumentId = $this->input('original_document_id');
       $detailIds = $this->input('detail_ids');
 
-      if (!$originalDocumentId || !is_array($detailIds) || empty($detailIds)) {
+      if (!is_array($detailIds) || empty($detailIds)) {
         return;
       }
 
-      $originalDocument = ElectronicDocument::with('items')->find($originalDocumentId);
+      // Get the original document from the credit note itself
+      $creditNoteId = (int) $this->route('id');
+      $creditNote = ElectronicDocument::find($creditNoteId);
+      if (!$creditNote || !$creditNote->original_document_id) {
+        return;
+      }
+
+      $originalDocument = ElectronicDocument::with('items')->find($creditNote->original_document_id);
       if (!$originalDocument) {
         return;
       }
