@@ -124,6 +124,10 @@
       width: 15%;
     }
 
+    .data-cell {
+      width: 35%;
+    }
+
     table.details-table {
       width: 100%;
       border-collapse: collapse;
@@ -355,15 +359,15 @@
   </tr>
   <tr>
     <td class="label-cell">Asesor:</td>
-    <td>{{ $quotation['advisor_name'] }}</td>
+    <td class="data-cell">{{ $quotation['advisor_name'] }}</td>
     <td class="label-cell">Celular:</td>
-    <td>{{ $quotation['advisor_phone'] }}</td>
+    <td class="data-cell">{{ $quotation['advisor_phone'] }}</td>
   </tr>
   <tr>
     <td class="label-cell">Estado:</td>
-    <td>Pendiente de validación por parte del cliente</td>
+    <td class="data-cell">Pendiente de validación por parte del cliente</td>
     <td class="label-cell">Correo:</td>
-    <td>{{ $quotation['advisor_email'] }}</td>
+    <td class="data-cell">{{ $quotation['advisor_email'] }}</td>
   </tr>
 </table>
 
@@ -374,9 +378,9 @@
   </tr>
   <tr>
     <td class="label-cell">Placa:</td>
-    <td>{{ $quotation['vehicle_plate'] }}</td>
+    <td class="data-cell">{{ $quotation['vehicle_plate'] }}</td>
     <td class="label-cell">Nº Chasis:</td>
-    <td>{{ $quotation['vehicle_vin'] }}</td>
+    <td class="data-cell">{{ $quotation['vehicle_vin'] }}</td>
   </tr>
   <tr>
     <td class="label-cell">Modelo:</td>
@@ -384,9 +388,9 @@
   </tr>
   <tr>
     <td class="label-cell">Color:</td>
-    <td>{{ $quotation['vehicle_color'] }}</td>
+    <td class="data-cell">{{ $quotation['vehicle_color'] }}</td>
     <td class="label-cell">Nº Motor:</td>
-    <td>{{ $quotation['vehicle_engine'] }}</td>
+    <td class="data-cell">{{ $quotation['vehicle_engine'] }}</td>
   </tr>
   <tr>
     <td class="label-cell">Kilometraje:</td>
