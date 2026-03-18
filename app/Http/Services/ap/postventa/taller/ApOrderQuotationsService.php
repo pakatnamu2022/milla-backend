@@ -248,6 +248,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
       }
 
+      if ($quotation->is_take === true) {
+        throw new Exception('No se puede actualizar una cotización que ya ha sido tomada en una solicitud de compra / OT.');
+      }
+
       // Calculate validity days
       $quotation_date = Carbon::parse($data['quotation_date']);
       $expiration_date = Carbon::parse($data['expiration_date']);
@@ -389,6 +393,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
     if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
       throw new Exception('No se puede eliminar una cotización que ha sido descartada.');
+    }
+
+    if ($quotation->is_take === true) {
+      throw new Exception('No se puede eliminar una cotización que ya ha sido tomada en una solicitud de compra / OT.');
     }
 
     DB::transaction(function () use ($quotation) {

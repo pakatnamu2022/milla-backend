@@ -214,6 +214,12 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           throw new Exception('La cotización ya está tomada por otra orden de trabajo');
         }
 
+        $workOrderCurrencyId = $data['currency_id'] ?? $workOrder->currency_id;
+
+        if ((int)$quotation->currency_id !== (int)$workOrderCurrencyId) {
+          throw new Exception('La moneda de la OT y la cotización deben ser iguales');
+        }
+
         if ($quotation) {
           $quotation->update(['is_take' => 1]);
         }
