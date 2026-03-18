@@ -7,6 +7,7 @@ use App\Http\Resources\ap\comercial\BusinessPartnersResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\GeneralMaster;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -67,6 +68,9 @@ class WorkOrderResource extends JsonResource
           ? GeneralMaster::find(GeneralMaster::COST_PER_MAN_HOUR_VP_ID)->value
           : GeneralMaster::find(GeneralMaster::COST_PER_MAN_HOUR_VL_ID)->value
       ),
+      'is_invalid_with_quote' => $this->orderQuotation
+        ? $this->orderQuotation->details->contains('status', ApOrderQuotationDetails::STATUS_PENDING)
+        : false,
 
       // Loaded Relationships
       'labours' => WorkOrderLabourResource::collection($this->whenLoaded('labours')),

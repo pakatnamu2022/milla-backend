@@ -227,24 +227,18 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
         throw new Exception('Parte no encontrada.');
       }
 
-      // Aplicar el porcentaje de descuento
-      $part->update([
-        'discount_percentage' => $discountPercentage,
-      ]);
-
       // Recalcular totales de la parte
       $unitPrice = (float)$part->unit_price;
       $quantity = (float)$part->quantity_used;
-      $subtotal = $unitPrice * $quantity;
-      $discountAmount = $subtotal * ($discountPercentage / 100);
-      $subtotalAfterDiscount = $subtotal - $discountAmount;
-      $taxAmount = $subtotalAfterDiscount * 0.18;
-      $totalAmount = $subtotalAfterDiscount + $taxAmount;
+      $totalCost = $unitPrice * $quantity;
+      $discountAmount = $totalCost * ($discountPercentage / 100);
+      $netAmount = $totalCost - $discountAmount;
 
+      // Aplicar el descuento y actualizar totales
       $part->update([
-        'subtotal' => $subtotal,
-        'tax_amount' => $taxAmount,
-        'total_amount' => $totalAmount,
+        'discount_percentage' => $discountPercentage,
+        'total_cost' => $totalCost,
+        'net_amount' => $netAmount,
       ]);
     } elseif ($partLabourModel === WorkOrderLabour::class) {
       // Descuento a una labor específica
@@ -253,20 +247,18 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
         throw new Exception('Labor no encontrada.');
       }
 
-      // Aplicar el porcentaje de descuento
-      $labour->update([
-        'discount_percentage' => $discountPercentage,
-      ]);
-
       // Recalcular el costo total de la labor
       $hourlyRate = (float)$labour->hourly_rate;
-      $timeSpent = $labour->time_spent_decimal; // Usar el accessor para obtener el tiempo en decimal
-      $subtotal = $hourlyRate * $timeSpent;
-      $discountAmount = $subtotal * ($discountPercentage / 100);
-      $totalCost = $subtotal - $discountAmount;
+      $timeSpent = $labour->time_spent_decimal;
+      $totalCost = $hourlyRate * $timeSpent;
+      $discountAmount = $totalCost * ($discountPercentage / 100);
+      $netAmount = $totalCost - $discountAmount;
 
+      // Aplicar el descuento y actualizar totales
       $labour->update([
+        'discount_percentage' => $discountPercentage,
         'total_cost' => $totalCost,
+        'net_amount' => $netAmount,
       ]);
     }
   }
@@ -286,24 +278,18 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
       }
 
       foreach ($parts as $part) {
-        // Aplicar el porcentaje de descuento
-        $part->update([
-          'discount_percentage' => $discountPercentage,
-        ]);
-
         // Recalcular totales de la parte
         $unitPrice = (float)$part->unit_price;
         $quantity = (float)$part->quantity_used;
-        $subtotal = $unitPrice * $quantity;
-        $discountAmount = $subtotal * ($discountPercentage / 100);
-        $subtotalAfterDiscount = $subtotal - $discountAmount;
-        $taxAmount = $subtotalAfterDiscount * 0.18;
-        $totalAmount = $subtotalAfterDiscount + $taxAmount;
+        $totalCost = $unitPrice * $quantity;
+        $discountAmount = $totalCost * ($discountPercentage / 100);
+        $netAmount = $totalCost - $discountAmount;
 
+        // Aplicar el descuento y actualizar totales
         $part->update([
-          'subtotal' => $subtotal,
-          'tax_amount' => $taxAmount,
-          'total_amount' => $totalAmount,
+          'discount_percentage' => $discountPercentage,
+          'total_cost' => $totalCost,
+          'net_amount' => $netAmount,
         ]);
       }
     } elseif ($partLabourModel === WorkOrderLabour::class) {
@@ -315,20 +301,18 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
       }
 
       foreach ($labours as $labour) {
-        // Aplicar el porcentaje de descuento
-        $labour->update([
-          'discount_percentage' => $discountPercentage,
-        ]);
-
         // Recalcular el costo total de la labor
         $hourlyRate = (float)$labour->hourly_rate;
         $timeSpent = $labour->time_spent_decimal;
-        $subtotal = $hourlyRate * $timeSpent;
-        $discountAmount = $subtotal * ($discountPercentage / 100);
-        $totalCost = $subtotal - $discountAmount;
+        $totalCost = $hourlyRate * $timeSpent;
+        $discountAmount = $totalCost * ($discountPercentage / 100);
+        $netAmount = $totalCost - $discountAmount;
 
+        // Aplicar el descuento y actualizar totales
         $labour->update([
+          'discount_percentage' => $discountPercentage,
           'total_cost' => $totalCost,
+          'net_amount' => $netAmount,
         ]);
       }
     }
