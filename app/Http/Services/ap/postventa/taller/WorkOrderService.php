@@ -425,67 +425,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     // Usar el método del modelo para calcular totales
     $totals = $workOrder->getTotalsArray();
 
-    // Si tiene cotización asociada, incluir items pendientes de la cotización para mostrar en el PDF
-    if ($workOrder->order_quotation_id && $workOrder->orderQuotation) {
-      // Obtener items pendientes de la cotización para mostrar en el PDF
-      $quotationLabours = collect();
-      $quotationParts = collect();
-
-      $pendingDetails = $workOrder->orderQuotation->details
-        ->where('status', ApOrderQuotationDetails::STATUS_PENDING);
-
-      foreach ($pendingDetails as $detail) {
-        if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
-          // Mapear ApOrderQuotationDetails a estructura de WorkOrderLabour
-          $quantity = 1; // Para labores, la cantidad es 1
-          $unitPrice = $detail->unit_price ?? 0;
-          $discountPercentage = $detail->discount_percentage ?? 0;
-          $subtotal = $quantity * $unitPrice;
-          $discountAmount = ($subtotal * $discountPercentage) / 100;
-          $total = $subtotal - $discountAmount;
-
-          $mappedLabour = new \stdClass();
-          $mappedLabour->description = $detail->description;
-          $mappedLabour->time_spent = null;
-          $mappedLabour->hourly_rate = $unitPrice;
-          $mappedLabour->discount_percentage = $discountPercentage;
-          $mappedLabour->total_cost = $subtotal; // Total sin descuento
-          $mappedLabour->net_amount = $total; // Total con descuento aplicado
-          $mappedLabour->worker_id = null;
-          $mappedLabour->worker = null;
-
-          $quotationLabours->push($mappedLabour);
-        } elseif ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_PRODUCT) {
-          // Mapear ApOrderQuotationDetails a estructura de ApWorkOrderParts
-          $quantity = $detail->quantity ?? 0;
-          $unitPrice = $detail->unit_price ?? 0;
-          $discountPercentage = $detail->discount_percentage ?? 0;
-          $subtotal = $quantity * $unitPrice;
-          $discountAmount = ($subtotal * $discountPercentage) / 100;
-          $total = $subtotal - $discountAmount;
-
-          $mappedPart = new \stdClass();
-          $mappedPart->product_id = $detail->product_id;
-          $mappedPart->quantity_used = $quantity;
-          $mappedPart->unit_cost = $detail->purchase_price ?? 0;
-          $mappedPart->unit_price = $unitPrice;
-          $mappedPart->discount_percentage = $discountPercentage;
-          $mappedPart->total_cost = $subtotal; // Total sin descuento
-          $mappedPart->tax_amount = 0;
-          $mappedPart->net_amount = $total; // Total con descuento aplicado
-          $mappedPart->product = $detail->product;
-
-          $quotationParts->push($mappedPart);
-        }
-      }
-
-      // Combinar con los existentes (usar concat en lugar de merge para objetos stdClass)
-      $labours = $workOrder->labours->concat($quotationLabours);
-      $parts = $workOrder->parts->concat($quotationParts);
-    } else {
-      $labours = $workOrder->labours;
-      $parts = $workOrder->parts;
-    }
+    // Obtener items dinámicos (usa el método centralizado del modelo)
+    $dynamicItems = $workOrder->getDynamicItemsForInvoicing();
+    $labours = $dynamicItems['labours'];
+    $parts = $dynamicItems['parts'];
 
     // Calcular anticipos y saldo
     $totalAdvances = $workOrder->advancesWorkOrder->sum('total') ?? 0;

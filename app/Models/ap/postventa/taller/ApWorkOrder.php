@@ -421,4 +421,110 @@ class ApWorkOrder extends Model
   {
     return $this->hasOne(ApInternalNote::class, 'work_order_id');
   }
+
+  /**
+   * Obtiene labours y parts dinámicamente:
+   * - Si NO tiene cotización: retorna labours y parts existentes
+   * - Si SÍ tiene cotización: retorna labours y parts existentes + items pendientes de la cotización
+   */
+  public function getDynamicItemsForInvoicing(?int $groupNumber = null): array
+  {
+    // Si NO tiene cotización asociada, retornar items existentes
+    if (!$this->order_quotation_id || !$this->orderQuotation) {
+      $labours = $groupNumber !== null
+        ? $this->labours->where('group_number', $groupNumber)
+        : $this->labours;
+
+      $parts = $groupNumber !== null
+        ? $this->parts->where('group_number', $groupNumber)
+        : $this->parts;
+
+      return [
+        'labours' => $labours,
+        'parts' => $parts,
+      ];
+    }
+
+    // Si SÍ tiene cotización asociada, incluir items pendientes
+    $labours = $groupNumber !== null
+      ? $this->labours->where('group_number', $groupNumber)
+      : $this->labours;
+
+    $parts = $groupNumber !== null
+      ? $this->parts->where('group_number', $groupNumber)
+      : $this->parts;
+
+    // Obtener items pendientes de la cotización
+    $quotationLabours = collect();
+    $quotationParts = collect();
+
+    $pendingDetails = $this->orderQuotation->details
+      ->where('status', ApOrderQuotationDetails::STATUS_PENDING);
+
+    foreach ($pendingDetails as $detail) {
+      if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
+        // Mapear ApOrderQuotationDetails a estructura de WorkOrderLabour
+        $quantity = 1; // Para labores, la cantidad es 1
+        $unitPrice = $detail->unit_price ?? 0;
+        $discountPercentage = $detail->discount_percentage ?? 0;
+        $subtotal = $quantity * $unitPrice;
+        $discountAmount = ($subtotal * $discountPercentage) / 100;
+        $total = $subtotal - $discountAmount;
+
+        $mappedLabour = new \stdClass();
+        $mappedLabour->id = null; // No tiene ID porque es de cotización
+        $mappedLabour->description = $detail->description;
+        $mappedLabour->time_spent = null;
+        $mappedLabour->hourly_rate = $unitPrice;
+        $mappedLabour->discount_percentage = $discountPercentage;
+        $mappedLabour->total_cost = $subtotal; // Total sin descuento
+        $mappedLabour->net_amount = $total; // Total con descuento aplicado
+        $mappedLabour->worker_id = null;
+        $mappedLabour->worker = null;
+        $mappedLabour->group_number = null;
+        $mappedLabour->work_order_id = $this->id;
+        $mappedLabour->from_quotation = true; // Flag para identificar que viene de cotización
+
+        $quotationLabours->push($mappedLabour);
+      } elseif ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_PRODUCT) {
+        // Mapear ApOrderQuotationDetails a estructura de ApWorkOrderParts
+        $quantity = $detail->quantity ?? 0;
+        $unitPrice = $detail->unit_price ?? 0;
+        $discountPercentage = $detail->discount_percentage ?? 0;
+        $subtotal = $quantity * $unitPrice;
+        $discountAmount = ($subtotal * $discountPercentage) / 100;
+        $total = $subtotal - $discountAmount;
+
+        $mappedPart = new \stdClass();
+        $mappedPart->id = null; // No tiene ID porque es de cotización
+        $mappedPart->product_id = $detail->product_id;
+        $mappedPart->quantity_used = $quantity;
+        $mappedPart->unit_cost = $detail->purchase_price ?? 0;
+        $mappedPart->unit_price = $unitPrice;
+        $mappedPart->discount_percentage = $discountPercentage;
+        $mappedPart->total_cost = $subtotal; // Total sin descuento
+        $mappedPart->tax_amount = 0;
+        $mappedPart->net_amount = $total; // Total con descuento aplicado
+        $mappedPart->product = $detail->product;
+        $mappedPart->group_number = null;
+        $mappedPart->work_order_id = $this->id;
+        $mappedPart->warehouse_id = null;
+        $mappedPart->warehouse = null;
+        $mappedPart->registered_by = null;
+        $mappedPart->is_delivered = false;
+        $mappedPart->from_quotation = true; // Flag para identificar que viene de cotización
+
+        $quotationParts->push($mappedPart);
+      }
+    }
+
+    // Combinar items existentes con items pendientes de cotización
+    $allLabours = $labours->concat($quotationLabours);
+    $allParts = $parts->concat($quotationParts);
+
+    return [
+      'labours' => $allLabours,
+      'parts' => $allParts,
+    ];
+  }
 }

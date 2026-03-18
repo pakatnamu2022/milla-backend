@@ -323,7 +323,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
        */
       $emissionDate = is_string($data['fecha_de_emision'])
         ? $data['fecha_de_emision']
-        : \Carbon\Carbon::parse($data['fecha_de_emision'])->format('Y-m-d');
+        : Carbon::parse($data['fecha_de_emision'])->format('Y-m-d');
 
       $exchangeRate = (new ExchangeRateService())->getExchangeRate(TypeCurrency::USD_ID, $emissionDate);
       if (!$exchangeRate) {
@@ -2123,20 +2123,20 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('No se puede facturar una orden de trabajo cancelada.');
     }
 
-    if ($workOrder->status_id == ApMasters::AT_WORK_WORK_ORDER_ID) {
-      throw new Exception('No se puede facturar una OT que aún no ha sido finalizado su trabajo.');
-    }
+//    if ($workOrder->status_id == ApMasters::AT_WORK_WORK_ORDER_ID && !$isAdvancePayment) {
+//      throw new Exception('No se puede facturar una OT que aún no ha sido finalizado su trabajo.');
+//    }
 
     // Validate that if there are labours, at least one must have worker_id assigned and not be deleted
-    if ($workOrder->labours && $workOrder->labours->count() > 0) {
-      $laboursWithWorker = $workOrder->labours->filter(function ($labour) {
-        return $labour->worker_id !== null && $labour->deleted_at === null;
-      });
-
-      if ($laboursWithWorker->count() === 0) {
-        throw new Exception('La orden de trabajo debe tener al menos una mano de obra con trabajador asignado.');
-      }
-    }
+//    if ($workOrder->labours && $workOrder->labours->count() > 0) {
+//      $laboursWithWorker = $workOrder->labours->filter(function ($labour) {
+//        return $labour->worker_id !== null && $labour->deleted_at === null;
+//      });
+//
+//      if ($laboursWithWorker->count() === 0 && !$isAdvancePayment) {
+//        throw new Exception('La orden de trabajo debe tener al menos una mano de obra con trabajador asignado.');
+//      }
+//    }
 
     // Calculate work order total using centralized method (includes labour, parts, discount, and tax)
     $totals = WorkOrderService::calculateWorkOrderTotal($workOrder);
