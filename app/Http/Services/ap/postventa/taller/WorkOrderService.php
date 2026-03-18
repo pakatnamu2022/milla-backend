@@ -5,13 +5,11 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\WorkOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
-use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\maestroGeneral\TypeCurrency;
-use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\AppointmentPlanning;
 use App\Models\ap\postventa\taller\ApVehicleInspection;
@@ -324,63 +322,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     }
 
     return "OT-{$year}-{$month}-{$newNumber}";
-  }
-
-  public static function calculateWorkOrderTotal(ApWorkOrder $workOrder, ?int $groupNumber = null): array
-  {
-    // Filter labours by group_number if provided
-    $labours = $groupNumber !== null
-      ? $workOrder->labours->where('group_number', $groupNumber)
-      : $workOrder->labours;
-
-    // Filter parts by group_number if provided
-    $parts = $groupNumber !== null
-      ? $workOrder->parts->where('group_number', $groupNumber)
-      : $workOrder->parts;
-
-    // Calculate costs (sin descuento de items)
-    $totalLabourCostBeforeDiscount = $labours->sum('total_cost') ?? 0;
-    $totalPartsCostBeforeDiscount = $parts->sum('total_cost') ?? 0;
-
-    // Calculate net amounts (con descuento de items aplicado)
-    $totalLabourNetAmount = $labours->sum('net_amount') ?? 0;
-    $totalPartsNetAmount = $parts->sum('net_amount') ?? 0;
-
-    // Subtotal sin descuentos
-    $subtotal = $totalLabourCostBeforeDiscount + $totalPartsCostBeforeDiscount;
-
-    // Total de descuentos de items
-    $itemsDiscountAmount = ($totalLabourCostBeforeDiscount - $totalLabourNetAmount) + ($totalPartsCostBeforeDiscount - $totalPartsNetAmount);
-
-    // Descuento general de la orden de trabajo
-    $workOrderDiscountAmount = $workOrder->discount_amount ?? 0;
-
-    // Total de descuentos
-    $totalDiscountAmount = $itemsDiscountAmount + $workOrderDiscountAmount;
-
-    // Net amount (suma de net_amount de items)
-    $netAmount = $totalLabourNetAmount + $totalPartsNetAmount;
-
-    // Net amount final (restar descuento general de OT)
-    $netAmountFinal = $netAmount - $workOrderDiscountAmount;
-
-    // IGV sobre el net amount final
-    $taxAmount = $netAmountFinal * (Constants::VAT_TAX / 100);
-
-    // Total final
-    $totalAmount = $netAmountFinal + $taxAmount;
-
-    return [
-      'labour_cost' => (float)$totalLabourCostBeforeDiscount,
-      'parts_cost' => (float)$totalPartsCostBeforeDiscount,
-      'labour_cost_desc' => (float)$totalLabourNetAmount,
-      'parts_cost_desc' => (float)$totalPartsNetAmount,
-      'total_cost' => (float)$subtotal,
-      'net_amount' => (float)$netAmount,
-      'discount_amount' => (float)$totalDiscountAmount,
-      'tax_amount' => (float)$taxAmount,
-      'total_amount' => (float)$totalAmount,
-    ];
   }
 
   public function getPaymentSummary($workOrderId, $groupNumber = 1)
