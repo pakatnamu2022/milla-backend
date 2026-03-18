@@ -2318,8 +2318,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         ->sum('total');
 
       // Verificar si la suma de anticipos coincide con el monto total de la OT
-      // Marcar como totalmente facturado si el total pagado >= monto final de la OT
-      if ((float)$totalPaid >= (float)$workOrder->final_amount) {
+      // Marcar como totalmente facturado si el total pagado >= monto final de la OT y no sea un anticipo (la venta interna es la que cierra la operación)
+      if ((float)$totalPaid >= (float)$workOrder->final_amount && !$isAdvancePayment) {
         $workOrder->update(['is_invoiced' => true]);
       }
 
