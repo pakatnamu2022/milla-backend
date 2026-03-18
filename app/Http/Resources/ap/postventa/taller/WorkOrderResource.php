@@ -7,6 +7,7 @@ use App\Http\Resources\ap\comercial\BusinessPartnersResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
+use App\Models\GeneralMaster;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -60,6 +61,12 @@ class WorkOrderResource extends JsonResource
       'allow_editing_inspection' => (bool)$this->allow_editing_inspection,
       'status' => new ApMastersResource($this->status),
       'has_management_discount' => $this->discountRequests && $this->discountRequests->where('status', DiscountRequestsWorkOrder::STATUS_APPROVED)->isNotEmpty(),
+      'cost_man_hours' => $this->when(
+        isset($this->additional['includeCostManHours']) && $this->additional['includeCostManHours'],
+        fn() => $this->vehicle->is_heavy
+          ? GeneralMaster::find(GeneralMaster::COST_PER_MAN_HOUR_VP_ID)->value
+          : GeneralMaster::find(GeneralMaster::COST_PER_MAN_HOUR_VL_ID)->value
+      ),
 
       // Loaded Relationships
       'labours' => WorkOrderLabourResource::collection($this->whenLoaded('labours')),

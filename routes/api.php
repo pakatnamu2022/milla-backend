@@ -214,7 +214,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
-
     });
 
     Route::group(['prefix' => 'opVehicleAssignment'], function () {
