@@ -106,12 +106,12 @@
       padding: 5px;
       font-size: 11px;
       vertical-align: top;
-      border: 1px solid #000;
+      border: none;
     }
 
     .section-header {
-      background-color: #172e66;
-      color: white;
+      background-color: #8b8b8b;
+      color: black;
       font-weight: bold;
       font-size: 11px;
       padding: 5px;
@@ -135,8 +135,8 @@
     }
 
     table.details-table th {
-      background-color: #172e66;
-      color: white;
+      background-color: #8b8b8b;
+      color: black;
       font-weight: bold;
       font-size: 11px;
       padding: 5px 3px;
@@ -260,6 +260,7 @@
 
     .card-content div {
       margin-bottom: 3px;
+      font-size: 8px;
     }
 
     .card-content-header {
@@ -270,7 +271,7 @@
 
     .card-label {
       font-weight: bold;
-      font-size: 7px;
+      font-size: 8px;
     }
 
     .signature-section {
@@ -574,14 +575,14 @@
     <div class="card">
       <div class="card-header">CHICLAYO</div>
       <div class="card-content">
-        <div><span class="card-label">Dirección:</span></div>
-        <div>CAR. PANAMERICANA NORTE #1006 - CHICLAYO - LAMBAYEQUE (COSTADO DEL COLEGIO SANTO TORIBIO DE MOGROVEJO,
+        <div><span class="card-label">Dirección:</span>CAR. PANAMERICANA NORTE #1006 - CHICLAYO - LAMBAYEQUE (COSTADO
+          DEL COLEGIO SANTO
+          TORIBIO DE MOGROVEJO,
           CRUCE CON AV. LEGUÍA)
         </div>
         <div><span class="card-label">CITAS TALLER:</span> 944 296 593</div>
         <div><span class="card-label">REPUESTOS:</span> 943 856 726</div>
-        <div><span class="card-label">Horario:</span></div>
-        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM
+        <div><span class="card-label">Horario:</span>LUNES A VIERNES: 8:00 AM A 6:00 PM
           SÁBADOS: 8:00 AM A 6:00 PM
         </div>
       </div>
@@ -589,13 +590,13 @@
     <div class="card">
       <div class="card-header">PIURA</div>
       <div class="card-content">
-        <div><span class="card-label">Dirección:</span></div>
-        <div>AV. SÁNCHEZ CERRO MZA. 248 LOTE. 2 DPTO. B Z.I. INDUSTRIAL I – PIURA (COSTADO DE LA FERRETERÍA "MARTÍN")
+        <div><span class="card-label">Dirección:</span>AV. SÁNCHEZ CERRO MZA. 248 LOTE. 2 DPTO. B Z.I. INDUSTRIAL I –
+          PIURA (COSTADO DE LA
+          FERRETERÍA "MARTÍN")
         </div>
         <div><span class="card-label">CITAS TALLER:</span> 932 049 710</div>
         <div><span class="card-label">REPUESTOS:</span> 950 122 002</div>
-        <div><span class="card-label">Horario:</span></div>
-        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM
+        <div><span class="card-label">Horario:</span>LUNES A VIERNES: 8:00 AM A 6:00 PM
           SÁBADOS: 8:00 AM A 6:00 PM
         </div>
       </div>
@@ -603,13 +604,12 @@
     <div class="card">
       <div class="card-header">CAJAMARCA</div>
       <div class="card-content">
-        <div><span class="card-label">Dirección:</span></div>
-        <div>MZA. B LOTE. 19 OTR. EL BOSQUE III ETAPA – CAJAMARCA (FRENTE A LA EX UGEL)
+        <div><span class="card-label">Dirección:</span>MZA. B LOTE. 19 OTR. EL BOSQUE III ETAPA – CAJAMARCA (FRENTE A LA
+          EX UGEL)
         </div>
         <div><span class="card-label">CITAS TALLER:</span> 950 118 892</div>
         <div><span class="card-label">REPUESTOS:</span> 950 118 181</div>
-        <div><span class="card-label">Horario:</span></div>
-        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM
+        <div><span class="card-label">Horario:</span>LUNES A VIERNES: 8:00 AM A 6:00 PM
           SÁBADOS: 8:00 AM A 6:00 PM
         </div>
       </div>
@@ -617,12 +617,12 @@
     <div class="card">
       <div class="card-header">JAÉN</div>
       <div class="card-content">
-        <div><span class="card-label">Dirección:</span></div>
-        <div>AV. PAKAMUROS #2485 INT. B (CARRETERA SAN IGNACIO - LINDEROS) CAJAMARCA – JAÉN</div>
+        <div><span class="card-label">Dirección:</span>AV. PAKAMUROS #2485 INT. B (CARRETERA SAN IGNACIO - LINDEROS)
+          CAJAMARCA – JAÉN
+        </div>
         <div><span class="card-label">CITAS TALLER:</span> 944 296 503</div>
         <div><span class="card-label">REPUESTOS:</span> 982 940 771</div>
-        <div><span class="card-label">Horario:</span></div>
-        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM
+        <div><span class="card-label">Horario:</span>LUNES A VIERNES: 8:00 AM A 6:00 PM
           SÁBADOS: 8:00 AM A 6:00 PM
         </div>
       </div>
