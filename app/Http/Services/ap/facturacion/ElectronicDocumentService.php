@@ -2139,11 +2139,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 //    }
 
     // Calculate work order total using centralized method (includes labour, parts, discount, and tax)
-    $totals = WorkOrderService::calculateWorkOrderTotal($workOrder);
-    $workOrderTotal = $totals['total_amount'];
+    $workOrderTotal = (float)$workOrder->final_amount;
 
     // Validate that work order has at least labours or parts to invoice
-    if ($workOrderTotal <= 0) {
+    if ($workOrderTotal <= 0 && !$isAdvancePayment) {
       throw new Exception('La orden de trabajo no tiene mano de obra ni repuestos para facturar.');
     }
 
@@ -2246,8 +2245,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $workOrder = ApWorkOrder::with(['labours', 'parts'])->find($entityId);
       if ($workOrder) {
         // Calculate total using centralized method (includes labour, parts, discount, and tax)
-        $totals = WorkOrderService::calculateWorkOrderTotal($workOrder);
-        $entityTotal = $totals['total_amount'];
+        $entityTotal = (float)$workOrder->final_amount;
         $entityName = 'orden de trabajo';
       }
     } elseif (isset($data['purchase_request_quote_id']) && $data['purchase_request_quote_id']) {
@@ -2556,8 +2554,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return 0;
     }
 
-    $totals = WorkOrderService::calculateWorkOrderTotal($workOrder);
-    $entityTotal = (float)$totals['total_amount'];
+    $entityTotal = (float)$workOrder->final_amount;
     $detractionAmount = (float)($company->detraction_amount ?? 0);
 
     /**
