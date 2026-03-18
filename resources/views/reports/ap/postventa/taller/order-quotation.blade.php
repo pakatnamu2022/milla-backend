@@ -24,12 +24,12 @@
 
     body {
       font-family: Arial, sans-serif;
-      font-size: 10px;
+      font-size: 11px;
       padding: 20px;
     }
 
     .header {
-      margin-bottom: 15px;
+      margin-bottom: 2px;
     }
 
     .header table {
@@ -47,13 +47,13 @@
     }
 
     .logo img {
-      max-width: 100px;
+      max-width: 200px;
       height: auto;
     }
 
     .center-title {
       text-align: center;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: bold;
       padding: 5px;
     }
@@ -71,7 +71,7 @@
       border: none;
       vertical-align: top;
       padding: 5px;
-      font-size: 9px;
+      font-size: 11px;
     }
 
     .company-left {
@@ -84,20 +84,15 @@
       text-align: left;
     }
 
-    .company-name {
-      font-weight: bold;
-      font-size: 11px;
-      margin-bottom: 3px;
-    }
-
     .quotation-info {
       margin-bottom: 10px;
       text-align: left;
-      font-size: 10px;
+      font-size: 14px;
     }
 
     .quotation-info strong {
       font-weight: bold;
+      font-size: 14px;
     }
 
     table.data-section {
@@ -109,7 +104,7 @@
 
     table.data-section td {
       padding: 5px;
-      font-size: 9px;
+      font-size: 11px;
       vertical-align: top;
       border: 1px solid #000;
     }
@@ -118,7 +113,7 @@
       background-color: #172e66;
       color: white;
       font-weight: bold;
-      font-size: 10px;
+      font-size: 11px;
       padding: 5px;
       text-align: left;
       border: 1px solid #000;
@@ -126,7 +121,7 @@
 
     .label-cell {
       font-weight: bold;
-      width: 25%;
+      width: 15%;
     }
 
     table.details-table {
@@ -139,7 +134,7 @@
       background-color: #172e66;
       color: white;
       font-weight: bold;
-      font-size: 9px;
+      font-size: 11px;
       padding: 5px 3px;
       text-align: center;
       border: 1px solid #000;
@@ -147,7 +142,7 @@
 
     table.details-table td {
       padding: 4px 3px;
-      font-size: 8px;
+      font-size: 11px;
       border: 1px solid #000;
       vertical-align: middle;
     }
@@ -174,7 +169,7 @@
       width: 50%;
       margin-left: auto;
       border-collapse: collapse;
-      font-size: 9px;
+      font-size: 11px;
     }
 
     .totals-section td {
@@ -199,7 +194,7 @@
 
     .important-title {
       font-weight: bold;
-      font-size: 10px;
+      font-size: 11px;
       margin-bottom: 5px;
       text-decoration: underline;
     }
@@ -243,12 +238,12 @@
       padding: 8px;
       border: 1px solid #000;
       vertical-align: top;
-      font-size: 8px;
+      font-size: 11px;
     }
 
     .card-header {
       font-weight: bold;
-      font-size: 9px;
+      font-size: 11px;
       margin-bottom: 5px;
       text-align: center;
       border-bottom: 1px solid #ccc;
@@ -265,11 +260,13 @@
 
     .card-content-header {
       text-align: center;
-      font-weight: bold
+      font-weight: bold;
+      font-size: 8px;
     }
 
     .card-label {
       font-weight: bold;
+      font-size: 7px;
     }
 
     .signature-section {
@@ -281,7 +278,7 @@
       display: inline-block;
       width: 250px;
       text-align: center;
-      font-size: 9px;
+      font-size: 11px;
       font-weight: bold;
     }
 
@@ -323,11 +320,11 @@
   <table>
     <tr>
       <td class="company-left">
-      </td>
-      <td class="company-right" style="text-align: right;">
         <div>Car. Panamericana Norte Nro. 1006</div>
         <div>Chiclayo - Lambayeque</div>
         <div>Tel.:</div>
+      </td>
+      <td class="company-right" style="text-align: right;">
         <div>Email: info@automotorespakatnamu.com</div>
         <div>Web: www.automotorespakatnamu.com</div>
       </td>
@@ -348,7 +345,7 @@
   </tr>
   <tr>
     <td class="label-cell">Cliente:</td>
-    <td colspan="3"><strong>{{ $quotation['customer_name'] }}</strong> | {{ $quotation['customer_document'] }}
+    <td colspan="3"><strong>{{ $quotation['customer_name'] }}</strong> DNI: {{ $quotation['customer_document'] }}
       <br>{{ $quotation['customer_address'] }}
     </td>
   </tr>
@@ -500,133 +497,133 @@
 </div>
 
 <!-- Sección CUENTA AP -->
-{{--<div class="cards-section">--}}
-{{--  <div class="section-title">CUENTAS AP</div>--}}
-{{--  <div class="cards-container">--}}
-{{--    <div class="card">--}}
-{{--      <div class="card-header">CHICLAYO</div>--}}
-{{--      <div class="card-content">--}}
-{{--        <div class="card-content-header">N° CUENTA BCO. BCP:</div>--}}
-{{--        <div><span class="card-label">SOLES:</span> 305-2041106-0-39</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 002-305-002041106039-13</div>--}}
-{{--        <div><span class="card-label">DÓLARES:</span> 305-2032097-1-49</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 002-305-002032097149-10</div>--}}
-{{--        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>--}}
-{{--        <div><span class="card-label">SOLES:</span> 0011-0279-0100020589</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 011279000100020589­76</div>--}}
-{{--        <div><span class="card-label">DÓLARES:</span> 0011-0279-0100020597</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 011279000100020597­79</div>--}}
-{{--      </div>--}}
-{{--    </div>--}}
-{{--    <div class="card">--}}
-{{--      <div class="card-header">PIURA</div>--}}
-{{--      <div class="card-content">--}}
-{{--        <div class="card-content-header">N° CUENTA BCO. BCP:</div>--}}
-{{--        <div><span class="card-label">SOLES:</span> 475-2660047-0-39</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 002-475-002660047039-22</div>--}}
-{{--        <div><span class="card-label">DÓLARES:</span> 475-2573597-1-16</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 002-475-002573597116-27</div>--}}
-{{--        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>--}}
-{{--        <div><span class="card-label">SOLES:</span> 0011-0267-0100130672</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 011267000100130672­27</div>--}}
-{{--        <div><span class="card-label">DÓLARES:</span> 0011-0267-0100130680</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 011267000100130680­20</div>--}}
-{{--      </div>--}}
-{{--    </div>--}}
-{{--    <div class="card">--}}
-{{--      <div class="card-header">CAJAMARCA</div>--}}
-{{--      <div class="card-content">--}}
-{{--        <div class="card-content-header">N° CUENTA BCO. BCP:</div>--}}
-{{--        <div><span class="card-label">SOLES:</span> 245-2661107-0-14</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 002-245-002661107014-90</div>--}}
-{{--        <div><span class="card-label">DÓLARES:</span> 245-2663485-1-44</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 002-245-002663485144-93</div>--}}
-{{--        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>--}}
-{{--        <div><span class="card-label">SOLES:</span> 0011-0277-0100080793</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 011277000100080793­11</div>--}}
-{{--        <div><span class="card-label">DÓLARES:</span> 0011-0277-0100080807</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 011277 000100080807­19</div>--}}
-{{--      </div>--}}
-{{--    </div>--}}
-{{--    <div class="card">--}}
-{{--      <div class="card-header">JAÉN</div>--}}
-{{--      <div class="card-content">--}}
-{{--        <div class="card-content-header">N° CUENTA BCO. BCP:</div>--}}
-{{--        <div><span class="card-label">SOLES:</span> 395-5394658-0-80</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 002-395-005394558080-20</div>--}}
-{{--        <div><span class="card-label">DÓLARES:</span> 395-2415578-1-84</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 002-395-002415578184-22</div>--}}
-{{--        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>--}}
-{{--        <div><span class="card-label">SOLES:</span> 0011-0409-0100005801</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 011409000100005801­04</div>--}}
-{{--        <div><span class="card-label">DÓLARES:</span> 0011-0409-0100005828</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 011409000100005828­07</div>--}}
-{{--      </div>--}}
-{{--    </div>--}}
-{{--  </div>--}}
-{{--</div>--}}
+<div class="cards-section">
+  <div class="section-title">CUENTAS AP</div>
+  <div class="cards-container">
+    <div class="card">
+      <div class="card-header">CHICLAYO</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 305-2041106-0-39</div>
+        <div><span class="card-label">CCI:</span> 002-305-002041106039-13</div>
+        <div><span class="card-label">DÓLARES:</span> 305-2032097-1-49</div>
+        <div><span class="card-label">CCI:</span> 002-305-002032097149-10</div>
+        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
+        <div><span class="card-label">SOLES:</span> 0011-0279-0100020589</div>
+        <div><span class="card-label">CCI:</span> 011279000100020589­76</div>
+        <div><span class="card-label">DÓLARES:</span> 0011-0279-0100020597</div>
+        <div><span class="card-label">CCI:</span> 011279000100020597­79</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">PIURA</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 475-2660047-0-39</div>
+        <div><span class="card-label">CCI:</span> 002-475-002660047039-22</div>
+        <div><span class="card-label">DÓLARES:</span> 475-2573597-1-16</div>
+        <div><span class="card-label">CCI:</span> 002-475-002573597116-27</div>
+        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
+        <div><span class="card-label">SOLES:</span> 0011-0267-0100130672</div>
+        <div><span class="card-label">CCI:</span> 011267000100130672­27</div>
+        <div><span class="card-label">DÓLARES:</span> 0011-0267-0100130680</div>
+        <div><span class="card-label">CCI:</span> 011267000100130680­20</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">CAJAMARCA</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 245-2661107-0-14</div>
+        <div><span class="card-label">CCI:</span> 002-245-002661107014-90</div>
+        <div><span class="card-label">DÓLARES:</span> 245-2663485-1-44</div>
+        <div><span class="card-label">CCI:</span> 002-245-002663485144-93</div>
+        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
+        <div><span class="card-label">SOLES:</span> 0011-0277-0100080793</div>
+        <div><span class="card-label">CCI:</span> 011277000100080793­11</div>
+        <div><span class="card-label">DÓLARES:</span> 0011-0277-0100080807</div>
+        <div><span class="card-label">CCI:</span> 011277 000100080807­19</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">JAÉN</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 395-5394658-0-80</div>
+        <div><span class="card-label">CCI:</span> 002-395-005394558080-20</div>
+        <div><span class="card-label">DÓLARES:</span> 395-2415578-1-84</div>
+        <div><span class="card-label">CCI:</span> 002-395-002415578184-22</div>
+        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
+        <div><span class="card-label">SOLES:</span> 0011-0409-0100005801</div>
+        <div><span class="card-label">CCI:</span> 011409000100005801­04</div>
+        <div><span class="card-label">DÓLARES:</span> 0011-0409-0100005828</div>
+        <div><span class="card-label">CCI:</span> 011409000100005828­07</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Sección UBÍCANOS EN -->
-{{--<div class="cards-section">--}}
-{{--  <div class="section-title">UBÍCANOS EN</div>--}}
-{{--  <div class="cards-container">--}}
-{{--    <div class="card">--}}
-{{--      <div class="card-header">CHICLAYO</div>--}}
-{{--      <div class="card-content">--}}
-{{--        <div><span class="card-label">Dirección:</span></div>--}}
-{{--        <div>CAR. PANAMERICANA NORTE #1006 - CHICLAYO - LAMBAYEQUE (COSTADO DEL COLEGIO SANTO TORIBIO DE MOGROVEJO,--}}
-{{--          CRUCE CON AV. LEGUÍA)--}}
-{{--        </div>--}}
-{{--        <div><span class="card-label">CITAS TALLER:</span> 944 296 593</div>--}}
-{{--        <div><span class="card-label">REPUESTOS:</span> 943 856 726</div>--}}
-{{--        <div><span class="card-label">Horario:</span></div>--}}
-{{--        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM--}}
-{{--          SÁBADOS: 8:00 AM A 6:00 PM--}}
-{{--        </div>--}}
-{{--      </div>--}}
-{{--    </div>--}}
-{{--    <div class="card">--}}
-{{--      <div class="card-header">PIURA</div>--}}
-{{--      <div class="card-content">--}}
-{{--        <div><span class="card-label">Dirección:</span></div>--}}
-{{--        <div>AV. SÁNCHEZ CERRO MZA. 248 LOTE. 2 DPTO. B Z.I. INDUSTRIAL I – PIURA (COSTADO DE LA FERRETERÍA "MARTÍN")--}}
-{{--        </div>--}}
-{{--        <div><span class="card-label">CITAS TALLER:</span> 932 049 710</div>--}}
-{{--        <div><span class="card-label">REPUESTOS:</span> 950 122 002</div>--}}
-{{--        <div><span class="card-label">Horario:</span></div>--}}
-{{--        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM--}}
-{{--          SÁBADOS: 8:00 AM A 6:00 PM--}}
-{{--        </div>--}}
-{{--      </div>--}}
-{{--    </div>--}}
-{{--    <div class="card">--}}
-{{--      <div class="card-header">CAJAMARCA</div>--}}
-{{--      <div class="card-content">--}}
-{{--        <div><span class="card-label">Dirección:</span></div>--}}
-{{--        <div>MZA. B LOTE. 19 OTR. EL BOSQUE III ETAPA – CAJAMARCA (FRENTE A LA EX UGEL)--}}
-{{--        </div>--}}
-{{--        <div><span class="card-label">CITAS TALLER:</span> 950 118 892</div>--}}
-{{--        <div><span class="card-label">REPUESTOS:</span> 950 118 181</div>--}}
-{{--        <div><span class="card-label">Horario:</span></div>--}}
-{{--        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM--}}
-{{--          SÁBADOS: 8:00 AM A 6:00 PM--}}
-{{--        </div>--}}
-{{--      </div>--}}
-{{--    </div>--}}
-{{--    <div class="card">--}}
-{{--      <div class="card-header">JAÉN</div>--}}
-{{--      <div class="card-content">--}}
-{{--        <div><span class="card-label">Dirección:</span></div>--}}
-{{--        <div>AV. PAKAMUROS #2485 INT. B (CARRETERA SAN IGNACIO - LINDEROS) CAJAMARCA – JAÉN</div>--}}
-{{--        <div><span class="card-label">CITAS TALLER:</span> 944 296 503</div>--}}
-{{--        <div><span class="card-label">REPUESTOS:</span> 982 940 771</div>--}}
-{{--        <div><span class="card-label">Horario:</span></div>--}}
-{{--        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM--}}
-{{--          SÁBADOS: 8:00 AM A 6:00 PM--}}
-{{--        </div>--}}
-{{--      </div>--}}
-{{--    </div>--}}
-{{--  </div>--}}
-{{--</div>--}}
+<div class="cards-section">
+  <div class="section-title">UBÍCANOS EN</div>
+  <div class="cards-container">
+    <div class="card">
+      <div class="card-header">CHICLAYO</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span></div>
+        <div>CAR. PANAMERICANA NORTE #1006 - CHICLAYO - LAMBAYEQUE (COSTADO DEL COLEGIO SANTO TORIBIO DE MOGROVEJO,
+          CRUCE CON AV. LEGUÍA)
+        </div>
+        <div><span class="card-label">CITAS TALLER:</span> 944 296 593</div>
+        <div><span class="card-label">REPUESTOS:</span> 943 856 726</div>
+        <div><span class="card-label">Horario:</span></div>
+        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 6:00 PM
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">PIURA</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span></div>
+        <div>AV. SÁNCHEZ CERRO MZA. 248 LOTE. 2 DPTO. B Z.I. INDUSTRIAL I – PIURA (COSTADO DE LA FERRETERÍA "MARTÍN")
+        </div>
+        <div><span class="card-label">CITAS TALLER:</span> 932 049 710</div>
+        <div><span class="card-label">REPUESTOS:</span> 950 122 002</div>
+        <div><span class="card-label">Horario:</span></div>
+        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 6:00 PM
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">CAJAMARCA</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span></div>
+        <div>MZA. B LOTE. 19 OTR. EL BOSQUE III ETAPA – CAJAMARCA (FRENTE A LA EX UGEL)
+        </div>
+        <div><span class="card-label">CITAS TALLER:</span> 950 118 892</div>
+        <div><span class="card-label">REPUESTOS:</span> 950 118 181</div>
+        <div><span class="card-label">Horario:</span></div>
+        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 6:00 PM
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">JAÉN</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span></div>
+        <div>AV. PAKAMUROS #2485 INT. B (CARRETERA SAN IGNACIO - LINDEROS) CAJAMARCA – JAÉN</div>
+        <div><span class="card-label">CITAS TALLER:</span> 944 296 503</div>
+        <div><span class="card-label">REPUESTOS:</span> 982 940 771</div>
+        <div><span class="card-label">Horario:</span></div>
+        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 6:00 PM
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
