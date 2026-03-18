@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\configuracionComercial\vehiculo;
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApFamiliesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApFamilies;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use Illuminate\Http\Request;
@@ -41,6 +42,14 @@ class ApFamiliesService extends BaseService implements BaseServiceInterface
         4,
         ['brand_id' => $data['brand_id']]
       );
+
+    if ($marca->type_operation_id === ApMasters::TIPO_OPERACION_COMERCIAL) {
+      $family = ApFamilies::where('description', $data['description'])->where('brand_id', $data['brand_id'])->first();
+      if ($family) {
+        throw new Exception('Ya existe una familia con la misma descripción para esta marca');
+      }
+    }
+
     $family = ApFamilies::create($data);
     return new ApFamiliesResource($family);
   }
@@ -73,6 +82,13 @@ class ApFamiliesService extends BaseService implements BaseServiceInterface
   {
     $family = $this->find($data['id']);
     $data['code'] = $this->completeBrandSeries($family->id);
+    $marca = $family->brand;
+    if ($marca->type_operation_id === ApMasters::TIPO_OPERACION_COMERCIAL) {
+      $family = ApFamilies::where('description', $data['description'])->where('brand_id', $data['brand_id'])->first();
+      if ($family) {
+        throw new Exception('Ya existe una familia con la misma descripción para esta marca');
+      }
+    }
     $family->update($data);
     return new ApFamiliesResource($family);
   }
