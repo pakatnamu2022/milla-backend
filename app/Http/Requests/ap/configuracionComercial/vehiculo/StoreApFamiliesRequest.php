@@ -14,8 +14,6 @@ class StoreApFamiliesRequest extends StoreRequest
         'required',
         'string',
         'max:255',
-        Rule::unique('ap_families', 'description')
-          ->whereNull('deleted_at'),
       ],
       'brand_id' => [
         'required',
@@ -31,7 +29,6 @@ class StoreApFamiliesRequest extends StoreRequest
       'description.required' => 'La descripción es obligatoria.',
       'description.string' => 'La descripción debe ser una cadena de texto.',
       'description.max' => 'La descripción no debe exceder los 255 caracteres.',
-      'description.unique' => 'La descripción ingresada ya existe en los registros.',
 
       'brand_id.required' => 'Debe seleccionar un marca',
       'brand_id.integer' => 'El campo marca es obligatorio.',

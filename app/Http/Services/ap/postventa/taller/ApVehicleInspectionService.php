@@ -533,6 +533,16 @@ class ApVehicleInspectionService extends BaseService
       return response()->json(['message' => 'Ya existe una solicitud de anulación pendiente'], 422);
     }
 
+    $workOrder = $inspection->createdByWorkOrder;
+
+    if (!$workOrder) {
+      return response()->json(['message' => 'No se encontró la orden de trabajo asociada a esta inspección'], 422);
+    }
+
+    if ($workOrder->status_id = ApMasters::CLOSED_WORK_ORDER_ID) {
+      return response()->json(['message' => 'No se puede solicitar anulación para una orden de trabajo cerrada'], 422);
+    }
+
     $inspection->update([
       'cancellation_requested_by' => auth()->id(),
       'cancellation_requested_at' => now(),

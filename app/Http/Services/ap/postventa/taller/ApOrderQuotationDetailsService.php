@@ -60,6 +60,9 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
       // Recalculate quotation totals
       $this->updateQuotationTotals($apOrderQuotationDetails->order_quotation_id);
 
+      // Recalculate work order totals if quotation is associated with one
+      $this->recalculateWorkOrderTotals($apOrderQuotationDetails->order_quotation_id);
+
       return new ApOrderQuotationDetailsResource($apOrderQuotationDetails->load([
         'orderQuotation',
         'product',
@@ -89,6 +92,9 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
       // Recalculate quotation totals
       $this->updateQuotationTotals($apOrderQuotationDetails->order_quotation_id);
 
+      // Recalculate work order totals if quotation is associated with one
+      $this->recalculateWorkOrderTotals($apOrderQuotationDetails->order_quotation_id);
+
       // Reload relations
       $apOrderQuotationDetails->load([
         'orderQuotation',
@@ -112,6 +118,9 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
 
       // Recalculate quotation totals
       $this->updateQuotationTotals($quotationId);
+
+      // Recalculate work order totals if quotation is associated with one
+      $this->recalculateWorkOrderTotals($quotationId);
     });
 
     return response()->json(['message' => 'Detalle de cotización eliminado correctamente.']);
@@ -176,5 +185,23 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
       'discount_percentage' => round($discountPercentage, 2),
       'total_amount' => round($totalAmount, 2),
     ]);
+  }
+
+  /**
+   * Recalculate work order totals if the quotation is associated with one
+   *
+   * @param int $quotationId
+   * @return void
+   */
+  private function recalculateWorkOrderTotals(int $quotationId): void
+  {
+    // Find work order associated with this quotation
+    $workOrder = ApWorkOrder::where('order_quotation_id', $quotationId)->first();
+
+    if ($workOrder) {
+      // Recalculate and save work order totals
+      $workOrder->calculateTotals();
+      $workOrder->save();
+    }
   }
 }
