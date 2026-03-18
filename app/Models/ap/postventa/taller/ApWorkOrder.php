@@ -228,17 +228,165 @@ class ApWorkOrder extends Model
   // Helper methods
   public function calculateTotals(): void
   {
-    $this->total_labor_cost = $this->labours()->sum('net_amount');
-    $this->total_parts_cost = $this->parts()->sum('net_amount');
+    // Si tiene cotización asociada, usar el cálculo que incluye items pendientes de la cotización
+    if ($this->order_quotation_id && $this->orderQuotation) {
+      $totals = $this->calculateTotalsWithQuotation();
+    } else {
+      // Cálculo tradicional sin cotización
+      $totals = $this->calculateTotalsWithoutQuotation();
+    }
 
-    $this->subtotal = $this->total_labor_cost + $this->total_parts_cost;
-    $this->discount_amount = $this->subtotal * (($this->discount_percentage ?? 0) / 100);
+    // Actualizar los campos de la orden de trabajo
+    $this->total_labor_cost = $totals['labour_cost'];
+    $this->total_parts_cost = $totals['parts_cost'];
+    $this->subtotal = $totals['total_cost'];
+    $this->discount_amount = $totals['discount_amount'];
+    $this->tax_amount = $totals['tax_amount'];
+    $this->final_amount = $totals['total_amount'];
 
-    $base = $this->subtotal - $this->discount_amount;
-    $this->tax_amount = $base * (Constants::VAT_TAX / 100);
-    $this->final_amount = $base + $this->tax_amount;
+    // Calcular discount_percentage basado en el discount_amount y subtotal
+    if ($totals['total_cost'] > 0) {
+      $this->discount_percentage = round(($totals['discount_amount'] / $totals['total_cost']) * 100, 2);
+    } else {
+      $this->discount_percentage = 0;
+    }
 
     $this->save();
+  }
+
+  /**
+   * Calcula totales SIN considerar cotización (solo labours y parts existentes)
+   */
+  private function calculateTotalsWithoutQuotation(): array
+  {
+    // Calculate costs (sin descuento de items)
+    $totalLabourCostBeforeDiscount = $this->labours()->sum('total_cost') ?? 0;
+    $totalPartsCostBeforeDiscount = $this->parts()->sum('total_cost') ?? 0;
+
+    // Calculate net amounts (con descuento de items aplicado)
+    $totalLabourNetAmount = $this->labours()->sum('net_amount') ?? 0;
+    $totalPartsNetAmount = $this->parts()->sum('net_amount') ?? 0;
+
+    // Subtotal sin descuentos
+    $subtotal = $totalLabourCostBeforeDiscount + $totalPartsCostBeforeDiscount;
+
+    // Total de descuentos de items
+    $itemsDiscountAmount = ($totalLabourCostBeforeDiscount - $totalLabourNetAmount) + ($totalPartsCostBeforeDiscount - $totalPartsNetAmount);
+
+    // Descuento general de la orden de trabajo
+    $workOrderDiscountAmount = $this->discount_amount ?? 0;
+
+    // Total de descuentos
+    $totalDiscountAmount = $itemsDiscountAmount + $workOrderDiscountAmount;
+
+    // Net amount (suma de net_amount de items)
+    $netAmount = $totalLabourNetAmount + $totalPartsNetAmount;
+
+    // Net amount final (restar descuento general de OT)
+    $netAmountFinal = $netAmount - $workOrderDiscountAmount;
+
+    // IGV sobre el net amount final
+    $taxAmount = $netAmountFinal * (Constants::VAT_TAX / 100);
+
+    // Total final
+    $totalAmount = $netAmountFinal + $taxAmount;
+
+    return [
+      'labour_cost' => (float)$totalLabourCostBeforeDiscount,
+      'parts_cost' => (float)$totalPartsCostBeforeDiscount,
+      'labour_cost_desc' => (float)$totalLabourNetAmount,
+      'parts_cost_desc' => (float)$totalPartsNetAmount,
+      'total_cost' => (float)$subtotal,
+      'net_amount' => (float)$netAmount,
+      'discount_amount' => (float)$totalDiscountAmount,
+      'tax_amount' => (float)$taxAmount,
+      'total_amount' => (float)$totalAmount,
+    ];
+  }
+
+  /**
+   * Calcula totales INCLUYENDO items pendientes de la cotización
+   */
+  private function calculateTotalsWithQuotation(): array
+  {
+    // Calculate costs from existing labours (sin descuento)
+    $totalLabourCostBeforeDiscount = 0;
+    $totalLabourDiscount = 0;
+    foreach ($this->labours as $labour) {
+      $cost = $labour->total_cost ?? 0;
+      $discount = ($cost * ($labour->discount_percentage ?? 0)) / 100;
+      $totalLabourCostBeforeDiscount += $cost;
+      $totalLabourDiscount += $discount;
+    }
+
+    // Calculate costs from existing parts (sin descuento)
+    $totalPartsCostBeforeDiscount = 0;
+    $totalPartsDiscount = 0;
+    foreach ($this->parts as $part) {
+      $cost = $part->total_cost ?? 0;
+      $netAmount = $part->net_amount ?? 0;
+      $discount = $cost - $netAmount;
+      $totalPartsCostBeforeDiscount += $cost;
+      $totalPartsDiscount += $discount;
+    }
+
+    // Add pending quotation details
+    if ($this->orderQuotation && $this->orderQuotation->details) {
+      $pendingDetails = $this->orderQuotation->details
+        ->where('status', ApOrderQuotationDetails::STATUS_PENDING);
+
+      foreach ($pendingDetails as $detail) {
+        $quantity = $detail->quantity ?? 0;
+        $unitPrice = $detail->unit_price ?? 0;
+        $discountPercentage = $detail->discount_percentage ?? 0;
+
+        $itemSubtotal = $quantity * $unitPrice;
+        $itemDiscount = ($itemSubtotal * $discountPercentage) / 100;
+
+        if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
+          $totalLabourCostBeforeDiscount += $itemSubtotal;
+          $totalLabourDiscount += $itemDiscount;
+        } elseif ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_PRODUCT) {
+          $totalPartsCostBeforeDiscount += $itemSubtotal;
+          $totalPartsDiscount += $itemDiscount;
+        }
+      }
+    }
+
+    // Calculate totals
+    // Subtotal sin descuento
+    $subtotal = $totalLabourCostBeforeDiscount + $totalPartsCostBeforeDiscount;
+
+    // Total de descuentos (de items + descuento general de la OT)
+    $itemsDiscountAmount = $totalLabourDiscount + $totalPartsDiscount;
+    $workOrderDiscountAmount = $this->discount_amount ?? 0;
+    $totalDiscountAmount = $itemsDiscountAmount + $workOrderDiscountAmount;
+
+    // Net amount (suma de net_amount de items)
+    $netAmountLabour = $totalLabourCostBeforeDiscount - $totalLabourDiscount;
+    $netAmountParts = $totalPartsCostBeforeDiscount - $totalPartsDiscount;
+    $netAmount = $netAmountLabour + $netAmountParts;
+
+    // Net amount final (restar descuento general de OT)
+    $netAmountFinal = $netAmount - $workOrderDiscountAmount;
+
+    // IGV sobre el net amount final
+    $taxAmount = $netAmountFinal * (Constants::VAT_TAX / 100);
+
+    // Total Final
+    $totalAmount = $netAmountFinal + $taxAmount;
+
+    return [
+      'labour_cost' => (float)$totalLabourCostBeforeDiscount,
+      'parts_cost' => (float)$totalPartsCostBeforeDiscount,
+      'labour_cost_desc' => (float)$netAmountLabour,
+      'parts_cost_desc' => (float)$netAmountParts,
+      'total_cost' => (float)$subtotal,
+      'net_amount' => (float)$netAmount,
+      'discount_amount' => (float)$totalDiscountAmount,
+      'tax_amount' => (float)$taxAmount,
+      'total_amount' => (float)$totalAmount,
+    ];
   }
 
   public function advancesWorkOrder(): HasMany

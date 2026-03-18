@@ -159,6 +159,7 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
   {
     return DB::transaction(function () use ($data) {
       $workOrderLabour = $this->find($data['id']);
+      $workOrder = $workOrderLabour->workOrder;
 
       // Calcular el costo total automáticamente si se actualizan time_spent, hourly_rate o discount_percentage
       if (isset($data['time_spent']) || isset($data['hourly_rate']) || isset($data['discount_percentage'])) {
@@ -174,8 +175,28 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         $hourlyRate = $data['hourly_rate'] ?? $workOrderLabour->hourly_rate;
         $discountPercentage = $data['discount_percentage'] ?? $workOrderLabour->discount_percentage ?? 0;
 
-        // Calcular costo base
-        $costBase = $timeSpent * floatval($hourlyRate);
+        // Obtener el factor de conversión de moneda si hay cotización asociada
+        if ($workOrder->order_quotation_id) {
+          $orderQuotation = $workOrder->orderQuotation;
+          if ($orderQuotation->currency_id === $workOrder->currency_id) {
+            $factor = 1;
+          } else {
+            if ($workOrder->currency_id === TypeCurrency::PEN_ID) {
+              $factor = $orderQuotation->exchange_rate;
+            } else if ($workOrder->currency_id === TypeCurrency::USD_ID) {
+              $factor = 1;
+            } else {
+              throw new Exception('Moneda no soportada para la cotización de la orden de trabajo');
+            }
+          }
+        } else {
+          $factor = 1;
+        }
+
+        // Calcular costo base con el factor de conversión
+        $costBase = $timeSpent * floatval($hourlyRate) * $factor;
+
+        $data['total_cost'] = $costBase;
 
         // Aplicar descuento si existe
         if ($discountPercentage > 0) {
@@ -184,10 +205,20 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         } else {
           $data['net_amount'] = $costBase;
         }
+
+        // Actualizar hourly_rate con el factor si cambió
+        if (isset($data['hourly_rate'])) {
+          $data['hourly_rate'] = floatval($data['hourly_rate']) * $factor;
+        }
+
+        // Actualizar time_spent si cambió
+        if (isset($data['time_spent'])) {
+          $data['time_spent'] = $timeSpent;
+        }
       }
 
       $workOrderLabour->update($data);
-      $workOrderLabour->workOrder->calculateTotals();
+      $workOrder->calculateTotals();
 
       return new WorkOrderLabourResource($workOrderLabour->load(['worker', 'workOrder']));
     });

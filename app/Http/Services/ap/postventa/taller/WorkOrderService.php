@@ -184,7 +184,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         $data['estimated_delivery_time'] = $estimatedDeliveryTime->format('Y-m-d H:i:s');
       }
 
-      if (!$data['is_recall']) {
+      if (isset($data['is_recall']) && !$data['is_recall']) {
         $data['description_recall'] = '';
         $data['type_recall'] = '';
       }
@@ -217,6 +217,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         if ($quotation) {
           $quotation->update(['is_take' => 1]);
         }
+
+        // Recalcular totales usando el método del modelo (detecta automáticamente si tiene cotización)
+        $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
+        $workOrder->calculateTotals();
       }
 
       // If existe $data['vehicle_inspection_id']
@@ -720,8 +724,12 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       // Actualizar allow_remove_associated_quote a false
       $workOrder->update([
-        'allow_remove_associated_quote' => false
+        'allow_remove_associated_quote' => false,
       ]);
+
+      // Recalcular totales usando el método del modelo (detecta automáticamente que ya no tiene cotización)
+      $workOrder->load(['labours', 'parts']);
+      $workOrder->calculateTotals();
 
       $workOrder->load([
         'appointmentPlanning',
