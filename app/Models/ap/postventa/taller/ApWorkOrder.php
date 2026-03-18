@@ -228,13 +228,7 @@ class ApWorkOrder extends Model
   // Helper methods
   public function calculateTotals(): void
   {
-    // Si tiene cotización asociada, usar el cálculo que incluye items pendientes de la cotización
-    if ($this->order_quotation_id && $this->orderQuotation) {
-      $totals = $this->calculateTotalsWithQuotation();
-    } else {
-      // Cálculo tradicional sin cotización
-      $totals = $this->calculateTotalsWithoutQuotation();
-    }
+    $totals = $this->getTotalsArray();
 
     // Actualizar los campos de la orden de trabajo
     $this->total_labor_cost = $totals['labour_cost'];
@@ -255,41 +249,60 @@ class ApWorkOrder extends Model
   }
 
   /**
+   * Obtiene los totales calculados sin guardar en la base de datos
+   */
+  public function getTotalsArray(?int $groupNumber = null): array
+  {
+    // Si tiene cotización asociada, usar el cálculo que incluye items pendientes de la cotización
+    if ($this->order_quotation_id && $this->orderQuotation) {
+      return $this->calculateTotalsWithQuotation($groupNumber);
+    } else {
+      // Cálculo tradicional sin cotización
+      return $this->calculateTotalsWithoutQuotation($groupNumber);
+    }
+  }
+
+  /**
    * Calcula totales SIN considerar cotización (solo labours y parts existentes)
    */
-  private function calculateTotalsWithoutQuotation(): array
+  private function calculateTotalsWithoutQuotation(?int $groupNumber = null): array
   {
+    // Filter labours by group_number if provided
+    $laboursQuery = $this->labours();
+    $partsQuery = $this->parts();
+
+    if ($groupNumber !== null) {
+      $laboursQuery->where('group_number', $groupNumber);
+      $partsQuery->where('group_number', $groupNumber);
+    }
+
     // Calculate costs (sin descuento de items)
-    $totalLabourCostBeforeDiscount = $this->labours()->sum('total_cost') ?? 0;
-    $totalPartsCostBeforeDiscount = $this->parts()->sum('total_cost') ?? 0;
+    $totalLabourCostBeforeDiscount = $laboursQuery->sum('total_cost') ?? 0;
+    $totalPartsCostBeforeDiscount = $partsQuery->sum('total_cost') ?? 0;
 
     // Calculate net amounts (con descuento de items aplicado)
-    $totalLabourNetAmount = $this->labours()->sum('net_amount') ?? 0;
-    $totalPartsNetAmount = $this->parts()->sum('net_amount') ?? 0;
+    $totalLabourNetAmount = $this->labours()->when($groupNumber !== null, function ($q) use ($groupNumber) {
+      return $q->where('group_number', $groupNumber);
+    })->sum('net_amount') ?? 0;
+
+    $totalPartsNetAmount = $this->parts()->when($groupNumber !== null, function ($q) use ($groupNumber) {
+      return $q->where('group_number', $groupNumber);
+    })->sum('net_amount') ?? 0;
 
     // Subtotal sin descuentos
     $subtotal = $totalLabourCostBeforeDiscount + $totalPartsCostBeforeDiscount;
 
-    // Total de descuentos de items
+    // Total de descuentos de items (la diferencia entre total_cost y net_amount)
     $itemsDiscountAmount = ($totalLabourCostBeforeDiscount - $totalLabourNetAmount) + ($totalPartsCostBeforeDiscount - $totalPartsNetAmount);
-
-    // Descuento general de la orden de trabajo
-    $workOrderDiscountAmount = $this->discount_amount ?? 0;
-
-    // Total de descuentos
-    $totalDiscountAmount = $itemsDiscountAmount + $workOrderDiscountAmount;
 
     // Net amount (suma de net_amount de items)
     $netAmount = $totalLabourNetAmount + $totalPartsNetAmount;
 
-    // Net amount final (restar descuento general de OT)
-    $netAmountFinal = $netAmount - $workOrderDiscountAmount;
-
-    // IGV sobre el net amount final
-    $taxAmount = $netAmountFinal * (Constants::VAT_TAX / 100);
+    // IGV sobre el net amount
+    $taxAmount = $netAmount * (Constants::VAT_TAX / 100);
 
     // Total final
-    $totalAmount = $netAmountFinal + $taxAmount;
+    $totalAmount = $netAmount + $taxAmount;
 
     return [
       'labour_cost' => (float)$totalLabourCostBeforeDiscount,
@@ -298,7 +311,7 @@ class ApWorkOrder extends Model
       'parts_cost_desc' => (float)$totalPartsNetAmount,
       'total_cost' => (float)$subtotal,
       'net_amount' => (float)$netAmount,
-      'discount_amount' => (float)$totalDiscountAmount,
+      'discount_amount' => (float)$itemsDiscountAmount,
       'tax_amount' => (float)$taxAmount,
       'total_amount' => (float)$totalAmount,
     ];
@@ -307,12 +320,22 @@ class ApWorkOrder extends Model
   /**
    * Calcula totales INCLUYENDO items pendientes de la cotización
    */
-  private function calculateTotalsWithQuotation(): array
+  private function calculateTotalsWithQuotation(?int $groupNumber = null): array
   {
+    // Filter labours by group_number if provided
+    $labours = $groupNumber !== null
+      ? $this->labours->where('group_number', $groupNumber)
+      : $this->labours;
+
+    // Filter parts by group_number if provided
+    $parts = $groupNumber !== null
+      ? $this->parts->where('group_number', $groupNumber)
+      : $this->parts;
+
     // Calculate costs from existing labours (sin descuento)
     $totalLabourCostBeforeDiscount = 0;
     $totalLabourDiscount = 0;
-    foreach ($this->labours as $labour) {
+    foreach ($labours as $labour) {
       $cost = $labour->total_cost ?? 0;
       $discount = ($cost * ($labour->discount_percentage ?? 0)) / 100;
       $totalLabourCostBeforeDiscount += $cost;
@@ -322,7 +345,7 @@ class ApWorkOrder extends Model
     // Calculate costs from existing parts (sin descuento)
     $totalPartsCostBeforeDiscount = 0;
     $totalPartsDiscount = 0;
-    foreach ($this->parts as $part) {
+    foreach ($parts as $part) {
       $cost = $part->total_cost ?? 0;
       $netAmount = $part->net_amount ?? 0;
       $discount = $cost - $netAmount;
@@ -330,8 +353,8 @@ class ApWorkOrder extends Model
       $totalPartsDiscount += $discount;
     }
 
-    // Add pending quotation details
-    if ($this->orderQuotation && $this->orderQuotation->details) {
+    // Add pending quotation details (solo si no se filtró por group_number, ya que la cotización no tiene group_number)
+    if ($groupNumber === null && $this->orderQuotation && $this->orderQuotation->details) {
       $pendingDetails = $this->orderQuotation->details
         ->where('status', ApOrderQuotationDetails::STATUS_PENDING);
 
@@ -357,24 +380,19 @@ class ApWorkOrder extends Model
     // Subtotal sin descuento
     $subtotal = $totalLabourCostBeforeDiscount + $totalPartsCostBeforeDiscount;
 
-    // Total de descuentos (de items + descuento general de la OT)
+    // Total de descuentos de items
     $itemsDiscountAmount = $totalLabourDiscount + $totalPartsDiscount;
-    $workOrderDiscountAmount = $this->discount_amount ?? 0;
-    $totalDiscountAmount = $itemsDiscountAmount + $workOrderDiscountAmount;
 
     // Net amount (suma de net_amount de items)
     $netAmountLabour = $totalLabourCostBeforeDiscount - $totalLabourDiscount;
     $netAmountParts = $totalPartsCostBeforeDiscount - $totalPartsDiscount;
     $netAmount = $netAmountLabour + $netAmountParts;
 
-    // Net amount final (restar descuento general de OT)
-    $netAmountFinal = $netAmount - $workOrderDiscountAmount;
-
-    // IGV sobre el net amount final
-    $taxAmount = $netAmountFinal * (Constants::VAT_TAX / 100);
+    // IGV sobre el net amount
+    $taxAmount = $netAmount * (Constants::VAT_TAX / 100);
 
     // Total Final
-    $totalAmount = $netAmountFinal + $taxAmount;
+    $totalAmount = $netAmount + $taxAmount;
 
     return [
       'labour_cost' => (float)$totalLabourCostBeforeDiscount,
@@ -383,7 +401,7 @@ class ApWorkOrder extends Model
       'parts_cost_desc' => (float)$netAmountParts,
       'total_cost' => (float)$subtotal,
       'net_amount' => (float)$netAmount,
-      'discount_amount' => (float)$totalDiscountAmount,
+      'discount_amount' => (float)$itemsDiscountAmount,
       'tax_amount' => (float)$taxAmount,
       'total_amount' => (float)$totalAmount,
     ];

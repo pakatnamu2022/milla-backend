@@ -382,13 +382,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $workOrder = ApWorkOrder::with(['labours', 'advancesWorkOrder', 'parts', 'orderQuotation.details'])
       ->findOrFail($workOrderId);
 
-    // Si tiene cotización asociada, incluir items pendientes de la cotización
-    if ($workOrder->order_quotation_id && $workOrder->orderQuotation) {
-      $totals = $this->calculateTotalsWithQuotation($workOrder, $groupNumber);
-    } else {
-      // Calculate totals using centralized method
-      $totals = self::calculateWorkOrderTotal($workOrder, $groupNumber);
-    }
+    // Usar el método del modelo para calcular totales
+    $totals = $workOrder->getTotalsArray($groupNumber);
 
     // Calculate total advances
     $totalAdvances = $workOrder->advancesWorkOrder->sum('total') ?? 0;
@@ -427,10 +422,11 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $vehicle = $workOrder->vehicle;
     $currencySymbol = $workOrder->typeCurrency->symbol ?? 'S/';
 
-    // Si tiene cotización asociada, incluir items pendientes de la cotización
-    if ($workOrder->order_quotation_id && $workOrder->orderQuotation) {
-      $totals = $this->calculateTotalsWithQuotation($workOrder);
+    // Usar el método del modelo para calcular totales
+    $totals = $workOrder->getTotalsArray();
 
+    // Si tiene cotización asociada, incluir items pendientes de la cotización para mostrar en el PDF
+    if ($workOrder->order_quotation_id && $workOrder->orderQuotation) {
       // Obtener items pendientes de la cotización para mostrar en el PDF
       $quotationLabours = collect();
       $quotationParts = collect();
@@ -487,8 +483,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $labours = $workOrder->labours->concat($quotationLabours);
       $parts = $workOrder->parts->concat($quotationParts);
     } else {
-      // Calculate totals using centralized method
-      $totals = self::calculateWorkOrderTotal($workOrder);
       $labours = $workOrder->labours;
       $parts = $workOrder->parts;
     }
@@ -516,98 +510,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $pdf->setPaper('a4', 'portrait');
 
     return $pdf->stream("pre-liquidacion-{$workOrder->correlative}.pdf");
-  }
-
-  private function calculateTotalsWithQuotation(ApWorkOrder $workOrder, ?int $groupNumber = null): array
-  {
-    // Filter labours by group_number if provided
-    $labours = $groupNumber !== null
-      ? $workOrder->labours->where('group_number', $groupNumber)
-      : $workOrder->labours;
-
-    // Filter parts by group_number if provided
-    $parts = $groupNumber !== null
-      ? $workOrder->parts->where('group_number', $groupNumber)
-      : $workOrder->parts;
-
-    // Calculate costs from existing labours (sin descuento)
-    $totalLabourCostBeforeDiscount = 0;
-    $totalLabourDiscount = 0;
-    foreach ($labours as $labour) {
-      $cost = $labour->total_cost ?? 0;
-      $discount = ($cost * ($labour->discount_percentage ?? 0)) / 100;
-      $totalLabourCostBeforeDiscount += $cost;
-      $totalLabourDiscount += $discount;
-    }
-
-    // Calculate costs from existing parts (sin descuento)
-    $totalPartsCostBeforeDiscount = 0;
-    $totalPartsDiscount = 0;
-    foreach ($parts as $part) {
-      $cost = $part->total_cost ?? 0;
-      $netAmount = $part->net_amount ?? 0;
-      $discount = $cost - $netAmount;
-      $totalPartsCostBeforeDiscount += $cost;
-      $totalPartsDiscount += $discount;
-    }
-
-    // Add pending quotation details
-    if ($workOrder->orderQuotation && $workOrder->orderQuotation->details) {
-      $pendingDetails = $workOrder->orderQuotation->details
-        ->where('status', ApOrderQuotationDetails::STATUS_PENDING);
-
-      foreach ($pendingDetails as $detail) {
-        $quantity = $detail->quantity ?? 0;
-        $unitPrice = $detail->unit_price ?? 0;
-        $discountPercentage = $detail->discount_percentage ?? 0;
-
-        $itemSubtotal = $quantity * $unitPrice;
-        $itemDiscount = ($itemSubtotal * $discountPercentage) / 100;
-
-        if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
-          $totalLabourCostBeforeDiscount += $itemSubtotal;
-          $totalLabourDiscount += $itemDiscount;
-        } elseif ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_PRODUCT) {
-          $totalPartsCostBeforeDiscount += $itemSubtotal;
-          $totalPartsDiscount += $itemDiscount;
-        }
-      }
-    }
-
-    // Calculate totals
-    // Subtotal sin descuento
-    $subtotal = $totalLabourCostBeforeDiscount + $totalPartsCostBeforeDiscount;
-
-    // Total de descuentos (de items + descuento general de la OT)
-    $itemsDiscountAmount = $totalLabourDiscount + $totalPartsDiscount;
-    $workOrderDiscountAmount = $workOrder->discount_amount ?? 0;
-    $totalDiscountAmount = $itemsDiscountAmount + $workOrderDiscountAmount;
-
-    // Net amount (suma de net_amount de items)
-    $netAmountLabour = $totalLabourCostBeforeDiscount - $totalLabourDiscount;
-    $netAmountParts = $totalPartsCostBeforeDiscount - $totalPartsDiscount;
-    $netAmount = $netAmountLabour + $netAmountParts;
-
-    // Net amount final (restar descuento general de OT)
-    $netAmountFinal = $netAmount - $workOrderDiscountAmount;
-
-    // IGV sobre el net amount final
-    $taxAmount = $netAmountFinal * (Constants::VAT_TAX / 100);
-
-    // Total Final
-    $totalAmount = $netAmountFinal + $taxAmount;
-
-    return [
-      'labour_cost' => (float)$totalLabourCostBeforeDiscount,
-      'parts_cost' => (float)$totalPartsCostBeforeDiscount,
-      'labour_cost_desc' => (float)$netAmountLabour,
-      'parts_cost_desc' => (float)$netAmountParts,
-      'total_cost' => (float)$subtotal,
-      'net_amount' => (float)$netAmount,
-      'discount_amount' => (float)$totalDiscountAmount,
-      'tax_amount' => (float)$taxAmount,
-      'total_amount' => (float)$totalAmount,
-    ];
   }
 
   private function recalculateCurrencyChange(ApWorkOrder $workOrder, int $oldCurrencyId, int $newCurrencyId): void
