@@ -5,24 +5,27 @@
     return 'data:' . mime_content_type($fullPath) . ';base64,' . base64_encode(file_get_contents($fullPath));
   }
 
-  $vehicle  = $vehicle ?? null;
-  $delivery = $delivery ?? null;
+  $vehicle   = $vehicle ?? null;
+  $delivery  = $delivery ?? null;
   $checklist = $checklist ?? null;
 
-  $modelName  = optional($vehicle->model)->description ?? 'N/A';
-  $color      = optional($vehicle->color)->description ?? 'N/A';
-  $year       = $vehicle->year ?? 'N/A';
-  $vin        = $vehicle->vin ?? 'N/A';
-  $engineNum  = $vehicle->engine_number ?? 'N/A';
+  $modelCode    = optional($vehicle->model)->code ?? '';
+  $modelVersion = optional($vehicle->model)->version ?? '';
+  $modelName    = trim($modelCode . ' ' . $modelVersion) ?: 'N/A';
+  $color        = optional($vehicle->color)->description ?? 'N/A';
+  $year         = $vehicle->year ?? 'N/A';
+  $vin          = $vehicle->vin ?? 'N/A';
+  $engineNum    = $vehicle->engine_number ?? 'N/A';
 
-  $clientName = optional($delivery->client)->full_name ?? 'N/A';
-  $clientDoc  = optional($delivery->client)->num_doc ?? '';
-  $advisorName= optional($delivery->advisor)->nombre_completo ?? 'N/A';
-  $sedeName   = optional($delivery->sede)->abreviatura ?? 'N/A';
-  $deliveryDate = $delivery->scheduled_delivery_date ? \Carbon\Carbon::parse($delivery->scheduled_delivery_date)->format('d/m/Y') : 'N/A';
-  $confirmedDate= $checklist->confirmed_at ? \Carbon\Carbon::parse($checklist->confirmed_at)->format('d/m/Y H:i') : '—';
+  $clientName   = optional($delivery->client)->full_name ?? 'N/A';
+  $clientDoc    = optional($delivery->client)->num_doc ?? '';
+  $advisorName  = optional($delivery->advisor)->nombre_completo ?? 'N/A';
+  $sedeName     = optional($delivery->sede)->abreviatura ?? 'N/A';
+  $deliveryDate = $delivery->scheduled_delivery_date
+    ? \Carbon\Carbon::parse($delivery->scheduled_delivery_date)->format('d/m/Y')
+    : 'N/A';
 
-  $items = $checklist->items ?? collect();
+  $items          = $checklist->items ?? collect();
   $receptionItems = $items->where('source', 'reception');
   $poItems        = $items->where('source', 'purchase_order');
   $manualItems    = $items->where('source', 'manual');
@@ -37,398 +40,399 @@
 
     body {
       font-family: Arial, sans-serif;
-      font-size: 9px;
-      color: #1a1a1a;
-      padding: 18px 20px;
+      font-size: 12px;
+      color: #22293a;
+      background: #fff;
+      padding: 0 0 240px;
     }
 
-    /* ── HEADER ─────────────────────────────────── */
-    .header-bar {
-      width: 100%;
-      height: 8px;
-      background: #172e66;
-      margin-bottom: 8px;
+    /* ─── HEADER ─────────────────────────────────── */
+    .page-header {
+      padding: 16px 22px 12px;
+      margin-bottom: 16px;
     }
-
-    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-    .header-table td { vertical-align: middle; padding: 0; border: none; }
-    .logo-cell { width: 100px; }
-    .logo-cell img { max-width: 90px; max-height: 50px; }
-    .title-cell { text-align: center; }
-    .doc-cell { width: 140px; text-align: right; }
-
-    .doc-box {
-      border: 1.5px solid #172e66;
-      border-radius: 4px;
-      padding: 5px 8px;
+    .header-inner   { display: table; width: 100%; }
+    .h-logo         { display: table-cell; width: 120px; vertical-align: middle; }
+    .h-logo img     { max-width: 110px; height: auto; display: block; }
+    .h-title        { display: table-cell; vertical-align: middle; text-align: center; padding: 0 16px; }
+    .h-title-main   { font-size: 19px; font-weight: bold; color: #172e66; letter-spacing: 0.5px; }
+    .h-title-sub    { font-size: 11px; color: #6b7a99; margin-top: 4px; }
+    .h-num          { display: table-cell; width: 130px; vertical-align: middle; text-align: right; }
+    .h-num-badge {
+      border: 1.5px solid #c8d4e8;
+      border-radius: 7px;
+      padding: 8px 14px;
+      text-align: center;
       display: inline-block;
-      min-width: 130px;
     }
-    .doc-box .doc-label { font-size: 7px; color: #172e66; font-weight: bold; letter-spacing: 0.5px; }
-    .doc-box .doc-number { font-size: 14px; font-weight: bold; color: #172e66; }
+    .h-num-lbl  { font-size: 8px; color: #6b7a99; font-weight: bold; letter-spacing: 0.5px; }
+    .h-num-val  { font-size: 16px; font-weight: bold; color: #172e66; margin-top: 2px; white-space: nowrap; }
 
-    .main-title { font-size: 13px; font-weight: bold; color: #172e66; letter-spacing: 0.5px; }
-    .sub-title { font-size: 8px; color: #555; margin-top: 2px; }
+    /* Content wrapper */
+    .content { padding: 0 22px; }
 
-    /* ── SECTION TITLE ──────────────────────────── */
-    .section-title {
-      background: #172e66;
+    /* ─── CARD ───────────────────────────────────── */
+    .card {
+      border: 1px solid #c8d4e8;
+      border-radius: 7px;
+      overflow: hidden;
+      margin-bottom: 11px;
+    }
+    .card-title {
+      background-color: #172e66;
       color: #fff;
       font-weight: bold;
-      font-size: 8.5px;
-      padding: 4px 8px;
-      letter-spacing: 0.5px;
-      margin-top: 10px;
-      margin-bottom: 0;
+      font-size: 10.5px;
+      padding: 6px 12px;
+      letter-spacing: 0.3px;
     }
 
-    /* ── INFO GRID ──────────────────────────────── */
-    .info-table {
-      width: 100%;
-      border-collapse: collapse;
-      border: 1px solid #c5cfe0;
-    }
-    .info-table td {
-      padding: 4px 7px;
-      border: 1px solid #c5cfe0;
-      font-size: 8.5px;
+    /* ─── DATA TABLE ─────────────────────────────── */
+    table.dt { width: 100%; border-collapse: collapse; }
+    table.dt td {
+      padding: 5px 10px;
+      border-bottom: 1px solid #e4eaf4;
+      font-size: 11px;
       vertical-align: top;
     }
-    .info-label {
+    table.dt tr:last-child td { border-bottom: none; }
+    .lbl {
       font-weight: bold;
       color: #172e66;
-      width: 90px;
-      background: #f0f4fa;
+      background: #f4f7fc;
       white-space: nowrap;
+      width: 15%;
     }
-    .info-value { color: #1a1a1a; }
 
-    /* ── CHECKLIST TABLE ────────────────────────── */
-    .cl-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 0;
-    }
-    .cl-table th {
-      background: #172e66;
-      color: #fff;
-      font-size: 8px;
+    /* ─── CHECKLIST TABLE ────────────────────────── */
+    table.cl { width: 100%; border-collapse: collapse; }
+    table.cl th {
+      background-color: #f4f7fc;
+      color: #172e66;
+      font-size: 10.5px;
       font-weight: bold;
-      padding: 4px 6px;
-      text-align: left;
-      border: 1px solid #172e66;
+      padding: 6px 8px;
+      text-align: center;
+      border-right: 1px solid #c8d4e8;
+      border-bottom: 1px solid #c8d4e8;
     }
-    .cl-table td {
-      padding: 4px 6px;
-      border: 1px solid #c5cfe0;
-      font-size: 8.5px;
+    table.cl th:last-child  { border-right: none; }
+    table.cl td {
+      padding: 5px 8px;
+      border-bottom: 1px solid #e4eaf4;
+      border-right: 1px solid #e4eaf4;
+      font-size: 11px;
       vertical-align: middle;
     }
-    .cl-table tr:nth-child(even) td { background: #f7f9fc; }
-    .cl-table tr:nth-child(odd) td  { background: #fff; }
+    table.cl td:last-child   { border-right: none; }
+    table.cl tr:last-child td { border-bottom: none; }
+    table.cl tr:nth-child(even) td { background: #f7faff; }
+    table.cl tr:nth-child(odd)  td { background: #fff; }
 
-    .col-num   { width: 22px;  text-align: center; }
-    .col-desc  { width: auto; }
-    .col-qty   { width: 45px;  text-align: center; }
-    .col-unit  { width: 45px;  text-align: center; }
-    .col-check { width: 50px;  text-align: center; }
+    .col-num   { width: 28px;  text-align: center; }
+    .col-qty   { width: 52px;  text-align: center; }
+    .col-unit  { width: 50px;  text-align: center; }
+    .col-check { width: 60px;  text-align: center; }
     .col-obs   { width: 120px; }
 
-    .checkbox-box {
+    /* Checkbox */
+    .chk {
       display: inline-block;
-      width: 12px;
-      height: 12px;
-      border: 1.5px solid #172e66;
-      background: #fff;
+      padding: 2px 6px;
+      border: 1.5px solid #8fa5c8;
+      border-radius: 4px;
       vertical-align: middle;
-      line-height: 12px;
       text-align: center;
-    }
-    .checkbox-box.checked { background: #172e66; color: #fff; font-size: 9px; font-weight: bold; }
-
-    .badge-reception { color: #0a7; font-size: 7px; font-weight: bold; }
-    .badge-po        { color: #c60; font-size: 7px; font-weight: bold; }
-    .badge-manual    { color: #55a; font-size: 7px; font-weight: bold; }
-
-    .group-header td {
-      background: #e8edf7 !important;
+      font-size: 9px;
       font-weight: bold;
-      font-size: 8px;
-      color: #172e66;
-      padding: 3px 6px;
+      color: #8fa5c8;
+      background: #fff;
+    }
+    .chk.on { background: #172e66; border-color: #172e66; color: #fff; }
+
+    /* ─── DECLARATION ────────────────────────────── */
+    .decl {
+      border: 1px solid #c8d4e8;
+      border-left: 3px solid #172e66;
+      border-radius: 5px;
+      padding: 9px 13px;
+      font-size: 10px;
+      color: #4a5568;
+      margin-bottom: 11px;
+      background: #f9fbff;
     }
 
-    /* ── OBSERVATIONS BOX ───────────────────────── */
-    .obs-box {
-      border: 1px solid #c5cfe0;
-      min-height: 40px;
-      padding: 6px 8px;
-      font-size: 8.5px;
-      margin-top: 0;
+    /* ─── FIRMAS fijas ───────────────────────────── */
+    .sig-fixed {
+      position: fixed;
+      bottom: 44px;
+      left: 22px;
+      right: 22px;
     }
-
-    /* ── SIGNATURE AREA ─────────────────────────── */
-    .signature-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-    }
-    .signature-table td {
-      width: 50%;
-      padding: 8px 10px;
-      vertical-align: bottom;
-    }
-    .sig-box {
-      border: 1px solid #c5cfe0;
-      border-radius: 3px;
-      padding: 6px 10px 4px;
-    }
-    .sig-line {
-      border-top: 1.5px solid #172e66;
-      margin-top: 45px;
+    .sig-wrap {
+      border: 1px solid #c8d4e8;
+      border-radius: 6px;
+      overflow: hidden;
       margin-bottom: 4px;
-    }
-    .sig-label { font-size: 8px; font-weight: bold; color: #172e66; text-align: center; }
-    .sig-sublabel { font-size: 7.5px; color: #555; text-align: center; }
-
-    /* ── FOOTER ─────────────────────────────────── */
-    .footer-bar {
+      display: table;
       width: 100%;
-      height: 5px;
+    }
+    .sig-col {
+      display: table-cell;
+      width: 50%;
+      vertical-align: top;
+      border-right: 1px solid #c8d4e8;
+    }
+    .sig-col:last-child { border-right: none; }
+    .sig-hdr {
       background: #172e66;
-      margin-top: 18px;
-    }
-    .footer-text {
+      color: #fff;
+      font-weight: bold;
+      font-size: 10.5px;
       text-align: center;
-      font-size: 7px;
-      color: #888;
-      margin-top: 4px;
+      padding: 5px 8px;
     }
+    .sig-body  { padding: 8px 12px; }
+    .sig-line  { height: 40px; }
+    .sig-name  { font-size: 10px; font-weight: bold; }
+    .sig-sub   { font-size: 9px; color: #6b7a99; margin-top: 1px; }
+    .sig-foot  { text-align: center; font-size: 8px; color: #8a96b0; }
 
-    .no-items { font-style: italic; color: #888; font-size: 8px; padding: 5px 8px; }
+    /* ─── FOOTER marcas ──────────────────────────── */
+    .foot-fixed {
+      position: fixed;
+      bottom: 0;
+      left: 22px;
+      right: 22px;
+      border-top: 1px solid #c8d4e8;
+      padding: 5px 0 3px;
+      text-align: center;
+      background: #fff;
+    }
+    .foot-fixed img { height: 13px; width: auto; margin: 0 5px; }
   </style>
 </head>
 <body>
 
-  <div class="header-bar"></div>
-
-  <!-- CABECERA -->
-  <table class="header-table">
-    <tr>
-      <td class="logo-cell">
-        @php $logoSrc = base64Img('images/logo.png'); @endphp
-        @if($logoSrc)
-          <img src="{{ $logoSrc }}" alt="Logo">
-        @else
-          <strong style="font-size:11px; color:#172e66;">PAKATNAMU</strong>
-        @endif
-      </td>
-      <td class="title-cell">
-        <div class="main-title">CHECKLIST DE ENTREGA DE VEHÍCULO</div>
-        <div class="sub-title">Automotores Pakatnamu S.A.C. &nbsp;|&nbsp; Conformidad de entrega al cliente</div>
-      </td>
-      <td class="doc-cell">
-        <div class="doc-box">
-          <div class="doc-label">N° CHECKLIST</div>
-          <div class="doc-number">CK-{{ str_pad($checklist->id, 6, '0', STR_PAD_LEFT) }}</div>
-          <div class="doc-label" style="margin-top:3px;">ESTADO</div>
-          <div style="font-size:8px; color:{{ $checklist->status === 'confirmed' ? '#0a7' : '#c60' }}; font-weight:bold;">
-            {{ $checklist->status === 'confirmed' ? 'CONFIRMADO' : 'BORRADOR' }}
-          </div>
-        </div>
-      </td>
-    </tr>
-  </table>
-
-  <!-- DATOS DEL VEHÍCULO -->
-  <div class="section-title">DATOS DEL VEHÍCULO</div>
-  <table class="info-table">
-    <tr>
-      <td class="info-label">Modelo</td>
-      <td class="info-value">{{ $modelName }}</td>
-      <td class="info-label">Año</td>
-      <td class="info-value">{{ $year }}</td>
-      <td class="info-label">Color</td>
-      <td class="info-value">{{ $color }}</td>
-    </tr>
-    <tr>
-      <td class="info-label">VIN / N° Chasis</td>
-      <td class="info-value" colspan="3">{{ $vin }}</td>
-      <td class="info-label">N° Motor</td>
-      <td class="info-value">{{ $engineNum }}</td>
-    </tr>
-  </table>
-
-  <!-- DATOS DE LA ENTREGA -->
-  <div class="section-title" style="margin-top:8px;">DATOS DE LA ENTREGA</div>
-  <table class="info-table">
-    <tr>
-      <td class="info-label">Cliente</td>
-      <td class="info-value" colspan="3">{{ $clientName }} &nbsp;<span style="color:#555;">({{ $clientDoc }})</span></td>
-      <td class="info-label">Sede</td>
-      <td class="info-value">{{ $sedeName }}</td>
-    </tr>
-    <tr>
-      <td class="info-label">Asesor</td>
-      <td class="info-value" colspan="3">{{ $advisorName }}</td>
-      <td class="info-label">F. Entrega</td>
-      <td class="info-value">{{ $deliveryDate }}</td>
-    </tr>
-    @if($checklist->status === 'confirmed')
-    <tr>
-      <td class="info-label">Confirmado por</td>
-      <td class="info-value" colspan="3">{{ optional($checklist->confirmedBy)->name ?? '—' }}</td>
-      <td class="info-label">F. Confirmación</td>
-      <td class="info-value">{{ $confirmedDate }}</td>
-    </tr>
-    @endif
-  </table>
-
-  <!-- CHECKLIST DE ÍTEMS RECEPCIONADOS -->
-  @if($receptionItems->count() > 0)
-    <div class="section-title" style="margin-top:10px;">ÍTEMS VERIFICADOS EN RECEPCIÓN DEL VEHÍCULO</div>
-    <table class="cl-table">
-      <thead>
-        <tr>
-          <th class="col-num">#</th>
-          <th class="col-desc">Descripción</th>
-          <th class="col-qty">Cantidad</th>
-          <th class="col-unit">Unidad</th>
-          <th class="col-check">Conforme</th>
-          <th class="col-obs">Observaciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        @foreach($receptionItems->values() as $i => $item)
-        <tr>
-          <td class="col-num">{{ $i + 1 }}</td>
-          <td class="col-desc">{{ $item->description }}</td>
-          <td class="col-qty">{{ number_format($item->quantity, 0) }}</td>
-          <td class="col-unit">{{ $item->unit ?? '—' }}</td>
-          <td class="col-check">
-            <span class="checkbox-box {{ $item->is_confirmed ? 'checked' : '' }}">{{ $item->is_confirmed ? '✓' : '' }}</span>
-          </td>
-          <td class="col-obs">{{ $item->observations ?? '' }}</td>
-        </tr>
-        @endforeach
-      </tbody>
-    </table>
-  @endif
-
-  <!-- ACCESORIOS DE LA ORDEN DE COMPRA -->
-  @if($poItems->count() > 0)
-    <div class="section-title" style="margin-top:10px;">ACCESORIOS INCLUIDOS EN LA COMPRA</div>
-    <table class="cl-table">
-      <thead>
-        <tr>
-          <th class="col-num">#</th>
-          <th class="col-desc">Accesorio</th>
-          <th class="col-qty">Cantidad</th>
-          <th class="col-unit">Unidad</th>
-          <th class="col-check">Conforme</th>
-          <th class="col-obs">Observaciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        @foreach($poItems->values() as $i => $item)
-        <tr>
-          <td class="col-num">{{ $i + 1 }}</td>
-          <td class="col-desc">{{ $item->description }}</td>
-          <td class="col-qty">{{ number_format($item->quantity, 0) }}</td>
-          <td class="col-unit">{{ $item->unit ?? '—' }}</td>
-          <td class="col-check">
-            <span class="checkbox-box {{ $item->is_confirmed ? 'checked' : '' }}">{{ $item->is_confirmed ? '✓' : '' }}</span>
-          </td>
-          <td class="col-obs">{{ $item->observations ?? '' }}</td>
-        </tr>
-        @endforeach
-      </tbody>
-    </table>
-  @endif
-
-  <!-- ÍTEMS ADICIONALES -->
-  @if($manualItems->count() > 0)
-    <div class="section-title" style="margin-top:10px;">ÍTEMS ADICIONALES</div>
-    <table class="cl-table">
-      <thead>
-        <tr>
-          <th class="col-num">#</th>
-          <th class="col-desc">Descripción</th>
-          <th class="col-qty">Cantidad</th>
-          <th class="col-unit">Unidad</th>
-          <th class="col-check">Conforme</th>
-          <th class="col-obs">Observaciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        @foreach($manualItems->values() as $i => $item)
-        <tr>
-          <td class="col-num">{{ $i + 1 }}</td>
-          <td class="col-desc">{{ $item->description }}</td>
-          <td class="col-qty">{{ number_format($item->quantity, 0) }}</td>
-          <td class="col-unit">{{ $item->unit ?? '—' }}</td>
-          <td class="col-check">
-            <span class="checkbox-box {{ $item->is_confirmed ? 'checked' : '' }}">{{ $item->is_confirmed ? '✓' : '' }}</span>
-          </td>
-          <td class="col-obs">{{ $item->observations ?? '' }}</td>
-        </tr>
-        @endforeach
-      </tbody>
-    </table>
-  @endif
-
-  @if($items->count() === 0)
-    <div style="margin-top:10px; padding:8px; border:1px solid #c5cfe0; color:#888; font-style:italic;">
-      No se registraron ítems en este checklist.
+{{-- ── ENCABEZADO ──────────────────────────────── --}}
+<div class="page-header">
+  <div class="header-inner">
+    <div class="h-logo">
+      <img src="{{ base64Img('images/ap/logo-ap.png') }}" alt="AP Logo">
     </div>
-  @endif
-
-  <!-- OBSERVACIONES GENERALES -->
-  <div class="section-title" style="margin-top:12px;">OBSERVACIONES GENERALES</div>
-  <div class="obs-box">{{ $checklist->observations ?? 'Sin observaciones.' }}</div>
-
-  <!-- DECLARACIÓN -->
-  <div style="margin-top:14px; border:1px solid #c5cfe0; border-left: 4px solid #172e66; padding: 8px 10px; font-size:8px; color:#333;">
-    El cliente declara haber recibido el vehículo descrito en el presente documento en las condiciones
-    indicadas, con todos los ítems verificados marcados como conformes, y sin perjuicio de las
-    observaciones anotadas. La firma del presente documento implica la aceptación y conformidad
-    con la entrega realizada.
+    <div class="h-title">
+      <div class="h-title-main">CHECKLIST DE ENTREGA DE VEHÍCULO</div>
+      <div class="h-title-sub">AUTOMOTORES PAKATNAMU S.A.C. &nbsp;·&nbsp; Conformidad de entrega al cliente</div>
+    </div>
+    <div class="h-num">
+      <div class="h-num-badge">
+        <div class="h-num-lbl">N° CHECKLIST</div>
+        <div class="h-num-val">CK-{{ str_pad($checklist->id, 6, '0', STR_PAD_LEFT) }}</div>
+      </div>
+    </div>
   </div>
+</div>
 
-  <!-- FIRMAS -->
-  <table class="signature-table">
+<div class="content">
+
+{{-- ── DATOS DEL VEHÍCULO ──────────────────────── --}}
+<div class="card">
+  <div class="card-title">DATOS DEL VEHÍCULO</div>
+  <table class="dt">
     <tr>
-      <td style="padding-right:15px;">
-        <div class="sig-box">
-          <div class="sig-line"></div>
-          <div class="sig-label">FIRMA DEL CLIENTE</div>
-          <div class="sig-sublabel">{{ $clientName }}</div>
-          <div class="sig-sublabel">DNI / RUC: {{ $clientDoc }}</div>
-        </div>
-      </td>
-      <td style="padding-left:15px;">
-        <div class="sig-box">
-          <div class="sig-line"></div>
-          <div class="sig-label">ASESOR DE VENTAS</div>
-          <div class="sig-sublabel">{{ $advisorName }}</div>
-          <div class="sig-sublabel">Sede: {{ $sedeName }}</div>
-        </div>
-      </td>
+      <td class="lbl">Modelo / Versión</td>
+      <td>{{ $modelName }}</td>
+      <td class="lbl">Año</td>
+      <td style="width:9%;">{{ $year }}</td>
+      <td class="lbl">Color</td>
+      <td>{{ $color }}</td>
     </tr>
     <tr>
-      <td colspan="2" style="text-align:center; padding-top:10px;">
-        <div style="font-size:7.5px; color:#555;">
-          Fecha y hora de impresión: {{ \Carbon\Carbon::now()->format('d/m/Y H:i:s') }}
-        </div>
-      </td>
+      <td class="lbl">VIN / N° Chasis</td>
+      <td colspan="3">{{ $vin }}</td>
+      <td class="lbl">N° Motor</td>
+      <td>{{ $engineNum }}</td>
     </tr>
   </table>
+</div>
 
-  <div class="footer-bar"></div>
-  <div class="footer-text">
-    Automotores Pakatnamu S.A.C. &nbsp;—&nbsp; Documento interno de conformidad de entrega &nbsp;—&nbsp;
-    Checklist N° CK-{{ str_pad($checklist->id, 6, '0', STR_PAD_LEFT) }}
+{{-- ── DATOS DE LA ENTREGA ─────────────────────── --}}
+<div class="card">
+  <div class="card-title">DATOS DE LA ENTREGA</div>
+  <table class="dt">
+    <tr>
+      <td class="lbl">Cliente</td>
+      <td colspan="3">{{ $clientName }}&nbsp;<span style="color:#8a96b0;">({{ $clientDoc }})</span></td>
+      <td class="lbl">Sede</td>
+      <td>{{ $sedeName }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Asesor</td>
+      <td colspan="3">{{ $advisorName }}</td>
+      <td class="lbl">F. Entrega</td>
+      <td>{{ $deliveryDate }}</td>
+    </tr>
+  </table>
+</div>
+
+{{-- ── ÍTEMS RECEPCIÓN ─────────────────────────── --}}
+@if($receptionItems->count() > 0)
+<div class="card">
+  <div class="card-title">ÍTEMS VERIFICADOS EN RECEPCIÓN DEL VEHÍCULO</div>
+  <table class="cl">
+    <thead>
+      <tr>
+        <th class="col-num">#</th>
+        <th style="text-align:left;">Descripción</th>
+        <th class="col-qty">Cantidad</th>
+        <th class="col-unit">Unidad</th>
+        <th class="col-check">Conforme</th>
+        <th class="col-obs" style="text-align:left;">Observaciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      @foreach($receptionItems->values() as $i => $item)
+      <tr>
+        <td class="col-num">{{ $i + 1 }}</td>
+        <td>{{ $item->description }}</td>
+        <td class="col-qty">{{ number_format($item->quantity, 0) }}</td>
+        <td class="col-unit">{{ $item->unit ?? '—' }}</td>
+        <td class="col-check"><span class="chk {{ $item->is_confirmed ? 'on' : '' }}">{{ $item->is_confirmed ? 'Si' : 'No' }}</span></td>
+        <td class="col-obs">{{ $item->observations ?? '' }}</td>
+      </tr>
+      @endforeach
+    </tbody>
+  </table>
+</div>
+@endif
+
+{{-- ── ACCESORIOS OC ───────────────────────────── --}}
+@if($poItems->count() > 0)
+<div class="card">
+  <div class="card-title">ACCESORIOS INCLUIDOS EN LA COMPRA</div>
+  <table class="cl">
+    <thead>
+      <tr>
+        <th class="col-num">#</th>
+        <th style="text-align:left;">Accesorio</th>
+        <th class="col-qty">Cantidad</th>
+        <th class="col-unit">Unidad</th>
+        <th class="col-check">Conforme</th>
+        <th class="col-obs" style="text-align:left;">Observaciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      @foreach($poItems->values() as $i => $item)
+      <tr>
+        <td class="col-num">{{ $i + 1 }}</td>
+        <td>{{ $item->description }}</td>
+        <td class="col-qty">{{ number_format($item->quantity, 0) }}</td>
+        <td class="col-unit">{{ $item->unit ?? '—' }}</td>
+        <td class="col-check"><span class="chk {{ $item->is_confirmed ? 'on' : '' }}">{{ $item->is_confirmed ? 'Si' : 'No' }}</span></td>
+        <td class="col-obs">{{ $item->observations ?? '' }}</td>
+      </tr>
+      @endforeach
+    </tbody>
+  </table>
+</div>
+@endif
+
+{{-- ── ÍTEMS ADICIONALES ──────────────────────── --}}
+@if($manualItems->count() > 0)
+<div class="card">
+  <div class="card-title">ÍTEMS ADICIONALES</div>
+  <table class="cl">
+    <thead>
+      <tr>
+        <th class="col-num">#</th>
+        <th style="text-align:left;">Descripción</th>
+        <th class="col-qty">Cantidad</th>
+        <th class="col-unit">Unidad</th>
+        <th class="col-check">Conforme</th>
+        <th class="col-obs" style="text-align:left;">Observaciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      @foreach($manualItems->values() as $i => $item)
+      <tr>
+        <td class="col-num">{{ $i + 1 }}</td>
+        <td>{{ $item->description }}</td>
+        <td class="col-qty">{{ number_format($item->quantity, 0) }}</td>
+        <td class="col-unit">{{ $item->unit ?? '—' }}</td>
+        <td class="col-check"><span class="chk {{ $item->is_confirmed ? 'on' : '' }}">{{ $item->is_confirmed ? 'Si' : 'No' }}</span></td>
+        <td class="col-obs">{{ $item->observations ?? '' }}</td>
+      </tr>
+      @endforeach
+    </tbody>
+  </table>
+</div>
+@endif
+
+@if($items->count() === 0)
+<div style="border:1px solid #c8d4e8; border-radius:6px; padding:10px 12px;
+            font-style:italic; color:#8a96b0; font-size:11px; margin-bottom:11px;">
+  No se registraron ítems en este checklist.
+</div>
+@endif
+
+{{-- ── OBSERVACIONES GENERALES ─────────────────── --}}
+<div class="card">
+  <div class="card-title">OBSERVACIONES GENERALES</div>
+  <div style="padding:8px 12px; font-size:11px; min-height:36px; background:#fff;">
+    {{ $checklist->observations ?? 'Sin observaciones.' }}
   </div>
+</div>
+
+{{-- ── DECLARACIÓN ──────────────────────────────── --}}
+<div class="decl">
+  El cliente declara haber recibido el vehículo descrito en el presente documento en las condiciones
+  indicadas, con todos los ítems verificados marcados como conformes, y sin perjuicio de las
+  observaciones anotadas. La firma del presente documento implica la aceptación y conformidad
+  con la entrega realizada.
+</div>
+
+</div>{{-- /content --}}
+
+{{-- ── FIRMAS fijas encima del footer ─────────── --}}
+<div class="sig-fixed">
+  <div class="sig-wrap">
+    <div class="sig-col">
+      <div class="sig-hdr">FIRMA DEL CLIENTE</div>
+      <div class="sig-body">
+        <div class="sig-line"></div>
+        <div class="sig-name">{{ $clientName }}</div>
+        <div class="sig-sub">DNI / RUC: {{ $clientDoc }}</div>
+      </div>
+    </div>
+    <div class="sig-col">
+      <div class="sig-hdr">ASESOR DE VENTAS</div>
+      <div class="sig-body">
+        <div class="sig-line"></div>
+        <div class="sig-name">{{ $advisorName }}</div>
+        <div class="sig-sub">Sede: {{ $sedeName }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="sig-foot">
+    Automotores Pakatnamu S.A.C. &nbsp;·&nbsp; Documento de conformidad de entrega &nbsp;·&nbsp;
+    CK-{{ str_pad($checklist->id, 6, '0', STR_PAD_LEFT) }} &nbsp;·&nbsp;
+    {{ \Carbon\Carbon::now()->format('d/m/Y H:i') }}
+  </div>
+</div>
+
+{{-- ── FOOTER marcas fijo al fondo ─────────────── --}}
+<div class="foot-fixed">
+  <img src="{{ base64Img('images/ap/brands/suzuki.png') }}" alt="Suzuki">
+  <img src="{{ base64Img('images/ap/brands/subaru.png') }}" alt="Subaru">
+  <img src="{{ base64Img('images/ap/brands/dfsk.png') }}" alt="DFSK">
+  <img src="{{ base64Img('images/ap/brands/mazda.png') }}" alt="Mazda">
+  <img src="{{ base64Img('images/ap/brands/citroen.jpg') }}" alt="Citroën">
+  <img src="{{ base64Img('images/ap/brands/renault.png') }}" alt="Renault">
+  <img src="{{ base64Img('images/ap/brands/haval.png') }}" alt="Haval">
+  <img src="{{ base64Img('images/ap/brands/great-wall.png') }}" alt="Great Wall">
+  <img src="{{ base64Img('images/ap/brands/changan.png') }}" alt="Changan">
+  <img src="{{ base64Img('images/ap/brands/jac.png') }}" alt="JAC">
+</div>
 
 </body>
 </html>

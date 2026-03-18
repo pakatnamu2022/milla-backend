@@ -225,7 +225,7 @@ class ApDeliveryChecklistService
   public function generatePdf(int $id)
   {
     $checklist = $this->findChecklist($id);
-    $checklist->load(['items', 'vehicleDelivery.vehicle.model', 'vehicleDelivery.advisor', 'vehicleDelivery.client', 'vehicleDelivery.sede', 'confirmedBy']);
+    $checklist->load(['items', 'vehicleDelivery.vehicle.model', 'vehicleDelivery.vehicle.color', 'vehicleDelivery.advisor', 'vehicleDelivery.client', 'vehicleDelivery.sede', 'confirmedBy']);
 
     $delivery = $checklist->vehicleDelivery;
     $vehicle = $delivery->vehicle;
