@@ -23,9 +23,7 @@ class StoreDebitNoteRequest extends StoreRequest
       'sunat_concept_debit_note_type_id',
     ];
 
-    $dataToMerge = [
-      'serie',
-    ];
+    $dataToMerge = [];
 
     foreach ($numericFields as $field) {
       if ($this->has($field) && $this->input($field) !== null && $this->input($field) !== '') {
@@ -109,7 +107,7 @@ class StoreDebitNoteRequest extends StoreRequest
       ],
 
       // Serie para la nota de débito
-      'series' => [
+      'series_id' => [
         'required',
         'integer',
         Rule::exists('assign_sales_series', 'id')
@@ -122,7 +120,6 @@ class StoreDebitNoteRequest extends StoreRequest
 
       // Fechas
       'fecha_de_emision' => 'required|date',
-      'fecha_nota_debito' => 'required|date',
 
       // Campos opcionales
       'observaciones' => 'nullable|string|max:1000',
@@ -173,11 +170,9 @@ class StoreDebitNoteRequest extends StoreRequest
       'original_document_id.exists' => 'El documento original no existe, no está aceptado por SUNAT o está anulado',
       'sunat_concept_debit_note_type_id.required' => 'El tipo de nota de débito es obligatorio',
       'sunat_concept_debit_note_type_id.exists' => 'El tipo de nota de débito seleccionado no es válido',
-      'series.required' => 'La serie es obligatoria',
+      'series_id.required' => 'La serie es obligatoria',
       'serie.size' => 'La serie debe tener exactamente 4 caracteres',
       'fecha_de_emision.required' => 'La fecha de emisión es obligatoria',
-      'fecha_nota_debito.required' => 'La fecha de la nota de débito es obligatoria',
-      'fecha_nota_debito.date' => 'La fecha de la nota de débito no es válida',
       'items.required' => 'Debe agregar al menos un item a la nota de débito',
       'items.min' => 'Debe agregar al menos un item a la nota de débito',
       'items.*.descripcion.required' => 'La descripción del item es obligatoria',

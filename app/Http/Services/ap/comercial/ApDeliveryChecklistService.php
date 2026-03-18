@@ -10,6 +10,7 @@ use App\Models\ap\comercial\Vehicles;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ApDeliveryChecklistService
 {
@@ -28,14 +29,29 @@ class ApDeliveryChecklistService
       return new ApDeliveryChecklistResource($checklist);
     }
 
-    // Inicializar con ítems sugeridos (no se guardan aún, solo se devuelven)
-    $suggestedItems = $this->buildSuggestedItems($delivery);
+    return DB::transaction(function () use ($delivery, $vehicleDeliveryId) {
+      $checklist = ApDeliveryChecklist::create([
+        'vehicle_delivery_id' => $vehicleDeliveryId,
+        'status' => ApDeliveryChecklist::STATUS_DRAFT,
+        'created_by' => auth()->id(),
+      ]);
 
-    return new ApDeliveryChecklistResource(new ApDeliveryChecklist([
-      'vehicle_delivery_id' => $vehicleDeliveryId,
-      'status' => ApDeliveryChecklist::STATUS_DRAFT,
-      'suggested_items' => $suggestedItems,
-    ]));
+      foreach ($this->buildSuggestedItems($delivery) as $item) {
+        ApDeliveryChecklistItem::create([
+          'delivery_checklist_id' => $checklist->id,
+          'source' => $item['source'],
+          'source_id' => $item['source_id'] ?? null,
+          'description' => $item['description'],
+          'quantity' => $item['quantity'] ?? 1,
+          'unit' => $item['unit'] ?? null,
+          'is_confirmed' => false,
+          'observations' => null,
+          'sort_order' => $item['sort_order'],
+        ]);
+      }
+
+      return new ApDeliveryChecklistResource($checklist->load('items'));
+    });
   }
 
   /**
@@ -45,7 +61,7 @@ class ApDeliveryChecklistService
   {
     return DB::transaction(function () use ($data) {
       $vehicleDeliveryId = $data['vehicle_delivery_id'];
-      $delivery = $this->findDelivery($vehicleDeliveryId);
+      $this->findDelivery($vehicleDeliveryId);
 
       $existing = ApDeliveryChecklist::where('vehicle_delivery_id', $vehicleDeliveryId)->first();
       if ($existing) {
@@ -54,25 +70,24 @@ class ApDeliveryChecklistService
 
       $checklist = ApDeliveryChecklist::create([
         'vehicle_delivery_id' => $vehicleDeliveryId,
-        'observations'        => $data['observations'] ?? null,
-        'status'              => ApDeliveryChecklist::STATUS_DRAFT,
-        'created_by'          => auth()->id(),
+        'observations' => $data['observations'] ?? null,
+        'status' => ApDeliveryChecklist::STATUS_DRAFT,
+        'created_by' => auth()->id(),
       ]);
 
-      // Si vienen ítems en el request, usarlos; si no, auto-poblar desde recepción y OC
-      $items = $data['items'] ?? $this->buildSuggestedItems($delivery);
+      $items = $data['items'] ?? [];
 
       foreach ($items as $index => $item) {
         ApDeliveryChecklistItem::create([
           'delivery_checklist_id' => $checklist->id,
-          'source'                => $item['source'] ?? ApDeliveryChecklistItem::SOURCE_MANUAL,
-          'source_id'             => $item['source_id'] ?? null,
-          'description'           => $item['description'],
-          'quantity'              => $item['quantity'] ?? 1,
-          'unit'                  => $item['unit'] ?? null,
-          'is_confirmed'          => $item['is_confirmed'] ?? false,
-          'observations'          => $item['observations'] ?? null,
-          'sort_order'            => $item['sort_order'] ?? $index,
+          'source' => $item['source'] ?? ApDeliveryChecklistItem::SOURCE_MANUAL,
+          'source_id' => $item['source_id'] ?? null,
+          'description' => $item['description'],
+          'quantity' => $item['quantity'] ?? 1,
+          'unit' => $item['unit'] ?? null,
+          'is_confirmed' => $item['is_confirmed'] ?? false,
+          'observations' => $item['observations'] ?? null,
+          'sort_order' => $item['sort_order'] ?? $index,
         ]);
       }
 
@@ -114,7 +129,7 @@ class ApDeliveryChecklistService
     }
 
     $checklist->update([
-      'status'       => ApDeliveryChecklist::STATUS_CONFIRMED,
+      'status' => ApDeliveryChecklist::STATUS_CONFIRMED,
       'confirmed_at' => now(),
       'confirmed_by' => auth()->id(),
     ]);
@@ -137,14 +152,14 @@ class ApDeliveryChecklistService
 
     ApDeliveryChecklistItem::create([
       'delivery_checklist_id' => $checklist->id,
-      'source'                => ApDeliveryChecklistItem::SOURCE_MANUAL,
-      'source_id'             => null,
-      'description'           => $data['description'],
-      'quantity'              => $data['quantity'] ?? 1,
-      'unit'                  => $data['unit'] ?? null,
-      'is_confirmed'          => false,
-      'observations'          => $data['observations'] ?? null,
-      'sort_order'            => $lastOrder + 1,
+      'source' => ApDeliveryChecklistItem::SOURCE_MANUAL,
+      'source_id' => null,
+      'description' => $data['description'],
+      'quantity' => $data['quantity'] ?? 1,
+      'unit' => $data['unit'] ?? null,
+      'is_confirmed' => false,
+      'observations' => $data['observations'] ?? null,
+      'sort_order' => $lastOrder + 1,
     ]);
 
     return new ApDeliveryChecklistResource($checklist->load('items'));
@@ -170,7 +185,7 @@ class ApDeliveryChecklistService
 
     $fillable = [];
     if (isset($data['is_confirmed'])) $fillable['is_confirmed'] = $data['is_confirmed'];
-    if (isset($data['observations']))  $fillable['observations'] = $data['observations'];
+    if (isset($data['observations'])) $fillable['observations'] = $data['observations'];
     if (isset($data['quantity']) && !$checklist->isConfirmed()) $fillable['quantity'] = $data['quantity'];
     if (isset($data['description']) && !$checklist->isConfirmed()) $fillable['description'] = $data['description'];
     if (isset($data['unit']) && !$checklist->isConfirmed()) $fillable['unit'] = $data['unit'];
@@ -217,8 +232,8 @@ class ApDeliveryChecklistService
 
     $pdf = Pdf::loadView('reports.ap.comercial.delivery-checklist', [
       'checklist' => $checklist,
-      'delivery'  => $delivery,
-      'vehicle'   => $vehicle,
+      'delivery' => $delivery,
+      'vehicle' => $vehicle,
     ]);
 
     $pdf->setPaper('a4', 'portrait');
@@ -243,20 +258,22 @@ class ApDeliveryChecklistService
 
     $receivingGuide = $vehicle?->shippingGuideReceiving;
 
+    Log::info($receivingGuide);
+
     if ($receivingGuide) {
       foreach ($receivingGuide->receivingChecklists as $rcItem) {
         $description = $rcItem->receiving?->description;
         if (!$description) continue;
 
         $items[] = [
-          'source'      => ApDeliveryChecklistItem::SOURCE_RECEPTION,
-          'source_id'   => $rcItem->id,
+          'source' => ApDeliveryChecklistItem::SOURCE_RECEPTION,
+          'source_id' => $rcItem->id,
           'description' => $description,
-          'quantity'    => $rcItem->quantity ?? 1,
-          'unit'        => null,
+          'quantity' => $rcItem->quantity ?? 1,
+          'unit' => null,
           'is_confirmed' => false,
           'observations' => null,
-          'sort_order'  => $order++,
+          'sort_order' => $order++,
         ];
       }
     }
@@ -272,14 +289,14 @@ class ApDeliveryChecklistService
         if (!$description) continue;
 
         $items[] = [
-          'source'       => ApDeliveryChecklistItem::SOURCE_PURCHASE_ORDER,
-          'source_id'    => $accessory->id,
-          'description'  => $description,
-          'quantity'     => $accessory->quantity ?? 1,
-          'unit'         => null,
+          'source' => ApDeliveryChecklistItem::SOURCE_PURCHASE_ORDER,
+          'source_id' => $accessory->id,
+          'description' => $description,
+          'quantity' => $accessory->quantity ?? 1,
+          'unit' => null,
           'is_confirmed' => false,
           'observations' => null,
-          'sort_order'   => $order++,
+          'sort_order' => $order++,
         ];
       }
     }
