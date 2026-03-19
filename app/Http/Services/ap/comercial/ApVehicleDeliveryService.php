@@ -8,6 +8,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\ApDeliveryChecklist;
 use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
@@ -41,8 +42,10 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
   public function list(Request $request)
   {
+    $query = ApVehicleDelivery::with(['ShippingGuide', 'deliveryChecklist']);
+
     return $this->getFilteredResults(
-      ApVehicleDelivery::class,
+      $query,
       $request,
       ApVehicleDelivery::filters,
       ApVehicleDelivery::sorts,
@@ -105,7 +108,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
   public function show($id)
   {
-    $vehicleDelivery = ApVehicleDelivery::with('ShippingGuide')->find($id);
+    $vehicleDelivery = ApVehicleDelivery::with(['ShippingGuide', 'deliveryChecklist'])->find($id);
     if (!$vehicleDelivery) {
       throw new Exception('Entrega de Vehículo no encontrado');
     }
@@ -224,6 +227,15 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           $existingShippingGuide->update($updateData);
 
           return new ShippingGuidesResource($existingShippingGuide->fresh());
+        }
+
+        // Validar que exista un checklist de entrega confirmado antes de generar la guía
+        $checklist = ApDeliveryChecklist::where('vehicle_delivery_id', $id)->first();
+        if (!$checklist) {
+          throw new Exception('Debe crear y confirmar el checklist de entrega antes de generar la guía de remisión');
+        }
+        if (!$checklist->isConfirmed()) {
+          throw new Exception('El checklist de entrega debe estar confirmado antes de generar la guía de remisión');
         }
 
         // Si no existe, crear una nueva guía (código original)

@@ -38,7 +38,7 @@ class NubefactApiService
     $payload = $this->buildDocumentPayload($document);
 
 //    throw new Exception(json_encode($payload));
-    $endpoint = $this->getEndpointForDocumentType($document->documentType->code_nubefact);
+//    $endpoint = $this->getEndpointForDocumentType($document->documentType->code_nubefact);
 
     $logData = [
       'ap_billing_electronic_document_id' => $document->id,
@@ -50,7 +50,7 @@ class NubefactApiService
       $response = Http::withHeaders([
         'Authorization' => 'Token token="' . $this->token . '"',
         'Content-Type' => 'application/json',
-      ])->post($this->apiUrl . $endpoint, $payload);
+      ])->post($this->apiUrl, $payload);
 
       $responseData = $response->json();
       $httpStatusCode = $response->status();
@@ -318,6 +318,7 @@ class NubefactApiService
       'enviar_automaticamente_al_cliente' => $document->enviar_automaticamente_al_cliente,
       'codigo_unico' => $document->codigo_unico ?? uniqid('DOC_'),
       'observaciones' => $document->observaciones ?? '',
+//      'formato_de_pdf' => 'TICKET'
     ];
 
     // Agregar emails adicionales si existen

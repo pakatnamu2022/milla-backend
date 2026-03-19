@@ -17,6 +17,7 @@ class ApAccountingAccountPlan extends Model
     'code_dynamics',
     'description',
     'is_detraction',
+    'type',
     'status',
   ];
 
@@ -25,6 +26,7 @@ class ApAccountingAccountPlan extends Model
     'code_dynamics' => '=',
     'is_detraction' => '=',
     'status' => '=',
+    'type' => '=',
   ];
 
   const sorts = [
@@ -34,6 +36,10 @@ class ApAccountingAccountPlan extends Model
     'is_detraction',
     'status',
   ];
+
+  const int TYPE_SALE = 0;
+  const int TYPE_CREDIT_NOTE = 1;
+  const int TYPE_DEBIT_NOTE = 2;
 
   const LABOUR_ACCOUNT_ID = 24;
 

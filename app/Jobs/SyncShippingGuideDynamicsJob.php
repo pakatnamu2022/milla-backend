@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Http\Services\ap\postventa\gestionProductos\TransferReceptionService;
+use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\postventa\gestionProductos\TransferReception;
@@ -85,27 +86,26 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
   }
 
   /**
-   * Procesa una guía de remisión específica
-   * Similar a processPurchaseOrder en SyncInvoiceDynamicsJob
+   * Procesa una guía de remisión específica.
+   * Separa el flujo según el tipo: comercial (venta) vs postventa (transferencia).
    */
   protected function processShippingGuide(int $shippingGuideId): void
   {
     $shippingGuide = ShippingGuides::find($shippingGuideId);
 
-    if (!$shippingGuide) {
+    if (!$shippingGuide || !$shippingGuide->document_number) {
       return;
     }
 
-    if (!$shippingGuide->document_number) {
-      return;
-    }
-
-    // Consultar el PA para obtener los datos de la transferencia de inventario
     try {
-      // Determinar si está cancelada antes de construir el TransferenciaId
-      $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+      // Guías comerciales de VENTA (dyn_series con prefijo CV-) → neIvConsultarAjustesInventario
+      if (!empty($shippingGuide->dyn_series) && str_starts_with($shippingGuide->dyn_series, 'CV-')) {
+        $this->processCommercialDeliveryGuide($shippingGuide);
+        return;
+      }
 
-      // Usar el método del modelo para obtener el TransferenciaId correcto
+      // Guías de transferencia (POSTVENTA) → neIvConsultarTransferenciasInventario
+      $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
       $transactionId = $shippingGuide->getDynamicsTransferTransactionId($isCancelled);
       $result = $this->consultStoredProcedure($transactionId);
 
@@ -117,7 +117,6 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         return;
       }
 
-      // Obtener el Documento del resultado de Dynamics retorna (Documento, Fecha, Estado)
       $dynSeriesFromDynamics = isset($result->Documento) ? trim($result->Documento) : null;
 
       if (empty($dynSeriesFromDynamics)) {
@@ -128,15 +127,12 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         return;
       }
 
-      // Verificar si la transferencia ya está contabilizada en Dynamics
       $isAccounted = ($result->Estado === 'CONTABILIZADO');
 
-      // Actualizar el dyn_series de la guía
       $shippingGuide->update([
 //        'dyn_series' => $dynSeriesFromDynamics,
         'is_accounted' => $isAccounted,
       ]);
-
 
       if (!$isAccounted) {
         Log::info('La transferencia aún no está contabilizada en Dynamics', [
@@ -146,8 +142,6 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         return;
       }
 
-      // TODO: Validar solo cuando son transferencias POSVENTA ONLY
-      // Obtener el TransferReception asociado a la guía
       $transferReception = TransferReception::where('shipping_guide_id', $shippingGuide->id)->first();
 
       if (!$transferReception) {
@@ -158,7 +152,6 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         return;
       }
 
-      // Obtener el TransferMovement (TRANSFER_OUT)
       $transferOutMovement = $transferReception->transferMovement;
 
       if (!$transferOutMovement) {
@@ -169,17 +162,40 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         return;
       }
 
-      // Ejecutar generateInventoryMovement del servicio
       $transferReceptionService = new TransferReceptionService();
       $transferReceptionService->generateInventoryMovement($transferReception, $transferOutMovement);
     } catch (\Exception $e) {
       Log::error('Error procesando guía de remisión en Dynamics', [
         'shipping_guide_id' => $shippingGuide->id,
-        'transaction_id' => $transactionId ?? 'N/A',
         'error' => $e->getMessage()
       ]);
       throw $e;
     }
+  }
+
+  /**
+   * Procesa guías comerciales de VENTA usando neIvConsultarAjustesInventario.
+   * Si el Numero del resultado coincide con el dyn_series → el movimiento fue hecho → entrega completa.
+   */
+  protected function processCommercialDeliveryGuide(ShippingGuides $shippingGuide): void
+  {
+    $results = $this->consultAjustesInventario($shippingGuide->dyn_series);
+
+    $found = collect($results)->first(
+      fn($row) => trim($row->Numero ?? '') === $shippingGuide->dyn_series
+    );
+
+    if (!$found) {
+      return;
+    }
+
+    $shippingGuide->update(['is_accounted' => true]);
+
+    ApVehicleDelivery::where('shipping_guide_id', $shippingGuide->id)
+      ->update([
+        'status_delivery' => 'completed',
+        'real_delivery_date' => now(),
+      ]);
   }
 
   /**
@@ -201,6 +217,25 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
     } catch (\Exception $e) {
       Log::error('Error ejecutando PA neIvConsultarTransferenciasInventario', [
         'transaction_id' => $transactionId,
+        'error' => $e->getMessage()
+      ]);
+      throw $e;
+    }
+  }
+
+  /**
+   * Consulta neIvConsultarAjustesInventario para verificar si el movimiento comercial ya existe.
+   * Retorna todos los resultados para que el caller filtre por Numero.
+   */
+  // TODO: Pasar $documentNumber como parámetro al SP cuando esté disponible en Dynamics
+  protected function consultAjustesInventario(string $documentNumber): array
+  {
+    try {
+      return DB::connection('dbtest')
+        ->select("EXEC neIvConsultarAjustesInventario");
+    } catch (\Exception $e) {
+      Log::error('Error ejecutando PA neIvConsultarAjustesInventario', [
+        'document_number' => $documentNumber,
         'error' => $e->getMessage()
       ]);
       throw $e;
