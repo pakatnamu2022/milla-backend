@@ -64,6 +64,7 @@ class ApOrderQuotationsResource extends JsonResource
           ? GeneralMaster::find(GeneralMaster::COST_PER_MAN_HOUR_VP_ID)->value
           : GeneralMaster::find(GeneralMaster::COST_PER_MAN_HOUR_VL_ID)->value
       ),
+      'is_requested_by_management' => $this->is_requested_by_management,
 
       // Relations
       'details' => ApOrderQuotationDetailsResource::collection($this->details),

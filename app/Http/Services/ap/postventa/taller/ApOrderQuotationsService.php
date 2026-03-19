@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\EmailService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
@@ -14,6 +15,7 @@ use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\ExchangeRate;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Exception;
@@ -23,6 +25,7 @@ use Illuminate\Support\Facades\DB;
 class ApOrderQuotationsService extends BaseService implements BaseServiceInterface
 {
   protected DigitalFileService $digitalFileService;
+  protected EmailService $emailService;
 
   // Configuración de rutas para archivos
   private const FILE_PATHS = [
@@ -30,9 +33,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     'customer_signature_delivery' => '/ap/postventa/taller/cotizaciones/firmas-entrega/',
   ];
 
-  public function __construct(DigitalFileService $digitalFileService)
+  public function __construct(DigitalFileService $digitalFileService, EmailService $emailService)
   {
     $this->digitalFileService = $digitalFileService;
+    $this->emailService = $emailService;
   }
 
   public function list(Request $request)
@@ -891,6 +895,155 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'createdBy',
         'details'
       ]));
+    });
+  }
+
+  /**
+   * Envía notificación por correo al jefe y gerente de taller sobre una cotización
+   * que ha sido solicitada por gerencia
+   */
+  public function sendQuotationNotificationEmail($id)
+  {
+    return DB::transaction(function () use ($id) {
+      $quotation = ApOrderQuotations::with([
+        'vehicle.model.family.brand',
+        'vehicle.customer',
+        'client',
+        'createdBy.person',
+        'details.product',
+        'sede',
+        'typeCurrency',
+        'area'
+      ])->find($id);
+
+      if (!$quotation) {
+        throw new Exception('Cotización no encontrada');
+      }
+
+      // Validar que la cotización tenga is_requested_by_management = true
+      if (!$quotation->is_requested_by_management) {
+        throw new Exception('Esta cotización no ha sido solicitada por gerencia.');
+      }
+
+      // Obtener usuarios con cargo de Jefe de Taller (143) y Gerente de Taller (142)
+      $chiefUsers = User::whereHas('person', function ($query) {
+        $query->whereIn('cargo_id', Position::POSITION_JEFE_PV_IDS)
+          ->where('status_deleted', 1)
+          ->where('status_id', 22);
+      })->get();
+
+      $managerUsers = User::whereHas('person', function ($query) {
+        $query->whereIn('cargo_id', Position::POSITION_GERENTE_PV_IDS)
+          ->where('status_deleted', 1)
+          ->where('status_id', 22);
+      })->get();
+
+      // Preparar datos para el correo
+      $emailData = [
+        'quotation_number' => $quotation->quotation_number,
+        'quotation_date' => $quotation->quotation_date ? $quotation->quotation_date->format('d/m/Y') : 'N/A',
+        'expiration_date' => $quotation->expiration_date ? $quotation->expiration_date->format('d/m/Y') : 'N/A',
+        'validity_days' => $quotation->validity_days,
+        'observations' => $quotation->observations ?? '',
+
+        // Cliente
+        'customer_name' => $quotation->client->full_name ?? $quotation->vehicle?->customer?->full_name ?? 'N/A',
+        'customer_document' => $quotation->client->num_doc ?? $quotation->vehicle?->customer?->num_doc ?? 'N/A',
+        'customer_phone' => $quotation->client->phone ?? $quotation->vehicle?->customer?->phone ?? 'N/A',
+        'customer_email' => $quotation->client->email ?? $quotation->vehicle?->customer?->email ?? 'N/A',
+
+        // Vehículo
+        'vehicle_plate' => $quotation->vehicle?->plate ?? 'N/A',
+        'vehicle_brand' => $quotation->vehicle?->model?->family?->brand?->name ?? 'N/A',
+        'vehicle_model' => $quotation->vehicle?->model?->version ?? 'N/A',
+
+        // Sede y moneda
+        'sede_name' => $quotation->sede?->abreviatura ?? 'N/A',
+        'currency' => $quotation->typeCurrency?->code ?? 'PEN',
+        'area' => $quotation->area?->description ?? 'N/A',
+
+        // Asesor
+        'advisor_name' => $quotation->createdBy?->person?->nombre_completo ?? 'N/A',
+        'advisor_email' => $quotation->createdBy?->person?->email2 ?? 'N/A',
+        'advisor_phone' => $quotation->createdBy?->person?->cel_personal ?? 'N/A',
+
+        // Totales
+        'subtotal' => $quotation->subtotal,
+        'discount_percentage' => $quotation->discount_percentage,
+        'discount_amount' => $quotation->discount_amount,
+        'tax_amount' => $quotation->tax_amount,
+        'total_amount' => $quotation->total_amount,
+
+        // Detalles de productos/servicios
+        'details' => $quotation->details->map(function ($detail) {
+          return [
+            'code' => $detail->product?->code ?? 'N/A',
+            'description' => $detail->description,
+            'quantity' => $detail->quantity,
+            'unit_measure' => $detail->unit_measure,
+            'unit_price' => $detail->unit_price,
+            'discount_percentage' => $detail->discount_percentage,
+            'total_amount' => $detail->total_amount,
+            'item_type' => $detail->item_type,
+            'observations' => $detail->observations ?? '',
+          ];
+        }),
+
+        // URL del frontend
+        'button_url' => config('app.frontend_url') . '/ap/post-venta/taller/cotizacion-taller/aprobar/' . $quotation->id,
+      ];
+
+      $subject = 'Nueva Cotización Solicitada por Gerencia - ' . $quotation->quotation_number;
+      $emailsSentCount = 0;
+
+      // Enviar correo a los Jefes de Taller
+      foreach ($chiefUsers as $chief) {
+        if ($chief->person && $chief->person->email2) {
+          try {
+            $this->emailService->queue([
+              'to' => 'wsuclupef2001@gmail.com', //$chief->person->email2,
+              'subject' => $subject,
+              'template' => 'emails.quotation-notification',
+              'data' => array_merge($emailData, [
+                'recipient_name' => $chief->person->nombre_completo ?? 'Jefe de Taller',
+                'recipient_role' => 'Jefe de Taller',
+              ]),
+            ]);
+            $emailsSentCount++;
+          } catch (Exception $e) {
+            \Log::error('Error al enviar correo al Jefe de Taller: ' . $e->getMessage());
+          }
+        }
+      }
+
+      // Enviar correo a los Gerentes de Taller
+      foreach ($managerUsers as $manager) {
+        if ($manager->person && $manager->person->email2) {
+          try {
+            $this->emailService->queue([
+              'to' => 'wsuclupef2001@gmail.com',//$manager->person->email2,
+              'subject' => $subject,
+              'template' => 'emails.quotation-notification',
+              'data' => array_merge($emailData, [
+                'recipient_name' => $manager->person->nombre_completo ?? 'Gerente de Taller',
+                'recipient_role' => 'Gerente de Taller',
+              ]),
+            ]);
+            $emailsSentCount++;
+          } catch (Exception $e) {
+            \Log::error('Error al enviar correo al Gerente de Taller: ' . $e->getMessage());
+          }
+        }
+      }
+
+      // Incrementar el contador de emails enviados
+      $quotation->increment('emails_sent_count', $emailsSentCount);
+
+      return [
+        'message' => 'Notificaciones enviadas correctamente',
+        'emails_sent' => $emailsSentCount,
+        'quotation' => new ApOrderQuotationsResource($quotation->fresh())
+      ];
     });
   }
 

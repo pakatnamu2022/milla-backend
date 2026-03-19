@@ -43,6 +43,8 @@ class ApOrderQuotations extends Model
     'observations',
     'created_by',
     'is_take',
+    'is_requested_by_management',
+    'emails_sent_count',
     'area_id',
     'currency_id',
     'exchange_rate',
@@ -91,6 +93,7 @@ class ApOrderQuotations extends Model
     'discarded_at' => 'datetime',
     'has_invoice_generated' => 'boolean',
     'is_fully_paid' => 'boolean',
+    'is_requested_by_management' => 'boolean',
   ];
 
   //STATUS CONSTANTS
