@@ -14,11 +14,10 @@ on:
           - 'true'
 
 jobs:
-  deploy:
+  deploy-server-1:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Deploy to server
+    - name: Deploy to server 1
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.HOST }}
@@ -29,7 +28,6 @@ jobs:
         command_timeout: 15m
         script: |
           set -e
-
           cd /opt/milla-api/app
           
           echo "📥 Pulling latest changes..."
@@ -63,4 +61,53 @@ jobs:
           docker compose exec -T app php artisan schedule:clear-cache
           docker compose exec -T app php -r "if(function_exists('opcache_reset')) opcache_reset();"
           
-          echo "✅ Deploy completed successfully!"
+          echo "✅ Server 1 deploy completed successfully!"
+
+  deploy-server-2:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Deploy to server 2
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.HOST_2 }}
+        username: ${{ secrets.USERNAME }}
+        password: ${{ secrets.PASSWORD }}
+        port: 22
+        timeout: 30s
+        command_timeout: 15m
+        script: |
+          set -e
+          cd /opt/milla-api/app
+          
+          echo "📥 Pulling latest changes..."
+          git pull origin main
+          
+          cd /opt/milla-api
+          
+          echo "🐳 Rebuilding Docker..."
+          docker compose up -d --build --remove-orphans
+          
+          echo "📦 Installing dependencies..."
+          docker compose exec -T app git config --global --add safe.directory /var/www/html
+          docker compose exec -T app composer install --no-dev --optimize-autoloader
+          
+          if [ "${{ github.event.inputs.run_migrations }}" = "true" ]; then
+            echo "🗄️ Running migrations..."
+            docker compose exec -T app php artisan migrate --force
+          else
+            echo "⏭️ Skipping migrations..."
+          fi
+          
+          echo "🧹 Clearing caches..."
+          docker compose exec -T app php artisan optimize:clear
+          
+          echo "🔄 Regenerating autoload..."
+          docker compose exec -T app composer dump-autoload --optimize
+          
+          echo "♻️ Restarting services..."
+          docker compose restart app
+          docker compose exec -T app php artisan queue:restart
+          docker compose exec -T app php artisan schedule:clear-cache
+          docker compose exec -T app php -r "if(function_exists('opcache_reset')) opcache_reset();"
+          
+          echo "✅ Server 2 deploy completed successfully!"
