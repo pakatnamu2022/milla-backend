@@ -252,6 +252,18 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede actualizar una cotización que ya ha sido tomada en una solicitud de compra / OT.');
       }
 
+      if ($quotation->area_id === ApMasters::AREA_TALLER) {
+        if ($quotation->quotation_date) {
+          $quotationDate = Carbon::parse($quotation->quotation_date)->startOfDay();
+          $today = Carbon::now()->startOfDay();
+
+          // Si la cotización tiene más de DAYS_TO_EDIT_OR_DELETE días de antigüedad, no permitir edición
+          if ($quotationDate->diffInDays($today) > ApOrderQuotations::DAYS_TO_EDIT_OR_DELETE) {
+            throw new Exception('No se puede editar la cotización porque ya pasaron más de 15 días desde su fecha.');
+          }
+        }
+      }
+
       // Calculate validity days
       $quotation_date = Carbon::parse($data['quotation_date']);
       $expiration_date = Carbon::parse($data['expiration_date']);
@@ -397,6 +409,18 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
     if ($quotation->is_take === true) {
       throw new Exception('No se puede eliminar una cotización que ya ha sido tomada en una solicitud de compra / OT.');
+    }
+
+    if ($quotation->area_id === ApMasters::AREA_TALLER) {
+      if ($quotation->quotation_date) {
+        $quotationDate = Carbon::parse($quotation->quotation_date)->startOfDay();
+        $today = Carbon::now()->startOfDay();
+
+        // Si la cotización tiene más de DAYS_TO_EDIT_OR_DELETE días de antigüedad, no permitir edición
+        if ($quotationDate->diffInDays($today) > ApOrderQuotations::DAYS_TO_EDIT_OR_DELETE) {
+          throw new Exception('No se puede editar la cotización porque ya pasaron más de 15 días desde su fecha.');
+        }
+      }
     }
 
     DB::transaction(function () use ($quotation) {

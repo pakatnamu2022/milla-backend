@@ -5,9 +5,11 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationDetailsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -141,6 +143,18 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
 
     if ($workOrder) {
       throw new Exception("Esta cotización no puede ser modificada. La orden de trabajo {$workOrder->correlative} al que se encuentra asociada ya tiene avances registrados.");
+    }
+
+    $quotation = ApOrderQuotations::find($quotationId);
+
+    if ($quotation->area_id === ApMasters::AREA_TALLER && !$quotation->is_take) {
+      $quotationDate = Carbon::parse($quotation->quotation_date)->startOfDay();
+      $today = Carbon::now()->startOfDay();
+
+      // Si la cotización tiene más de DAYS_TO_EDIT_OR_DELETE días de antigüedad, no permitir edición
+      if ($quotationDate->diffInDays($today) > ApOrderQuotations::DAYS_TO_EDIT_OR_DELETE) {
+        throw new Exception('No se puede editar la cotización porque ya pasaron más de 15 días desde su fecha.');
+      }
     }
   }
 

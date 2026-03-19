@@ -104,6 +104,9 @@ class ApOrderQuotations extends Model
   const LIMA = 'LIMA';
   const IMPORTACION = 'IMPORTACION';
 
+  // DIAS PERMITIDOS PARA EDITAR O ELIMINAR UNA COTIZACION
+  const  DAYS_TO_EDIT_OR_DELETE = 15;
+
   protected static function boot()
   {
     parent::boot();
