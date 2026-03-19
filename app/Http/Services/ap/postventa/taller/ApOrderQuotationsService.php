@@ -35,8 +35,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   ];
 
   public function __construct(
-    DigitalFileService $digitalFileService,
-    EmailService $emailService,
+    DigitalFileService             $digitalFileService,
+    EmailService                   $emailService,
     ApOrderQuotationDetailsService $quotationDetailsService
   )
   {
@@ -60,9 +60,16 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   {
     // Query base con las condiciones requeridas para solicitudes de compra
     $query = ApOrderQuotations::query()
-      ->where('area_id', ApMasters::AREA_TALLER) // Área de taller
-      ->whereNotNull('chief_approval_by')
-      ->whereNotNull('manager_approval_by');
+      ->where(function ($query) {
+        // Condición 1: Cotizaciones aprobadas por jefe y gerente en área taller
+        $query->where('area_id', ApMasters::AREA_TALLER)
+          ->whereNotNull('chief_approval_by')
+          ->whereNotNull('manager_approval_by');
+      })
+      ->orWhereHas('workOrders', function ($query) {
+        // Condición 2: Cotizaciones asociadas a OT con factura generada
+        $query->where('has_invoice_generated', true);
+      });
 
     return $this->getFilteredResults(
       $query,
