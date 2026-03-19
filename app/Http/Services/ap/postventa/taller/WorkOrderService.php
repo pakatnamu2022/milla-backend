@@ -336,7 +336,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $totalAdvances = $workOrder->advancesWorkOrder->sum('total') ?? 0;
 
     // Calculate remaining balance (total - advances)
-    $remainingBalance = $totals['net_amount'] - $totalAdvances;
+    $remainingBalance = $totals['total_amount'] - $totalAdvances;
 
     return response()->json([
       'work_order_id' => $workOrder->id,
