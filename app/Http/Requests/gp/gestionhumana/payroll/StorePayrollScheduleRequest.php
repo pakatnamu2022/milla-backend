@@ -26,7 +26,7 @@ class StorePayrollScheduleRequest extends StoreRequest
       $period = PayrollPeriod::find($this->input('period_id'));
       if ($period) {
         $workDate = $this->input('work_date');
-        if ($workDate <= $period->start_date || $workDate >= $period->payment_date) {
+        if ($workDate >= $period->start_date || $workDate <= $period->payment_date) {
           $validator->errors()->add('work_date', 'El día de trabajo debe ser entre los días permitidos del periodo');
         }
       }
