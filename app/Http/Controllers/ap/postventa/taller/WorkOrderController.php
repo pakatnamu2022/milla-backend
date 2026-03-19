@@ -163,10 +163,16 @@ class WorkOrderController extends Controller
     try {
       return $this->service->generateInternalNote($id);
     } catch (Exception $e) {
-      return response()->json([
-        'message' => $e->getMessage(),
-        'error' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function generatePDIForVehicle($id)
+  {
+    try {
+      return $this->service->generatePDIForVehicle($id);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
     }
   }
 

@@ -195,6 +195,12 @@ class ApOrderQuotations extends Model
     return $this->hasMany(DiscountRequestsOrderQuotation::class, 'ap_order_quotation_id');
   }
 
+  public function workOrders(): HasMany
+  {
+    return $this->hasMany(ApWorkOrder::class,
+      'order_quotation_id');
+  }
+
   public function markAsTaken(): void
   {
     $this->is_take = 1;

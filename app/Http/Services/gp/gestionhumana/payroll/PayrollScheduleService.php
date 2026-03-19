@@ -87,10 +87,10 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
   /**
    * Calculate hours for a schedule based on code and worker
    */
-  private function calculateHours($code, $worker)
+  private function calculateHours($code, $worker, $status = null)
   {
-    // Si el código es "F" (Falta), no se paga nada - 0 horas trabajadas
-    if ($code === 'F') {
+    // Si el código es "F" (Falta) o "LSGH" Y el status es ABSENT, no se paga nada - 0 horas trabajadas
+    if (($code === 'F' || $code === 'LSGH') && $status === PayrollSchedule::STATUS_ABSENT) {
       return ['hours_worked' => 0, 'extra_hours' => 0];
     }
 
@@ -146,7 +146,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       }
 
       // Calculate hours
-      $hours = $this->calculateHours($data['code'], $worker);
+      $status = $data['status'] ?? PayrollSchedule::STATUS_WORKED;
+      $hours = $this->calculateHours($data['code'], $worker, $status);
 
       $schedule = PayrollSchedule::create([
         'worker_id' => $data['worker_id'],
@@ -156,7 +157,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         'hours_worked' => $hours['hours_worked'],
         'extra_hours' => $hours['extra_hours'],
         'notes' => $data['notes'] ?? null,
-        'status' => $data['status'] ?? PayrollSchedule::STATUS_WORKED,
+        'status' => $status,
       ]);
 
       DB::commit();
@@ -205,7 +206,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
             ->first();
 
           // Calculate hours
-          $hours = $this->calculateHours($scheduleData['code'], $worker);
+          $status = $scheduleData['status'] ?? PayrollSchedule::STATUS_WORKED;
+          $hours = $this->calculateHours($scheduleData['code'], $worker, $status);
 
           if ($existingSchedule) {
             // Update existing schedule
@@ -214,7 +216,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
               'hours_worked' => $hours['hours_worked'],
               'extra_hours' => $hours['extra_hours'],
               'notes' => $scheduleData['notes'] ?? null,
-              'status' => $scheduleData['status'] ?? PayrollSchedule::STATUS_WORKED,
+              'status' => $status,
             ]);
             $createdSchedules[] = $existingSchedule;
           } else {
@@ -227,7 +229,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
               'hours_worked' => $hours['hours_worked'],
               'extra_hours' => $hours['extra_hours'],
               'notes' => $scheduleData['notes'] ?? null,
-              'status' => $scheduleData['status'] ?? PayrollSchedule::STATUS_WORKED,
+              'status' => $status,
             ]);
             $createdSchedules[] = $schedule;
           }
@@ -272,9 +274,14 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         'status' => $data['status'] ?? $schedule->status,
       ];
 
-      // Recalculate hours if code changed
-      if (isset($data['code']) && $data['code'] !== $schedule->code) {
-        $hours = $this->calculateHours($data['code'], $schedule->worker);
+      // Recalculate hours if code or status changed
+      if ((isset($data['code']) && $data['code'] !== $schedule->code) ||
+          (isset($data['status']) && $data['status'] !== $schedule->status)) {
+        $hours = $this->calculateHours(
+          $updateData['code'],
+          $schedule->worker,
+          $updateData['status']
+        );
         $updateData['hours_worked'] = $hours['hours_worked'];
         $updateData['extra_hours'] = $hours['extra_hours'];
       }
@@ -446,22 +453,23 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
    * Create PayrollCalculation + detail records for all workers with schedules in the given date range.
    * Used internally by generate and recalculate.
    *
-   * @param  PayrollPeriod  $period
-   * @param  int|null       $biweekly  Value to stamp on each created calculation (1, 2, or null)
-   * @param  mixed          $dateFrom
-   * @param  mixed          $dateTo
-   * @param  \Illuminate\Support\Collection  $attendanceRules  Grouped by code
-   * @param  array          $errors   Passed by reference — worker-level errors are appended here
+   * @param PayrollPeriod $period
+   * @param int|null $biweekly Value to stamp on each created calculation (1, 2, or null)
+   * @param mixed $dateFrom
+   * @param mixed $dateTo
+   * @param \Illuminate\Support\Collection $attendanceRules Grouped by code
+   * @param array $errors Passed by reference — worker-level errors are appended here
    * @return int[]  IDs of created PayrollCalculation records
    */
   private function createCalculationsForPeriod(
     PayrollPeriod $period,
-    ?int $biweekly,
-    $dateFrom,
-    $dateTo,
-    $attendanceRules,
-    array &$errors
-  ): array {
+    ?int          $biweekly,
+                  $dateFrom,
+                  $dateTo,
+                  $attendanceRules,
+    array         &$errors
+  ): array
+  {
     $schedules = PayrollSchedule::with(['worker'])
       ->where('period_id', $period->id)
       ->where('status', PayrollSchedule::STATUS_WORKED)
