@@ -138,6 +138,7 @@ use App\Http\Controllers\tp\comercial\TpTravelPhotoController;
 
 //TP - Controller
 use App\Http\Controllers\tp\comercial\TravelControlController;
+use App\Http\Controllers\common\NotificationController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -1600,5 +1601,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('calculations/{id}/payslip', [PayrollCalculationController::class, 'payslip']);
     Route::post('calculations/{id}/summarize', [PayrollCalculationController::class, 'summarize']);
     Route::apiResource('calculations', PayrollCalculationController::class)->only(['index', 'show']);
+  });
+
+  // NOTIFICATIONS
+  Route::group(['prefix' => 'notifications'], function () {
+    Route::get('/', [NotificationController::class, 'index']);
+    Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::patch('/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::patch('/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::delete('/{id}', [NotificationController::class, 'destroy']);
   });
 });

@@ -3,10 +3,11 @@
 namespace App\Http\Services;
 
 use App\Http\Traits\Filterable;
+use App\Http\Traits\SendsNotifications;
 
 class BaseService
 {
-  use Filterable;
+  use Filterable, SendsNotifications;
 
   public function nextCorrelativeCount($model, $length = 8, $where = []): string
   {

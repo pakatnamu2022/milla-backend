@@ -20,7 +20,8 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'sale_price' => ['required', 'numeric', 'min:0'],
       'doc_sale_price' => ['required', 'numeric', 'min:0'],
       'comment' => ['nullable', 'string', 'max:255'],
-      'warranty' => ['nullable', 'string', 'max:100'],
+      'warranty_years' => ['required', 'integer', 'min:1'],
+      'warranty_km' => ['required', 'integer', 'min:1'],
       'opportunity_id' => ['nullable', 'exists:ap_opportunity,id', Rule::unique('purchase_request_quote', 'opportunity_id')->whereNull('deleted_at')],
       'holder_id' => ['required', 'exists:business_partners,id'],
       'vehicle_color_id' => ['required', 'exists:ap_masters,id'],
@@ -73,8 +74,12 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'comment.string' => 'El campo comentario debe ser una cadena de texto.',
       'comment.max' => 'El campo comentario no debe exceder los 255 caracteres.',
 
-      'warranty.string' => 'El campo garantía debe ser una cadena de texto.',
-      'warranty.max' => 'El campo garantía no debe exceder los 100 caracteres.',
+      'warranty_years.required' => 'El campo años de garantía es obligatorio.',
+      'warranty_years.integer' => 'El campo años de garantía debe ser un número entero.',
+      'warranty_years.min' => 'El campo años de garantía debe ser al menos 1.',
+      'warranty_km.required' => 'El campo kilómetros de garantía es obligatorio.',
+      'warranty_km.integer' => 'El campo kilómetros de garantía debe ser un número entero.',
+      'warranty_km.min' => 'El campo kilómetros de garantía debe ser al menos 1.',
 
       'opportunity_id.exists' => 'La oportunidad seleccionada no es válida.',
 

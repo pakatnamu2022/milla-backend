@@ -20,7 +20,8 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'sale_price' => ['sometimes', 'numeric', 'min:0'],
       'doc_sale_price' => ['sometimes', 'numeric', 'min:0'],
       'comment' => ['nullable', 'string', 'max:255'],
-      'warranty' => ['nullable', 'string', 'max:100'],
+      'warranty_years' => ['sometimes', 'integer', 'min:1'],
+      'warranty_km' => ['sometimes', 'integer', 'min:1'],
       'opportunity_id' => ['nullable', 'exists:ap_opportunity,id'],
       'holder_id' => ['sometimes', 'exists:business_partners,id'],
       'vehicle_color_id' => ['sometimes', 'exists:ap_masters,id'],
@@ -67,8 +68,10 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'comment.string' => 'El campo comentario debe ser una cadena de texto.',
       'comment.max' => 'El campo comentario no debe exceder los 255 caracteres.',
 
-      'warranty.string' => 'El campo garantía debe ser una cadena de texto.',
-      'warranty.max' => 'El campo garantía no debe exceder los 100 caracteres.',
+      'warranty_years.integer' => 'El campo años de garantía debe ser un número entero.',
+      'warranty_years.min' => 'El campo años de garantía debe ser al menos 1.',
+      'warranty_km.integer' => 'El campo kilómetros de garantía debe ser un número entero.',
+      'warranty_km.min' => 'El campo kilómetros de garantía debe ser al menos 1.',
 
       'opportunity_id.exists' => 'La oportunidad seleccionada no es válida.',
 
