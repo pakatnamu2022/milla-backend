@@ -30,6 +30,10 @@ class ApDeliveryChecklistItem extends Model
     'quantity' => 'decimal:2',
   ];
 
+  protected $attributes = [
+    'unit' => 'UND',
+  ];
+
   const SOURCE_RECEPTION = 'reception';
   const SOURCE_PURCHASE_ORDER = 'purchase_order';
   const SOURCE_MANUAL = 'manual';

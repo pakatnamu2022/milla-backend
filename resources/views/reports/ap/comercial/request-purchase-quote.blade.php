@@ -1,20 +1,17 @@
 @php
   function getBase64Image($path) {
     $fullPath = public_path($path);
-    if (!file_exists($fullPath)) {
-      return '';
-    }
+    if (!file_exists($fullPath)) return '';
     $imageData = base64_encode(file_get_contents($fullPath));
-    $mimeType = mime_content_type($fullPath);
+    $mimeType  = mime_content_type($fullPath);
     return "data:{$mimeType};base64,{$imageData}";
   }
 @endphp
   <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Solicitud de Compra</title>
+  <title>{{ $quote['document_title'] ?? 'Solicitud de Compra' }}</title>
   <style>
     * {
       margin: 0;
@@ -24,505 +21,715 @@
 
     body {
       font-family: Arial, sans-serif;
-      font-size: 11px;
-      padding: 20px;
-      position: relative;
+      font-size: 12px;
+      color: #22293a;
+      background: #fff;
+      padding: 0 0 50px;
     }
 
+    /* ─── WATERMARK ──────────────────────────────── */
     .watermark {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%) rotate(-45deg);
       font-size: 120px;
-      color: rgba(200, 200, 200, 0.15);
+      color: rgba(200, 200, 200, 0.12);
       font-weight: bold;
       z-index: -1;
       white-space: nowrap;
     }
 
-    .title {
-      background-color: #e0e0e0;
-      padding: 8px;
-      font-size: 16px;
-      font-weight: bold;
-      text-align: center;
-      margin-bottom: 10px;
-      border: 1px solid #000;
+    /* ─── HEADER ─────────────────────────────────── */
+    .page-header {
+      padding: 8px 10px 8px;
+      margin-bottom: 8px;
     }
 
-    table {
+    .header-inner {
+      display: table;
       width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 10px;
     }
 
-    table, th, td {
-      border: 1px solid #000;
+    .h-logo {
+      display: table-cell;
+      width: 190px;
+      vertical-align: middle;
+      padding-right: 14px;
     }
 
-    td {
-      padding: 4px 6px;
-      vertical-align: top;
+    .h-logo img {
+      max-width: 180px;
+      height: auto;
+      display: block;
     }
 
-    .label {
-      font-weight: bold;
-      font-size: 10px;
-    }
-
-    .section-title {
-      background-color: #e0e0e0;
-      font-weight: bold;
-      padding: 5px;
-      text-align: center;
-    }
-
-    .checkbox {
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      border: 1px solid #000;
-      margin-left: 5px;
+    .h-right {
+      display: table-cell;
       vertical-align: middle;
     }
 
-    .checkbox.checked::after {
-      content: 'X';
-      display: block;
-      text-align: center;
-      line-height: 14px;
-      font-weight: bold;
+    .h-box {
+      display: table;
+      width: 100%;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 5px;
+      overflow: hidden;
     }
 
-    .notes {
+    .h-box-title {
+      display: table-cell;
+      vertical-align: middle;
+      padding: 6px 14px;
+      background: #fff;
+    }
+
+    .h-box-title-main {
+      font-size: 13px;
+      font-weight: bold;
+      color: #22293a;
+      letter-spacing: 0.3px;
+    }
+
+    .h-box-title-sub {
+      font-size: 9px;
+      color: #888888;
+      margin-top: 2px;
+    }
+
+    .h-box-num {
+      display: table-cell;
+      vertical-align: middle;
+      width: 145px;
+      color: #22293a;
+      background: #e0e0e0;
+      text-align: center;
+      padding: 6px 14px;
+    }
+
+    .h-box-num-lbl {
       font-size: 8px;
-      margin-top: 15px;
-      line-height: 1.4;
+      font-weight: bold;
+      letter-spacing: 0.6px;
+    }
+
+    .h-box-num-val {
+      font-size: 20px;
+      font-weight: bold;
+      white-space: nowrap;
+      margin-top: 4px;
+    }
+
+    /* Content wrapper */
+    .content {
+      padding: 0 10px;
+    }
+
+    /* ─── CARD ───────────────────────────────────── */
+    .card {
+      border: 1px solid #d2d2d2;
+      border-radius: 7px;
+      overflow: hidden;
+      margin-bottom: 11px;
+    }
+
+    .card-title {
+      background-color: #e0e0e0;
+      color: #22293a;
+      font-weight: bold;
+      font-size: 10.5px;
+      padding: 4px 12px;
+      letter-spacing: 0.3px;
+    }
+
+    /* ─── DATA TABLE ─────────────────────────────── */
+    table.dt {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    table.dt td {
+      padding: 5px 10px;
+      border-bottom: 1px solid #ebebeb;
+      border-right: 1px solid #ebebeb;
+      font-size: 11px;
+      vertical-align: top;
+    }
+
+    table.dt td:last-child {
+      border-right: none;
+    }
+
+    table.dt tr:last-child td {
+      border-bottom: none;
+    }
+
+    .lbl {
+      font-weight: bold;
+      color: #22293a;
+      background: #f5f5f5;
+      white-space: nowrap;
+    }
+
+    /* ─── PRICES TABLE ───────────────────────────── */
+    table.pt {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    table.pt td {
+      padding: 5px 10px;
+      border-bottom: 1px solid #ebebeb;
+      border-right: 1px solid #ebebeb;
+      font-size: 11px;
+      vertical-align: middle;
+    }
+
+    table.pt td:last-child {
+      border-right: none;
+    }
+
+    table.pt tr:last-child td {
+      border-bottom: none;
+    }
+
+    .pt-section {
+      background: #e0e0e0;
+      color: #fff;
+      font-weight: bold;
+      font-size: 9px;
+      writing-mode: vertical-lr;
+      text-align: center;
+      width: 26px;
+      padding: 8px 4px;
+    }
+
+    .pt-sub {
+      background: #f5f5f5;
+      color: #22293a;
+      font-weight: bold;
+      font-size: 10.5px;
+      padding: 5px 10px;
+      text-align: center;
+      border-bottom: 1px solid #ebebeb;
+    }
+
+    /* ─── CHECKBOX ───────────────────────────────── */
+    .chk {
+      display: inline-block;
+      width: 13px;
+      height: 13px;
+      border: 1.5px solid #aaaaaa;
+      border-radius: 2px;
+      vertical-align: middle;
+      margin-left: 4px;
+      background: #fff;
+    }
+
+    .chk.on {
+      background: #e0e0e0;
+      border-color: #e0e0e0;
+    }
+
+    /* ─── SIGNATURES ─────────────────────────────── */
+    .sig-wrap {
+      border: 1px solid #d2d2d2;
+      border-radius: 6px;
+      overflow: hidden;
+      display: table;
+      width: 100%;
+      margin-bottom: 11px;
+    }
+
+    .sig-col {
+      display: table-cell;
+      width: 50%;
+      vertical-align: top;
+      border-right: 1px solid #d2d2d2;
+    }
+
+    .sig-col:last-child {
+      border-right: none;
+    }
+
+    .sig-hdr {
+      background: #e0e0e0;
+      color: #000000;
+      font-weight: bold;
+      font-size: 10.5px;
+      text-align: center;
+      padding: 5px 8px;
+    }
+
+    .sig-body {
+      padding: 10px 14px;
+    }
+
+    .sig-line {
+      height: 70px;
+    }
+
+    .sig-sub {
+      font-size: 10px;
+      color: #777777;
+      margin-top: 4px;
+      text-align: center;
+    }
+
+    /* ─── NOTES ──────────────────────────────────── */
+    .notes {
+      border: 1px solid #d2d2d2;
+      border-left: 3px solid #e0e0e0;
+      border-radius: 5px;
+      padding: 9px 13px;
+      font-size: 9.5px;
+      color: #4a5568;
+      background: #fafafa;
+      margin-bottom: 11px;
     }
 
     .notes ol {
-      margin-left: 15px;
+      margin-left: 16px;
+      line-height: 1.6;
+    }
+
+    /* ─── FOOTER BRANDS ──────────────────────────── */
+    .foot {
+      border-top: 1px solid #d2d2d2;
+      padding: 8px 0 4px;
+      text-align: center;
+      margin-top: 4px;
+    }
+
+    .foot img {
+      height: 13px;
+      width: auto;
+      margin: 0 5px;
+    }
+
+    /* ─── BANKS TABLE ────────────────────────────── */
+    table.bt {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    table.bt th {
+      background: #f5f5f5;
+      color: #22293a;
+      font-weight: bold;
+      font-size: 10.5px;
+      padding: 6px 10px;
+      text-align: center;
+      border-right: 1px solid #d2d2d2;
+      border-bottom: 1px solid #d2d2d2;
+    }
+
+    table.bt th:last-child {
+      border-right: none;
+    }
+
+    table.bt td {
+      padding: 5px 10px;
+      font-size: 11px;
+      border-bottom: 1px solid #ebebeb;
+      border-right: 1px solid #ebebeb;
+    }
+
+    table.bt td:last-child {
+      border-right: none;
+    }
+
+    table.bt tr:last-child td {
+      border-bottom: none;
     }
   </style>
 </head>
 <body>
+
 <div class="watermark">PAKATNAMU</div>
 
-<!-- Encabezado -->
-<table style="margin-bottom: 15px;">
-  <tr>
-    <td style="width: 15%; text-align: center; vertical-align: middle; border: none;">
-      <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="AP Logo" style="max-width: 80px; height: auto;">
-    </td>
-    <td style="width: 50%; vertical-align: middle; padding: 5px; border: none;">
-      <div style="font-size: 14px; font-weight: bold; margin-bottom: 5px;">AP AUTOMOTORES PAKATNAMU SAC</div>
-      <div style="font-size: 8px; line-height: 1.3;">
-        www.automotorespakatnamu.com<br>
-        CAR. A PIMENTEL KM 5 - PIMENTEL - CHICLAYO - LAMBAYEQUE<br>
-        Tel: (044) 123-4567 | Email: ventas@automotoraspakatnamu.com
+{{-- ── ENCABEZADO ──────────────────────────────── --}}
+<div class="page-header">
+  <div class="header-inner">
+    <div class="h-logo">
+      <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="AP Logo">
+    </div>
+    <div class="h-right">
+      <div class="h-box">
+        <div class="h-box-title">
+          <div class="h-box-title-main">{{ strtoupper($quote['document_title'] ?? 'SOLICITUD DE COMPRA') }}</div>
+          <div class="h-box-title-sub">Solicitud formal de adquisición de vehículo</div>
+        </div>
+        <div class="h-box-num">
+          <div class="h-box-num-lbl">N° DOCUMENTO</div>
+          <div class="h-box-num-val">{{ $quote['correlative'] }}</div>
+        </div>
       </div>
-    </td>
-    <td style="width: 20%; text-align: center; vertical-align: middle; padding: 0 10px; border: none;">
-      <div style="font-size: 10px; font-weight: bold;">Núm Documento</div>
-      <div style="font-size: 14px; font-weight: bold; margin-top: 5px;">
-        Nº {{ $quote['correlative'] }}</div>
-    </td>
-    <td style="width: 15%; text-align: center; vertical-align: middle; border: none;">
-      <img src="{{ getBase64Image('images/ap/derco.jpg') }}" alt="Derco Logo" style="max-width: 100px; height: auto;">
-    </td>
-  </tr>
-</table>
-
-<!-- Título -->
-<div class="title">{{ $quote['document_title'] ?? 'SOLICITUD DE COMPRA' }}</div>
-
-<!-- Información del comprador -->
-<table>
-  <tr>
-    <td class="label" style="width: 15%;">Comprador</td>
-    <td colspan="3">{{ $quote['client_name'] ?? '' }}</td>
-    <td class="label" style="width: 10%;">Fecha:</td>
-    <td colspan="1">{{ \Carbon\Carbon::parse($quote['created_at'])->format('d/m/Y') }}</td>
-    <td class="label" colspan="1">Vendedor:</td>
-    <td>{{ $quote['advisor_name'] ?? '' }}</td>
-  </tr>
-  <tr>
-    <td class="label">Fecha de Nac.</td>
-    <td colspan="3">{{ $quote['birth_date'] ?? '' }}</td>
-    <td class="label">Estado Civil</td>
-    <td colspan="1">{{ $quote['marital_status'] ?? '' }}</td>
-    <td class="label">DNI</td>
-    <td colspan="1">{{ $quote['num_doc_client'] ?? '' }}</td>
-  </tr>
-  <tr>
-    <td class="label">Cónyuge / Coproprietario</td>
-    <td colspan="5">{{ $quote['spouse_full_name'] ?? '' }}</td>
-    <td class="label">DNI</td>
-    <td>{{ $quote['spouse_num_doc'] ?? '' }}</td>
-  </tr>
-  <tr>
-    <td class="label">Dirección</td>
-    <td colspan="7">{{ $quote['address'] ?? '' }}</td>
-  </tr>
-  @php
-    $numDoc = $quote['num_doc_client'] ?? '';
-    $docLength = strlen($numDoc);
-    $docType = 'natural'; // Por defecto Persona natural
-
-    if ($docLength == 11) {
-      $firstTwo = substr($numDoc, 0, 2);
-      if ($firstTwo == '10') {
-        $docType = 'natural_ruc';
-      } elseif ($firstTwo == '20') {
-        $docType = 'juridica';
-      }
-    }
-  @endphp
-  <tr>
-    <td class="label">Tarjeta de propiedad a nombre de:</td>
-    <td colspan="3">Persona natural <span class="checkbox {{ $docType == 'natural' ? 'checked' : '' }}"></span></td>
-    <td colspan="2">P. Natural con RUC <span class="checkbox {{ $docType == 'natural_ruc' ? 'checked' : '' }}"></span>
-    </td>
-    <td colspan="2">Persona Jurídica <span class="checkbox {{ $docType == 'juridica' ? 'checked' : '' }}"></span></td>
-  </tr>
-  <tr>
-    <td class="label">Razón Social</td>
-    <td colspan="5">{{ $quote['holder'] ?? '' }}</td>
-    <td class="label">RUC</td>
-    <td>{{ $quote['num_doc_client'] ?? '' }}</td>
-  </tr>
-  <tr>
-    <td class="label">Repres. Legal</td>
-    <td colspan="5">{{ $quote['legal_representative'] ?? '' }}</td>
-    <td class="label">DNI</td>
-    <td>{{ $quote['dni_legal_representative'] ?? '' }}</td>
-  </tr>
-  <tr>
-    <td class="label">Dirección</td>
-    <td colspan="7"></td>
-  </tr>
-  <tr>
-    <td class="label">Referencia</td>
-    <td colspan="7"></td>
-  </tr>
-  <tr>
-    <td class="label">email</td>
-    <td colspan="5">{{ $quote['email'] ?? '' }}</td>
-    <td class="label">Teléf.</td>
-    <td colspan="1">{{ $quote['phone'] ?? '' }}</td>
-  </tr>
-</table>
-
-<!-- Información del vehículo -->
-<table>
-  <tr>
-    <td rowspan="4" class="section-title" style="writing-mode: vertical-lr; text-align: center; width: 30px;">Vehículo
-    </td>
-    <td class="label">Clase</td>
-    <td class="label">Marca</td>
-    <td class="label">Modelo</td>
-    <td colspan="2" class="label">Garantía</td>
-  </tr>
-  <tr>
-    <td>{{ $quote['class'] ?? '' }}</td>
-    <td>{{ $quote['brand'] ?? '' }}</td>
-    <td>{{ $quote['ap_model_vn'] ?? '' }}</td>
-    <td colspan="2">
-      @if(!empty($quote['warranty_years']) || !empty($quote['warranty_km']))
-        {{ $quote['warranty_years'] ?? '-' }} años / {{ number_format($quote['warranty_km'] ?? 0) }} km
-      @endif
-    </td>
-  </tr>
-  <tr>
-    <td class="label">Motor</td>
-    <td class="label">Chasis</td>
-    <td class="label" colspan="2">Color</td>
-    <td class="label">Fab./Modelo</td>
-  </tr>
-  <tr>
-    <td>{{ $quote['engine_number'] ?? '' }}</td>
-    <td>{{ $quote['vin'] ?? '' }}</td>
-    <td colspan="2">{{ $quote['vehicle_color'] ?? 'BLANCO' }}</td>
-    <td>{{ $quote['model_year'] ?? '' }}</td>
-  </tr>
-  <tr>
-    <td colspan="6" class="label">Tipo de uso del vehículo (Particular/Servicio Público)</td>
-  </tr>
-</table>
-
-<!-- Precios el rowspan="9" indica que va usar 9 filas y colspan="2" utiliza 2 columnas -->
-<table>
-  @php
-    $addedAccessories = collect($quote['accessories'] ?? [])->filter(function($item) {
-      return $item['type'] === 'ACCESORIO_ADICIONAL';
-    });
-    $gifts = collect($quote['accessories'] ?? [])->filter(function($item) {
-      return $item['type'] === 'OBSEQUIO';
-    });
-  @endphp
-  <tr>
-    <td rowspan="8" class="section-title" style="writing-mode: vertical-lr; width: 30px;">Valor de la Compra</td>
-    <td class="label">Precio de venta</td>
-    <td
-      style="width: 25%;">{{ $quote['type_currency_symbol'] }} {{ number_format($quote['base_selling_price'], 2) }}</td>
-    <td style="width: 5%;">1</td>
-    <td rowspan="8" class="section-title" style="writing-mode: vertical-lr; width: 30px;">Forma de Pago</td>
-    <td class="label" style="width: 15%;">A cuenta:</td>
-    <td>{{ $quote['type_currency_symbol'] }}</td>
-    <td style="width: 5%;">4</td>
-  </tr>
-  @if($addedAccessories->count() > 0)
-    @foreach($addedAccessories as $index => $accessory)
-      <tr>
-        @if($index == 0)
-          <td class="label">Equipamiento adicional</td>
-        @else
-          <td></td>
-        @endif
-        <td>{{ $accessory['description'] ?? '' }} (Cant: {{ $accessory['quantity'] ?? 1 }})
-          {{ $quote['type_currency_symbol'] }} {{ number_format(($accessory['total'] ?? 0) / ($quote['exchange_rate'] ?? 1), 2) }}</td>
-        <td></td>
-        @if($index == 0)
-          <td class="label">Nº de OP.:</td>
-          <td colspan="2"></td>
-        @elseif($index == 1)
-          <td class="label">Banco:</td>
-          <td colspan="2"></td>
-        @elseif($index == 2)
-          <td class="label">Saldo(3-4)</td>
-          <td>{{ $quote['type_currency_symbol'] }}</td>
-          <td>5</td>
-        @elseif($index == 3)
-          <td class="label">Forma de pago:</td>
-          <td colspan="2"></td>
-        @else
-          <td></td>
-          <td colspan="2"></td>
-        @endif
-      </tr>
-    @endforeach
-    @php
-      $remainingRows = max(0, 4 - $addedAccessories->count());
-    @endphp
-    @for($i = 0; $i < $remainingRows; $i++)
-      @php
-        $rowIndex = $addedAccessories->count() + $i;
-      @endphp
-      <tr>
-        <td></td>
-        <td>{{ $quote['type_currency_symbol'] }}</td>
-        <td></td>
-        @if($rowIndex == 1)
-          <td class="label">Banco:</td>
-          <td colspan="2"></td>
-        @elseif($rowIndex == 2)
-          <td class="label">Saldo(3-4)</td>
-          <td>{{ $quote['type_currency_symbol'] }}</td>
-          <td>5</td>
-        @elseif($rowIndex == 3)
-          <td class="label">Forma de pago:</td>
-          <td colspan="2"></td>
-        @else
-          <td></td>
-          <td colspan="2"></td>
-        @endif
-      </tr>
-    @endfor
-  @else
-    <tr>
-      <td class="label">Equipamiento adicional</td>
-      <td>{{ $quote['type_currency_symbol'] }}</td>
-      <td></td>
-      <td class="label">Nº de OP.:</td>
-      <td colspan="2"></td>
-    </tr>
-    @for($i = 0; $i < 4; $i++)
-      <tr>
-        <td></td>
-        <td>{{ $quote['type_currency_symbol'] }}</td>
-        <td></td>
-        @if($i == 0)
-          <td class="label">Banco:</td>
-          <td colspan="2"></td>
-        @elseif($i == 1)
-          <td class="label">Saldo(3-4)</td>
-          <td>{{ $quote['type_currency_symbol'] }}</td>
-          <td>5</td>
-        @elseif($i == 2)
-          <td class="label">Forma de pago:</td>
-          <td colspan="2"></td>
-        @else
-          <td></td>
-          <td colspan="2"></td>
-        @endif
-      </tr>
-    @endfor
-  @endif
-  <tr>
-    <td class="label">Total equipamiento</td>
-    <td>{{ $quote['type_currency_symbol'] }}</td>
-    <td>2</td>
-    <td class="label">Banco:</td>
-    <td colspan="2"></td>
-  </tr>
-  <tr>
-    <td class="label">Precio de compra total (1+2)</td>
-    <td>{{ $quote['type_currency_symbol'] }} {{ number_format($quote['doc_sale_price'], 2) }}</td>
-    <td>3</td>
-    <td class="label">Sectorista:</td>
-    <td colspan="2"></td>
-  </tr>
-  <tr>
-    <td class="label">T.C. referencial S/</td>
-    <td>S/ {{ number_format($quote['selling_price_soles'], 2) }}</td>
-    <td></td>
-    <td class="label">Oficina:</td>
-    <td colspan="2"></td>
-  </tr>
-  <tr>
-    <td colspan="8" class="section-title">Obsequios / Cortesía</td>
-  </tr>
-  @if($gifts->count() > 0)
-    @foreach($gifts as $gift)
-      <tr>
-        <td colspan="8">• {{ $gift['description'] ?? '' }} (Cant: {{ $gift['quantity'] ?? 1 }})</td>
-      </tr>
-    @endforeach
-  @endif
-  @if($gifts->count() === 0)
-    <tr>
-      <td colspan="8">• {{ $quote['comment'] ?? 'TARJETA Y PLACA' }}</td>
-    </tr>
-  @endif
-</table>
-
-<!-- Firmas -->
-<table>
-  <tr>
-    <td class="signature-box"
-        style="width: 50%; min-height: 80px; text-align: center; padding: 5px; vertical-align: top;">
-      <div class="label"
-           style="background-color: #e0e0e0; padding: 5px; margin: -5px -5px 10px -5px; font-weight: bold; font-size: 10px;">
-        APROBADO
-      </div>
-    </td>
-    <td class="signature-box"
-        style="width: 50%; min-height: 80px; text-align: center; padding: 5px; vertical-align: top;">
-      <div class="label"
-           style="background-color: #e0e0e0; padding: 5px; margin: -5px -5px 10px -5px; font-weight: bold; font-size: 10px;">
-        FIRMA DEL COMPRADOR
-      </div>
-      <div style="margin-top: 30px;">Huella digital</div>
-    </td>
-  </tr>
-</table>
-
-<!-- Notas importantes -->
-<div class="notes">
-  <strong>IMPORTANTE:</strong>
-  <ol>
-    <li>Esta solicitud está sujeta a la aprobación de Automotores Pakatnamu SAC.</li>
-    <li>Cualquier pedido de equipamiento adicional a las características de la presente solicitud será por cuenta y
-      costo del cliente.
-    </li>
-    <li>El trámite de placas de rodaje y tarjeta de propiedad es una cortesía que otorgamos a nuestros clientes. Dicho
-      trámite se encuentra sujeta a los criterios de calificación
-      autónomos de cada registrador, por lo que nuestra empresa no se hace responsable por la demora ocasionada como
-      consecuencia de la aplicación de los criterios registrales empleados por SUNARP.
-    </li>
-    <li>El solicitante acepta formalmente todas las características del vehículo descrito en el presente documento.</li>
-    <li>El cliente declara conocer que en caso el vehículo no se encuentre en stock, libera a la empresa de cualquier
-      responsabilidad relacionada a los plazos de entrega. Las fechas de entrega son variables y están sujetas a cambio,
-      con previa comunicación al cliente.
-    </li>
-    <li>Manifesto que los datos consignados son exactos y se ajustan fielmente a la realidad.</li>
-  </ol>
+    </div>
+  </div>
 </div>
 
-<!-- Footer con marcas -->
-<table style="border: none; border-top: 1px solid #000; margin-top: 15px; padding-top: 10px;">
-  <tr>
-    <td style="text-align: center; border: none; padding: 10px 0;">
-      <img src="{{ getBase64Image('images/ap/brands/suzuki.png') }}" alt="Suzuki"
-           style="height: 13px; width: auto; margin: 0 8px;">
-      <img src="{{ getBase64Image('images/ap/brands/subaru.png') }}" alt="Subaru"
-           style="height: 13px; width: auto; margin: 0 8px;">
-      <img src="{{ getBase64Image('images/ap/brands/dfsk.png') }}" alt="DFSK"
-           style="height: 13px; width: auto; margin: 0 8px;">
-      <img src="{{ getBase64Image('images/ap/brands/mazda.png') }}" alt="Mazda"
-           style="height: 13px; width: auto; margin: 0 8px;">
-      <img src="{{ getBase64Image('images/ap/brands/citroen.jpg') }}" alt="Citroën"
-           style="height: 13px; width: auto; margin: 0 8px;">
-      <img src="{{ getBase64Image('images/ap/brands/renault.png') }}" alt="Renault"
-           style="height: 13px; width: auto; margin: 0 8px;">
-      <img src="{{ getBase64Image('images/ap/brands/haval.png') }}" alt="Haval"
-           style="height: 13px; width: auto; margin: 0 8px;">
-      <img src="{{ getBase64Image('images/ap/brands/great-wall.png') }}" alt="Great Wall"
-           style="height: 13px; width: auto; margin: 0 8px;">
-      <img src="{{ getBase64Image('images/ap/brands/changan.png') }}" alt="Changan"
-           style="height: 13px; width: auto; margin: 0 8px;">
-      <img src="{{ getBase64Image('images/ap/brands/jac.png') }}" alt="JAC"
-           style="height: 13px; width: auto; margin: 0 8px;">
-    </td>
-  </tr>
-</table>
+<div class="content">
 
+  {{-- ── DATOS DEL COMPRADOR ──────────────────────── --}}
+  <div class="card">
+    <div class="card-title">DATOS DEL COMPRADOR</div>
+    <table class="dt">
+      <tr>
+        <td class="lbl" style="width:16%;">Comprador</td>
+        <td colspan="3">{{ $quote['client_name'] ?? '' }}</td>
+        <td class="lbl" style="width:10%;">Fecha</td>
+        <td style="width:14%;">{{ \Carbon\Carbon::parse($quote['created_at'])->format('d/m/Y') }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Vendedor</td>
+        <td colspan="5">{{ $quote['advisor_name'] ?? '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">DNI / RUC</td>
+        <td style="width:18%;">{{ $quote['num_doc_client'] ?? '' }}</td>
+        <td class="lbl" style="width:12%;">Fecha Nac.</td>
+        <td>{{ $quote['birth_date'] ?? '' }}</td>
+        <td class="lbl">Estado Civil</td>
+        <td>{{ $quote['marital_status'] ?? '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Cónyuge / Copropietario</td>
+        <td colspan="3">{{ $quote['spouse_full_name'] ?? '' }}</td>
+        <td class="lbl">DNI Cónyuge</td>
+        <td>{{ $quote['spouse_num_doc'] ?? '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Dirección</td>
+        <td colspan="5">{{ $quote['address'] ?? '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Email</td>
+        <td colspan="3">{{ $quote['email'] ?? '' }}</td>
+        <td class="lbl">Teléfono</td>
+        <td>{{ $quote['phone'] ?? '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Tarjeta de propiedad</td>
+        <td colspan="5">
+          @php
+            $numDoc    = $quote['num_doc_client'] ?? '';
+            $docLength = strlen($numDoc);
+            $docType   = 'natural';
+            if ($docLength == 11) {
+              $firstTwo = substr($numDoc, 0, 2);
+              if ($firstTwo == '10')     $docType = 'natural_ruc';
+              elseif ($firstTwo == '20') $docType = 'juridica';
+            }
+          @endphp
+          Persona Natural <span class="chk {{ $docType == 'natural' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          P. Natural con RUC <span class="chk {{ $docType == 'natural_ruc' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          Persona Jurídica <span class="chk {{ $docType == 'juridica' ? 'on' : '' }}"></span>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl">Razón Social</td>
+        <td colspan="3">{{ $quote['holder'] ?? '' }}</td>
+        <td class="lbl">RUC</td>
+        <td>{{ $docType !== 'natural' ? ($quote['num_doc_client'] ?? '') : '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Repres. Legal</td>
+        <td colspan="3">{{ $quote['legal_representative'] ?? '' }}</td>
+        <td class="lbl">DNI</td>
+        <td>{{ $quote['dni_legal_representative'] ?? '' }}</td>
+      </tr>
+    </table>
+  </div>
+
+  {{-- ── DATOS DEL VEHÍCULO ──────────────────────── --}}
+  <div class="card">
+    <div class="card-title">DATOS DEL VEHÍCULO</div>
+    <table class="dt">
+      <tr>
+        <td class="lbl" style="width:10%;">Marca</td>
+        <td style="width:18%;">{{ $quote['brand'] ?? '' }}</td>
+        <td class="lbl" style="width:10%;">Modelo</td>
+        <td>{{ $quote['ap_model_vn'] ?? '' }}</td>
+        <td class="lbl" style="width:8%;">Clase</td>
+        <td>{{ $quote['class'] ?? '' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Color</td>
+        <td>{{ $quote['vehicle_color'] ?? '' }}</td>
+        <td class="lbl">Fab. / Año</td>
+        <td>{{ $quote['model_year'] ?? '' }}</td>
+        <td class="lbl">Garantía</td>
+        <td>
+          @if(!empty($quote['warranty_years']) || !empty($quote['warranty_km']))
+            {{ $quote['warranty_years'] ?? '-' }} años / {{ number_format($quote['warranty_km'] ?? 0) }} km
+          @endif
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl">VIN / Chasis</td>
+        <td>{{ $quote['vin'] ?? '' }}</td>
+        <td class="lbl">N° Motor</td>
+        <td>{{ $quote['engine_number'] ?? '' }}</td>
+        <td class="lbl">Tipo uso</td>
+        <td></td>
+      </tr>
+    </table>
+  </div>
+
+  {{-- ── VALOR DE LA COMPRA + FORMA DE PAGO ─────── --}}
+  @php
+    $addedAccessories = collect($quote['accessories'] ?? [])->filter(fn($i) => $i['type'] === 'ACCESORIO_ADICIONAL')->values();
+    $gifts            = collect($quote['accessories'] ?? [])->filter(fn($i) => $i['type'] === 'OBSEQUIO')->values();
+  @endphp
+  <div class="card">
+    <div class="card-title">VALOR DE LA COMPRA Y FORMA DE PAGO</div>
+    <table class="pt">
+      {{-- Precio base --}}
+      <tr>
+        <td class="lbl" style="width:22%;">Precio de venta</td>
+        <td style="width:26%;">
+          {{ $quote['type_currency_symbol'] }} {{ number_format($quote['base_selling_price'], 2) }}
+        </td>
+        <td style="width:4%; text-align:center; color:#000000; font-weight:bold;">1</td>
+        <td class="lbl" style="width:16%;">A cuenta</td>
+        <td>{{ $quote['type_currency_symbol'] }}</td>
+        <td style="width:4%; text-align:center; color:#000000; font-weight:bold;">4</td>
+      </tr>
+      {{-- Accesorios adicionales --}}
+      @if($addedAccessories->count() > 0)
+        @foreach($addedAccessories as $idx => $acc)
+          <tr>
+            <td class="lbl">{{ $idx === 0 ? 'Equipamiento adicional' : '' }}</td>
+            <td>{{ $acc['description'] ?? '' }} (x{{ $acc['quantity'] ?? 1 }})
+              {{ $quote['type_currency_symbol'] }} {{ number_format(($acc['total'] ?? 0) / ($quote['exchange_rate'] ?? 1), 2) }}</td>
+            <td></td>
+            @if($idx == 0)
+              <td class="lbl">Nº de OP.</td>
+              <td colspan="2"></td>
+            @elseif($idx == 1)
+              <td class="lbl">Banco</td>
+              <td colspan="2"></td>
+            @elseif($idx == 2)
+              <td class="lbl">Saldo (3-4)</td>
+              <td>{{ $quote['type_currency_symbol'] }}</td>
+              <td style="text-align:center;color:#000000;font-weight:bold;">5</td>
+            @elseif($idx == 3)
+              <td class="lbl">Forma de pago</td>
+              <td colspan="2"></td>
+            @else
+              <td colspan="3"></td>
+            @endif
+          </tr>
+        @endforeach
+        @for($i = 0; $i < max(0, 4 - $addedAccessories->count()); $i++)
+          @php $ri = $addedAccessories->count() + $i; @endphp
+          <tr>
+            <td></td>
+            <td>{{ $quote['type_currency_symbol'] }}</td>
+            <td></td>
+            @if($ri == 1)
+              <td class="lbl">Banco</td>
+              <td colspan="2"></td>
+            @elseif($ri == 2)
+              <td class="lbl">Saldo (3-4)</td>
+              <td>{{ $quote['type_currency_symbol'] }}</td>
+              <td style="text-align:center;color:#000000;font-weight:bold;">5</td>
+            @elseif($ri == 3)
+              <td class="lbl">Forma de pago</td>
+              <td colspan="2"></td>
+            @else
+              <td colspan="3"></td>
+            @endif
+          </tr>
+        @endfor
+      @else
+        <tr>
+          <td class="lbl">Equipamiento adicional</td>
+          <td>{{ $quote['type_currency_symbol'] }}</td>
+          <td></td>
+          <td class="lbl">Nº de OP.</td>
+          <td colspan="2"></td>
+        </tr>
+        @for($i = 0; $i < 4; $i++)
+          <tr>
+            <td></td>
+            <td>{{ $quote['type_currency_symbol'] }}</td>
+            <td></td>
+            @if($i == 0)
+              <td class="lbl">Banco</td>
+              <td colspan="2"></td>
+            @elseif($i == 1)
+              <td class="lbl">Saldo (3-4)</td>
+              <td>{{ $quote['type_currency_symbol'] }}</td>
+              <td style="text-align:center;color:#000000;font-weight:bold;">5</td>
+            @elseif($i == 2)
+              <td class="lbl">Forma de pago</td>
+              <td colspan="2"></td>
+            @else
+              <td colspan="3"></td>
+            @endif
+          </tr>
+        @endfor
+      @endif
+      {{-- Totales --}}
+      <tr>
+        <td class="lbl">Total equipamiento</td>
+        <td>{{ $quote['type_currency_symbol'] }}</td>
+        <td style="text-align:center;color:#000000;font-weight:bold;">2</td>
+        <td class="lbl">Banco</td>
+        <td colspan="2"></td>
+      </tr>
+      <tr>
+        <td class="lbl">Precio total (1+2)</td>
+        <td
+          style="font-weight:bold;">{{ $quote['type_currency_symbol'] }} {{ number_format($quote['doc_sale_price'], 2) }}</td>
+        <td style="text-align:center;color:#000000;font-weight:bold;">3</td>
+        <td class="lbl">Sectorista</td>
+        <td colspan="2"></td>
+      </tr>
+      <tr>
+        <td class="lbl">T.C. referencial S/</td>
+        <td>S/ {{ number_format($quote['selling_price_soles'], 2) }}</td>
+        <td></td>
+        <td class="lbl">Oficina</td>
+        <td colspan="2"></td>
+      </tr>
+      {{-- Obsequios --}}
+      <tr>
+        <td colspan="6"
+            style="background:#f5f5f5; font-weight:bold; color:#22293a; font-size:10.5px; padding:5px 10px;">
+          OBSEQUIOS / CORTESÍA
+        </td>
+      </tr>
+      @if($gifts->count() > 0)
+        @foreach($gifts as $gift)
+          <tr>
+            <td colspan="6">• {{ $gift['description'] ?? '' }} (x{{ $gift['quantity'] ?? 1 }})</td>
+          </tr>
+        @endforeach
+      @else
+        <tr>
+          <td colspan="6">• {{ $quote['comment'] ?? 'TARJETA Y PLACA' }}</td>
+        </tr>
+      @endif
+    </table>
+  </div>
+
+  {{-- ── FIRMAS ───────────────────────────────────── --}}
+  <div class="sig-wrap">
+    <div class="sig-col">
+      <div class="sig-hdr">APROBADO</div>
+      <div class="sig-body">
+        <div class="sig-line"></div>
+        <div class="sig-sub">Automotores Pakatnamu S.A.C.</div>
+      </div>
+    </div>
+    <div class="sig-col">
+      <div class="sig-hdr">FIRMA DEL COMPRADOR</div>
+      <div class="sig-body">
+        <div class="sig-line"></div>
+        <div class="sig-sub">{{ $quote['client_name'] ?? '' }} &nbsp;·&nbsp; Huella digital</div>
+      </div>
+    </div>
+  </div>
+
+  {{-- ── NOTAS IMPORTANTES ────────────────────────── --}}
+  <div class="notes">
+    <strong style="color:#000000;">IMPORTANTE:</strong>
+    <ol>
+      <li>Esta solicitud está sujeta a la aprobación de Automotores Pakatnamu SAC.</li>
+      <li>Cualquier pedido de equipamiento adicional a las características de la presente solicitud será por cuenta y
+        costo del cliente.
+      </li>
+      <li>El trámite de placas de rodaje y tarjeta de propiedad es una cortesía. Dicho trámite está sujeto a los
+        criterios de calificación autónomos de cada registrador; nuestra empresa no se hace responsable por demoras
+        ocasionadas por SUNARP.
+      </li>
+      <li>El solicitante acepta formalmente todas las características del vehículo descrito en el presente documento.
+      </li>
+      <li>El cliente declara conocer que, en caso el vehículo no se encuentre en stock, libera a la empresa de cualquier
+        responsabilidad relacionada a los plazos de entrega.
+      </li>
+      <li>Manifiesto que los datos consignados son exactos y se ajustan fielmente a la realidad.</li>
+    </ol>
+  </div>
+
+  {{-- ── FOOTER MARCAS ────────────────────────────── --}}
+  <div class="foot">
+    <img src="{{ getBase64Image('images/ap/brands/suzuki.png') }}" alt="Suzuki">
+    <img src="{{ getBase64Image('images/ap/brands/subaru.png') }}" alt="Subaru">
+    <img src="{{ getBase64Image('images/ap/brands/dfsk.png') }}" alt="DFSK">
+    <img src="{{ getBase64Image('images/ap/brands/mazda.png') }}" alt="Mazda">
+    <img src="{{ getBase64Image('images/ap/brands/citroen.jpg') }}" alt="Citroën">
+    <img src="{{ getBase64Image('images/ap/brands/renault.png') }}" alt="Renault">
+    <img src="{{ getBase64Image('images/ap/brands/haval.png') }}" alt="Haval">
+    <img src="{{ getBase64Image('images/ap/brands/great-wall.png') }}" alt="Great Wall">
+    <img src="{{ getBase64Image('images/ap/brands/changan.png') }}" alt="Changan">
+    <img src="{{ getBase64Image('images/ap/brands/jac.png') }}" alt="JAC">
+  </div>
+
+</div>{{-- /content --}}
+
+{{-- ── PÁGINA 2: CUENTAS BANCARIAS (opcional) ─── --}}
 @if(isset($banks) && $banks->count() > 0)
-  <!-- Nueva página para cuentas bancarias -->
   <div style="page-break-before: always;"></div>
-
   <div class="watermark">PAKATNAMU</div>
 
-  <!-- Encabezado en página de cuentas -->
-  <table style="margin-bottom: 15px;">
-    <tr>
-      <td style="width: 15%; text-align: center; vertical-align: middle; border: none;">
-        <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="AP Logo" style="max-width: 80px; height: auto;">
-      </td>
-      <td style="width: 70%; vertical-align: middle; padding: 5px; border: none;">
-        <div style="font-size: 14px; font-weight: bold; margin-bottom: 5px;">AP AUTOMOTORES PAKATNAMU SAC</div>
-        <div style="font-size: 8px; line-height: 1.3;">
-          www.automotorespakatnamu.com<br>
-          CAR. A PIMENTEL KM 5 - PIMENTEL - CHICLAYO - LAMBAYEQUE<br>
-          Tel: (044) 123-4567 | Email: ventas@automotoraspakatnamu.com
+  <div class="page-header">
+    <div class="header-inner">
+      <div class="h-logo">
+        <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="AP Logo">
+      </div>
+      <div class="h-right">
+        <div class="h-box">
+          <div class="h-box-title">
+            <div class="h-box-title-main">CUENTAS BANCARIAS PARA DEPÓSITOS</div>
+            <div class="h-box-title-sub">Datos para transferencia o depósito bancario</div>
+          </div>
+          <div class="h-box-num">
+            <div class="h-box-num-lbl">N° DOCUMENTO</div>
+            <div class="h-box-num-val">{{ $quote['correlative'] }}</div>
+          </div>
         </div>
-      </td>
-      <td style="width: 15%; text-align: center; vertical-align: middle; border: none;">
-        <img src="{{ getBase64Image('images/ap/derco.jpg') }}" alt="Derco Logo" style="max-width: 100px; height: auto;">
-      </td>
-    </tr>
-  </table>
+      </div>
+    </div>
+  </div>
 
-  <!-- Título de sección -->
-  <div class="title">CUENTAS BANCARIAS PARA DEPÓSITOS</div>
+  <div class="content">
+    <div class="card">
+      <div class="card-title">CUENTAS DISPONIBLES</div>
+      <table class="bt">
+        <thead>
+        <tr>
+          <th style="text-align:left;">Banco</th>
+          <th>Número de Cuenta</th>
+          <th>Moneda</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach($banks as $bank)
+          <tr>
+            <td>{{ $bank->bank->description ?? '-' }}</td>
+            <td style="text-align:center; font-family:'Courier New',monospace; font-weight:bold;">
+              {{ $bank->account_number }}
+            </td>
+            <td style="text-align:center;">{{ $bank->currency->name ?? '-' }}</td>
+          </tr>
+        @endforeach
+        </tbody>
+      </table>
+    </div>
 
-  <!-- Tabla de cuentas bancarias -->
-  <table style="font-size: 10px;">
-    <thead>
-    <tr style="background-color: #e0e0e0;">
-      <th style="padding: 4px; text-align: center; font-weight: bold;">Banco</th>
-      <th style="padding: 4px; text-align: center; font-weight: bold;">Número de Cuenta</th>
-      <th style="padding: 4px; text-align: center; font-weight: bold;">Moneda</th>
-    </tr>
-    </thead>
-    <tbody>
-    @foreach($banks as $bank)
-      <tr>
-        <td style="padding: 4px; text-align: left;">{{ $bank->bank->description ?? '-' }}</td>
-        <td
-          style="padding: 4px; text-align: center; font-family: 'Courier New', monospace; font-weight: bold;">{{ $bank->account_number }}</td>
-        <td style="padding: 4px; text-align: center;">{{ $bank->currency->name ?? '-' }}</td>
-      </tr>
-    @endforeach
-    </tbody>
-  </table>
-
-  <div style="margin-top: 20px; padding: 15px; background-color: #f5f5f5; border-left: 4px solid #333;">
-    <p style="font-size: 10px; margin: 0; line-height: 1.5;"><strong>Importante:</strong> Realizar depósitos únicamente
-      en las cuentas indicadas. Una vez realizado el depósito, enviar el comprobante de pago para procesar su solicitud.
-    </p>
+    <div style="border:1px solid #d2d2d2; border-left:3px solid #e0e0e0; border-radius:5px;
+              padding:9px 13px; font-size:10px; color:#000; background:#fafafa;">
+      <strong style="color:#000;">Importante:</strong> Realizar depósitos únicamente en las cuentas indicadas.
+      Una vez realizado el depósito, enviar el comprobante de pago para procesar su solicitud.
+    </div>
   </div>
 @endif
+
 </body>
 </html>
