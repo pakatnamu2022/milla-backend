@@ -84,11 +84,10 @@ class PayrollSummaryService
     // BONIF. NOCT = REM. BRUTA - REM. BASICA
     $nightBonus = round($grossSalary - $basicSalary, 2);
 
-    // PAGO total (las deducciones ya vienen en negativo)
-    $totalDeductions = $deductions->sum('amount');
+    // PAGO total = remun basica + bonif nocturna + h25% + h35% + feriado + ddt
     $netSalary = round(
       $basicSalary + $nightBonus + $overtime25 + $overtime35
-      + $holidayPay + $compensatoryPay + $totalDeductions,
+      + $holidayPay + $compensatoryPay,
       2
     );
 
