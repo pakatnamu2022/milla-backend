@@ -183,7 +183,6 @@ class ElectronicDocumentController extends Controller
   {
     try {
       $data = $request->validated();
-      $data['original_document_id'] = $id;
 
       $creditNote = $this->service->createCreditNote($id, $data);
 

@@ -23,9 +23,7 @@ class UpdateDebitNoteRequest extends StoreRequest
       'sunat_concept_debit_note_type_id',
     ];
 
-    $dataToMerge = [
-      'serie',
-    ];
+    $dataToMerge = [];
 
     foreach ($numericFields as $field) {
       if ($this->has($field) && $this->input($field) !== null && $this->input($field) !== '') {
@@ -34,19 +32,6 @@ class UpdateDebitNoteRequest extends StoreRequest
     }
 
     // Los totales se auto-calculan, no necesitamos convertir decimales aquí
-
-    // Convertir strings booleanos (solo flags de envío)
-    $booleanFields = [
-      'enviar_automaticamente_a_la_sunat',
-      'enviar_automaticamente_al_cliente',
-    ];
-
-    foreach ($booleanFields as $field) {
-      if ($this->has($field) && $this->input($field) !== null) {
-        $value = $this->input($field);
-        $dataToMerge[$field] = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $value;
-      }
-    }
 
     // Convertir items
     if ($this->has('items') && is_array($this->input('items'))) {
@@ -138,10 +123,6 @@ class UpdateDebitNoteRequest extends StoreRequest
 
       // Campos opcionales
       'observaciones' => 'nullable|string|max:1000',
-
-      // Configuración
-      'enviar_automaticamente_a_la_sunat' => 'nullable|boolean',
-      'enviar_automaticamente_al_cliente' => 'nullable|boolean',
 
       // Items de la nota de débito (OBLIGATORIOS)
       'items' => 'required|array|min:1',

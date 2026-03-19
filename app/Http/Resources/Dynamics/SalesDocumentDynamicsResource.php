@@ -21,7 +21,9 @@ class SalesDocumentDynamicsResource extends JsonResource
   {
     // Determinar el TipoComprobanteId
     $tipoComprobanteId = match ($this->sunat_concept_document_type_id) {
-      ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_NOTA_CREDITO, ElectronicDocument::TYPE_NOTA_DEBITO => 'FAC',
+      ElectronicDocument::TYPE_FACTURA => 'FAC',
+      ElectronicDocument::TYPE_NOTA_CREDITO => 'NCR',
+      ElectronicDocument::TYPE_NOTA_DEBITO => 'NDB',
       ElectronicDocument::TYPE_BOLETA => 'BOL',
       default => 'FAC',
     };
