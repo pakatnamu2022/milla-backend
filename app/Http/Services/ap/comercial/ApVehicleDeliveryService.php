@@ -42,8 +42,10 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
   public function list(Request $request)
   {
+    $query = ApVehicleDelivery::with(['ShippingGuide', 'deliveryChecklist']);
+
     return $this->getFilteredResults(
-      ApVehicleDelivery::class,
+      $query,
       $request,
       ApVehicleDelivery::filters,
       ApVehicleDelivery::sorts,
@@ -106,7 +108,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
   public function show($id)
   {
-    $vehicleDelivery = ApVehicleDelivery::with('ShippingGuide')->find($id);
+    $vehicleDelivery = ApVehicleDelivery::with(['ShippingGuide', 'deliveryChecklist'])->find($id);
     if (!$vehicleDelivery) {
       throw new Exception('Entrega de Vehículo no encontrado');
     }
