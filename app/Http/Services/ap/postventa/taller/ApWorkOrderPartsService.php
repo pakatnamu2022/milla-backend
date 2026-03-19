@@ -163,9 +163,9 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('No se puede agregar repuestos a una orden de trabajo cerrada');
       }
 
-      if ($workOrder->vehicleInspection === null) {
-        throw new Exception('No se puede agregar repuestos a una orden de trabajo sin inspección vehicular');
-      }
+//      if ($workOrder->vehicleInspection === null) {
+//        throw new Exception('No se puede agregar repuestos a una orden de trabajo sin inspección vehicular');
+//      }
 
       // Validar que no existan avances de factura
       if ($workOrder->advancesWorkOrder()->exists()) {
@@ -409,7 +409,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      if ($workOrder->advancesWorkOrder()->exists()) {
+      if ($workOrder->advancesWorkOrder()->exists() && $workOrder->is_invoiced) {
         throw new Exception('No se puede agregar repuestos porque la orden de trabajo ya tiene avances de factura');
       }
 

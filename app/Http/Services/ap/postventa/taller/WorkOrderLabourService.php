@@ -56,9 +56,9 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede agregar mano de obra a una orden de trabajo cerrada');
       }
 
-      if ($workOrder->vehicleInspection === null) {
-        throw new Exception('No se puede agregar mano de obra a una orden de trabajo sin inspección de vehículo');
-      }
+//      if ($workOrder->vehicleInspection === null) {
+//        throw new Exception('No se puede agregar mano de obra a una orden de trabajo sin inspección de vehículo');
+//      }
 
       // Validar que no existan avances de factura
       if ($workOrder->advancesWorkOrder()->exists()) {

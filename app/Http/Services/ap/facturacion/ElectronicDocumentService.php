@@ -479,10 +479,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
   }
 
-  /**
-   * Update an electronic document
-   * @throws Exception
-   */
   public function update(mixed $data): ElectronicDocumentResource
   {
     $id = $data['id'];
@@ -701,12 +697,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $this->updateQuotationInvoiceStatus($data['order_quotation_id']);
       }
 
-      // Actualizar estado de orden de trabajo si corresponde
-      if (isset($data['work_order_id']) && $data['work_order_id']) {
-        $isAdvancePayment = isset($data['is_advance_payment']) ? $data['is_advance_payment'] == 1 : $document->is_advance_payment;
-        $this->updateWorkOrderInvoiceStatus($data['work_order_id'], $isAdvancePayment);
-      }
-
       DB::commit();
       return new ElectronicDocumentResource($document->fresh(['items', 'guides', 'installments', 'vehicleMovement']));
     } catch (Exception $e) {
@@ -743,10 +733,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
   }
 
-  /**
-   * Send document to Nubefact API
-   * @throws Exception
-   */
   public function sendToNubefact($id): JsonResponse
   {
     DB::beginTransaction();
@@ -809,10 +795,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
   }
 
-  /**
-   * Query document status from Nubefact
-   * @throws Exception
-   */
   public function queryFromNubefact($id): JsonResponse
   {
     try {
@@ -2289,15 +2271,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
   }
 
-  /**
-   * Update work order invoice status
-   * Marks has_invoice_generated = true when a document is created
-   * If is_advance_payment = false (venta interna), close the work order
-   *
-   * @param int $workOrderId
-   * @param bool $isAdvancePayment
-   * @return void
-   */
   private function updateWorkOrderInvoiceStatus(int $workOrderId, bool $isAdvancePayment = true): void
   {
     try {
@@ -2684,9 +2657,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     // Marcar work_order con has_invoice_generated
-    // Si is_advance_payment = 0 (venta interna), cerrar la OT
-    $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
-    $this->updateWorkOrderInvoiceStatus($data['work_order_id'], $isAdvancePayment);
+    $workOrder = ApWorkOrder::find($data['work_order_id']);
+
+    if (!$workOrder) {
+      return;
+    }
+
+    $workOrder->update(['has_invoice_generated' => true]);
   }
 
   /*
