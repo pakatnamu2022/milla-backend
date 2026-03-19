@@ -26,6 +26,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 {
   protected DigitalFileService $digitalFileService;
   protected EmailService $emailService;
+  protected ApOrderQuotationDetailsService $quotationDetailsService;
 
   // Configuración de rutas para archivos
   private const FILE_PATHS = [
@@ -33,10 +34,15 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     'customer_signature_delivery' => '/ap/postventa/taller/cotizaciones/firmas-entrega/',
   ];
 
-  public function __construct(DigitalFileService $digitalFileService, EmailService $emailService)
+  public function __construct(
+    DigitalFileService $digitalFileService,
+    EmailService $emailService,
+    ApOrderQuotationDetailsService $quotationDetailsService
+  )
   {
     $this->digitalFileService = $digitalFileService;
     $this->emailService = $emailService;
+    $this->quotationDetailsService = $quotationDetailsService;
   }
 
   public function list(Request $request)
@@ -104,7 +110,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $data['quotation_number'] = $this->generateNextQuotationNumber($data['sede_id']);
       $data['subtotal'] = 0;
       $data['discount_amount'] = 0;
-      $data['tax_amount'] = Constants::VAT_TAX;
+      $data['tax_amount'] = 0;
       $data['total_amount'] = 0;
       $data['exchange_rate'] = $exchangeRate->rate;
 
@@ -148,27 +154,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $expiration_date = Carbon::parse($data['expiration_date']);
       $validation_days = $quotation_date->diffInDays($expiration_date);
 
-      // Calculate totals from details
-      $subtotal = 0;
-      $discount_amount = 0;
-
-      foreach ($data['details'] as $detail) {
-        $itemSubtotal = $detail['quantity'] * $detail['unit_price'];
-        // Calcular el descuento basándose en el total_amount ya redondeado para evitar diferencias de centavos
-        $itemDiscount = $itemSubtotal - $detail['total_amount'];
-
-        $subtotal += $itemSubtotal;
-        $discount_amount += $itemDiscount;
-      }
-
-      $subtotal_after_discount = $subtotal - $discount_amount;
-      $igv_amount = $subtotal_after_discount * (Constants::VAT_TAX / 100);
-      $total_amount = $subtotal_after_discount + $igv_amount;
-
-      // Calculate discount percentage based on total discount amount and subtotal
-      $discount_percentage = $subtotal > 0 ? ($discount_amount / $subtotal) * 100 : 0;
-
-      // Prepare quotation data
+      // Prepare quotation data (initialize totals as 0, will be calculated after creating details)
       $quotationData = [
         'area_id' => $data['area_id'],
         'vehicle_id' => $data['vehicle_id'] ?? null,
@@ -179,11 +165,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'observations' => $data['observations'] ?? null,
         'created_by' => $data['created_by'],
         'quotation_number' => $this->generateNextQuotationNumber($data['sede_id']),
-        'subtotal' => $subtotal,
-        'discount_percentage' => $discount_percentage,
-        'discount_amount' => $discount_amount,
-        'tax_amount' => $igv_amount,
-        'total_amount' => $total_amount,
+        'subtotal' => 0,
+        'discount_percentage' => 0,
+        'discount_amount' => 0,
+        'tax_amount' => 0,
+        'total_amount' => 0,
         'validity_days' => $validation_days,
         'exchange_rate' => $exchangeRate->rate,
         'currency_id' => $data['currency_id'],
@@ -211,6 +197,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'freight_commission' => $detail['freight_commission'] ?? null,
         ]);
       }
+
+      // Recalculate totals using centralized method in model
+      $quotation->calculateTotals();
+      $quotation->save();
 
       return new ApOrderQuotationsResource($quotation->load([
         'vehicle',
@@ -326,27 +316,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $expiration_date = Carbon::parse($data['expiration_date']);
       $validation_days = $quotation_date->diffInDays($expiration_date);
 
-      // Calculate totals from details
-      $subtotal = 0;
-      $discount_amount = 0;
-
-      foreach ($data['details'] as $detail) {
-        $itemSubtotal = $detail['quantity'] * $detail['unit_price'];
-        // Calcular el descuento basándose en el total_amount ya redondeado para evitar diferencias de centavos
-        $itemDiscount = $itemSubtotal - $detail['total_amount'];
-
-        $subtotal += $itemSubtotal;
-        $discount_amount += $itemDiscount;
-      }
-
-      $subtotal_after_discount = $subtotal - $discount_amount;
-      $igv_amount = $subtotal_after_discount * (Constants::VAT_TAX / 100);
-      $total_amount = $subtotal_after_discount + $igv_amount;
-
-      // Calculate discount percentage based on total discount amount and subtotal
-      $discount_percentage = $subtotal > 0 ? ($discount_amount / $subtotal) * 100 : 0;
-
-      // Update quotation data
+      // Update quotation data (totals will be recalculated after updating details)
       $quotation->update([
         'area_id' => $data['area_id'],
         'vehicle_id' => $vehicleId,
@@ -355,11 +325,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'quotation_date' => $data['quotation_date'],
         'expiration_date' => $data['expiration_date'],
         'observations' => $data['observations'] ?? null,
-        'subtotal' => $subtotal,
-        'discount_percentage' => $discount_percentage,
-        'discount_amount' => $discount_amount,
-        'tax_amount' => $igv_amount,
-        'total_amount' => $total_amount,
         'validity_days' => $validation_days,
         'currency_id' => $data['currency_id'],
         'exchange_rate' => $exchangeRate->rate,
@@ -386,6 +351,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'freight_commission' => $detail['freight_commission'] ?? null,
         ]);
       }
+
+      // Reload details relation to ensure fresh data for calculations
+      $quotation->load('details');
+
+      // Recalculate totals using centralized method in model
+      $quotation->calculateTotals();
+      $quotation->save();
 
       return new ApOrderQuotationsResource($quotation->load([
         'vehicle',
