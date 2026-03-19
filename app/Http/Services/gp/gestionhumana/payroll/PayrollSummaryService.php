@@ -41,9 +41,6 @@ class PayrollSummaryService
     $earnings = $details->where('type', 'EARNING');
     $deductions = $details->where('type', 'DEDUCTION');
 
-    // Total de deducciones
-    $totalDeductions = $deductions->sum('amount');
-
     // HE 25% y HE 35% (sumando las deducciones correspondientes que ya vienen en negativo)
     $earnings25 = $earnings->where('multiplier', '1.2500')->sum('amount');
     $deductions25 = $deductions->where('multiplier', '1.2500')->sum('amount');
@@ -66,8 +63,11 @@ class PayrollSummaryService
     $compensatoryBase = $compensatoryEarnings + $compensatoryDeductions;
     $compensatoryPay = round($compensatoryBase * 2, 2);
 
-    // REM. BRUTA = total EARNING - HE25% - HE35%
-    $grossSalary = round($earnings->sum('amount') - $overtime25 - $overtime35, 2);
+    // Total de deducciones (ya vienen en negativo)
+    $totalDeductions = $deductions->sum('amount');
+
+    // REM. BRUTA = total EARNING - HE25% - HE35% + DEDUCCIONES (ya son negativas)
+    $grossSalary = round($earnings->sum('amount') - $overtime25 - $overtime35 + $totalDeductions, 2);
 
     // Días trabajados: usa el valor guardado; si es 0, lo reconstruye desde los detalles
     $daysWorked = (int)$calc->days_worked > 0

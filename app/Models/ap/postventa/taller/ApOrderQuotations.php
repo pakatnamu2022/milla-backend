@@ -2,10 +2,10 @@
 
 namespace App\Models\ap\postventa\taller;
 
+use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
-use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
@@ -43,6 +43,8 @@ class ApOrderQuotations extends Model
     'observations',
     'created_by',
     'is_take',
+    'is_requested_by_management',
+    'emails_sent_count',
     'area_id',
     'currency_id',
     'exchange_rate',
@@ -91,6 +93,7 @@ class ApOrderQuotations extends Model
     'discarded_at' => 'datetime',
     'has_invoice_generated' => 'boolean',
     'is_fully_paid' => 'boolean',
+    'is_requested_by_management' => 'boolean',
   ];
 
   //STATUS CONSTANTS
@@ -196,5 +199,51 @@ class ApOrderQuotations extends Model
   {
     $this->is_take = 1;
     $this->save();
+  }
+
+  /**
+   * Centralized method to calculate and update quotation totals based on details.
+   * This method calculates:
+   * - subtotal: sum of all items (quantity * unit_price) without discounts
+   * - discount_amount: total discount amount in money
+   * - discount_percentage: average discount percentage
+   * - tax_amount: IGV (18%) calculated on subtotal after discounts
+   * - total_amount: final total including discounts and taxes
+   *
+   * @return void
+   */
+  public function calculateTotals(): void
+  {
+    // Get all details for this quotation
+    $details = $this->details;
+
+    // Calculate totals
+    $subtotal = 0; // suma de (quantity * unit_price) sin descuentos
+    $sumTotalAmountItems = 0; // suma de total_amount de cada item (ya con descuento aplicado)
+
+    foreach ($details as $detail) {
+      $itemSubtotal = $detail->quantity * $detail->unit_price;
+      $subtotal += $itemSubtotal;
+      $sumTotalAmountItems += $detail->total_amount;
+    }
+
+    // Calculate discount amount (cuánto se descontó en total en dinero)
+    $discountAmount = $subtotal - $sumTotalAmountItems;
+
+    // Calculate discount percentage (porcentaje promedio de descuento)
+    $discountPercentage = $subtotal > 0 ? ($discountAmount / $subtotal) * 100 : 0;
+
+    // Calculate tax amount (IGV 18% sobre la suma de total_amount de items)
+    $taxAmount = $sumTotalAmountItems * (Constants::VAT_TAX / 100);
+
+    // Calculate total amount (suma de total_amount items + IGV)
+    $totalAmount = $sumTotalAmountItems + $taxAmount;
+
+    // Update quotation with all calculated values
+    $this->subtotal = round($subtotal, 2);
+    $this->discount_amount = round($discountAmount, 2);
+    $this->discount_percentage = round($discountPercentage, 2);
+    $this->tax_amount = round($taxAmount, 2);
+    $this->total_amount = round($totalAmount, 2);
   }
 }

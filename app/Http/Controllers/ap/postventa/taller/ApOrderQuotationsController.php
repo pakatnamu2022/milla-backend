@@ -182,4 +182,13 @@ class ApOrderQuotationsController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function sendNotificationEmail($id)
+  {
+    try {
+      return $this->success($this->service->sendQuotationNotificationEmail($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

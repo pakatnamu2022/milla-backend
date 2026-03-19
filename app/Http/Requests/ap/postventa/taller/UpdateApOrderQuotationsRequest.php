@@ -17,6 +17,7 @@ class UpdateApOrderQuotationsRequest extends StoreRequest
       'client_id' => ['sometimes', 'required', 'integer', 'exists:business_partners,id'],
       'quotation_date' => ['sometimes', 'required', 'date'],
       'expiration_date' => ['nullable', 'date', 'after_or_equal:quotation_date'],
+      'is_requested_by_management' => ['nullable', 'boolean'],
       'observations' => ['nullable', 'string'],
     ];
   }

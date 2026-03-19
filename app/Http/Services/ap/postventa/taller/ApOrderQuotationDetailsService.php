@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationDetailsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
@@ -59,8 +60,10 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
       // Create quotation detail
       $apOrderQuotationDetails = ApOrderQuotationDetails::create($data);
 
-      // Recalculate quotation totals
-      $this->updateQuotationTotals($apOrderQuotationDetails->order_quotation_id);
+      // Recalculate quotation totals using centralized method in model
+      $quotation = ApOrderQuotations::find($apOrderQuotationDetails->order_quotation_id);
+      $quotation->calculateTotals();
+      $quotation->save();
 
       // Recalculate work order totals if quotation is associated with one
       $this->recalculateWorkOrderTotals($apOrderQuotationDetails->order_quotation_id);
@@ -91,8 +94,10 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
       // Update quotation detail
       $apOrderQuotationDetails->update($data);
 
-      // Recalculate quotation totals
-      $this->updateQuotationTotals($apOrderQuotationDetails->order_quotation_id);
+      // Recalculate quotation totals using centralized method in model
+      $quotation = ApOrderQuotations::find($apOrderQuotationDetails->order_quotation_id);
+      $quotation->calculateTotals();
+      $quotation->save();
 
       // Recalculate work order totals if quotation is associated with one
       $this->recalculateWorkOrderTotals($apOrderQuotationDetails->order_quotation_id);
@@ -118,8 +123,10 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
     DB::transaction(function () use ($apOrderQuotationDetails, $quotationId) {
       $apOrderQuotationDetails->delete();
 
-      // Recalculate quotation totals
-      $this->updateQuotationTotals($quotationId);
+      // Recalculate quotation totals using centralized method in model
+      $quotation = ApOrderQuotations::find($quotationId);
+      $quotation->calculateTotals();
+      $quotation->save();
 
       // Recalculate work order totals if quotation is associated with one
       $this->recalculateWorkOrderTotals($quotationId);
@@ -165,41 +172,6 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
     return round($subtotal - ($subtotal * $discountPercentage / 100), 2);
   }
 
-  /**
-   * Recalculate and update quotation totals based on all details
-   *
-   * @param int $quotationId
-   * @return void
-   */
-  private function updateQuotationTotals(int $quotationId): void
-  {
-    // Get all details for this quotation
-    $details = ApOrderQuotationDetails::where('order_quotation_id', $quotationId)->get();
-
-    // Calculate totals
-    $subtotal = 0;
-    $totalDiscountAmount = 0;
-
-    foreach ($details as $detail) {
-      $lineSubtotal = $detail->quantity * $detail->unit_price;
-      $subtotal += $lineSubtotal;
-      $totalDiscountAmount += $lineSubtotal * ($detail->discount_percentage / 100);
-    }
-
-    // Calculate discount percentage
-    $discountPercentage = $subtotal > 0 ? ($totalDiscountAmount / $subtotal) * 100 : 0;
-
-    // Calculate total (subtotal - discounts, without taxes)
-    $totalAmount = $subtotal - $totalDiscountAmount;
-
-    // Update quotation
-    ApOrderQuotations::where('id', $quotationId)->update([
-      'subtotal' => round($subtotal, 2),
-      'discount_amount' => round($totalDiscountAmount, 2),
-      'discount_percentage' => round($discountPercentage, 2),
-      'total_amount' => round($totalAmount, 2),
-    ]);
-  }
 
   /**
    * Recalculate work order totals if the quotation is associated with one
