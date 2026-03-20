@@ -142,9 +142,6 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
         $businessPartner->establishments()->delete();
       }
 
-      // Sincronizar a otras bases de datos
-      //$this->syncService->sync('business_partners', $businessPartner->toArray(), 'update');
-
       DB::commit();
       return new BusinessPartnersResource($businessPartner);
     } catch (Exception $e) {
@@ -303,17 +300,61 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
         ->get();
     }
 
-    if ($opportunities->count() > 0) {
-      // Obtener el lead y su marca de vehículo
-      $lead = PotentialBuyers::findOrFail($leadId);
-      $newBrandId = $lead->vehicle_brand_id;
+    // Obtener la marca del lead para todas las validaciones siguientes
+    $lead = PotentialBuyers::findOrFail($leadId);
+    $newBrandId = $lead->vehicle_brand_id;
 
+    if ($opportunities->count() > 0) {
       // Obtener las marcas de todas las oportunidades existentes
       $existingBrandIds = $opportunities->pluck('family.brand_id')->filter()->unique();
 
       // Si la nueva oportunidad es de la misma marca que alguna existente, lanzar excepción
       if ($existingBrandIds->contains($newBrandId)) {
         throw new Exception('El cliente ya tiene una oportunidad abierta de la misma marca');
+      }
+    }
+
+    // Validar partes relacionadas (misma marca): representante legal y cónyuge/copropietario
+    $clientIdsWithOpenOpps = Opportunity::whereIn('opportunity_status_id', $statusIds)
+      ->where('client_id', '!=', $businessPartner->id)
+      ->whereHas('family', fn($q) => $q->where('brand_id', $newBrandId))
+      ->pluck('client_id');
+
+    if ($clientIdsWithOpenOpps->isNotEmpty()) {
+      $partnersWithOpenOpps = BusinessPartners::whereIn('id', $clientIdsWithOpenOpps)
+        ->whereNotNull('num_doc')
+        ->get(['num_doc', 'legal_representative_num_doc', 'spouse_num_doc']);
+
+      // RUC/Empresa: el representante legal del cliente ya tiene oportunidad activa (misma marca)
+      if ($businessPartner->legal_representative_num_doc) {
+        $conflict = $partnersWithOpenOpps->where('num_doc', $businessPartner->legal_representative_num_doc)->first();
+        if ($conflict) {
+          throw new Exception('El representante legal del cliente (Doc: ' . $businessPartner->legal_representative_num_doc . ') ya tiene una oportunidad activa para esta marca.');
+        }
+      }
+
+      // RUC/Empresa: el cliente es representante legal de una empresa con oportunidad activa (misma marca)
+      if ($businessPartner->num_doc) {
+        $conflict = $partnersWithOpenOpps->where('legal_representative_num_doc', $businessPartner->num_doc)->first();
+        if ($conflict) {
+          throw new Exception('El cliente es representante legal de una empresa que ya tiene una oportunidad activa para esta marca.');
+        }
+      }
+
+      // Cónyuge: el cónyuge del cliente ya tiene oportunidad activa (misma marca)
+      if ($businessPartner->spouse_num_doc) {
+        $conflict = $partnersWithOpenOpps->where('num_doc', $businessPartner->spouse_num_doc)->first();
+        if ($conflict) {
+          throw new Exception('El cónyuge/copropietario del cliente (Doc: ' . $businessPartner->spouse_num_doc . ') ya tiene una oportunidad activa para esta marca.');
+        }
+      }
+
+      // Cónyuge: el cliente es cónyuge de alguien con oportunidad activa (misma marca)
+      if ($businessPartner->num_doc) {
+        $conflict = $partnersWithOpenOpps->where('spouse_num_doc', $businessPartner->num_doc)->first();
+        if ($conflict) {
+          throw new Exception('El cliente es cónyuge/copropietario de alguien que ya tiene una oportunidad activa para esta marca.');
+        }
       }
     }
 
