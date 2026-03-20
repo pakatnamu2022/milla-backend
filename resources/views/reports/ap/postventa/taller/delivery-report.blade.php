@@ -782,7 +782,7 @@
       <tr>
         <td class="label-col">Entrega Real</td>
         <td>{{$workOrder->actual_delivery_date?->format('d/m/Y') ?? '- / - / -'}}</td>
-        <td>{{$workOrder->actual_delivery_time?->format('H:i') ?? '-'}}</td>
+        <td>{{$workOrder->actual_delivery_date?->format('H:i') ?? '-'}}</td>
       </tr>
       </tbody>
     </table>
@@ -878,12 +878,14 @@
       </tr>
       <tr>
         <td class="value-row" style="width: 50%; border-right: 0.5px solid #ddd; border-bottom: 0.5px solid #ddd;">
-          <span style="display: inline-block; width: 110px;">Cliente con cita</span><span class="mini-checkbox {{ $appointmentPlanning ? 'checked' : '' }}"
-                                                                                          style="float: none; margin-left: 5px;"></span>
+          <span style="display: inline-block; width: 110px;">Cliente con cita</span><span
+            class="mini-checkbox {{ $appointmentPlanning ? 'checked' : '' }}"
+            style="float: none; margin-left: 5px;"></span>
         </td>
         <td class="value-row" style="width: 50%; border-bottom: 0.5px solid #ddd;">
-          <span style="display: inline-block; width: 110px;">Cliente sin cita</span><span class="mini-checkbox {{ !$appointmentPlanning ? 'checked' : '' }}"
-                                                                                          style="float: none; margin-left: 5px;"></span>
+          <span style="display: inline-block; width: 110px;">Cliente sin cita</span><span
+            class="mini-checkbox {{ !$appointmentPlanning ? 'checked' : '' }}"
+            style="float: none; margin-left: 5px;"></span>
         </td>
       </tr>
       <tr>
@@ -897,23 +899,14 @@
         </td>
       </tr>
       <tr>
-        <td class="value-row" style="border-right: 0.5px solid #ddd; border-bottom: 0.5px solid #ddd;">
+        <td class="value-row">
           <span style="display: inline-block; width: 110px;">Servicio interno</span><span class="mini-checkbox"
                                                                                           style="float: none; margin-left: 5px;"></span>
         </td>
-        <td class="value-row" style="border-bottom: 0.5px solid #ddd;">
-          <span style="display: inline-block; width: 110px;">Garantía / Recall</span><span class="mini-checkbox {{ ($isGuarantee || $isRecall) ? 'checked' : '' }}"
-                                                                                           style="float: none; margin-left: 5px;"></span>
-        </td>
-      </tr>
-      <tr>
-        <td class="value-row" style="border-right: 0.5px solid #ddd;">
-          <span style="display: inline-block; width: 110px;">Cliente espera</span><span class="mini-checkbox"
-                                                                                        style="float: none; margin-left: 5px;"></span>
-        </td>
         <td class="value-row">
-          <span style="display: inline-block; width: 110px;">Reparación repetida</span><span class="mini-checkbox"
-                                                                                             style="float: none; margin-left: 5px;"></span>
+          <span style="display: inline-block; width: 110px;">Garantía / Recall</span><span
+            class="mini-checkbox {{ ($isGuarantee || $isRecall) ? 'checked' : '' }}"
+            style="float: none; margin-left: 5px;"></span>
         </td>
       </tr>
     </table>
@@ -944,26 +937,26 @@
       <tr class="two-col-row">
         <td class="label-row">Hora inicio trabajo: <span style="font-weight: normal;">
           @if($plannings && $plannings->isNotEmpty())
-            {{ $plannings->first()->actual_start_datetime?->format('h:i A') ?? '-' }}
-          @else
-            -
-          @endif
+              {{ $plannings->first()->actual_start_datetime?->format('h:i A') ?? '-' }}
+            @else
+              -
+            @endif
         </span></td>
         <td class="label-row">Hora fin trabajo: <span style="font-weight: normal;">
           @if($plannings && $plannings->isNotEmpty())
-            {{ $plannings->last()->actual_end_datetime?->format('h:i A') ?? '-' }}
-          @else
-            -
-          @endif
+              {{ $plannings->last()->actual_end_datetime?->format('h:i A') ?? '-' }}
+            @else
+              -
+            @endif
         </span></td>
       </tr>
       <tr>
         <td colspan="2" class="label-row">Técnico: <span style="font-weight: normal;">
           @if($plannings && $plannings->isNotEmpty())
-            {{ $plannings->pluck('worker.nombre_completo')->filter()->unique()->implode(', ') }}
-          @else
-            -
-          @endif
+              {{ $plannings->pluck('worker.nombre_completo')->filter()->unique()->implode(', ') }}
+            @else
+              -
+            @endif
         </span></td>
       </tr>
       <tr>
@@ -1111,41 +1104,100 @@
               SEGUIMIENTO POST SERVICIO
             </div>
             <div style="font-size: 8px; margin-bottom: 15px; padding: 8px;">
-              <strong>Día:</strong>
-              <div style="margin-top: 10px; margin-bottom: 10px;">
-                <span style="margin-left: 3px;">L</span> <span class="mini-checkbox"
-                                                               style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
-                <span>M</span> <span class="mini-checkbox"
-                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
-                <span>M</span> <span class="mini-checkbox"
-                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
-                <span>J</span> <span class="mini-checkbox"
-                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
-                <span>V</span> <span class="mini-checkbox"
-                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
-                <span>S</span> <span class="mini-checkbox"
-                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
-                <span>D</span> <span class="mini-checkbox"
-                                     style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; margin: 0 3px; vertical-align: middle;"></span>
+              @php
+                // Mapear días de número a letra: 1=L, 2=M, 3=M, 4=J, 5=V, 6=S, 7=D
+                $dayMap = [1 => 'L', 2 => 'M', 3 => 'M', 4 => 'J', 5 => 'V', 6 => 'S', 7 => 'D'];
+
+                // Obtener y validar datos
+                $postServiceData = null;
+                try {
+                  $postServiceData = $workOrder->post_service_follow_up;
+                  if (is_string($postServiceData)) {
+                    $postServiceData = json_decode($postServiceData, true);
+                  }
+                  if (!is_array($postServiceData)) {
+                    $postServiceData = [];
+                  }
+                } catch (\Exception $e) {
+                  $postServiceData = [];
+                }
+
+                // Arrays para almacenar los días programados y horas
+                $scheduledDays = [];
+                $displayHourStart = '';
+                $displayMinStart = '';
+                $displayHourEnd = '';
+                $displayMinEnd = '';
+
+                // Procesar datos si existen
+                if (!empty($postServiceData) && is_array($postServiceData)) {
+                  foreach ($postServiceData as $followUp) {
+                    if (is_array($followUp) && isset($followUp['days'])) {
+                      $dayNumber = (int)$followUp['days'];
+                      if ($dayNumber >= 1 && $dayNumber <= 7) {
+                        $scheduledDays[$dayNumber] = true;
+                      }
+                    }
+                  }
+
+                  // Obtener horas del primer elemento válido
+                  if (isset($postServiceData[0]) && is_array($postServiceData[0])) {
+                    $firstFollow = $postServiceData[0];
+
+                    // Procesar hora de inicio
+                    if (!empty($firstFollow['time_start'])) {
+                      $timeStartParts = explode(':', $firstFollow['time_start']);
+                      if (count($timeStartParts) >= 2) {
+                        $displayHourStart = str_pad($timeStartParts[0], 2, '0', STR_PAD_LEFT);
+                        $displayMinStart = str_pad($timeStartParts[1], 2, '0', STR_PAD_LEFT);
+                      }
+                    }
+
+                    // Procesar hora de fin
+                    if (!empty($firstFollow['time_end'])) {
+                      $timeEndParts = explode(':', $firstFollow['time_end']);
+                      if (count($timeEndParts) >= 2) {
+                        $displayHourEnd = str_pad($timeEndParts[0], 2, '0', STR_PAD_LEFT);
+                        $displayMinEnd = str_pad($timeEndParts[1], 2, '0', STR_PAD_LEFT);
+                      }
+                    }
+                  }
+                }
+              @endphp
+
+              <div style="margin-bottom: 8px;">
+                <strong>Día:</strong>
               </div>
-              <div>
-                <strong>Hora:</strong>
-                <span style="margin-left: 5px;">
-                  De:
-                  <span
-                    style="display: inline-block; width: 18px; border-bottom: 1px solid #000; margin: 0 2px;"></span>
-                  :
-                  <span
-                    style="display: inline-block; width: 18px; border-bottom: 1px solid #000; margin: 0 2px;"></span>
-                </span>
-                <span style="margin-left: 10px;">
-                  A:
-                  <span
-                    style="display: inline-block; width: 18px; border-bottom: 1px solid #000; margin: 0 2px;"></span>
-                  :
-                  <span
-                    style="display: inline-block; width: 18px; border-bottom: 1px solid #000; margin: 0 2px;"></span>
-                </span>
+              <div style="margin-bottom: 12px; display: flex; justify-content: space-around; align-items: center;">
+                @foreach([1, 2, 3, 4, 5, 6, 7] as $dayNum)
+                  <div style="text-align: center; display: inline-block;">
+                    <div style="font-weight: bold; margin-bottom: 3px;">{{ $dayMap[$dayNum] }}</div>
+                    <span class="mini-checkbox {{ isset($scheduledDays[$dayNum]) ? 'checked' : '' }}"
+                          style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; vertical-align: middle;"></span>
+                  </div>
+                @endforeach
+              </div>
+
+              <div style="border-top: 1px solid #ccc; padding-top: 8px;">
+                <div style="margin-bottom: 5px;">
+                  <strong>Horario:</strong>
+                </div>
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td width="50%" style="vertical-align: middle;">
+                      <span style="font-weight: bold; font-size: 7px;">DE:</span>
+                      <span style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px; margin-left: 3px;">{{ $displayHourStart }}</span>
+                      <span style="margin: 0 1px;">:</span>
+                      <span style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px;">{{ $displayMinStart }}</span>
+                    </td>
+                    <td width="50%" style="text-align: right; vertical-align: middle;">
+                      <span style="font-weight: bold; font-size: 7px;">A:</span>
+                      <span style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px; margin-left: 3px;">{{ $displayHourEnd }}</span>
+                      <span style="margin: 0 1px;">:</span>
+                      <span style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px;">{{ $displayMinEnd }}</span>
+                    </td>
+                  </tr>
+                </table>
               </div>
             </div>
           </td>
@@ -1168,10 +1220,11 @@
           </td>
           <td
             style="padding: 8px; background-color: #f5f5f5; font-size: 9px; border-right: 1px solid #000000; width: 25%;">
-            <strong>Precio estimado final:</strong> S/ 480.00
+            <strong>Precio estimado
+              final:</strong> {{$workOrder->typeCurrency->symbol ?? 'S/ '}} {{ number_format($workOrder->final_amount, 2) ?? '0.00' }}
           </td>
           <td style="padding: 8px; background-color: #f5f5f5; font-size: 9px; width: 25%;">
-            <strong>Asesor de servicio:</strong> Juan Pérez
+            <strong>Asesor de servicio:</strong> {{$workOrder->deliveryBy ? $workOrder->deliveryBy->name : '-' }}
           </td>
         </tr>
       </table>

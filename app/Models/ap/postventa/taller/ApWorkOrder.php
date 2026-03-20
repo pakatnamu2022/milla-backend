@@ -43,7 +43,8 @@ class ApWorkOrder extends Model
     'estimated_delivery_date',
     'estimated_delivery_time',
     'actual_delivery_date',
-    'actual_delivery_time',
+    'is_delivery',
+    'delivery_by',
     'diagnosis_date',
     'observations',
     'total_labor_cost',
@@ -62,6 +63,7 @@ class ApWorkOrder extends Model
     'allow_remove_associated_quote',
     'allow_editing_inspection',
     'created_by',
+    'post_service_follow_up',
   ];
 
   protected $casts = [
@@ -69,7 +71,7 @@ class ApWorkOrder extends Model
     'estimated_delivery_date' => 'datetime',
     'estimated_delivery_time' => 'datetime:H:i',
     'actual_delivery_date' => 'datetime',
-    'actual_delivery_time' => 'datetime:H:i',
+    'is_delivery' => 'boolean',
     'diagnosis_date' => 'datetime',
     'is_invoiced' => 'boolean',
     'is_guarantee' => 'boolean',
@@ -84,6 +86,7 @@ class ApWorkOrder extends Model
     'final_amount' => 'decimal:2',
     'allow_remove_associated_quote' => 'boolean',
     'allow_editing_inspection' => 'boolean',
+    'post_service_follow_up' => 'array',
   ];
 
   const filters = [
@@ -192,6 +195,11 @@ class ApWorkOrder extends Model
   public function creator(): BelongsTo
   {
     return $this->belongsTo(User::class, 'created_by');
+  }
+
+  public function deliveryBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'delivery_by');
   }
 
   public function items(): HasMany
