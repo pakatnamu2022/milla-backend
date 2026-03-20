@@ -1432,6 +1432,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Consolidated invoice from work orders
       Route::post('electronic-documents/consolidated-invoice', [ElectronicDocumentController::class, 'createConsolidatedInvoice']);
+      Route::get('electronic-documents/{id}/work-orders', [ElectronicDocumentController::class, 'getInvoiceWithWorkOrders']);
 
       // CRUD de Documentos Electrónicos
       Route::apiResource('electronic-documents', ElectronicDocumentController::class);

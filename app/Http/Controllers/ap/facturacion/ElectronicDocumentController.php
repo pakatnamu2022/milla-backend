@@ -545,4 +545,21 @@ class ElectronicDocumentController extends Controller
       return $this->error($e->getMessage());
     }
   }
+
+  /**
+   * Get invoice with internal notes and their work orders
+   *
+   * @param int $id Invoice ID
+   * @return JsonResponse
+   */
+  public function getInvoiceWithWorkOrders(int $id): JsonResponse
+  {
+    try {
+      $result = $this->service->getInvoiceWithWorkOrders($id);
+
+      return $this->success($result);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }
