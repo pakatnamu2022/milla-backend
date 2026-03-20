@@ -17,7 +17,6 @@ class ApVehicleInspection extends Model
   protected $fillable = [
     'ap_work_order_id',
     'inspection_date',
-    'inspection_date',
     'mileage',
     'fuel_level',
     'oil_level',
@@ -108,7 +107,7 @@ class ApVehicleInspection extends Model
     'fluid_caps' => 'boolean',
     'tool_kit' => 'boolean',
     'jack_and_lever' => 'boolean',
-    'inspection_date' => 'datetime',
+    'inspection_date' => 'datetime:H:i',
     // Detalles de trabajo
     'oil_change' => 'boolean',
     'check_level_lights' => 'boolean',

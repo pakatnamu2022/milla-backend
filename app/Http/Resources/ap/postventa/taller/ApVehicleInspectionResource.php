@@ -49,7 +49,7 @@ class ApVehicleInspectionResource extends JsonResource
       'fluid_caps' => $this->fluid_caps,
       'tool_kit' => $this->tool_kit,
       'jack_and_lever' => $this->jack_and_lever,
-      'inspection_date' => $this->inspection_date->format('Y-m-d'),
+      'inspection_date' => $this->inspection_date,
       'general_observations' => $this->general_observations,
       'inspected_by' => $this->inspected_by,
       'inspected_by_name' => $this->inspectionBy ? $this->inspectionBy->name : null,
