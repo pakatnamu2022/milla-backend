@@ -137,6 +137,26 @@ class WorkOrderController extends Controller
     }
   }
 
+  public function generateDelivery(Request $request, $id)
+  {
+    try {
+      $data = $request->validate(
+        [
+          'actual_delivery_date' => 'required|date',
+          'follow_ups' => 'required|array|min:1',
+          'follow_ups.*.days' => 'required|integer|min:1',
+          'follow_ups.*.time_start' => 'required|date_format:H:i',
+          'follow_ups.*.time_end' => 'required|date_format:H:i',
+        ]
+      );
+      $data['id'] = $id;
+
+      return $this->success($this->service->generateDelivery($data));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
   public function generateDeliveryReport($id)
   {
     try {
@@ -162,7 +182,7 @@ class WorkOrderController extends Controller
   {
     try {
       return $this->service->generateInternalNote($id);
-    } catch (Exception $e) {
+    } catch (\Throwable $e) {
       return $this->error($e->getMessage());
     }
   }
