@@ -340,7 +340,7 @@
       vertical-align: middle;
       background-color: white;
     }
-    
+
     .checkbox.checked::before {
       content: "X";
       font-size: 8px;
@@ -588,7 +588,7 @@
     .appointment-table .label-col {
       background-color: #f0f0f0;
       font-weight: bold;
-      width: 35%;
+      width: 25%;
     }
 
     .appointment-table .info-col {
@@ -766,13 +766,13 @@
       <tbody>
       <tr>
         <td class="label-col">Recepción Programada</td>
-        <td>15/03/2026</td>
-        <td>09:00 AM</td>
+        <td>{{$appointmentPlanning->delivery_date ?? '-'}}</td>
+        <td>{{$appointmentPlanning->delivery_time ?? '-'}}</td>
       </tr>
       <tr>
         <td class="label-col">Recepción Real</td>
-        <td>15/03/2026</td>
-        <td>09:15 AM</td>
+        <td>{{$inspection->inspection_date->format('d/m/Y') ?? '-'}}</td>
+        <td>{{$inspection->inspection_date->format('H:i') ?? '-'}}</td>
       </tr>
       <tr>
         <td class="label-col">Entrega Programada</td>
@@ -799,11 +799,12 @@
       <tbody>
       <tr>
         <td class="label-col">Confirmación de Cita</td>
-        <td class="info-col">14/03/2026 - 03:30 PM</td>
+        <td class="info-col">{{$appointmentPlanning->delivery_date ?? '-'}}
+          - {{$appointmentPlanning->delivery_time ?? '-'}}</td>
         <td class="responsible-col" rowspan="3">
           <div style="writing-mode: vertical-rl; white-space: nowrap;">
             RESPONSABLE CITAS<br><br>
-            María González Pérez
+            {{$appointmentPlanning->advisor->nombre_completo ?? '-'}}
           </div>
         </td>
       </tr>
