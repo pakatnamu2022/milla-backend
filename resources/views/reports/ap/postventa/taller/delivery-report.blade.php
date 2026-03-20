@@ -1168,15 +1168,17 @@
               <div style="margin-bottom: 8px;">
                 <strong>Día:</strong>
               </div>
-              <div style="margin-bottom: 12px; display: flex; justify-content: space-around; align-items: center;">
-                @foreach([1, 2, 3, 4, 5, 6, 7] as $dayNum)
-                  <div style="text-align: center; display: inline-block;">
-                    <div style="font-weight: bold; margin-bottom: 3px;">{{ $dayMap[$dayNum] }}</div>
-                    <span class="mini-checkbox {{ isset($scheduledDays[$dayNum]) ? 'checked' : '' }}"
-                          style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; vertical-align: middle;"></span>
-                  </div>
-                @endforeach
-              </div>
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
+                <tr>
+                  @foreach([1, 2, 3, 4, 5, 6, 7] as $dayNum)
+                    <td width="14.28%" style="text-align: center; vertical-align: top; padding: 2px;">
+                      <div style="font-weight: bold; margin-bottom: 3px;">{{ $dayMap[$dayNum] }}</div>
+                      <span class="mini-checkbox {{ isset($scheduledDays[$dayNum]) ? 'checked' : '' }}"
+                            style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #000; vertical-align: middle;"></span>
+                    </td>
+                  @endforeach
+                </tr>
+              </table>
 
               <div style="border-top: 1px solid #ccc; padding-top: 8px;">
                 <div style="margin-bottom: 5px;">
