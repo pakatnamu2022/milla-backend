@@ -766,23 +766,23 @@
       <tbody>
       <tr>
         <td class="label-col">Recepción Programada</td>
-        <td>{{$appointmentPlanning->delivery_date?->format('d/m/Y') ?? '-'}}</td>
-        <td>{{$appointmentPlanning->delivery_time ?? '-'}}</td>
+        <td>{{$appointmentPlanning->date_appointment?->format('d/m/Y') ?? '- / - / -'}}</td>
+        <td>{{$appointmentPlanning->time_appointment ?? '-'}}</td>
       </tr>
       <tr>
         <td class="label-col">Recepción Real</td>
-        <td>{{$inspection->inspection_date->format('d/m/Y') ?? '-'}}</td>
+        <td>{{$inspection->inspection_date->format('d/m/Y') ?? '- / - / -'}}</td>
         <td>{{$inspection->inspection_date->format('H:i') ?? '-'}}</td>
       </tr>
       <tr>
         <td class="label-col">Entrega Programada</td>
-        <td>18/03/2026</td>
-        <td>05:00 PM</td>
+        <td>{{$workOrder->estimated_delivery_date->format('d/m/Y') ?? '- / - / -'}}</td>
+        <td>{{$workOrder->estimated_delivery_time->format('H:i') ?? '-'}}</td>
       </tr>
       <tr>
         <td class="label-col">Entrega Real</td>
-        <td>18/03/2026</td>
-        <td>04:45 PM</td>
+        <td>{{$workOrder->actual_delivery_date?->format('d/m/Y') ?? '- / - / -'}}</td>
+        <td>{{$workOrder->actual_delivery_time?->format('H:i') ?? '-'}}</td>
       </tr>
       </tbody>
     </table>
@@ -799,8 +799,8 @@
       <tbody>
       <tr>
         <td class="label-col">Confirmación de Cita</td>
-        <td class="info-col">{{$appointmentPlanning->delivery_date?->format('d/m/Y') ?? '-'}}
-          - {{$appointmentPlanning->delivery_time ?? '-'}}</td>
+        <td class="info-col">{{$appointmentPlanning->date_appointment?->format('d/m/Y') ?? '- / - / -'}}
+          - {{$appointmentPlanning->time_appointment ?? '-'}}</td>
         <td class="responsible-col" rowspan="3">
           <div style="writing-mode: vertical-rl; white-space: nowrap;">
             RESPONSABLE CITAS<br><br>
@@ -866,7 +866,8 @@
         <td class="label-row">Cita hora y fecha</td>
       </tr>
       <tr>
-        <td class="value-row">14/03/2026 - 03:30 PM</td>
+        <td class="value-row">{{$appointmentPlanning->date_appointment?->format('d/m/Y') ?? '- / - / -'}}
+          - {{$appointmentPlanning->time_appointment ?? '-'}}</td>
       </tr>
     </table>
 
@@ -877,11 +878,11 @@
       </tr>
       <tr>
         <td class="value-row" style="width: 50%; border-right: 0.5px solid #ddd; border-bottom: 0.5px solid #ddd;">
-          <span style="display: inline-block; width: 110px;">Cliente con cita</span><span class="mini-checkbox"
+          <span style="display: inline-block; width: 110px;">Cliente con cita</span><span class="mini-checkbox {{ $appointmentPlanning ? 'checked' : '' }}"
                                                                                           style="float: none; margin-left: 5px;"></span>
         </td>
         <td class="value-row" style="width: 50%; border-bottom: 0.5px solid #ddd;">
-          <span style="display: inline-block; width: 110px;">Cliente sin cita</span><span class="mini-checkbox"
+          <span style="display: inline-block; width: 110px;">Cliente sin cita</span><span class="mini-checkbox {{ !$appointmentPlanning ? 'checked' : '' }}"
                                                                                           style="float: none; margin-left: 5px;"></span>
         </td>
       </tr>
@@ -901,7 +902,7 @@
                                                                                           style="float: none; margin-left: 5px;"></span>
         </td>
         <td class="value-row" style="border-bottom: 0.5px solid #ddd;">
-          <span style="display: inline-block; width: 110px;">Garantía / Recall</span><span class="mini-checkbox"
+          <span style="display: inline-block; width: 110px;">Garantía / Recall</span><span class="mini-checkbox {{ ($isGuarantee || $isRecall) ? 'checked' : '' }}"
                                                                                            style="float: none; margin-left: 5px;"></span>
         </td>
       </tr>
@@ -941,12 +942,29 @@
             style="font-weight: normal;">{{ $vehicle->vin ?? '-' }}</span></td>
       </tr>
       <tr class="two-col-row">
-        <td class="label-row">Hora inicio trabajo: <span style="font-weight: normal;">09:15 AM</span></td>
-        <td class="label-row">Hora fin trabajo: <span style="font-weight: normal;">04:30 PM</span></td>
+        <td class="label-row">Hora inicio trabajo: <span style="font-weight: normal;">
+          @if($plannings && $plannings->isNotEmpty())
+            {{ $plannings->first()->actual_start_datetime?->format('h:i A') ?? '-' }}
+          @else
+            -
+          @endif
+        </span></td>
+        <td class="label-row">Hora fin trabajo: <span style="font-weight: normal;">
+          @if($plannings && $plannings->isNotEmpty())
+            {{ $plannings->last()->actual_end_datetime?->format('h:i A') ?? '-' }}
+          @else
+            -
+          @endif
+        </span></td>
       </tr>
       <tr>
-        <td colspan="2" class="label-row">Técnico: <span
-            style="font-weight: normal;">Carlos Alberto Sánchez Torres</span></td>
+        <td colspan="2" class="label-row">Técnico: <span style="font-weight: normal;">
+          @if($plannings && $plannings->isNotEmpty())
+            {{ $plannings->pluck('worker.nombre_completo')->filter()->unique()->implode(', ') }}
+          @else
+            -
+          @endif
+        </span></td>
       </tr>
       <tr>
         <td colspan="2" class="header-row-gray">RESULTADOS DE TRABAJO /
@@ -955,16 +973,22 @@
       </tr>
       <tr>
         <td colspan="2" class="value-row activities-content">
-          Se realizó el mantenimiento preventivo de 10,000 km según especificaciones del fabricante. Se cambió aceite de
-          motor, filtro de aceite, filtro de aire y se realizó inspección general de frenos y suspensión. Todo en
-          perfecto estado.
+          @if($plannings && $plannings->isNotEmpty())
+            @foreach($plannings as $index => $planning)
+              @if($planning->description)
+                {{ $index > 0 ? ' ' : '' }}{{ $planning->description }}
+              @endif
+            @endforeach
+          @else
+            -
+          @endif
         </td>
       </tr>
       <tr>
         <td colspan="2" class="label-row" style="font-size: 7px; padding: 3px 8px;">
-          RECALL: SI<span class="mini-checkbox"
+          RECALL: SI<span class="mini-checkbox {{ $isRecall ? 'checked' : '' }}"
                           style="width: 10px; height: 10px; display: inline-block; margin-left: 3px; margin-right: 10px; vertical-align: middle; float: none;"></span>NO<span
-            class="mini-checkbox"
+            class="mini-checkbox {{ !$isRecall ? 'checked' : '' }}"
             style="width: 10px; height: 10px; display: inline-block; margin-left: 3px; margin-right: 15px; vertical-align: middle; float: none;"></span>NOMBRE
           RECALL: {{ $typeRecall ?? 'N/A' }}
         </td>

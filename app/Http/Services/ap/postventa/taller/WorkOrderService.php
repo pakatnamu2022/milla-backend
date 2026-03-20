@@ -560,6 +560,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   {
     // Obtener la inspección con todas las relaciones necesarias
     $workOrder = $this->find($id);
+    $workOrder->load('plannings.worker');
     $inspection = $workOrder->vehicleInspection;
 
     $vehicle = $workOrder->vehicle;
@@ -632,6 +633,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'customerSignature' => $customerSignature,
       'advisorSignature' => $advisorSignature,
       'appointmentPlanning' => $workOrder->appointmentPlanning ?? null,
+      'plannings' => $workOrder->plannings ?? null,
       'isGuarantee' => $workOrder->is_guarantee ?? false,
       'isRecall' => $workOrder->is_recall ?? false,
       'descriptionRecall' => $workOrder->description_recall ?? '',
