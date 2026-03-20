@@ -28,7 +28,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
-    $query = ApWorkOrder::with('items');
+    $query = ApWorkOrder::with(['items', 'internalNote']);
     return $this->getFilteredResults(
       $query,
       $request,
@@ -559,10 +559,11 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   public function generateDeliveryReport($id)
   {
     // Obtener la inspección con todas las relaciones necesarias
-    $inspection = ApVehicleInspection::with('damages', 'workOrder.vehicle.customer', 'workOrder.advisor')
-      ->where('ap_work_order_id', $id)->where('is_cancelled', false)->first();
-
-    $workOrder = $inspection->workOrder;
+    $workOrder = $this->find($id);
+    $inspection = $workOrder->createdVehicleInspection()
+      ->where('is_cancelled', false)
+      ->first();
+    
     $vehicle = $workOrder->vehicle;
     $customer = $vehicle->customer;
     $advisor = $workOrder->advisor; // Worker extiende de Person directamente
