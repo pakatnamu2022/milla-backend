@@ -5,6 +5,7 @@ namespace App\Http\Requests\gp\gestionhumana\payroll;
 use App\Http\Requests\StoreRequest;
 use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
 use App\Models\gp\gestionhumana\payroll\PayrollSchedule;
+use Carbon\Carbon;
 
 class StorePayrollScheduleRequest extends StoreRequest
 {
@@ -25,8 +26,10 @@ class StorePayrollScheduleRequest extends StoreRequest
     $validator->after(function ($validator) {
       $period = PayrollPeriod::find($this->input('period_id'));
       if ($period) {
-        $workDate = $this->input('work_date');
-        if ($workDate >= $period->start_date || $workDate <= $period->payment_date) {
+        $workDate = Carbon::parse($this->input('work_date'));
+        $startDate = Carbon::parse($period->start_date);
+        $paymentDate = Carbon::parse($period->payment_date);
+        if ($workDate->lt($startDate) || $workDate->gt($paymentDate)) {
           $validator->errors()->add('work_date', 'El día de trabajo debe ser entre los días permitidos del periodo');
         }
       }
