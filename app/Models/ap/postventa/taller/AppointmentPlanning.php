@@ -61,6 +61,8 @@ class AppointmentPlanning extends Model
 
   protected $casts = [
     'is_taken' => 'boolean',
+    'delivery_date' => 'date',
+    'date_appointment' => 'date',
   ];
 
   public function setDescriptionAttribute($value)

@@ -766,7 +766,7 @@
       <tbody>
       <tr>
         <td class="label-col">Recepción Programada</td>
-        <td>{{$appointmentPlanning->delivery_date ?? '-'}}</td>
+        <td>{{$appointmentPlanning->delivery_date?->format('d/m/Y') ?? '-'}}</td>
         <td>{{$appointmentPlanning->delivery_time ?? '-'}}</td>
       </tr>
       <tr>
@@ -799,7 +799,7 @@
       <tbody>
       <tr>
         <td class="label-col">Confirmación de Cita</td>
-        <td class="info-col">{{$appointmentPlanning->delivery_date ?? '-'}}
+        <td class="info-col">{{$appointmentPlanning->delivery_date?->format('d/m/Y') ?? '-'}}
           - {{$appointmentPlanning->delivery_time ?? '-'}}</td>
         <td class="responsible-col" rowspan="3">
           <div style="writing-mode: vertical-rl; white-space: nowrap;">
