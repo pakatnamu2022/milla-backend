@@ -58,6 +58,7 @@ class ApSupplierOrder extends Model
 
   // SUPPLY TYPE CONSTANTS
   const STOCK = 'STOCK';
+  const LOCAL = 'LOCAL';
   const LIMA = 'LIMA';
   const IMPORTACION = 'IMPORTACION';
 
