@@ -142,9 +142,6 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
         $businessPartner->establishments()->delete();
       }
 
-      // Sincronizar a otras bases de datos
-      //$this->syncService->sync('business_partners', $businessPartner->toArray(), 'update');
-
       DB::commit();
       return new BusinessPartnersResource($businessPartner);
     } catch (Exception $e) {
