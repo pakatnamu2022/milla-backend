@@ -38,6 +38,11 @@ class ApSupplierOrderDetails extends Model
     'updated_at',
   ];
 
+  public function setNoteAttribute($value)
+  {
+    $this->attributes['note'] = strtoupper($value);
+  }
+
   public function apSupplierOrder(): BelongsTo
   {
     return $this->belongsTo(ApSupplierOrder::class, 'ap_supplier_order_id');

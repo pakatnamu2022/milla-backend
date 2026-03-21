@@ -333,6 +333,27 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
     $emailService = new EmailService();
 
+    // Obtener detalles de la última recepción para incluir en el correo
+    $latestReception = $supplierOrder->receptions()
+      ->with('details.product')
+      ->latest()
+      ->first();
+
+    $receivedItems = [];
+    if ($latestReception) {
+      foreach ($latestReception->details as $detail) {
+        $product = $detail->product;
+        if ($product) {
+          $receivedItems[] = [
+            'code' => $product->code ?? 'N/A',
+            'name' => $product->name,
+            'quantity' => $detail->quantity_received - ($detail->observed_quantity ?? 0), // Cantidad aceptada
+            'unit' => $product->unit_type ?? 'unid'
+          ];
+        }
+      }
+    }
+
     // Agrupar por email para enviar un solo correo por usuario
     $groupedByEmail = $usersToNotify->groupBy('email');
 
@@ -361,6 +382,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
             'user_name' => $userName,
             'purchase_order_number' => $orderNumber,
             'request_numbers' => $requestNumbers,
+            'received_items' => $receivedItems,
             'date' => now()->format('d/m/Y H:i'),
             'company_name' => 'Grupo Pakatnamu',
             'contact_info' => 'almacen@grupopakatnamu.com'
