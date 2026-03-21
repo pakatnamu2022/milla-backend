@@ -19,11 +19,6 @@ class User extends Authenticatable
 
   protected $table = 'usr_users';
 
-  public function getAuthIdentifierName()
-  {
-    return 'username';
-  }
-
   protected $fillable = [
     'id',
     'partner_id',
