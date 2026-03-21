@@ -323,4 +323,55 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
         ->update(['status' => ApOrderPurchaseRequests::ORDERED]);
     }
   }
+
+  /**
+   * Obtener productos pendientes por recibir de una orden de proveedor
+   * Calcula la diferencia entre lo pedido y lo recibido (sin contar observados)
+   *
+   * @param int $id ID de la orden de proveedor
+   * @return array Lista de productos pendientes con product_id, unit_measurement_id y quantity
+   */
+  public function getPendingProducts($id)
+  {
+    $supplierOrder = $this->find($id);
+
+    // 1. Obtener productos pedidos
+    $orderedProducts = $supplierOrder->details->mapWithKeys(function ($detail) {
+      return [
+        $detail->product_id => [
+          'product_id' => $detail->product_id,
+          'unit_measurement_id' => $detail->unit_measurement_id,
+          'quantity_ordered' => $detail->quantity,
+        ]
+      ];
+    });
+
+    // 2. Consolidar recepciones por product_id sumando solo quantity_received
+    $receivedProducts = DB::table('purchase_reception_details as prd')
+      ->join('purchase_receptions as pr', 'prd.purchase_reception_id', '=', 'pr.id')
+      ->where('pr.ap_supplier_order_id', $id)
+      ->whereNull('pr.deleted_at')
+      ->whereNull('prd.deleted_at')
+      ->select('prd.product_id', DB::raw('SUM(prd.quantity_received) as total_received'))
+      ->groupBy('prd.product_id')
+      ->get()
+      ->pluck('total_received', 'product_id');
+
+    // 3. Calcular pendientes
+    $pendingProducts = [];
+    foreach ($orderedProducts as $productId => $orderData) {
+      $received = $receivedProducts[$productId] ?? 0;
+      $pending = $orderData['quantity_ordered'] - $received;
+
+      if ($pending > 0) {
+        $pendingProducts[] = [
+          'product_id' => $productId,
+          'unit_measurement_id' => $orderData['unit_measurement_id'],
+          'quantity' => $pending,
+        ];
+      }
+    }
+
+    return $pendingProducts;
+  }
 }
