@@ -28,7 +28,7 @@ class StorePayrollScheduleRequest extends StoreRequest
       if ($period) {
         $workDate = Carbon::parse($this->input('work_date'));
         $startDate = Carbon::parse($period->start_date);
-        $paymentDate = Carbon::parse($period->payment_date);
+        $paymentDate = Carbon::parse($period->end_date);
         if ($workDate->lt($startDate) || $workDate->gt($paymentDate)) {
           $validator->errors()->add('work_date', 'El día de trabajo debe ser entre los días permitidos del periodo');
         }
