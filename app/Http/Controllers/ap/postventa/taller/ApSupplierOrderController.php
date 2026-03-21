@@ -79,4 +79,13 @@ class ApSupplierOrderController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function pendingProducts($id)
+  {
+    try {
+      return $this->success($this->service->getPendingProducts($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

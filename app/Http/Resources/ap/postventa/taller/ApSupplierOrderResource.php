@@ -39,6 +39,7 @@ class ApSupplierOrderResource extends JsonResource
       'updated_at' => $this->updated_at,
       'has_receptions' => $this->hasActiveReceptions(),
       'has_invoice' => $this->receptions()->whereNotNull('purchase_order_id')->whereNull('deleted_at')->exists(),
+      'reception_type' => $this->reception_type,
 
       // Relationships
       'supplier' => new BusinessPartnersResource($this->whenLoaded('supplier')),
