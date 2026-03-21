@@ -3,7 +3,6 @@
 namespace App\Models\ap\postventa\taller;
 
 use App\Models\ap\comercial\BusinessPartners;
-use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
@@ -33,6 +32,7 @@ class ApSupplierOrder extends Model
     'tax_amount',
     'total_amount',
     'exchange_rate',
+    'reception_type',
     'status',
   ];
 
@@ -45,6 +45,7 @@ class ApSupplierOrder extends Model
     'created_by' => '=',
     'order_date' => 'between',
     'supply_type' => 'in',
+    'reception_type' => '=',
     'status' => '=',
   ];
 
@@ -61,6 +62,11 @@ class ApSupplierOrder extends Model
   const LOCAL = 'LOCAL';
   const LIMA = 'LIMA';
   const IMPORTACION = 'IMPORTACION';
+
+  // RECEPTION TYPE CONSTANTS
+  const PARTIAL = 'PARTIAL';
+  const COMPLETE = 'COMPLETE';
+  const PENDING = 'PENDING';
 
   protected static function boot()
   {

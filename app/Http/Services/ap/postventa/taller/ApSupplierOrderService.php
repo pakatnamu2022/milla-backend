@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\postventa\taller;
 
+use App\Http\Resources\ap\postventa\gestionProductos\ProductsResource;
 use App\Http\Resources\ap\postventa\taller\ApSupplierOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
@@ -329,17 +330,19 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
    * Calcula la diferencia entre lo pedido y lo recibido (sin contar observados)
    *
    * @param int $id ID de la orden de proveedor
-   * @return array Lista de productos pendientes con product_id, unit_measurement_id y quantity
+   * @return array Lista de productos pendientes con id, product_id, product, unit_measurement_id y quantity
    */
   public function getPendingProducts($id)
   {
     $supplierOrder = $this->find($id);
 
-    // 1. Obtener productos pedidos
-    $orderedProducts = $supplierOrder->details->mapWithKeys(function ($detail) {
+    // 1. Obtener productos pedidos con relación de producto
+    $orderedProducts = $supplierOrder->details()->with('product')->get()->mapWithKeys(function ($detail) {
       return [
         $detail->product_id => [
+          'id' => $detail->id,
           'product_id' => $detail->product_id,
+          'product' => $detail->product,
           'unit_measurement_id' => $detail->unit_measurement_id,
           'quantity_ordered' => $detail->quantity,
         ]
@@ -365,7 +368,9 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
 
       if ($pending > 0) {
         $pendingProducts[] = [
+          'id' => $orderData['id'],
           'product_id' => $productId,
+          'product' => new ProductsResource($orderData['product']),
           'unit_measurement_id' => $orderData['unit_measurement_id'],
           'quantity' => $pending,
         ];
