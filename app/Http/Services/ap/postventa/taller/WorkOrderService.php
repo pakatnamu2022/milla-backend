@@ -846,6 +846,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'invoice_to' => null,
         'sede_id' => $vehicle->warehouse ? $vehicle->warehouse->sede_id : null,
         'opening_date' => now()->format('Y-m-d'),
+        'diagnosis_date' => now()->format('Y-m-d'),
+        'is_delivery' => true,
+        'delivery_by' => auth()->id(),
         'created_by' => auth()->id(),
       ]);
 
