@@ -20,6 +20,10 @@ class ApReceivingChecklist extends Model
     'kilometers',
   ];
 
+  protected $attributes = [
+    'quantity' => 1,
+  ];
+
   const filters = [
     'id',
     'receiving_id',

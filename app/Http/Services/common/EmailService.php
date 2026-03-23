@@ -64,7 +64,17 @@ class EmailService
 
       $config['to'] = array_unique($mailsTo);
 
-      Mail::to($config['to'])->queue($mailable->onQueue('mail'));
+      $mailInstance = Mail::to($config['to']);
+
+      if (isset($config['cc'])) {
+        $mailInstance = $mailInstance->cc($config['cc']);
+      }
+
+      if (isset($config['bcc'])) {
+        $mailInstance = $mailInstance->bcc($config['bcc']);
+      }
+
+      $mailInstance->queue($mailable->onQueue('mail'));
 
       return true;
     } catch (\Exception $e) {
