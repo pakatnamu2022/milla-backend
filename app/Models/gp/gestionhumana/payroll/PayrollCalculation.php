@@ -239,4 +239,129 @@ class PayrollCalculation extends BaseModel
   {
     return $this->status === self::STATUS_CALCULATED;
   }
+
+  /**
+   * Calculate average of last 6 months for variable concepts
+   *
+   * @param int $periodId Current period ID
+   * @param int $workerId Worker ID
+   * @param int $companyId Company ID
+   * @return object
+   */
+  public static function calcularPromedioUltimos6Meses(int $periodId, int $workerId, int $companyId)
+  {
+    // Obtener el periodo actual para saber año y mes
+    $currentPeriod = PayrollPeriod::find($periodId);
+
+    if (!$currentPeriod) {
+      return (object)[
+        'avg_overtime' => 0,
+        'avg_holiday' => 0,
+        'avg_compensatory' => 0,
+        'avg_night_bonus' => 0,
+        'total_avg' => 0,
+        'months_counted' => 0,
+      ];
+    }
+
+    // Calcular los 6 meses anteriores
+    $startYear = $currentPeriod->year;
+    $startMonth = $currentPeriod->month;
+
+    $sixMonthsAgo = \Carbon\Carbon::create($startYear, $startMonth, 1)->subMonths(6);
+
+    // Obtener todos los periodos de los últimos 6 meses para esta company
+    $periods = PayrollPeriod::where('company_id', $companyId)
+      ->where(function ($query) use ($sixMonthsAgo, $currentPeriod) {
+        $query->where('year', '>', $sixMonthsAgo->year)
+          ->orWhere(function ($q) use ($sixMonthsAgo) {
+            $q->where('year', '=', $sixMonthsAgo->year)
+              ->where('month', '>=', $sixMonthsAgo->month);
+          });
+      })
+      ->where(function ($query) use ($currentPeriod) {
+        $query->where('year', '<', $currentPeriod->year)
+          ->orWhere(function ($q) use ($currentPeriod) {
+            $q->where('year', '=', $currentPeriod->year)
+              ->where('month', '<', $currentPeriod->month);
+          });
+      })
+      ->pluck('id');
+
+    // Obtener cálculos de nómina de esos periodos para el trabajador
+    $calculations = self::whereIn('period_id', $periods)
+      ->where('worker_id', $workerId)
+      ->where('company_id', $companyId)
+      ->where('status', '!=', self::STATUS_DRAFT)
+      ->with('period')
+      ->get();
+    
+    if ($calculations->isEmpty()) {
+      return (object)[
+        'avg_overtime' => 0,
+        'avg_holiday' => 0,
+        'avg_compensatory' => 0,
+        'avg_night_bonus' => 0,
+        'total_avg' => 0,
+        'months_counted' => 0,
+      ];
+    }
+
+    // Agrupar por mes (year-month) y sumar valores (para manejar quincenas)
+    $monthlyTotals = [];
+
+    foreach ($calculations as $calc) {
+      $key = $calc->period->year . '-' . str_pad($calc->period->month, 2, '0', STR_PAD_LEFT);
+
+      if (!isset($monthlyTotals[$key])) {
+        $monthlyTotals[$key] = [
+          'overtime' => 0,
+          'holiday' => 0,
+          'compensatory' => 0,
+          'night_bonus' => 0,
+        ];
+      }
+
+      // Sumar valores (si hay biweekly=1 y biweekly=2, se suman)
+      $monthlyTotals[$key]['overtime'] += ($calc->overtime_25 ?? 0) + ($calc->overtime_35 ?? 0);
+      $monthlyTotals[$key]['holiday'] += $calc->holiday_pay ?? 0;
+      $monthlyTotals[$key]['compensatory'] += $calc->compensatory_pay ?? 0;
+      $monthlyTotals[$key]['night_bonus'] += $calc->night_bonus ?? 0;
+    }
+
+    // Contar meses únicos
+    $monthsCount = count($monthlyTotals);
+
+    if ($monthsCount === 0) {
+      return (object)[
+        'avg_overtime' => 0,
+        'avg_holiday' => 0,
+        'avg_compensatory' => 0,
+        'avg_night_bonus' => 0,
+        'total_avg' => 0,
+        'months_counted' => 0,
+      ];
+    }
+
+    // Calcular totales
+    $totalOvertime = array_sum(array_column($monthlyTotals, 'overtime'));
+    $totalHoliday = array_sum(array_column($monthlyTotals, 'holiday'));
+    $totalCompensatory = array_sum(array_column($monthlyTotals, 'compensatory'));
+    $totalNightBonus = array_sum(array_column($monthlyTotals, 'night_bonus'));
+
+    // Calcular promedios
+    $avgOvertime = $totalOvertime / $monthsCount;
+    $avgHoliday = $totalHoliday / $monthsCount;
+    $avgCompensatory = $totalCompensatory / $monthsCount;
+    $avgNightBonus = $totalNightBonus / $monthsCount;
+
+    return (object)[
+      'avg_overtime' => round($avgOvertime, 2),
+      'avg_holiday' => round($avgHoliday, 2),
+      'avg_compensatory' => round($avgCompensatory, 2),
+      'avg_night_bonus' => round($avgNightBonus, 2),
+      'total_avg' => round($avgOvertime + $avgHoliday + $avgCompensatory + $avgNightBonus, 2),
+      'months_counted' => $monthsCount,
+    ];
+  }
 }

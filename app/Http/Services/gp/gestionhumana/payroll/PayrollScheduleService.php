@@ -145,9 +145,19 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         throw new Exception('Schedule already exists for this worker on this date');
       }
 
-      // Calculate hours
-      $status = $data['status'] ?? PayrollSchedule::STATUS_WORKED;
-      $hours = $this->calculateHours($data['code'], $worker, $status);
+      // Calculate hours and determine status based on code
+      $code = $data['code'];
+
+      // Auto-assign status based on code
+      if ($code === 'F' || $code === 'LSGH') {
+        $status = PayrollSchedule::STATUS_ABSENT;
+      } elseif ($code === 'VC') {
+        $status = PayrollSchedule::STATUS_VACATION;
+      } else {
+        $status = $data['status'] ?? PayrollSchedule::STATUS_WORKED;
+      }
+
+      $hours = $this->calculateHours($code, $worker, $status);
 
       $schedule = PayrollSchedule::create([
         'worker_id' => $data['worker_id'],
@@ -205,9 +215,19 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
             ->where('work_date', $scheduleData['work_date'])
             ->first();
 
-          // Calculate hours
-          $status = $scheduleData['status'] ?? PayrollSchedule::STATUS_WORKED;
-          $hours = $this->calculateHours($scheduleData['code'], $worker, $status);
+          // Calculate hours and determine status based on code
+          $code = $scheduleData['code'];
+
+          // Auto-assign status based on code
+          if ($code === 'F' || $code === 'LSGH') {
+            $status = PayrollSchedule::STATUS_ABSENT;
+          } elseif ($code === 'VC') {
+            $status = PayrollSchedule::STATUS_VACATION;
+          } else {
+            $status = $scheduleData['status'] ?? PayrollSchedule::STATUS_WORKED;
+          }
+
+          $hours = $this->calculateHours($code, $worker, $status);
 
           if ($existingSchedule) {
             // Update existing schedule
@@ -268,15 +288,26 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede actualizar el horario: el período debe estar en estado ABIERTO (OPEN). Estado actual: ' . $schedule->period->status);
       }
 
+      $code = $data['code'] ?? $schedule->code;
+
+      // Auto-assign status based on code
+      if ($code === 'F' || $code === 'LSGH') {
+        $status = PayrollSchedule::STATUS_ABSENT;
+      } elseif ($code === 'VC') {
+        $status = PayrollSchedule::STATUS_VACATION;
+      } else {
+        $status = $data['status'] ?? PayrollSchedule::STATUS_WORKED;
+      }
+
       $updateData = [
-        'code' => $data['code'] ?? $schedule->code,
+        'code' => $code,
         'notes' => $data['notes'] ?? $schedule->notes,
-        'status' => $data['status'] ?? $schedule->status,
+        'status' => $status,
       ];
 
       // Recalculate hours if code or status changed
       if ((isset($data['code']) && $data['code'] !== $schedule->code) ||
-          (isset($data['status']) && $data['status'] !== $schedule->status)) {
+        $status !== $schedule->status) {
         $hours = $this->calculateHours(
           $updateData['code'],
           $schedule->worker,
@@ -501,7 +532,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           'period_id' => $period->id,
           'biweekly' => $biweekly,
           'worker_id' => $workerId,
-          'company_id' => $worker->company_id ?? null,
+          'company_id' => $period->company_id ?? null,
           'sede_id' => $worker->sede_id ?? null,
           'salary' => $sueldo,
           'shift_hours' => $horasJornada,
@@ -530,6 +561,17 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
               $valorHora *= $recargoNocturno;
             }
             $valorHoraConMultiplicador = $valorHora * (float)$rule->multiplier;
+
+            // Special calculation for vacation concept (VC)
+            if ($code === 'VC') {
+              $promedioData = PayrollCalculation::calcularPromedioUltimos6Meses(
+                $period->id,
+                $workerId,
+                $worker->company_id ?? 0
+              );
+              $valorHoraConMultiplicador = ($promedioData->total_avg + $sueldo) / 30 / 8;
+            }
+
             $total = $horas * $valorHoraConMultiplicador * $diasTrabajados;
             if (!$rule->pay) {
               $total = -$total;

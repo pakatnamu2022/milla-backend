@@ -89,19 +89,21 @@ class PayrollReportService
     }
 
     $query = PayrollCalculation::with(['worker', 'company', 'sede'])
-      ->where('period_id', $periodId);
+      ->join('rrhh_persona as worker', 'gh_payroll_calculations.worker_id', '=', 'worker.id')
+      ->select('gh_payroll_calculations.*')
+      ->where('gh_payroll_calculations.period_id', $periodId);
 
     $sumBothHalves = $biweekly === null && $period->biweekly_date;
 
     if ($biweekly !== null) {
-      $query->where('biweekly', $biweekly);
+      $query->where('gh_payroll_calculations.biweekly', $biweekly);
     } elseif ($sumBothHalves) {
-      $query->whereIn('biweekly', [1, 2]);
+      $query->whereIn('gh_payroll_calculations.biweekly', [1, 2]);
     } else {
-      $query->whereNull('biweekly');
+      $query->whereNull('gh_payroll_calculations.biweekly');
     }
 
-    $calculations = $query->orderBy('worker_id')->get();
+    $calculations = $query->orderBy('worker.nombre_completo')->get();
 
     if ($sumBothHalves) {
       // Period with biweekly split: sum both halves per worker
