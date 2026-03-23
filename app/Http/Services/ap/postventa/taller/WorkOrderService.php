@@ -17,6 +17,7 @@ use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderItem;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
+use App\Models\GeneralMaster;
 use App\Models\gp\gestionhumana\personal\WorkerSignature;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use Carbon\Carbon;
@@ -26,6 +27,13 @@ use Illuminate\Support\Facades\DB;
 
 class WorkOrderService extends BaseService implements BaseServiceInterface
 {
+  protected WorkOrderLabourService $labourService;
+
+  public function __construct(WorkOrderLabourService $labourService)
+  {
+    $this->labourService = $labourService;
+  }
+
   public function list(Request $request)
   {
     $query = ApWorkOrder::with(['items', 'internalNote']);
@@ -816,71 +824,74 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
   public function generatePDIForVehicle($id)
   {
-    $vehicle = Vehicles::find($id);
+    DB::beginTransaction();
 
-    //1. Verificamos que exista el vehiculo
-    if (!$vehicle) {
-      throw new Exception('Vehículo no encontrado');
+    try {
+      $vehicle = Vehicles::find($id);
+
+      //1. Verificamos que exista el vehiculo
+      if (!$vehicle) {
+        throw new Exception('Vehículo no encontrado');
+      }
+
+      //2. Creamos la cabecera de la OT
+      $apWorkOrder = ApWorkOrder::create([
+        'correlative' => $this->generateCorrelative(),
+        'vehicle_id' => $vehicle->id,
+        'currency_id' => TypeCurrency::PEN_ID,
+        'vehicle_plate' => $vehicle->plate,
+        'vehicle_vin' => $vehicle->vin,
+        'status_id' => ApMasters::OPENING_WORK_ORDER_ID,
+        'advisor_id' => auth()->id(),
+        'invoice_to' => null,
+        'sede_id' => $vehicle->warehouse ? $vehicle->warehouse->sede_id : null,
+        'opening_date' => now()->format('Y-m-d'),
+        'created_by' => auth()->id(),
+      ]);
+
+      //3. Generamos el detalle de la OT
+      ApWorkOrderItem::create([
+        'group_number' => 1,
+        'work_order_id' => $apWorkOrder->id,
+        'type_planning_id' => ApMasters::TIPO_PLANIFICACION_PDI_ID,
+        'type_operation_id' => ApMasters::TIPO_OPERACION_CITA_PDI_ID,
+        'description' => 'SERVICIO DE PDI',
+      ]);
+
+      // Calculamos la tarifa
+      if ($vehicle->is_heavy) {
+        $hourly_rate = GeneralMaster::findOrFail(GeneralMaster::COST_PER_MAN_HOUR_VP_ID)->value;
+      } else {
+        $hourly_rate = GeneralMaster::findOrFail(GeneralMaster::COST_PER_MAN_HOUR_VL_ID)->value;
+      }
+
+      // 4. Generamos la mano de obra de la OT
+      $labourData = [
+        'description' => 'SERVICIO DE MANO DE OBRA PDI',
+        'time_spent' => 1.0, // 1 hora por defecto
+        'hourly_rate' => (float)$hourly_rate,
+        'work_order_id' => $apWorkOrder->id,
+        'worker_id' => auth()->id(),
+        'group_number' => 1,
+      ];
+
+      // 5. Guardamos la mano de obra usando el servicio para que se actualicen los totales correctamente
+      $this->labourService->store($labourData);
+
+      $apWorkOrder->update([
+        'status_id' => ApMasters::CLOSED_WORK_ORDER_ID,
+      ]);
+
+      DB::commit();
+
+      return response()->json([
+        'message' => 'Orden de trabajo PDI generada correctamente',
+        'vehicle_id' => $vehicle->id,
+      ]);
+    } catch (\Throwable $e) {
+      DB::rollBack();
+      throw $e;
     }
-
-    //2. Creamos la cabecera de la OT
-    $apWorkOrder = ApWorkOrder::create([
-      'correlative' => $this->generateCorrelative(),
-      'vehicle_id' => $vehicle->id,
-      'currency_id' => TypeCurrency::PEN_ID,
-      'vehicle_plate' => $vehicle->plate,
-      'vehicle_vin' => $vehicle->vin,
-      'status_id' => ApMasters::CLOSED_WORK_ORDER_ID,
-      'advisor_id' => auth()->id(),
-      'invoice_to' => null,
-      'sede_id' => $vehicle->warehousePhysical ? $vehicle->warehousePhysical->sede_id : null,
-      'opening_date' => now()->format('Y-m-d'),
-      'created_by' => auth()->id(),
-    ]);
-
-    //3. Generamos el detalle de la OT
-    $apWorkOrderItem = ApWorkOrderItem::create([
-      'group_number' => 1,
-      'work_order_id' => $apWorkOrder->id,
-      'type_planning_id' => ApMasters::TIPO_PLANIFICACION_PDI_ID,
-      'type_operation_id' => ApMasters::TIPO_OPERACION_CITA_PDI_ID,
-      'description' => 'SERVICIO DE PDI',
-    ]);
-
-
-    return response()->json([
-      'message' => 'Inspección PDI generada correctamente',
-      'vehicle_id' => $vehicle->id,
-    ]);
-
-//    $workOrder = $this->find($id);
-//
-//    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-//      throw new Exception('No se puede generar una inspección para una orden de trabajo cerrada');
-//    }
-//
-//    if (!$workOrder->vehicle) {
-//      throw new Exception('La orden de trabajo no tiene un vehículo asociado');
-//    }
-//
-//    // Crear inspección de vehículo (PDI)
-//    $inspection = ApVehicleInspection::create([
-//      'ap_work_order_id' => $workOrder->id,
-//      'vehicle_id' => $workOrder->vehicle_id,
-//      'inspection_date' => now(),
-//      'is_cancelled' => false,
-//    ]);
-//
-//    // Actualizar estado de la orden de trabajo a "Recibida"
-//    $workOrder->update([
-//      'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID,
-//      'vehicle_inspection_id' => $inspection->id,
-//    ]);
-//
-//    return response()->json([
-//      'message' => 'Inspección PDI generada y orden de trabajo actualizada correctamente',
-//      'inspection_id' => $inspection->id,
-//    ]);
   }
 
   public function getByIds(array $ids)
