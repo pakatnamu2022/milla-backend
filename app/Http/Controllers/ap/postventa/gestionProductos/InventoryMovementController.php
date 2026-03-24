@@ -102,20 +102,10 @@ class InventoryMovementController extends Controller
   {
     $request->validated();
     try {
+      $data = $request->validated();
+
       $result = $this->service->updateTransfer(
-        $request->only([
-          'movement_date',
-          'notes',
-          'driver_name',
-          'driver_doc',
-          'license',
-          'plate',
-          'transfer_reason_id',
-          'transfer_modality_id',
-          'transport_company_id',
-          'total_packages',
-          'total_weight',
-        ]),
+        $data,
         $id
       );
 

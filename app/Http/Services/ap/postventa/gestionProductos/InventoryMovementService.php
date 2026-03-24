@@ -7,7 +7,6 @@ use App\Http\Resources\ap\postventa\gestionProductos\InventoryMovementResource;
 use App\Http\Services\BaseService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
-use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;

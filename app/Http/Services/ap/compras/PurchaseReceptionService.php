@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\compras;
 use App\Http\Resources\ap\compras\PurchaseReceptionResource;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
+use App\Http\Services\ap\postventa\taller\ApSupplierOrderService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
@@ -61,6 +62,11 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         throw new Exception('La fecha de recepción no puede ser anterior a la fecha de la orden de compra (' . $orderDate->format('Y-m-d') . ')');
       }
 
+      //VALIDACIÓN 2: El reception_type debe ser diferente a COMPLETE
+      if ($supplierOrder->reception_type === ApSupplierOrder::COMPLETE) {
+        throw new Exception('No se pueden crear recepciones para una orden de proveedor que ya está completa');
+      }
+
       // Generate reception number
       $data['reception_number'] = $this->generateReceptionNumber();
 
@@ -114,6 +120,9 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         'reception_type' => $receptionType,
       ]);
 
+      // ACTUALIZAR RECEPTION_TYPE DEL ApSupplierOrder
+      $this->updateSupplierOrderReceptionType($supplierOrder);
+
       // OPCIONAL: Notificar usuarios si la orden tiene solicitudes vinculadas
       if ($reception->supplierOrder) {
         $this->notifyRequestUsers($reception->supplierOrder);
@@ -163,7 +172,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
           }
         }
       }
-
+      
       // Update only reception header fields
       $reception->update($data);
 
@@ -192,8 +201,16 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede eliminar una recepción que ya tiene una factura asociada. Debe eliminar primero la factura.');
       }
 
+      // Obtener el supplier order antes de eliminar
+      $supplierOrder = $reception->supplierOrder;
+
       // Delete reception (soft delete) - details will be deleted automatically via boot method
       $reception->delete();
+
+      // Actualizar reception_type del supplier order si existe
+      if ($supplierOrder) {
+        $this->updateSupplierOrderReceptionType($supplierOrder);
+      }
 
       DB::commit();
       return response()->json(['message' => 'Recepción eliminada correctamente.']);
@@ -333,6 +350,27 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
     $emailService = new EmailService();
 
+    // Obtener detalles de la última recepción para incluir en el correo
+    $latestReception = $supplierOrder->receptions()
+      ->with('details.product')
+      ->latest()
+      ->first();
+
+    $receivedItems = [];
+    if ($latestReception) {
+      foreach ($latestReception->details as $detail) {
+        $product = $detail->product;
+        if ($product) {
+          $receivedItems[] = [
+            'code' => $product->code ?? 'N/A',
+            'name' => $product->name,
+            'quantity' => $detail->quantity_received - ($detail->observed_quantity ?? 0), // Cantidad aceptada
+            'unit' => $product->unit_type ?? 'unid'
+          ];
+        }
+      }
+    }
+
     // Agrupar por email para enviar un solo correo por usuario
     $groupedByEmail = $usersToNotify->groupBy('email');
 
@@ -361,6 +399,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
             'user_name' => $userName,
             'purchase_order_number' => $orderNumber,
             'request_numbers' => $requestNumbers,
+            'received_items' => $receivedItems,
             'date' => now()->format('d/m/Y H:i'),
             'company_name' => 'Grupo Pakatnamu',
             'contact_info' => 'almacen@grupopakatnamu.com'
@@ -480,5 +519,25 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         ]);
       }
     }
+  }
+
+  /**
+   * Actualizar el reception_type del ApSupplierOrder
+   * COMPLETE: Si no hay productos pendientes por recepcionar
+   * PARTIAL: Si todavía hay productos pendientes
+   *
+   * @param ApSupplierOrder $supplierOrder
+   * @return void
+   */
+  protected function updateSupplierOrderReceptionType(ApSupplierOrder $supplierOrder): void
+  {
+    $supplierOrderService = new ApSupplierOrderService();
+    $pendingProducts = $supplierOrderService->getPendingProducts($supplierOrder->id);
+
+    // Si no hay productos pendientes → COMPLETE
+    // Si hay productos pendientes → PARTIAL
+    $receptionType = empty($pendingProducts) ? ApSupplierOrder::COMPLETE : ApSupplierOrder::PARTIAL;
+
+    $supplierOrder->update(['reception_type' => $receptionType]);
   }
 }

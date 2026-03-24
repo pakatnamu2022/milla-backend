@@ -980,7 +980,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         if ($chief->person && $chief->person->email2) {
           try {
             $this->emailService->queue([
-              'to' => 'wsuclupef2001@gmail.com', //$chief->person->email2,
+              'to' => $chief->person->email2,
               'subject' => $subject,
               'template' => 'emails.quotation-notification',
               'data' => array_merge($emailData, [
@@ -1000,7 +1000,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         if ($manager->person && $manager->person->email2) {
           try {
             $this->emailService->queue([
-              'to' => 'wsuclupef2001@gmail.com',//$manager->person->email2,
+              'to' => $manager->person->email2,
               'subject' => $subject,
               'template' => 'emails.quotation-notification',
               'data' => array_merge($emailData, [

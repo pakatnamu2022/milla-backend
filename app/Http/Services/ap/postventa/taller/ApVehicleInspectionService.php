@@ -13,6 +13,7 @@ use App\Models\ap\postventa\taller\ApVehicleInspectionDamages;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\gestionhumana\personal\WorkerSignature;
 use App\Models\gp\gestionsistema\DigitalFile;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -73,6 +74,12 @@ class ApVehicleInspectionService extends BaseService
       // Extraer damages del array
       $damages = $data['damages'] ?? [];
       unset($data['damages']);
+
+      // Extract date from inspection_date
+      if (isset($data['inspection_date'])) {
+        $inspectionDateTime = Carbon::parse($data['inspection_date']);
+        $data['inspection_date'] = $inspectionDateTime->toDateTimeString();
+      }
 
       // Crear la inspección
       $inspection = ApVehicleInspection::create($data);

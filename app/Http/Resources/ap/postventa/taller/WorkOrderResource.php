@@ -60,6 +60,8 @@ class WorkOrderResource extends JsonResource
       'is_inspection_completed' => $this->vehicleInspection && !$this->vehicleInspection->is_cancelled,
       'allow_remove_associated_quote' => (bool)$this->allow_remove_associated_quote,
       'allow_editing_inspection' => (bool)$this->allow_editing_inspection,
+      'is_delivery' => (bool)$this->is_delivery,
+      'delivery_by_name' => $this->deliveryBy ? $this->deliveryBy->name : null,
       'status' => new ApMastersResource($this->status),
       'has_management_discount' => $this->discountRequests && $this->discountRequests->where('status', DiscountRequestsWorkOrder::STATUS_APPROVED)->isNotEmpty(),
       'cost_man_hours' => $this->when(

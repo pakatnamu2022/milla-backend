@@ -2782,6 +2782,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         throw new Exception('Todas las órdenes de trabajo deben tener la misma moneda para consolidar');
       }
 
+      $data['series_id'] = $data['serie'];
       $data['serie'] = AssignSalesSeries::find($data['serie'])->series;
 
       // 4. Calculate totals from work orders
@@ -2804,6 +2805,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           'tax_amount' => $workOrder->tax_amount,
           'final_amount' => $workOrder->final_amount,
         ];
+
+        // actualizamos el estado de has_invoice_generated del ApWorkOrder
+        $workOrder->update(['has_invoice_generated' => true]);
       }
 
       // 5. Get client data
@@ -2842,6 +2846,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $invoiceData = [
         'sunat_concept_document_type_id' => $data['sunat_concept_document_type_id'],
         'serie' => $data['serie'],
+        'series_id' => $data['series_id'],
         'numero' => $nextNumberData['number'],
         'full_number' => "{$data['serie']}-{$nextNumberData['number']}",
         'consolidation_type' => ElectronicDocument::CONSOLIDATION_WORK_ORDERS,
@@ -2865,6 +2870,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'enviar_automaticamente_al_cliente' => false,
         'created_by' => auth()->id(),
         'sunat_concept_transaction_type_id' => $data['sunat_concept_transaction_type_id'] ?? null,
+        'area_id' => ApMasters::AREA_POSVENTA,
       ];
 
       // 11. Create invoice
@@ -2916,5 +2922,75 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       DB::rollBack();
       throw $e;
     }
+  }
+
+  /**
+   * Get invoice with internal notes and their work orders
+   *
+   * @param int $invoiceId
+   * @return array
+   * @throws Exception
+   */
+  public function getInvoiceWithWorkOrders(int $invoiceId): array
+  {
+    $invoice = ElectronicDocument::with([
+      'internalNotes.workOrder.invoiceTo',
+      'internalNotes.workOrder.typeCurrency',
+      'internalNotes.workOrder.items',
+      'documentType',
+      'client',
+      'currency'
+    ])->find($invoiceId);
+
+    if (!$invoice) {
+      throw new Exception('Factura no encontrada');
+    }
+
+    // Prepare internal notes with work orders data
+    $internalNotesData = $invoice->internalNotes->map(function ($note) {
+      return [
+        'id' => $note->id,
+        'number' => $note->number,
+        'status' => $note->status,
+        'created_date' => $note->created_date?->format('Y-m-d'),
+        'closed_date' => $note->closed_date?->format('Y-m-d'),
+        'work_order' => $note->workOrder ? [
+          'id' => $note->workOrder->id,
+          'correlative' => $note->workOrder->correlative,
+          'invoice_to' => $note->workOrder->invoice_to,
+          'client_name' => $note->workOrder->invoiceTo?->razon_social,
+          'currency_id' => $note->workOrder->currency_id,
+          'currency' => $note->workOrder->typeCurrency?->name,
+          'subtotal' => $note->workOrder->subtotal,
+          'tax_amount' => $note->workOrder->tax_amount,
+          'final_amount' => $note->workOrder->final_amount,
+          'status' => $note->workOrder->status,
+        ] : null,
+      ];
+    });
+
+    return [
+      'invoice' => [
+        'id' => $invoice->id,
+        'full_number' => $invoice->full_number,
+        'serie' => $invoice->serie,
+        'numero' => $invoice->numero,
+        'document_type' => $invoice->documentType?->description,
+        'client_name' => $invoice->cliente_denominacion,
+        'client_document' => $invoice->cliente_numero_de_documento,
+        'emission_date' => $invoice->fecha_de_emision?->format('Y-m-d'),
+        'due_date' => $invoice->fecha_de_vencimiento?->format('Y-m-d'),
+        'currency' => $invoice->currency?->description,
+        'total' => $invoice->total,
+        'status' => $invoice->status,
+        'consolidation_type' => $invoice->consolidation_type,
+      ],
+      'internal_notes' => $internalNotesData,
+      'summary' => [
+        'total_internal_notes' => $internalNotesData->count(),
+        'total_work_orders' => $internalNotesData->count(),
+        'total_amount' => $invoice->total,
+      ],
+    ];
   }
 }

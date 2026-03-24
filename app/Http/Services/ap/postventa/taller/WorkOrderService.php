@@ -28,7 +28,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
-    $query = ApWorkOrder::with('items');
+    $query = ApWorkOrder::with(['items', 'internalNote']);
     return $this->getFilteredResults(
       $query,
       $request,
@@ -556,13 +556,75 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     });
   }
 
+  public function generateDelivery(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $workOrder = $this->find($data['id']);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      if ($workOrder->is_delivery) {
+        throw new Exception('La orden de trabajo ya tiene una entrega generada');
+      }
+
+      if ($workOrder->status_id !== ApMasters::CLOSED_WORK_ORDER_ID) {
+        throw new Exception('No se puede generar entrega para una que no ha sido facturada');
+      }
+
+      // Procesar los seguimientos: convertir días y horas a fechas absolutas
+      $actualDeliveryDate = Carbon::parse($data['actual_delivery_date']);
+      $followUps = [];
+
+      foreach ($data['follow_ups'] as $followUp) {
+        $followUpDateTimeStart = $actualDeliveryDate->copy()
+          ->addDays($followUp['days'])
+          ->setTimeFromTimeString($followUp['time_start']);
+
+        $followUpDateTimeEnd = $actualDeliveryDate->copy()
+          ->addDays($followUp['days'])
+          ->setTimeFromTimeString($followUp['time_end']);
+
+        $followUps[] = [
+          'days' => $followUp['days'],
+          'time_start' => $followUp['time_start'],
+          'time_end' => $followUp['time_end'],
+          'scheduled_datetime_start' => $followUpDateTimeStart->format('Y-m-d H:i:s'),
+          'scheduled_datetime_end' => $followUpDateTimeEnd->format('Y-m-d H:i:s'),
+          'completed' => false,
+        ];
+      }
+
+      // Actualizar la orden de trabajo
+      $workOrder->update([
+        'actual_delivery_date' => $actualDeliveryDate->format('Y-m-d H:i:s'),
+        'is_delivery' => true,
+        'delivery_by' => auth()->check() ? auth()->user()->id : null,
+        'post_service_follow_up' => json_encode($followUps),
+      ]);
+
+      $workOrder->load([
+        'appointmentPlanning',
+        'vehicle',
+        'status',
+        'advisor',
+        'sede',
+        'creator',
+        'items.typePlanning'
+      ]);
+
+      return new WorkOrderResource($workOrder);
+    });
+  }
+
   public function generateDeliveryReport($id)
   {
     // Obtener la inspección con todas las relaciones necesarias
-    $inspection = ApVehicleInspection::with('damages', 'workOrder.vehicle.customer', 'workOrder.advisor')
-      ->where('ap_work_order_id', $id)->where('is_cancelled', false)->first();
+    $workOrder = $this->find($id);
+    $workOrder->load('plannings.worker');
+    $inspection = $workOrder->vehicleInspection;
 
-    $workOrder = $inspection->workOrder;
     $vehicle = $workOrder->vehicle;
     $customer = $vehicle->customer;
     $advisor = $workOrder->advisor; // Worker extiende de Person directamente
@@ -632,7 +694,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'inventoryChecks' => $inventoryChecks,
       'customerSignature' => $customerSignature,
       'advisorSignature' => $advisorSignature,
-      'appointmentNumber' => $workOrder->appointmentPlanning ? $workOrder->appointmentPlanning->correlative : 'N/A',
+      'appointmentPlanning' => $workOrder->appointmentPlanning ?? null,
+      'plannings' => $workOrder->plannings ?? null,
       'isGuarantee' => $workOrder->is_guarantee ?? false,
       'isRecall' => $workOrder->is_recall ?? false,
       'descriptionRecall' => $workOrder->description_recall ?? '',
@@ -715,31 +778,40 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
   public function generateInternalNote($id)
   {
-    $workOrder = $this->find($id);
+    DB::beginTransaction();
 
-    if ($workOrder->invoice_to === null) {
-      throw new Exception('La orden de trabajo no tiene un destinatario de factura asignado.');
+    try {
+      $workOrder = $this->find($id);
+
+      if ($workOrder->invoice_to === null) {
+        throw new Exception('La orden de trabajo no tiene un destinatario de factura asignado.');
+      }
+
+      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+        throw new Exception('No se puede generar una nota interna para una orden de trabajo cerrada');
+      }
+
+      //create internal note
+      $internalNote = ApInternalNote::create([
+        'work_order_id' => $workOrder->id,
+        'created_date' => now(),
+      ]);
+
+      //Close work order with internal note
+      $workOrder->update([
+        'status_id' => ApMasters::CLOSED_WORK_ORDER_ID,
+      ]);
+
+      DB::commit();
+
+      return response()->json([
+        'message' => 'Nota interna generada y orden de trabajo cerrada correctamente',
+        'internal_note_id' => $internalNote->id,
+      ]);
+    } catch (\Throwable $e) {
+      DB::rollBack();
+      throw $e;
     }
-
-    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-      throw new Exception('No se puede generar una nota interna para una orden de trabajo cerrada');
-    }
-
-    //create internal note
-    $internalNote = ApInternalNote::create([
-      'work_order_id' => $workOrder->id,
-      'created_date' => now(),
-    ]);
-
-    //Close work order with internal note
-    $workOrder->update([
-      'status_id' => ApMasters::CLOSED_WORK_ORDER_ID,
-    ]);
-
-    return response()->json([
-      'message' => 'Nota interna generada y orden de trabajo cerrada correctamente',
-      'internal_note_id' => $internalNote->id,
-    ]);
   }
 
   public function generatePDIForVehicle($id)
