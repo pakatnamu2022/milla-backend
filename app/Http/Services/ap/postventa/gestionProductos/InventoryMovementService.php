@@ -303,6 +303,46 @@ class InventoryMovementService extends BaseService
     }
   }
 
+  /**
+   * Valida el stock de un producto en el sistema dynamics usando el stored procedure PaStockArticulo
+   *
+   * @param string $productCode Código del producto (dyn_code)
+   * @param string $warehouseCode Código del almacén (dyn_code)
+   * @return array Resultado del stored procedure con información de stock
+   * @throws Exception Si no se encuentra stock o hay error en la consulta
+   */
+  public function validateStockInExternalSystem(string $productCode, string $warehouseCode): array
+  {
+    try {
+      // Ejecutar el stored procedure PaStockArticulo en SQL Server (conexión dbtest)
+      // EXEC es la sintaxis correcta para SQL Server
+      $result = DB::connection('dbtest')
+        ->select("EXEC PaStockArticulo '{$productCode}', '{$warehouseCode}'");
+
+      // Validar que se obtuvo un resultado
+      if (empty($result)) {
+        throw new Exception(
+          "No se encontró stock para el producto '{$productCode}' en el almacén '{$warehouseCode}' en el sistema dynamics"
+        );
+      }
+
+      // Convertir el primer resultado a array
+      $stockData = (array)$result[0];
+
+      return $stockData;
+    } catch (Exception $e) {
+      \Log::error('Error al consultar stock en sistema dynamics', [
+        'product_code' => $productCode,
+        'warehouse_code' => $warehouseCode,
+        'error' => $e->getMessage()
+      ]);
+
+      throw new Exception(
+        "Error al consultar stock en sistema dynamics para producto '{$productCode}' en almacén '{$warehouseCode}': " . $e->getMessage()
+      );
+    }
+  }
+
   public function createTransfer(array $transferData, array $details): array
   {
     DB::beginTransaction();
@@ -341,8 +381,43 @@ class InventoryMovementService extends BaseService
 
       // Solo obtener y validar almacenes físicos si es PRODUCTO
       if ($itemType === 'PRODUCTO') {
-        $transferData['warehouse_origin_id'] = Warehouse::getPhysicalWarehouseForPostsale($transmitter->sede->id)->id;
-        $transferData['warehouse_destination_id'] = Warehouse::getPhysicalWarehouseForPostsale($receiver->sede->id)->id;
+        $warehouseOrigin = Warehouse::getPhysicalWarehouseForPostsale($transmitter->sede->id);
+        $warehouseDestination = Warehouse::getPhysicalWarehouseForPostsale($receiver->sede->id);
+
+        $transferData['warehouse_origin_id'] = $warehouseOrigin->id;
+        $transferData['warehouse_destination_id'] = $warehouseDestination->id;
+
+        // Validar stock en sistema dynamics antes de las validaciones locales
+        foreach ($details as $detail) {
+          // Skip validation if it's a service (description instead of product_id)
+          if (!isset($detail['product_id'])) {
+            continue;
+          }
+
+          $product = Products::find($detail['product_id']);
+          if (!$product || !$product->dyn_code) {
+            continue; // Si no tiene dyn_code, solo validamos con stock local
+          }
+
+          if (!$warehouseOrigin->dyn_code) {
+            continue; // Si el almacén no tiene dyn_code, solo validamos con stock local
+          }
+
+          // Validar stock en sistema dynamics
+          $externalStock = $this->validateStockInExternalSystem($product->dyn_code, $warehouseOrigin->dyn_code);
+
+          // El SP retorna ArticuloStock como string, convertir a float para comparar
+          $availableQuantity = isset($externalStock['ArticuloStock'])
+            ? (float)trim($externalStock['ArticuloStock'])
+            : 0;
+
+          if ($availableQuantity < $detail['quantity']) {
+            throw new Exception(
+              "Stock insuficiente en sistema dynamics para producto '{$product->name}'. " .
+              "Stock disponible en sistema dynamics: {$availableQuantity}, Cantidad solicitada: {$detail['quantity']}"
+            );
+          }
+        }
 
         // Validate stock availability in origin warehouse
         foreach ($details as $detail) {
