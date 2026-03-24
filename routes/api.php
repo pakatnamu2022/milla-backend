@@ -819,6 +819,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('assignBrandConsultant/showGrouped', [ApAssignBrandConsultantController::class, 'showGrouped']);
       Route::get('assignBrandConsultant/{sedeId}/brands', [ApAssignBrandConsultantController::class, 'getBrandsByBranch']);
       Route::get('assignBrandConsultant/{sedeId}/brands/{brandId}/advisors', [ApAssignBrandConsultantController::class, 'getAdvisorsByBranchAndBrand']);
+//      Route::get('assignBrandConsultant/{advisorId}/branches', [ApAssignBrandConsultantController::class, 'getBranchesByAdvisor']);
       Route::apiResource('assignBrandConsultant', ApAssignBrandConsultantController::class)->only([
         'index',
         'store',
