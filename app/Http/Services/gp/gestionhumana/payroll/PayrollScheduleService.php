@@ -96,21 +96,22 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
 
     $rule = AttendanceRule::where('code', $code)->first();
     $workingHours = GeneralMaster::find(GeneralMaster::WORKING_HOURS_ID)->value ?? 8;
-    $horasJornada = (float)($worker->horas_jornada ?: $workingHours);
+
+    if ($rule->use_shift) {
+      $horasJornada = (float)($worker->horas_jornada ?: $workingHours);
+    } else {
+      $horasJornada = $rule->hours ?? $workingHours;
+    }
 
     if (!$rule) {
       return ['hours_worked' => $horasJornada, 'extra_hours' => 0];
     }
 
-    $horas = $rule->use_shift ? $horasJornada : $workingHours;
-
-    // Si son horas normales
-    if ($horasJornada <= $workingHours) {
-      return ['hours_worked' => $horas, 'extra_hours' => 0];
+    if ($horasJornada >= $workingHours) {
+      return ['hours_worked' => $workingHours, 'extra_hours' => $horasJornada - $workingHours];
+    } else {
+      return ['hours_worked' => $horasJornada, 'extra_hours' => 0];
     }
-
-    // Si hay horas extras
-    return ['hours_worked' => $workingHours, 'extra_hours' => $horasJornada - $workingHours];
   }
 
   /**
@@ -299,23 +300,16 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         $status = $data['status'] ?? PayrollSchedule::STATUS_WORKED;
       }
 
+      // Always recalculate hours in case attendance rules have changed
+      $hours = $this->calculateHours($code, $schedule->worker, $status);
+
       $updateData = [
         'code' => $code,
         'notes' => $data['notes'] ?? $schedule->notes,
         'status' => $status,
+        'hours_worked' => $hours['hours_worked'],
+        'extra_hours' => $hours['extra_hours'],
       ];
-
-      // Recalculate hours if code or status changed
-      if ((isset($data['code']) && $data['code'] !== $schedule->code) ||
-        $status !== $schedule->status) {
-        $hours = $this->calculateHours(
-          $updateData['code'],
-          $schedule->worker,
-          $updateData['status']
-        );
-        $updateData['hours_worked'] = $hours['hours_worked'];
-        $updateData['extra_hours'] = $hours['extra_hours'];
-      }
 
       $schedule->update($updateData);
 
@@ -512,8 +506,11 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       return [];
     }
 
+    $diasMes = (float)(GeneralMaster::find(GeneralMaster::DAYS_MONTH_ID)->value ?? 30);
+    $horasTrabajo = (float)(GeneralMaster::find(GeneralMaster::WORKING_HOURS_ID)->value ?? 8);
+    $recargoNocturno = 1 + (float)(GeneralMaster::find(GeneralMaster::NIGHT_SURCHARGE_ID)->value ?? 0.35);
+
     $createdIds = [];
-    $recargoNocturno = 1.35;
 
     foreach ($schedules->groupBy('worker_id') as $workerId => $workerSchedules) {
       try {
@@ -526,7 +523,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           continue;
         }
 
-        $valorHoraBase = $sueldo / 30 / 8;
+        // Ahora usa los valores de la BD en lugar de números hardcodeados
+        $valorHoraBase = $sueldo / $diasMes / $horasTrabajo;
 
         $calculation = PayrollCalculation::create([
           'period_id' => $period->id,
@@ -555,7 +553,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           }
 
           foreach ($rules as $rule) {
-            $horas = $rule->use_shift ? $horasJornada : (float)$rule->hours;
+            $horas = (float)$rule->hours;
             $valorHora = $valorHoraBase;
             if (strtoupper($rule->hour_type) === 'NOCTURNO') {
               $valorHora *= $recargoNocturno;
@@ -569,7 +567,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
                 $workerId,
                 $worker->company_id ?? 0
               );
-              $valorHoraConMultiplicador = ($promedioData->total_avg + $sueldo) / 30 / 8;
+              $valorHoraConMultiplicador = ($promedioData->total_avg + $sueldo) / $diasMes / $horasTrabajo;
             }
 
             $total = $horas * $valorHoraConMultiplicador * $diasTrabajados;
@@ -589,7 +587,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
               'hours' => $horas,
               'days_worked' => $diasTrabajados,
               'multiplier' => (float)$rule->multiplier,
-              'use_shift' => $rule->use_shift,
+              'use_shift' => false,
               'hour_value' => $valorHoraConMultiplicador,
               'amount' => $total,
               'calculation_order' => $calculationOrder++,
