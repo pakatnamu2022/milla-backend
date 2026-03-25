@@ -393,12 +393,13 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         return null; // Skip worker with invalid salary or shift hours
       }
 
+      $diasMes = (float)(GeneralMaster::find(GeneralMaster::DAYS_MONTH_ID)->value ?? 30);
+      $horasTrabajo = (float)(GeneralMaster::find(GeneralMaster::WORKING_HOURS_ID)->value ?? 8);
+      $recargoNocturno = 1 + (float)(GeneralMaster::find(GeneralMaster::NIGHT_SURCHARGE_ID)->value ?? 0.35);
+
       // Base hour value
       //$valorHoraBase = $sueldo / 30 / $horasJornada;
-      $valorHoraBase = $sueldo / 30 / 8;
-
-      // Night surcharge constant (35%)
-      $recargoNocturno = 1.35;
+      $valorHoraBase = $sueldo / $diasMes / $horasTrabajo;
 
       // Group by code and count days
       $codeGroups = $workerSchedules->groupBy('code');
@@ -497,7 +498,6 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
   {
     $schedules = PayrollSchedule::with(['worker'])
       ->where('period_id', $period->id)
-      ->where('status', PayrollSchedule::STATUS_WORKED)
       ->where('work_date', '>=', $dateFrom)
       ->where('work_date', '<=', $dateTo)
       ->get();
@@ -535,7 +535,9 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           'salary' => $sueldo,
           'shift_hours' => $horasJornada,
           'base_hour_value' => $valorHoraBase,
-          'days_worked' => $workerSchedules->count(),
+          'days_worked' => $workerSchedules->filter(fn($s) => $s->status === PayrollSchedule::STATUS_WORKED)->count(),
+          'days_absent' => $workerSchedules->filter(fn($s) => $s->status === PayrollSchedule::STATUS_ABSENT)->count(),
+          'total_holiday_hours' => $workerSchedules->filter(fn($s) => $s->status === PayrollSchedule::STATUS_VACATION)->count(),
           'status' => PayrollCalculation::STATUS_CALCULATED,
           'calculated_at' => now(),
           'calculated_by' => auth()->id(),
@@ -544,7 +546,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         $totalEarnings = 0;
         $calculationOrder = 1;
 
-        foreach ($workerSchedules->groupBy('code') as $code => $codeSchedules) {
+        foreach ($workerSchedules->filter(fn($s) => $s->status === PayrollSchedule::STATUS_WORKED)->groupBy('code') as $code => $codeSchedules) {
           $diasTrabajados = $codeSchedules->count();
           $rules = $attendanceRules->get($code);
 

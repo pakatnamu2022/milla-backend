@@ -26,6 +26,7 @@ class PayrollCalculation extends BaseModel
     'salary',
     'shift_hours',
     'base_hour_value',
+    'vacation_hour_value',
     'total_normal_hours',
     'total_extra_hours_25',
     'total_extra_hours_35',
@@ -295,7 +296,7 @@ class PayrollCalculation extends BaseModel
       ->where('status', '!=', self::STATUS_DRAFT)
       ->with('period')
       ->get();
-    
+
     if ($calculations->isEmpty()) {
       return (object)[
         'avg_overtime' => 0,
