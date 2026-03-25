@@ -82,7 +82,7 @@ class PayrollSummaryService
       : 0;
 
     // BONIF. NOCT = REM. BRUTA - REM. BASICA
-    $nightBonus = round($grossSalary - $basicSalary, 2);
+    $nightBonus = round(max($grossSalary - $basicSalary, 0), 2);
 
     // PAGO total = remun basica + bonif nocturna + h25% + h35% + feriado + ddt
     $netSalary = round(

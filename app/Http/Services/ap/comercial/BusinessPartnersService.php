@@ -236,8 +236,9 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
     }
 
     $TypeDocument = ApMasters::findOrFail($data['document_type_id']);
+    $numDigits = ApMasters::getDigitsForDocumentType($TypeDocument->id);
     $NumCharDoc = strlen($data['num_doc']);
-    if ($TypeDocument->code != $NumCharDoc) {
+    if ($numDigits != $NumCharDoc) {
       throw new Exception("El número de documento debe tener {$TypeDocument->code} caracteres para el tipo de documento seleccionado");
     }
     return $data;
