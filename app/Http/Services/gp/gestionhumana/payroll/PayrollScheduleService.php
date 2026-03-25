@@ -537,7 +537,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
             $workerId,
             $period->company_id ?? 0
           );
-          $valorHoraVacacional = ($promedioData->total_avg + $sueldo) / $diasMes / $horasTrabajo;
+          $valorHoraVacacional = ($promedioData->total_avg + $sueldo) / $diasMes;
         }
 
         $calculation = PayrollCalculation::create([
