@@ -526,6 +526,20 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         // Ahora usa los valores de la BD en lugar de números hardcodeados
         $valorHoraBase = $sueldo / $diasMes / $horasTrabajo;
 
+        // Contar días de vacaciones
+        $daysVacation = $workerSchedules->filter(fn($s) => $s->status === PayrollSchedule::STATUS_VACATION)->count();
+
+        // Calcular el valor de la hora vacacional solo si hay días de vacaciones
+        $valorHoraVacacional = 0;
+        if ($daysVacation > 0) {
+          $promedioData = PayrollCalculation::calcularPromedioUltimos6Meses(
+            $period->id,
+            $workerId,
+            $period->company_id ?? 0
+          );
+          $valorHoraVacacional = ($promedioData->total_avg + $sueldo) / $diasMes / $horasTrabajo;
+        }
+
         $calculation = PayrollCalculation::create([
           'period_id' => $period->id,
           'biweekly' => $biweekly,
@@ -535,9 +549,10 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           'salary' => $sueldo,
           'shift_hours' => $horasJornada,
           'base_hour_value' => $valorHoraBase,
+          'vacation_hour_value' => $valorHoraVacacional,
           'days_worked' => $workerSchedules->filter(fn($s) => $s->status === PayrollSchedule::STATUS_WORKED)->count(),
           'days_absent' => $workerSchedules->filter(fn($s) => $s->status === PayrollSchedule::STATUS_ABSENT)->count(),
-          'total_holiday_hours' => $workerSchedules->filter(fn($s) => $s->status === PayrollSchedule::STATUS_VACATION)->count(),
+          'days_vacation' => $daysVacation,
           'status' => PayrollCalculation::STATUS_CALCULATED,
           'calculated_at' => now(),
           'calculated_by' => auth()->id(),

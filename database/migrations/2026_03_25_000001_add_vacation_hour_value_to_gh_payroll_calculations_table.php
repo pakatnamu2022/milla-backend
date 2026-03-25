@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
   public function up(): void
   {
     Schema::table('gh_payroll_calculations', function (Blueprint $table) {
@@ -13,13 +12,17 @@ return new class extends Migration
         ->default(0)
         ->after('base_hour_value')
         ->comment('Vacation hour value snapshot');
+      $table->integer('days_vacation')->after('days_absent')->default(0);
     });
   }
 
   public function down(): void
   {
     Schema::table('gh_payroll_calculations', function (Blueprint $table) {
-      $table->dropColumn('vacation_hour_value');
+      $table->dropColumn([
+        'vacation_hour_value',
+        'days_vacation',
+      ]);
     });
   }
 };

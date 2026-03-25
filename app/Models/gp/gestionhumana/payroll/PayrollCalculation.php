@@ -34,6 +34,7 @@ class PayrollCalculation extends BaseModel
     'total_holiday_hours',
     'days_worked',
     'days_absent',
+    'days_vacation',
     'gross_salary',
     'total_earnings',
     'total_deductions',
