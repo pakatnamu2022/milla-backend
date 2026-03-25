@@ -310,6 +310,7 @@ class PayrollCalculation extends BaseModel
     }
 
     // Agrupar por mes (year-month) y sumar valores (para manejar quincenas)
+    // Separar overtime_25 y overtime_35 para validación individual
     $monthlyTotals = [];
 
     foreach ($calculations as $calc) {
@@ -317,7 +318,8 @@ class PayrollCalculation extends BaseModel
 
       if (!isset($monthlyTotals[$key])) {
         $monthlyTotals[$key] = [
-          'overtime' => 0,
+          'overtime_25' => 0,
+          'overtime_35' => 0,
           'holiday' => 0,
           'compensatory' => 0,
           'night_bonus' => 0,
@@ -325,7 +327,8 @@ class PayrollCalculation extends BaseModel
       }
 
       // Sumar valores (si hay biweekly=1 y biweekly=2, se suman)
-      $monthlyTotals[$key]['overtime'] += ($calc->overtime_25 ?? 0) + ($calc->overtime_35 ?? 0);
+      $monthlyTotals[$key]['overtime_25'] += $calc->overtime_25 ?? 0;
+      $monthlyTotals[$key]['overtime_35'] += $calc->overtime_35 ?? 0;
       $monthlyTotals[$key]['holiday'] += $calc->holiday_pay ?? 0;
       $monthlyTotals[$key]['compensatory'] += $calc->compensatory_pay ?? 0;
       $monthlyTotals[$key]['night_bonus'] += $calc->night_bonus ?? 0;
@@ -345,17 +348,54 @@ class PayrollCalculation extends BaseModel
       ];
     }
 
-    // Calcular totales
-    $totalOvertime = array_sum(array_column($monthlyTotals, 'overtime'));
-    $totalHoliday = array_sum(array_column($monthlyTotals, 'holiday'));
-    $totalCompensatory = array_sum(array_column($monthlyTotals, 'compensatory'));
-    $totalNightBonus = array_sum(array_column($monthlyTotals, 'night_bonus'));
+    // Validar que cada concepto tenga monto > 0 en al menos 3 meses
+    $minMonthsRequired = 3;
+
+    // Contar meses con monto > 0 para cada concepto
+    $monthsWithOvertime25 = 0;
+    $monthsWithOvertime35 = 0;
+    $monthsWithHoliday = 0;
+    $monthsWithCompensatory = 0;
+    $monthsWithNightBonus = 0;
+
+    foreach ($monthlyTotals as $totals) {
+      if ($totals['overtime_25'] > 0) $monthsWithOvertime25++;
+      if ($totals['overtime_35'] > 0) $monthsWithOvertime35++;
+      if ($totals['holiday'] > 0) $monthsWithHoliday++;
+      if ($totals['compensatory'] > 0) $monthsWithCompensatory++;
+      if ($totals['night_bonus'] > 0) $monthsWithNightBonus++;
+    }
+
+    // Calcular totales solo si cumplen la condición de 3 meses
+    $totalOvertime25 = $monthsWithOvertime25 >= $minMonthsRequired
+      ? array_sum(array_column($monthlyTotals, 'overtime_25'))
+      : 0;
+
+    $totalOvertime35 = $monthsWithOvertime35 >= $minMonthsRequired
+      ? array_sum(array_column($monthlyTotals, 'overtime_35'))
+      : 0;
+
+    $totalHoliday = $monthsWithHoliday >= $minMonthsRequired
+      ? array_sum(array_column($monthlyTotals, 'holiday'))
+      : 0;
+
+    $totalCompensatory = $monthsWithCompensatory >= $minMonthsRequired
+      ? array_sum(array_column($monthlyTotals, 'compensatory'))
+      : 0;
+
+    $totalNightBonus = $monthsWithNightBonus >= $minMonthsRequired
+      ? array_sum(array_column($monthlyTotals, 'night_bonus'))
+      : 0;
 
     // Calcular promedios
-    $avgOvertime = $totalOvertime / $monthsCount;
+    $avgOvertime25 = $totalOvertime25 / $monthsCount;
+    $avgOvertime35 = $totalOvertime35 / $monthsCount;
     $avgHoliday = $totalHoliday / $monthsCount;
     $avgCompensatory = $totalCompensatory / $monthsCount;
     $avgNightBonus = $totalNightBonus / $monthsCount;
+
+    // Sumar horas extras para mantener compatibilidad
+    $avgOvertime = $avgOvertime25 + $avgOvertime35;
 
     return (object)[
       'avg_overtime' => round($avgOvertime, 2),
