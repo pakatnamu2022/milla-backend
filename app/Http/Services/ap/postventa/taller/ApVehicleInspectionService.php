@@ -546,7 +546,7 @@ class ApVehicleInspectionService extends BaseService
       return response()->json(['message' => 'No se encontró la orden de trabajo asociada a esta inspección'], 422);
     }
 
-    if ($workOrder->status_id = ApMasters::CLOSED_WORK_ORDER_ID) {
+    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
       return response()->json(['message' => 'No se puede solicitar anulación para una orden de trabajo cerrada'], 422);
     }
 
