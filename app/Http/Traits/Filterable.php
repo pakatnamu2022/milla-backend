@@ -360,6 +360,13 @@ trait Filterable
     if ($sortField !== null && in_array($sortField, $sorts)) {
       // Calificar el campo con el alias de tabla
       $qualifiedField = $this->qualifyColumn($query, $sortField);
+
+      // Si hay filtro activo para ese mismo campo, priorizar coincidencia exacta primero
+      $filterValue = $request->query($sortField);
+      if ($filterValue !== null) {
+        $query->orderByRaw("({$qualifiedField} = ?) DESC", [$filterValue]);
+      }
+
       $query->orderBy($qualifiedField, $sortOrder);
     } else {
       // Calificar 'id' con el alias de tabla
