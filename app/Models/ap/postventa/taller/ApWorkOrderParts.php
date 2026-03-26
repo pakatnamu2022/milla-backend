@@ -26,7 +26,11 @@ class ApWorkOrderParts extends Model
     'total_cost',
     'tax_amount',
     'net_amount',
-    'registered_by'
+    'registered_by',
+    'is_received',
+    'received_date',
+    'received_signature_url',
+    'received_by',
   ];
 
   protected $casts = [

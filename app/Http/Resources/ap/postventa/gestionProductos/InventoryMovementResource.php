@@ -4,9 +4,11 @@ namespace App\Http\Resources\ap\postventa\gestionProductos;
 
 use App\Http\Resources\ap\comercial\ShippingGuidesResource;
 use App\Http\Resources\ap\compras\PurchaseReceptionResource;
+use App\Http\Resources\ap\facturacion\SupplierCreditNoteResource;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsResource;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\compras\PurchaseReception;
+use App\Models\ap\compras\SupplierCreditNote;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -65,6 +67,7 @@ class InventoryMovementResource extends JsonResource
       ShippingGuides::class => ShippingGuidesResource::class,
       ApOrderQuotations::class => ApOrderQuotationsResource::class,
       PurchaseReception::class => PurchaseReceptionResource::class,
+      SupplierCreditNote::class => SupplierCreditNoteResource::class,
     ];
 
     $resourceClass = $resourceMap[$this->reference_type] ?? null;
