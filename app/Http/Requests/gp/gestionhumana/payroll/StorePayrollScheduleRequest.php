@@ -5,6 +5,7 @@ namespace App\Http\Requests\gp\gestionhumana\payroll;
 use App\Http\Requests\StoreRequest;
 use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
 use App\Models\gp\gestionhumana\payroll\PayrollSchedule;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Carbon\Carbon;
 
 class StorePayrollScheduleRequest extends StoreRequest
@@ -31,6 +32,15 @@ class StorePayrollScheduleRequest extends StoreRequest
         $paymentDate = Carbon::parse($period->end_date);
         if ($workDate->lt($startDate) || $workDate->gt($paymentDate)) {
           $validator->errors()->add('work_date', 'El día de trabajo debe ser entre los días permitidos del periodo');
+        }
+      }
+
+      $workerId = $this->input('worker_id');
+      $code = $this->input('code');
+      if ($workerId && $code) {
+        $worker = Worker::find($workerId);
+        if ($worker && !$worker->isAttendanceCodeAllowed($code)) {
+          $validator->errors()->add('code', "El código de asistencia '{$code}' no está permitido para este trabajador");
         }
       }
     });

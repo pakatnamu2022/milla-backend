@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\gp\gestionhumana\payroll;
 
+use App\Exceptions\PayrollValidationException;
 use App\Http\Resources\gp\gestionhumana\payroll\PayrollPeriodResource;
 use App\Http\Resources\gp\gestionhumana\payroll\PayrollScheduleResource;
 use App\Http\Services\BaseService;
@@ -13,6 +14,7 @@ use App\Models\gp\gestionhumana\payroll\PayrollCalculationDetail;
 use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
 use App\Models\gp\gestionhumana\payroll\PayrollSchedule;
 use App\Models\gp\gestionhumana\personal\Worker;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -476,6 +478,75 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
   }
 
   /**
+   * Validates that all workers assigned at least once in the given date range
+   * have a schedule entry for every single day in that range.
+   * Throws PayrollValidationException with the list of workers and missing dates if not.
+   */
+  private function validateAllDaysFilled(PayrollPeriod $period, $dateFrom, $dateTo): void
+  {
+    $dateFromCarbon = Carbon::parse($dateFrom);
+    $dateToCarbon   = Carbon::parse($dateTo);
+
+    // Workers that appear at least once in this date range
+    $workerIds = PayrollSchedule::where('period_id', $period->id)
+      ->where('work_date', '>=', $dateFromCarbon)
+      ->where('work_date', '<=', $dateToCarbon)
+      ->distinct()
+      ->pluck('worker_id');
+
+    if ($workerIds->isEmpty()) {
+      return;
+    }
+
+    // All calendar dates in the range
+    $allDates = [];
+    $cursor = $dateFromCarbon->copy();
+    while ($cursor->lte($dateToCarbon)) {
+      $allDates[] = $cursor->format('Y-m-d');
+      $cursor->addDay();
+    }
+
+    // Existing schedules grouped by worker
+    $existingByWorker = PayrollSchedule::with('worker')
+      ->where('period_id', $period->id)
+      ->where('work_date', '>=', $dateFromCarbon)
+      ->where('work_date', '<=', $dateToCarbon)
+      ->whereIn('worker_id', $workerIds)
+      ->get()
+      ->groupBy('worker_id');
+
+    $missingByWorker = [];
+
+    foreach ($workerIds as $workerId) {
+      $workerSchedules = $existingByWorker->get($workerId, collect());
+      $filledDates     = $workerSchedules->map(fn($s) => Carbon::parse($s->work_date)->format('Y-m-d'))->toArray();
+      $missingDates    = array_values(array_diff($allDates, $filledDates));
+
+      if (empty($missingDates)) {
+        continue;
+      }
+
+      $worker = $workerSchedules->isNotEmpty()
+        ? $workerSchedules->first()->worker
+        : Worker::find($workerId);
+
+      $missingByWorker[] = [
+        'worker_id'    => $workerId,
+        'worker_name'  => $worker->nombre_completo ?? "Worker #{$workerId}",
+        'missing_dates' => $missingDates,
+      ];
+    }
+
+    if (!empty($missingByWorker)) {
+      $names = implode(', ', array_column($missingByWorker, 'worker_name'));
+      throw new PayrollValidationException(
+        "Faltan días por llenar para los siguientes trabajadores: {$names}",
+        ['workers_with_missing_days' => $missingByWorker]
+      );
+    }
+  }
+
+  /**
    * Create PayrollCalculation + detail records for all workers with schedules in the given date range.
    * Used internally by generate and recalculate.
    *
@@ -687,6 +758,17 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       $errors = [];
       $allCreatedIds = [];
 
+      // Validate all assigned workers have every day filled before processing
+      if ($biweekly === null && $period->biweekly_date) {
+        [$vFrom1, $vTo1] = $this->getDateRangeForBiweekly($period, 1);
+        [$vFrom2, $vTo2] = $this->getDateRangeForBiweekly($period, 2);
+        $this->validateAllDaysFilled($period, $vFrom1, $vTo1);
+        $this->validateAllDaysFilled($period, $vFrom2, $vTo2);
+      } else {
+        [$vFrom, $vTo] = $this->getDateRangeForBiweekly($period, $biweekly);
+        $this->validateAllDaysFilled($period, $vFrom, $vTo);
+      }
+
       if ($biweekly === null && $period->biweekly_date) {
         // Period with biweekly split: create only biweekly=1 and biweekly=2 (no null consolidado)
         $existingB1 = PayrollCalculation::where('period_id', $periodId)->where('biweekly', 1)->count();
@@ -771,6 +853,17 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       }
 
       $isFullWithSplit = $biweekly === null && $period->biweekly_date;
+
+      // Validate all assigned workers have every day filled before processing
+      if ($isFullWithSplit) {
+        [$vFrom1, $vTo1] = $this->getDateRangeForBiweekly($period, 1);
+        [$vFrom2, $vTo2] = $this->getDateRangeForBiweekly($period, 2);
+        $this->validateAllDaysFilled($period, $vFrom1, $vTo1);
+        $this->validateAllDaysFilled($period, $vFrom2, $vTo2);
+      } else {
+        [$vFrom, $vTo] = $this->getDateRangeForBiweekly($period, $biweekly);
+        $this->validateAllDaysFilled($period, $vFrom, $vTo);
+      }
 
       // Delete existing calculations (throws if any are APPROVED/PAID)
       if ($isFullWithSplit) {

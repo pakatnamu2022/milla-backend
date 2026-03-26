@@ -342,18 +342,10 @@ class ApReceivingChecklistService extends BaseService
       // Preparar items para el template
       $items = collect($receivedItems)->map(function ($item) {
         $description = $item->resource->receiving->description ?? 'N/A';
-        $quantity = $item->resource->quantity ?? 0;
-
-        // Si la cantidad es mayor a 0, mostrar descripción con cantidad
-        // Si es 0 o null, solo mostrar la descripción
-        if ($quantity > 0) {
-          $formattedName = "{$description} ({$quantity})";
-        } else {
-          $formattedName = $description;
-        }
+        $quantity = $item->resource->quantity ?? 1;
 
         return [
-          'name' => $formattedName,
+          'name' => $description,
           'quantity' => $quantity,
         ];
       })->toArray();
@@ -362,28 +354,59 @@ class ApReceivingChecklistService extends BaseService
       $consultant = $vehicle->purchaseOrder->advisor()?->email2 ?? $vehicle->purchaseOrder->advisor()?->email1 ?? null;
 
       $emailsTo = [$coordinator, $consultant];
-      $emailsCC = Constants::AP_TICS_MAIL;
+      $emailsCC = array_merge(Constants::AP_TICS_MAIL, ['jefealmacen@automotorespakatnamu.com']);
+
+      // Preparar fotos de inspección como adjuntos
+      $attachments = [];
+      $inspection = ApReceivingInspection::where('shipping_guide_id', $shippingGuide->id)->first();
+      $hasPhotos = false;
+
+      if ($inspection) {
+        $photoMap = [
+          'photo_front_url' => 'Foto_Frontal.jpg',
+          'photo_back_url'  => 'Foto_Trasera.jpg',
+          'photo_left_url'  => 'Foto_Izquierda.jpg',
+          'photo_right_url' => 'Foto_Derecha.jpg',
+        ];
+
+        foreach ($photoMap as $field => $fileName) {
+          if (!empty($inspection->$field)) {
+            $attachments[] = [
+              'url'  => $inspection->$field,
+              'name' => $fileName,
+              'mime' => 'image/jpeg',
+            ];
+            $hasPhotos = true;
+          }
+        }
+      }
 
       $emailService->queue([
-        'to' => array_filter($emailsTo),
-        'cc' => $emailsCC,
-        'subject' => 'Notificación de Recepción de Vehículo - ' . ($vehicle->vin ?? 'VIN no disponible'),
-        'template' => 'emails.vehicle-reception',
-        'data' => [
-          'advisor_name' => $consultant->nombre_completo ?? 'N/A',
-          'vehicle_vin' => $vehicle->vin ?? 'N/A',
-          'vehicle_model' => $vehicle->model->version ?? 'N/A',
-          'vehicle_brand' => $vehicle->model->family->brand->name ?? 'N/A',
-          'vehicle_year' => $vehicle->year ?? 'N/A',
-          'vehicle_color' => $vehicle->color->description ?? 'N/A',
-          'origin' => $shippingGuide->transmitter->address ?? 'N/A',
-          'destination' => $shippingGuide->receiver->address ?? 'N/A',
+        'to'          => array_filter($emailsTo),
+        'cc'          => $emailsCC,
+        'subject'     => 'Recepción de Vehículo — VIN ' . ($vehicle->vin ?? 'N/A'),
+        'template'    => 'emails.vehicle-reception',
+        'attachments' => $attachments,
+        'data'        => [
+          'badge'          => 'Recepción de Vehículo',
+          'title'          => 'Notificación de Recepción',
+          'subtitle'       => 'El vehículo ha sido recepcionado satisfactoriamente',
+          'company_name'   => 'Automotores Pakatnamu',
+          'vehicle_vin'    => $vehicle->vin ?? 'N/A',
+          'vehicle_model'  => $vehicle->model->version ?? 'N/A',
+          'vehicle_brand'  => $vehicle->model->family->brand->name ?? 'N/A',
+          'vehicle_year'   => $vehicle->year ?? 'N/A',
+          'vehicle_color'  => $vehicle->color->description ?? 'N/A',
+          'origin'         => $shippingGuide->transmitter->address ?? 'N/A',
+          'destination'    => $shippingGuide->receiver->address ?? 'N/A',
           'received_items' => $items,
-          'note' => $shippingGuide->note_received ?? 'N/A',
-          'received_by' => $shippingGuide->receivedBy->name ?? 'Sistema',
-          'received_date' => $shippingGuide->received_date ? $shippingGuide->received_date->format('d/m/Y H:i') : now()->format('d/m/Y H:i'),
-          'shipping_guide_id' => $shippingGuide->id,
-        ]
+          'note'           => $shippingGuide->note_received ?? null,
+          'received_by'    => $shippingGuide->receivedBy->name ?? 'Sistema',
+          'received_date'  => $shippingGuide->received_date
+            ? $shippingGuide->received_date->format('d/m/Y H:i')
+            : now()->format('d/m/Y H:i'),
+          'has_photos'     => $hasPhotos,
+        ],
       ]);
     } catch (Exception $e) {
       Log::error('Error al preparar o enviar correo de recepción de vehículo', [

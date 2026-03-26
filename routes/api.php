@@ -106,6 +106,7 @@ use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableControll
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollPeriodController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\AttendanceRuleController;
+use App\Http\Controllers\gp\gestionhumana\payroll\WorkerAttendanceRuleController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\AreaController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
@@ -819,6 +820,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('assignBrandConsultant/showGrouped', [ApAssignBrandConsultantController::class, 'showGrouped']);
       Route::get('assignBrandConsultant/{sedeId}/brands', [ApAssignBrandConsultantController::class, 'getBrandsByBranch']);
       Route::get('assignBrandConsultant/{sedeId}/brands/{brandId}/advisors', [ApAssignBrandConsultantController::class, 'getAdvisorsByBranchAndBrand']);
+//      Route::get('assignBrandConsultant/{advisorId}/branches', [ApAssignBrandConsultantController::class, 'getBranchesByAdvisor']);
       Route::apiResource('assignBrandConsultant', ApAssignBrandConsultantController::class)->only([
         'index',
         'store',
@@ -1621,6 +1623,12 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('schedules/generate-calculations/{periodId}', [PayrollScheduleController::class, 'generateCalculations']);
     Route::post('schedules/recalculate-calculations/{periodId}', [PayrollScheduleController::class, 'recalculateCalculations']);
     Route::apiResource('schedules', PayrollScheduleController::class);
+
+    // Worker Attendance Rules (códigos permitidos por persona)
+    Route::get('workers/{workerId}/attendance-rules', [WorkerAttendanceRuleController::class, 'index']);
+    Route::post('workers/{workerId}/attendance-rules/sync', [WorkerAttendanceRuleController::class, 'sync']);
+    Route::post('workers/{workerId}/attendance-rules', [WorkerAttendanceRuleController::class, 'store']);
+    Route::delete('workers/{workerId}/attendance-rules/{code}', [WorkerAttendanceRuleController::class, 'destroy']);
 
     // Calculations
     Route::post('calculations/calculate', [PayrollCalculationController::class, 'calculate']);

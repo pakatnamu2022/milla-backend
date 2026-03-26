@@ -3,6 +3,7 @@
 namespace App\Models\gp\gestionhumana\payroll;
 
 use App\Models\BaseModel;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AttendanceRule extends BaseModel
@@ -41,4 +42,16 @@ class AttendanceRule extends BaseModel
     'hour_type',
     'created_at',
   ];
+
+  public function workers()
+  {
+    return $this->belongsToMany(
+      Worker::class,
+      'worker_attendance_rule',
+      'attendance_rule_code',
+      'worker_id',
+      'code',
+      'id'
+    )->withTimestamps();
+  }
 }
