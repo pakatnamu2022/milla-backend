@@ -45,6 +45,14 @@ class StoreWorkOrderRequest extends StoreRequest
         'integer',
         'exists:config_sede,id',
       ],
+      'full_contact_name' => [
+        'nullable',
+        'string',
+      ],
+      'phone_contact' => [
+        'nullable',
+        'string',
+      ],
       'opening_date' => [
         'required',
         'date',

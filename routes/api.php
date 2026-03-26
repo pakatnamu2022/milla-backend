@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ap\ApMastersController;
+use App\Http\Controllers\ap\postventa\taller\TypePlanningWorkOrderController;
 use App\Http\Controllers\GeneralMaster\GeneralMasterController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
@@ -1221,6 +1222,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('appointmentPlanning/available-slots', [AppointmentPlanningController::class, 'availableSlots']);
       Route::get('appointmentPlanning/{id}/pdf', [AppointmentPlanningController::class, 'downloadPDF']);
       Route::apiResource('appointmentPlanning', AppointmentPlanningController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Types planifications - Tipos de planificación
+      Route::apiResource('typePlanningWorkOrder', TypePlanningWorkOrderController::class)->only([
         'index',
         'show',
         'store',
