@@ -397,6 +397,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       $diasMes = (float)(GeneralMaster::find(GeneralMaster::DAYS_MONTH_ID)->value ?? 30);
       $horasTrabajo = (float)(GeneralMaster::find(GeneralMaster::WORKING_HOURS_ID)->value ?? 8);
       $recargoNocturno = 1 + (float)(GeneralMaster::find(GeneralMaster::NIGHT_SURCHARGE_ID)->value ?? 0.35);
+      $salarioMinimo = (float)(GeneralMaster::find(GeneralMaster::MINIMUM_WAGE_ID)->value ?? 1130);
+      $umbralNocturno = $salarioMinimo * $recargoNocturno;
 
       // Base hour value
       //$valorHoraBase = $sueldo / 30 / $horasJornada;
@@ -422,9 +424,11 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           // Determine hours to use
           $horas = $rule->use_shift ? $horasJornada : (float)$rule->hours;
 
-          // Calculate hour value with night surcharge if applicable
+          // El recargo nocturno solo aplica si el salario del trabajador es menor al umbral
+          // (salario_minimo * 1.35). Si ya supera ese umbral, su hora nocturna se calcula
+          // sobre su propio salario sin recargo adicional.
           $valorHora = $valorHoraBase;
-          if (strtoupper($rule->hour_type) === 'NOCTURNO') {
+          if (strtoupper($rule->hour_type) === 'NOCTURNO' && $sueldo < $umbralNocturno) {
             $valorHora *= $recargoNocturno;
           }
 
@@ -582,6 +586,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
     $diasMes = (float)(GeneralMaster::find(GeneralMaster::DAYS_MONTH_ID)->value ?? 30);
     $horasTrabajo = (float)(GeneralMaster::find(GeneralMaster::WORKING_HOURS_ID)->value ?? 8);
     $recargoNocturno = 1 + (float)(GeneralMaster::find(GeneralMaster::NIGHT_SURCHARGE_ID)->value ?? 0.35);
+    $salarioMinimo = (float)(GeneralMaster::find(GeneralMaster::MINIMUM_WAGE_ID)->value ?? 1130);
+    $umbralNocturno = $salarioMinimo * $recargoNocturno;
 
     $createdIds = [];
 
@@ -649,7 +655,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           foreach ($rules as $rule) {
             $horas = (float)$rule->hours;
             $valorHora = $valorHoraBase;
-            if (strtoupper($rule->hour_type) === 'NOCTURNO') {
+            if (strtoupper($rule->hour_type) === 'NOCTURNO' && $sueldo < $umbralNocturno) {
               $valorHora *= $recargoNocturno;
             }
             $valorHoraConMultiplicador = $valorHora * (float)$rule->multiplier;
