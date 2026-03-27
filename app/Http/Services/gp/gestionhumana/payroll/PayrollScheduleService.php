@@ -2,7 +2,6 @@
 
 namespace App\Http\Services\gp\gestionhumana\payroll;
 
-use App\Exceptions\PayrollValidationException;
 use App\Http\Resources\gp\gestionhumana\payroll\PayrollPeriodResource;
 use App\Http\Resources\gp\gestionhumana\payroll\PayrollScheduleResource;
 use App\Http\Services\BaseService;
@@ -478,11 +477,11 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Validates that all workers assigned at least once in the given date range
-   * have a schedule entry for every single day in that range.
-   * Throws PayrollValidationException with the list of workers and missing dates if not.
+   * Fills missing days in the given date range for all workers that appear at least once
+   * in that range. Missing days are created as PayrollSchedule records with code 'NL'
+   * (No Laboró) using the corresponding attendance rules.
    */
-  private function validateAllDaysFilled(PayrollPeriod $period, $dateFrom, $dateTo): void
+  private function fillMissingDaysWithNL(PayrollPeriod $period, $dateFrom, $dateTo): void
   {
     $dateFromCarbon = Carbon::parse($dateFrom);
     $dateToCarbon   = Carbon::parse($dateTo);
@@ -515,8 +514,6 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       ->get()
       ->groupBy('worker_id');
 
-    $missingByWorker = [];
-
     foreach ($workerIds as $workerId) {
       $workerSchedules = $existingByWorker->get($workerId, collect());
       $filledDates     = $workerSchedules->map(fn($s) => Carbon::parse($s->work_date)->format('Y-m-d'))->toArray();
@@ -530,19 +527,24 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         ? $workerSchedules->first()->worker
         : Worker::find($workerId);
 
-      $missingByWorker[] = [
-        'worker_id'    => $workerId,
-        'worker_name'  => $worker->nombre_completo ?? "Worker #{$workerId}",
-        'missing_dates' => $missingDates,
-      ];
-    }
+      if (!$worker) {
+        continue;
+      }
 
-    if (!empty($missingByWorker)) {
-      $names = implode(', ', array_column($missingByWorker, 'worker_name'));
-      throw new PayrollValidationException(
-        "Faltan días por llenar para los siguientes trabajadores: {$names}",
-        ['workers_with_missing_days' => $missingByWorker]
-      );
+      $hours = $this->calculateHours('NL', $worker, PayrollSchedule::STATUS_WORKED);
+
+      foreach ($missingDates as $missingDate) {
+        PayrollSchedule::create([
+          'worker_id'    => $workerId,
+          'code'         => 'NL',
+          'period_id'    => $period->id,
+          'work_date'    => $missingDate,
+          'hours_worked' => $hours['hours_worked'],
+          'extra_hours'  => $hours['extra_hours'],
+          'notes'        => null,
+          'status'       => PayrollSchedule::STATUS_WORKED,
+        ]);
+      }
     }
   }
 
@@ -762,11 +764,11 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       if ($biweekly === null && $period->biweekly_date) {
         [$vFrom1, $vTo1] = $this->getDateRangeForBiweekly($period, 1);
         [$vFrom2, $vTo2] = $this->getDateRangeForBiweekly($period, 2);
-        $this->validateAllDaysFilled($period, $vFrom1, $vTo1);
-        $this->validateAllDaysFilled($period, $vFrom2, $vTo2);
+        $this->fillMissingDaysWithNL($period, $vFrom1, $vTo1);
+        $this->fillMissingDaysWithNL($period, $vFrom2, $vTo2);
       } else {
         [$vFrom, $vTo] = $this->getDateRangeForBiweekly($period, $biweekly);
-        $this->validateAllDaysFilled($period, $vFrom, $vTo);
+        $this->fillMissingDaysWithNL($period, $vFrom, $vTo);
       }
 
       if ($biweekly === null && $period->biweekly_date) {
@@ -858,11 +860,11 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       if ($isFullWithSplit) {
         [$vFrom1, $vTo1] = $this->getDateRangeForBiweekly($period, 1);
         [$vFrom2, $vTo2] = $this->getDateRangeForBiweekly($period, 2);
-        $this->validateAllDaysFilled($period, $vFrom1, $vTo1);
-        $this->validateAllDaysFilled($period, $vFrom2, $vTo2);
+        $this->fillMissingDaysWithNL($period, $vFrom1, $vTo1);
+        $this->fillMissingDaysWithNL($period, $vFrom2, $vTo2);
       } else {
         [$vFrom, $vTo] = $this->getDateRangeForBiweekly($period, $biweekly);
-        $this->validateAllDaysFilled($period, $vFrom, $vTo);
+        $this->fillMissingDaysWithNL($period, $vFrom, $vTo);
       }
 
       // Delete existing calculations (throws if any are APPROVED/PAID)
