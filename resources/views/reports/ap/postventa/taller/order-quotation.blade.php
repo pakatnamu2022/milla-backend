@@ -395,7 +395,7 @@
   </tr>
   <tr>
     <td class="label-cell">Kilometraje:</td>
-    <td colspan="3">{{ $quotation['vehicle_km'] }}</td>
+    <td colspan="3">{{ $quotation['vehicle_km'] }} km</td>
   </tr>
 </table>
 

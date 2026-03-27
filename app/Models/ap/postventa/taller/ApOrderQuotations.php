@@ -32,6 +32,7 @@ class ApOrderQuotations extends Model
     'sede_id',
     'quotation_number',
     'subtotal',
+    'mileage',
     'discount_percentage',
     'discount_amount',
     'tax_amount',

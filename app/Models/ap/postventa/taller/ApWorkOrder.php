@@ -132,6 +132,13 @@ class ApWorkOrder extends Model
   }
 
   // Mutators
+  public function setFullContactNameAttribute($value)
+  {
+    if ($value) {
+      $this->attributes['full_contact_name'] = Str::upper($value);
+    }
+  }
+
   public function setObservationsAttribute($value)
   {
     if ($value) {

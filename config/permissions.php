@@ -194,6 +194,18 @@ return [
       'icon' => 'XCircle',
       'policy_method' => 'generate',
     ],
+    'createSpare' => [
+      'label' => 'Crear Nuevo Repuesto',
+      'description' => 'Permite crear un nuevo repuesto directamente desde la cotización',
+      'icon' => 'Plus',
+      'policy_method' => 'createSpare',
+    ],
+    'confirmCancellationReception' => [
+      'label' => 'Confirmar Anulación Recepción',
+      'description' => 'Permite confirmar la anulación de una recepción comercial',
+      'icon' => 'CheckCircle',
+      'policy_method' => 'confirmCancellationReception',
+    ]
   ],
 
 
