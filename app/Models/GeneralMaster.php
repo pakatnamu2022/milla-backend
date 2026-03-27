@@ -46,6 +46,7 @@ class GeneralMaster extends Model
   const int DAYS_MONTH_ID = 6;
   const int WORKING_HOURS_ID = 7;
   const int NIGHT_SURCHARGE_ID = 8;
+  const int MINIMUM_WAGE_ID = 13;
 
   //CONSTANTES POSTVENTA
   const int COST_PER_MAN_HOUR_VL_ID = 9;
