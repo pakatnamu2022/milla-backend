@@ -364,8 +364,11 @@ trait Filterable
       $qualifiedField = $this->qualifyColumn($query, $sortField);
 
       // Si hay filtro activo para ese mismo campo, priorizar coincidencia exacta primero
-      $filterValue = $request->query($sortField);
-      if ($filterValue !== null) {
+      $filterParamName = str_replace('.', '$', $sortField);
+      $filterValue = $request->query($filterParamName);
+
+      // La priorización por igualdad solo aplica a valores escalares, no a rangos/arrays.
+      if (is_scalar($filterValue) && $filterValue !== '') {
         $query->orderByRaw("({$qualifiedField} = ?) DESC", [$filterValue]);
       }
 

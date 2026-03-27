@@ -4,6 +4,7 @@ namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationPersonResultRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\ReportEvaluationPersonResultByPeriodsRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationPersonResultRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationPersonResultRequest;
 use App\Http\Requests\PersonEvaluationRequest;
@@ -158,6 +159,34 @@ class EvaluationPersonResultController extends Controller
   {
     try {
       return $this->service->export($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Reporte consolidado por persona para múltiples periodos
+   * @param ReportEvaluationPersonResultByPeriodsRequest $request
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function reportByPeriods(ReportEvaluationPersonResultByPeriodsRequest $request)
+  {
+    try {
+      return $this->success($this->service->reportByPeriods($request->validated('periodos_id')));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Descarga Excel del reporte consolidado por persona para múltiples periodos
+   * @param ReportEvaluationPersonResultByPeriodsRequest $request
+   * @return \Illuminate\Http\JsonResponse|\Symfony\Component\HttpFoundation\BinaryFileResponse
+   */
+  public function exportReportByPeriods(ReportEvaluationPersonResultByPeriodsRequest $request)
+  {
+    try {
+      return $this->service->exportReportByPeriods($request->validated('periodos_id'));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
