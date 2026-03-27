@@ -49,6 +49,8 @@ class ApVehicleInspection extends Model
     'photo_back_url',
     'photo_left_url',
     'photo_right_url',
+    'photo_optional_1_url',
+    'photo_optional_2_url',
     'inspected_by',
     // Detalles de trabajo
     'oil_change',

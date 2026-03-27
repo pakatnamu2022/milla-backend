@@ -521,8 +521,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     ];
 
     // Datos del cliente
-    if ($quotation->vehicle && $quotation->vehicle->customer) {
-      $customer = $quotation->vehicle->customer;
+    if ($quotation->client) {
+      $customer = $quotation->client;
       $data['customer_name'] = $customer->full_name;
       $data['customer_document'] = $customer->num_doc ?? 'N/A';
       $data['customer_address'] = $customer->direction ?? 'N/A';

@@ -61,8 +61,7 @@ class UpdateAppointmentPlanningRequest extends StoreRequest
       'type_planning_id' => [
         'nullable',
         'integer',
-        Rule::exists('ap_masters', 'id')
-          ->where('type', 'TIPO_PLANIFICACION'),
+        Rule::exists('type_planning_work_order', 'id'),
       ],
       'ap_vehicle_id' => [
         'required',

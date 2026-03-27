@@ -59,6 +59,8 @@ class ApVehicleInspectionResource extends JsonResource
       'photo_back_url' => $this->photo_back_url,
       'photo_left_url' => $this->photo_left_url,
       'photo_right_url' => $this->photo_right_url,
+      'photo_optional_1_url' => $this->photo_optional_1_url,
+      'photo_optional_2_url' => $this->photo_optional_2_url,
       // Detalles de trabajo
       'oil_change' => $this->oil_change,
       'check_level_lights' => $this->check_level_lights,

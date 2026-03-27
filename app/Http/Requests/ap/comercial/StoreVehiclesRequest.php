@@ -9,7 +9,7 @@ class StoreVehiclesRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'plate' => 'sometimes|nullable|string|max:10',
+      'plate' => 'sometimes|nullable|string|max:10|unique:ap_vehicles,plate',
       'vin' => 'required|string|max:17|min:17|unique:ap_vehicles,vin',
       'year' => 'required|integer|min:1900|max:' . ((int)date('Y') + 2),
       'engine_number' => 'required|string|max:50|unique:ap_vehicles,engine_number',
@@ -30,6 +30,7 @@ class StoreVehiclesRequest extends StoreRequest
   {
     return [
       'plate.max' => 'La placa no debe exceder los 10 caracteres',
+      'plate.unique' => 'La placa ya se encuentra registrada',
       'vin.required' => 'El VIN es requerido',
       'vin.unique' => 'El VIN ya existe en el sistema',
       'vin.min' => 'El VIN debe tener exactamente 17 caracteres',
