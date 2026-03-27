@@ -37,6 +37,22 @@ class ApMasters extends Model
     'type',
   ];
 
+  // NUMERO DE DIGITOS
+  const int NUM_DIGITS_DNI = 8;
+  const int NUM_DIGITS_RUC = 11;
+  const int NUM_DIGITS_CE = 12;
+  const int NUM_DIGITS_PASSPORT = 9;
+  const int NUM_DIGITS_DEFAULT = 20;
+
+  // MAPEO DE ID DE TIPO DE DOCUMENTO A NUMERO DE DIGITOS
+  const array DOCUMENT_TYPE_DIGITS = [
+    809 => self::NUM_DIGITS_DNI,   // DNI
+    810 => self::NUM_DIGITS_RUC,  // RUC
+    811 => self::NUM_DIGITS_CE,   // CE
+    973 => self::NUM_DIGITS_PASSPORT, // PASAPORTE
+    974 => self::NUM_DIGITS_DEFAULT,
+  ];
+
   //  OPERATION TYPE
   const int TIPO_OPERACION_COMERCIAL = 794;
   const int TIPO_OPERACION_POSTVENTA = 804;
@@ -113,5 +129,10 @@ class ApMasters extends Model
   public function getOpenOpportunityStatusAttribute()
   {
     return in_array($this->code, Opportunity::OPEN_STATUS_CODES);
+  }
+  
+  public static function getDigitsForDocumentType(int $documentTypeId): ?int
+  {
+    return self::DOCUMENT_TYPE_DIGITS[$documentTypeId] ?? null;
   }
 }

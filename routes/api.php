@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ap\ApMastersController;
+use App\Http\Controllers\ap\postventa\taller\TypePlanningWorkOrderController;
 use App\Http\Controllers\GeneralMaster\GeneralMasterController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
@@ -1232,6 +1233,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
+      // Types planifications - Tipos de planificación
+      Route::apiResource('typePlanningWorkOrder', TypePlanningWorkOrderController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
       // Work Orders - Órdenes de Trabajo
       Route::get('workOrders/with-internal-notes', [WorkOrderController::class, 'listWithInternalNotes']);
       Route::get('workOrders/vehicle/{vehicleId}/history', [WorkOrderController::class, 'vehicleHistory']);
@@ -1585,6 +1595,21 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
   // GP - Gestión Humana - Payroll (Nómina) Routes
   Route::group(['prefix' => 'gp/gh/payroll'], function () {
+    // TEST ROUTE - Calcular promedio 6 meses
+    Route::get('test-promedio-6-meses', function (\Illuminate\Http\Request $request) {
+      $periodId = $request->input('period_id');
+      $workerId = $request->input('worker_id');
+      $companyId = $request->input('company_id');
+
+      $result = \App\Models\gp\gestionhumana\payroll\PayrollCalculation::calcularPromedioUltimos6Meses(
+        $periodId,
+        $workerId,
+        $companyId
+      );
+
+      return response()->json($result);
+    });
+
     // Attendance Rules
     Route::get('attendance-rules/codes', [AttendanceRuleController::class, 'codes']);
     Route::apiResource('attendance-rules', AttendanceRuleController::class);

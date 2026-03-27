@@ -89,19 +89,21 @@ class PayrollReportService
     }
 
     $query = PayrollCalculation::with(['worker', 'company', 'sede'])
-      ->where('period_id', $periodId);
+      ->join('rrhh_persona as worker', 'gh_payroll_calculations.worker_id', '=', 'worker.id')
+      ->select('gh_payroll_calculations.*')
+      ->where('gh_payroll_calculations.period_id', $periodId);
 
     $sumBothHalves = $biweekly === null && $period->biweekly_date;
 
     if ($biweekly !== null) {
-      $query->where('biweekly', $biweekly);
+      $query->where('gh_payroll_calculations.biweekly', $biweekly);
     } elseif ($sumBothHalves) {
-      $query->whereIn('biweekly', [1, 2]);
+      $query->whereIn('gh_payroll_calculations.biweekly', [1, 2]);
     } else {
-      $query->whereNull('biweekly');
+      $query->whereNull('gh_payroll_calculations.biweekly');
     }
 
-    $calculations = $query->orderBy('worker_id')->get();
+    $calculations = $query->orderBy('worker.nombre_completo')->get();
 
     if ($sumBothHalves) {
       // Period with biweekly split: sum both halves per worker
@@ -128,6 +130,9 @@ class PayrollReportService
         'nombre' => $c->worker->nombre_completo ?? '-',
         'dni' => $c->worker->vat ?? '-',
         'days_worked' => (int)$c->days_worked,
+        'days_vacation' => (int)$c->days_vacation,
+        'vacation_hour_value' => (float)$c->vacation_hour_value,
+        'vacation_amount' => round((float)$c->days_vacation * (float)$c->vacation_hour_value, 2),
         'basic_salary' => (float)$c->basic_salary,
         'night_bonus' => (float)$c->night_bonus,
         'gross_salary' => (float)$c->gross_salary,
@@ -148,6 +153,9 @@ class PayrollReportService
       'rows' => $rows,
       'totals' => [
         'days_worked' => $rows->sum('days_worked'),
+        'days_vacation' => $rows->sum('days_vacation'),
+        'vacation_hour_value' => round($rows->sum('vacation_hour_value'), 2),
+        'vacation_amount' => round($rows->sum('vacation_amount'), 2),
         'basic_salary' => round($rows->sum('basic_salary'), 2),
         'night_bonus' => round($rows->sum('night_bonus'), 2),
         'gross_salary' => round($rows->sum('gross_salary'), 2),

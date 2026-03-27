@@ -63,6 +63,14 @@ class UpdateWorkOrderRequest extends StoreRequest
         'integer',
         'exists:config_sede,id',
       ],
+      'full_contact_name' => [
+        'nullable',
+        'string',
+      ],
+      'phone_contact' => [
+        'nullable',
+        'string',
+      ],
       'opening_date' => [
         'sometimes',
         'required',
@@ -164,7 +172,7 @@ class UpdateWorkOrderRequest extends StoreRequest
     return [
       'vehicle_inspection_id.integer' => 'La inspección del vehículo debe ser un entero.',
       'vehicle_inspection_id.exists' => 'La inspección del vehículo seleccionada no es válida.',
-      
+
       'appointment_planning_id.integer' => 'La cita debe ser un entero.',
       'appointment_planning_id.exists' => 'La cita seleccionada no es válida.',
 

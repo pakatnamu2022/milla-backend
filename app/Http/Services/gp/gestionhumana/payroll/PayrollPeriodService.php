@@ -18,7 +18,7 @@ class PayrollPeriodService extends BaseService implements BaseServiceInterface
    */
   public function list(Request $request)
   {
-    $query = PayrollPeriod::with(['company']);
+    $query = PayrollPeriod::with(['company'])->orderBy('year', 'desc')->orderBy('month', 'desc');
 
     return $this->getFilteredResults(
       $query,

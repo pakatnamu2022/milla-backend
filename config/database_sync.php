@@ -109,7 +109,7 @@ return [
         'ClaseId' => fn($data) => substr(TaxClassTypes::find($data['supplier_tax_class_id'])?->dyn_code ?? '', 0, 50),
         'CondicionPagoId' => fn($data) => 'CONTADO',
         'DireccionId' => fn($data) => 'FISCAL',
-        'TipoDocumentoId' => fn($data) => substr(ApMasters::find($data['document_type_id'])?->description ?? '', 0, 50),
+        'TipoDocumentoId' => fn($data) => substr(trim((string)(ApMasters::find($data['document_type_id'])?->description ?? '')), 0, 3),
         'NumeroDocumento' => fn($data) => substr($data['num_doc'], 0, 50),
         'TipoContribuyenteId' => fn($data) => substr(ApMasters::find($data['type_person_id'])?->code ?? '01', 0, 50),
         'RazonSocial' => fn($data) => substr($data['full_name'], 0, 200),

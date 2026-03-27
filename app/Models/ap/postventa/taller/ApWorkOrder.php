@@ -39,6 +39,8 @@ class ApWorkOrder extends Model
     'advisor_id',
     'invoice_to',
     'sede_id',
+    'full_contact_name',
+    'phone_contact',
     'opening_date',
     'estimated_delivery_date',
     'estimated_delivery_time',
@@ -130,6 +132,13 @@ class ApWorkOrder extends Model
   }
 
   // Mutators
+  public function setFullContactNameAttribute($value)
+  {
+    if ($value) {
+      $this->attributes['full_contact_name'] = Str::upper($value);
+    }
+  }
+
   public function setObservationsAttribute($value)
   {
     if ($value) {

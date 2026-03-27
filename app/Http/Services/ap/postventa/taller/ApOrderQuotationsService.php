@@ -12,6 +12,7 @@ use App\Http\Utils\Helpers;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\ExchangeRate;
@@ -126,6 +127,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $expiration_date = Carbon::parse($data['expiration_date']);
       $validation_days = $quotation_date->diffInDays($expiration_date);
       $data['validity_days'] = $validation_days;
+
+      //Obtenemos el kilometraje de su ultima OT
+      $data['mileage'] = ApWorkOrder::where('vehicle_id', $data['vehicle_id'])->orderBy('created_at', 'desc')->first()?->vehicleInspection?->mileage ?? 0;
 
       $quotation = ApOrderQuotations::create($data);
 
@@ -271,6 +275,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $validation_days = $quotation_date->diffInDays($expiration_date);
       $data['validity_days'] = $validation_days;
       $data['exchange_rate'] = $exchangeRate->rate;
+
+      //Obtenemos el kilometraje de su ultima OT
+      $data['mileage'] = ApWorkOrder::where('vehicle_id', $data['vehicle_id'])->orderBy('created_at', 'desc')->first()?->vehicleInspection?->mileage ?? 0;
 
       $quotation->update($data);
 
@@ -553,7 +560,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         ? $vehicle->model->family->brand->name
         : 'N/A';
       $data['vehicle_color'] = $vehicle->color ? $vehicle->color->description : 'N/A';
-      $data['vehicle_km'] = 0;
+      $data['vehicle_km'] = $quotation->mileage;
     } else {
       $data['vehicle_plate'] = 'N/A';
       $data['vehicle_vin'] = 'N/A';

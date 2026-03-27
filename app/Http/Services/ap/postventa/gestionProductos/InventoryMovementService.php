@@ -303,6 +303,46 @@ class InventoryMovementService extends BaseService
     }
   }
 
+  /**
+   * Valida el stock de un producto en el sistema dynamics usando el stored procedure PaStockArticulo
+   *
+   * @param string $productCode Código del producto (dyn_code)
+   * @param string $warehouseCode Código del almacén (dyn_code)
+   * @return array Resultado del stored procedure con información de stock
+   * @throws Exception Si no se encuentra stock o hay error en la consulta
+   */
+  public function validateStockInExternalSystem(string $productCode, string $warehouseCode): array
+  {
+    try {
+      // Ejecutar el stored procedure PaStockArticulo en SQL Server (conexión dbtest)
+      // EXEC es la sintaxis correcta para SQL Server
+      $result = DB::connection('dbtest')
+        ->select("EXEC PaStockArticulo '{$productCode}', '{$warehouseCode}'");
+
+      // Validar que se obtuvo un resultado
+      if (empty($result)) {
+        throw new Exception(
+          "No se encontró stock para el producto '{$productCode}' en el almacén '{$warehouseCode}' en el sistema dynamics"
+        );
+      }
+
+      // Convertir el primer resultado a array
+      $stockData = (array)$result[0];
+
+      return $stockData;
+    } catch (Exception $e) {
+      \Log::error('Error al consultar stock en sistema dynamics', [
+        'product_code' => $productCode,
+        'warehouse_code' => $warehouseCode,
+        'error' => $e->getMessage()
+      ]);
+
+      throw new Exception(
+        "Error al consultar stock en sistema dynamics para producto '{$productCode}' en almacén '{$warehouseCode}': " . $e->getMessage()
+      );
+    }
+  }
+
   public function createTransfer(array $transferData, array $details): array
   {
     DB::beginTransaction();
@@ -341,8 +381,43 @@ class InventoryMovementService extends BaseService
 
       // Solo obtener y validar almacenes físicos si es PRODUCTO
       if ($itemType === 'PRODUCTO') {
-        $transferData['warehouse_origin_id'] = Warehouse::getPhysicalWarehouseForPostsale($transmitter->sede->id)->id;
-        $transferData['warehouse_destination_id'] = Warehouse::getPhysicalWarehouseForPostsale($receiver->sede->id)->id;
+        $warehouseOrigin = Warehouse::getPhysicalWarehouseForPostsale($transmitter->sede->id);
+        $warehouseDestination = Warehouse::getPhysicalWarehouseForPostsale($receiver->sede->id);
+
+        $transferData['warehouse_origin_id'] = $warehouseOrigin->id;
+        $transferData['warehouse_destination_id'] = $warehouseDestination->id;
+
+        // Validar stock en sistema dynamics antes de las validaciones locales
+        foreach ($details as $detail) {
+          // Skip validation if it's a service (description instead of product_id)
+          if (!isset($detail['product_id'])) {
+            continue;
+          }
+
+          $product = Products::find($detail['product_id']);
+          if (!$product || !$product->dyn_code) {
+            continue; // Si no tiene dyn_code, solo validamos con stock local
+          }
+
+          if (!$warehouseOrigin->dyn_code) {
+            continue; // Si el almacén no tiene dyn_code, solo validamos con stock local
+          }
+
+          // Validar stock en sistema dynamics
+          $externalStock = $this->validateStockInExternalSystem($product->dyn_code, $warehouseOrigin->dyn_code);
+
+          // El SP retorna ArticuloStock como string, convertir a float para comparar
+          $availableQuantity = isset($externalStock['ArticuloStock'])
+            ? (float)trim($externalStock['ArticuloStock'])
+            : 0;
+
+          if ($availableQuantity < $detail['quantity']) {
+            throw new Exception(
+              "Stock insuficiente en sistema dynamics para producto '{$product->name}'. " .
+              "Stock disponible en sistema dynamics: {$availableQuantity}, Cantidad solicitada: {$detail['quantity']}"
+            );
+          }
+        }
 
         // Validate stock availability in origin warehouse
         foreach ($details as $detail) {
@@ -1490,5 +1565,106 @@ class InventoryMovementService extends BaseService
     $export = new GeneralExport($exportData, $columns, $title);
 
     return Excel::download($export, $filename);
+  }
+
+  /**
+   * Crea un movimiento de inventario de salida por devolución de nota de crédito
+   * Esto resta el stock que ingresó por la recepción original
+   *
+   * @param \App\Models\ap\compras\SupplierCreditNote $creditNote
+   * @return InventoryMovement
+   * @throws Exception
+   */
+  public function createReturnOutFromCreditNote($creditNote): InventoryMovement
+  {
+    DB::beginTransaction();
+    try {
+      // Validar que la nota de crédito exista y tenga detalles
+      if (!$creditNote) {
+        throw new Exception('Nota de crédito no encontrada');
+      }
+
+      $creditNote->load(['details', 'purchaseReception']);
+
+      if ($creditNote->details->isEmpty()) {
+        throw new Exception('La nota de crédito no contiene productos para generar salida de inventario');
+      }
+
+      // Obtener el almacén de la recepción original
+      $reception = $creditNote->purchaseReception;
+      if (!$reception || !$reception->warehouse_id) {
+        throw new Exception('No se encontró la recepción o el almacén asociado a la nota de crédito');
+      }
+
+      $warehouseId = $reception->warehouse_id;
+
+      // Validar que hay stock disponible para todos los productos
+      foreach ($creditNote->details as $detail) {
+        $stock = $this->stockService->getStock($detail->product_id, $warehouseId);
+
+        if (!$stock) {
+          $productName = $detail->product->name ?? "ID {$detail->product_id}";
+          throw new Exception(
+            "No se encontró registro de stock para el producto '{$productName}' en el almacén"
+          );
+        }
+
+        if ($stock->available_quantity < $detail->quantity) {
+          $productName = $detail->product->name ?? "ID {$detail->product_id}";
+          throw new Exception(
+            "Stock insuficiente para producto '{$productName}'. " .
+            "Disponible: {$stock->available_quantity}, Cantidad a devolver: {$detail->quantity}"
+          );
+        }
+      }
+
+      // Crear movimiento de inventario de salida
+      $movement = InventoryMovement::create([
+        'movement_number' => InventoryMovement::generateMovementNumber(),
+        'movement_type' => InventoryMovement::TYPE_RETURN_OUT,
+        'movement_date' => $creditNote->credit_note_date ?? now(),
+        'warehouse_id' => $warehouseId,
+        'reference_type' => get_class($creditNote),
+        'reference_id' => $creditNote->id,
+        'user_id' => $creditNote->approved_by ?? Auth::id(),
+        'status' => InventoryMovement::STATUS_APPROVED,
+        'notes' => "Salida por devolución a proveedor - Nota de Crédito {$creditNote->credit_note_number}",
+        'total_items' => 0,
+        'total_quantity' => 0,
+      ]);
+
+      // Crear detalles del movimiento
+      $totalItems = 0;
+      $totalQuantity = 0;
+
+      foreach ($creditNote->details as $detail) {
+        InventoryMovementDetail::create([
+          'inventory_movement_id' => $movement->id,
+          'product_id' => $detail->product_id,
+          'quantity' => $detail->quantity,
+          'unit_cost' => $detail->unit_price,
+          'total_cost' => $detail->subtotal,
+          'notes' => "Devolución NC {$creditNote->credit_note_number} - {$detail->notes}",
+        ]);
+
+        $totalItems++;
+        $totalQuantity += $detail->quantity;
+      }
+
+      // Actualizar totales del movimiento
+      $movement->update([
+        'total_items' => $totalItems,
+        'total_quantity' => $totalQuantity,
+      ]);
+
+      // Actualizar stock automáticamente (resta las cantidades devueltas)
+      $this->stockService->updateStockFromMovement($movement->fresh('details'));
+
+      DB::commit();
+      return $movement;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 }
