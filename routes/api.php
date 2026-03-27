@@ -673,6 +673,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('leader-dashboard/{evaluation_id}', [EvaluationPersonResultController::class, 'getLeaderDashboard']);
         Route::get('personResult/preview-regenerate/{personId}/{evaluationId}', [EvaluationPersonResultController::class, 'previewRegenerate']);
         Route::post('personResult/regenerate/{personId}/{evaluationId}', [EvaluationPersonResultController::class, 'regenerate']);
+        Route::post('personResult/report-by-periods', [EvaluationPersonResultController::class, 'reportByPeriods']);
+        Route::post('personResult/report-by-periods/export', [EvaluationPersonResultController::class, 'exportReportByPeriods']);
         Route::apiResource('personResult', EvaluationPersonResultController::class)->only([
           'index',
           'show',
