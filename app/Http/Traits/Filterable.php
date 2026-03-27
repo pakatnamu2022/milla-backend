@@ -50,7 +50,7 @@ trait Filterable
       $paramName = str_replace('.', '$', $filter);
       $value = $request->query($paramName);
 
-      if ($value === null) {
+      if ($value === null || $value === '' || $value === []) {
         continue;
       }
 
