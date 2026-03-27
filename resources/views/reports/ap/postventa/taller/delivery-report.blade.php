@@ -995,9 +995,10 @@
       </tr>
       <tr>
         <td colspan="2" class="value-row activities-content">
-          @forelse($items as $index => $item)
-            {{ $index + 1 }}. {{ $item->description }}. TIPO: {{$item->typePlanning->description}}.
-            OPERACIÓN: {{$item->typeOperation->description}}<br>
+          @forelse(collect($items ?? []) as $index => $item)
+            {{ $index + 1 }}. {{ $item->description ?? 'Sin descripción' }}.
+            TIPO: {{ $item->typePlanning?->description ?? 'N/A' }}.
+            OPERACIÓN: {{ $item->typeOperation?->description ?? 'N/A' }}<br>
           @empty
             No hay actividades registradas
           @endforelse
@@ -1188,15 +1189,19 @@
                   <tr>
                     <td width="50%" style="vertical-align: middle;">
                       <span style="font-weight: bold; font-size: 7px;">DE:</span>
-                      <span style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px; margin-left: 3px;">{{ $displayHourStart }}</span>
+                      <span
+                        style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px; margin-left: 3px;">{{ $displayHourStart }}</span>
                       <span style="margin: 0 1px;">:</span>
-                      <span style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px;">{{ $displayMinStart }}</span>
+                      <span
+                        style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px;">{{ $displayMinStart }}</span>
                     </td>
                     <td width="50%" style="text-align: right; vertical-align: middle;">
                       <span style="font-weight: bold; font-size: 7px;">A:</span>
-                      <span style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px; margin-left: 3px;">{{ $displayHourEnd }}</span>
+                      <span
+                        style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px; margin-left: 3px;">{{ $displayHourEnd }}</span>
                       <span style="margin: 0 1px;">:</span>
-                      <span style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px;">{{ $displayMinEnd }}</span>
+                      <span
+                        style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px;">{{ $displayMinEnd }}</span>
                     </td>
                   </tr>
                 </table>
