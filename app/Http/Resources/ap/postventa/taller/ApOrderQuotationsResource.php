@@ -4,6 +4,7 @@ namespace App\Http\Resources\ap\postventa\taller;
 
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
+use App\Http\Resources\gp\maestroGeneral\SedeResource;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
@@ -20,6 +21,7 @@ class ApOrderQuotationsResource extends JsonResource
       'vehicle_id' => $this->vehicle_id,
       'client_id' => $this->client_id,
       'sede_id' => $this->sede_id,
+      'warehouse_id' => Warehouse::getPhysicalWarehouseForPostsale($this->sede_id)?->id,
       'plate' => $this->vehicle ? $this->vehicle->plate : "-",
       'vehicle' => new VehiclesResource($this->vehicle),
       'quotation_number' => $this->quotation_number,

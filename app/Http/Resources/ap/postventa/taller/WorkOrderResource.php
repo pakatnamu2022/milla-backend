@@ -73,6 +73,8 @@ class WorkOrderResource extends JsonResource
       'is_invalid_with_quote' => $this->orderQuotation
         ? $this->orderQuotation->details->contains('status', ApOrderQuotationDetails::STATUS_PENDING)
         : false,
+      'full_contact_name' => $this->full_contact_name,
+      'phone_contact' => $this->phone_contact,
 
       // Loaded Relationships
       'labours' => WorkOrderLabourResource::collection($this->whenLoaded('labours')),

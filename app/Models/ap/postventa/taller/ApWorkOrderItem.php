@@ -51,7 +51,7 @@ class ApWorkOrderItem extends Model
 
   public function typePlanning(): BelongsTo
   {
-    return $this->belongsTo(ApMasters::class, 'type_planning_id');
+    return $this->belongsTo(TypePlanningWorkOrder::class, 'type_planning_id');
   }
 
   public function typeOperation(): BelongsTo

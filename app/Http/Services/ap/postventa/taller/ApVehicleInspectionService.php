@@ -14,6 +14,7 @@ use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\gestionhumana\personal\WorkerSignature;
 use App\Models\gp\gestionsistema\DigitalFile;
 use Carbon\Carbon;
+use http\Env\Response;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -574,10 +575,23 @@ class ApVehicleInspectionService extends BaseService
       return response()->json(['message' => 'No existe solicitud de anulación para esta inspección'], 422);
     }
 
+    if ($inspection->createdByWorkOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+      return response()->json(['message' => 'No se puede solicitar anulación para una orden de trabajo cerrada'], 422);
+    }
+
     $inspection->update([
       'cancellation_confirmed_by' => auth()->id(),
       'cancellation_confirmed_at' => now(),
       'is_cancelled' => true,
+    ]);
+
+    $workOrder = $inspection->createdByWorkOrder;
+    if (!$workOrder) {
+      return response()->json(['message' => 'No se encontró la orden de trabajo asociada a esta inspección'], 422);
+    }
+
+    $workOrder->update([
+      'status_id' => ApMasters::OPENING_WORK_ORDER_ID,
     ]);
 
     return response()->json([
