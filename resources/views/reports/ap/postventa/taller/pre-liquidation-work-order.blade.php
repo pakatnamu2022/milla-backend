@@ -205,30 +205,6 @@
           <span class="section-label">Fec. Entrega</span>
           <span class="section-value">:</span>
         </div>
-        <div class="section-row">
-          <span class="section-label">Fec. Final</span>
-          <span class="section-value"></span>
-        </div>
-
-        <div class="checkbox-group">
-          <div class="checkbox-item">
-            <span class="checkbox"></span> Espera Trabajo
-          </div>
-          <div class="checkbox-item">
-            <span class="checkbox"></span> Requiere Repuestos
-          </div>
-          <div class="checkbox-item">
-            <span class="checkbox"></span> Pide Repuestos
-          </div>
-          <div class="checkbox-item">
-            <span class="checkbox"></span> Vehículo con Campaña NRO:
-          </div>
-        </div>
-
-        <div class="section-row" style="margin-top: 10px;">
-          <span class="section-label">AUTORIZACIÓN ADICIONAL :</span>
-          <span class="section-value" style="margin-left: 100px;">$</span>
-        </div>
       </div>
     </div>
 

@@ -373,6 +373,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'typeCurrency'
     ]);
 
+    if ($workOrder->invoice_to === null) {
+      throw new Exception('La orden de trabajo no tiene un destinatario de factura asignado.');
+    }
+
     $client = $workOrder->vehicle->customer;
     $vehicle = $workOrder->vehicle;
     $currencySymbol = $workOrder->typeCurrency->symbol ?? 'S/';
