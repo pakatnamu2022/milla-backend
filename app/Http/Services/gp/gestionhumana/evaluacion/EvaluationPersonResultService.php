@@ -17,7 +17,6 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
-use App\Models\gp\gestionhumana\evaluacion\EvaluationPeriod;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use App\Models\gp\gestionhumana\personal\Worker;
 use Exception;
@@ -53,26 +52,23 @@ class EvaluationPersonResultService extends BaseService
   }
 
   /**
-   * Reporte de resultados por persona para múltiples periodos.
-   * Genera columnas dinámicas "periodo_{id}_porcentaje" y "periodo_{id}_texto".
+   * Reporte de resultados por persona para múltiples evaluaciones.
+   * Genera columnas dinámicas "evaluacion_{id}_porcentaje" y "evaluacion_{id}_texto".
    */
-  public function reportByPeriods(array $periodIds): array
+  public function reportByEvaluations(array $evaluationIds): array
   {
-    $normalizedPeriodIds = collect($periodIds)
+    $normalizedEvaluationIds = collect($evaluationIds)
       ->map(fn($id) => (int)$id)
       ->filter(fn($id) => $id > 0)
       ->values();
 
-    $periods = EvaluationPeriod::whereIn('id', $normalizedPeriodIds)
+    $evaluations = Evaluation::whereIn('id', $normalizedEvaluationIds)
       ->get(['id', 'name'])
       ->keyBy('id');
 
     $results = EvaluationPersonResult::with([
-      'evaluation.period',
       'evaluation.finalParameter.details',
-    ])->whereHas('evaluation', function ($query) use ($normalizedPeriodIds) {
-      $query->whereIn('period_id', $normalizedPeriodIds);
-    })->get();
+    ])->whereIn('evaluation_id', $normalizedEvaluationIds)->get();
 
     $baseColumns = [
       ['key' => 'apellido', 'label' => 'Apellido'],
@@ -83,25 +79,25 @@ class EvaluationPersonResultService extends BaseService
     ];
 
     $dynamicColumns = [];
-    foreach ($normalizedPeriodIds as $periodId) {
-      $periodName = $periods->get($periodId)?->name ?? "Periodo {$periodId}";
+    foreach ($normalizedEvaluationIds as $evaluationId) {
+      $evaluationName = $evaluations->get($evaluationId)?->name ?? "Evaluacion {$evaluationId}";
       $dynamicColumns[] = [
-        'key' => "periodo_{$periodId}_porcentaje",
-        'label' => "{$periodName} (%)",
-        'periodo_id' => $periodId,
-        'tipo' => 'porcentaje',
+        'key' => "evaluacion_{$evaluationId}_porcentaje",
+        'label' => "{$evaluationName} (%)",
+        'evaluation_id' => $evaluationId,
+        'tipo' => 'porcentaje'
       ];
       $dynamicColumns[] = [
-        'key' => "periodo_{$periodId}_texto",
-        'label' => "{$periodName} (Texto)",
-        'periodo_id' => $periodId,
-        'tipo' => 'texto',
+        'key' => "evaluacion_{$evaluationId}_texto",
+        'label' => "{$evaluationName} (Texto)",
+        'evaluation_id' => $evaluationId,
+        'tipo' => 'texto'
       ];
     }
 
     $rows = $results
       ->groupBy('person_id')
-      ->map(function ($personResults) use ($normalizedPeriodIds, $periods) {
+      ->map(function ($personResults) use ($normalizedEvaluationIds) {
         $firstResult = $personResults->first();
         [$apellido, $nombre] = $this->splitName($firstResult->name ?? '');
 
@@ -114,23 +110,23 @@ class EvaluationPersonResultService extends BaseService
           'categoria' => $firstResult->hierarchical_category,
         ];
 
-        foreach ($normalizedPeriodIds as $periodId) {
-          $resultsByPeriod = $personResults->filter(function ($result) use ($periodId) {
-            return (int)$result->evaluation?->period_id === $periodId;
+        foreach ($normalizedEvaluationIds as $evaluationId) {
+          $resultsByEvaluation = $personResults->filter(function ($result) use ($evaluationId) {
+            return (int)$result->evaluation_id === $evaluationId;
           });
 
-          $percentageKey = "periodo_{$periodId}_porcentaje";
-          $textKey = "periodo_{$periodId}_texto";
+          $percentageKey = "evaluacion_{$evaluationId}_porcentaje";
+          $textKey = "evaluacion_{$evaluationId}_texto";
 
-          if ($resultsByPeriod->isEmpty()) {
+          if ($resultsByEvaluation->isEmpty()) {
             $row[$percentageKey] = null;
             $row[$textKey] = null;
             continue;
           }
 
-          $averageResult = round((float)$resultsByPeriod->avg('result'), 2);
+          $averageResult = round((float)$resultsByEvaluation->avg('result'), 2);
           $row[$percentageKey] = $averageResult;
-          $row[$textKey] = $this->resolveResultLabel($resultsByPeriod->first(), $averageResult);
+          $row[$textKey] = $this->resolveResultLabel($resultsByEvaluation->first(), $averageResult);
         }
 
         return $row;
@@ -139,10 +135,10 @@ class EvaluationPersonResultService extends BaseService
       ->values();
 
     return [
-      'periodos' => $normalizedPeriodIds->map(function ($periodId) use ($periods) {
+      'evaluaciones' => $normalizedEvaluationIds->map(function ($evaluationId) use ($evaluations) {
         return [
-          'id' => $periodId,
-          'name' => $periods->get($periodId)?->name ?? "Periodo {$periodId}",
+          'id' => $evaluationId,
+          'name' => $evaluations->get($evaluationId)?->name ?? "Evaluacion {$evaluationId}",
         ];
       })->values()->toArray(),
       'columns' => array_merge($baseColumns, $dynamicColumns),
@@ -151,11 +147,11 @@ class EvaluationPersonResultService extends BaseService
   }
 
   /**
-   * Exporta a Excel el reporte consolidado por persona para múltiples periodos.
+   * Exporta a Excel el reporte consolidado por persona para múltiples evaluaciones.
    */
-  public function exportReportByPeriods(array $periodIds)
+  public function exportReportByEvaluations(array $evaluationIds)
   {
-    $report = $this->reportByPeriods($periodIds);
+    $report = $this->reportByEvaluations($evaluationIds);
 
     $columns = collect($report['columns'])
       ->mapWithKeys(function (array $column) {
@@ -171,7 +167,7 @@ class EvaluationPersonResultService extends BaseService
       return is_array($row) ? $row : $row->toArray();
     });
 
-    $filename = 'reporte_evaluacion_multi_periodo_' . now()->format('Ymd_His') . '.xlsx';
+    $filename = 'reporte_evaluacion_multi_evaluacion_' . now()->format('Ymd_His') . '.xlsx';
 
     return Excel::download(
       new GeneralExport($data, $columns, 'Reporte Multi Periodo'),
