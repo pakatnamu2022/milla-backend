@@ -4,7 +4,7 @@ namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationPersonResultRequest;
-use App\Http\Requests\gp\gestionhumana\evaluacion\ReportEvaluationPersonResultByPeriodsRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\ReportEvaluationPersonResultByEvaluationsRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationPersonResultRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationPersonResultRequest;
 use App\Http\Requests\PersonEvaluationRequest;
@@ -165,28 +165,28 @@ class EvaluationPersonResultController extends Controller
   }
 
   /**
-   * Reporte consolidado por persona para múltiples periodos
-   * @param ReportEvaluationPersonResultByPeriodsRequest $request
+   * Reporte consolidado por persona para múltiples evaluaciones
+   * @param ReportEvaluationPersonResultByEvaluationsRequest $request
    * @return \Illuminate\Http\JsonResponse
    */
-  public function reportByPeriods(ReportEvaluationPersonResultByPeriodsRequest $request)
+  public function reportByEvaluations(ReportEvaluationPersonResultByEvaluationsRequest $request)
   {
     try {
-      return $this->success($this->service->reportByPeriods($request->validated('periodos_id')));
+      return $this->success($this->service->reportByEvaluations($request->validated('evaluaciones_id')));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
 
   /**
-   * Descarga Excel del reporte consolidado por persona para múltiples periodos
-   * @param ReportEvaluationPersonResultByPeriodsRequest $request
+   * Descarga Excel del reporte consolidado por persona para múltiples evaluaciones
+   * @param ReportEvaluationPersonResultByEvaluationsRequest $request
    * @return \Illuminate\Http\JsonResponse|\Symfony\Component\HttpFoundation\BinaryFileResponse
    */
-  public function exportReportByPeriods(ReportEvaluationPersonResultByPeriodsRequest $request)
+  public function exportReportByEvaluations(ReportEvaluationPersonResultByEvaluationsRequest $request)
   {
     try {
-      return $this->service->exportReportByPeriods($request->validated('periodos_id'));
+      return $this->service->exportReportByEvaluations($request->validated('evaluaciones_id'));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
