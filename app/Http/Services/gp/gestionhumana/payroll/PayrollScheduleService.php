@@ -90,22 +90,19 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
    */
   private function calculateHours($code, $worker, $status = null)
   {
-    // Si el código es "F" (Falta) o "LSGH" Y el status es ABSENT, no se paga nada - 0 horas trabajadas
-    if (($code === 'F' || $code === 'LSGH') && $status === PayrollSchedule::STATUS_ABSENT) {
+    $rule = AttendanceRule::where('code', $code)->first();
+
+    // Si la regla no existe o indica que no genera pago, no se cuentan horas trabajadas
+    if (!$rule || !$rule->pay) {
       return ['hours_worked' => 0, 'extra_hours' => 0];
     }
 
-    $rule = AttendanceRule::where('code', $code)->first();
     $workingHours = GeneralMaster::find(GeneralMaster::WORKING_HOURS_ID)->value ?? 8;
 
     if ($rule->use_shift) {
       $horasJornada = (float)($worker->horas_jornada ?: $workingHours);
     } else {
-      $horasJornada = $rule->hours ?? $workingHours;
-    }
-
-    if (!$rule) {
-      return ['hours_worked' => $horasJornada, 'extra_hours' => 0];
+      $horasJornada = (float)($rule->hours ?? $workingHours);
     }
 
     if ($horasJornada >= $workingHours) {
@@ -150,11 +147,12 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       // Calculate hours and determine status based on code
       $code = $data['code'];
 
-      // Auto-assign status based on code
-      if ($code === 'F' || $code === 'LSGH') {
-        $status = PayrollSchedule::STATUS_ABSENT;
-      } elseif ($code === 'VC') {
+      // Auto-assign status based on attendance rule
+      $attendanceRule = AttendanceRule::where('code', $code)->first();
+      if ($code === 'VC') {
         $status = PayrollSchedule::STATUS_VACATION;
+      } elseif ($attendanceRule && !$attendanceRule->pay) {
+        $status = PayrollSchedule::STATUS_ABSENT;
       } else {
         $status = $data['status'] ?? PayrollSchedule::STATUS_WORKED;
       }
@@ -220,11 +218,12 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           // Calculate hours and determine status based on code
           $code = $scheduleData['code'];
 
-          // Auto-assign status based on code
-          if ($code === 'F' || $code === 'LSGH') {
-            $status = PayrollSchedule::STATUS_ABSENT;
-          } elseif ($code === 'VC') {
+          // Auto-assign status based on attendance rule
+          $attendanceRule = AttendanceRule::where('code', $code)->first();
+          if ($code === 'VC') {
             $status = PayrollSchedule::STATUS_VACATION;
+          } elseif ($attendanceRule && !$attendanceRule->pay) {
+            $status = PayrollSchedule::STATUS_ABSENT;
           } else {
             $status = $scheduleData['status'] ?? PayrollSchedule::STATUS_WORKED;
           }
@@ -292,11 +291,12 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
 
       $code = $data['code'] ?? $schedule->code;
 
-      // Auto-assign status based on code
-      if ($code === 'F' || $code === 'LSGH') {
-        $status = PayrollSchedule::STATUS_ABSENT;
-      } elseif ($code === 'VC') {
+      // Auto-assign status based on attendance rule
+      $attendanceRule = AttendanceRule::where('code', $code)->first();
+      if ($code === 'VC') {
         $status = PayrollSchedule::STATUS_VACATION;
+      } elseif ($attendanceRule && !$attendanceRule->pay) {
+        $status = PayrollSchedule::STATUS_ABSENT;
       } else {
         $status = $data['status'] ?? PayrollSchedule::STATUS_WORKED;
       }
@@ -531,7 +531,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         continue;
       }
 
-      $hours = $this->calculateHours('NL', $worker, PayrollSchedule::STATUS_WORKED);
+      $hours = $this->calculateHours('NL', $worker, PayrollSchedule::STATUS_ABSENT);
 
       foreach ($missingDates as $missingDate) {
         PayrollSchedule::create([
@@ -542,7 +542,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           'hours_worked' => $hours['hours_worked'],
           'extra_hours'  => $hours['extra_hours'],
           'notes'        => null,
-          'status'       => PayrollSchedule::STATUS_WORKED,
+          'status'       => PayrollSchedule::STATUS_ABSENT,
         ]);
       }
     }
@@ -623,7 +623,11 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           'shift_hours' => $horasJornada,
           'base_hour_value' => $valorHoraBase,
           'vacation_hour_value' => $valorHoraVacacional,
-          'days_worked' => $workerSchedules->filter(fn($s) => $s->status === PayrollSchedule::STATUS_WORKED)->count(),
+          'days_worked' => $workerSchedules->filter(function ($s) use ($attendanceRules) {
+            if ($s->status !== PayrollSchedule::STATUS_WORKED) return false;
+            $rules = $attendanceRules->get($s->code);
+            return !$rules || $rules->isEmpty() || (bool) $rules->first()->pay;
+          })->count(),
           'days_absent' => $workerSchedules->filter(fn($s) => $s->status === PayrollSchedule::STATUS_ABSENT)->count(),
           'days_vacation' => $daysVacation,
           'status' => PayrollCalculation::STATUS_CALCULATED,
