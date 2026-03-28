@@ -147,6 +147,7 @@ class WorkOrderController extends Controller
           'follow_ups.*.days' => 'required|integer|min:1',
           'follow_ups.*.time_start' => 'required|date_format:H:i',
           'follow_ups.*.time_end' => 'required|date_format:H:i',
+          'signature_delivery' => 'required|string|regex:/^data:image\/[a-z+]+;base64,/',
         ]
       );
       $data['id'] = $id;

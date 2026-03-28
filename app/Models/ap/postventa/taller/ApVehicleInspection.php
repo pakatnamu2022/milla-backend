@@ -45,6 +45,7 @@ class ApVehicleInspection extends Model
     'jack_and_lever',
     'general_observations',
     'customer_signature_url',
+    'signer_type',
     'photo_front_url',
     'photo_back_url',
     'photo_left_url',

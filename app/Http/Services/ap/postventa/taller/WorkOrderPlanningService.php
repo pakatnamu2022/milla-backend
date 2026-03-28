@@ -419,18 +419,31 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
       $statuses = $items->pluck('status')->unique();
       $groupStatus = $this->determineGroupStatus($statuses);
 
-      // Obtener información de trabajadores
-      $workers = $items->map(function ($item) {
+      // Obtener información de trabajadores agrupados por worker_id (sin duplicados)
+      $workersByWorkerId = $items->groupBy('worker_id');
+
+      $workers = $workersByWorkerId->map(function ($workerItems, $workerId) {
+        // Sumar las horas del mismo trabajador
+        $totalWorkerEstimatedHours = $workerItems->sum('estimated_hours');
+        $totalWorkerActualHours = $workerItems->sum('actual_hours');
+
+        // Tomar el primer item para obtener datos generales
+        $firstItem = $workerItems->first();
+
+        // Determinar el estado del trabajador
+        $workerStatuses = $workerItems->pluck('status')->unique();
+        $workerStatus = $this->determineGroupStatus($workerStatuses);
+
         return [
-          'worker_id' => $item->worker_id,
-          'worker_name' => $item->worker ? $item->worker->nombre_completo : 'N/A',
-          'estimated_hours' => $item->estimated_hours,
-          'actual_hours' => $item->actual_hours,
-          'status' => $item->status,
-          'planned_start_datetime' => $item->planned_start_datetime,
-          'planned_end_datetime' => $item->planned_end_datetime,
-          'actual_start_datetime' => $item->actual_start_datetime,
-          'actual_end_datetime' => $item->actual_end_datetime,
+          'worker_id' => $workerId,
+          'worker_name' => $firstItem->worker ? $firstItem->worker->nombre_completo : 'N/A',
+          'estimated_hours' => round($totalWorkerEstimatedHours, 2),
+          'actual_hours' => round($totalWorkerActualHours, 2),
+          'status' => $workerStatus,
+          'planned_start_datetime' => $firstItem->planned_start_datetime,
+          'planned_end_datetime' => $workerItems->last()->planned_end_datetime,
+          'actual_start_datetime' => $firstItem->actual_start_datetime,
+          'actual_end_datetime' => $workerItems->last()->actual_end_datetime,
         ];
       })->values();
 
@@ -442,7 +455,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         'remaining_hours' => round($totalEstimatedHours - $totalActualHours, 2),
         'progress_percentage' => $progressPercentage,
         'status' => $groupStatus,
-        'workers_count' => $items->count(),
+        'workers_count' => $workersByWorkerId->count(),
         'workers' => $workers,
       ];
     }
