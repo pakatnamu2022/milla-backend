@@ -18,12 +18,18 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
   public $document;
 
   /**
+   * Precio unitario sin IGV a usar en lugar del valor_unitario del item (opcional)
+   */
+  public ?float $overrideValorUnitario;
+
+  /**
    * Constructor
    */
-  public function __construct($resource, ElectronicDocument $document)
+  public function __construct($resource, ElectronicDocument $document, ?float $overrideValorUnitario = null)
   {
     parent::__construct($resource);
     $this->document = $document;
+    $this->overrideValorUnitario = $overrideValorUnitario;
   }
 
   /**
@@ -70,7 +76,8 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     $cantidad = $this->cantidad > 0 ? $this->cantidad : throw new Exception('El ítem no tiene cantidad definida.');
 
     // Precio unitario (puede ser precio_unitario o valor_unitario dependiendo del caso)
-    $precioUnitario = $this->valor_unitario > 0 ? $this->valor_unitario : throw new Exception('El ítem no tiene precio unitario definido.');
+    $valorUnitario = $this->overrideValorUnitario ?? $this->valor_unitario;
+    $precioUnitario = $valorUnitario > 0 ? $valorUnitario : throw new Exception('El ítem no tiene precio unitario definido.');
 
     // Descuento
     $descuentoUnitario = (float)$this->descuento;
