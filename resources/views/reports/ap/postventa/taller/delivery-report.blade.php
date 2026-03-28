@@ -766,18 +766,18 @@
       <tbody>
       <tr>
         <td class="label-col">Recepción Programada</td>
-        <td>{{$appointmentPlanning->date_appointment?->format('d/m/Y') ?? '- / - / -'}}</td>
-        <td>{{$appointmentPlanning->time_appointment ?? '-'}}</td>
+        <td>{{ $appointmentPlanning?->date_appointment?->format('d/m/Y') ?? '- / - / -' }}</td>
+        <td>{{ $appointmentPlanning?->time_appointment ?? '-' }}</td>
       </tr>
       <tr>
         <td class="label-col">Recepción Real</td>
-        <td>{{$inspection->inspection_date->format('d/m/Y') ?? '- / - / -'}}</td>
-        <td>{{$inspection->inspection_date->format('H:i') ?? '-'}}</td>
+        <td>{{$inspection->created_at ? $inspection->created_at->format('d/m/Y') : '- / - / -'}}</td>
+        <td>{{$inspection->inspection_date ?? '-'}}</td>
       </tr>
       <tr>
         <td class="label-col">Entrega Programada</td>
-        <td>{{$workOrder->estimated_delivery_date->format('d/m/Y') ?? '- / - / -'}}</td>
-        <td>{{$workOrder->estimated_delivery_time->format('H:i') ?? '-'}}</td>
+        <td>{{$workOrder->estimated_delivery_date ? $workOrder->estimated_delivery_date->format('d/m/Y') : '- / - / -'}}</td>
+        <td>{{$workOrder->estimated_delivery_time ?? '-'}}</td>
       </tr>
       <tr>
         <td class="label-col">Entrega Real</td>
@@ -799,12 +799,12 @@
       <tbody>
       <tr>
         <td class="label-col">Confirmación de Cita</td>
-        <td class="info-col">{{$appointmentPlanning->date_appointment?->format('d/m/Y') ?? '- / - / -'}}
-          - {{$appointmentPlanning->time_appointment ?? '-'}}</td>
+        <td class="info-col">{{ $appointmentPlanning?->date_appointment?->format('d/m/Y') ?? '- / - / -' }}
+          - {{ $appointmentPlanning?->time_appointment ?? '-' }}</td>
         <td class="responsible-col" rowspan="3">
           <div style="writing-mode: vertical-rl; white-space: nowrap;">
             RESPONSABLE CITAS<br><br>
-            {{$appointmentPlanning->advisor->nombre_completo ?? '-'}}
+            {{ $appointmentPlanning?->advisor?->nombre_completo ?? '-' }}
           </div>
         </td>
       </tr>
@@ -866,8 +866,8 @@
         <td class="label-row">Cita hora y fecha</td>
       </tr>
       <tr>
-        <td class="value-row">{{$appointmentPlanning->date_appointment?->format('d/m/Y') ?? '- / - / -'}}
-          - {{$appointmentPlanning->time_appointment ?? '-'}}</td>
+        <td class="value-row">{{ $appointmentPlanning?->date_appointment?->format('d/m/Y') ?? '- / - / -' }}
+          - {{ $appointmentPlanning?->time_appointment ?? '-' }}</td>
       </tr>
     </table>
 
@@ -1518,20 +1518,20 @@
   <table>
     <tr>
       <td>
-        @if($advisorSignature)
-          <img src="{{ $advisorSignature }}" alt="Firma Asesor" class="signature-img">
+        @if($customerSignatureReception)
+          <img src="{{ $customerSignatureReception }}" alt="Firma Conformidad Recepción" class="signature-img">
         @endif
         <div class="signature-box">
-          FIRMA DEL ASESOR<br>
-          {{ $advisor ? $advisor->nombre_completo : 'N/A' }}
+          FIRMA DE CONFORMIDAD DE RECEPCIÓN<br>
+          {{ $customer ? $customer->full_name : 'N/A' }}
         </div>
       </td>
       <td>
-        @if($customerSignature)
-          <img src="{{ $customerSignature }}" alt="Firma Cliente" class="signature-img">
+        @if($customerSignatureDelivery)
+          <img src="{{ $customerSignatureDelivery }}" alt="Firma Conformidad Entrega" class="signature-img">
         @endif
         <div class="signature-box">
-          FIRMA DEL CLIENTE<br>
+          FIRMA DE CONFORMIDAD DE ENTREGA<br>
           {{ $customer ? $customer->full_name : 'N/A' }}
         </div>
       </td>

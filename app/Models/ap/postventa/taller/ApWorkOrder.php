@@ -66,6 +66,7 @@ class ApWorkOrder extends Model
     'allow_editing_inspection',
     'created_by',
     'post_service_follow_up',
+    'signature_delivery_url',
   ];
 
   protected $casts = [

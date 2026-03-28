@@ -64,11 +64,13 @@ class UpdateWorkOrderRequest extends StoreRequest
         'exists:config_sede,id',
       ],
       'full_contact_name' => [
-        'nullable',
+        'sometimes',
+        'required',
         'string',
       ],
       'phone_contact' => [
-        'nullable',
+        'sometimes',
+        'required',
         'string',
       ],
       'opening_date' => [
@@ -196,6 +198,12 @@ class UpdateWorkOrderRequest extends StoreRequest
       'sede_id.required' => 'La sede es obligatoria.',
       'sede_id.integer' => 'La sede debe ser un entero.',
       'sede_id.exists' => 'La sede seleccionada no es válida.',
+
+      'full_contact_name.required' => 'El nombre del contacto es obligatorio.',
+      'full_contact_name.string' => 'El nombre del contacto debe ser una cadena de texto.',
+
+      'phone_contact.required' => 'El teléfono de contacto es obligatorio.',
+      'phone_contact.string' => 'El teléfono de contacto debe ser una cadena de texto.',
 
       'opening_date.required' => 'La fecha de apertura es obligatoria.',
       'opening_date.date' => 'La fecha de apertura debe ser una fecha válida.',

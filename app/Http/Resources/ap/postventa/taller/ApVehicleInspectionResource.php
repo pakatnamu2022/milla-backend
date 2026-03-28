@@ -54,6 +54,19 @@ class ApVehicleInspectionResource extends JsonResource
       'inspected_by' => $this->inspected_by,
       'inspected_by_name' => $this->inspectionBy ? $this->inspectionBy->name : null,
       'customer_signature_url' => $this->customer_signature_url,
+      'signed_by' => [
+        'signer_type' => $this->signer_type,
+        'name' => $this->signer_type === 'OWNER'
+          ? $this->createdByWorkOrder?->vehicle?->customer?->full_name
+          : ($this->signer_type === 'CONTACT'
+            ? $this->createdByWorkOrder?->full_contact_name
+            : null),
+        'num_doc' => $this->signer_type === 'OWNER'
+          ? $this->createdByWorkOrder?->vehicle?->customer?->num_doc
+          : ($this->signer_type === 'CONTACT'
+            ? '-'
+            : null),
+      ],
       'washed' => $this->washed,
       'photo_front_url' => $this->photo_front_url,
       'photo_back_url' => $this->photo_back_url,
