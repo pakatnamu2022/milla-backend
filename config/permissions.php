@@ -205,6 +205,12 @@ return [
       'description' => 'Permite confirmar la anulación de una recepción comercial',
       'icon' => 'CheckCircle',
       'policy_method' => 'confirmCancellationReception',
+    ],
+    'addSparePartsOT' => [
+      'label' => 'Agregar Repuestos a OT',
+      'description' => 'Permite agregar repuestos a una orden de trabajo',
+      'icon' => 'Plus',
+      'policy_method' => 'addSparePartsOT',
     ]
   ],
 
