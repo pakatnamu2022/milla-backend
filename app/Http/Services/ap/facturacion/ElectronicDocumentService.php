@@ -2099,7 +2099,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $newTotal = (float)($data['total'] ?? 0);
     $currencyId = $data['sunat_concept_currency_id'] ?? null;
 
-    $workOrder = ApWorkOrder::with(['labours', 'parts', 'advancesWorkOrder'])->find($workOrderId);
+    $workOrder = ApWorkOrder::with(['labours', 'parts', 'advancesWorkOrder', 'items.typePlanning'])->find($workOrderId);
 
     if (!$workOrder) {
       throw new Exception('Orden de trabajo no encontrada.');
@@ -2109,20 +2109,22 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('No se puede facturar una orden de trabajo cancelada.');
     }
 
-//    if ($workOrder->status_id == ApMasters::AT_WORK_WORK_ORDER_ID && !$isAdvancePayment) {
-//      throw new Exception('No se puede facturar una OT que aún no ha sido finalizado su trabajo.');
-//    }
+    $validateLabor = $workOrder->items->first()?->typePlanning->validate_labor;
+
+    if ($workOrder->status_id == ApMasters::AT_WORK_WORK_ORDER_ID && !$isAdvancePayment && $validateLabor) {
+      throw new Exception('No se puede facturar una OT que aún no ha sido finalizado su trabajo.');
+    }
 
     // Validate that if there are labours, at least one must have worker_id assigned and not be deleted
-//    if ($workOrder->labours && $workOrder->labours->count() > 0) {
-//      $laboursWithWorker = $workOrder->labours->filter(function ($labour) {
-//        return $labour->worker_id !== null && $labour->deleted_at === null;
-//      });
-//
-//      if ($laboursWithWorker->count() === 0 && !$isAdvancePayment) {
-//        throw new Exception('La orden de trabajo debe tener al menos una mano de obra con trabajador asignado.');
-//      }
-//    }
+    if ($workOrder->labours && $workOrder->labours->count() > 0 && $validateLabor) {
+      $laboursWithWorker = $workOrder->labours->filter(function ($labour) {
+        return $labour->worker_id !== null && $labour->deleted_at === null;
+      });
+
+      if ($laboursWithWorker->count() === 0 && !$isAdvancePayment) {
+        throw new Exception('La orden de trabajo debe tener al menos una mano de obra con trabajador asignado.');
+      }
+    }
 
     // Calculate work order total using centralized method (includes labour, parts, discount, and tax)
     $workOrderTotal = (float)$workOrder->final_amount;

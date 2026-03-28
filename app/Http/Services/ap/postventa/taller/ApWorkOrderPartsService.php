@@ -155,6 +155,8 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
   {
     return DB::transaction(function () use ($data) {
       $workOrder = ApWorkOrder::find($data['work_order_id']);
+      $validateReceipt = $workOrder->items->first()?->typePlanning->validate_receipt;
+      
       if (!$workOrder) {
         throw new Exception('Orden de trabajo no encontrada');
       }
@@ -163,9 +165,9 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('No se puede agregar repuestos a una orden de trabajo cerrada');
       }
 
-//      if ($workOrder->vehicleInspection === null) {
-//        throw new Exception('No se puede agregar repuestos a una orden de trabajo sin inspección vehicular');
-//      }
+      if ($workOrder->vehicleInspection === null && $validateReceipt) {
+        throw new Exception('No se puede agregar repuestos a una orden de trabajo sin recepción vehicular');
+      }
 
       // Validar que no existan avances de factura
       if ($workOrder->advancesWorkOrder()->exists()) {
