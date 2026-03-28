@@ -377,7 +377,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       throw new Exception('La orden de trabajo no tiene un destinatario de factura asignado.');
     }
 
-    $client = $workOrder->vehicle->customer;
+    $client = $workOrder->invoiceTo;
     $vehicle = $workOrder->vehicle;
     $currencySymbol = $workOrder->typeCurrency->symbol ?? 'S/';
 
