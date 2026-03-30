@@ -123,29 +123,39 @@
     }
 
     .worker-table td {
-      padding: 0;
+      padding: 10px 12px;
       vertical-align: top;
+      border-right: 1px solid #e8e8e8;
+      border-bottom: 1px solid #e8e8e8;
+    }
+
+    .worker-table td:last-child {
+      border-right: none;
+    }
+
+    .worker-table tr:last-child td {
+      border-bottom: none;
     }
 
     .field-label {
       font-size: 7px;
       font-weight: bold;
-      letter-spacing: 1.5px;
+      letter-spacing: 1px;
       text-transform: uppercase;
-      color: #888888;
+      color: #777777;
       display: block;
-      margin-bottom: 3px;
+      margin-bottom: 4px;
     }
 
     .field-value {
-      font-size: 9.5px;
-      color: #111111;
+      font-size: 10px;
+      color: #1a1a1a;
       font-weight: 500;
       display: block;
     }
 
     .field-value.empty {
-      color: #cccccc;
+      color: #999999;
       font-style: italic;
     }
 
