@@ -14,6 +14,7 @@ class PhoneLineResource extends JsonResource
       'line_number' => $this->line_number,
       'company' => $this->telephoneAccount?->company?->name,
       'active_assignment' => $this->activeAssignment ? new PhoneLineWorkerResource($this->activeAssignment) : null,
+      'assignment_status' => $this->computeAssignmentStatus(),
 //      'status' => $this->status,
       'is_active' => (bool)$this->is_active,
       'telephone_account_id' => $this->telephone_account_id,
@@ -22,5 +23,22 @@ class PhoneLineResource extends JsonResource
       'telephone_account' => $this->telephoneAccount ? new TelephoneAccountResource($this->telephoneAccount) : null,
       'telephone_plan' => $this->telephonePlan ? new TelephonePlanResource($this->telephonePlan) : null,
     ];
+  }
+
+  /**
+   * Calcula el estado de asignación de la línea:
+   * - disponible: sin asignación activa
+   * - asignado: asignada a un trabajador activo
+   * - pendiente_liberacion: asignada a un trabajador que está de baja
+   */
+  private function computeAssignmentStatus(): string
+  {
+    $assignment = $this->activeAssignment;
+    if (!$assignment) return 'disponible';
+
+    $worker = $assignment->worker;
+    if (!$worker || !$worker->b_empleado) return 'pendiente_liberacion';
+
+    return 'asignado';
   }
 }

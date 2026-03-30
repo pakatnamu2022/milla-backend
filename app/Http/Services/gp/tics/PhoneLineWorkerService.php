@@ -33,9 +33,13 @@ class PhoneLineWorkerService extends BaseService implements BaseServiceInterface
 
   public function store($data)
   {
-    PhoneLineWorker::where('phone_line_id', $data['phone_line_id'])
+    $isActive = PhoneLineWorker::where('phone_line_id', $data['phone_line_id'])
       ->where('active', true)
-      ->update(['active' => false, 'unassigned_at' => now()]);
+      ->exists();
+
+    if ($isActive) {
+      throw new Exception('La línea telefónica ya está asignada. Debe liberarla antes de asignarla nuevamente.');
+    }
 
     $phoneLineWorker = PhoneLineWorker::create($data);
     return new PhoneLineWorkerResource(PhoneLineWorker::find($phoneLineWorker->id));

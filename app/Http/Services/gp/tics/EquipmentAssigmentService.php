@@ -33,18 +33,19 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
       $items = $data['items'] ?? [];
       unset($data['items']);
 
-//      FOR WORKER
-      EquipmentAssigment::where('persona_id', $data['persona_id'])
-        ->where('status_deleted', true)
-        ->update(['status_deleted' => false, 'unassigned_at' => now()]);
+      // Validar que ningún equipo esté actualmente asignado.
+      // status_deleted = false significa asignación activa (no desasignada).
+      $equipmentIds = collect($items)->pluck('equipo_id')->toArray();
 
-//      FOR EQUIPMENT
-      EquipmentAssigment::where('status_deleted', true)
-        ->whereHas('items', function ($query) use ($items) {
-          $equipmentIds = collect($items)->pluck('equipo_id')->toArray();
-          $query->whereIn('equipo_id', $equipmentIds);
-        })
-        ->update(['status_deleted' => false, 'unassigned_at' => now()]);
+      $conflicting = EquipmentAssigment::where('status_deleted', false)
+        ->whereHas('items', fn($q) => $q->whereIn('equipo_id', $equipmentIds))
+        ->with(['items' => fn($q) => $q->whereIn('equipo_id', $equipmentIds)->with('equipment')])
+        ->first();
+
+      if ($conflicting) {
+        $name = $conflicting->items->first()?->equipment?->equipo ?? 'Equipo desconocido';
+        throw new Exception("El equipo '{$name}' ya está asignado. Debe liberarlo antes de asignarlo nuevamente.");
+      }
 
       $assignment = EquipmentAssigment::create($data);
 

@@ -8,6 +8,7 @@ use App\Http\Requests\gp\tics\StoreEquipmentAssigmentRequest;
 use App\Http\Requests\gp\tics\UnassignEquipmentRequest;
 use App\Http\Requests\gp\tics\UpdateEquipmentAssigmentRequest;
 use App\Http\Services\gp\tics\EquipmentAssigmentService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Throwable;
 
 class EquipmentAssigmentController extends Controller
@@ -83,7 +84,7 @@ class EquipmentAssigmentController extends Controller
       return $this->error($e->getMessage());
     }
   }
- 
+
   public function historyByWorker($personaId)
   {
     try {
@@ -117,6 +118,19 @@ class EquipmentAssigmentController extends Controller
       return $this->service->downloadUnassignmentPdf($id);
     } catch (Throwable $e) {
       return $this->error($e->getMessage());
+    }
+  }
+
+  public function previewEquipmentAssignment($id)
+  {
+    try {
+      $assignment = $this->service->find($id);
+      $filename = "acta-asignacion_{$assignment->id}_{$assignment->fecha}.pdf";
+
+      return Pdf::loadView('exports.equipment-assignment', compact('assignment'))
+        ->stream($filename);
+    } catch (Throwable $e) {
+      return response()->json(['error' => $e->getMessage()], 404);
     }
   }
 }

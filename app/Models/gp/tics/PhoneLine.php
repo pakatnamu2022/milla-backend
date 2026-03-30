@@ -75,6 +75,8 @@ class PhoneLine extends BaseModel
 
   public function activeAssignment()
   {
-    return $this->hasOne(PhoneLineWorker::class, 'phone_line_id')->where('active', true);
+    return $this->hasOne(PhoneLineWorker::class, 'phone_line_id')
+      ->where('active', true)
+      ->with(['worker' => fn($q) => $q->withoutGlobalScopes()]);
   }
 }
