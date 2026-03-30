@@ -719,7 +719,6 @@
           <strong>CAJAMARCA</strong>: MZA. B LOTE 19 OTR. EL BOSQUE III ETAPA (MAYOPATA FRENTE VIA EVITAMIENTO NORTE
           S/N)<br>
           <strong>JAEN</strong>: AV.PAKAMUROS N° 2485 (REF. CAMPO FERIAL - LINDEROS CARRETERA A SAN IGNACIO)
-          <strong>N° OT</strong>: {{$workOrder->correlative}}<br>
         </div>
       </td>
 
@@ -740,6 +739,8 @@
               <div class="guarantee-option">NO</div>
             </div>
           </div>
+          <br>
+          <strong style="font-size: 14px">{{$workOrder->correlative}}</strong>
         </div>
       </td>
     </tr>
