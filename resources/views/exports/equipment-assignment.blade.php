@@ -35,20 +35,22 @@
     }
 
     .card {
-      border: 1px solid #d2d2d2;
-      border-radius: 7px;
+      border: 1px solid #cccccc;
+      border-radius: 4px;
       overflow: hidden;
-      margin-bottom: 11px;
+      margin-bottom: 14px;
+      background: #ffffff;
     }
 
     .card-title {
-      background: #e0e0e0;
-      color: #22293a;
+      background: #f5f5f5;
+      color: #1a1a1a;
       font-weight: bold;
-      font-size: 10px;
-      letter-spacing: 0.3px;
+      font-size: 11px;
+      letter-spacing: 0.5px;
       text-transform: uppercase;
-      padding: 5px 12px;
+      padding: 8px 14px;
+      border-bottom: 1px solid #e0e0e0;
     }
 
     /* ══ HEADER ══ */
