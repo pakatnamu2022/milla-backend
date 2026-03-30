@@ -14,16 +14,10 @@
   <meta charset="UTF-8">
   <title>Acta de Asignación de Equipos</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
     body {
       font-family: Arial, sans-serif;
       font-size: 10px;
-      color: #111111;
+      color: #1a1a1a;
       background: #ffffff;
       padding: 0 0 24px;
     }
@@ -32,6 +26,10 @@
       background: #ffffff;
       padding: 8px 10px 12px;
       margin: 0 auto;
+    }
+
+    * {
+      font-family: Arial, sans-serif;
     }
 
     .card {
@@ -45,7 +43,7 @@
     .card-title {
       background: #f5f5f5;
       color: #1a1a1a;
-      font-weight: bold;
+      font-weight: 600;
       font-size: 11px;
       letter-spacing: 0.5px;
       text-transform: uppercase;
@@ -78,7 +76,7 @@
 
     .header-title-main {
       font-size: 20px;
-      font-weight: bold;
+      font-weight: 700;
       color: #1a1a1a;
       letter-spacing: 0.5px;
       line-height: 1.2;
@@ -102,7 +100,7 @@
 
     .meta-label {
       font-size: 8px;
-      font-weight: bold;
+      font-weight: 600;
       letter-spacing: 1px;
       text-transform: uppercase;
       color: #555555;
@@ -138,9 +136,9 @@
     }
 
     .field-label {
-      font-size: 7px;
-      font-weight: bold;
-      letter-spacing: 1px;
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
       text-transform: uppercase;
       color: #777777;
       display: block;
@@ -150,7 +148,7 @@
     .field-value {
       font-size: 10px;
       color: #1a1a1a;
-      font-weight: 500;
+      font-weight: 400;
       display: block;
     }
 
@@ -165,7 +163,7 @@
       border-collapse: collapse;
       border: none;
       margin-bottom: 0;
-      font-size: 9px;
+      font-size: 10px;
     }
 
     .equipment-table thead {
@@ -178,8 +176,8 @@
       border-bottom: 2px solid #d5d5d5;
       padding: 8px 10px;
       text-align: left;
-      font-size: 8px;
-      font-weight: bold;
+      font-size: 9px;
+      font-weight: 600;
       letter-spacing: 0.5px;
       text-transform: uppercase;
       color: #333333;
@@ -191,6 +189,8 @@
       border-bottom: 1px solid #e8e8e8;
       padding: 8px 10px;
       color: #1a1a1a;
+      font-size: 10px;
+      font-weight: 400;
     }
 
     .equipment-table th:last-child,
@@ -208,13 +208,14 @@
 
     .eq-num {
       text-align: center;
-      font-weight: bold;
-      font-size: 9px;
+      font-weight: 600;
+      font-size: 10px;
     }
 
     .eq-serial {
-      font-size: 8px;
+      font-size: 10px;
       color: #666666;
+      font-weight: 400;
     }
 
     /* ══ OBSERVACIONES ══ */
@@ -224,9 +225,10 @@
     }
 
     .obs-text {
-      font-size: 9px;
+      font-size: 10px;
       line-height: 1.6;
       color: #2a2a2a;
+      font-weight: 400;
     }
 
     .obs-text p {
@@ -244,10 +246,11 @@
     }
 
     .decl-text {
-      font-size: 8.5px;
+      font-size: 10px;
       line-height: 1.65;
       color: #2a2a2a;
       text-align: justify;
+      font-weight: 400;
     }
 
     .decl-text p {
@@ -290,39 +293,40 @@
 
     .huella-label {
       display: block;
-      font-size: 7px;
+      font-size: 8px;
       text-align: center;
       margin-top: 3px;
-      font-weight: bold;
-      letter-spacing: 1px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
       text-transform: uppercase;
-      color: #888888;
+      color: #777777;
     }
 
     .sig-line {
       display: block;
-      border-bottom: 1px solid #111111;
+      border-bottom: 1px solid #1a1a1a;
       height: 30px;
       margin-bottom: 4px;
     }
 
     .sig-name {
       display: block;
-      font-size: 8px;
-      font-weight: bold;
-      color: #111111;
+      font-size: 10px;
+      font-weight: 600;
+      color: #1a1a1a;
       text-align: center;
       margin-bottom: 2px;
-      letter-spacing: 0.5px;
+      letter-spacing: 0;
     }
 
     .sig-role {
       display: block;
-      font-size: 7px;
-      color: #888888;
+      font-size: 8px;
+      color: #555555;
       text-align: center;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
       text-transform: uppercase;
+      font-weight: 600;
     }
 
     .sig-simple {
@@ -331,9 +335,9 @@
 
     /* ══ FOOTER ══ */
     .footer {
-      border-top: 1px solid #dddddd;
+      border-top: 1px solid #cccccc;
       padding-top: 8px;
-      margin-top: 8px;
+      margin-top: 12px;
     }
 
     .footer table {
@@ -342,26 +346,28 @@
     }
 
     .footer-left {
-      font-size: 7px;
-      color: #888888;
-      letter-spacing: 1px;
+      font-size: 8px;
+      color: #777777;
+      letter-spacing: 0.5px;
       text-transform: uppercase;
+      font-weight: 600;
     }
 
     .footer-dot {
       display: inline-block;
       width: 2px;
       height: 2px;
-      background: #111111;
+      background: #1a1a1a;
       border-radius: 50%;
       margin: 0 6px;
       vertical-align: middle;
     }
 
     .footer-right {
-      font-size: 7px;
-      color: #888888;
+      font-size: 8px;
+      color: #777777;
       text-align: right;
+      font-weight: 600;
     }
 
     @media print {
@@ -421,35 +427,31 @@
     <div class="card-title">Datos del Colaborador</div>
     <table class="worker-table">
       <tr>
-        <td style="width:34%; padding:10px 14px; border-right:1px solid #e0e0e0;">
+        <td style="width:34%;">
           <span class="field-label">Trabajador</span>
           <span class="field-value">{{ strtoupper($assignment->worker?->nombre_completo ?? '—') }}</span>
         </td>
-        <td style="width:16%; padding:10px 14px; border-right:1px solid #e0e0e0;">
+        <td style="width:16%;">
           <span class="field-label">DNI</span>
-          <span
-            class="field-value {{ empty($assignment->worker?->vat) ? 'empty' : '' }}">{{ $assignment->worker?->vat ?? '—' }}</span>
+          <span class="field-value {{ empty($assignment->worker?->vat) ? 'empty' : '' }}">{{ $assignment->worker?->vat ?? '—' }}</span>
         </td>
-        <td style="width:20%; padding:10px 14px; border-right:1px solid #e0e0e0;">
+        <td style="width:20%;">
           <span class="field-label">Fecha Asignación</span>
           <span class="field-value">{{ \Carbon\Carbon::parse($assignment->fecha)->format('d / m / Y') }}</span>
         </td>
-        <td style="width:30%; padding:10px 14px;">
+        <td style="width:30%;">
           <span class="field-label">Área</span>
-          <span
-            class="field-value {{ empty($assignment->worker?->area?->nombre) ? 'empty' : '' }}">{{ $assignment->worker?->area?->nombre ?? '—' }}</span>
+          <span class="field-value {{ empty($assignment->worker?->area?->nombre) ? 'empty' : '' }}">{{ $assignment->worker?->area?->nombre ?? '—' }}</span>
         </td>
       </tr>
       <tr>
-        <td colspan="2" style="padding:10px 14px; border-top:1px solid #e0e0e0; border-right:1px solid #e0e0e0;">
+        <td colspan="2">
           <span class="field-label">Cargo</span>
-          <span
-            class="field-value {{ empty($assignment->worker?->position?->nombre) ? 'empty' : '' }}">{{ $assignment->worker?->position?->nombre ?? '—' }}</span>
+          <span class="field-value {{ empty($assignment->worker?->position?->nombre) ? 'empty' : '' }}">{{ $assignment->worker?->position?->nombre ?? '—' }}</span>
         </td>
-        <td colspan="2" style="padding:10px 14px; border-top:1px solid #e0e0e0;">
+        <td colspan="2">
           <span class="field-label">Correo Electrónico</span>
-          <span
-            class="field-value {{ empty($assignment->worker?->email) ? 'empty' : '' }}">{{ $assignment->worker?->email ?? '—' }}</span>
+          <span class="field-value {{ empty($assignment->worker?->email) ? 'empty' : '' }}">{{ $assignment->worker?->email ?? '—' }}</span>
         </td>
       </tr>
     </table>
