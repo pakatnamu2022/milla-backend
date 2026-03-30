@@ -194,12 +194,12 @@
       <div class="section-box" style="padding: 10px; min-height: 150px; box-sizing: border-box;">
         <div class="section-row">
           <span class="section-label">CLIENTE</span>
-          <span class="section-value">: {{ strtoupper($client->full_name ?? 'N/A') }}</span>
+          <span class="section-value">: {{ strtoupper($workOrder->full_contact_name ?? 'N/A') }}</span>
         </div>
         <div class="section-row">
           <span class="section-label">Fec. Recepción</span>
           <span
-            class="section-value">: {{ $workOrder->opening_date ? \Carbon\Carbon::parse($workOrder->opening_date)->format('d/m/Y H:i') : 'N/A' }}</span>
+            class="section-value">: {{ $workOrder->vehicleInspection ? \Carbon\Carbon::parse($workOrder->vehicleInspection->inspection_date)->format('d/m/Y H:i') : '- / - / -' }}</span>
         </div>
         <div class="section-row">
           <span class="section-label">Fec. Entrega</span>
@@ -279,7 +279,7 @@
           </tr>
           <tr>
             <td class="info-label">VEHÍCULO</td>
-            <td colspan="3">: {{ $vehicle->model->name ?? 'N/A' }}</td>
+            <td colspan="3">: {{ $vehicle->model->version ?? 'N/A' }}</td>
           </tr>
           <tr>
             <td class="info-label">AÑO</td>

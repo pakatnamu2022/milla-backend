@@ -39,6 +39,7 @@ class ApWorkOrder extends Model
     'advisor_id',
     'invoice_to',
     'sede_id',
+    'num_doc_contact',
     'full_contact_name',
     'phone_contact',
     'opening_date',
@@ -109,6 +110,8 @@ class ApWorkOrder extends Model
     'diagnosis_date' => 'between',
     'is_invoiced' => '=',
     'created_by' => '=',
+    'items.typePlanning.id' => '=',
+    'items.typePlanning.type_document' => '='
   ];
 
   const sorts = [

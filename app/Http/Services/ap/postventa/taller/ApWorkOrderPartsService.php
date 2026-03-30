@@ -156,7 +156,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     return DB::transaction(function () use ($data) {
       $workOrder = ApWorkOrder::find($data['work_order_id']);
       $validateReceipt = $workOrder->items->first()?->typePlanning->validate_receipt;
-      
+
       if (!$workOrder) {
         throw new Exception('Orden de trabajo no encontrada');
       }
@@ -506,58 +506,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         'message' => 'Repuestos agregados correctamente desde la cotización',
         'total_parts' => count($createdParts),
         'parts' => ApWorkOrderPartsResource::collection($createdParts)
-      ];
-    });
-  }
-
-  /**
-   * Realizar la salida de almacén para un repuesto específico
-   * Libera el stock reservado y crea el movimiento de inventario para descuento físico
-   */
-  public function warehouseOutput(int $id)
-  {
-    return DB::transaction(function () use ($id) {
-      $workOrderPart = $this->find($id);
-
-      // Verificar que no se haya realizado ya la salida de almacén
-      $existingMovement = InventoryMovement::where('reference_type', get_class($workOrderPart))
-        ->where('reference_id', $workOrderPart->id)
-        ->first();
-
-      if ($existingMovement) {
-        throw new Exception('Ya se realizó la salida de almacén para este repuesto');
-      }
-
-      // Obtener stock
-      $stock = ProductWarehouseStock::where('product_id', $workOrderPart->product_id)
-        ->where('warehouse_id', $workOrderPart->warehouse_id)
-        ->first();
-
-      if (!$stock) {
-        throw new Exception("No se encontró registro de stock para el producto en el almacén seleccionado");
-      }
-
-      // Validar que el stock reservado sea suficiente
-      if ($stock->reserved_quantity < $workOrderPart->quantity_used) {
-        throw new Exception(
-          "Stock reservado insuficiente. Reservado: {$stock->reserved_quantity}, Requerido: {$workOrderPart->quantity_used}"
-        );
-      }
-
-      // Liberar el stock reservado (esto aumenta available_quantity)
-      $stock->releaseReservedStock($workOrderPart->quantity_used);
-
-      // Crear movimiento de inventario de salida (esto descuenta quantity y recalcula available_quantity)
-      $inventoryMovementService = new InventoryMovementService();
-      $inventoryMovementService->createWorkOrderPartOutbound($workOrderPart);
-
-      return [
-        'message' => 'Salida de almacén realizada correctamente',
-        'work_order_part' => new ApWorkOrderPartsResource($workOrderPart->load([
-          'workOrder',
-          'product',
-          'warehouse'
-        ]))
       ];
     });
   }

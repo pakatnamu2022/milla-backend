@@ -74,13 +74,4 @@ class ApWorkOrderPartsController extends Controller
       return $this->error($th->getMessage());
     }
   }
-  
-  public function warehouseOutput($id)
-  {
-    try {
-      return $this->success($this->service->warehouseOutput($id));
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
 }

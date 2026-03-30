@@ -1292,7 +1292,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
       Route::post('workOrderParts/store-bulk-from-quotation', [ApWorkOrderPartsController::class, 'storeBulkFromQuotation']);
-      Route::post('workOrderParts/{id}/warehouse-output', [ApWorkOrderPartsController::class, 'warehouseOutput']);
 
       // Work Order Labour - Mano de Obra de Órdenes de Trabajo
       Route::apiResource('workOrderLabour', WorkOrderLabourController::class)->only([

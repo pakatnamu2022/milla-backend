@@ -63,6 +63,11 @@ class UpdateWorkOrderRequest extends StoreRequest
         'integer',
         'exists:config_sede,id',
       ],
+      'num_doc_contact' => [
+        'sometimes',
+        'nullable',
+        'integer',
+      ],
       'full_contact_name' => [
         'sometimes',
         'required',

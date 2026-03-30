@@ -373,7 +373,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // ================================================================
       // 4. APLICAR LÓGICA DE DETRACCIONES
       // ================================================================
-
       $this->applyDetractionLogic($data);
 
       // ================================================================
@@ -2062,6 +2061,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('La cotización no tiene productos para validar stock.');
     }
 
+    // Instanciar InventoryMovementService para validaciones en sistema externo
+    $inventoryMovementService = app(InventoryMovementService::class);
+
     // Check stock for each product
     foreach ($productDetails as $detail) {
       // Skip if no product_id
@@ -2077,6 +2079,126 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // If no stock record found or insufficient available quantity, throw exception
       if (!$stock || $stock->available_quantity < $detail->quantity) {
         throw new Exception('No hay stock suficiente para el producto: ' . $detail->product->description);
+      }
+
+      // Validar stock en sistema externo (Dynamics) si el producto y almacén tienen dyn_code
+      if ($detail->product && $detail->product->dyn_code && $warehouse->dyn_code) {
+        try {
+          $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+            $detail->product->dyn_code,
+            $warehouse->dyn_code
+          );
+
+          // El SP retorna ArticuloStock como string, convertir a float para comparar
+          $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+            ? (float)trim($externalStock['ArticuloStock'])
+            : 0;
+
+          if ($availableQuantityExternal < $detail->quantity) {
+            throw new Exception(
+              "Stock insuficiente en sistema externo para el producto: {$detail->product->description}. " .
+              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$detail->quantity}"
+            );
+          }
+        } catch (Exception $e) {
+          // Si falla la validación en sistema externo, propagar la excepción
+          throw new Exception(
+            "Error al validar stock externo para el producto '{$detail->product->description}': " . $e->getMessage()
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Validar stock reservado para Orden de Trabajo
+   * Valida que exista suficiente reserved_quantity para los repuestos de la OT
+   *
+   * @param ApWorkOrder $workOrder
+   * @param int $is_advance_payment
+   * @return void
+   * @throws Exception
+   */
+  private function validateWorkOrderStock(ApWorkOrder $workOrder, int $is_advance_payment = 0): void
+  {
+    // Si es un anticipo, no validamos stock
+    if ($is_advance_payment == 1) {
+      return;
+    }
+
+    // Cargar repuestos de la orden de trabajo
+    $workOrder->load(['parts.product', 'sede']);
+
+    // Si no hay repuestos, no hay nada que validar
+    if ($workOrder->parts->isEmpty()) {
+      return;
+    }
+
+    // Obtener almacén físico de la sede
+    $warehouse = Warehouse::where('sede_id', $workOrder->sede_id)
+      ->where('is_physical_warehouse', 1)
+      ->where('status', 1)
+      ->first();
+
+    if (!$warehouse) {
+      throw new Exception('No se encontró un almacén físico activo para la sede de la orden de trabajo.');
+    }
+
+    // Instanciar InventoryMovementService para validaciones en sistema externo
+    $inventoryMovementService = app(InventoryMovementService::class);
+
+    // Validar stock reservado para cada repuesto
+    foreach ($workOrder->parts as $part) {
+      // Omitir si no tiene product_id
+      if (!$part->product_id) {
+        continue;
+      }
+
+      // Obtener registro de stock para este producto en el almacén
+      $stock = ProductWarehouseStock::where('warehouse_id', $part->warehouse_id)
+        ->where('product_id', $part->product_id)
+        ->first();
+
+      // Validar que exista stock y que haya suficiente cantidad reservada
+      if (!$stock) {
+        throw new Exception(
+          "No se encontró registro de stock para el repuesto: {$part->product->description}"
+        );
+      }
+
+      // Validar que el stock reservado sea suficiente
+      if ($stock->reserved_quantity < $part->quantity_used) {
+        throw new Exception(
+          "Stock reservado insuficiente para el repuesto: {$part->product->description}. " .
+          "Stock reservado: {$stock->reserved_quantity}, Cantidad requerida: {$part->quantity_used}"
+        );
+      }
+
+      // Validar stock en sistema externo (Dynamics) si el producto y almacén tienen dyn_code
+      if ($part->product && $part->product->dyn_code && $warehouse->dyn_code) {
+        try {
+          $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+            $part->product->dyn_code,
+            $warehouse->dyn_code
+          );
+
+          // El SP retorna ArticuloStock como string, convertir a float para comparar
+          $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+            ? (float)trim($externalStock['ArticuloStock'])
+            : 0;
+
+          if ($availableQuantityExternal < $part->quantity_used) {
+            throw new Exception(
+              "Stock insuficiente en sistema externo para el repuesto: {$part->product->description}. " .
+              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$part->quantity_used}"
+            );
+          }
+        } catch (Exception $e) {
+          // Si falla la validación en sistema externo, propagar la excepción
+          throw new Exception(
+            "Error al validar stock externo para el repuesto '{$part->product->description}': " . $e->getMessage()
+          );
+        }
       }
     }
   }
@@ -2116,12 +2238,21 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     // Validate that if there are labours, at least one must have worker_id assigned and not be deleted
-    if ($workOrder->labours && $workOrder->labours->count() > 0 && $validateLabor) {
-      $laboursWithWorker = $workOrder->labours->filter(function ($labour) {
+//    if ($workOrder->labours && $workOrder->labours->count() > 0) {
+//      $laboursWithWorker = $workOrder->plannings->filter(function ($labour) {
+//        return $labour->worker_id !== null && $labour->deleted_at === null;
+//      });
+//
+//      if ($laboursWithWorker->count() === 0 && !$isAdvancePayment && $validateLabor) {
+//        throw new Exception('La orden de trabajo debe tener al menos una mano de obra con trabajador asignado.');
+//      }
+//    }
+    if (!$isAdvancePayment && $validateLabor) {
+      $laboursWithWorker = $workOrder->plannings->filter(function ($labour) {
         return $labour->worker_id !== null && $labour->deleted_at === null;
       });
 
-      if ($laboursWithWorker->count() === 0 && !$isAdvancePayment) {
+      if ($laboursWithWorker->count() === 0) {
         throw new Exception('La orden de trabajo debe tener al menos una mano de obra con trabajador asignado.');
       }
     }
@@ -2497,7 +2628,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return;
     }
 
+    // Validar reglas de negocio de la orden de trabajo
     $this->validateWorkOrderInvoice($data);
+
+    // Validar stock reservado para repuestos de la OT
+    $workOrder = ApWorkOrder::find($data['work_order_id']);
+    if ($workOrder) {
+      $this->validateWorkOrderStock($workOrder, $data['is_advance_payment'] ?? 0);
+    }
   }
 
   // ========================================================================
@@ -2584,35 +2722,31 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $entityTotal = 0;
 
     // Determinar el tipo de entidad y aplicar su lógica específica
-    if (isset($data['work_order_id']) && $data['work_order_id'] && $data['area_id'] == ApMasters::AREA_TALLER) {
+    if (isset($data['work_order_id']) && $data['work_order_id'] && (int)$data['area_id'] === ApMasters::AREA_TALLER) {
       $entityTotal = $this->applyDetractionForWorkOrder($data, $company);
+      $amountToCheck = $entityTotal > 0 ? $entityTotal : (float)$data['total'];
+
+      if ($amountToCheck >= $detractionAmount && $detractionAmount > 0) {
+        $data['detraccion'] = true;
+        $data['sunat_concept_detraction_type_id'] = match ((int)$data['area_id']) {
+          ApMasters::AREA_TALLER => SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION,
+          default => SunatConcepts::ID_DETRACTION_SERVICIOS
+        };
+
+        // Obtener el porcentaje de detracción desde GeneralMaster
+        $detractionPercentage = GeneralMaster::find(GeneralMaster::SUNAT_DETRACTION_PERCENTAGE_ID);
+        if ($detractionPercentage) {
+          $porcentaje = (float)$detractionPercentage->value;
+          $data['detraccion_porcentaje'] = $porcentaje;
+          // La detracción se calcula sobre el total del documento actual
+          $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
+        }
+      }
     } else if (isset($data['detraccion']) && $data['detraccion']) {
       $data['sunat_concept_transaction_type_id'] = SunatConcepts::ID_SUJETA_DETRACCION;
     }
 
-    // Si hay entidad relacionada, verificar su monto total
-    // Si no hay entidad relacionada, verificar el monto del documento
-    $amountToCheck = $entityTotal > 0 ? $entityTotal : (float)$data['total'];
-
-    if ($amountToCheck >= $detractionAmount &&
-      $detractionAmount > 0 &&
-      $data['area_id'] != ApMasters::AREA_COMERCIAL &&
-      isset($data['detraccion']) && $data['detraccion']) {
-      $data['detraccion'] = true;
-      $data['sunat_concept_detraction_type_id'] = match ((int)$data['area_id']) {
-        ApMasters::AREA_TALLER => SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION,
-        default => SunatConcepts::ID_DETRACTION_SERVICIOS
-      };
-
-      // Obtener el porcentaje de detracción desde GeneralMaster
-      $detractionPercentage = GeneralMaster::find(GeneralMaster::SUNAT_DETRACTION_PERCENTAGE_ID);
-      if ($detractionPercentage) {
-        $porcentaje = (float)$detractionPercentage->value;
-        $data['detraccion_porcentaje'] = $porcentaje;
-        // La detracción se calcula sobre el total del documento actual
-        $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
-      }
-    } else if (isset($data['detraccion'])) {
+    if (isset($data['detraccion'])) {
       // Para el área comercial, solo marcar como sujeta a detracción sin importar el monto
       $data['detraccion'] = true;
       $data['sunat_concept_detraction_type_id'] = SunatConcepts::ID_DETRACTION_SERVICIOS;

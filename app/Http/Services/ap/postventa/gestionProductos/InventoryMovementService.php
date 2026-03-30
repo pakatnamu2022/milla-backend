@@ -1057,60 +1057,7 @@ class InventoryMovementService extends BaseService
 
     return InventoryMovementResource::collection($movements);
   }
-
-  public function createWorkOrderPartOutbound($workOrderPart): InventoryMovement
-  {
-    DB::beginTransaction();
-    try {
-      // Validar que hay stock disponible
-      $stock = $this->stockService->getStock($workOrderPart->product_id, $workOrderPart->warehouse_id);
-
-      if (!$stock) {
-        throw new Exception('No se encontró registro de stock para el producto en el almacén especificado');
-      }
-
-      if ($stock->available_quantity < $workOrderPart->quantity_used) {
-        throw new Exception(
-          "Stock insuficiente. Disponible: {$stock->available_quantity}, Requerido: {$workOrderPart->quantity_used}"
-        );
-      }
-
-      // Crear movimiento de inventario de salida
-      $movement = InventoryMovement::create([
-        'movement_number' => InventoryMovement::generateMovementNumber(),
-        'movement_type' => InventoryMovement::TYPE_ADJUSTMENT_OUT,
-        'movement_date' => now(),
-        'warehouse_id' => $workOrderPart->warehouse_id,
-        'reference_type' => get_class($workOrderPart),
-        'reference_id' => $workOrderPart->id,
-        'user_id' => Auth::id(),
-        'status' => InventoryMovement::STATUS_APPROVED,
-        'notes' => "Salida por uso en Orden de Trabajo #{$workOrderPart->workOrder->correlative} - {$workOrderPart->product->name}",
-        'total_items' => 1,
-        'total_quantity' => $workOrderPart->quantity_used,
-      ]);
-
-      // Crear detalle del movimiento
-      InventoryMovementDetail::create([
-        'inventory_movement_id' => $movement->id,
-        'product_id' => $workOrderPart->product_id,
-        'quantity' => $workOrderPart->quantity_used,
-        'unit_cost' => $workOrderPart->unit_cost,
-        'total_cost' => $workOrderPart->quantity_used * $workOrderPart->unit_cost,
-        'notes' => "Repuesto usado en OT #{$workOrderPart->workOrder->correlative}",
-      ]);
-
-      // Actualizar el stock (restar la cantidad usada)
-      $this->stockService->updateStockFromMovement($movement->fresh('details'));
-
-      DB::commit();
-      return $movement;
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
-  }
-
+  
   public function createSaleFromQuotation(int $quotationId): InventoryMovement
   {
     DB::beginTransaction();
