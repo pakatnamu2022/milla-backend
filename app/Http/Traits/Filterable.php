@@ -362,6 +362,16 @@ trait Filterable
     if ($sortField !== null && in_array($sortField, $sorts)) {
       // Calificar el campo con el alias de tabla
       $qualifiedField = $this->qualifyColumn($query, $sortField);
+
+      // Si hay filtro activo para ese mismo campo, priorizar coincidencia exacta primero
+      $filterParamName = str_replace('.', '$', $sortField);
+      $filterValue = $request->query($filterParamName);
+
+      // La priorización por igualdad solo aplica a valores escalares, no a rangos/arrays.
+      if (is_scalar($filterValue) && $filterValue !== '') {
+        $query->orderByRaw("({$qualifiedField} = ?) DESC", [$filterValue]);
+      }
+
       $query->orderBy($qualifiedField, $sortOrder);
     } else {
       // Calificar 'id' con el alias de tabla

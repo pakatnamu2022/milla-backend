@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
+use App\Exports\GeneralExport;
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonResultResource;
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationResource;
 use App\Http\Services\BaseService;
@@ -21,6 +22,7 @@ use App\Models\gp\gestionhumana\personal\Worker;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class EvaluationPersonResultService extends BaseService
 {
@@ -46,6 +48,130 @@ class EvaluationPersonResultService extends BaseService
       EvaluationPersonResult::filters,
       EvaluationPersonResult::sorts,
       EvaluationPersonResultResource::class,
+    );
+  }
+
+  /**
+   * Reporte de resultados por persona para múltiples evaluaciones.
+   * Genera columnas dinámicas "evaluacion_{id}_porcentaje" y "evaluacion_{id}_texto".
+   */
+  public function reportByEvaluations(array $evaluationIds): array
+  {
+    $normalizedEvaluationIds = collect($evaluationIds)
+      ->map(fn($id) => (int)$id)
+      ->filter(fn($id) => $id > 0)
+      ->values();
+
+    $evaluations = Evaluation::whereIn('id', $normalizedEvaluationIds)
+      ->get(['id', 'name'])
+      ->keyBy('id');
+
+    $results = EvaluationPersonResult::with([
+      'evaluation.finalParameter.details',
+    ])->whereIn('evaluation_id', $normalizedEvaluationIds)->get();
+
+    $baseColumns = [
+      ['key' => 'apellido', 'label' => 'Apellido'],
+      ['key' => 'nombre', 'label' => 'Nombre'],
+      ['key' => 'dni', 'label' => 'DNI'],
+      ['key' => 'cargo', 'label' => 'Cargo'],
+      ['key' => 'categoria', 'label' => 'Categoria'],
+    ];
+
+    $dynamicColumns = [];
+    foreach ($normalizedEvaluationIds as $evaluationId) {
+      $evaluationName = $evaluations->get($evaluationId)?->name ?? "Evaluacion {$evaluationId}";
+      $dynamicColumns[] = [
+        'key' => "evaluacion_{$evaluationId}_porcentaje",
+        'label' => "{$evaluationName} (%)",
+        'evaluation_id' => $evaluationId,
+        'tipo' => 'porcentaje'
+      ];
+      $dynamicColumns[] = [
+        'key' => "evaluacion_{$evaluationId}_texto",
+        'label' => "{$evaluationName} (Texto)",
+        'evaluation_id' => $evaluationId,
+        'tipo' => 'texto'
+      ];
+    }
+
+    $rows = $results
+      ->groupBy('person_id')
+      ->map(function ($personResults) use ($normalizedEvaluationIds) {
+        $firstResult = $personResults->first();
+        [$apellido, $nombre] = $this->splitName($firstResult->name ?? '');
+
+        $row = [
+          'person_id' => $firstResult->person_id,
+          'apellido' => $apellido,
+          'nombre' => $nombre,
+          'dni' => $firstResult->dni,
+          'cargo' => $firstResult->position,
+          'categoria' => $firstResult->hierarchical_category,
+        ];
+
+        foreach ($normalizedEvaluationIds as $evaluationId) {
+          $resultsByEvaluation = $personResults->filter(function ($result) use ($evaluationId) {
+            return (int)$result->evaluation_id === $evaluationId;
+          });
+
+          $percentageKey = "evaluacion_{$evaluationId}_porcentaje";
+          $textKey = "evaluacion_{$evaluationId}_texto";
+
+          if ($resultsByEvaluation->isEmpty()) {
+            $row[$percentageKey] = null;
+            $row[$textKey] = null;
+            continue;
+          }
+
+          $averageResult = round((float)$resultsByEvaluation->avg('result'), 2);
+          $row[$percentageKey] = $averageResult;
+          $row[$textKey] = $this->resolveResultLabel($resultsByEvaluation->first(), $averageResult);
+        }
+
+        return $row;
+      })
+      ->sortBy('apellido')
+      ->values();
+
+    return [
+      'evaluaciones' => $normalizedEvaluationIds->map(function ($evaluationId) use ($evaluations) {
+        return [
+          'id' => $evaluationId,
+          'name' => $evaluations->get($evaluationId)?->name ?? "Evaluacion {$evaluationId}",
+        ];
+      })->values()->toArray(),
+      'columns' => array_merge($baseColumns, $dynamicColumns),
+      'data' => $rows,
+    ];
+  }
+
+  /**
+   * Exporta a Excel el reporte consolidado por persona para múltiples evaluaciones.
+   */
+  public function exportReportByEvaluations(array $evaluationIds)
+  {
+    $report = $this->reportByEvaluations($evaluationIds);
+
+    $columns = collect($report['columns'])
+      ->mapWithKeys(function (array $column) {
+        $config = ['label' => $column['label'] ?? $column['key']];
+        if (($column['tipo'] ?? null) === 'porcentaje') {
+          $config['formatter'] = 'percentage';
+        }
+        return [$column['key'] => $config];
+      })
+      ->toArray();
+
+    $data = collect($report['data'])->map(function ($row) {
+      return is_array($row) ? $row : $row->toArray();
+    });
+
+    $filename = 'reporte_evaluacion_multi_evaluacion_' . now()->format('Ymd_His') . '.xlsx';
+
+    return Excel::download(
+      new GeneralExport($data, $columns, 'Reporte Multi Periodo'),
+      $filename
     );
   }
 
@@ -332,6 +458,53 @@ class EvaluationPersonResultService extends BaseService
     ];
 
     return $labels[$status] ?? 'Sin Iniciar';
+  }
+
+  /**
+   * Separa nombre completo en apellido(s) y nombre(s) con fallback simple.
+   */
+  private function splitName(?string $fullName): array
+  {
+    $parts = preg_split('/\s+/', trim((string)$fullName), -1, PREG_SPLIT_NO_EMPTY);
+
+    if (!$parts) {
+      return ['', ''];
+    }
+
+    if (count($parts) <= 2) {
+      return [implode(' ', $parts), ''];
+    }
+
+    $nameParts = array_slice($parts, 0, 2);
+    $lastNameParts = array_slice($parts, 2);
+
+    return [implode(' ', $lastNameParts), implode(' ', $nameParts)];
+  }
+
+  /**
+   * Resuelve la etiqueta textual del resultado según el parámetro final de la evaluación.
+   */
+  private function resolveResultLabel(EvaluationPersonResult $result, float $score): ?string
+  {
+    $ranges = $result->evaluation?->finalParameter?->details;
+    if (!$ranges || $ranges->isEmpty()) {
+      return null;
+    }
+
+    $range = $ranges->first(function ($detail) use ($score) {
+      return $score >= (float)$detail->from && $score < (float)$detail->to;
+    });
+
+    if ($range) {
+      return $range->label;
+    }
+
+    $maxRange = $ranges->sortByDesc('to')->first();
+    if ($maxRange && $score === (float)$maxRange->to) {
+      return $maxRange->label;
+    }
+
+    return null;
   }
 
   /**

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\gp\gestionhumana\payroll;
 
+use App\Exceptions\PayrollValidationException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\payroll\IndexPayrollScheduleRequest;
 use App\Http\Requests\gp\gestionhumana\payroll\StorePayrollScheduleRequest;
@@ -124,6 +125,8 @@ class PayrollScheduleController extends Controller
         'data' => $result,
         'message' => "Successfully generated {$result['calculations_created']} payroll calculations"
       ]);
+    } catch (PayrollValidationException $e) {
+      return response()->json(['message' => $e->getMessage(), 'errors' => $e->getErrors()], 422);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
@@ -143,6 +146,8 @@ class PayrollScheduleController extends Controller
         'data' => $result,
         'message' => "Successfully recalculated {$result['calculations_created']} payroll calculations"
       ]);
+    } catch (PayrollValidationException $e) {
+      return response()->json(['message' => $e->getMessage(), 'errors' => $e->getErrors()], 422);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

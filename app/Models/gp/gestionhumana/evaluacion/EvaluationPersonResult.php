@@ -236,7 +236,7 @@ class EvaluationPersonResult extends BaseModel
    */
   public function getProgresoPorcentajeAttribute()
   {
-    return number_format($this->total_progress['completion_rate'] * 100, 2) . '%';
+    return number_format($this->total_progress['completion_rate'], 2) . '%';
   }
 
   /**

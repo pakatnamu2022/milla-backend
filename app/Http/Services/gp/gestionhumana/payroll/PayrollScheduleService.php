@@ -13,6 +13,7 @@ use App\Models\gp\gestionhumana\payroll\PayrollCalculationDetail;
 use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
 use App\Models\gp\gestionhumana\payroll\PayrollSchedule;
 use App\Models\gp\gestionhumana\personal\Worker;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -89,22 +90,19 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
    */
   private function calculateHours($code, $worker, $status = null)
   {
-    // Si el código es "F" (Falta) o "LSGH" Y el status es ABSENT, no se paga nada - 0 horas trabajadas
-    if (($code === 'F' || $code === 'LSGH') && $status === PayrollSchedule::STATUS_ABSENT) {
+    $rule = AttendanceRule::where('code', $code)->first();
+
+    // Si la regla no existe o indica que no genera pago, no se cuentan horas trabajadas
+    if (!$rule || !$rule->pay) {
       return ['hours_worked' => 0, 'extra_hours' => 0];
     }
 
-    $rule = AttendanceRule::where('code', $code)->first();
     $workingHours = GeneralMaster::find(GeneralMaster::WORKING_HOURS_ID)->value ?? 8;
 
     if ($rule->use_shift) {
       $horasJornada = (float)($worker->horas_jornada ?: $workingHours);
     } else {
-      $horasJornada = $rule->hours ?? $workingHours;
-    }
-
-    if (!$rule) {
-      return ['hours_worked' => $horasJornada, 'extra_hours' => 0];
+      $horasJornada = (float)($rule->hours ?? $workingHours);
     }
 
     if ($horasJornada >= $workingHours) {
@@ -149,11 +147,12 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       // Calculate hours and determine status based on code
       $code = $data['code'];
 
-      // Auto-assign status based on code
-      if ($code === 'F' || $code === 'LSGH') {
-        $status = PayrollSchedule::STATUS_ABSENT;
-      } elseif ($code === 'VC') {
+      // Auto-assign status based on attendance rule
+      $attendanceRule = AttendanceRule::where('code', $code)->first();
+      if ($code === 'VC') {
         $status = PayrollSchedule::STATUS_VACATION;
+      } elseif ($attendanceRule && !$attendanceRule->pay) {
+        $status = PayrollSchedule::STATUS_ABSENT;
       } else {
         $status = $data['status'] ?? PayrollSchedule::STATUS_WORKED;
       }
@@ -219,11 +218,12 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           // Calculate hours and determine status based on code
           $code = $scheduleData['code'];
 
-          // Auto-assign status based on code
-          if ($code === 'F' || $code === 'LSGH') {
-            $status = PayrollSchedule::STATUS_ABSENT;
-          } elseif ($code === 'VC') {
+          // Auto-assign status based on attendance rule
+          $attendanceRule = AttendanceRule::where('code', $code)->first();
+          if ($code === 'VC') {
             $status = PayrollSchedule::STATUS_VACATION;
+          } elseif ($attendanceRule && !$attendanceRule->pay) {
+            $status = PayrollSchedule::STATUS_ABSENT;
           } else {
             $status = $scheduleData['status'] ?? PayrollSchedule::STATUS_WORKED;
           }
@@ -291,11 +291,12 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
 
       $code = $data['code'] ?? $schedule->code;
 
-      // Auto-assign status based on code
-      if ($code === 'F' || $code === 'LSGH') {
-        $status = PayrollSchedule::STATUS_ABSENT;
-      } elseif ($code === 'VC') {
+      // Auto-assign status based on attendance rule
+      $attendanceRule = AttendanceRule::where('code', $code)->first();
+      if ($code === 'VC') {
         $status = PayrollSchedule::STATUS_VACATION;
+      } elseif ($attendanceRule && !$attendanceRule->pay) {
+        $status = PayrollSchedule::STATUS_ABSENT;
       } else {
         $status = $data['status'] ?? PayrollSchedule::STATUS_WORKED;
       }
@@ -396,6 +397,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       $diasMes = (float)(GeneralMaster::find(GeneralMaster::DAYS_MONTH_ID)->value ?? 30);
       $horasTrabajo = (float)(GeneralMaster::find(GeneralMaster::WORKING_HOURS_ID)->value ?? 8);
       $recargoNocturno = 1 + (float)(GeneralMaster::find(GeneralMaster::NIGHT_SURCHARGE_ID)->value ?? 0.35);
+      $salarioMinimo = (float)(GeneralMaster::find(GeneralMaster::MINIMUM_WAGE_ID)->value ?? 1130);
+      $umbralNocturno = $salarioMinimo * $recargoNocturno;
 
       // Base hour value
       //$valorHoraBase = $sueldo / 30 / $horasJornada;
@@ -421,9 +424,11 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           // Determine hours to use
           $horas = $rule->use_shift ? $horasJornada : (float)$rule->hours;
 
-          // Calculate hour value with night surcharge if applicable
+          // El recargo nocturno solo aplica si el salario del trabajador es menor al umbral
+          // (salario_minimo * 1.35). Si ya supera ese umbral, su hora nocturna se calcula
+          // sobre su propio salario sin recargo adicional.
           $valorHora = $valorHoraBase;
-          if (strtoupper($rule->hour_type) === 'NOCTURNO') {
+          if (strtoupper($rule->hour_type) === 'NOCTURNO' && $sueldo < $umbralNocturno) {
             $valorHora *= $recargoNocturno;
           }
 
@@ -476,6 +481,78 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
   }
 
   /**
+   * Fills missing days in the given date range for all workers that appear at least once
+   * in that range. Missing days are created as PayrollSchedule records with code 'NL'
+   * (No Laboró) using the corresponding attendance rules.
+   */
+  private function fillMissingDaysWithNL(PayrollPeriod $period, $dateFrom, $dateTo): void
+  {
+    $dateFromCarbon = Carbon::parse($dateFrom);
+    $dateToCarbon   = Carbon::parse($dateTo);
+
+    // Workers that appear at least once in this date range
+    $workerIds = PayrollSchedule::where('period_id', $period->id)
+      ->where('work_date', '>=', $dateFromCarbon)
+      ->where('work_date', '<=', $dateToCarbon)
+      ->distinct()
+      ->pluck('worker_id');
+
+    if ($workerIds->isEmpty()) {
+      return;
+    }
+
+    // All calendar dates in the range
+    $allDates = [];
+    $cursor = $dateFromCarbon->copy();
+    while ($cursor->lte($dateToCarbon)) {
+      $allDates[] = $cursor->format('Y-m-d');
+      $cursor->addDay();
+    }
+
+    // Existing schedules grouped by worker
+    $existingByWorker = PayrollSchedule::with('worker')
+      ->where('period_id', $period->id)
+      ->where('work_date', '>=', $dateFromCarbon)
+      ->where('work_date', '<=', $dateToCarbon)
+      ->whereIn('worker_id', $workerIds)
+      ->get()
+      ->groupBy('worker_id');
+
+    foreach ($workerIds as $workerId) {
+      $workerSchedules = $existingByWorker->get($workerId, collect());
+      $filledDates     = $workerSchedules->map(fn($s) => Carbon::parse($s->work_date)->format('Y-m-d'))->toArray();
+      $missingDates    = array_values(array_diff($allDates, $filledDates));
+
+      if (empty($missingDates)) {
+        continue;
+      }
+
+      $worker = $workerSchedules->isNotEmpty()
+        ? $workerSchedules->first()->worker
+        : Worker::find($workerId);
+
+      if (!$worker) {
+        continue;
+      }
+
+      $hours = $this->calculateHours('NL', $worker, PayrollSchedule::STATUS_ABSENT);
+
+      foreach ($missingDates as $missingDate) {
+        PayrollSchedule::create([
+          'worker_id'    => $workerId,
+          'code'         => 'NL',
+          'period_id'    => $period->id,
+          'work_date'    => $missingDate,
+          'hours_worked' => $hours['hours_worked'],
+          'extra_hours'  => $hours['extra_hours'],
+          'notes'        => null,
+          'status'       => PayrollSchedule::STATUS_ABSENT,
+        ]);
+      }
+    }
+  }
+
+  /**
    * Create PayrollCalculation + detail records for all workers with schedules in the given date range.
    * Used internally by generate and recalculate.
    *
@@ -509,6 +586,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
     $diasMes = (float)(GeneralMaster::find(GeneralMaster::DAYS_MONTH_ID)->value ?? 30);
     $horasTrabajo = (float)(GeneralMaster::find(GeneralMaster::WORKING_HOURS_ID)->value ?? 8);
     $recargoNocturno = 1 + (float)(GeneralMaster::find(GeneralMaster::NIGHT_SURCHARGE_ID)->value ?? 0.35);
+    $salarioMinimo = (float)(GeneralMaster::find(GeneralMaster::MINIMUM_WAGE_ID)->value ?? 1130);
+    $umbralNocturno = $salarioMinimo * $recargoNocturno;
 
     $createdIds = [];
 
@@ -550,7 +629,11 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           'shift_hours' => $horasJornada,
           'base_hour_value' => $valorHoraBase,
           'vacation_hour_value' => $valorHoraVacacional,
-          'days_worked' => $workerSchedules->filter(fn($s) => $s->status === PayrollSchedule::STATUS_WORKED)->count(),
+          'days_worked' => $workerSchedules->filter(function ($s) use ($attendanceRules) {
+            if ($s->status !== PayrollSchedule::STATUS_WORKED) return false;
+            $rules = $attendanceRules->get($s->code);
+            return !$rules || $rules->isEmpty() || (bool) $rules->first()->pay;
+          })->count(),
           'days_absent' => $workerSchedules->filter(fn($s) => $s->status === PayrollSchedule::STATUS_ABSENT)->count(),
           'days_vacation' => $daysVacation,
           'status' => PayrollCalculation::STATUS_CALCULATED,
@@ -572,7 +655,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           foreach ($rules as $rule) {
             $horas = (float)$rule->hours;
             $valorHora = $valorHoraBase;
-            if (strtoupper($rule->hour_type) === 'NOCTURNO') {
+            if (strtoupper($rule->hour_type) === 'NOCTURNO' && $sueldo < $umbralNocturno) {
               $valorHora *= $recargoNocturno;
             }
             $valorHoraConMultiplicador = $valorHora * (float)$rule->multiplier;
@@ -687,6 +770,17 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       $errors = [];
       $allCreatedIds = [];
 
+      // Validate all assigned workers have every day filled before processing
+      if ($biweekly === null && $period->biweekly_date) {
+        [$vFrom1, $vTo1] = $this->getDateRangeForBiweekly($period, 1);
+        [$vFrom2, $vTo2] = $this->getDateRangeForBiweekly($period, 2);
+        $this->fillMissingDaysWithNL($period, $vFrom1, $vTo1);
+        $this->fillMissingDaysWithNL($period, $vFrom2, $vTo2);
+      } else {
+        [$vFrom, $vTo] = $this->getDateRangeForBiweekly($period, $biweekly);
+        $this->fillMissingDaysWithNL($period, $vFrom, $vTo);
+      }
+
       if ($biweekly === null && $period->biweekly_date) {
         // Period with biweekly split: create only biweekly=1 and biweekly=2 (no null consolidado)
         $existingB1 = PayrollCalculation::where('period_id', $periodId)->where('biweekly', 1)->count();
@@ -771,6 +865,17 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       }
 
       $isFullWithSplit = $biweekly === null && $period->biweekly_date;
+
+      // Validate all assigned workers have every day filled before processing
+      if ($isFullWithSplit) {
+        [$vFrom1, $vTo1] = $this->getDateRangeForBiweekly($period, 1);
+        [$vFrom2, $vTo2] = $this->getDateRangeForBiweekly($period, 2);
+        $this->fillMissingDaysWithNL($period, $vFrom1, $vTo1);
+        $this->fillMissingDaysWithNL($period, $vFrom2, $vTo2);
+      } else {
+        [$vFrom, $vTo] = $this->getDateRangeForBiweekly($period, $biweekly);
+        $this->fillMissingDaysWithNL($period, $vFrom, $vTo);
+      }
 
       // Delete existing calculations (throws if any are APPROVED/PAID)
       if ($isFullWithSplit) {

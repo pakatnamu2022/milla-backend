@@ -11,6 +11,7 @@ use App\Models\gp\gestionsistema\Status;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetail;
 use App\Models\gp\maestroGeneral\Sede;
+use App\Models\gp\gestionhumana\payroll\AttendanceRule;
 use App\Models\gp\tics\PhoneLine;
 use App\Models\gp\tics\PhoneLineWorker;
 use App\Models\User;
@@ -171,5 +172,34 @@ class Worker extends BaseModel
   public function phoneLineAssignments()
   {
     return $this->hasMany(PhoneLineWorker::class, 'worker_id');
+  }
+
+  /**
+   * Reglas de asistencia permitidas para esta persona.
+   * Si no tiene ninguna asociada, puede usar cualquier código (sin restricción).
+   */
+  public function allowedAttendanceRules()
+  {
+    return $this->belongsToMany(
+      AttendanceRule::class,
+      'worker_attendance_rule',
+      'worker_id',
+      'attendance_rule_code',
+      'id',
+      'code'
+    )->withTimestamps();
+  }
+
+  /**
+   * Indica si el código de asistencia está permitido para este worker.
+   * Retorna true si no tiene restricciones o si el código está en su lista.
+   */
+  public function isAttendanceCodeAllowed(string $code): bool
+  {
+    $allowedCodes = $this->allowedAttendanceRules()->pluck('code')->toArray();
+    if (empty($allowedCodes)) {
+      return true;
+    }
+    return in_array($code, $allowedCodes);
   }
 }

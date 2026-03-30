@@ -4,6 +4,7 @@ namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationPersonResultRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\ReportEvaluationPersonResultByEvaluationsRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationPersonResultRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationPersonResultRequest;
 use App\Http\Requests\PersonEvaluationRequest;
@@ -158,6 +159,34 @@ class EvaluationPersonResultController extends Controller
   {
     try {
       return $this->service->export($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Reporte consolidado por persona para múltiples evaluaciones
+   * @param ReportEvaluationPersonResultByEvaluationsRequest $request
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function reportByEvaluations(ReportEvaluationPersonResultByEvaluationsRequest $request)
+  {
+    try {
+      return $this->success($this->service->reportByEvaluations($request->validated('evaluaciones_id')));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Descarga Excel del reporte consolidado por persona para múltiples evaluaciones
+   * @param ReportEvaluationPersonResultByEvaluationsRequest $request
+   * @return \Illuminate\Http\JsonResponse|\Symfony\Component\HttpFoundation\BinaryFileResponse
+   */
+  public function exportReportByEvaluations(ReportEvaluationPersonResultByEvaluationsRequest $request)
+  {
+    try {
+      return $this->service->exportReportByEvaluations($request->validated('evaluaciones_id'));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

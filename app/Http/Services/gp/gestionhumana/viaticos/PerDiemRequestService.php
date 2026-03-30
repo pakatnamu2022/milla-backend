@@ -122,6 +122,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         throw new Exception('El empleado no tiene un cargo asignado');
       }
 
+      // Validate that the position has a per diem category assigned
       if (!$employee->position->per_diem_category_id) {
         throw new Exception('El cargo del empleado no tiene una categoría de viático asignada');
       }

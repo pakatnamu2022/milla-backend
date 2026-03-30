@@ -51,82 +51,36 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
     ];
   }
 
-  public function messages(): array
+  public function attributes()
   {
     return [
-      'type_document.required' => 'El campo tipo de documento es obligatorio.',
-      'type_document.string' => 'El campo tipo de documento debe ser una cadena de texto.',
-      'type_document.in' => 'El campo tipo de documento debe ser COTIZACION o SOLICITUD_COMPRA.',
-
-      'quote_deadline.date' => 'El campo fecha límite de cotización debe ser una fecha válida.',
-
-      'base_selling_price.required' => 'El campo precio de venta base es obligatorio.',
-      'base_selling_price.numeric' => 'El campo precio de venta base debe ser un número.',
-
-      'sale_price.required' => 'El campo precio venta con descuento es obligatorio.',
-      'sale_price.numeric' => 'El campo precio venta con descuento debe ser un número.',
-      'sale_price.min' => 'El campo precio venta con descuento debe ser mayor o igual a 0.',
-
-      'doc_sale_price.required' => 'El campo precio venta es obligatorio.',
-      'doc_sale_price.numeric' => 'El campo precio venta debe ser un número.',
-      'doc_sale_price.min' => 'El campo precio venta debe ser mayor o igual a 0.',
-
-      'comment.string' => 'El campo comentario debe ser una cadena de texto.',
-      'comment.max' => 'El campo comentario no debe exceder los 255 caracteres.',
-
-      'warranty_years.required' => 'El campo años de garantía es obligatorio.',
-      'warranty_years.integer' => 'El campo años de garantía debe ser un número entero.',
-      'warranty_years.min' => 'El campo años de garantía debe ser al menos 1.',
-      'warranty_km.required' => 'El campo kilómetros de garantía es obligatorio.',
-      'warranty_km.integer' => 'El campo kilómetros de garantía debe ser un número entero.',
-      'warranty_km.min' => 'El campo kilómetros de garantía debe ser al menos 1.',
-
-      'opportunity_id.exists' => 'La oportunidad seleccionada no es válida.',
-
-      'holder_id.required' => 'El campo titular es obligatorio.',
-      'holder_id.exists' => 'El titular seleccionado no es válido.',
-
-      'vehicle_color_id.required' => 'El campo color del vehículo es obligatorio.',
-      'vehicle_color_id.exists' => 'El color del vehículo seleccionado no es válido.',
-
-      'ap_models_vn_id.exists' => 'El modelo VN seleccionado no es válido.',
-
-      'doc_type_currency_id.required' => 'El campo tipo de moneda es obligatorio.',
-      'doc_type_currency_id.exists' => 'El tipo de moneda seleccionado no es válido.',
-
-      'ap_vehicle_id.exists' => 'El vehículo seleccionado no es válida.',
-
-      'with_vin.boolean' => 'El campo con VIN debe ser verdadero o falso.',
-
-      // Mensajes para bonus_discounts
-      'bonus_discounts.array' => 'Los descuentos/bonos deben ser una lista.',
-      'bonus_discounts.*.concept_id.required' => 'El concepto es obligatorio para cada descuento/bono.',
-      'bonus_discounts.*.concept_id.exists' => 'El concepto seleccionado no es válido.',
-      'bonus_discounts.*.description.required' => 'La descripción es obligatoria para cada descuento/bono.',
-      'bonus_discounts.*.description.string' => 'La descripción debe ser una cadena de texto.',
-      'bonus_discounts.*.description.max' => 'La descripción no debe exceder los 255 caracteres.',
-      'bonus_discounts.*.type.required' => 'El tipo es obligatorio para cada descuento/bono.',
-      'bonus_discounts.*.type.in' => 'El tipo debe ser FIJO o PORCENTAJE.',
-      'bonus_discounts.*.value.required' => 'El valor es obligatorio para cada descuento/bono.',
-      'bonus_discounts.*.value.numeric' => 'El valor debe ser un número.',
-      'bonus_discounts.*.value.min' => 'El valor debe ser mayor o igual a 0.',
-      'bonus_discounts.*.is_negative.boolean' => 'El campo es negativo debe ser verdadero o falso.',
-
-      // Mensajes para accessories
-      'accessories.array' => 'Los accesorios deben ser una lista.',
-      'accessories.*.accessory_id.required' => 'El accesorio es obligatorio.',
-      'accessories.*.accessory_id.exists' => 'El accesorio seleccionado no es válido.',
-      'accessories.*.quantity.required' => 'La cantidad es obligatoria para cada accesorio.',
-      'accessories.*.quantity.integer' => 'La cantidad debe ser un número entero.',
-      'accessories.*.quantity.min' => 'La cantidad debe ser al menos 1.',
-      'accessories.*.additional_price.numeric' => 'El precio adicional debe ser un número.',
-      'accessories.*.additional_price.min' => 'El precio adicional debe ser mayor o igual a 0.',
-
-      'type_currency_id.required' => 'El campo tipo de moneda es obligatorio.',
-      'type_currency_id.exists' => 'El tipo de moneda seleccionado no es válido.',
-
-      'sede_id.required' => 'El campo sede es obligatorio.',
-      'sede_id.exists' => 'La sede seleccionada no es válida.'
+      'type_document' => 'Tipo de Documento',
+      'quote_deadline' => 'Fecha Límite de Cotización',
+      'base_selling_price' => 'Precio Base',
+      'sale_price' => 'Precio Venta',
+      'doc_sale_price' => 'Precio Venta',
+      'comment' => 'Comentario',
+      'warranty_years' => 'Años de Garantía',
+      'warranty_km' => 'Kilometraje de Garantía',
+      'opportunity_id' => 'Oportunidad',
+      'holder_id' => 'Titular',
+      'vehicle_color_id' => 'Color del Vehículo',
+      'ap_models_vn_id' => 'Modelo del Vehículo',
+      'doc_type_currency_id' => 'Moneda',
+      'ap_vehicle_id' => 'Vehículo',
+      'with_vin' => 'Con VIN',
+      'bonus_discounts' => 'Descuentos',
+      'bonus_discounts.*.concept_id' => 'Concepto',
+      'bonus_discounts.*.description' => 'Descripción del Descuento',
+      'bonus_discounts.*.type' => 'Tipo de Descuento',
+      'bonus_discounts.*.value' => 'Valor del Descuento',
+      'bonus_discounts.*.is_negative' => '¿Es un descuento negativo?',
+      'accessories' => 'Accesorios',
+      'accessories.*.accessory_id' => 'Accesorio',
+      'accessories.*.quantity' => 'Cantidad del Accesorio',
+      'accessories.*.additional_price' => 'Precio Adicional del Accesorio',
+      'type_currency_id' => 'Tipo de Moneda',
+      'sede_id' => 'Sede'
     ];
   }
 }

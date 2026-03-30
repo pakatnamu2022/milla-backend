@@ -6,9 +6,12 @@ use App\Http\Resources\Dynamics\SalesDocumentDetailDynamicsResource;
 use App\Http\Resources\Dynamics\SalesDocumentDynamicsResource;
 use App\Http\Resources\Dynamics\SalesDocumentSerialDynamicsResource;
 use App\Http\Services\DatabaseSyncService;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\gp\gestionsistema\Company;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -62,6 +65,7 @@ class SyncSalesDocumentJob implements ShouldQueue
       'currency',
       'creator',
       'vehicleMovement.vehicle',
+      'purchaseRequestQuote.accessories.approvedAccessory',
     ])->find($electronicDocumentId);
 
     if (!$document) {
@@ -279,13 +283,7 @@ class SyncSalesDocumentJob implements ShouldQueue
       try {
         $log->markAsInProgress();
 
-        foreach ($document->items as $item) {
-          // Transformar item usando el Resource
-          $resource = new SalesDocumentDetailDynamicsResource($item, $document);
-          $data = $resource->toArray(request());
-
-          $syncService->sync('sales_document_detail', $data);
-        }
+        $this->syncDocumentItems($document, $syncService, $documentoId);
 
         $log->updateProcesoEstado(0);
       } catch (\Exception $e) {
@@ -300,6 +298,107 @@ class SyncSalesDocumentJob implements ShouldQueue
       // Existe, actualizar el estado del log
       $log->markAsCompleted(1);
     }
+  }
+
+  /**
+   * Envía los ítems del documento y, si corresponde, las líneas adicionales de accesorios de posventa.
+   * Los anticipos se envían sin modificaciones; los documentos de venta final con accesorios de posventa
+   * reemplazan el precio del ítem del vehículo por el precio base de la cotización y agregan una línea
+   * por cada accesorio de posventa.
+   */
+  private function syncDocumentItems(ElectronicDocument $document, DatabaseSyncService $syncService, string $documentoId): void
+  {
+    $postSaleAccessories = !$document->is_advance_payment
+      ? $this->getPostSaleAccessories($document)
+      : collect();
+
+    $igvDivisor = $this->getIgvDivisor($document);
+    $nextLine = $document->items->max('line_number') + 1;
+
+    // Enviar los ítems propios del documento electrónico
+    foreach ($document->items as $item) {
+      $overridePrice = $this->resolveVehicleBasePrice($item, $postSaleAccessories, $document, $igvDivisor);
+
+      $resource = new SalesDocumentDetailDynamicsResource($item, $document, $overridePrice);
+      $syncService->sync('sales_document_detail', $resource->toArray(request()));
+    }
+
+    // Enviar una línea por cada accesorio de posventa (solo documentos no anticipo)
+    foreach ($postSaleAccessories as $accessory) {
+      $data = $this->buildAccessoryLine($accessory, $document, $documentoId, $nextLine++, $igvDivisor);
+      $syncService->sync('sales_document_detail', $data);
+    }
+  }
+
+  /**
+   * Devuelve el divisor IGV a partir del porcentaje configurado en el documento (ej. 1.18 para 18%).
+   */
+  private function getIgvDivisor(ElectronicDocument $document): float
+  {
+    return 1 + ($document->porcentaje_de_igv / 100);
+  }
+
+  /**
+   * Si el documento tiene accesorios de posventa y el ítem no es una regularización de anticipo,
+   * devuelve el precio base del vehículo sin IGV (tomado de la cotización) para usarlo como override
+   * en el resource. Si no aplica, devuelve null y el resource usa su propio valor_unitario.
+   */
+  private function resolveVehicleBasePrice(
+    $item,
+    Collection $postSaleAccessories,
+    ElectronicDocument $document,
+    float $igvDivisor
+  ): ?float
+  {
+    if ($postSaleAccessories->isEmpty() || $item->anticipo_regularizacion) {
+      return null;
+    }
+
+    return round((float)$document->purchaseRequestQuote->base_selling_price / $igvDivisor, 2);
+  }
+
+  /**
+   * Construye el array de datos para una línea de accesorio de posventa en Dynamics.
+   * El precio se convierte a valor sin IGV dividiendo por el igvDivisor.
+   */
+  private function buildAccessoryLine(
+    $accessory,
+    ElectronicDocument $document,
+    string $documentoId,
+    int $linea,
+    float $igvDivisor
+  ): array
+  {
+    $unitPricePreTax = round((float)($accessory->price + $accessory->additional_price) / $igvDivisor, 2);
+    $description = Str::upper($accessory->approvedAccessory->description);
+
+    return [
+      'EmpresaId' => Company::AP_DYNAMICS,
+      'DocumentoId' => $documentoId,
+      'Linea' => $linea,
+      'ArticuloId' => $accessory->approvedAccessory->code,
+      'ArticuloDescripcionCorta' => Str::upper(Str::limit($description, 60, '')),
+      'ArticuloDescripcionLarga' => $description,
+      'SitioId' => $document->warehouse() ?? throw new Exception('El documento no tiene almacén asociado.'),
+      'UnidadMedidaId' => 'UND',
+      'Cantidad' => $accessory->quantity,
+      'PrecioUnitario' => $unitPricePreTax,
+      'DescuentoUnitario' => 0,
+      'PrecioTotal' => round($accessory->quantity * $unitPricePreTax, 2),
+    ];
+  }
+
+  /**
+   * Retorna los accesorios de posventa (ACCESORIO_ADICIONAL con type_operation_id = TIPO_OPERACION_POSTVENTA)
+   * asociados a la PurchaseRequestQuote del documento.
+   */
+  private function getPostSaleAccessories(ElectronicDocument $document): Collection
+  {
+    return $document->purchaseRequestQuote?->accessories
+      ->filter(fn($a) =>
+        $a->type === 'ACCESORIO_ADICIONAL' &&
+        $a->approvedAccessory?->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA
+      ) ?? collect();
   }
 
   /**

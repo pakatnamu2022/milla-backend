@@ -619,7 +619,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $purchaseRequestQuote = $this->find($purchaseRequestQuoteId);
 
     // Consultar estado en Nubefact para los documentos pendientes antes de retornar
-    $electronicDocumentService = new ElectronicDocumentService(new NubefactApiService());
+    $electronicDocumentService = new ElectronicDocumentService();
     $pendingDocuments = $purchaseRequestQuote->electronicDocuments()
       ->whereNull('credit_note_id')
       ->where(function ($query) {
