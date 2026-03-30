@@ -82,11 +82,18 @@ class ApVehicleInspectionService extends BaseService
         $data['inspection_date'] = $inspectionDateTime->toDateTimeString();
       }
 
-      // Crear la inspección
+      //Actualizamos en ap_work_order_id el id de la recepción creada
+      $workOrder = ApWorkOrder::findOrFail($data['ap_work_order_id']);
+
+      $validateReception = $workOrder->items->first()?->typePlanning->validate_receipt;
+
+      if (!$validateReception) {
+        throw new Exception('No se puede crear una recepción para esta orden de trabajo, el tipo de planificación no permite validación de recepción');
+      }
+
+      // Crear la recepción
       $inspection = ApVehicleInspection::create($data);
 
-      //Actualizamos en ap_work_order_id el id de la inspección creada
-      $workOrder = ApWorkOrder::findOrFail($data['ap_work_order_id']);
       $workOrder->update([
         'vehicle_inspection_id' => $inspection->id,
         'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
@@ -161,7 +168,7 @@ class ApVehicleInspectionService extends BaseService
       // Eliminar daños y sus archivos
       $this->deleteInspectionDamages($inspection);
 
-      // Eliminar la inspección
+      // Eliminar la recepción
       $inspection->delete();
 
       DB::commit();
@@ -268,7 +275,7 @@ class ApVehicleInspectionService extends BaseService
   }
 
   /**
-   * Elimina los daños de una inspección y sus archivos asociados
+   * Elimina los daños de una recepción y sus archivos asociados
    */
   private function deleteInspectionDamages($inspection): void
   {
@@ -288,7 +295,7 @@ class ApVehicleInspectionService extends BaseService
   }
 
   /**
-   * Elimina las firmas de una inspección
+   * Elimina las firmas de una recepción
    */
   private function deleteSignatures($inspection): void
   {
@@ -318,7 +325,7 @@ class ApVehicleInspectionService extends BaseService
     // Subir archivo usando DigitalFileService
     $digitalFile = $this->digitalFileService->store($signatureFile, $path, 'public', $model);
 
-    // Actualizar la inspección con la URL
+    // Actualizar la recepción con la URL
     $inspection->{$fieldName} = $digitalFile->url;
     $inspection->save();
   }
@@ -328,7 +335,7 @@ class ApVehicleInspectionService extends BaseService
    */
   public function generateReceptionReport($id)
   {
-    // Obtener la inspección con todas las relaciones necesarias
+    // Obtener la recepción con todas las relaciones necesarias
     $inspection = ApVehicleInspection::with([
       'damages',
       'createdByWorkOrder.vehicle.model.family.brand',
@@ -431,7 +438,7 @@ class ApVehicleInspectionService extends BaseService
    */
   public function generateOrderReceipt($id)
   {
-    // Obtener la inspección con todas las relaciones necesarias
+    // Obtener la recepción con todas las relaciones necesarias
     $inspection = ApVehicleInspection::with([
       'damages',
       'createdByWorkOrder.vehicle.model.family.brand',
@@ -534,7 +541,7 @@ class ApVehicleInspectionService extends BaseService
     $inspection = $this->find($id);
 
     if ($inspection->is_cancelled) {
-      return response()->json(['message' => 'Esta inspección ya está anulada'], 422);
+      return response()->json(['message' => 'Esta recepción ya está anulada'], 422);
     }
 
     if ($inspection->cancellation_requested_by) {
@@ -544,7 +551,7 @@ class ApVehicleInspectionService extends BaseService
     $workOrder = $inspection->createdByWorkOrder;
 
     if (!$workOrder) {
-      return response()->json(['message' => 'No se encontró la orden de trabajo asociada a esta inspección'], 422);
+      return response()->json(['message' => 'No se encontró la orden de trabajo asociada a esta recepción'], 422);
     }
 
     if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
@@ -568,11 +575,11 @@ class ApVehicleInspectionService extends BaseService
     $inspection = $this->find($id);
 
     if ($inspection->is_cancelled) {
-      return response()->json(['message' => 'Esta inspección ya está anulada'], 422);
+      return response()->json(['message' => 'Esta recepción ya está anulada'], 422);
     }
 
     if (!$inspection->cancellation_requested_by) {
-      return response()->json(['message' => 'No existe solicitud de anulación para esta inspección'], 422);
+      return response()->json(['message' => 'No existe solicitud de anulación para esta recepción'], 422);
     }
 
     if ($inspection->createdByWorkOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
@@ -587,7 +594,7 @@ class ApVehicleInspectionService extends BaseService
 
     $workOrder = $inspection->createdByWorkOrder;
     if (!$workOrder) {
-      return response()->json(['message' => 'No se encontró la orden de trabajo asociada a esta inspección'], 422);
+      return response()->json(['message' => 'No se encontró la orden de trabajo asociada a esta recepción'], 422);
     }
 
     $workOrder->update([

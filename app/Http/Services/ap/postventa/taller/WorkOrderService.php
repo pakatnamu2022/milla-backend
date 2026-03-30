@@ -16,6 +16,7 @@ use App\Models\ap\postventa\taller\AppointmentPlanning;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderItem;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
+use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
 use App\Models\GeneralMaster;
 use App\Models\gp\gestionhumana\personal\WorkerSignature;
@@ -747,7 +748,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'descriptionRecall' => $workOrder->description_recall ?? '',
       'typeRecall' => $workOrder->type_recall ?? '',
     ];
-    
+
     // Generar PDF
     $pdf = \PDF::loadView('reports.ap.postventa.taller.delivery-report', $data);
     $pdf->setPaper('a4', 'portrait');
@@ -828,6 +829,11 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
     try {
       $workOrder = $this->find($id);
+      $validateDocument = $workOrder->items->first()?->typePlanning->type_document;
+
+      if ($validateDocument !== TypePlanningWorkOrder::INTERNA) {
+        throw new Exception('Solo se pueden generar notas internas para órdenes de trabajo con planificación de tipo "INTERNA"');
+      }
 
       if ($workOrder->invoice_to === null) {
         throw new Exception('La orden de trabajo no tiene un destinatario de factura asignado.');

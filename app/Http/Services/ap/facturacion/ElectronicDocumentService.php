@@ -2062,6 +2062,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('La cotización no tiene productos para validar stock.');
     }
 
+    // Instanciar InventoryMovementService para validaciones en sistema externo
+    $inventoryMovementService = app(InventoryMovementService::class);
+
     // Check stock for each product
     foreach ($productDetails as $detail) {
       // Skip if no product_id
@@ -2077,6 +2080,33 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // If no stock record found or insufficient available quantity, throw exception
       if (!$stock || $stock->available_quantity < $detail->quantity) {
         throw new Exception('No hay stock suficiente para el producto: ' . $detail->product->description);
+      }
+
+      // Validar stock en sistema externo (Dynamics) si el producto y almacén tienen dyn_code
+      if ($detail->product && $detail->product->dyn_code && $warehouse->dyn_code) {
+        try {
+          $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+            $detail->product->dyn_code,
+            $warehouse->dyn_code
+          );
+
+          // El SP retorna ArticuloStock como string, convertir a float para comparar
+          $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+            ? (float)trim($externalStock['ArticuloStock'])
+            : 0;
+
+          if ($availableQuantityExternal < $detail->quantity) {
+            throw new Exception(
+              "Stock insuficiente en sistema externo para el producto: {$detail->product->description}. " .
+              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$detail->quantity}"
+            );
+          }
+        } catch (Exception $e) {
+          // Si falla la validación en sistema externo, propagar la excepción
+          throw new Exception(
+            "Error al validar stock externo para el producto '{$detail->product->description}': " . $e->getMessage()
+          );
+        }
       }
     }
   }

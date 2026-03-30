@@ -87,8 +87,8 @@ class StoreApVehicleInspectionRequest extends StoreRequest
     return [
       'ap_work_order_id.required' => 'La orden de trabajo es requerida',
       'ap_work_order_id.exists' => 'La orden de trabajo no existe',
-      'inspection_date.required' => 'La fecha de inspección es requerida',
-      'inspection_date.date' => 'La fecha de inspección no es una fecha válida',
+      'inspection_date.required' => 'La fecha de recepción es requerida',
+      'inspection_date.date' => 'La fecha de recepción no es una fecha válida',
       'customer_signature.required' => 'La firma del cliente es requerido',
       'customer_signature.regex' => 'La firma del cliente debe ser una imagen en formato base64 válido',
       'mileage.numeric' => 'El kilometraje debe ser un número',
@@ -126,7 +126,7 @@ class StoreApVehicleInspectionRequest extends StoreRequest
         if ($existingWorkOrder->vehicleInspection) {
           $validator->errors()->add(
             'ap_work_order_id',
-            'Esta orden de trabajo ya tiene una inspección vehicular registrada.'
+            'Esta orden de trabajo ya tiene una recepción vehicular registrada.'
           );
         }
       }

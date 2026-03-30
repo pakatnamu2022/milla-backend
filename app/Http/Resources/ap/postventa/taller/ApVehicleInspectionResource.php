@@ -64,7 +64,7 @@ class ApVehicleInspectionResource extends JsonResource
         'num_doc' => $this->signer_type === 'OWNER'
           ? $this->createdByWorkOrder?->vehicle?->customer?->num_doc
           : ($this->signer_type === 'CONTACT'
-            ? '-'
+            ? $this->createdByWorkOrder?->num_doc_contact
             : null),
       ],
       'washed' => $this->washed,

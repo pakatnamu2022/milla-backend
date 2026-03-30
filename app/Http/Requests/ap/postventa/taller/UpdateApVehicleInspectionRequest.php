@@ -73,8 +73,8 @@ class UpdateApVehicleInspectionRequest extends StoreRequest
     return [
       'ap_work_order_id.required' => 'La orden de trabajo es requerida',
       'ap_work_order_id.exists' => 'La orden de trabajo no existe',
-      'inspection_date.required' => 'La fecha de inspección es requerida',
-      'inspection_date.date' => 'La fecha de inspección no es una fecha válida',
+      'inspection_date.required' => 'La fecha de recepción es requerida',
+      'inspection_date.date' => 'La fecha de recepción no es una fecha válida',
       'mileage.numeric' => 'El kilometraje debe ser un número',
       'mileage.min' => 'El kilometraje no puede ser negativo',
       'fuel_level.min' => 'El nivel de combustible no puede ser negativo',
