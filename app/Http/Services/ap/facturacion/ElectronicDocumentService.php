@@ -50,10 +50,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   protected NubefactApiService $nubefactService;
   protected DigitalFileService $digitalFileService;
 
-  public function __construct(NubefactApiService $nubefactService, DigitalFileService $digitalFileService)
+  public function __construct()
   {
-    $this->nubefactService = $nubefactService;
-    $this->digitalFileService = $digitalFileService;
+    $this->nubefactService = new NubefactApiService();
+    $this->digitalFileService = new DigitalFileService();
   }
 
   /**
