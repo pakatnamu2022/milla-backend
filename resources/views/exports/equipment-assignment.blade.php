@@ -169,28 +169,28 @@
     }
 
     .equipment-table thead {
-      background: #f5f5f5;
+      background: #f8f8f8;
     }
 
     .equipment-table th {
       border: none;
-      border-right: 1px solid #dcdcdc;
-      border-bottom: 1px solid #dcdcdc;
-      padding: 6px 8px;
+      border-right: 1px solid #d5d5d5;
+      border-bottom: 2px solid #d5d5d5;
+      padding: 8px 10px;
       text-align: left;
-      font-size: 7.5px;
+      font-size: 8px;
       font-weight: bold;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
       text-transform: uppercase;
-      color: #111111;
+      color: #333333;
     }
 
     .equipment-table td {
       border: none;
-      border-right: 1px solid #e6e6e6;
-      border-bottom: 1px solid #e6e6e6;
-      padding: 6px 8px;
-      color: #111111;
+      border-right: 1px solid #e8e8e8;
+      border-bottom: 1px solid #e8e8e8;
+      padding: 8px 10px;
+      color: #1a1a1a;
     }
 
     .equipment-table th:last-child,
@@ -203,29 +203,30 @@
     }
 
     .equipment-table tbody tr:nth-child(even) {
-      background: #fafafa;
+      background: #fcfcfc;
     }
 
     .eq-num {
       text-align: center;
       font-weight: bold;
+      font-size: 9px;
     }
 
     .eq-serial {
       font-size: 8px;
-      color: #555555;
+      color: #666666;
     }
 
     /* ══ OBSERVACIONES ══ */
     .obs-section {
       margin-bottom: 0;
-      padding: 10px 12px;
+      padding: 12px 14px;
     }
 
     .obs-text {
       font-size: 9px;
-      line-height: 1.5;
-      color: #333333;
+      line-height: 1.6;
+      color: #2a2a2a;
     }
 
     .obs-text p {
@@ -239,13 +240,13 @@
     /* ══ DECLARACIÓN ══ */
     .decl-section {
       margin-bottom: 0;
-      padding: 10px 12px;
+      padding: 12px 14px;
     }
 
     .decl-text {
       font-size: 8.5px;
-      line-height: 1.6;
-      color: #333333;
+      line-height: 1.65;
+      color: #2a2a2a;
       text-align: justify;
     }
 
