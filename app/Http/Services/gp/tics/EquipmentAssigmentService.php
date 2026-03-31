@@ -37,7 +37,7 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
       // status_deleted = false significa asignación activa (no desasignada).
       $equipmentIds = collect($items)->pluck('equipo_id')->toArray();
 
-      $conflicting = EquipmentAssigment::where('status_deleted', false)
+      $conflicting = EquipmentAssigment::where('status_deleted', 1)
         ->whereHas('items', fn($q) => $q->whereIn('equipo_id', $equipmentIds))
         ->with(['items' => fn($q) => $q->whereIn('equipo_id', $equipmentIds)->with('equipment')])
         ->first();
