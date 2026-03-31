@@ -298,7 +298,7 @@
     }
 
     .sig-body {
-      padding: 14px 16px 12px;
+      padding: 16px 18px 14px;
     }
 
     .sig-inner {
@@ -308,8 +308,8 @@
 
     .huella-box {
       display: inline-block;
-      width: 52px;
-      height: 52px;
+      width: 70px;
+      height: 80px;
       border: 1px solid #aaaaaa;
       background: #fafafa;
     }
@@ -327,7 +327,7 @@
     .sig-line {
       display: block;
       border-bottom: 1px solid #22293a;
-      height: 50px;
+      height: 80px;
       margin-bottom: 4px;
     }
 
