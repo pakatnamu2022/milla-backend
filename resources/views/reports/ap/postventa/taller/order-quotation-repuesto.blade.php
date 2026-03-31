@@ -47,7 +47,7 @@
     }
 
     .logo img {
-      max-width: 100px;
+      max-width: 200px;
       height: auto;
     }
 
@@ -225,7 +225,7 @@
         <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="Automotores Logo">
       </td>
       <td class="center-title" style="width: 60%;">
-        AUTOMOTORES PAKATNAMU S.A.C.
+        {{ $quotation['sede']->company->businessName }}
       </td>
       <td class="logo" style="width: 20%;">
         <img src="{{ getBase64Image('images/ap/derco.jpg') }}" alt="Derco Logo">
@@ -239,15 +239,12 @@
   <table>
     <tr>
       <td class="company-left" style="text-align: left">
-        <div><strong>{{ $quotation['customer_name'] }}</strong></div>
-        <div>{{ $quotation['customer_address'] }}</div>
-        <div>{{ $quotation['customer_document'] }}</div>
-        <div>{{ $quotation['customer_email'] }}</div>
-        <div>{{ $quotation['customer_phone'] }}</div>
+        <div>{{$quotation['sede']->direccion}}</div>
+        <div>{{$quotation['sede']->province->name}}
+          - {{$quotation['sede']->district->name}} {{$quotation['sede']->district->ubigeo}}</div>
+        <div>RUC: {{$quotation['sede']->company->num_doc}}</div>
       </td>
       <td class="customer-right" style="text-align: right;">
-        <div>Car. Panamericana Norte Nro. 1006</div>
-        <div>Chiclayo - Lambayeque</div>
         <div>Tel.:</div>
         <div>Email: info@automotorespakatnamu.com</div>
         <div>Web: www.automotorespakatnamu.com</div>
@@ -268,6 +265,24 @@
     <td colspan="4" class="section-header">DATOS DE LA PROPUESTA</td>
   </tr>
   <tr>
+    <td class="label-cell">Señor (es):</td>
+    <td style="width: 40%;">{{ $quotation['customer_name'] }}</td>
+    <td class="label-cell">Dirección:</td>
+    <td>{{ $quotation['customer_address'] }}</td>
+  </tr>
+  <tr>
+    <td class="label-cell">RUC/DNI:</td>
+    <td style="width: 40%;">{{ $quotation['customer_document'] }}</td>
+    <td class="label-cell">Actividad:</td>
+    <td>{{ $quotation['customer_address'] }}</td>
+  </tr>
+  <tr>
+    <td class="label-cell">Correo:</td>
+    <td style="width: 40%;">{{ $quotation['customer_email'] }}</td>
+    <td class="label-cell">Teléfono:</td>
+    <td>{{ $quotation['customer_phone'] }}</td>
+  </tr>
+  <tr>
     <td class="label-cell">Observaciones:</td>
     <td style="width: 40%;">{{ $quotation['observations'] }}</td>
     <td class="label-cell">Celular:</td>
@@ -277,11 +292,11 @@
     <td class="label-cell">Asesor:</td>
     <td>{{ $quotation['advisor_name'] }}</td>
     <td class="label-cell">Sucursal Venta:</td>
-    <td>{{ $quotation['sede_name'] }}</td>
+    <td>{{ $quotation['sede']->abreviatura }}</td>
   </tr>
   <tr>
     <td class="label-cell">Estado:</td>
-    <td>Pendiente de validación por parte del cliente</td>
+    <td>{{ $quotation['status'] === \App\Models\ap\postventa\taller\ApOrderQuotations::STATUS_APERTURADO ? 'PENDIENTE DE APROBACIÓN POR PARTE DEL CLIENTE':'APROBADO POR EL CLIENTE' }}</td>
     <td class="label-cell">Correo:</td>
     <td>{{ $quotation['advisor_email'] }}</td>
   </tr>

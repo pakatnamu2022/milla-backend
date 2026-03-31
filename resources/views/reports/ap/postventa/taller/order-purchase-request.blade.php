@@ -47,7 +47,7 @@
     }
 
     .logo img {
-      max-width: 120px;
+      max-width: 200px;
       height: auto;
     }
 
@@ -63,7 +63,7 @@
       font-size: 16px;
       font-weight: bold;
       margin: 15px 0;
-      border-bottom: 2px solid #172e66;
+      border-bottom: 2px solid #8b8b8b;
       padding-bottom: 5px;
     }
 
@@ -152,10 +152,10 @@
     }
 
     table.details-table th {
-      background-color: #172e66;
-      color: white;
+      background-color: #8b8b8b;
+      color: black;
       font-weight: bold;
-      font-size: 9px;
+      font-size: 10px;
       padding: 5px 3px;
       text-align: center;
       border: 1px solid #000;
@@ -163,7 +163,7 @@
 
     table.details-table td {
       padding: 4px 3px;
-      font-size: 8px;
+      font-size: 9px;
       border: 1px solid #000;
       vertical-align: middle;
     }
@@ -193,17 +193,6 @@
       padding: 5px;
       font-size: 10px;
       border: 1px solid #000;
-    }
-
-    .total-label {
-      font-weight: bold;
-      text-align: center;
-      background-color: #f5f5f5;
-    }
-
-    .total-value {
-      text-align: right;
-      font-weight: bold;
     }
 
     .comments-section {
@@ -261,17 +250,17 @@
   <table>
     <tr>
       <td style="width: 60%;">
-        <div style="font-weight: bold; font-size: 12px;">AUTOMOTORES PAKATNAMU S.A.C.</div>
-        <div>Car. Panamericana Norte Nro. 1006</div>
-        <div>Chiclayo - Lambayeque</div>
-        <div>RUC: 20538993400</div>
+        <div style="font-weight: bold; font-size: 12px;">{{$purchaseRequest['sede']->company->businessName}}</div>
+        <div>{{$purchaseRequest['sede']->direccion}}</div>
+        <div>{{$purchaseRequest['sede']->province->name}}
+          - {{$purchaseRequest['sede']->district->name}} {{$purchaseRequest['sede']->district->ubigeo}}</div>
+        <div>RUC: {{$purchaseRequest['sede']->company->num_doc}}</div>
         <div>Telefono:</div>
       </td>
       <td style="width: 40%; text-align: right;">
         <div><strong>Fecha
-            Documento:</strong> {{ \Carbon\Carbon::parse($purchaseRequest['requested_date'])->format('d/m/Y') }}</div>
-        <div><strong>Fecha Entrega:</strong> {{ $purchaseRequest['delivery_date'] }}</div>
-        <div><strong>N° de OT:</strong> {{ $purchaseRequest['work_order_number'] }}</div>
+            Documento:</strong> {{ \Carbon\Carbon::parse($purchaseRequest['requested_date'])->format('d/m/Y') }}
+        </div>
       </td>
     </tr>
   </table>
@@ -285,8 +274,6 @@
       <tr>
         <td class="label">Senor(es)</td>
         <td class="value">: {{ $purchaseRequest['supplier_name'] }}</td>
-        <td class="label">Forma de pago</td>
-        <td class="value">: {{ $purchaseRequest['payment_method'] }}</td>
       </tr>
       <tr>
         <td class="label">RUC</td>
@@ -372,7 +359,7 @@
   </div>
   <!-- Totales (Derecha) -->
   <div style="display: table-cell; width: 50%; vertical-align: top; padding-left: 10px;">
-    <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
       <tr>
         <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">Subtotal:</td>
         <td style="text-align: right; padding: 5px; border: 1px solid #000;">
@@ -386,8 +373,12 @@
         </td>
       </tr>
       <tr>
-        <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000; background-color: #f0f0f0;">Total:</td>
-        <td style="text-align: right; padding: 5px; border: 1px solid #000; background-color: #f0f0f0; font-weight: bold;">
+        <td
+          style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000; background-color: #f0f0f0;">
+          Total:
+        </td>
+        <td
+          style="text-align: right; padding: 5px; border: 1px solid #000; background-color: #f0f0f0; font-weight: bold;">
           {{ $purchaseRequest['currency_symbol'] }} {{ $purchaseRequest['total'] }}
         </td>
       </tr>

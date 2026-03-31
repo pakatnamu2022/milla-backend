@@ -65,8 +65,9 @@ class UpdateWorkOrderRequest extends StoreRequest
       ],
       'num_doc_contact' => [
         'sometimes',
-        'nullable',
+        'required',
         'integer',
+        'digits:8',
       ],
       'full_contact_name' => [
         'sometimes',
@@ -203,6 +204,10 @@ class UpdateWorkOrderRequest extends StoreRequest
       'sede_id.required' => 'La sede es obligatoria.',
       'sede_id.integer' => 'La sede debe ser un entero.',
       'sede_id.exists' => 'La sede seleccionada no es válida.',
+
+      'num_doc_contact.required' => 'El número de documento del contacto es obligatorio.',
+      'num_doc_contact.integer' => 'El número de documento del contacto debe ser un entero.',
+      'num_doc_contact.digits' => 'El número de documento del contacto debe tener exactamente 8 dígitos.',
 
       'full_contact_name.required' => 'El nombre del contacto es obligatorio.',
       'full_contact_name.string' => 'El nombre del contacto debe ser una cadena de texto.',

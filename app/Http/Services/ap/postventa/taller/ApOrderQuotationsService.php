@@ -671,8 +671,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'observations' => $quotation->observations ?? '',
       'validity_days' => $quotation->validity_days,
       'show_codes' => $showCodes,
-      'sede_name' => $quotation->sede ? $quotation->sede->abreviatura : 'N/A',
+      'sede' => $quotation->sede,
       'type_currency' => $quotation->typeCurrency,
+      'status' => $quotation->status,
     ];
 
     // Datos del cliente
@@ -835,7 +836,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Validar aprobación de jefe
       if (isset($data['chief_approval_by'])) {
-        if (!in_array($positionId, Position::POSITION_JEFE_PV_IDS)) {
+        if (!in_array($positionId, Position::POSITION_JEFE_PVT_IDS)) {
           throw new Exception('Solo los Jefes de Taller pueden aprobar.');
         }
         if ($quotation->chief_approval_by) {
@@ -913,7 +914,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Obtener usuarios con cargo de Jefe de Taller (143) y Gerente de Taller (142)
       $chiefUsers = User::whereHas('person', function ($query) {
-        $query->whereIn('cargo_id', Position::POSITION_JEFE_PV_IDS)
+        $query->whereIn('cargo_id', Position::POSITION_JEFE_PVT_IDS)
           ->where('status_deleted', 1)
           ->where('status_id', 22);
       })->get();
