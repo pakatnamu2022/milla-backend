@@ -5,6 +5,7 @@ namespace App\Http\Controllers\gp\tics;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\tics\IndexPhoneLineWorkerRequest;
 use App\Http\Requests\gp\tics\StorePhoneLineWorkerRequest;
+use App\Http\Requests\gp\tics\UnassignPhoneLineWorkerRequest;
 use App\Http\Requests\gp\tics\UpdatePhoneLineWorkerRequest;
 use App\Http\Services\gp\tics\PhoneLineWorkerService;
 use Throwable;
@@ -69,6 +70,15 @@ class PhoneLineWorkerController extends Controller
   {
     try {
       return $this->service->destroy($id);
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function unassign(UnassignPhoneLineWorkerRequest $request, $id)
+  {
+    try {
+      return $this->success($this->service->unassign($id, $request->validated()));
     } catch (Throwable $e) {
       return $this->error($e->getMessage());
     }

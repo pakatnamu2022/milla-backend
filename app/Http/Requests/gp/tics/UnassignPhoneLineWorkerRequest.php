@@ -9,7 +9,8 @@ class UnassignPhoneLineWorkerRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'unassigned_at' => 'nullable|date',
+      'unassigned_at'       => 'required|date',
+      'observacion_unassign' => 'required|string',
     ];
   }
 }

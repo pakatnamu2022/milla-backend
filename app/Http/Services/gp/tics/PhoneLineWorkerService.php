@@ -59,6 +59,23 @@ class PhoneLineWorkerService extends BaseService implements BaseServiceInterface
     return new PhoneLineWorkerResource($this->find($id));
   }
 
+  public function unassign($id, $data)
+  {
+    $phoneLineWorker = $this->find($id);
+
+    if (!$phoneLineWorker->active) {
+      throw new Exception('La línea telefónica ya está desasignada.');
+    }
+
+    $phoneLineWorker->update([
+      'active'               => false,
+      'unassigned_at'        => $data['unassigned_at'],
+      'observacion_unassign' => $data['observacion_unassign'],
+    ]);
+
+    return new PhoneLineWorkerResource(PhoneLineWorker::find($phoneLineWorker->id));
+  }
+
   public function update($data)
   {
     $phoneLineWorker = $this->find($data['id']);

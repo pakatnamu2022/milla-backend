@@ -431,13 +431,13 @@
     </table>
   </div>
 
-  @if($assignment->observacion ?? false)
+  @if($assignment->observacion_unassign ?? false)
     <!-- ══ OBSERVACIONES ══ -->
     <div class="card">
       <div class="card-title">Observaciones</div>
       <div class="obs-section">
         <div class="obs-text">
-          <p>{{ $assignment->observacion }}</p>
+          <p>{{ $assignment->observacion_unassign }}</p>
         </div>
       </div>
     </div>

@@ -18,6 +18,7 @@ class PhoneLineWorker extends BaseModel
     'assigned_at',
     'active',
     'unassigned_at',
+    'observacion_unassign',
   ];
 
   protected $casts = [

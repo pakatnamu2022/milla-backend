@@ -381,6 +381,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       //    PHONE LINE WORKERS (ASSIGNMENTS)
       Route::get('phoneLineWorker/history/{phoneLineId}', [PhoneLineWorkerController::class, 'history']);
+      Route::post('phoneLineWorker/{id}/unassign', [PhoneLineWorkerController::class, 'unassign']);
       Route::get('phoneLineWorker/{id}/pdf/assignment', [PhoneLineWorkerController::class, 'downloadAssignmentPdf']);
       Route::get('phoneLineWorker/{id}/pdf/unassignment', [PhoneLineWorkerController::class, 'downloadUnassignmentPdf']);
       Route::apiResource('phoneLineWorker', PhoneLineWorkerController::class)->only([

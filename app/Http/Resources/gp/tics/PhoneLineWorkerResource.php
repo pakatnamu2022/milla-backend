@@ -16,7 +16,8 @@ class PhoneLineWorkerResource extends JsonResource
       'worker_name'        => $this->worker?->nombre_completo,
       'assigned_at'        => $this->assigned_at,
       'unassigned_at'      => $this->unassigned_at,
-      'active'             => $this->active,
+      'active'              => $this->active,
+      'observacion_unassign' => $this->observacion_unassign,
     ];
   }
 }
