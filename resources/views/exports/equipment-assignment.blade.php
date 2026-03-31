@@ -537,7 +537,7 @@
                 <span class="huella-box"></span>
                 <span class="huella-label">Huella</span>
               </td>
-              <td style="vertical-align:bottom;">
+              <td style="vertical-align:bottom; text-align: center">
                 <span class="sig-line"></span>
                 <span class="sig-sub">{{ strtoupper($assignment->worker?->nombre_completo ?? '') }}</span>
               </td>
@@ -549,7 +549,8 @@
         <div class="sig-hdr">RESPONSABLE TICS</div>
         <div class="sig-body">
           <span class="sig-line"></span>
-          <div class="sig-sub">Área de Tecnología e Informática</div>
+          <div
+            class="sig-sub">{{ strtoupper($assignment->writeUser?->name ?? 'ÁREA DE TECNOLOGÍAS DE INFORMACIÓN Y COMUNICACIONES') }}</div>
         </div>
       </div>
     </div>
@@ -564,7 +565,7 @@
       <td class="footer-left">
         Documento de uso interno
         <span class="footer-dot"></span>
-        Área de Tecnología e Informática
+        ÁREA DE TECNOLOGÍAS DE INFORMACIÓN Y COMUNICACIONES
       </td>
       <td class="footer-right">FP-17-02 &nbsp;|&nbsp; Pág. 1 / 1</td>
     </tr>

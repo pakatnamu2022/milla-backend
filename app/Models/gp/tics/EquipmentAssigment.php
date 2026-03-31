@@ -4,6 +4,7 @@ namespace App\Models\gp\tics;
 
 use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\User;
 
 class EquipmentAssigment extends BaseModel
 {
@@ -44,5 +45,10 @@ class EquipmentAssigment extends BaseModel
   public function items()
   {
     return $this->hasMany(EquipmentItemAssigment::class, 'asig_equipo_id');
+  }
+
+  public function writeUser()
+  {
+    return $this->belongsTo(User::class, 'write_id');
   }
 }
