@@ -105,7 +105,7 @@ class ApOrderQuotations extends Model
 
   // SUPPLY TYPE CONSTANTS
   const STOCK = 'STOCK';
-  const LIMA = 'LIMA';
+  const CENTRAL = 'CENTRAL';
   const IMPORTACION = 'IMPORTACION';
 
   // DIAS PERMITIDOS PARA EDITAR O ELIMINAR UNA COTIZACION
@@ -198,8 +198,10 @@ class ApOrderQuotations extends Model
 
   public function workOrders(): HasMany
   {
-    return $this->hasMany(ApWorkOrder::class,
-      'order_quotation_id');
+    return $this->hasMany(
+      ApWorkOrder::class,
+      'order_quotation_id'
+    );
   }
 
   public function markAsTaken(): void

@@ -60,7 +60,7 @@ class ApSupplierOrder extends Model
   // SUPPLY TYPE CONSTANTS
   const STOCK = 'STOCK';
   const LOCAL = 'LOCAL';
-  const LIMA = 'LIMA';
+  const CENTRAL = 'CENTRAL';
   const IMPORTACION = 'IMPORTACION';
 
   // RECEPTION TYPE CONSTANTS
@@ -162,5 +162,4 @@ class ApSupplierOrder extends Model
       ->unique('email')
       ->values();
   }
-
 }

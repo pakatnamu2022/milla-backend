@@ -74,7 +74,7 @@ class ApOrderPurchaseRequests extends Model
 
   // SUPPLY TYPE CONSTANTS
   const STOCK = 'STOCK';
-  const LIMA = 'LIMA';
+  const CENTRAL = 'CENTRAL';
   const IMPORTACION = 'IMPORTACION';
 
   // STATUS CONSTANTS

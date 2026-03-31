@@ -7,6 +7,8 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
+use App\Models\ap\postventa\gestionProductos\Products;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
@@ -48,6 +50,20 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
     return DB::transaction(function () use ($data) {
       // Validate if quotation is already associated with a work order
       $this->validateQuotationNotAssociatedWithWorkOrder($data['order_quotation_id']);
+
+      $sedeId = ApOrderQuotations::findOrFail($data['order_quotation_id'])->sede_id;
+
+      $validation = ProductWarehouseStock::validatePublicSalePrice(
+        $data['product_id'],
+        $sedeId,
+        $data['unit_price']
+      );
+
+      if (!$validation['valid']) {
+        throw new Exception(
+          "Producto ({$data['description']}): {$validation['message']}"
+        );
+      }
 
       // Set created_at
       if (auth()->check()) {

@@ -283,6 +283,12 @@
     <td>{{ $quotation['customer_phone'] }}</td>
   </tr>
   <tr>
+    <td colspan="4"
+        style="background-color: #e8e8e8; color: #343a40; font-size: 8px; font-weight: bold; padding: 3px 5px; text-align: left;">
+      Información de la cotización y atención
+    </td>
+  </tr>
+  <tr>
     <td class="label-cell">Observaciones:</td>
     <td style="width: 40%;">{{ $quotation['observations'] }}</td>
     <td class="label-cell">Celular:</td>
@@ -313,11 +319,14 @@
     @else
       <th style="width: 45%;">Descripción</th>
     @endif
-    <th style="width: 15%;">Observ.</th>
-    <th style="width: 10%;">Tpo./Cant.</th>
-    <th style="width: 12%;">P.Hora/PVP</th>
+    <th style="width: 10%;">U.M</th>
+    <th style="width: 8%;">Cantidad</th>
+    <th style="width: 8%;">Stock</th>
+    <th style="width: 15%;">T.E.</th>
+    <th style="width: 12%;">Precio Unit.</th>
     <th style="width: 8%;">% Dto.</th>
-    <th style="width: 10%;">Imp.Neto</th>
+    <th style="width: 10%;">Neto</th>
+    <th style="width: 10%;">Importe</th>
   </tr>
   </thead>
   <tbody>
@@ -327,11 +336,15 @@
         <td class="text-center">{{ $detail['code'] }}</td>
       @endif
       <td class="text-left">{{ $detail['description'] }}</td>
-      <td class="text-left">{{ $detail['observations'] }}</td>
+      <td class="text-center">{{ $detail['unit_measure'] }}</td>
       <td class="text-center">{{ number_format($detail['quantity'], 2) }}</td>
+      <td
+        class="text-center">{{ $quotation['supply_type'] === \App\Models\ap\postventa\taller\ApOrderQuotations::STOCK ? 'SI':'NO' }}</td>
+      <td class="text-left">{{ $quotation['supply_type'] }} {{ $detail['observations'] }}</td>
       <td class="text-right">{{ number_format($detail['unit_price'], 2) }}</td>
       <td class="text-right">{{ number_format($detail['discount'], 2) }}</td>
       <td class="text-right">{{ number_format($detail['total_amount'], 2) }}</td>
+      <td class="text-right">{{ number_format($detail['total_amount_with_tax'], 2) }}</td>
     </tr>
   @endforeach
   </tbody>
@@ -452,16 +465,6 @@
       </div>
     </div>
   @endif
-
-  <!-- Sección IMPORTANTE -->
-  <div class="important-section" style="margin-top: 15px;">
-    <div class="important-title">IMPORTANTE</div>
-    <div class="important-content">
-      STOCK SUJETO A VARIACIÓN SIN PREVIO AVISO. LA IMPORTACIÓN Y EL TIEMPO DE ATENCIÓN DEPENDE DEL STOCK EN
-      FÁBRICA. TIEMPO DE IMPORTACIÓN 30 DÍAS ÚTILES.
-    </div>
-  </div>
-
 </div><!-- Fin pie de página fijo -->
 </body>
 </html>

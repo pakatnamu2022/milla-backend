@@ -27,7 +27,7 @@ class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
       'expiration_date' => ['nullable', 'date', 'after_or_equal:quotation_date'],
       'collection_date' => ['nullable', 'date'],
       'observations' => ['nullable', 'string'],
-      'supply_type' => ['required', 'string', 'in:STOCK,LIMA,IMPORTACION'],
+      'supply_type' => ['required', 'string', 'in:STOCK,CENTRAL,IMPORTACION'],
 
       // Details array
       'details' => ['required', 'array', 'min:1'],
@@ -202,7 +202,7 @@ class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
             );
           }
         }
-      } elseif (in_array($supplyType, ['LIMA', 'IMPORTACION'])) {
+      } elseif (in_array($supplyType, ['CENTRAL', 'IMPORTACION'])) {
         // Validar que los productos NO tengan stock (debe ser 0)
         foreach ($details as $index => $detail) {
           $productId = $detail['product_id'] ?? null;

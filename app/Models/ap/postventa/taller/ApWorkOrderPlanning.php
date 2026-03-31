@@ -189,9 +189,9 @@ class ApWorkOrderPlanning extends Model
       return;
     }
 
-    // Contar plannings pendientes o en progreso
+    // Contar plannings pendientes o en progreso (sin contar los cancelados)
     $pendingPlannings = $workOrder->plannings()
-      ->where('status', '!=', 'completed')
+      ->whereIn('status', ['planned', 'in_progress'])
       ->count();
 
     // Si no hay plannings pendientes, marcar la orden como terminada
