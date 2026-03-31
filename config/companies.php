@@ -15,21 +15,25 @@ return [
     'gp' => [
       'name' => 'Gestión de Personas',
       'path' => '/companies/gplogo.png',
+      'large' => '/companies/gplargo.png',
       'url' => asset('companies/gplogo.png'),
     ],
     'ap' => [
       'name' => 'Administración y Proyectos',
       'path' => '/companies/aplogo.png',
+      'large' => '/companies/aplargo.png',
       'url' => asset('companies/aplogo.png'),
     ],
     'tp' => [
       'name' => 'Tecnología y Proyectos',
       'path' => '/companies/tplogo.png',
+      'large' => '/companies/tplargo.png',
       'url' => asset('companies/tplogo.png'),
     ],
     'dp' => [
       'name' => 'Dirección y Presidencia',
       'path' => '/companies/dplogo.png',
+      'large' => '/companies/dplargo.png',
       'url' => asset('companies/dplogo.png'),
     ],
   ],

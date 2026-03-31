@@ -127,6 +127,13 @@ class EquipmentAssigmentController extends Controller
       $assignment = $this->service->find($id);
       $filename = "acta-asignacion_{$assignment->id}_{$assignment->fecha}.pdf";
 
+      /**
+       * stream view html , no pdf
+       */
+
+//      return response()->view('exports.equipment-assignment', compact('assignment'))
+//        ->header('Content-Type', 'text/html');
+
       return Pdf::loadView('exports.equipment-assignment', compact('assignment'))
         ->stream($filename);
     } catch (Throwable $e) {

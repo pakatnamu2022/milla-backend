@@ -62,16 +62,14 @@
 
     .h-logo {
       display: table-cell;
-      width: auto;
+      width: 140px;
       text-align: center;
       vertical-align: middle;
-      padding: 5px 10px;
       border-right: 1px solid #e0e0e0;
     }
 
     .h-logo img {
-      max-width: 300px;
-      height: 50px;
+      max-height: 20px;
       width: auto;
       display: block;
     }
@@ -124,7 +122,7 @@
     }
 
     .h-meta-date {
-      font-size: 8.5px;
+      font-size: 8px;
       color: #555555;
       margin-top: 3px;
     }
@@ -399,11 +397,8 @@
     $logoKey = 'gp'; // default
 
     // Mapear áreas a logos
-    if (str_contains($areaName, 'GESTIÓN')) $logoKey = 'gp';
-    elseif (str_contains($areaName, 'ADMINISTRACIÓN')) $logoKey = 'ap';
-    elseif (str_contains($areaName, 'TECNOLOGÍA')) $logoKey = 'tp';
-    elseif (str_contains($areaName, 'DIRECCIÓN')) $logoKey = 'dp';
-    $logoUrl = getBase64Image(config('companies.logos.' . $logoKey . '.path', '/companies/gplogo.png'));
+    $company = strtolower($assignment->worker->sede->company->abbreviation ?? '');
+    $logoUrl = getBase64Image(config('companies.logos.' . $company . '.large', '/companies/gplargo.png'));
   @endphp
   <div class="page-header">
     <div class="header-inner">
@@ -416,7 +411,7 @@
       </div>
       <div class="h-meta">
         <div class="h-meta-lbl">N° ACTA</div>
-        <div class="h-meta-val">{{ now()->format('Y-m-d') }}</div>
+        <div class="h-meta-val">{{ str_pad($assignment->id,8,"0",STR_PAD_LEFT) }}</div>
         <div class="h-meta-date">{{ now()->format('d/m/Y') }}</div>
       </div>
     </div>
@@ -478,7 +473,7 @@
       @foreach($assignment->items as $index => $item)
         <tr>
           <td class="eq-num">{{ str_pad($index + 1, 2, '0', STR_PAD_LEFT) }}</td>
-          <td>{{ $item->equipment?->equipmentType?->nombre ?? '—' }}</td>
+          <td>{{ $item->equipment?->equipmentType?->name ?? '—' }}</td>
           <td>{{ strtoupper($item->equipment?->marca_modelo ?? '—') }}</td>
           <td class="eq-serial">{{ $item->equipment?->serie ?? '—' }}</td>
           <td>{{ $item->observacion ?? '—' }}</td>
@@ -567,7 +562,7 @@
         <span class="footer-dot"></span>
         ÁREA DE TECNOLOGÍAS DE INFORMACIÓN Y COMUNICACIONES
       </td>
-      <td class="footer-right">FP-17-02 &nbsp;|&nbsp; Pág. 1 / 1</td>
+      <td class="footer-right"> Pág. 1 / 1</td>
     </tr>
   </table>
 </div>
