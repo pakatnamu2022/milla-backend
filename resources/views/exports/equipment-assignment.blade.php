@@ -69,7 +69,7 @@
     }
 
     .h-logo img {
-      max-height: 20px;
+      max-height: 30px;
       width: auto;
       display: block;
     }

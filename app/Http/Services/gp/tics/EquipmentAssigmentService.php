@@ -168,7 +168,7 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
 
   public function downloadAssignmentPdf($id)
   {
-    $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'items.equipment.equipmentType', 'writeUser'])
+    $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'worker.sede.company', 'items.equipment.equipmentType', 'writeUser'])
       ->findOrFail($id);
 
     $filename = "acta-asignacion_{$assignment->id}_{$assignment->fecha}.pdf";
@@ -179,7 +179,7 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
 
   public function downloadUnassignmentPdf($id)
   {
-    $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'items.equipment.equipmentType'])
+    $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'worker.sede.company', 'items.equipment.equipmentType', 'writeUser'])
       ->findOrFail($id);
 
     $filename = "acta-devolucion_{$assignment->id}.pdf";

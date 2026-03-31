@@ -75,7 +75,7 @@ class PhoneLineWorkerService extends BaseService implements BaseServiceInterface
 
   public function downloadAssignmentPdf($id)
   {
-    $assignment = PhoneLineWorker::with(['worker.position', 'worker.area', 'phoneLine.telephoneAccount', 'phoneLine.telephonePlan'])
+    $assignment = PhoneLineWorker::with(['worker.position', 'worker.area', 'worker.sede.company', 'phoneLine.telephoneAccount', 'phoneLine.telephonePlan'])
       ->findOrFail($id);
 
     $filename = "acta-asignacion-linea_{$assignment->id}_{$assignment->phone_line_id}.pdf";
@@ -86,7 +86,7 @@ class PhoneLineWorkerService extends BaseService implements BaseServiceInterface
 
   public function downloadUnassignmentPdf($id)
   {
-    $assignment = PhoneLineWorker::with(['worker.position', 'worker.area', 'phoneLine.telephoneAccount', 'phoneLine.telephonePlan'])
+    $assignment = PhoneLineWorker::with(['worker.position', 'worker.area', 'worker.sede.company', 'phoneLine.telephoneAccount', 'phoneLine.telephonePlan'])
       ->findOrFail($id);
 
     $filename = "acta-desasignacion-linea_{$assignment->id}_{$assignment->phone_line_id}.pdf";

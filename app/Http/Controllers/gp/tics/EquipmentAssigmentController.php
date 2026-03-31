@@ -8,6 +8,7 @@ use App\Http\Requests\gp\tics\StoreEquipmentAssigmentRequest;
 use App\Http\Requests\gp\tics\UnassignEquipmentRequest;
 use App\Http\Requests\gp\tics\UpdateEquipmentAssigmentRequest;
 use App\Http\Services\gp\tics\EquipmentAssigmentService;
+use App\Models\gp\tics\PhoneLineWorker;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Throwable;
 
@@ -124,17 +125,13 @@ class EquipmentAssigmentController extends Controller
   public function previewEquipmentAssignment($id)
   {
     try {
-      $assignment = $this->service->find($id);
+      $assignment = PhoneLineWorker::find($id);
       $filename = "acta-asignacion_{$assignment->id}_{$assignment->fecha}.pdf";
-
-      /**
-       * stream view html , no pdf
-       */
 
 //      return response()->view('exports.equipment-assignment', compact('assignment'))
 //        ->header('Content-Type', 'text/html');
 
-      return Pdf::loadView('exports.equipment-assignment', compact('assignment'))
+      return Pdf::loadView('exports.phone-line-assignment', compact('assignment'))
         ->stream($filename);
     } catch (Throwable $e) {
       return response()->json(['error' => $e->getMessage()], 404);
