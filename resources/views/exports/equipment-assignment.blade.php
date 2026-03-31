@@ -17,99 +17,116 @@
     body {
       font-family: Arial, sans-serif;
       font-size: 10px;
-      color: #1a1a1a;
+      color: #22293a;
       background: #ffffff;
-      padding: 0 0 24px;
+      margin: 0;
+      padding: 0 0 30px;
     }
 
     .page {
       background: #ffffff;
-      padding: 8px 10px 12px;
+      padding: 4px 8px 6px;
       margin: 0 auto;
-    }
-
-    * {
-      font-family: Arial, sans-serif;
     }
 
     .card {
       border: 1px solid #cccccc;
       border-radius: 4px;
       overflow: hidden;
-      margin-bottom: 14px;
+      margin-bottom: 8px;
       background: #ffffff;
     }
 
     .card-title {
-      background: #f5f5f5;
-      color: #1a1a1a;
-      font-weight: 600;
-      font-size: 11px;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      padding: 8px 14px;
-      border-bottom: 1px solid #e0e0e0;
+      background: #e0e0e0;
+      color: #22293a;
+      font-weight: bold;
+      font-size: 10.5px;
+      letter-spacing: 0.3px;
+      padding: 4px 12px;
+      border-bottom: 1px solid #d2d2d2;
     }
 
-    /* ══ HEADER ══ */
-    .header-shell {
-      margin-bottom: 20px;
-      padding-bottom: 20px;
-      border-bottom: 3px solid #333333;
+    /* ─── HEADER ─────────────────────────────────── */
+    .page-header {
+      margin-bottom: 8px;
+    }
+
+    .header-inner {
+      display: table;
+      width: 100%;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .h-logo {
+      display: table-cell;
+      width: auto;
       text-align: center;
+      vertical-align: middle;
+      padding: 5px 10px;
+      border-right: 1px solid #e0e0e0;
     }
 
-    .header-logo-section {
-      margin-bottom: 14px;
-    }
-
-    .header-logo-cell img {
+    .h-logo img {
+      max-width: 300px;
+      height: 50px;
+      width: auto;
       display: block;
-      max-width: 160px;
-      height: auto;
-      margin: 0 auto;
     }
 
-    .header-content {
-      margin-bottom: 12px;
-    }
-
-    .header-title-main {
-      font-size: 20px;
-      font-weight: 700;
-      color: #1a1a1a;
-      letter-spacing: 0.5px;
-      line-height: 1.2;
-      margin: 0;
-    }
-
-    .header-meta-cell {
-      display: flex;
-      justify-content: center;
-      gap: 50px;
-      margin-top: 12px;
-    }
-
-    .meta-row {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
+    .h-title {
+      display: table-cell;
+      vertical-align: middle;
       text-align: center;
-      min-width: 100px;
+      padding: 6px 14px;
+      border-right: 1px solid #e0e0e0;
     }
 
-    .meta-label {
-      font-size: 8px;
-      font-weight: 600;
-      letter-spacing: 1px;
+    .h-title-main {
+      font-size: 12px;
+      font-weight: bold;
+      color: #22293a;
+      letter-spacing: 0.3px;
+      line-height: 1.3;
+    }
+
+    .h-title-sub {
+      font-size: 8.5px;
+      color: #888888;
+      margin-top: 2px;
+    }
+
+    .h-meta {
+      display: table-cell;
+      width: 140px;
+      vertical-align: middle;
+      background: #e0e0e0;
+      text-align: center;
+      padding: 5px 10px;
+    }
+
+    .h-meta-lbl {
+      font-size: 7.5px;
+      font-weight: bold;
+      letter-spacing: 0.6px;
+      color: #22293a;
       text-transform: uppercase;
-      color: #555555;
     }
 
-    .meta-value {
-      font-size: 10px;
-      color: #000000;
-      font-weight: 600;
+    .h-meta-val {
+      font-size: 13px;
+      font-weight: bold;
+      color: #22293a;
+      white-space: nowrap;
+      margin-top: 2px;
+    }
+
+    .h-meta-date {
+      font-size: 8.5px;
+      color: #555555;
+      margin-top: 3px;
     }
 
     /* ══ DATOS DEL TRABAJADOR ══ */
@@ -121,7 +138,7 @@
     }
 
     .worker-table td {
-      padding: 10px 12px;
+      padding: 5px 10px;
       vertical-align: top;
       border-right: 1px solid #e8e8e8;
       border-bottom: 1px solid #e8e8e8;
@@ -137,7 +154,6 @@
 
     .field-label {
       font-size: 8px;
-      font-weight: 600;
       letter-spacing: 0.5px;
       text-transform: uppercase;
       color: #777777;
@@ -148,7 +164,6 @@
     .field-value {
       font-size: 10px;
       color: #1a1a1a;
-      font-weight: 400;
       display: block;
     }
 
@@ -174,10 +189,9 @@
       border: none;
       border-right: 1px solid #d5d5d5;
       border-bottom: 2px solid #d5d5d5;
-      padding: 8px 10px;
+      padding: 5px 8px;
       text-align: left;
       font-size: 9px;
-      font-weight: 600;
       letter-spacing: 0.5px;
       text-transform: uppercase;
       color: #333333;
@@ -187,10 +201,9 @@
       border: none;
       border-right: 1px solid #e8e8e8;
       border-bottom: 1px solid #e8e8e8;
-      padding: 8px 10px;
+      padding: 5px 8px;
       color: #1a1a1a;
       font-size: 10px;
-      font-weight: 400;
     }
 
     .equipment-table th:last-child,
@@ -208,27 +221,24 @@
 
     .eq-num {
       text-align: center;
-      font-weight: 600;
       font-size: 10px;
     }
 
     .eq-serial {
       font-size: 10px;
       color: #666666;
-      font-weight: 400;
     }
 
     /* ══ OBSERVACIONES ══ */
     .obs-section {
       margin-bottom: 0;
-      padding: 12px 14px;
+      padding: 7px 12px;
     }
 
     .obs-text {
       font-size: 10px;
       line-height: 1.6;
       color: #2a2a2a;
-      font-weight: 400;
     }
 
     .obs-text p {
@@ -242,7 +252,7 @@
     /* ══ DECLARACIÓN ══ */
     .decl-section {
       margin-bottom: 0;
-      padding: 12px 14px;
+      padding: 7px 12px;
     }
 
     .decl-text {
@@ -250,7 +260,6 @@
       line-height: 1.65;
       color: #2a2a2a;
       text-align: justify;
-      font-weight: 400;
     }
 
     .decl-text p {
@@ -262,20 +271,34 @@
     }
 
     /* ══ FIRMAS ══ */
-    .sig-section {
-      margin-bottom: 0;
-    }
-
-    .sig-table {
+    .sig-wrap {
+      display: table;
       width: 100%;
       border-collapse: collapse;
-      border: none;
     }
 
-    .sig-body-row td {
-      border: 1px solid #e0e0e0;
-      padding: 10px;
+    .sig-col {
+      display: table-cell;
+      width: 50%;
       vertical-align: top;
+      border-right: 1px solid #d2d2d2;
+    }
+
+    .sig-col:last-child {
+      border-right: none;
+    }
+
+    .sig-hdr {
+      background: #e0e0e0;
+      color: #22293a;
+      font-weight: bold;
+      font-size: 10px;
+      text-align: center;
+      padding: 4px 8px;
+    }
+
+    .sig-body {
+      padding: 14px 16px 12px;
     }
 
     .sig-inner {
@@ -285,18 +308,17 @@
 
     .huella-box {
       display: inline-block;
-      width: 60px;
-      height: 60px;
+      width: 52px;
+      height: 52px;
       border: 1px solid #aaaaaa;
       background: #fafafa;
     }
 
     .huella-label {
       display: block;
-      font-size: 8px;
+      font-size: 7.5px;
       text-align: center;
       margin-top: 3px;
-      font-weight: 600;
       letter-spacing: 0.5px;
       text-transform: uppercase;
       color: #777777;
@@ -304,40 +326,27 @@
 
     .sig-line {
       display: block;
-      border-bottom: 1px solid #1a1a1a;
-      height: 30px;
+      border-bottom: 1px solid #22293a;
+      height: 50px;
       margin-bottom: 4px;
     }
 
-    .sig-name {
-      display: block;
-      font-size: 10px;
-      font-weight: 600;
-      color: #1a1a1a;
-      text-align: center;
-      margin-bottom: 2px;
-      letter-spacing: 0;
-    }
-
-    .sig-role {
-      display: block;
-      font-size: 8px;
-      color: #555555;
-      text-align: center;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      font-weight: 600;
-    }
-
-    .sig-simple {
+    .sig-sub {
+      font-size: 9px;
+      color: #777777;
+      margin-top: 4px;
       text-align: center;
     }
 
     /* ══ FOOTER ══ */
     .footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
       border-top: 1px solid #cccccc;
-      padding-top: 8px;
-      margin-top: 12px;
+      padding: 5px 8px;
+      background: #ffffff;
     }
 
     .footer table {
@@ -350,7 +359,6 @@
       color: #777777;
       letter-spacing: 0.5px;
       text-transform: uppercase;
-      font-weight: 600;
     }
 
     .footer-dot {
@@ -367,7 +375,6 @@
       font-size: 8px;
       color: #777777;
       text-align: right;
-      font-weight: 600;
     }
 
     @media print {
@@ -387,37 +394,30 @@
 <div class="page">
 
   <!-- ══ HEADER ══ -->
-  <div class="header-shell">
-    <div class="header-logo-section">
-      @php
-        $areaName = strtoupper($assignment->worker?->area?->nombre ?? 'EMPRESA');
-        $logoKey = 'gp'; // default
+  @php
+    $areaName = strtoupper($assignment->worker?->area?->nombre ?? 'EMPRESA');
+    $logoKey = 'gp'; // default
 
-        // Mapear áreas a logos
-        if (str_contains($areaName, 'GESTIÓN')) $logoKey = 'gp';
-        elseif (str_contains($areaName, 'ADMINISTRACIÓN')) $logoKey = 'ap';
-        elseif (str_contains($areaName, 'TECNOLOGÍA')) $logoKey = 'tp';
-        elseif (str_contains($areaName, 'DIRECCIÓN')) $logoKey = 'dp';
-        $logoUrl = getBase64Image(config('companies.logos.' . $logoKey . '.path', '/companies/gplogo.png'));
-        $companyName = config('companies.names.' . $logoKey, 'EMPRESA');
-      @endphp
-      <div class="header-logo-cell">
-        <img src="{{ $logoUrl }}" alt="Logo" style="max-width: 140px; height: auto;">
+    // Mapear áreas a logos
+    if (str_contains($areaName, 'GESTIÓN')) $logoKey = 'gp';
+    elseif (str_contains($areaName, 'ADMINISTRACIÓN')) $logoKey = 'ap';
+    elseif (str_contains($areaName, 'TECNOLOGÍA')) $logoKey = 'tp';
+    elseif (str_contains($areaName, 'DIRECCIÓN')) $logoKey = 'dp';
+    $logoUrl = getBase64Image(config('companies.logos.' . $logoKey . '.path', '/companies/gplogo.png'));
+  @endphp
+  <div class="page-header">
+    <div class="header-inner">
+      <div class="h-logo">
+        <img src="{{ $logoUrl }}" alt="Logo">
       </div>
-    </div>
-
-    <div class="header-content">
-      <div class="header-title-main">Acta de Asignación de Equipos</div>
-    </div>
-
-    <div class="header-meta-cell">
-      <div class="meta-row">
-        <span class="meta-label">N° ACTA</span>
-        <span class="meta-value">{{ now()->format('Y-m-d') }}</span>
+      <div class="h-title">
+        <div class="h-title-main">ACTA DE ASIGNACIÓN DE EQUIPOS</div>
+        <div class="h-title-sub">Documento interno · Área de Tecnología e Informática</div>
       </div>
-      <div class="meta-row">
-        <span class="meta-label">Generado</span>
-        <span class="meta-value">{{ now()->format('d/m/Y H:i') }}</span>
+      <div class="h-meta">
+        <div class="h-meta-lbl">N° ACTA</div>
+        <div class="h-meta-val">{{ now()->format('Y-m-d') }}</div>
+        <div class="h-meta-date">{{ now()->format('d/m/Y') }}</div>
       </div>
     </div>
   </div>
@@ -433,7 +433,8 @@
         </td>
         <td style="width:16%;">
           <span class="field-label">DNI</span>
-          <span class="field-value {{ empty($assignment->worker?->vat) ? 'empty' : '' }}">{{ $assignment->worker?->vat ?? '—' }}</span>
+          <span
+            class="field-value {{ empty($assignment->worker?->vat) ? 'empty' : '' }}">{{ $assignment->worker?->vat ?? '—' }}</span>
         </td>
         <td style="width:20%;">
           <span class="field-label">Fecha Asignación</span>
@@ -441,17 +442,20 @@
         </td>
         <td style="width:30%;">
           <span class="field-label">Área</span>
-          <span class="field-value {{ empty($assignment->worker?->area?->nombre) ? 'empty' : '' }}">{{ $assignment->worker?->area?->nombre ?? '—' }}</span>
+          <span
+            class="field-value {{ empty($assignment->worker?->area?->name) ? 'empty' : '' }}">{{ $assignment->worker?->area?->name ?? '—' }}</span>
         </td>
       </tr>
       <tr>
         <td colspan="2">
           <span class="field-label">Cargo</span>
-          <span class="field-value {{ empty($assignment->worker?->position?->nombre) ? 'empty' : '' }}">{{ $assignment->worker?->position?->nombre ?? '—' }}</span>
+          <span
+            class="field-value {{ empty($assignment->worker?->position?->name) ? 'empty' : '' }}">{{ $assignment->worker?->position?->name ?? '—' }}</span>
         </td>
         <td colspan="2">
           <span class="field-label">Correo Electrónico</span>
-          <span class="field-value {{ empty($assignment->worker?->email) ? 'empty' : '' }}">{{ $assignment->worker?->email ?? '—' }}</span>
+          <span
+            class="field-value {{ empty($assignment->worker?->email) ? 'empty' : '' }}">{{ $assignment->worker?->email ?? '—' }}</span>
         </td>
       </tr>
     </table>
@@ -523,52 +527,48 @@
   <!-- ══ FIRMAS ══ -->
   <div class="card">
     <div class="card-title">Firmas de Conformidad</div>
-    <div class="sig-section">
-      <table class="sig-table">
-        <tr class="sig-body-row">
-          <!-- Colaborador con huella -->
-          <td>
-            <table class="sig-inner">
-              <tr>
-                <td style="width:80px; text-align:center; padding-right:14px; vertical-align:bottom;">
-                  <span class="huella-box"></span>
-                  <span class="huella-label">Huella</span>
-                </td>
-                <td style="vertical-align:bottom;">
-                  <span class="sig-line"></span>
-                  <span class="sig-name">{{ strtoupper($assignment->worker?->nombre_completo ?? '') }}</span>
-                  <span class="sig-role">Colaborador</span>
-                </td>
-              </tr>
-            </table>
-          </td>
-          <!-- Responsable TICs -->
-          <td>
-            <div class="sig-simple">
-              <span class="sig-line"></span>
-              <span class="sig-name">&nbsp;</span>
-              <span class="sig-role">Responsable TICs — Área de Tecnología</span>
-            </div>
-          </td>
-        </tr>
-      </table>
+    <div class="sig-wrap">
+      <div class="sig-col">
+        <div class="sig-hdr">COLABORADOR</div>
+        <div class="sig-body">
+          <table class="sig-inner">
+            <tr>
+              <td style="width:66px; text-align:center; padding-right:12px; vertical-align:bottom;">
+                <span class="huella-box"></span>
+                <span class="huella-label">Huella</span>
+              </td>
+              <td style="vertical-align:bottom;">
+                <span class="sig-line"></span>
+                <span class="sig-sub">{{ strtoupper($assignment->worker?->nombre_completo ?? '') }}</span>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+      <div class="sig-col">
+        <div class="sig-hdr">RESPONSABLE TICS</div>
+        <div class="sig-body">
+          <span class="sig-line"></span>
+          <div class="sig-sub">Área de Tecnología e Informática</div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- ══ FOOTER ══ -->
-  <div class="footer">
-    <table>
-      <tr>
-        <td class="footer-left">
-          Documento de uso interno
-          <span class="footer-dot"></span>
-          Área de Tecnología e Informática
-        </td>
-        <td class="footer-right">FP-17-02 &nbsp;|&nbsp; Pág. 1 / 1</td>
-      </tr>
-    </table>
-  </div>
+</div>
 
+<!-- ══ FOOTER FIJO ══ -->
+<div class="footer">
+  <table>
+    <tr>
+      <td class="footer-left">
+        Documento de uso interno
+        <span class="footer-dot"></span>
+        Área de Tecnología e Informática
+      </td>
+      <td class="footer-right">FP-17-02 &nbsp;|&nbsp; Pág. 1 / 1</td>
+    </tr>
+  </table>
 </div>
 </body>
 </html>
