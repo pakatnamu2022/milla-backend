@@ -9,6 +9,8 @@ use App\Http\Services\common\EmailService;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
+use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\gestionsistema\Position;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -93,12 +95,26 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
         ? $this->convertToModelClass($data['part_labour_model'])
         : null;
 
+      //Obtenemos al Gerente y Jefe
+      $manager = Worker::working()
+        ->whereIn('cargo_id', Position::POSITION_GERENTE_PV_IDS)
+        ->first();
+
+      $boss = Worker::working()
+        ->whereIn('cargo_id', Position::POSITION_JEFE_PVT_IDS)
+        ->first();
+
+      $data['manager_id'] = $manager?->user->id;
+      $data['boss_id'] = $boss?->user->id;
+
       return DiscountRequestsWorkOrder::create([
         'type' => $data['type'],
         'ap_work_order_id' => $data['ap_work_order_id'],
         'part_labour_id' => $data['part_labour_id'] ?? null,
         'part_labour_model' => $partLabourModel,
-        'manager_id' => auth()->id(),
+        'manager_id' => $data['manager_id'] ?? null,
+        'boss_id' => $data['boss_id'] ?? null,
+        'advisor_id' => auth()->id(),
         'request_date' => now(),
         'requested_discount_percentage' => $data['requested_discount_percentage'],
         'requested_discount_amount' => $data['requested_discount_amount'],
@@ -366,10 +382,12 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
   private function sendApprovalNotification(DiscountRequestsWorkOrder $record): void
   {
     try {
-      $record->loadMissing(['manager', 'apWorkOrder.vehicle', 'reviewer']);
+      $record->loadMissing(['advisor', 'manager', 'boss', 'apWorkOrder.vehicle', 'reviewer']);
 
       $workOrder = $record->apWorkOrder;
-      $requester = $record->manager;
+      $advisor = $record->advisor;
+      $manager = $record->manager;
+      $boss = $record->boss;
       $approver = $record->reviewer;
 
       $itemDetails = $this->getItemDetails($record);
@@ -399,21 +417,35 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
 
       $subject = 'Descuento aprobado — Orden de Trabajo #' . ($workOrder->work_order_number ?? $record->ap_work_order_id);
 
-      // Notificar al solicitante
-      $this->emailService->queue([
-        'to' => $requester?->email2,
-        'subject' => $subject,
-        'template' => 'emails.discount-request-approved',
-        'data' => array_merge($sharedData, ['recipient_name' => $requester?->name ?? 'Usuario']),
-      ]);
+      // Notificar al asesor (quien solicitó el descuento)
+      if ($advisor?->email2) {
+        $this->emailService->queue([
+          'to' => $advisor->email2,
+          'subject' => $subject,
+          'template' => 'emails.discount-request-approved',
+          'data' => array_merge($sharedData, ['recipient_name' => $advisor->name ?? 'Asesor']),
+        ]);
+      }
 
-      // Notificar al aprobador
-      $this->emailService->queue([
-        'to' => $approver?->email2,
-        'subject' => $subject,
-        'template' => 'emails.discount-request-approved',
-        'data' => array_merge($sharedData, ['recipient_name' => $approver?->name ?? 'Gerente']),
-      ]);
+      // Notificar al gerente
+      if ($manager?->email2) {
+        $this->emailService->queue([
+          'to' => $manager->email2,
+          'subject' => $subject,
+          'template' => 'emails.discount-request-approved',
+          'data' => array_merge($sharedData, ['recipient_name' => $manager->name ?? 'Gerente']),
+        ]);
+      }
+
+      // Notificar al jefe
+      if ($boss?->email2) {
+        $this->emailService->queue([
+          'to' => $boss->email2,
+          'subject' => $subject,
+          'template' => 'emails.discount-request-approved',
+          'data' => array_merge($sharedData, ['manager_name' => $boss->name ?? 'Jefe']),
+        ]);
+      }
     } catch (Exception $e) {
       \Log::error('Error al enviar notificación de aprobación de descuento: ' . $e->getMessage());
     }
@@ -422,10 +454,12 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
   private function sendRejectionNotification(DiscountRequestsWorkOrder $record): void
   {
     try {
-      $record->loadMissing(['manager', 'apWorkOrder.vehicle', 'reviewer']);
+      $record->loadMissing(['advisor', 'manager', 'boss', 'apWorkOrder.vehicle', 'reviewer']);
 
       $workOrder = $record->apWorkOrder;
-      $requester = $record->manager;
+      $advisor = $record->advisor;
+      $manager = $record->manager;
+      $boss = $record->boss;
       $rejector = $record->reviewer;
 
       $itemDetails = $this->getItemDetails($record);
@@ -455,21 +489,35 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
 
       $subject = 'Descuento rechazado — Orden de Trabajo #' . ($workOrder->work_order_number ?? $record->ap_work_order_id);
 
-      // Notificar al solicitante
-      $this->emailService->queue([
-        'to' => $requester?->email2,
-        'subject' => $subject,
-        'template' => 'emails.discount-request-rejected',
-        'data' => array_merge($sharedData, ['recipient_name' => $requester?->name ?? 'Usuario']),
-      ]);
+      // Notificar al asesor (quien solicitó el descuento)
+      if ($advisor?->email2) {
+        $this->emailService->queue([
+          'to' => $advisor->email2,
+          'subject' => $subject,
+          'template' => 'emails.discount-request-rejected',
+          'data' => array_merge($sharedData, ['recipient_name' => $advisor->name ?? 'Asesor']),
+        ]);
+      }
 
-      // Notificar al que rechazó
-      $this->emailService->queue([
-        'to' => $rejector?->email2,
-        'subject' => $subject,
-        'template' => 'emails.discount-request-rejected',
-        'data' => array_merge($sharedData, ['recipient_name' => $rejector?->name ?? 'Gerente']),
-      ]);
+      // Notificar al gerente
+      if ($manager?->email2) {
+        $this->emailService->queue([
+          'to' => $manager->email2,
+          'subject' => $subject,
+          'template' => 'emails.discount-request-rejected',
+          'data' => array_merge($sharedData, ['recipient_name' => $manager->name ?? 'Gerente']),
+        ]);
+      }
+
+      // Notificar al jefe
+      if ($boss?->email2) {
+        $this->emailService->queue([
+          'to' => $boss->email2,
+          'subject' => $subject,
+          'template' => 'emails.discount-request-rejected',
+          'data' => array_merge($sharedData, ['recipient_name' => $boss->name ?? 'Jefe']),
+        ]);
+      }
     } catch (Exception $e) {
       \Log::error('Error al enviar notificación de rechazo de descuento: ' . $e->getMessage());
     }
@@ -482,6 +530,7 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
 
       $workOrder = $record->apWorkOrder;
       $manager = $record->manager;
+      $boss = $record->boss;
 
       $itemDetails = $this->getItemDetails($record);
       $originalPrice = $itemDetails['original_price'];
@@ -489,7 +538,7 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
       $discountAmount = (float)$record->requested_discount_amount;
       $finalPrice = $originalPrice - $discountAmount;
 
-      $data = [
+      $sharedData = [
         // Orden de trabajo
         'quotation_number' => $workOrder->work_order_number ?? $record->ap_work_order_id,
         'plate' => $workOrder?->vehicle?->plate,
@@ -516,12 +565,29 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
         'button_url' => config('app.frontend_url') . '/ap/post-venta/taller/orden-trabajo/' . $record->apWorkOrder->id,
       ];
 
+      // Notificar al gerente
       $this->emailService->queue([
         'to' => $manager?->email2,
         'subject' => 'Nueva solicitud de descuento — Orden de Trabajo #' . ($workOrder->work_order_number ?? $record->ap_work_order_id),
         'template' => 'emails.discount-request-notification',
-        'data' => $data,
+        'data' => array_merge($sharedData, [
+          'manager_name' => $manager->name ?? 'Gerente',
+          'requester_name' => auth()->user()->name ?? 'Asesor',
+        ]),
       ]);
+
+      // Notificar al jefe
+      if ($boss?->email2) {
+        $this->emailService->queue([
+          'to' => $boss->email2,
+          'subject' => 'Nueva solicitud de descuento — Orden de Trabajo #' . ($workOrder->work_order_number ?? $record->ap_work_order_id),
+          'template' => 'emails.discount-request-notification',
+          'data' => array_merge($sharedData, [
+            'manager_name' => $boss->name ?? 'Jefe',
+            'requester_name' => auth()->user()->name ?? 'Asesor',
+          ]),
+        ]);
+      }
     } catch (Exception $e) {
       \Log::error('Error al enviar notificación de solicitud de descuento: ' . $e->getMessage());
     }

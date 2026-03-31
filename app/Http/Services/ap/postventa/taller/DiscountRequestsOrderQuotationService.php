@@ -532,7 +532,7 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
           'subject' => $subject,
           'template' => 'emails.discount-request-notification',
           'data' => array_merge($sharedData, [
-            'recipient_name' => $manager->name ?? 'Gerente',
+            'manager_name' => $manager->name ?? 'Gerente',
             'requester_name' => auth()->user()->name ?? 'Asesor',
           ]),
         ]);
@@ -545,7 +545,7 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
           'subject' => $subject,
           'template' => 'emails.discount-request-notification',
           'data' => array_merge($sharedData, [
-            'recipient_name' => $boss->name ?? 'Jefe',
+            'manager_name' => $boss->name ?? 'Jefe',
             'requester_name' => auth()->user()->name ?? 'Asesor',
           ]),
         ]);
