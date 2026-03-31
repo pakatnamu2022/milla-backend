@@ -6,8 +6,12 @@ use App\Http\Resources\ap\postventa\taller\DiscountRequestsOrderQuotationResourc
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
+use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
+use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\gestionsistema\Position;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -79,12 +83,34 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
       }
     }
 
+    //Obtenemos al Gerente y Jefe
+    $apOrderQuotation = ApOrderQuotations::findOrFail($data['ap_order_quotation_id']);
+
+    // Obtener el gerente (cargo 142) - mismo para ambas áreas
+    $manager = Worker::working()
+      ->whereIn('cargo_id', Position::POSITION_GERENTE_PV_IDS)
+      ->first();
+
+    // Obtener el jefe según el área
+    $bossPositionIds = $apOrderQuotation->area_id === ApMasters::AREA_TALLER
+      ? Position::POSITION_JEFE_PVT_IDS  // Taller: cargo 143
+      : Position::POSITION_JEFE_PVR_IDS; // Repuestos: cargo 344
+
+    $boss = Worker::working()
+      ->whereIn('cargo_id', $bossPositionIds)
+      ->first();
+
+    $data['manager_id'] = $manager?->user->id;
+    $data['boss_id'] = $boss?->user->id;
+
     $record = DB::transaction(function () use ($data) {
       return DiscountRequestsOrderQuotation::create([
         'type' => $data['type'],
         'ap_order_quotation_id' => $data['ap_order_quotation_id'] ?? null,
         'ap_order_quotation_detail_id' => $data['ap_order_quotation_detail_id'] ?? null,
-        'manager_id' => auth()->id(),
+        'manager_id' => $data['manager_id'] ?? null,
+        'boss_id' => $data['boss_id'] ?? null,
+        'advisor_id' => auth()->id(),
         'request_date' => now(),
         'requested_discount_percentage' => $data['requested_discount_percentage'],
         'requested_discount_amount' => $data['requested_discount_amount'],
@@ -305,11 +331,13 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
   private function sendApprovalNotification(DiscountRequestsOrderQuotation $record): void
   {
     try {
-      $record->loadMissing(['manager', 'apOrderQuotation.vehicle', 'apOrderQuotationDetail', 'reviewer']);
+      $record->loadMissing(['advisor', 'manager', 'boss', 'apOrderQuotation.vehicle', 'apOrderQuotationDetail', 'reviewer']);
 
       $quotation = $record->apOrderQuotation;
       $detail = $record->apOrderQuotationDetail;
-      $requester = $record->manager;
+      $advisor = $record->advisor;
+      $manager = $record->manager;
+      $boss = $record->boss;
       $approver = $record->reviewer;
 
       if ($record->type === DiscountRequestsOrderQuotation::TYPE_PARTIAL && $detail) {
@@ -326,8 +354,8 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
         'plate' => $quotation?->vehicle?->plate,
         'type' => $record->type,
         'item_type' => $record->item_type,
-        'requester_name' => $requester?->name ?? 'Usuario',
-        'approver_name' => $approver?->name ?? 'Gerente',
+        'requester_name' => $advisor?->name ?? 'Asesor',
+        'approver_name' => $approver?->name ?? 'Aprobador',
         'approval_date' => $record->review_date?->format('d/m/Y H:i'),
         'item_description' => $detail?->description,
         'item_quantity' => $detail?->quantity,
@@ -342,21 +370,35 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
 
       $subject = 'Descuento aprobado — Cotización #' . ($quotation->quotation_number ?? $record->ap_order_quotation_id);
 
-      // Notificar al solicitante
-      $this->emailService->queue([
-        'to' => $requester?->email2,
-        'subject' => $subject,
-        'template' => 'emails.discount-request-approved',
-        'data' => array_merge($sharedData, ['recipient_name' => $requester?->name ?? 'Usuario']),
-      ]);
+      // Notificar al asesor (quien solicitó el descuento)
+      if ($advisor?->email2) {
+        $this->emailService->queue([
+          'to' => $advisor->email2,
+          'subject' => $subject,
+          'template' => 'emails.discount-request-approved',
+          'data' => array_merge($sharedData, ['recipient_name' => $advisor->name ?? 'Asesor']),
+        ]);
+      }
 
-      // Notificar al aprobador
-      $this->emailService->queue([
-        'to' => $approver?->email2,
-        'subject' => $subject,
-        'template' => 'emails.discount-request-approved',
-        'data' => array_merge($sharedData, ['recipient_name' => $approver?->name ?? 'Gerente']),
-      ]);
+      // Notificar al gerente
+      if ($manager?->email2) {
+        $this->emailService->queue([
+          'to' => $manager->email2,
+          'subject' => $subject,
+          'template' => 'emails.discount-request-approved',
+          'data' => array_merge($sharedData, ['recipient_name' => $manager->name ?? 'Gerente']),
+        ]);
+      }
+
+      // Notificar al jefe
+      if ($boss?->email2) {
+        $this->emailService->queue([
+          'to' => $boss->email2,
+          'subject' => $subject,
+          'template' => 'emails.discount-request-approved',
+          'data' => array_merge($sharedData, ['recipient_name' => $boss->name ?? 'Jefe']),
+        ]);
+      }
     } catch (Exception $e) {
       \Log::error('Error al enviar notificación de aprobación de descuento: ' . $e->getMessage());
     }
@@ -365,11 +407,13 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
   private function sendRejectionNotification(DiscountRequestsOrderQuotation $record): void
   {
     try {
-      $record->loadMissing(['manager', 'apOrderQuotation.vehicle', 'apOrderQuotationDetail', 'reviewer']);
+      $record->loadMissing(['advisor', 'manager', 'boss', 'apOrderQuotation.vehicle', 'apOrderQuotationDetail', 'reviewer']);
 
       $quotation = $record->apOrderQuotation;
       $detail = $record->apOrderQuotationDetail;
-      $requester = $record->manager;
+      $advisor = $record->advisor;
+      $manager = $record->manager;
+      $boss = $record->boss;
       $rejector = $record->reviewer;
 
       if ($record->type === DiscountRequestsOrderQuotation::TYPE_PARTIAL && $detail) {
@@ -386,8 +430,8 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
         'plate' => $quotation?->vehicle?->plate,
         'type' => $record->type,
         'item_type' => $record->item_type,
-        'requester_name' => $requester?->name ?? 'Usuario',
-        'rejector_name' => $rejector?->name ?? 'Gerente',
+        'requester_name' => $advisor?->name ?? 'Asesor',
+        'rejector_name' => $rejector?->name ?? 'Rechazador',
         'rejection_date' => $record->review_date?->format('d/m/Y H:i'),
         'item_description' => $detail?->description,
         'item_quantity' => $detail?->quantity,
@@ -402,21 +446,35 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
 
       $subject = 'Descuento rechazado — Cotización #' . ($quotation->quotation_number ?? $record->ap_order_quotation_id);
 
-      // Notificar al solicitante
-      $this->emailService->queue([
-        'to' => $requester?->email2,
-        'subject' => $subject,
-        'template' => 'emails.discount-request-rejected',
-        'data' => array_merge($sharedData, ['recipient_name' => $requester?->name ?? 'Usuario']),
-      ]);
+      // Notificar al asesor (quien solicitó el descuento)
+      if ($advisor?->email2) {
+        $this->emailService->queue([
+          'to' => $advisor->email2,
+          'subject' => $subject,
+          'template' => 'emails.discount-request-rejected',
+          'data' => array_merge($sharedData, ['recipient_name' => $advisor->name ?? 'Asesor']),
+        ]);
+      }
 
-      // Notificar al que rechazó
-      $this->emailService->queue([
-        'to' => $rejector?->email2,
-        'subject' => $subject,
-        'template' => 'emails.discount-request-rejected',
-        'data' => array_merge($sharedData, ['recipient_name' => $rejector?->name ?? 'Gerente']),
-      ]);
+      // Notificar al gerente
+      if ($manager?->email2) {
+        $this->emailService->queue([
+          'to' => $manager->email2,
+          'subject' => $subject,
+          'template' => 'emails.discount-request-rejected',
+          'data' => array_merge($sharedData, ['recipient_name' => $manager->name ?? 'Gerente']),
+        ]);
+      }
+
+      // Notificar al jefe
+      if ($boss?->email2) {
+        $this->emailService->queue([
+          'to' => $boss->email2,
+          'subject' => $subject,
+          'template' => 'emails.discount-request-rejected',
+          'data' => array_merge($sharedData, ['recipient_name' => $boss->name ?? 'Jefe']),
+        ]);
+      }
     } catch (Exception $e) {
       \Log::error('Error al enviar notificación de rechazo de descuento: ' . $e->getMessage());
     }
@@ -425,11 +483,12 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
   private function sendEmailNotification(DiscountRequestsOrderQuotation $record): void
   {
     try {
-      $record->loadMissing(['manager', 'apOrderQuotation.vehicle', 'apOrderQuotationDetail']);
+      $record->loadMissing(['manager', 'boss', 'apOrderQuotation.vehicle', 'apOrderQuotationDetail']);
 
       $quotation = $record->apOrderQuotation;
       $detail = $record->apOrderQuotationDetail;
       $manager = $record->manager;
+      $boss = $record->boss;
 
       // Precio base según tipo de descuento
       if ($record->type === DiscountRequestsOrderQuotation::TYPE_PARTIAL && $detail) {
@@ -441,16 +500,12 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
       $discountAmount = (float)$record->requested_discount_amount;
       $finalPrice = $originalPrice - $discountAmount;
 
-      $data = [
+      $sharedData = [
         // Cotización
         'quotation_number' => $quotation->quotation_number ?? $record->ap_order_quotation_id,
         'plate' => $quotation?->vehicle?->plate,
         'type' => $record->type,
         'item_type' => $record->item_type,
-
-        // Solicitante
-        'manager_name' => $manager?->name ?? 'Gerente',
-        'requester_name' => $manager?->name ?? 'Usuario',
 
         // Ítem (solo PARTIAL)
         'item_description' => $detail?->description,
@@ -468,12 +523,33 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
         'button_url' => config('app.frontend_url') . '/ap/post-venta/repuestos/cotizacion-meson/solicitar-descuento/' . $record->apOrderQuotation->id,
       ];
 
-      $this->emailService->queue([
-        'to' => $manager?->email2,
-        'subject' => 'Nueva solicitud de descuento — Cotización #' . ($quotation->quotation_number ?? $record->ap_order_quotation_id),
-        'template' => 'emails.discount-request-notification',
-        'data' => $data,
-      ]);
+      $subject = 'Nueva solicitud de descuento — Cotización #' . ($quotation->quotation_number ?? $record->ap_order_quotation_id);
+
+      // Notificar al gerente
+      if ($manager?->email2) {
+        $this->emailService->queue([
+          'to' => $manager->email2,
+          'subject' => $subject,
+          'template' => 'emails.discount-request-notification',
+          'data' => array_merge($sharedData, [
+            'manager_name' => $manager->name ?? 'Gerente',
+            'requester_name' => auth()->user()->name ?? 'Asesor',
+          ]),
+        ]);
+      }
+
+      // Notificar al jefe
+      if ($boss?->email2) {
+        $this->emailService->queue([
+          'to' => $boss->email2,
+          'subject' => $subject,
+          'template' => 'emails.discount-request-notification',
+          'data' => array_merge($sharedData, [
+            'manager_name' => $boss->name ?? 'Jefe',
+            'requester_name' => auth()->user()->name ?? 'Asesor',
+          ]),
+        ]);
+      }
     } catch (Exception $e) {
       \Log::error('Error al enviar notificación de solicitud de descuento: ' . $e->getMessage());
     }

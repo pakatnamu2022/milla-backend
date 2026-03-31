@@ -19,6 +19,8 @@ class DiscountRequestsOrderQuotation extends Model
     'ap_order_quotation_id',
     'ap_order_quotation_detail_id',
     'manager_id',
+    'boss_id',
+    'advisor_id',
     'reviewed_by_id',
     'request_date',
     'requested_discount_percentage',
@@ -93,6 +95,16 @@ class DiscountRequestsOrderQuotation extends Model
   public function manager()
   {
     return $this->belongsTo(User::class, 'manager_id');
+  }
+
+  public function boss()
+  {
+    return $this->belongsTo(User::class, 'boss_id');
+  }
+
+  public function advisor()
+  {
+    return $this->belongsTo(User::class, 'advisor_id');
   }
 
   public function reviewer()

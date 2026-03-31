@@ -91,7 +91,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
       ],
       'supply_type' => [
         'nullable',
-        'in:STOCK,LOCAL,LIMA,IMPORTACION,M.O',
+        'in:STOCK,LOCAL,CENTRAL,IMPORTACION,M.O',
       ],
     ];
   }
@@ -125,7 +125,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
 
       'unit_price.required' => 'El precio unitario es obligatorio.',
       'unit_price.numeric' => 'El precio unitario debe ser un número.',
-      'unit_price.min' => 'El precio unitario no puede ser negativo.',
+      'unit_price.min' => 'El precio unitario no puede ser cero o negativo.',
 
       'discount_percentage.numeric' => 'El porcentaje de descuento debe ser un número.',
       'discount_percentage.min' => 'El porcentaje de descuento no puede ser negativo.',
@@ -135,7 +135,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
       'total_amount.numeric' => 'El monto total debe ser un número.',
       'total_amount.min' => 'El monto total no puede ser negativo.',
 
-      'supply_type.in' => 'El tipo de suministro debe ser LOCAL, LIMA, IMPORTACION o M.O.',
+      'supply_type.in' => 'El tipo de suministro debe ser LOCAL, CENTRAL, IMPORTACION o M.O.',
 
       'observations.string' => 'Las observaciones deben ser una cadena de texto.',
 
@@ -176,7 +176,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
             'El producto seleccionado no tiene stock disponible en ninguna sede. Para tipo de suministro STOCK, el producto debe tener stock disponible.'
           );
         }
-      } elseif (in_array($supplyType, ['LIMA', 'IMPORTACION'])) {
+      } elseif (in_array($supplyType, ['CENTRAL', 'IMPORTACION'])) {
         // Validar que el producto NO tenga stock (debe ser 0)
         $totalStock = ProductWarehouseStock::where('product_id', $productId)
           ->sum('quantity');

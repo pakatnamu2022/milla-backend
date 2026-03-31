@@ -2237,16 +2237,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('No se puede facturar una OT que aún no ha sido finalizado su trabajo.');
     }
 
-    // Validate that if there are labours, at least one must have worker_id assigned and not be deleted
-//    if ($workOrder->labours && $workOrder->labours->count() > 0) {
-//      $laboursWithWorker = $workOrder->plannings->filter(function ($labour) {
-//        return $labour->worker_id !== null && $labour->deleted_at === null;
-//      });
-//
-//      if ($laboursWithWorker->count() === 0 && !$isAdvancePayment && $validateLabor) {
-//        throw new Exception('La orden de trabajo debe tener al menos una mano de obra con trabajador asignado.');
-//      }
-//    }
     if (!$isAdvancePayment && $validateLabor) {
       $laboursWithWorker = $workOrder->plannings->filter(function ($labour) {
         return $labour->worker_id !== null && $labour->deleted_at === null;
@@ -2556,7 +2546,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Intentar buscar como labour
       $labour = $labours->get($itemId);
       if ($labour) {
-        $item['codigo'] = $labourCode;
+        $descripcionNormalizada = trim(strtolower($labour->description ?? ''));
+
+        if ($descripcionNormalizada === 'materiales') {
+          $materialsCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_MATERIAL_ID)?->code ?? 'V0000012';
+          $item['codigo'] = $materialsCode;
+        } else {
+          $item['codigo'] = $labourCode;
+        }
       }
     }
   }

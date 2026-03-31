@@ -42,6 +42,7 @@ class ApAccountingAccountPlan extends Model
   const int TYPE_DEBIT_NOTE = 2;
 
   const LABOUR_ACCOUNT_ID = 24;
+  const LABOUR_ACCOUNT_MATERIAL_ID = 25;
 
   public function setAccountAttribute($value)
   {

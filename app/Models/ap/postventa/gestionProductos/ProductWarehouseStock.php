@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\postventa\gestionProductos;
 
+use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\Warehouse;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -167,5 +168,89 @@ class ProductWarehouseStock extends Model
     }
     $this->updateAvailableQuantity();
     $this->save();
+  }
+
+  public static function validatePublicSalePrice(int $productId, int $sedeId, float $unitPrice): array
+  {
+    // Obtener el warehouse físico de postventa para la sede
+    $warehouse = Warehouse::where('sede_id', $sedeId)
+      ->where('is_physical_warehouse', true)
+      ->where('type_operation_id', ApMasters::TIPO_OPERACION_POSTVENTA)
+      ->where('status', true)
+      ->first();
+
+    // Buscar el producto en el almacén de la sede
+    $stockInSedeWarehouse = $warehouse
+      ? self::where('product_id', $productId)
+        ->where('warehouse_id', $warehouse->id)
+        ->first()
+      : null;
+
+    // Si existe en el almacén de la sede, validar con ese precio
+    if ($stockInSedeWarehouse) {
+      $salePrice = $stockInSedeWarehouse->sale_price;
+
+      // Si sale_price es 0 o null, buscar en otros almacenes
+      if (!$salePrice || $salePrice == 0) {
+        // Buscar en otros almacenes con precio válido
+        $stocksInOtherWarehouses = self::where('product_id', $productId)
+          ->where('sale_price', '>', 0)
+          ->get();
+
+        // Si no existe en ningún otro almacén con precio, no validar
+        if ($stocksInOtherWarehouses->isEmpty()) {
+          return ['valid' => true, 'message' => null, 'sale_price' => null];
+        }
+
+        // Obtener el precio menor de todos los almacenes
+        $minSalePrice = $stocksInOtherWarehouses->min('sale_price');
+
+        // Validar que unit_price no sea menor al precio menor
+        if ($unitPrice < $minSalePrice) {
+          return [
+            'valid' => false,
+            'message' => "El precio unitario ({$unitPrice}) no puede ser menor al precio de venta mínimo registrado ({$minSalePrice})",
+            'sale_price' => $minSalePrice
+          ];
+        }
+
+        return ['valid' => true, 'message' => null, 'sale_price' => $minSalePrice];
+      }
+
+      // Validar que unit_price no sea menor a sale_price
+      if ($unitPrice < $salePrice) {
+        return [
+          'valid' => false,
+          'message' => "El precio unitario ({$unitPrice}) no puede ser menor al precio de venta registrado ({$salePrice})",
+          'sale_price' => $salePrice
+        ];
+      }
+
+      return ['valid' => true, 'message' => null, 'sale_price' => $salePrice];
+    }
+
+    // Si no existe en el almacén de la sede, buscar en otros almacenes
+    $stocksInOtherWarehouses = self::where('product_id', $productId)
+      ->where('sale_price', '>', 0) // Solo almacenes con precio registrado
+      ->get();
+
+    // Si no existe en ningún almacén, no validar (como si fuera 0)
+    if ($stocksInOtherWarehouses->isEmpty()) {
+      return ['valid' => true, 'message' => null, 'sale_price' => null];
+    }
+
+    // Obtener el precio menor de todos los almacenes
+    $minSalePrice = $stocksInOtherWarehouses->min('sale_price');
+
+    // Validar que unit_price no sea menor al precio menor
+    if ($unitPrice < $minSalePrice) {
+      return [
+        'valid' => false,
+        'message' => "El precio unitario ({$unitPrice}) no puede ser menor al precio de venta mínimo registrado ({$minSalePrice})",
+        'sale_price' => $minSalePrice
+      ];
+    }
+
+    return ['valid' => true, 'message' => null, 'sale_price' => $minSalePrice];
   }
 }

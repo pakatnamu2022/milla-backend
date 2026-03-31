@@ -19,6 +19,8 @@ class DiscountRequestsWorkOrder extends Model
   protected $fillable = [
     'ap_work_order_id',
     'manager_id',
+    'boss_id',
+    'advisor_id',
     'reviewed_by_id',
     'part_labour_id',
     'part_labour_model',
@@ -93,6 +95,16 @@ class DiscountRequestsWorkOrder extends Model
   public function manager()
   {
     return $this->belongsTo(User::class, 'manager_id');
+  }
+
+  public function boss()
+  {
+    return $this->belongsTo(User::class, 'boss_id');
+  }
+
+  public function advisor()
+  {
+    return $this->belongsTo(User::class, 'advisor_id');
   }
 
   public function reviewer()

@@ -11,6 +11,7 @@ use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\maestroGeneral\Sede;
@@ -158,6 +159,25 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       if (auth()->check()) {
         $data['created_by'] = auth()->user()->id;
+      }
+
+      // Validar precios de venta al público para cada producto en details
+      foreach ($data['details'] as $index => $detail) {
+        $productId = $detail['product_id'];
+        $unitPrice = $detail['unit_price'];
+        $sedeId = $data['sede_id'];
+
+        $validation = ProductWarehouseStock::validatePublicSalePrice(
+          $productId,
+          $sedeId,
+          $unitPrice
+        );
+
+        if (!$validation['valid']) {
+          throw new Exception(
+            "Producto ({$detail['description']}): {$validation['message']}"
+          );
+        }
       }
 
       // Calculate validity days
@@ -323,6 +343,25 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // Validar cambio de moneda si existen pagos registrados
       if ($quotation->has_invoice_generated && $quotation->currency_id !== $data['currency_id']) {
         throw new Exception('No se puede cambiar el tipo de moneda porque ya existen pagos registrados para esta cotización.');
+      }
+
+      // Validar precios de venta al público para cada producto en details
+      foreach ($data['details'] as $index => $detail) {
+        $productId = $detail['product_id'];
+        $unitPrice = $detail['unit_price'];
+        $sedeId = $data['sede_id'];
+
+        $validation = ProductWarehouseStock::validatePublicSalePrice(
+          $productId,
+          $sedeId,
+          $unitPrice
+        );
+
+        if (!$validation['valid']) {
+          throw new Exception(
+            "Producto #{$productId} ({$detail['description']}): {$validation['message']}"
+          );
+        }
       }
 
       // Calculate validity days
@@ -671,8 +710,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'observations' => $quotation->observations ?? '',
       'validity_days' => $quotation->validity_days,
       'show_codes' => $showCodes,
-      'sede_name' => $quotation->sede ? $quotation->sede->abreviatura : 'N/A',
+      'sede' => $quotation->sede,
       'type_currency' => $quotation->typeCurrency,
+      'supply_type' => $quotation->supply_type,
+      'status' => $quotation->status,
     ];
 
     // Datos del cliente
@@ -722,11 +763,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       return [
         'code' => $showCodes && $detail->product ? $detail->product->code : '',
         'description' => $detail->description,
+        'unit_measure' => $detail->unit_measure,
         'observations' => $detail->observations ?? '',
         'quantity' => $detail->quantity,
         'unit_price' => $detail->unit_price,
         'discount' => $detail->discount_percentage,
         'total_amount' => $detail->total_amount,
+        'total_amount_with_tax' => round($detail->total_amount * (1 + Constants::VAT_TAX / 100), 2),
         'item_type' => $detail->item_type,
       ];
     });
@@ -835,7 +878,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Validar aprobación de jefe
       if (isset($data['chief_approval_by'])) {
-        if (!in_array($positionId, Position::POSITION_JEFE_PV_IDS)) {
+        if (!in_array($positionId, Position::POSITION_JEFE_PVT_IDS)) {
           throw new Exception('Solo los Jefes de Taller pueden aprobar.');
         }
         if ($quotation->chief_approval_by) {
@@ -913,7 +956,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Obtener usuarios con cargo de Jefe de Taller (143) y Gerente de Taller (142)
       $chiefUsers = User::whereHas('person', function ($query) {
-        $query->whereIn('cargo_id', Position::POSITION_JEFE_PV_IDS)
+        $query->whereIn('cargo_id', Position::POSITION_JEFE_PVT_IDS)
           ->where('status_deleted', 1)
           ->where('status_id', 22);
       })->get();

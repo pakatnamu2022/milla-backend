@@ -346,6 +346,7 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       'apOrderQuotation.createdBy.person',
       'apOrderQuotation.vehicle.model.family.brand',
       'warehouse',
+      'warehouse.sede',
       'requestedBy.person',
       'details.product'
     ])->find($id);
@@ -364,7 +365,10 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       'delivery_date' => '-',
       'work_order_number' => '-',
       'has_quotation' => $hasQuotation,
+      'sede' => $purchaseRequest->warehouse->sede,
     ];
+
+    \Log::info(json_encode($data));
 
     // Datos del proveedor/cliente
     if ($hasQuotation && $quotation->client) {
