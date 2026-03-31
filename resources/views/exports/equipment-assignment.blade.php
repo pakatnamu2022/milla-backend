@@ -519,6 +519,52 @@
     </div>
   </div>
 
+  <!-- ══ POLÍTICA CELULAR ══ -->
+  @php
+    $hasAndroid = $assignment->items->contains(fn($item) =>
+      str_contains(strtoupper($item->equipment?->equipmentType?->name ?? ''), 'CELULAR') ||
+      str_contains(strtoupper($item->equipment?->equipmentType?->name ?? ''), 'ANDROID') ||
+      str_contains(strtoupper($item->equipment?->equipmentType?->name ?? ''), 'SMARTPHONE')
+    );
+  @endphp
+  @if($hasAndroid)
+  <div class="card">
+    <div class="card-title">Política de Descuento por Pérdida o Daño de Equipo Celular</div>
+    <div class="decl-section">
+      <div class="decl-text" style="margin-bottom:8px;">
+        En caso de pérdida o daño del equipo celular asignado (ANDROID), se aplicará el siguiente descuento proporcional
+        según el tiempo de uso desde la fecha de entrega:
+      </div>
+      <table style="width:60%; border-collapse:collapse; font-size:10px; margin: 0 auto 4px;">
+        <thead>
+          <tr>
+            <th style="background:#e0e0e0; color:#22293a; font-weight:bold; padding:4px 12px; border:1px solid #d2d2d2; text-align:left;">Tiempo de uso</th>
+            <th style="background:#e0e0e0; color:#22293a; font-weight:bold; padding:4px 12px; border:1px solid #d2d2d2; text-align:center;">Descuento aplicable (S/.)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:4px 12px; border:1px solid #e8e8e8;">De 1 a 6 meses</td>
+            <td style="padding:4px 12px; border:1px solid #e8e8e8; text-align:center; font-weight:bold;">S/ 350.00</td>
+          </tr>
+          <tr style="background:#fcfcfc;">
+            <td style="padding:4px 12px; border:1px solid #e8e8e8;">De 6 a 12 meses</td>
+            <td style="padding:4px 12px; border:1px solid #e8e8e8; text-align:center; font-weight:bold;">S/ 300.00</td>
+          </tr>
+          <tr>
+            <td style="padding:4px 12px; border:1px solid #e8e8e8;">De 12 a 18 meses</td>
+            <td style="padding:4px 12px; border:1px solid #e8e8e8; text-align:center; font-weight:bold;">S/ 250.00</td>
+          </tr>
+          <tr style="background:#fcfcfc;">
+            <td style="padding:4px 12px; border:1px solid #e8e8e8;">De 18 meses a más</td>
+            <td style="padding:4px 12px; border:1px solid #e8e8e8; text-align:center; font-weight:bold;">S/ 200.00</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  @endif
+
   <!-- ══ FIRMAS ══ -->
   <div class="card">
     <div class="card-title">Firmas de Conformidad</div>
