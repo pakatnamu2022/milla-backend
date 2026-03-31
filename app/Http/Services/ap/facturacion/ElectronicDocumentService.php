@@ -2245,10 +2245,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if ($laboursWithWorker->count() === 0) {
         throw new Exception('La orden de trabajo debe tener al menos una mano de obra con trabajador asignado.');
       }
-
-      if ($workOrder->status_id == ApMasters::FINISHED_WORK_ORDER_ID) {
-        throw new Exception('No se puede facturar una OT que ha sido finalizada sin validar su trabajo. Por favor, revise la OT y asegúrese de que todas las manos de obra estén correctamente registradas y asignadas antes de facturar.');
-      }
     }
 
     // Calculate work order total using centralized method (includes labour, parts, discount, and tax)
@@ -2550,7 +2546,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Intentar buscar como labour
       $labour = $labours->get($itemId);
       if ($labour) {
-        $item['codigo'] = $labourCode;
+        $descripcionNormalizada = trim(strtolower($labour->description ?? ''));
+
+        if ($descripcionNormalizada === 'materiales') {
+          $materialsCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_MATERIAL_ID)?->code ?? 'V0000012';
+          $item['codigo'] = $materialsCode;
+        } else {
+          $item['codigo'] = $labourCode;
+        }
       }
     }
   }
