@@ -202,4 +202,12 @@ class Worker extends BaseModel
     }
     return in_array($code, $allowedCodes);
   }
+
+  /**
+   * Relación con la firma del trabajador
+   */
+  public function signature()
+  {
+    return $this->hasOne(WorkerSignature::class, 'worker_id', 'id');
+  }
 }
