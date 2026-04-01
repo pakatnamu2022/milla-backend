@@ -459,57 +459,57 @@
 
   <!-- Totales (Derecha) -->
   <div style="display: table-cell; width: 50%; vertical-align: top; padding-left: 10px;">
-    <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+    <table style="width: 40%; border-collapse: collapse; font-size: 9px;border: 1px solid #000; float: right;">
       <tr>
-        <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">Subtotal:</td>
-        <td style="text-align: right; padding: 5px; border: 1px solid #000;">
+        <td style="font-weight: bold; text-align: right; padding: 5px 2px; border: none;">Subtotal:</td>
+        <td style="text-align: right; padding: 5px 2px; border: none;">
           {{$quotation['type_currency']->symbol}} {{ number_format($quotation['subtotal'], 2) }}
         </td>
       </tr>
       <tr>
-        <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">Total Dtos.:</td>
-        <td style="text-align: right; padding: 5px; border: 1px solid #000;">
+        <td style="font-weight: bold; text-align: right; padding: 5px 2px; border: none;">Total Dtos.:</td>
+        <td style="text-align: right; padding: 5px 2px; border: none;">
           {{$quotation['type_currency']->symbol}} {{ number_format($quotation['total_discounts'], 2) }}
         </td>
       </tr>
       <tr>
-        <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">OP. Gravadas:</td>
-        <td style="text-align: right; padding: 5px; border: 1px solid #000;">
+        <td style="font-weight: bold; text-align: right; padding: 5px 2px; border: none;">OP. Gravadas:</td>
+        <td style="text-align: right; padding: 5px 2px; border: none;">
           {{$quotation['type_currency']->symbol}} {{ number_format($quotation['op_gravada'], 2) }}
         </td>
       </tr>
       <tr>
-        <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">IGV 18%:</td>
-        <td style="text-align: right; padding: 5px; border: 1px solid #000;">
+        <td style="font-weight: bold; text-align: right; padding: 5px 2px; border: none;">IGV 18%:</td>
+        <td style="text-align: right; padding: 5px 2px; border: none;">
           {{$quotation['type_currency']->symbol}} {{ number_format($quotation['tax_amount'], 2) }}
         </td>
       </tr>
       <tr>
         <td
-          style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000; background-color: #f0f0f0;">
+          style="font-weight: bold; text-align: right; padding: 5px 2px; border: none; background-color: #f0f0f0;">
           Total:
         </td>
         <td
-          style="text-align: right; padding: 5px; border: 1px solid #000; background-color: #f0f0f0; font-weight: bold;">
+          style="text-align: right; padding: 5px 2px; border: none; background-color: #f0f0f0; font-weight: bold;">
           {{$quotation['type_currency']->code}} {{ number_format($quotation['total_amount'], 2) }}
         </td>
       </tr>
       @if($quotation['total_pagado'] > 0)
         <tr>
-          <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">
+          <td style="font-weight: bold; text-align: left; padding: 5px 2px; border: 1px solid #000;">
             A Cuenta:
           </td>
-          <td style="text-align: right; padding: 5px; border: 1px solid #000;">
+          <td style="text-align: right; padding: 5px 2px; border: 1px solid #000;">
             {{$quotation['type_currency']->code}} {{ number_format($quotation['total_pagado'], 2) }}
           </td>
         </tr>
         <tr>
           <td
-            style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000; background-color: #f0f0f0;">
+            style="font-weight: bold; text-align: left; padding: 5px 2px; border: 1px solid #000; background-color: #f0f0f0;">
             Saldo Pendiente:
           </td>
           <td
-            style="text-align: right; padding: 5px; border: 1px solid #000; background-color: #f0f0f0; font-weight: bold;">
+            style="text-align: right; padding: 5px 2px; border: 1px solid #000; background-color: #f0f0f0; font-weight: bold;">
             {{$quotation['type_currency']->code}} {{ number_format($quotation['saldo_pendiente'], 2) }}
           </td>
         </tr>
