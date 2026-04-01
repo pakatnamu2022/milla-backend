@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\postventa\taller;
 
 use App\Http\Resources\ap\postventa\taller\ApWorkOrderPartsResource;
+use App\Http\Resources\ap\postventa\taller\ApWorkOrderPartDeliveryResource;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
 use App\Http\Services\BaseService;
@@ -16,6 +17,8 @@ use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
+use App\Models\ap\postventa\taller\ApWorkOrderPartDelivery;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -508,5 +511,216 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         'parts' => ApWorkOrderPartsResource::collection($createdParts)
       ];
     });
+  }
+
+  /**
+   * Asignar repuesto a técnico
+   * Crea un registro de entrega con la cantidad especificada
+   * Valida que no se exceda la cantidad disponible
+   */
+  public function assignToTechnician(int $workOrderPartId, array $data)
+  {
+    return DB::transaction(function () use ($workOrderPartId, $data) {
+      $workOrderPart = $this->find($workOrderPartId);
+
+      $deliveredQuantity = $data['delivered_quantity'];
+      $deliveredTo = Worker::find($data['delivered_to'])->user->id;
+
+      // Calcular cantidad ya asignada
+      $totalAssigned = $workOrderPart->assigned_quantity ?? 0;
+
+      // Validar que no exceda la cantidad total
+      $newTotalAssigned = $totalAssigned + $deliveredQuantity;
+      if ($newTotalAssigned > $workOrderPart->quantity_used) {
+        throw new Exception(
+          "La cantidad a asignar excede la cantidad disponible. Disponible: " . ($workOrderPart->quantity_used - $totalAssigned) .
+          ", Solicitado: {$deliveredQuantity}"
+        );
+      }
+
+      // Crear registro de entrega
+      $delivery = ApWorkOrderPartDelivery::create([
+        'work_order_part_id' => $workOrderPartId,
+        'delivered_to' => $deliveredTo,
+        'delivered_quantity' => $deliveredQuantity,
+        'delivered_date' => now(),
+        'delivered_by' => auth()->check() ? auth()->user()->id : null,
+        'is_received' => false,
+      ]);
+
+      // Actualizar cantidad asignada en el repuesto
+      $workOrderPart->assigned_quantity = $newTotalAssigned;
+      $workOrderPart->save();
+
+      return [
+        'message' => 'Repuesto asignado correctamente al técnico',
+        'delivery' => $delivery->load(['deliveredToUser', 'deliveredByUser']),
+        'work_order_part' => new ApWorkOrderPartsResource($workOrderPart->load(['workOrder', 'product', 'warehouse', 'deliveries']))
+      ];
+    });
+  }
+
+  /**
+   * Confirmar recepción de repuestos
+   * El técnico confirma que recibió los repuestos
+   * Puede incluir firma digital del que recibe y la firma del worker del usuario logueado
+   */
+  public function confirmReceipt(array $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $deliveryIds = $data['delivery_ids'];
+
+      $deliveries = ApWorkOrderPartDelivery::whereIn('id', $deliveryIds)->get();
+      if ($deliveries->count() !== count($deliveryIds)) {
+        throw new Exception('Uno o más registros de entrega no existen');
+      }
+
+      $workOrderPartIds = $deliveries->pluck('work_order_part_id')->unique()->values();
+      $workOrderParts = ApWorkOrderParts::with(['workOrder', 'product', 'warehouse', 'deliveries'])
+        ->whereIn('id', $workOrderPartIds)
+        ->get();
+
+      // Obtener usuario logueado
+      $currentUser = auth()->user();
+      if (!$currentUser) {
+        throw new Exception('Usuario no autenticado');
+      }
+
+      // Obtener firma del worker del usuario logueado
+      $workerSignatureUrl = null;
+      if ($currentUser->person && $currentUser->person->signature) {
+        $workerSignatureUrl = $currentUser->person->signature->signature_url;
+      }
+
+      $confirmedDeliveries = [];
+      $errors = [];
+
+      foreach ($deliveryIds as $deliveryId) {
+        // Buscar el registro de entrega
+        $delivery = $deliveries->firstWhere('id', $deliveryId);
+
+        if (!$delivery) {
+          $errors[] = "Registro de entrega ID {$deliveryId} no encontrado";
+          continue;
+        }
+
+        if ($delivery->is_received) {
+          $errors[] = "La entrega ID {$deliveryId} ya ha sido confirmada";
+          continue;
+        }
+
+        // Actualizar datos de recepción
+        $delivery->is_received = true;
+        $delivery->received_date = now();
+        $delivery->received_signature_url = $workerSignatureUrl;
+        $delivery->received_by = $currentUser->id;
+        $delivery->save();
+
+        $confirmedDeliveries[] = $delivery->load(['deliveredToUser', 'deliveredByUser', 'receivedByUser']);
+      }
+
+      if (!empty($errors)) {
+        throw new Exception('Errores al confirmar entregas: ' . implode(', ', $errors));
+      }
+
+      return [
+        'message' => 'Recepciones confirmadas correctamente',
+        'confirmed_count' => count($confirmedDeliveries),
+        'deliveries' => $confirmedDeliveries,
+        'work_order_parts' => ApWorkOrderPartsResource::collection($workOrderParts)
+      ];
+    });
+  }
+
+  /**
+   * Obtener todas las asignaciones de repuestos de una orden de trabajo
+   * Lista los técnicos a los que se han asignado repuestos
+   */
+  public function getAssignmentsByWorkOrder(int $workOrderId)
+  {
+    // Validar que la orden de trabajo existe
+    $workOrder = ApWorkOrder::find($workOrderId);
+    if (!$workOrder) {
+      throw new Exception('Orden de trabajo no encontrada');
+    }
+
+    // Obtener todos los repuestos de la orden de trabajo con sus entregas
+    $workOrderParts = ApWorkOrderParts::with([
+      'product',
+      'warehouse',
+      'deliveries.deliveredToUser.person',
+      'deliveries.deliveredByUser',
+      'deliveries.receivedByUser'
+    ])
+      ->where('work_order_id', $workOrderId)
+      ->get();
+
+    // Formatear los datos para mostrar las asignaciones
+    $assignments = [];
+
+    foreach ($workOrderParts as $part) {
+      foreach ($part->deliveries as $delivery) {
+        $assignments[] = [
+          'delivery_id' => $delivery->id,
+          'work_order_part_id' => $part->id,
+          'product' => [
+            'id' => $part->product->id,
+            'code' => $part->product->code,
+            'name' => $part->product->name,
+          ],
+          'warehouse' => [
+            'id' => $part->warehouse->id,
+            'name' => $part->warehouse->name,
+          ],
+          'technician' => [
+            'id' => $delivery->deliveredToUser->id,
+            'name' => $delivery->deliveredToUser->name,
+            'worker_id' => $delivery->deliveredToUser->person->id ?? null,
+          ],
+          'delivered_quantity' => $delivery->delivered_quantity,
+          'delivered_date' => $delivery->delivered_date,
+          'delivered_by' => $delivery->deliveredByUser ? [
+            'id' => $delivery->deliveredByUser->id,
+            'name' => $delivery->deliveredByUser->name,
+          ] : null,
+          'is_received' => $delivery->is_received,
+          'received_date' => $delivery->received_date,
+          'received_by' => $delivery->receivedByUser ? [
+            'id' => $delivery->receivedByUser->id,
+            'name' => $delivery->receivedByUser->name,
+          ] : null,
+          'received_signature_url' => $delivery->received_signature_url,
+        ];
+      }
+    }
+
+    return [
+      'work_order_id' => $workOrderId,
+      'total_assignments' => count($assignments),
+      'assignments' => $assignments
+    ];
+  }
+
+  /**
+   * Obtener las entregas de un repuesto de orden de trabajo
+   */
+  public function getDeliveriesByWorkOrderPart(int $workOrderPartId)
+  {
+    $workOrderPart = $this->find($workOrderPartId);
+
+    if (!$workOrderPart) {
+      throw new Exception('Repuesto de orden de trabajo no encontrado');
+    }
+
+    $deliveries = ApWorkOrderPartDelivery::with([
+      'deliveredToUser.person',
+      'deliveredByUser',
+      'receivedByUser',
+    ])
+      ->where('work_order_part_id', $workOrderPartId)
+      ->orderBy('id', 'desc')
+      ->get();
+
+    return ApWorkOrderPartDeliveryResource::collection($deliveries);
   }
 }

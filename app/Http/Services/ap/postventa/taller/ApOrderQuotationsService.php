@@ -723,6 +723,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $data['customer_district'] = $quotation->client->district ? $quotation->client->district->name : 'N/A';
     $data['customer_email'] = $quotation->client->email ?? 'N/A';
     $data['customer_phone'] = $quotation->client->phone ?? 'N/A';
+    $data['customer_activity'] = $quotation->client->activityEconomic->description ?? 'N/A';
 
     // Datos del asesor
     if ($quotation->createdBy) {

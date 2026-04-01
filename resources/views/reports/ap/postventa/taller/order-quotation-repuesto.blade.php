@@ -106,12 +106,12 @@
       padding: 5px;
       font-size: 9px;
       vertical-align: top;
-      border: 1px solid #000;
+      border: none;
     }
 
     .section-header {
-      background-color: #172e66;
-      color: white;
+      background-color: #8b8b8b;
+      color: black;
       font-weight: bold;
       font-size: 10px;
       padding: 5px;
@@ -121,7 +121,7 @@
 
     .label-cell {
       font-weight: bold;
-      width: 25%;
+      width: 10%;
     }
 
     table.details-table {
@@ -131,8 +131,8 @@
     }
 
     table.details-table th {
-      background-color: #172e66;
-      color: white;
+      background-color: #8b8b8b;
+      color: black;
       font-weight: bold;
       font-size: 9px;
       padding: 5px 3px;
@@ -274,7 +274,7 @@
     <td class="label-cell">RUC/DNI:</td>
     <td style="width: 40%;">{{ $quotation['customer_document'] }}</td>
     <td class="label-cell">Actividad:</td>
-    <td>{{ $quotation['customer_address'] }}</td>
+    <td>{{ $quotation['customer_activity'] }}</td>
   </tr>
   <tr>
     <td class="label-cell">Correo:</td>
@@ -358,7 +358,7 @@
     @if(isset($quotation['vehicle_plate']) && $quotation['vehicle_plate'] && $quotation['vehicle_plate'] !== 'N/A')
       <!-- Datos del Vehículo (Izquierda) -->
       <div style="display: table-cell; width: 50%; vertical-align: top; padding-right: 10px;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 9px; border: 1px solid #000;">
           <tr>
             <td colspan="4"
                 style="font-weight: bold; padding: 5px; border: 1px solid #000;">
@@ -366,23 +366,23 @@
             </td>
           </tr>
           <tr>
-            <td colspan="1" style="font-weight: bold; width: 30%; padding: 5px; border: 1px solid #000;">Placa:</td>
-            <td colspan="1" style="padding: 5px; border: 1px solid #000;">{{ $quotation['vehicle_plate'] }}</td>
-            <td colspan="1" style="font-weight: bold; padding: 5px; border: 1px solid #000;">Nº Chasis:</td>
-            <td colspan="1" style="padding: 5px; border: 1px solid #000;">{{ $quotation['vehicle_vin'] }}</td>
+            <td colspan="1" style="font-weight: bold; width: 15%; padding: 5px; border: none;">Placa:</td>
+            <td colspan="1" style="padding: 5px; border: none;">{{ $quotation['vehicle_plate'] }}</td>
+            <td colspan="1" style="font-weight: bold; padding: 5px; border: none;">Nº Chasis:</td>
+            <td colspan="1" style="padding: 5px; border: none;">{{ $quotation['vehicle_vin'] }}</td>
           </tr>
           <tr>
-            <td colspan="1" style="font-weight: bold; padding: 5px; border: 1px solid #000;">Nº Motor:</td>
-            <td colspan="3" style="padding: 5px; border: 1px solid #000;">{{ $quotation['vehicle_engine'] }}</td>
+            <td colspan="1" style="font-weight: bold; padding: 5px; border: none;">Nº Motor:</td>
+            <td colspan="3" style="padding: 5px; border: none;">{{ $quotation['vehicle_engine'] }}</td>
           </tr>
           <tr>
-            <td colspan="1" style="font-weight: bold; padding: 5px; border: 1px solid #000;">Modelo:</td>
+            <td colspan="1" style="font-weight: bold; padding: 5px; border: none;">Modelo:</td>
             <td colspan="3"
-                style="padding: 5px; border: 1px solid #000;">{{ $quotation['vehicle_brand'] }} {{ $quotation['vehicle_model'] }}</td>
+                style="padding: 5px; border: none;">{{ $quotation['vehicle_brand'] }} {{ $quotation['vehicle_model'] }}</td>
           </tr>
           <tr>
-            <td colspan="1" style="font-weight: bold; padding: 5px; border: 1px solid #000;">Color:</td>
-            <td colspan="3" style="padding: 5px; border: 1px solid #000;">{{ $quotation['vehicle_color'] }}</td>
+            <td colspan="1" style="font-weight: bold; padding: 5px; border: none;">Color:</td>
+            <td colspan="3" style="padding: 5px; border: none;">{{ $quotation['vehicle_color'] }}</td>
           </tr>
         </table>
       </div>

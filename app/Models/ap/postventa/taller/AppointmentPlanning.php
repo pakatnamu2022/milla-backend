@@ -87,7 +87,7 @@ class AppointmentPlanning extends Model
 
   public function typePlanning()
   {
-    return $this->belongsTo(ApMasters::class, 'type_planning_id');
+    return $this->belongsTo(TypePlanningWorkOrder::class, 'type_planning_id');
   }
 
   public function vehicle()
