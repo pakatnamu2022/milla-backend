@@ -53,16 +53,19 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
 
       $sedeId = ApOrderQuotations::findOrFail($data['order_quotation_id'])->sede_id;
 
-      $validation = ProductWarehouseStock::validatePublicSalePrice(
-        $data['product_id'],
-        $sedeId,
-        $data['unit_price']
-      );
-
-      if (!$validation['valid']) {
-        throw new Exception(
-          "Producto ({$data['description']}): {$validation['message']}"
+      // Only validate price for products, not for labor
+      if (isset($data['item_type']) && $data['item_type'] === 'PRODUCT' && isset($data['product_id'])) {
+        $validation = ProductWarehouseStock::validatePublicSalePrice(
+          $data['product_id'],
+          $sedeId,
+          $data['unit_price']
         );
+
+        if (!$validation['valid']) {
+          throw new Exception(
+            "Producto ({$data['description']}): {$validation['message']}"
+          );
+        }
       }
 
       // Set created_at
