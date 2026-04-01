@@ -4,6 +4,7 @@ namespace App\Http\Controllers\gp\tics;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\tics\IndexPhoneLineWorkerRequest;
+use App\Http\Requests\gp\tics\LinkEquipmentToPhoneLineWorkerRequest;
 use App\Http\Requests\gp\tics\StorePhoneLineWorkerRequest;
 use App\Http\Requests\gp\tics\UnassignPhoneLineWorkerRequest;
 use App\Http\Requests\gp\tics\UpdatePhoneLineWorkerRequest;
@@ -79,6 +80,17 @@ class PhoneLineWorkerController extends Controller
   {
     try {
       return $this->success($this->service->unassign($id, $request->validated()));
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function linkEquipment(LinkEquipmentToPhoneLineWorkerRequest $request, $id)
+  {
+    try {
+      return $this->success(
+        $this->service->linkEquipment($id, $request->validated()['equipo_id'] ?? null)
+      );
     } catch (Throwable $e) {
       return $this->error($e->getMessage());
     }

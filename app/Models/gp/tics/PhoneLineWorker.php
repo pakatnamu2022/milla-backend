@@ -4,6 +4,7 @@ namespace App\Models\gp\tics;
 
 use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\tics\Equipment;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PhoneLineWorker extends BaseModel
@@ -15,6 +16,7 @@ class PhoneLineWorker extends BaseModel
   protected $fillable = [
     'phone_line_id',
     'worker_id',
+    'equipo_id',
     'assigned_at',
     'active',
     'unassigned_at',
@@ -28,6 +30,7 @@ class PhoneLineWorker extends BaseModel
   ];
 
   const filters = [
+    'search' => ['phoneLine.line_number', 'worker.nombre_completo'],
     'id' => '=',
     'phone_line_id' => '=',
     'worker_id' => '=',
@@ -52,5 +55,13 @@ class PhoneLineWorker extends BaseModel
   public function worker()
   {
     return $this->belongsTo(Worker::class, 'worker_id');
+  }
+
+  /**
+   * Equipo al que va asociada la línea (opcional)
+   */
+  public function equipment()
+  {
+    return $this->belongsTo(Equipment::class, 'equipo_id');
   }
 }

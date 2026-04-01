@@ -4,6 +4,7 @@ namespace App\Models\gp\tics;
 
 use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\tics\PhoneLine;
 use App\Models\User;
 
 class EquipmentAssigment extends BaseModel
@@ -12,6 +13,7 @@ class EquipmentAssigment extends BaseModel
 
   protected $fillable = [
     'persona_id',
+    'phone_line_id',
     'fecha',
     'status_deleted',
     'status_id',
@@ -26,10 +28,10 @@ class EquipmentAssigment extends BaseModel
   ];
 
   const filters = [
+    'search' => ['worker.nombre_completo', 'accessor:itemsNames'],
     'id' => '=',
     'persona_id' => '=',
     'status_id' => '=',
-    'search' => ['persona_id'],
   ];
 
   const sorts = [
@@ -40,6 +42,18 @@ class EquipmentAssigment extends BaseModel
   public function worker()
   {
     return $this->belongsTo(Worker::class, 'persona_id');
+  }
+
+  public function phoneLine()
+  {
+    return $this->belongsTo(PhoneLine::class, 'phone_line_id');
+  }
+
+  public function getItemsNamesAttribute(): string
+  {
+    return $this->items->map(function ($item) {
+      return $item->equipment->equipo;
+    })->implode(', ');
   }
 
   public function items()

@@ -10,13 +10,16 @@ class PhoneLineWorkerResource extends JsonResource
   public function toArray(Request $request): array
   {
     return [
-      'id'                 => $this->id,
-      'phone_line_id'      => $this->phone_line_id,
-      'worker_id'          => $this->worker_id,
-      'worker_name'        => $this->worker?->nombre_completo,
-      'assigned_at'        => $this->assigned_at,
-      'unassigned_at'      => $this->unassigned_at,
-      'active'              => $this->active,
+      'id' => $this->id,
+      'phone_line_id' => $this->phone_line_id,
+      'phone_line' => $this->phoneLine->line_number,
+      'worker_id' => $this->worker_id,
+      'worker_name' => $this->worker?->nombre_completo,
+      'equipo_id' => $this->equipo_id,
+      'equipo_nombre' => $this->equipment?->equipo,
+      'assigned_at' => $this->assigned_at,
+      'unassigned_at' => $this->unassigned_at,
+      'active' => $this->active,
       'observacion_unassign' => $this->observacion_unassign,
     ];
   }

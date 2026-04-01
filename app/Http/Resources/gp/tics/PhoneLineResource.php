@@ -15,7 +15,7 @@ class PhoneLineResource extends JsonResource
       'company' => $this->telephoneAccount?->company?->name,
       'active_assignment' => $this->activeAssignment ? new PhoneLineWorkerResource($this->activeAssignment) : null,
       'assignment_status' => $this->computeAssignmentStatus(),
-//      'status' => $this->status,
+      'isAssigned' => $this->isAssigned,
       'is_active' => (bool)$this->is_active,
       'telephone_account_id' => $this->telephone_account_id,
       'telephone_plan_id' => $this->telephone_plan_id,

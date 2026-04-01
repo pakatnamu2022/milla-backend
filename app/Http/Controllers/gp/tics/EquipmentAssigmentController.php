@@ -4,6 +4,7 @@ namespace App\Http\Controllers\gp\tics;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\tics\IndexEquipmentAssigmentRequest;
+use Illuminate\Http\Request;
 use App\Http\Requests\gp\tics\StoreEquipmentAssigmentRequest;
 use App\Http\Requests\gp\tics\UnassignEquipmentRequest;
 use App\Http\Requests\gp\tics\UpdateEquipmentAssigmentRequest;
@@ -98,6 +99,20 @@ class EquipmentAssigmentController extends Controller
   {
     try {
       return $this->success($this->service->historyByEquipment($equipoId));
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function linkPhoneLine(Request $request, $id)
+  {
+    try {
+      $validated = $request->validate([
+        'phone_line_id' => 'nullable|exists:phone_line,id',
+      ]);
+      return $this->success(
+        $this->service->linkPhoneLine($id, $validated['phone_line_id'] ?? null)
+      );
     } catch (Throwable $e) {
       return $this->error($e->getMessage());
     }

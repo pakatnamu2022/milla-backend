@@ -79,6 +79,13 @@ trait Filterable
 
       if ($filter === 'search') {
         $fields = $operator;
+
+        // Si algún campo es un accessor, toda la búsqueda se maneja en memoria
+        $hasAccessorSearchFields = collect($fields)->contains(fn($f) => str_starts_with($f, 'accessor:'));
+        if ($hasAccessorSearchFields) {
+          continue;
+        }
+
         $query->where(function ($q) use ($fields, $value, $query) {
           foreach ($fields as $field) {
             if (str_contains($field, '.')) {
@@ -533,8 +540,12 @@ trait Filterable
 
     $all = $request->query('all', false) === 'true';
 
-    // Verificar si hay filtros de accessor
-    $hasAccessorFilters = collect($filters)->contains(function ($operator) {
+    // Verificar si hay filtros de accessor (operadores directos o dentro del array de search)
+    $searchFields = $filters['search'] ?? [];
+    $hasAccessorSearchFields = is_array($searchFields) &&
+      collect($searchFields)->contains(fn($f) => str_starts_with($f, 'accessor:'));
+
+    $hasAccessorFilters = $hasAccessorSearchFields || collect($filters)->contains(function ($operator) {
       return is_string($operator) && str_starts_with($operator, 'accessor');
     });
 
@@ -542,9 +553,38 @@ trait Filterable
       // Si hay filtros o ordenamiento de accessor, obtenemos todo y filtramos en memoria
       $results = $query->get();
 
+      // Aplicar búsqueda en memoria cuando el search incluye accessor fields
+      if ($hasAccessorSearchFields) {
+        $searchValue = $request->query('search');
+        if ($searchValue !== null && $searchValue !== '') {
+          $results = $results->filter(function ($item) use ($searchFields, $searchValue) {
+            foreach ($searchFields as $field) {
+              if (str_starts_with($field, 'accessor:')) {
+                $accessorName = substr($field, 9);
+                $itemValue = $item->{$accessorName} ?? '';
+              } else {
+                $itemValue = data_get($item, $field) ?? '';
+              }
+              if (stripos((string) $itemValue, $searchValue) !== false) {
+                return true;
+              }
+            }
+            return false;
+          })->values();
+        }
+      }
+
       // Aplicar filtros de accessor
-      if ($hasAccessorFilters) {
+      if ($hasAccessorFilters && !$hasAccessorSearchFields) {
         $results = $this->applyAccessorFilters($results, $request, $filters);
+      } elseif ($hasAccessorFilters) {
+        // Aplicar solo los filtros que no sean del search (ya procesado arriba)
+        $nonSearchAccessorFilters = collect($filters)->filter(function ($operator, $key) {
+          return $key !== 'search' && is_string($operator) && str_starts_with($operator, 'accessor');
+        })->all();
+        if (!empty($nonSearchAccessorFilters)) {
+          $results = $this->applyAccessorFilters($results, $request, $nonSearchAccessorFilters);
+        }
       }
 
       // Aplicar ordenamiento de accessor
