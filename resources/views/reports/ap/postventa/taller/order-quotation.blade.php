@@ -293,12 +293,6 @@
       display: block;
       margin: 0 auto 10px auto;
     }
-
-    .signature-line {
-      width: 200px;
-      border-top: 2px solid #000;
-      margin: 0 auto 5px auto;
-    }
   </style>
 </head>
 <body>
@@ -428,7 +422,7 @@
 </table>
 
 <!-- Totales -->
-<div class="totals-section">
+<div class="totals-section totals-footer">
   <table>
     <tr>
       <td class="label-total">Total M.O.:</td>

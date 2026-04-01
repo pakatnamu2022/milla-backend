@@ -159,25 +159,6 @@
       text-align: left;
     }
 
-
-    .important-section {
-      margin-top: 15px;
-      border: 1px solid #000;
-      padding: 8px;
-    }
-
-    .important-title {
-      font-weight: bold;
-      font-size: 10px;
-      margin-bottom: 5px;
-      text-decoration: underline;
-    }
-
-    .important-content {
-      font-size: 8px;
-      line-height: 1.4;
-    }
-
     .important-content ol {
       margin-left: 15px;
       margin-top: 5px;
@@ -212,6 +193,92 @@
       width: 200px;
       border-top: 2px solid #000;
       margin: 0 auto 5px auto;
+    }
+
+    .cards-section {
+      margin-top: 15px;
+      margin-bottom: 15px;
+    }
+
+    .section-title {
+      font-weight: bold;
+      font-size: 11px;
+      margin-bottom: 10px;
+      text-align: center;
+      text-decoration: underline;
+    }
+
+    .cards-container {
+      display: table;
+      width: 100%;
+      table-layout: fixed;
+    }
+
+    .card {
+      display: table-cell;
+      width: 25%;
+      padding: 8px;
+      border: 1px solid #000;
+      vertical-align: top;
+      font-size: 11px;
+    }
+
+    .card-header {
+      font-weight: bold;
+      font-size: 11px;
+      margin-bottom: 5px;
+      text-align: center;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 3px;
+    }
+
+    .card-content {
+      line-height: 1.4;
+    }
+
+    .card-content div {
+      margin-bottom: 3px;
+      font-size: 8px;
+    }
+
+    .card-content-header {
+      text-align: center;
+      font-weight: bold;
+      font-size: 8px;
+    }
+
+    .card-label {
+      font-weight: bold;
+      font-size: 8px;
+    }
+
+    .signature-section {
+      margin-top: 30px;
+      margin-bottom: 20px;
+    }
+
+    .signature-box {
+      display: inline-block;
+      width: 250px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    .signature-img {
+      max-width: 200px;
+      max-height: 80px;
+      display: block;
+      margin: 0 auto 10px auto;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
+
+    .totals-footer {
+      margin-top: 50px;
+      margin-bottom: 30px;
     }
   </style>
 </head>
@@ -350,121 +417,246 @@
   </tbody>
 </table>
 
-<!-- Pie de página fijo -->
-<div style="position: fixed; bottom: 20px; left: 20px; right: 20px; background-color: #fff;">
+<!-- Sección de Vehículo y Totales en la misma fila -->
+<div class="totals-footer" style="width: 100%; display: table; margin-bottom: 10px;">
+  @if(isset($quotation['vehicle_plate']) && $quotation['vehicle_plate'] && $quotation['vehicle_plate'] !== 'N/A')
+    <!-- Datos del Vehículo (Izquierda) -->
+    <div style="display: table-cell; width: 50%; vertical-align: top; padding-right: 10px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 9px; border: 1px solid #000;">
+        <tr>
+          <td colspan="4"
+              style="font-weight: bold; padding: 5px; border: 1px solid #000;">
+            DATOS DEL VEHÍCULO
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" style="font-weight: bold; width: 15%; padding: 5px; border: none;">Placa:</td>
+          <td colspan="1" style="padding: 5px; border: none;">{{ $quotation['vehicle_plate'] }}</td>
+          <td colspan="1" style="font-weight: bold; padding: 5px; border: none;">Nº Chasis:</td>
+          <td colspan="1" style="padding: 5px; border: none;">{{ $quotation['vehicle_vin'] }}</td>
+        </tr>
+        <tr>
+          <td colspan="1" style="font-weight: bold; padding: 5px; border: none;">Nº Motor:</td>
+          <td colspan="3" style="padding: 5px; border: none;">{{ $quotation['vehicle_engine'] }}</td>
+        </tr>
+        <tr>
+          <td colspan="1" style="font-weight: bold; padding: 5px; border: none;">Modelo:</td>
+          <td colspan="3"
+              style="padding: 5px; border: none;">{{ $quotation['vehicle_brand'] }} {{ $quotation['vehicle_model'] }}</td>
+        </tr>
+        <tr>
+          <td colspan="1" style="font-weight: bold; padding: 5px; border: none;">Color:</td>
+          <td colspan="3" style="padding: 5px; border: none;">{{ $quotation['vehicle_color'] }}</td>
+        </tr>
+      </table>
+    </div>
+  @else
+    <!-- Espacio vacío (Izquierda) cuando no hay vehículo -->
+    <div style="display: table-cell; width: 50%; vertical-align: top; padding-right: 10px;">
+      &nbsp;
+    </div>
+  @endif
 
-  <!-- Sección de Vehículo y Totales en la misma fila -->
-  <div style="width: 100%; display: table; margin-bottom: 10px;">
-    @if(isset($quotation['vehicle_plate']) && $quotation['vehicle_plate'] && $quotation['vehicle_plate'] !== 'N/A')
-      <!-- Datos del Vehículo (Izquierda) -->
-      <div style="display: table-cell; width: 50%; vertical-align: top; padding-right: 10px;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 9px; border: 1px solid #000;">
-          <tr>
-            <td colspan="4"
-                style="font-weight: bold; padding: 5px; border: 1px solid #000;">
-              DATOS DEL VEHÍCULO
-            </td>
-          </tr>
-          <tr>
-            <td colspan="1" style="font-weight: bold; width: 15%; padding: 5px; border: none;">Placa:</td>
-            <td colspan="1" style="padding: 5px; border: none;">{{ $quotation['vehicle_plate'] }}</td>
-            <td colspan="1" style="font-weight: bold; padding: 5px; border: none;">Nº Chasis:</td>
-            <td colspan="1" style="padding: 5px; border: none;">{{ $quotation['vehicle_vin'] }}</td>
-          </tr>
-          <tr>
-            <td colspan="1" style="font-weight: bold; padding: 5px; border: none;">Nº Motor:</td>
-            <td colspan="3" style="padding: 5px; border: none;">{{ $quotation['vehicle_engine'] }}</td>
-          </tr>
-          <tr>
-            <td colspan="1" style="font-weight: bold; padding: 5px; border: none;">Modelo:</td>
-            <td colspan="3"
-                style="padding: 5px; border: none;">{{ $quotation['vehicle_brand'] }} {{ $quotation['vehicle_model'] }}</td>
-          </tr>
-          <tr>
-            <td colspan="1" style="font-weight: bold; padding: 5px; border: none;">Color:</td>
-            <td colspan="3" style="padding: 5px; border: none;">{{ $quotation['vehicle_color'] }}</td>
-          </tr>
-        </table>
-      </div>
-    @else
-      <!-- Espacio vacío (Izquierda) cuando no hay vehículo -->
-      <div style="display: table-cell; width: 50%; vertical-align: top; padding-right: 10px;">
-        &nbsp;
-      </div>
-    @endif
-
-    <!-- Totales (Derecha) -->
-    <div style="display: table-cell; width: 50%; vertical-align: top; padding-left: 10px;">
-      <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+  <!-- Totales (Derecha) -->
+  <div style="display: table-cell; width: 50%; vertical-align: top; padding-left: 10px;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+      <tr>
+        <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">Subtotal:</td>
+        <td style="text-align: right; padding: 5px; border: 1px solid #000;">
+          {{$quotation['type_currency']->symbol}} {{ number_format($quotation['subtotal'], 2) }}
+        </td>
+      </tr>
+      <tr>
+        <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">Total Dtos.:</td>
+        <td style="text-align: right; padding: 5px; border: 1px solid #000;">
+          {{$quotation['type_currency']->symbol}} {{ number_format($quotation['total_discounts'], 2) }}
+        </td>
+      </tr>
+      <tr>
+        <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">OP. Gravadas:</td>
+        <td style="text-align: right; padding: 5px; border: 1px solid #000;">
+          {{$quotation['type_currency']->symbol}} {{ number_format($quotation['op_gravada'], 2) }}
+        </td>
+      </tr>
+      <tr>
+        <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">IGV 18%:</td>
+        <td style="text-align: right; padding: 5px; border: 1px solid #000;">
+          {{$quotation['type_currency']->symbol}} {{ number_format($quotation['tax_amount'], 2) }}
+        </td>
+      </tr>
+      <tr>
+        <td
+          style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000; background-color: #f0f0f0;">
+          Total:
+        </td>
+        <td
+          style="text-align: right; padding: 5px; border: 1px solid #000; background-color: #f0f0f0; font-weight: bold;">
+          {{$quotation['type_currency']->code}} {{ number_format($quotation['total_amount'], 2) }}
+        </td>
+      </tr>
+      @if($quotation['total_pagado'] > 0)
         <tr>
-          <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">Subtotal:</td>
-          <td style="text-align: right; padding: 5px; border: 1px solid #000;">
-            {{$quotation['type_currency']->symbol}} {{ number_format($quotation['subtotal'], 2) }}
+          <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">
+            A Cuenta:
           </td>
-        </tr>
-        <tr>
-          <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">Total Dtos.:</td>
           <td style="text-align: right; padding: 5px; border: 1px solid #000;">
-            {{$quotation['type_currency']->symbol}} {{ number_format($quotation['total_discounts'], 2) }}
-          </td>
-        </tr>
-        <tr>
-          <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">OP. Gravadas:</td>
-          <td style="text-align: right; padding: 5px; border: 1px solid #000;">
-            {{$quotation['type_currency']->symbol}} {{ number_format($quotation['op_gravada'], 2) }}
-          </td>
-        </tr>
-        <tr>
-          <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">IGV 18%:</td>
-          <td style="text-align: right; padding: 5px; border: 1px solid #000;">
-            {{$quotation['type_currency']->symbol}} {{ number_format($quotation['tax_amount'], 2) }}
+            {{$quotation['type_currency']->code}} {{ number_format($quotation['total_pagado'], 2) }}
           </td>
         </tr>
         <tr>
           <td
             style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000; background-color: #f0f0f0;">
-            Total:
+            Saldo Pendiente:
           </td>
           <td
             style="text-align: right; padding: 5px; border: 1px solid #000; background-color: #f0f0f0; font-weight: bold;">
-            {{$quotation['type_currency']->code}} {{ number_format($quotation['total_amount'], 2) }}
+            {{$quotation['type_currency']->code}} {{ number_format($quotation['saldo_pendiente'], 2) }}
           </td>
         </tr>
-        @if($quotation['total_pagado'] > 0)
-          <tr>
-            <td style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000;">
-              A Cuenta:
-            </td>
-            <td style="text-align: right; padding: 5px; border: 1px solid #000;">
-              {{$quotation['type_currency']->code}} {{ number_format($quotation['total_pagado'], 2) }}
-            </td>
-          </tr>
-          <tr>
-            <td
-              style="font-weight: bold; text-align: left; padding: 5px; border: 1px solid #000; background-color: #f0f0f0;">
-              Saldo Pendiente:
-            </td>
-            <td
-              style="text-align: right; padding: 5px; border: 1px solid #000; background-color: #f0f0f0; font-weight: bold;">
-              {{$quotation['type_currency']->code}} {{ number_format($quotation['saldo_pendiente'], 2) }}
-            </td>
-          </tr>
-        @endif
-      </table>
+      @endif
+    </table>
+  </div>
+</div>
+
+<!-- Sección de Firma del Cliente -->
+@if(isset($quotation['customer_signature']) && $quotation['customer_signature'])
+  <div class="signature-section" style="text-align: center;">
+    <div class="signature-box">
+      <img src="{{ $quotation['customer_signature'] }}" alt="Firma Cliente" class="signature-img">
+      <div class="signature-line"></div>
+      FIRMA DEL CLIENTE<br>
+      {{ $quotation['customer_name'] }}
     </div>
   </div>
+@endif
 
-  <!-- Sección de Firma del Cliente -->
-  @if(isset($quotation['customer_signature']) && $quotation['customer_signature'])
-    <div class="signature-section" style="text-align: center; margin-top: 15px;">
-      <div class="signature-box">
-        <img src="{{ $quotation['customer_signature'] }}" alt="Firma Cliente" class="signature-img">
-        <div class="signature-line"></div>
-        FIRMA DEL CLIENTE<br>
-        {{ $quotation['customer_name'] }}
+<!-- Sección CUENTA AP -->
+<div class="cards-section page-break">
+  <div class="section-title">CUENTAS AP</div>
+  <div class="cards-container">
+    <div class="card">
+      <div class="card-header">CHICLAYO</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 305-2041106-0-39</div>
+        <div><span class="card-label">CCI:</span> 002-305-002041106039-13</div>
+        <div><span class="card-label">DÓLARES:</span> 305-2032097-1-49</div>
+        <div><span class="card-label">CCI:</span> 002-305-002032097149-10</div>
+        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
+        <div><span class="card-label">SOLES:</span> 0011-0279-0100020589</div>
+        <div><span class="card-label">CCI:</span> 011279000100020589­76</div>
+        <div><span class="card-label">DÓLARES:</span> 0011-0279-0100020597</div>
+        <div><span class="card-label">CCI:</span> 011279000100020597­79</div>
       </div>
     </div>
-  @endif
-</div><!-- Fin pie de página fijo -->
+    <div class="card">
+      <div class="card-header">PIURA</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 475-2660047-0-39</div>
+        <div><span class="card-label">CCI:</span> 002-475-002660047039-22</div>
+        <div><span class="card-label">DÓLARES:</span> 475-2573597-1-16</div>
+        <div><span class="card-label">CCI:</span> 002-475-002573597116-27</div>
+        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
+        <div><span class="card-label">SOLES:</span> 0011-0267-0100130672</div>
+        <div><span class="card-label">CCI:</span> 011267000100130672­27</div>
+        <div><span class="card-label">DÓLARES:</span> 0011-0267-0100130680</div>
+        <div><span class="card-label">CCI:</span> 011267000100130680­20</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">CAJAMARCA</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 245-2661107-0-14</div>
+        <div><span class="card-label">CCI:</span> 002-245-002661107014-90</div>
+        <div><span class="card-label">DÓLARES:</span> 245-2663485-1-44</div>
+        <div><span class="card-label">CCI:</span> 002-245-002663485144-93</div>
+        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
+        <div><span class="card-label">SOLES:</span> 0011-0277-0100080793</div>
+        <div><span class="card-label">CCI:</span> 011277000100080793­11</div>
+        <div><span class="card-label">DÓLARES:</span> 0011-0277-0100080807</div>
+        <div><span class="card-label">CCI:</span> 011277 000100080807­19</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">JAÉN</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 395-5394658-0-80</div>
+        <div><span class="card-label">CCI:</span> 002-395-005394558080-20</div>
+        <div><span class="card-label">DÓLARES:</span> 395-2415578-1-84</div>
+        <div><span class="card-label">CCI:</span> 002-395-002415578184-22</div>
+        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
+        <div><span class="card-label">SOLES:</span> 0011-0409-0100005801</div>
+        <div><span class="card-label">CCI:</span> 011409000100005801­04</div>
+        <div><span class="card-label">DÓLARES:</span> 0011-0409-0100005828</div>
+        <div><span class="card-label">CCI:</span> 011409000100005828­07</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sección UBÍCANOS EN -->
+<div class="cards-section">
+  <div class="section-title">UBÍCANOS EN</div>
+  <div class="cards-container">
+    <div class="card">
+      <div class="card-header">CHICLAYO</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span>CAR. PANAMERICANA NORTE #1006 - CHICLAYO - LAMBAYEQUE (COSTADO
+          DEL COLEGIO SANTO
+          TORIBIO DE MOGROVEJO,
+          CRUCE CON AV. LEGUÍA)
+        </div>
+        <div><span class="card-label">CITAS TALLER:</span> 944 296 593</div>
+        <div><span class="card-label">REPUESTOS:</span> 943 856 726</div>
+        <div><span class="card-label">Horario:</span>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 6:00 PM
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">PIURA</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span>AV. SÁNCHEZ CERRO MZA. 248 LOTE. 2 DPTO. B Z.I. INDUSTRIAL I –
+          PIURA (COSTADO DE LA
+          FERRETERÍA "MARTÍN")
+        </div>
+        <div><span class="card-label">CITAS TALLER:</span> 932 049 710</div>
+        <div><span class="card-label">REPUESTOS:</span> 950 122 002</div>
+        <div><span class="card-label">Horario:</span>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 6:00 PM
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">CAJAMARCA</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span>MZA. B LOTE. 19 OTR. EL BOSQUE III ETAPA – CAJAMARCA (FRENTE A LA
+          EX UGEL)
+        </div>
+        <div><span class="card-label">CITAS TALLER:</span> 950 118 892</div>
+        <div><span class="card-label">REPUESTOS:</span> 950 118 181</div>
+        <div><span class="card-label">Horario:</span>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 6:00 PM
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">JAÉN</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span>AV. PAKAMUROS #2485 INT. B (CARRETERA SAN IGNACIO - LINDEROS)
+          CAJAMARCA – JAÉN
+        </div>
+        <div><span class="card-label">CITAS TALLER:</span> 944 296 503</div>
+        <div><span class="card-label">REPUESTOS:</span> 982 940 771</div>
+        <div><span class="card-label">Horario:</span>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 6:00 PM
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
