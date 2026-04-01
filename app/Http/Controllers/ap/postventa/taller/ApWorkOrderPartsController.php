@@ -104,10 +104,14 @@ class ApWorkOrderPartsController extends Controller
     }
   }
 
-  public function getAssignmentsByWorkOrder($workOrderId)
+  public function getAssignmentsByWorkOrder($workOrderId, Request $request)
   {
     try {
-      return $this->success($this->service->getAssignmentsByWorkOrder($workOrderId));
+      $data = $request->validate([
+        'delivered_to' => 'required|integer|exists:rrhh_persona,id',
+      ]);
+
+      return $this->success($this->service->getAssignmentsByWorkOrder($workOrderId, $data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

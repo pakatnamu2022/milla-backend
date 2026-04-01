@@ -349,6 +349,11 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('No se puede eliminar el repuesto porque la orden de trabajo ya tiene avances de factura');
       }
 
+      //validar que si ya se asignó y técnico confirmo la recepción no permita eliminar
+      if ($workOrderPart->deliveries()->where('is_received', true)->exists()) {
+        throw new Exception('No se puede eliminar el repuesto porque ya ha sido asignado a un técnico y confirmado su recepción');
+      }
+
       // Validar si existe una solicitud de descuento activa
       $discountRequest = DiscountRequestsWorkOrder::where('part_labour_id', $id)
         ->where('part_labour_model', ApWorkOrderParts::class)
@@ -636,21 +641,34 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
    * Obtener todas las asignaciones de repuestos de una orden de trabajo
    * Lista los técnicos a los que se han asignado repuestos
    */
-  public function getAssignmentsByWorkOrder(int $workOrderId)
+  public function getAssignmentsByWorkOrder(int $workOrderId, array $data)
   {
     // Validar que la orden de trabajo existe
     $workOrder = ApWorkOrder::find($workOrderId);
+    $person = Worker::find($data['delivered_to']);
+
     if (!$workOrder) {
       throw new Exception('Orden de trabajo no encontrada');
     }
 
+    if (!$person) {
+      throw new Exception('Persona no encontrada');
+    }
+
     // Obtener todos los repuestos de la orden de trabajo con sus entregas
+    $technicianUserId = $person->user->id;
+
     $workOrderParts = ApWorkOrderParts::with([
       'product',
       'warehouse',
-      'deliveries.deliveredToUser.person',
-      'deliveries.deliveredByUser',
-      'deliveries.receivedByUser'
+      'deliveries' => function ($query) use ($technicianUserId) {
+        $query->where('delivered_to', $technicianUserId)
+          ->with([
+            'deliveredToUser.person',
+            'deliveredByUser',
+            'receivedByUser',
+          ]);
+      },
     ])
       ->where('work_order_id', $workOrderId)
       ->get();
