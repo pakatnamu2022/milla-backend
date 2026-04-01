@@ -2221,7 +2221,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $newTotal = (float)($data['total'] ?? 0);
     $currencyId = $data['sunat_concept_currency_id'] ?? null;
 
-    $workOrder = ApWorkOrder::with(['labours', 'parts', 'advancesWorkOrder', 'items.typePlanning'])->find($workOrderId);
+    $workOrder = ApWorkOrder::with(['labours', 'parts.deliveries', 'advancesWorkOrder', 'items.typePlanning'])->find($workOrderId);
 
     if (!$workOrder) {
       throw new Exception('Orden de trabajo no encontrada.');
@@ -2244,6 +2244,40 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       if ($laboursWithWorker->count() === 0) {
         throw new Exception('La orden de trabajo debe tener al menos una mano de obra con trabajador asignado.');
+      }
+    }
+
+    // Validate that all parts are fully delivered if work order has parts
+    if (!$isAdvancePayment && $workOrder->parts->count() > 0) {
+      $partsNotFullyDelivered = [];
+
+      foreach ($workOrder->parts as $part) {
+        // Calculate total delivered quantity for this part (excluding soft deleted deliveries)
+        $totalDelivered = $part->deliveries
+          ->whereNull('deleted_at')
+          ->sum('delivered_quantity');
+
+        // Compare with quantity_used
+        $quantityUsed = (float)$part->quantity_used;
+        $totalDelivered = (float)$totalDelivered;
+
+        // If not fully delivered, add to list
+        if ($totalDelivered < $quantityUsed) {
+          $partsNotFullyDelivered[] = sprintf(
+            '%s (Usado: %.2f, Entregado: %.2f, Pendiente: %.2f)',
+            $part->product->name ?? "Producto ID: {$part->product_id}",
+            $quantityUsed,
+            $totalDelivered,
+            $quantityUsed - $totalDelivered
+          );
+        }
+      }
+
+      if (count($partsNotFullyDelivered) > 0) {
+        throw new Exception(
+          'No se puede facturar la orden de trabajo. Los siguientes repuestos no han sido entregados en su totalidad: ' .
+          implode('; ', $partsNotFullyDelivered)
+        );
       }
     }
 
