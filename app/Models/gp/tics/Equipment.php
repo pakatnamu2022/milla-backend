@@ -47,6 +47,7 @@ class Equipment extends BaseModel
     'status_id' => '=',
     'tipo_adquisicion' => '=',
     'estado_uso' => '=',
+    'isAssigned' => 'accessor_bool',
   ];
 
   const sorts = [
@@ -89,6 +90,11 @@ class Equipment extends BaseModel
       'asig_equipo_id' // FK en EquipmentItemAssigment → EquipmentAssigment.id
     )->where('help_asig_equipos.status_deleted', false)
       ->with(['worker' => fn($q) => $q->withoutGlobalScopes()]);
+  }
+
+  public function getIsAssignedAttribute()
+  {
+    return $this->activeAssignment()->exists();
   }
 
 }
