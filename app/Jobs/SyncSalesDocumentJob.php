@@ -354,7 +354,14 @@ class SyncSalesDocumentJob implements ShouldQueue
       return null;
     }
 
-    return round((float)$document->purchaseRequestQuote->base_selling_price / $igvDivisor, 2);
+    $totalAccessoriesWithIgv = $postSaleAccessories->sum(
+      fn($a) => ($a->price + $a->additional_price) * $a->quantity
+    );
+
+    return round(
+      ((float)$document->purchaseRequestQuote->base_selling_price - $totalAccessoriesWithIgv) / $igvDivisor,
+      2
+    );
   }
 
   /**
