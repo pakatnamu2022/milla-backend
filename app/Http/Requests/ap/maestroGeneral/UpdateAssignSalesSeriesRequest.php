@@ -21,7 +21,7 @@ class UpdateAssignSalesSeriesRequest extends StoreRequest
           ->ignore($this->route('assignSalesSeries')),
       ],
       'type' => ['nullable', 'in:PURCHASE,SALE,OTHERS'],
-      'correlative_start' => ['nullable', 'integer', 'min:1'],
+      'correlative_start' => ['nullable', 'integer', 'min:0'],
       'type_receipt_id' => ['nullable', 'exists:ap_masters,id'],
       'type_operation_id' => ['nullable', 'exists:ap_masters,id'],
       'sede_id' => ['nullable', 'exists:config_sede,id'],
