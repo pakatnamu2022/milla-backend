@@ -2018,7 +2018,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'EmpresaId' => \App\Models\gp\gestionsistema\Company::AP_DYNAMICS,
         'DocumentoId' => $document->full_number,
         'Linea' => $nextLine++,
-        'ArticuloId' => $accessory->approvedAccessory->code,
+        'ArticuloId' => $accessory->approvedAccessory->code_dynamics ?? throw new \Exception("El accesorio '{$accessory->approvedAccessory->code}' no tiene código Dynamics (code_dynamics) definido."),
         'ArticuloDescripcionCorta' => \Illuminate\Support\Str::upper(\Illuminate\Support\Str::limit($description, 60, '')),
         'ArticuloDescripcionLarga' => $description,
         'SitioId' => $document->warehouse(),
