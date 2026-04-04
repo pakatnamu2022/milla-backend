@@ -9,6 +9,7 @@ use App\Http\Services\DatabaseSyncService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\gp\gestionsistema\Company;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -355,13 +356,38 @@ class SyncSalesDocumentJob implements ShouldQueue
     }
 
     $totalAccessoriesWithIgv = $postSaleAccessories->sum(
-      fn($a) => ($a->price + $a->additional_price) * $a->quantity
+      fn($a) => $this->accessoryUnitGrossInDocCurrency($a, $document) * $a->quantity
     );
 
     return round(
       ((float)$document->purchaseRequestQuote->base_selling_price - $totalAccessoriesWithIgv) / $igvDivisor,
       2
     );
+  }
+
+  /**
+   * Devuelve el precio unitario bruto (con IGV) del accesorio convertido a la moneda del documento.
+   * Si el accesorio está en PEN y el documento en USD, divide por tipo_de_cambio.
+   */
+  private function accessoryUnitGrossInDocCurrency($accessory, ElectronicDocument $document): float
+  {
+    $gross = (float)($accessory->price + $accessory->additional_price);
+
+    if (
+      $accessory->type_currency_id === TypeCurrency::PEN_ID &&
+      $document->currency->iso_code === TypeCurrency::USD
+    ) {
+      return $gross / (float)$document->tipo_de_cambio;
+    }
+
+    if (
+      $accessory->type_currency_id === TypeCurrency::USD_ID &&
+      $document->currency->iso_code === TypeCurrency::PEN
+    ) {
+      return $gross * (float)$document->tipo_de_cambio;
+    }
+
+    return $gross;
   }
 
   /**
@@ -376,7 +402,7 @@ class SyncSalesDocumentJob implements ShouldQueue
     float $igvDivisor
   ): array
   {
-    $unitPricePreTax = round((float)($accessory->price + $accessory->additional_price) / $igvDivisor, 2);
+    $unitPricePreTax = round($this->accessoryUnitGrossInDocCurrency($accessory, $document) / $igvDivisor, 2);
     $description = Str::upper($accessory->approvedAccessory->description);
 
     return [

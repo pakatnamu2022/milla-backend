@@ -2000,8 +2000,22 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $igvDivisor = 1 + ($document->porcentaje_de_igv / 100);
     $nextLine = $document->items->max('line_number') + 1;
 
+    $docCurrencyCode = $document->currency->iso_code;
+    $tipoCambio = (float)$document->tipo_de_cambio;
+
+    $toDocCurrency = function ($accessory) use ($docCurrencyCode, $tipoCambio): float {
+      $gross = (float)($accessory->price + $accessory->additional_price);
+      if ($accessory->type_currency_id === \App\Models\ap\maestroGeneral\TypeCurrency::PEN_ID && $docCurrencyCode === \App\Models\ap\maestroGeneral\TypeCurrency::USD) {
+        return $gross / $tipoCambio;
+      }
+      if ($accessory->type_currency_id === \App\Models\ap\maestroGeneral\TypeCurrency::USD_ID && $docCurrencyCode === \App\Models\ap\maestroGeneral\TypeCurrency::PEN) {
+        return $gross * $tipoCambio;
+      }
+      return $gross;
+    };
+
     $totalAccessoriesWithIgv = $postSaleAccessories->sum(
-      fn($a) => ($a->price + $a->additional_price) * $a->quantity
+      fn($a) => $toDocCurrency($a) * $a->quantity
     );
 
     $items = $document->items->map(function ($item) use ($document, $postSaleAccessories, $totalAccessoriesWithIgv, $igvDivisor) {
@@ -2016,7 +2030,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     });
 
     foreach ($postSaleAccessories as $accessory) {
-      $unitPricePreTax = round((float)($accessory->price + $accessory->additional_price) / $igvDivisor, 2);
+      $unitPricePreTax = round($toDocCurrency($accessory) / $igvDivisor, 2);
       $description = \Illuminate\Support\Str::upper($accessory->approvedAccessory->description);
       $items->push([
         'EmpresaId' => \App\Models\gp\gestionsistema\Company::AP_DYNAMICS,
