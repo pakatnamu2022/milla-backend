@@ -82,14 +82,11 @@ class SalesDynamicsBuilder
       return null;
     }
 
-    $totalAccessoriesWithIgv = $postSaleAccessories->sum(
-      fn($a) => $this->accessoryUnitGrossInDocCurrency($a, $document) * $a->quantity
+    $totalAccessoriesPreTax = $postSaleAccessories->sum(
+      fn($a) => $this->accessoryUnitGrossInDocCurrency($a, $document) * $a->quantity / $igvDivisor
     );
 
-    return round(
-      ((float)$document->total - $totalAccessoriesWithIgv) / $igvDivisor,
-      2
-    );
+    return round((float)$item->valor_unitario - $totalAccessoriesPreTax, 2);
   }
 
   /**
