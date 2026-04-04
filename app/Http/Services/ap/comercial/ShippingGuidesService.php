@@ -3,19 +3,23 @@
 namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\ShippingGuidesResource;
+use App\Http\Resources\Dynamics\AccountingEntryHeaderDynamicsResource;
 use App\Http\Resources\Dynamics\ShippingGuideDetailDynamicsResource;
 use App\Http\Resources\Dynamics\ShippingGuideHeaderDynamicsResource;
 use App\Http\Resources\Dynamics\ShippingGuideSeriesDynamicsResource;
+use App\Http\Services\ap\facturacion\AccountingEntryService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Jobs\SyncShippingGuideDynamicsJob;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuideAccessory;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\gestionsistema\DigitalFile;
@@ -850,10 +854,82 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
     $vehicle = $shippingGuide->vehicleMovement?->vehicle;
 
-    return [
+    $result = [
       'header' => new ShippingGuideHeaderDynamicsResource($shippingGuide),
       'detail' => $vehicle ? new ShippingGuideDetailDynamicsResource($vehicle, $shippingGuide) : null,
       'series' => new ShippingGuideSeriesDynamicsResource($shippingGuide),
+    ];
+
+    // Para guías de VENTA incluir también el preview del asiento contable,
+    // tal como lo hace SyncAccountingEntryJob al sincronizar con Dynamics.
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA) {
+      $result['accounting_entry'] = $this->buildAccountingEntryPreview($shippingGuide);
+    }
+
+    return $result;
+  }
+
+  /**
+   * Construye el preview del asiento contable que se enviará a Dynamics
+   * para una guía de remisión de venta.
+   *
+   * - Área COMERCIAL: usa la lógica de ApClassArticleAccountMapping (cuentas por clase de artículo).
+   * - Área POSVENTA:  usa las cuentas fijas de accesorios 4961700 → 7011118.
+   *                   Solo cuando se vendió un accesorio con código V0000016.
+   */
+  private function buildAccountingEntryPreview(ShippingGuides $shippingGuide): array
+  {
+    if (!$shippingGuide->vehicleMovement?->vehicle?->vin) {
+      return ['error' => 'La guía no tiene vehículo asociado'];
+    }
+
+    $electronicDocument = ElectronicDocument::with([
+      'items.accountPlan',
+      'creator.person',
+      'currency',
+      'seriesModel.sede',
+      'vehicleMovement.vehicle.model.classArticle',
+      'vehicle',
+    ])
+      ->where('is_advance_payment', 0)
+      ->whereHas('vehicle', function ($query) use ($shippingGuide) {
+        $query->where('vin', $shippingGuide->vehicleMovement->vehicle->vin);
+      })
+      ->first();
+
+    if (!$electronicDocument) {
+      return ['error' => 'No se encontró documento electrónico asociado a la guía'];
+    }
+
+    $accountingService = new AccountingEntryService();
+
+    // Número de asiento de previsualización (sin bloquear la secuencia real)
+    $maxAsiento = DB::connection('dbtp')->table('neInTbIntegracionAsientoCab')->max('Asiento');
+    $asientoNumber = $maxAsiento ? ($maxAsiento + 1) : 1;
+
+    $header = new AccountingEntryHeaderDynamicsResource(
+      $electronicDocument,
+      $shippingGuide->issue_date,
+      $asientoNumber
+    );
+
+    $isPosventa = in_array($shippingGuide->area_id, ApMasters::AREAS_POSVENTA);
+
+    try {
+      if ($isPosventa) {
+        // Solo posventa: asiento de entrega de accesorios 4961700 → 7011118
+        $lines = $accountingService->generatePostventaAccessoryLines($electronicDocument, $asientoNumber);
+      } else {
+        // Comercial: asiento por clase de artículo (ApClassArticleAccountMapping)
+        $lines = $accountingService->generateAccountingLines($electronicDocument, $asientoNumber);
+      }
+    } catch (Exception $e) {
+      $lines = ['error' => $e->getMessage()];
+    }
+
+    return [
+      'header' => $header->toArray(request()),
+      'lines'  => $lines,
     ];
   }
 
