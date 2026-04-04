@@ -559,6 +559,16 @@
         <div><span class="card-label">CCI:</span> 011409000100005828­07</div>
       </div>
     </div>
+    <div class="card">
+      <div class="card-header">TUMBES</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 575-7131202-0-22</div>
+        <div><span class="card-label">CCI:</span> 002-575-007131202022-96</div>
+        <div><span class="card-label">DÓLARES:</span> 575-7131213-1-43</div>
+        <div><span class="card-label">CCI:</span> 002-575-007131213143-97</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -618,6 +628,17 @@
         <div><span class="card-label">REPUESTOS:</span> 982 940 771</div>
         <div><span class="card-label">Horario:</span>LUNES A VIERNES: 8:00 AM A 6:00 PM
           SÁBADOS: 8:00 AM A 6:00 PM
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">TUMBES</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span>C.P BARRIO BELLAVISTA MZ A LOTE 19 INT. 1 - TUMBES - (Ref. Parque Bellavista)
+        </div>
+        <div><span class="card-label">REPUESTOS:</span> 956 278 314</div>
+        <div><span class="card-label">Horario:</span>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 1:00 PM
         </div>
       </div>
     </div>
