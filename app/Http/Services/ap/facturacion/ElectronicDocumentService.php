@@ -1985,74 +1985,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   public function checkResources($id)
   {
     $document = $this->find($id);
-
-    // Cargar accesorios de posventa (igual que SyncSalesDocumentJob)
     $document->load('purchaseRequestQuote.accessories.approvedAccessory');
 
-    $postSaleAccessories = !$document->is_advance_payment
-      ? $document->purchaseRequestQuote?->accessories
-          ->filter(fn($a) =>
-            $a->type === 'ACCESORIO_ADICIONAL' &&
-            $a->approvedAccessory?->type_operation_id === \App\Models\ap\ApMasters::TIPO_OPERACION_POSTVENTA
-          ) ?? collect()
-      : collect();
-
-    $igvDivisor = 1 + ($document->porcentaje_de_igv / 100);
-    $nextLine = $document->items->max('line_number') + 1;
-
-    $docCurrencyCode = $document->currency->iso_code;
-    $tipoCambio = (float)$document->tipo_de_cambio;
-
-    $toDocCurrency = function ($accessory) use ($docCurrencyCode, $tipoCambio): float {
-      $gross = (float)($accessory->price + $accessory->additional_price);
-      if ($accessory->type_currency_id === \App\Models\ap\maestroGeneral\TypeCurrency::PEN_ID && $docCurrencyCode === \App\Models\ap\maestroGeneral\TypeCurrency::USD) {
-        return $gross / $tipoCambio;
-      }
-      if ($accessory->type_currency_id === \App\Models\ap\maestroGeneral\TypeCurrency::USD_ID && $docCurrencyCode === \App\Models\ap\maestroGeneral\TypeCurrency::PEN) {
-        return $gross * $tipoCambio;
-      }
-      return $gross;
-    };
-
-    $totalAccessoriesWithIgv = $postSaleAccessories->sum(
-      fn($a) => $toDocCurrency($a) * $a->quantity
-    );
-
-    $items = $document->items->map(function ($item) use ($document, $postSaleAccessories, $totalAccessoriesWithIgv, $igvDivisor) {
-      $overridePrice = null;
-      if ($postSaleAccessories->isNotEmpty() && !$item->anticipo_regularizacion) {
-        $overridePrice = round(
-          ((float)$document->purchaseRequestQuote->base_selling_price - $totalAccessoriesWithIgv) / $igvDivisor,
-          2
-        );
-      }
-      return new SalesDocumentDetailDynamicsResource($item, $document, $overridePrice);
-    });
-
-    foreach ($postSaleAccessories as $accessory) {
-      $unitPricePreTax = round($toDocCurrency($accessory) / $igvDivisor, 2);
-      $description = \Illuminate\Support\Str::upper($accessory->approvedAccessory->description);
-      $items->push([
-        'EmpresaId' => \App\Models\gp\gestionsistema\Company::AP_DYNAMICS,
-        'DocumentoId' => $document->full_number,
-        'Linea' => $nextLine++,
-        'ArticuloId' => $accessory->approvedAccessory->code_dynamics ?? throw new \Exception("El accesorio '{$accessory->approvedAccessory->code}' no tiene código Dynamics (code_dynamics) definido."),
-        'ArticuloDescripcionCorta' => \Illuminate\Support\Str::upper(\Illuminate\Support\Str::limit($description, 60, '')),
-        'ArticuloDescripcionLarga' => $description,
-        'SitioId' => $document->warehouse(),
-        'UnidadMedidaId' => 'UND',
-        'Cantidad' => $accessory->quantity,
-        'PrecioUnitario' => $unitPricePreTax,
-        'DescuentoUnitario' => 0,
-        'PrecioTotal' => round($accessory->quantity * $unitPricePreTax, 2),
-      ]);
-    }
-
-    return [
-      'sale' => new SalesDocumentDynamicsResource($document),
-      'items' => $items,
-      'series' => new SalesDocumentSerialDynamicsResource($document)
-    ];
+    return (new \App\Services\Dynamics\SalesDynamicsBuilder())->buildAll($document);
   }
 
   /**
