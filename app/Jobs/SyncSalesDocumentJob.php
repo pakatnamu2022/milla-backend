@@ -376,7 +376,7 @@ class SyncSalesDocumentJob implements ShouldQueue
       'EmpresaId' => Company::AP_DYNAMICS,
       'DocumentoId' => $documentoId,
       'Linea' => $linea,
-      'ArticuloId' => $accessory->approvedAccessory->code,
+      'ArticuloId' => $accessory->approvedAccessory->code_dynamics ?? throw new Exception("El accesorio '{$accessory->approvedAccessory->code}' no tiene código Dynamics (code_dynamics) definido."),
       'ArticuloDescripcionCorta' => Str::upper(Str::limit($description, 60, '')),
       'ArticuloDescripcionLarga' => $description,
       'SitioId' => $document->warehouse() ?? throw new Exception('El documento no tiene almacén asociado.'),

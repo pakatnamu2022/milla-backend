@@ -17,6 +17,7 @@ class ApprovedAccessories extends Model
 
   protected $fillable = [
     'code',
+    'code_dynamics',
     'type_operation_id',
     'description',
     'price',
