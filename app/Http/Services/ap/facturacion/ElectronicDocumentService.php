@@ -2000,10 +2000,17 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $igvDivisor = 1 + ($document->porcentaje_de_igv / 100);
     $nextLine = $document->items->max('line_number') + 1;
 
-    $items = $document->items->map(function ($item) use ($document, $postSaleAccessories, $igvDivisor) {
+    $totalAccessoriesWithIgv = $postSaleAccessories->sum(
+      fn($a) => ($a->price + $a->additional_price) * $a->quantity
+    );
+
+    $items = $document->items->map(function ($item) use ($document, $postSaleAccessories, $totalAccessoriesWithIgv, $igvDivisor) {
       $overridePrice = null;
       if ($postSaleAccessories->isNotEmpty() && !$item->anticipo_regularizacion) {
-        $overridePrice = round((float)$document->purchaseRequestQuote->base_selling_price / $igvDivisor, 2);
+        $overridePrice = round(
+          ((float)$document->purchaseRequestQuote->base_selling_price - $totalAccessoriesWithIgv) / $igvDivisor,
+          2
+        );
       }
       return new SalesDocumentDetailDynamicsResource($item, $document, $overridePrice);
     });
