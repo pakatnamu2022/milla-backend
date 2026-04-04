@@ -13,7 +13,7 @@ class EquipmentService extends BaseService
     public function list(Request $request)
     {
         return $this->getFilteredResults(
-            Equipment::where('status_deleted', 1),
+            Equipment::where('status_deleted', 1)->with('activeAssignment'),
             $request,
             Equipment::filters,
             Equipment::sorts,
@@ -39,7 +39,9 @@ class EquipmentService extends BaseService
     public function find($id)
     {
         $equipment = Equipment::where('id', $id)
-            ->where('status_deleted', 1)->first();
+            ->where('status_deleted', 1)
+            ->with('activeAssignment')
+            ->first();
         if (!$equipment) {
             throw new Exception('Equipo no encontrado');
         }

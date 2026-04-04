@@ -41,6 +41,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
+use App\Http\Utils\Constants;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -209,8 +210,19 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    */
   public function list(Request $request): JsonResponse
   {
+    $user = $request->user();
+
+    if ($user->role->id === Constants::TICS_ROL_ID) {
+      $query = ElectronicDocument::class;
+    } else {
+      $sedes = $user->sedes()->pluck('config_sede.id')->toArray();
+      $query = ElectronicDocument::whereHas('seriesModel', function ($q) use ($sedes) {
+        $q->whereIn('sede_id', $sedes);
+      });
+    }
+
     return $this->getFilteredResults(
-      ElectronicDocument::class,
+      $query,
       $request,
       ElectronicDocument::filters,
       ElectronicDocument::sorts,
