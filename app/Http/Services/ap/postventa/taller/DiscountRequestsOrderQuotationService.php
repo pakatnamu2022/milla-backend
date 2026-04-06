@@ -525,8 +525,11 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
 
       $subject = 'Nueva solicitud de descuento — Cotización #' . ($quotation->quotation_number ?? $record->ap_order_quotation_id);
 
+      $requestedDiscountPercentage = (float)$record->requested_discount_percentage;
+      $shouldNotifyManager = $requestedDiscountPercentage > 20;
+
       // Notificar al gerente
-      if ($manager?->email2) {
+      if ($shouldNotifyManager && $manager?->email2) {
         $this->emailService->queue([
           'to' => $manager->email2,
           'subject' => $subject,
