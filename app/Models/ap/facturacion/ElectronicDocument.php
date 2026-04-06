@@ -312,9 +312,9 @@ class ElectronicDocument extends BaseModel
     return $this->belongsTo(ElectronicDocument::class, 'original_document_id');
   }
 
-  public function referencingDocuments(): HasMany
+  public function referencingItems(): HasMany
   {
-    return $this->hasMany(ElectronicDocument::class, 'original_document_id');
+    return $this->hasMany(ElectronicDocumentItem::class, 'reference_document_id');
   }
 
   public function debitNote(): BelongsTo
