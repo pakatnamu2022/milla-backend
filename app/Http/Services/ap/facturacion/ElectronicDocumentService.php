@@ -248,7 +248,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       'vehicleMovement',
       'creator',
       'updater'
-    ])->find($id);
+    ])->withCount('referencingDocuments')->find($id);
 
     if (!$document) {
       throw new Exception('Documento electrónico no encontrado');
