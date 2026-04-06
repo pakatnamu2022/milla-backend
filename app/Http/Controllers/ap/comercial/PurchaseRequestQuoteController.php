@@ -114,6 +114,15 @@ class PurchaseRequestQuoteController extends Controller
     }
   }
 
+  public function export(Request $request)
+  {
+    try {
+      return $this->service->export($request);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   /**
    * Get all invoices (electronic documents) for a specific purchase request quote
    *
