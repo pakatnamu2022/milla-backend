@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
+use App\Http\Traits\Reportable;
 use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
@@ -19,7 +20,7 @@ use Illuminate\Support\Str;
 
 class PurchaseRequestQuote extends Model
 {
-  use SoftDeletes;
+  use SoftDeletes, Reportable;
 
   protected $table = 'purchase_request_quote';
 
@@ -187,6 +188,109 @@ class PurchaseRequestQuote extends Model
   {
     return $this->hasOne(PurchaseOrder::class, 'quotation_id');
   }
+
+  protected $reportColumns = [
+    'created_at' => [
+      'label' => 'Fecha de Registro',
+      'formatter' => 'date:d/m/Y H:i',
+      'width' => 22,
+    ],
+    'correlative' => [
+      'label' => 'Correlativo',
+      'formatter' => null,
+      'width' => 18,
+    ],
+    'sede.abreviatura' => [
+      'label' => 'Sede',
+      'formatter' => null,
+      'width' => 15,
+    ],
+    'type_document' => [
+      'label' => 'Tipo Documento',
+      'formatter' => null,
+      'width' => 18,
+    ],
+    'type_vehicle' => [
+      'label' => 'Tipo Vehículo',
+      'formatter' => null,
+      'width' => 18,
+    ],
+    'opportunity.worker.nombre_completo' => [
+      'label' => 'Asesor',
+      'formatter' => null,
+      'width' => 30,
+    ],
+    'holder.num_doc' => [
+      'label' => 'N° Doc. Titular',
+      'formatter' => null,
+      'width' => 18,
+    ],
+    'holder.full_name' => [
+      'label' => 'Titular',
+      'formatter' => null,
+      'width' => 30,
+    ],
+    'apModelsVn.family.brand.name' => [
+      'label' => 'Marca',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'apModelsVn.code' => [
+      'label' => 'Modelo',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'vehicleColor.description' => [
+      'label' => 'Color',
+      'formatter' => null,
+      'width' => 18,
+    ],
+    'typeCurrency.code' => [
+      'label' => 'Moneda Base',
+      'formatter' => null,
+      'width' => 15,
+    ],
+    'sale_price' => [
+      'label' => 'Precio Venta',
+      'formatter' => null,
+      'width' => 18,
+    ],
+    'docTypeCurrency.code' => [
+      'label' => 'Moneda Doc.',
+      'formatter' => null,
+      'width' => 15,
+    ],
+    'doc_sale_price' => [
+      'label' => 'Precio Doc.',
+      'formatter' => null,
+      'width' => 18,
+    ],
+    'quote_deadline' => [
+      'label' => 'Vigencia',
+      'formatter' => 'date:d/m/Y',
+      'width' => 15,
+    ],
+    'is_approved' => [
+      'label' => 'Aprobado',
+      'formatter' => null,
+      'width' => 12,
+    ],
+    'status' => [
+      'label' => 'Estado',
+      'formatter' => null,
+      'width' => 12,
+    ],
+  ];
+
+  protected $reportRelations = [
+    'sede',
+    'holder',
+    'apModelsVn.family.brand',
+    'typeCurrency',
+    'docTypeCurrency',
+    'vehicleColor',
+    'opportunity.worker',
+  ];
 
   public function activate(): void
   {

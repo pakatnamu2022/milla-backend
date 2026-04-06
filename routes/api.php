@@ -1018,6 +1018,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
 
+      Route::get('purchaseRequestQuote/export', [PurchaseRequestQuoteController::class, 'export']);
       Route::get('purchaseRequestQuote/{id}/invoices', [PurchaseRequestQuoteController::class, 'getInvoices']);
       Route::get('purchaseRequestQuote/pdf/{purchaseRequestQuote}', [PurchaseRequestQuoteController::class, 'reportPDF']); // Descargar
       Route::post('purchaseRequestQuote/assignVehicle/{id}', [PurchaseRequestQuoteController::class, 'assignVehicle']);

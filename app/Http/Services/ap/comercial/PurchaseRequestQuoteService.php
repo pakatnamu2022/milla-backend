@@ -9,6 +9,7 @@ use App\Http\Services\ap\facturacion\ElectronicDocumentService;
 use App\Http\Services\ap\facturacion\NubefactApiService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\gestionhumana\personal\WorkerService;
 use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
@@ -614,6 +615,12 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
    * @return \Illuminate\Http\JsonResponse
    * @throws Exception
    */
+  public function export(Request $request)
+  {
+    $exportService = new ExportService();
+    return $exportService->exportFromRequest($request, PurchaseRequestQuote::class);
+  }
+
   public function getInvoices(int $purchaseRequestQuoteId)
   {
     $purchaseRequestQuote = $this->find($purchaseRequestQuoteId);
