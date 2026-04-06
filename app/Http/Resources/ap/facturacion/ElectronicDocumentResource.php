@@ -108,7 +108,7 @@ class ElectronicDocumentResource extends JsonResource
       'is_annulled' => $this->is_annulled,
       'error_message' => $this->error_message,
       'is_advance_payment' => (boolean)$this->is_advance_payment,
-      'is_referenced' => ($this->referencing_documents_count ?? 0) > 0,
+      'is_referenced' => ($this->referencing_items_count ?? 0) > 0,
       'card_last4' => $this->card_last4,
       'internal_note' => $this->internal_note,
       'consolidation_type' => $this->consolidation_type,
