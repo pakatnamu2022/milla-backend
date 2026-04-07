@@ -83,13 +83,16 @@
     }
 
     .company-left {
-      width: 40%;
+      width: 50%;
       text-align: left;
+      padding-right: 20px;
+      border-right: 2px solid #ddd;
     }
 
     .customer-right {
-      width: 60%;
-      text-align: left;
+      width: 50%;
+      text-align: right;
+      padding-left: 20px;
     }
 
     .order-info {
