@@ -101,11 +101,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $data['correlative'] = $this->generateCorrelative();
       $data['status_id'] = ApMasters::OPENING_WORK_ORDER_ID;
       $vehicle = Vehicles::find($data['vehicle_id']);
-
-      if ($vehicle->customer_id === null) {
-        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
-      }
-
+      
       //Plate, vin del vehiculo
       $vehicle = Vehicles::find($data['vehicle_id']);
       if ($vehicle) {
