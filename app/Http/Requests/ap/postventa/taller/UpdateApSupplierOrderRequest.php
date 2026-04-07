@@ -12,13 +12,10 @@ class UpdateApSupplierOrderRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'order_number' => [
+      'order_number_external' => [
         'sometimes',
-        'required',
+        'nullable',
         'string',
-        Rule::unique('ap_supplier_order', 'order_number')
-          ->whereNull('deleted_at')
-          ->ignore($this->route('supplierOrder')),
       ],
       'supplier_id' => [
         'sometimes',

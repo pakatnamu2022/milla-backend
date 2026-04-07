@@ -318,12 +318,14 @@
 <div class="company-info">
   <table>
     <tr>
-      <td class="company-left">
-        <div>Car. Panamericana Norte Nro. 1006</div>
-        <div>Chiclayo - Lambayeque</div>
-        <div>Tel.:</div>
+      <td class="company-left" style="text-align: left">
+        <div>{{$quotation['sede']->direccion}}</div>
+        <div>{{$quotation['sede']->province->name}}
+          - {{$quotation['sede']->district->name}} {{$quotation['sede']->district->ubigeo}}</div>
+        <div>RUC: {{$quotation['sede']->company->num_doc}}</div>
       </td>
       <td class="company-right" style="text-align: right;">
+        <div>Tel.:</div>
         <div>Email: info@automotorespakatnamu.com</div>
         <div>Web: www.automotorespakatnamu.com</div>
       </td>
@@ -634,7 +636,8 @@
     <div class="card">
       <div class="card-header">TUMBES</div>
       <div class="card-content">
-        <div><span class="card-label">Dirección:</span>C.P BARRIO BELLAVISTA MZ A LOTE 19 INT. 1 - TUMBES - (Ref. Parque Bellavista)
+        <div><span class="card-label">Dirección:</span>C.P BARRIO BELLAVISTA MZ A LOTE 19 INT. 1 - TUMBES - (Ref. Parque
+          Bellavista)
         </div>
         <div><span class="card-label">REPUESTOS:</span> 956 278 314</div>
         <div><span class="card-label">Horario:</span>LUNES A VIERNES: 8:00 AM A 6:00 PM

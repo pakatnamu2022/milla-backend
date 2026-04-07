@@ -1370,6 +1370,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Supplier Orders - Órdenes de Proveedor
       Route::get('supplierOrders/{id}/pending-products', [ApSupplierOrderController::class, 'pendingProducts']);
+      Route::put('supplierOrders/{id}/approve', [ApSupplierOrderController::class, 'approve']);
+      Route::get('supplierOrders/{id}/pdf', [ApSupplierOrderController::class, 'generatePDF']);
       Route::put('supplierOrders/{id}/update-status', [ApSupplierOrderController::class, 'updateStatus']);
       Route::apiResource('supplierOrders', ApSupplierOrderController::class)->only([
         'index',

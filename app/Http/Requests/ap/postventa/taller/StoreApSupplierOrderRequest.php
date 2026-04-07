@@ -11,11 +11,9 @@ class StoreApSupplierOrderRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'order_number' => [
-        'required',
+      'order_number_external' => [
+        'nullable',
         'string',
-        Rule::unique('ap_supplier_order', 'order_number')
-          ->whereNull('deleted_at'),
       ],
       'supplier_id' => [
         'required',
@@ -89,9 +87,7 @@ class StoreApSupplierOrderRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'order_number.required' => 'El número de orden es obligatorio.',
-      'order_number.string' => 'El número de orden debe ser una cadena de texto.',
-      'order_number.unique' => 'El número de orden ya existe.',
+      'order_number_external.string' => 'El número de orden externo debe ser una cadena de texto.',
 
       'supplier_id.required' => 'El proveedor es obligatorio.',
       'supplier_id.integer' => 'El proveedor debe ser un entero.',

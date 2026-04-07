@@ -11,6 +11,7 @@ use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -208,6 +209,34 @@ class ApOrderQuotations extends Model
   {
     $this->is_take = 1;
     $this->save();
+  }
+
+  public static function generateNextQuotationNumber(int $sedeId): string
+  {
+    $sede = Sede::find($sedeId);
+    if (!$sede) {
+      throw new Exception('sede no encontrada');
+    }
+
+    $dynCode = $sede->dyn_code;
+    $year = date('Y');
+    $month = date('m');
+    $prefix = "COT-{$dynCode}-{$year}{$month}";
+
+    $lastQuotation = self::withTrashed()
+      ->where('quotation_number', 'like', "{$prefix}%")
+      ->orderBy('quotation_number', 'desc')
+      ->lockForUpdate()
+      ->first();
+
+    if ($lastQuotation) {
+      $lastNumber = (int)substr($lastQuotation->quotation_number, -4);
+      $newNumber = str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
+    } else {
+      $newNumber = '0001';
+    }
+
+    return "{$prefix}{$newNumber}";
   }
 
   /**
