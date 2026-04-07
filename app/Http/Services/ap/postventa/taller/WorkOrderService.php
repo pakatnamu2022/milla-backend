@@ -900,7 +900,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       ApWorkOrderItem::create([
         'group_number' => 1,
         'work_order_id' => $apWorkOrder->id,
-        'type_planning_id' => ApMasters::TIPO_PLANIFICACION_PDI_ID,
+        'type_planning_id' => TypePlanningWorkOrder::TYPE_PLANNING_PDI_ID,
         'type_operation_id' => ApMasters::TIPO_OPERACION_CITA_PDI_ID,
         'description' => 'SERVICIO DE PDI',
       ]);
