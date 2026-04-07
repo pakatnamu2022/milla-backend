@@ -61,16 +61,19 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   public function listForPurchaseRequest(Request $request)
   {
     // Query base con las condiciones requeridas para solicitudes de compra
+    // Envolver en un where para agrupar correctamente las condiciones con los filtros posteriores
     $query = ApOrderQuotations::query()
       ->where(function ($query) {
-        // Condición 1: Cotizaciones aprobadas por jefe y gerente en área taller
-        $query->where('area_id', ApMasters::AREA_TALLER)
-          ->whereNotNull('chief_approval_by')
-          ->whereNotNull('manager_approval_by');
-      })
-      ->orWhereHas('workOrders', function ($query) {
-        // Condición 2: Cotizaciones asociadas a OT con factura generada
-        $query->where('has_invoice_generated', true);
+        $query->where(function ($q) {
+          // Condición 1: Cotizaciones aprobadas por jefe y gerente en área taller
+          $q->where('area_id', ApMasters::AREA_TALLER)
+            ->whereNotNull('chief_approval_by')
+            ->whereNotNull('manager_approval_by');
+        })
+          ->orWhereHas('workOrders', function ($q) {
+            // Condición 2: Cotizaciones asociadas a OT con factura generada
+            $q->where('has_invoice_generated', true);
+          });
       });
 
     return $this->getFilteredResults(
