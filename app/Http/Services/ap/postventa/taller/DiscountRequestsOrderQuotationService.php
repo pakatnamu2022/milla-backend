@@ -10,6 +10,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\GeneralMaster;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Position;
 use Exception;
@@ -380,8 +381,14 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
         ]);
       }
 
+      $requestedDiscountPercentage = (float)$record->requested_discount_percentage;
+      $bossSetting = GeneralMaster::find(GeneralMaster::BOSS_DISCOUNT_PERCENTAGE_PVR_ID);
+      $maxDiscountPercentage = $bossSetting ? ($bossSetting->value * 100) : 20;
+
+      $shouldNotifyManager = $requestedDiscountPercentage > $maxDiscountPercentage;
+
       // Notificar al gerente
-      if ($manager?->email2) {
+      if ($shouldNotifyManager && $manager?->email2) {
         $this->emailService->queue([
           'to' => $manager->email2,
           'subject' => $subject,
@@ -456,8 +463,14 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
         ]);
       }
 
+      $requestedDiscountPercentage = (float)$record->requested_discount_percentage;
+      $bossSetting = GeneralMaster::find(GeneralMaster::BOSS_DISCOUNT_PERCENTAGE_PVR_ID);
+      $maxDiscountPercentage = $bossSetting ? ($bossSetting->value * 100) : 20;
+
+      $shouldNotifyManager = $requestedDiscountPercentage > $maxDiscountPercentage;
+
       // Notificar al gerente
-      if ($manager?->email2) {
+      if ($shouldNotifyManager && $manager?->email2) {
         $this->emailService->queue([
           'to' => $manager->email2,
           'subject' => $subject,
@@ -526,7 +539,10 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
       $subject = 'Nueva solicitud de descuento — Cotización #' . ($quotation->quotation_number ?? $record->ap_order_quotation_id);
 
       $requestedDiscountPercentage = (float)$record->requested_discount_percentage;
-      $shouldNotifyManager = $requestedDiscountPercentage > 20;
+      $bossSetting = GeneralMaster::find(GeneralMaster::BOSS_DISCOUNT_PERCENTAGE_PVR_ID);
+      $maxDiscountPercentage = $bossSetting ? ($bossSetting->value * 100) : 20;
+
+      $shouldNotifyManager = $requestedDiscountPercentage > $maxDiscountPercentage;
 
       // Notificar al gerente
       if ($shouldNotifyManager && $manager?->email2) {

@@ -61,16 +61,19 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   public function listForPurchaseRequest(Request $request)
   {
     // Query base con las condiciones requeridas para solicitudes de compra
+    // Envolver en un where para agrupar correctamente las condiciones con los filtros posteriores
     $query = ApOrderQuotations::query()
       ->where(function ($query) {
-        // Condición 1: Cotizaciones aprobadas por jefe y gerente en área taller
-        $query->where('area_id', ApMasters::AREA_TALLER)
-          ->whereNotNull('chief_approval_by')
-          ->whereNotNull('manager_approval_by');
-      })
-      ->orWhereHas('workOrders', function ($query) {
-        // Condición 2: Cotizaciones asociadas a OT con factura generada
-        $query->where('has_invoice_generated', true);
+        $query->where(function ($q) {
+          // Condición 1: Cotizaciones aprobadas por jefe y gerente en área taller
+          $q->where('area_id', ApMasters::AREA_TALLER)
+            ->whereNotNull('chief_approval_by')
+            ->whereNotNull('manager_approval_by');
+        })
+          ->orWhereHas('workOrders', function ($q) {
+            // Condición 2: Cotizaciones asociadas a OT con factura generada
+            $q->where('has_invoice_generated', true);
+          });
       });
 
     return $this->getFilteredResults(
@@ -116,7 +119,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $data['created_by'] = auth()->user()->id;
       }
 
-      $data['quotation_number'] = $this->generateNextQuotationNumber($data['sede_id']);
+      $data['quotation_number'] = ApOrderQuotations::generateNextQuotationNumber($data['sede_id']);
       $data['subtotal'] = 0;
       $data['discount_amount'] = 0;
       $data['tax_amount'] = 0;
@@ -195,7 +198,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'expiration_date' => $data['expiration_date'],
         'observations' => $data['observations'] ?? null,
         'created_by' => $data['created_by'],
-        'quotation_number' => $this->generateNextQuotationNumber($data['sede_id']),
+        'quotation_number' => ApOrderQuotations::generateNextQuotationNumber($data['sede_id']),
         'subtotal' => 0,
         'discount_percentage' => 0,
         'discount_amount' => 0,
@@ -502,39 +505,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     });
   }
 
-  /**
-   * Genera el siguiente número de cotización en formato COT-{dyn_code}-{YYYYMM}{XXXX}
-   *
-   * @param int $sedeId
-   * @return string
-   */
-  public function generateNextQuotationNumber(int $sedeId): string
-  {
-    $sede = Sede::find($sedeId);
-    if (!$sede) {
-      throw new Exception('Sede no encontrada');
-    }
-
-    $dynCode = $sede->dyn_code;
-    $year = date('Y');
-    $month = date('m');
-    $prefix = "COT-{$dynCode}-{$year}{$month}";
-
-    $lastQuotation = ApOrderQuotations::withTrashed()
-      ->where('quotation_number', 'like', "{$prefix}%")
-      ->orderBy('quotation_number', 'desc')
-      ->first();
-
-    if ($lastQuotation) {
-      $lastNumber = (int)substr($lastQuotation->quotation_number, -4);
-      $newNumber = str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
-    } else {
-      $newNumber = '0001';
-    }
-
-    return "{$prefix}{$newNumber}";
-  }
-
   public function generateQuotationPDF($id, $showCodes = true)
   {
     $quotation = ApOrderQuotations::with([
@@ -557,6 +527,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'observations' => $quotation->observations ?? '',
       'validity_days' => $quotation->validity_days,
       'show_codes' => $showCodes,
+      'sede' => $quotation->sede,
     ];
 
     // Datos del cliente
@@ -1023,7 +994,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'button_url' => config('app.frontend_url') . '/ap/post-venta/taller/cotizacion-taller/aprobar/' . $quotation->id,
       ];
 
-      $subject = 'Nueva Cotización Solicitada por Gerencia - ' . $quotation->quotation_number;
+      $subject = 'Nueva Cotización solicitada por Gerencia - ' . $quotation->quotation_number;
       $emailsSentCount = 0;
 
       // Enviar correo a los Jefes de Taller

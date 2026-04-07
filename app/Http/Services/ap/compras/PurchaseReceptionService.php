@@ -55,6 +55,10 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       // Validate supplier order exists
       $supplierOrder = ApSupplierOrder::findOrFail($data['ap_supplier_order_id']);
 
+      if (is_null($supplierOrder->approved_by)) {
+        throw new Exception('La OC debe estar aprobada para crear la recepción');
+      }
+
       // VALIDACIÓN 1: La fecha de recepción no puede ser anterior a la fecha de la orden
       $receptionDate = Carbon::parse($data['reception_date']);
       $orderDate = Carbon::parse($supplierOrder->order_date);
@@ -172,7 +176,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
           }
         }
       }
-      
+
       // Update only reception header fields
       $reception->update($data);
 

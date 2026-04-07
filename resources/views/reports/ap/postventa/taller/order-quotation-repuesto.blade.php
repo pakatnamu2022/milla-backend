@@ -29,7 +29,7 @@
     }
 
     .header {
-      margin-bottom: 15px;
+      margin-bottom: 2px;
     }
 
     .header table {
@@ -83,7 +83,6 @@
       width: 50%;
       text-align: left;
     }
-
 
     .quotation-info {
       margin-bottom: 10px;
@@ -728,7 +727,8 @@
     <div class="card">
       <div class="card-header">TUMBES</div>
       <div class="card-content">
-        <div><span class="card-label">Dirección:</span>C.P BARRIO BELLAVISTA MZ A LOTE 19 INT. 1 - TUMBES - (Ref. Parque Bellavista)
+        <div><span class="card-label">Dirección:</span>C.P BARRIO BELLAVISTA MZ A LOTE 19 INT. 1 - TUMBES - (Ref. Parque
+          Bellavista)
         </div>
         <div><span class="card-label">REPUESTOS:</span> 956 278 314</div>
         <div><span class="card-label">Horario:</span>LUNES A VIERNES: 8:00 AM A 6:00 PM

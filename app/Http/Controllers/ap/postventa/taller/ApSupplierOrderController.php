@@ -88,4 +88,22 @@ class ApSupplierOrderController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function approve($id)
+  {
+    try {
+      return $this->success($this->service->approve($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function generatePDF($id)
+  {
+    try {
+      return $this->service->generateSupplierOrderPDF($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
