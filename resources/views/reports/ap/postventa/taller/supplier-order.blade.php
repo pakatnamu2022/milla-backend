@@ -68,7 +68,7 @@
       border: none;
       vertical-align: top;
       padding: 8px;
-      font-size: 9px;
+      font-size: 11px;
       line-height: 1.6;
     }
 
@@ -100,7 +100,7 @@
     .order-info td {
       padding: 6px 0;
       vertical-align: top;
-      font-size: 10px;
+      font-size: 11px;
     }
 
     .order-left {
@@ -138,7 +138,7 @@
     .supplier-info td {
       padding: 6px 0;
       vertical-align: top;
-      font-size: 10px;
+      font-size: 11px;
     }
 
     table.details-table {
@@ -153,13 +153,13 @@
       padding: 6px;
       text-align: left;
       font-weight: bold;
-      font-size: 10px;
+      font-size: 11px;
     }
 
     table.details-table td {
       border: 1px solid #000;
       padding: 6px;
-      font-size: 10px;
+      font-size: 11px;
     }
 
     table.details-table td.text-right {
@@ -370,17 +370,9 @@
 <div class="clearfix">
   <div class="totals">
     <table>
-      <tr>
-        <td>SUB TOTAL:</td>
-        <td>{{ $order['currency_symbol'] }} {{ number_format($order['net_amount'], 2) }}</td>
-      </tr>
-      <tr>
-        <td>IGV (18%):</td>
-        <td>{{ $order['currency_symbol'] }} {{ number_format($order['tax_amount'], 2) }}</td>
-      </tr>
       <tr style="background-color: #f0f0f0;">
-        <td><strong>TOTAL:</strong></td>
-        <td><strong>{{ $order['currency_symbol'] }} {{ number_format($order['total_amount'], 2) }}</strong></td>
+        <td><strong>TOTAL BRUTO:</strong></td>
+        <td><strong>{{ $order['currency_symbol'] }} {{ number_format($order['net_amount'], 2) }}</strong></td>
       </tr>
     </table>
   </div>

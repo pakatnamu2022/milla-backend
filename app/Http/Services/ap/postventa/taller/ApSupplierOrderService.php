@@ -508,7 +508,7 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
     $data['details'] = $supplierOrder->details->map(function ($detail) {
       return [
         'code' => $detail->product ? $detail->product->code : 'N/A',
-        'description' => $detail->product ? $detail->product->description : 'N/A',
+        'description' => $detail->product ? $detail->product->name : 'N/A',
         'note' => $detail->note ?? '',
         'quantity' => $detail->quantity,
         'unit_measure' => $detail->unitMeasurement ? $detail->unitMeasurement->description : 'N/A',
