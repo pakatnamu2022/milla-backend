@@ -24,6 +24,8 @@ class EquipmentAssigmentResource extends JsonResource
       'observacion_unassign' => $this->observacion_unassign,
       'pdf_path' => $this->pdf_path,
       'pdf_unassign_path' => $this->pdf_unassign_path,
+      'phone_line_id'     => $this->phone_line_id,
+      'phone_line_number' => $this->phoneLine?->line_number,
       'items' => EquipmentItemAssigmentResource::collection($this->whenLoaded('items')),
       'created_at' => $this->created_at,
       'updated_at' => $this->updated_at,

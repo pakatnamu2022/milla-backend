@@ -9,6 +9,7 @@ use App\Http\Services\ap\comercial\VehiclesService;
 use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
 use App\Http\Services\ap\compras\PurchaseReceptionService;
 use App\Http\Services\BaseService;
+use App\Http\Utils\Constants;
 use App\Jobs\SyncCreditNoteDynamicsJob;
 use App\Jobs\SyncInvoiceDynamicsJob;
 use App\Models\ap\maestroGeneral\Warehouse;
@@ -61,13 +62,34 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
    */
   public function list(Request $request)
   {
+    $query = $this->getPurchaseOrderQuery($request);
+
     return $this->getFilteredResults(
-      PurchaseOrder::class,
+      $query,
       $request,
       PurchaseOrder::filters,
       PurchaseOrder::sorts,
       PurchaseOrderResource::class
     );
+  }
+
+  /**
+   * Construye el query de órdenes de compra según el acceso por sedes.
+   * Usuarios TICS pueden ver todas las sedes.
+   * @param Request $request
+   * @return string|\Illuminate\Database\Eloquent\Builder
+   */
+  private function getPurchaseOrderQuery(Request $request)
+  {
+    $user = $request->user();
+
+    if ($user->role->id === Constants::TICS_ROL_ID) {
+      return PurchaseOrder::class;
+    }
+
+    $sedes = $user->sedes()->pluck('config_sede.id')->toArray();
+
+    return PurchaseOrder::whereIn('sede_id', $sedes);
   }
 
   /**

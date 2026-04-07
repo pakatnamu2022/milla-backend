@@ -282,6 +282,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     //        VIEWS
     Route::get('view/with-permissions', [ViewController::class, 'viewsWithPermissions'])->name('view.with-permissions');
+    Route::post('view/{id}/duplicate', [ViewController::class, 'duplicate'])->name('view.duplicate');
     Route::apiResource('view', ViewController::class)->only([
       'index',
       'show',
@@ -368,6 +369,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('equipmentAssigment/history/equipment/{equipoId}', [EquipmentAssigmentController::class, 'historyByEquipment']);
       Route::put('equipmentAssigment/{id}/confirm', [EquipmentAssigmentController::class, 'confirm']);
       Route::post('equipmentAssigment/{id}/unassign', [EquipmentAssigmentController::class, 'unassign']);
+      Route::patch('equipmentAssigment/{id}/link-phone-line', [EquipmentAssigmentController::class, 'linkPhoneLine']);
       Route::get('equipmentAssigment/{id}/pdf/assignment', [EquipmentAssigmentController::class, 'downloadAssignmentPdf']);
       Route::get('equipmentAssigment/{id}/pdf/unassignment', [EquipmentAssigmentController::class, 'downloadUnassignmentPdf']);
       Route::apiResource('equipmentAssigment', EquipmentAssigmentController::class)->only([
@@ -380,6 +382,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       //    PHONE LINE WORKERS (ASSIGNMENTS)
       Route::get('phoneLineWorker/history/{phoneLineId}', [PhoneLineWorkerController::class, 'history']);
+      Route::post('phoneLineWorker/{id}/unassign', [PhoneLineWorkerController::class, 'unassign']);
+      Route::patch('phoneLineWorker/{id}/link-equipment', [PhoneLineWorkerController::class, 'linkEquipment']);
       Route::get('phoneLineWorker/{id}/pdf/assignment', [PhoneLineWorkerController::class, 'downloadAssignmentPdf']);
       Route::get('phoneLineWorker/{id}/pdf/unassignment', [PhoneLineWorkerController::class, 'downloadUnassignmentPdf']);
       Route::apiResource('phoneLineWorker', PhoneLineWorkerController::class)->only([
@@ -1014,6 +1018,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
 
+      Route::get('purchaseRequestQuote/export', [PurchaseRequestQuoteController::class, 'export']);
       Route::get('purchaseRequestQuote/{id}/invoices', [PurchaseRequestQuoteController::class, 'getInvoices']);
       Route::get('purchaseRequestQuote/pdf/{purchaseRequestQuote}', [PurchaseRequestQuoteController::class, 'reportPDF']); // Descargar
       Route::post('purchaseRequestQuote/assignVehicle/{id}', [PurchaseRequestQuoteController::class, 'assignVehicle']);
