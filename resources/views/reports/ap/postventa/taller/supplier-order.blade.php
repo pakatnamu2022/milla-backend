@@ -35,33 +35,27 @@
     .header table {
       width: 100%;
       border: none;
-      border-collapse: collapse;
     }
 
     .header td {
       border: none;
       vertical-align: middle;
-      padding: 5px;
     }
 
     .logo {
       text-align: center;
-      vertical-align: middle;
     }
 
     .logo img {
-      max-width: 100px;
+      max-width: 200px;
       height: auto;
-      display: block;
-      margin: 0 auto;
     }
 
     .center-title {
       text-align: center;
       font-size: 14px;
       font-weight: bold;
-      padding: 10px 5px;
-      vertical-align: middle;
+      padding: 5px;
     }
 
     .company-info {
@@ -248,13 +242,13 @@
 <div class="header">
   <table>
     <tr>
-      <td class="logo" style="width: 40%;">
+      <td class="logo" style="width: 20%;">
         <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="Automotores Logo">
       </td>
-      <td class="center-title" style="width: 20%;">
+      <td class="center-title" style="width: 60%;">
         {{ $order['sede']->company->businessName }}
       </td>
-      <td class="logo" style="width: 40%;">
+      <td class="logo" style="width: 20%;">
         <img src="{{ getBase64Image('images/ap/derco.jpg') }}" alt="Derco Logo">
       </td>
     </tr>
