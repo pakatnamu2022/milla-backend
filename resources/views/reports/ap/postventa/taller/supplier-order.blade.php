@@ -28,10 +28,6 @@
       padding: 20px;
     }
 
-    .header {
-      margin-bottom: 15px;
-    }
-
     .header table {
       width: 100%;
       border: none;
@@ -59,7 +55,7 @@
     }
 
     .company-info {
-      margin-bottom: 15px;
+      margin-bottom: 5px;
     }
 
     .company-info table {
@@ -90,7 +86,7 @@
     }
 
     .order-info {
-      margin-bottom: 15px;
+      margin-bottom: 10px;
       border: 1px solid #000;
       padding: 10px;
     }
@@ -120,7 +116,7 @@
     }
 
     .supplier-info {
-      margin-bottom: 15px;
+      margin-bottom: 10px;
       border: 1px solid #000;
       padding: 10px;
     }
@@ -148,7 +144,7 @@
     table.details-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
     }
 
     table.details-table th {
