@@ -76,9 +76,6 @@ class ApMasters extends Model
   // IDS de TIPO DE OPERACION CITA
   const int TIPO_OPERACION_CITA_PDI_ID = 965;
 
-  // IDS de TIPO DE PLANIFICACION
-  const int TIPO_PLANIFICACION_PDI_ID = 964;
-
   /**
    * AREAS
    */
@@ -130,7 +127,7 @@ class ApMasters extends Model
   {
     return in_array($this->code, Opportunity::OPEN_STATUS_CODES);
   }
-  
+
   public static function getDigitsForDocumentType(int $documentTypeId): ?int
   {
     return self::DOCUMENT_TYPE_DIGITS[$documentTypeId] ?? null;
