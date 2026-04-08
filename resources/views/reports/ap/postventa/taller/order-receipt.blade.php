@@ -54,6 +54,28 @@
       padding: 5px;
     }
 
+    .company-info table {
+      width: 100%;
+      border: none;
+    }
+
+    .company-info td {
+      border: none;
+      vertical-align: top;
+      padding: 5px;
+      font-size: 11px;
+    }
+
+    .company-left {
+      width: 50%;
+      text-align: left;
+    }
+
+    .company-right {
+      width: 50%;
+      text-align: left;
+    }
+
     .section-title {
       background-color: #8b8b8b;
       color: black;
@@ -334,27 +356,42 @@
   </table>
 </div>
 
-<!-- Cuadros de Estado: Recall y Garantía -->
-<div class="guarantee-recall-container">
-  <div class="recall-box">
-    <div class="guarantee-check-box">
-      <div class="guarantee-check-title">VEHÍCULO EN RECALL</div>
-      <div class="guarantee-check-options">
-        <div class="guarantee-option {{ $isRecall ? 'checked' : '' }}">SI</div>
-        <div class="guarantee-option {{ !$isRecall ? 'checked' : '' }}">NO</div>
-      </div>
-    </div>
-  </div>
+<!-- Información de la empresa y cuadros de estado -->
+<div class="company-info">
+  <table>
+    <tr>
+      <td class="company-left" style="text-align: left">
+        <div>{{$sede->direccion}}</div>
+        <div>{{$sede->province->name}}
+          - {{$sede->district->name}} {{$sede->district->ubigeo}}</div>
+        <div>RUC: {{$sede->company->num_doc}}</div>
+      </td>
+      <td class="company-right" style="text-align: right;">
+        <!-- Cuadros de Estado: Recall y Garantía -->
+        <div class="guarantee-recall-container">
+          <div class="recall-box">
+            <div class="guarantee-check-box">
+              <div class="guarantee-check-title">VEHÍCULO EN RECALL</div>
+              <div class="guarantee-check-options">
+                <div class="guarantee-option {{ $isRecall ? 'checked' : '' }}">SI</div>
+                <div class="guarantee-option {{ !$isRecall ? 'checked' : '' }}">NO</div>
+              </div>
+            </div>
+          </div>
 
-  <div class="guarantee-box">
-    <div class="guarantee-check-box">
-      <div class="guarantee-check-title">VEHÍCULO EN GARANTÍA</div>
-      <div class="guarantee-check-options">
-        <div class="guarantee-option {{ $isGuarantee ? 'checked' : '' }}">SI</div>
-        <div class="guarantee-option {{ !$isGuarantee ? 'checked' : '' }}">NO</div>
-      </div>
-    </div>
-  </div>
+          <div class="guarantee-box">
+            <div class="guarantee-check-box">
+              <div class="guarantee-check-title">VEHÍCULO EN GARANTÍA</div>
+              <div class="guarantee-check-options">
+                <div class="guarantee-option {{ $isGuarantee ? 'checked' : '' }}">SI</div>
+                <div class="guarantee-option {{ !$isGuarantee ? 'checked' : '' }}">NO</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>
+  </table>
 </div>
 
 <!-- Sección: Información de la Orden de Trabajo -->
