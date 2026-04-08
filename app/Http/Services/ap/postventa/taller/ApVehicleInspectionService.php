@@ -344,6 +344,7 @@ class ApVehicleInspectionService extends BaseService
       'createdByWorkOrder.sede',
       'createdByWorkOrder.status',
       'createdByWorkOrder.items.typePlanning',
+      'createdByWorkOrder.items.typeOperation',
       'createdByWorkOrder.appointmentPlanning',
       'inspectionBy.person' // User sí tiene relación person
     ])->findOrFail($id);
@@ -447,6 +448,7 @@ class ApVehicleInspectionService extends BaseService
       'createdByWorkOrder.sede',
       'createdByWorkOrder.status',
       'createdByWorkOrder.items.typePlanning',
+      'createdByWorkOrder.items.typeOperation',
       'createdByWorkOrder.appointmentPlanning',
       'inspectionBy.person' // User sí tiene relación person
     ])->findOrFail($id);

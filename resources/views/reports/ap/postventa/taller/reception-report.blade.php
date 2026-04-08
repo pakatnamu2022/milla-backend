@@ -54,10 +54,6 @@
       padding: 5px;
     }
 
-    .company-info {
-      margin-bottom: 15px;
-    }
-
     .company-info table {
       width: 100%;
       border: none;
@@ -81,15 +77,14 @@
     }
 
     .section-title {
-      background-color: #172e66;
-      color: white;
+      background-color: #8b8b8b;
+      color: black;
       font-weight: bold;
       font-size: 10px;
       padding: 5px;
       text-align: left;
       border: 1px solid #000;
       margin-top: 10px;
-      margin-bottom: 5px;
     }
 
     table.data-table {
@@ -101,8 +96,17 @@
 
     table.data-table td {
       padding: 4px;
-      border: 1px solid #000;
       vertical-align: top;
+    }
+
+    /* Tablas de OT, vehiculo y cliente: sin bordes internos */
+    table.data-table.work-order-info-table {
+      border: 1px solid #000;
+      border-top: none;
+    }
+
+    table.data-table.work-order-info-table td {
+      border: none;
     }
 
     .label-cell {
@@ -119,8 +123,8 @@
     }
 
     table.items-table th {
-      background-color: #172e66;
-      color: white;
+      background-color: #8b8b8b;
+      color: black;
       font-weight: bold;
       padding: 5px;
       text-align: center;
@@ -131,6 +135,24 @@
       padding: 4px;
       border: 1px solid #000;
       vertical-align: middle;
+    }
+
+    .work-items-list {
+      border: 1px solid #000;
+      border-top: none;
+      padding: 8px;
+      margin-bottom: 10px;
+      font-size: 8px;
+      line-height: 1.5;
+    }
+
+    .work-item {
+      margin-bottom: 6px;
+      word-break: break-word;
+    }
+
+    .work-item:last-child {
+      margin-bottom: 0;
     }
 
     .vehicle-inspection-container {
@@ -348,8 +370,8 @@
     }
 
     .recall-info-table th {
-      background-color: #172e66;
-      color: white;
+      background-color: #8b8b8b;
+      color: black;
       font-weight: bold;
       padding: 5px;
       text-align: left;
@@ -446,7 +468,7 @@
       font-size: 8px;
       font-weight: bold;
       margin-bottom: 5px;
-      color: #172e66;
+      color: #8b8b8b;
     }
 
     .damage-evidence-description {
@@ -454,6 +476,19 @@
       margin-top: 5px;
       color: #333;
       text-align: center;
+    }
+
+    .observations-section {
+      border: 1px solid #000;
+      border-top: none;
+      background-color: #f9f9f9;
+      padding: 4px;
+      margin-bottom: 10px;
+      font-size: 8px;
+      line-height: 1.4;
+      min-height: 45px;
+      white-space: pre-line;
+      word-break: break-word;
     }
   </style>
 </head>
@@ -488,42 +523,39 @@
         <div>RUC: {{$sede->company->num_doc}}</div>
       </td>
       <td class="company-right" style="text-align: right;">
-        <div>Tel.:</div>
-        <div>Email: info@automotorespakatnamu.com</div>
-        <div>Web: www.automotorespakatnamu.com</div>
+        <!-- Cuadros de Estado: Recall y Garantía -->
+        <div class="guarantee-recall-container">
+          <!-- Lado Izquierdo: Estado de Recall -->
+          <div class="recall-box">
+            <div class="guarantee-check-box">
+              <div class="guarantee-check-title">VEHÍCULO EN RECALL</div>
+              <div class="guarantee-check-options">
+                <div class="guarantee-option {{ $isRecall ? 'checked' : '' }}">SI</div>
+                <div class="guarantee-option {{ !$isRecall ? 'checked' : '' }}">NO</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lado Derecho: Estado de Garantía -->
+          <div class="guarantee-box">
+            <div class="guarantee-check-box">
+              <div class="guarantee-check-title">VEHÍCULO EN GARANTÍA</div>
+              <div class="guarantee-check-options">
+                <div class="guarantee-option {{ $isGuarantee ? 'checked' : '' }}">SI</div>
+                <div class="guarantee-option {{ !$isGuarantee ? 'checked' : '' }}">NO</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </td>
     </tr>
   </table>
-</div>
-<!-- Cuadros de Estado: Recall y Garantía -->
-<div class="guarantee-recall-container">
-  <!-- Lado Izquierdo: Estado de Recall -->
-  <div class="recall-box">
-    <div class="guarantee-check-box">
-      <div class="guarantee-check-title">VEHÍCULO EN RECALL</div>
-      <div class="guarantee-check-options">
-        <div class="guarantee-option {{ $isRecall ? 'checked' : '' }}">SI</div>
-        <div class="guarantee-option {{ !$isRecall ? 'checked' : '' }}">NO</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Lado Derecho: Estado de Garantía -->
-  <div class="guarantee-box">
-    <div class="guarantee-check-box">
-      <div class="guarantee-check-title">VEHÍCULO EN GARANTÍA</div>
-      <div class="guarantee-check-options">
-        <div class="guarantee-option {{ $isGuarantee ? 'checked' : '' }}">SI</div>
-        <div class="guarantee-option {{ !$isGuarantee ? 'checked' : '' }}">NO</div>
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- Sección: Información de la Orden de Trabajo -->
 <div class="section-title">INFORMACIÓN DE LA ORDEN DE TRABAJO</div>
 
-<table class="data-table">
+<table class="data-table work-order-info-table">
   <tr>
     <td class="label-cell">Número OT:</td>
     <td>{{ $workOrder->correlative }}</td>
@@ -572,7 +604,7 @@
 
 <!-- Sección: Información del Vehículo -->
 <div class="section-title">INFORMACIÓN DEL VEHÍCULO</div>
-<table class="data-table">
+<table class="data-table work-order-info-table">
   <tr>
     <td class="label-cell">Marca:</td>
     <td>{{ $vehicle->model->family->brand->name ?? 'N/A' }}</td>
@@ -605,55 +637,52 @@
   </tr>
 </table>
 
-<!-- Sección: Datos del Cliente -->
-<div class="section-title">DATOS DEL CLIENTE</div>
-<table class="data-table">
-  <tr>
-    <td class="label-cell">Cliente:</td>
-    <td colspan="3">{{ $customer ? $customer->full_name : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">DNI/RUC:</td>
-    <td>{{ $customer ? $customer->num_doc : 'N/A' }}</td>
-    <td class="label-cell">Teléfono:</td>
-    <td>{{ $customer ? $customer->phone : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Dirección:</td>
-    <td colspan="3">{{ $customer ? $customer->direction : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">E-mail:</td>
-    <td>{{ $customer ? $customer->email : 'N/A' }}</td>
-    <td class="label-cell">Celular:</td>
-    <td>{{ $customer ? $customer->phone : 'N/A' }}</td>
-  </tr>
-</table>
+@if($customer)
+  <!-- Sección: Datos del Cliente -->
+  <div class="section-title">DATOS DEL CLIENTE</div>
+  <table class="data-table work-order-info-table">
+    <tr>
+      <td class="label-cell">Cliente:</td>
+      <td colspan="3">{{ $customer->full_name }}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">DNI/RUC:</td>
+      <td>{{ $customer->num_doc }}</td>
+      <td class="label-cell">Teléfono:</td>
+      <td>{{ $customer->phone }}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">Dirección:</td>
+      <td colspan="3">{{ $customer->direction }}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">E-mail:</td>
+      <td>{{ $customer->email }}</td>
+      <td class="label-cell">Celular:</td>
+      <td>{{ $customer->phone }}</td>
+    </tr>
+  </table>
+@endif
 
 <!-- Sección: Items de Trabajo -->
-<div class="section-title">ITEMS DE TRABAJO</div>
-<table class="items-table">
-  <thead>
-  <tr>
-    <th style="width: 10%;">N°</th>
-    <th style="width: 20%;">Tipo</th>
-    <th style="width: 70%;">Descripción</th>
-  </tr>
-  </thead>
-  <tbody>
+<div class="section-title">DETALLES DE TRABAJO</div>
+<div class="work-items-list">
   @forelse($items as $index => $item)
-    <tr>
-      <td class="text-center">{{ $index + 1 }}</td>
-      <td>{{ $item->typePlanning ? $item->typePlanning->description : 'N/A' }}</td>
-      <td>{{ $item->description }}</td>
-    </tr>
+    <div class="work-item">
+      <strong>{{ $index + 1 }}.</strong>
+      <strong>Tipo:</strong> {{ $item->typePlanning?->description ?? 'N/A' }} |
+      <strong>Operación:</strong> {{ $item->typeOperation?->description ?? 'N/A' }} |
+      <strong>Descripción:</strong> {{ $item->description ?: 'Sin descripción' }}
+    </div>
   @empty
-    <tr>
-      <td colspan="3" class="text-center">No hay items de trabajo registrados</td>
-    </tr>
+    <div class="work-item text-center">No hay items de trabajo registrados</div>
   @endforelse
-  </tbody>
-</table>
+</div>
+
+<div class="section-title">OBSERVACIONES</div>
+<div class="observations-section">
+  {{$workOrder->observations}}
+</div>
 
 <!-- Sección: Inspección del Vehículo (Inventario + Estado) -->
 <div class="section-title">INSPECCIÓN DEL VEHÍCULO</div>
@@ -795,7 +824,6 @@
 @endif
 
 <!-- Sección: Información Importante -->
-<div class="section-title">INFORMACIÓN IMPORTANTE</div>
 <div class="important-section">
   <div class="important-title">ESTIMADO CLIENTE:</div>
   <div style="font-size: 8px; line-height: 1.4;">
