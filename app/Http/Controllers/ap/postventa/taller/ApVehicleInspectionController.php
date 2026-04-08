@@ -66,6 +66,10 @@ class ApVehicleInspectionController extends Controller
         'photo_right' => $request->hasFile('photo_right') ? $request->file('photo_right') : null,
         'photo_optional_1' => $request->hasFile('photo_optional_1') ? $request->file('photo_optional_1') : null,
         'photo_optional_2' => $request->hasFile('photo_optional_2') ? $request->file('photo_optional_2') : null,
+        'photo_optional_3' => $request->hasFile('photo_optional_3') ? $request->file('photo_optional_3') : null,
+        'photo_optional_4' => $request->hasFile('photo_optional_4') ? $request->file('photo_optional_4') : null,
+        'photo_optional_5' => $request->hasFile('photo_optional_5') ? $request->file('photo_optional_5') : null,
+        'photo_optional_6' => $request->hasFile('photo_optional_6') ? $request->file('photo_optional_6') : null,
       ];
 
       return $this->service->store($data);

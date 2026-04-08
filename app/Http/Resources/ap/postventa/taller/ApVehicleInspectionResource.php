@@ -74,6 +74,10 @@ class ApVehicleInspectionResource extends JsonResource
       'photo_right_url' => $this->photo_right_url,
       'photo_optional_1_url' => $this->photo_optional_1_url,
       'photo_optional_2_url' => $this->photo_optional_2_url,
+      'photo_optional_3_url' => $this->photo_optional_3_url,
+      'photo_optional_4_url' => $this->photo_optional_4_url,
+      'photo_optional_5_url' => $this->photo_optional_5_url,
+      'photo_optional_6_url' => $this->photo_optional_6_url,
       // Detalles de trabajo
       'oil_change' => $this->oil_change,
       'check_level_lights' => $this->check_level_lights,
@@ -110,23 +114,6 @@ class ApVehicleInspectionResource extends JsonResource
 
       // Relationships
       'damages' => ApVehicleInspectionDamagesResource::collection($this->whenLoaded('damages')),
-
-      // Trazabilidad: daños registrados en la recepción comercial del mismo vehículo
-//      'receiving_damages' => $this->getReceivingDamages(),
     ];
   }
-
-//  private function getReceivingDamages(): array
-//  {
-//    $damages = $this->createdByWorkOrder?->vehicle
-//      ?->shippingGuideReceiving
-//      ?->receivingInspection
-//      ?->damages;
-//
-//    if (!$damages) {
-//      return [];
-//    }
-//
-//    return ApReceivingInspectionDamageResource::collection($damages)->resolve();
-//  }
 }

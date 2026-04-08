@@ -45,6 +45,12 @@ class StoreApVehicleInspectionRequest extends StoreRequest
       'photo_back' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
       'photo_left' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
       'photo_right' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+      'photo_optional_1' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+      'photo_optional_2' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+      'photo_optional_3' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+      'photo_optional_4' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+      'photo_optional_5' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+      'photo_optional_6' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
       // Detalles de trabajo
       'oil_change' => 'nullable|boolean',
       'check_level_lights' => 'nullable|boolean',
