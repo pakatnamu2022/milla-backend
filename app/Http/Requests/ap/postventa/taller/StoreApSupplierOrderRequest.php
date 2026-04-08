@@ -11,11 +11,9 @@ class StoreApSupplierOrderRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'order_number' => [
-        'required',
+      'order_number_external' => [
+        'nullable',
         'string',
-        Rule::unique('ap_supplier_order', 'order_number')
-          ->whereNull('deleted_at'),
       ],
       'supplier_id' => [
         'required',
@@ -44,7 +42,7 @@ class StoreApSupplierOrderRequest extends StoreRequest
       'supply_type' => [
         'required',
         'string',
-        'in:' . ApSupplierOrder::STOCK . ',' . ApSupplierOrder::LOCAL . ',' . ApSupplierOrder::LIMA . ',' . ApSupplierOrder::IMPORTACION,
+        'in:' . ApSupplierOrder::STOCK . ',' . ApSupplierOrder::LOCAL . ',' . ApSupplierOrder::CENTRAL . ',' . ApSupplierOrder::IMPORTACION,
       ],
       'request_detail_ids' => ['nullable', 'array'],
 
@@ -89,9 +87,7 @@ class StoreApSupplierOrderRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'order_number.required' => 'El número de orden es obligatorio.',
-      'order_number.string' => 'El número de orden debe ser una cadena de texto.',
-      'order_number.unique' => 'El número de orden ya existe.',
+      'order_number_external.string' => 'El número de orden externo debe ser una cadena de texto.',
 
       'supplier_id.required' => 'El proveedor es obligatorio.',
       'supplier_id.integer' => 'El proveedor debe ser un entero.',
@@ -113,7 +109,7 @@ class StoreApSupplierOrderRequest extends StoreRequest
       'order_date.date' => 'La fecha de orden debe ser una fecha válida.',
 
       'supply_type.required' => 'El tipo de suministro es obligatorio.',
-      'supply_type.in' => 'El tipo de suministro debe ser: STOCK, LOCAL, LIMA o IMPORTACION.',
+      'supply_type.in' => 'El tipo de suministro debe ser: STOCK, LOCAL, CENTRAL o IMPORTACION.',
 
       // Details messages
       'details.required' => 'Los detalles de la orden son obligatorios.',

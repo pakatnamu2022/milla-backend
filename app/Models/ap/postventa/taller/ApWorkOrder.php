@@ -39,6 +39,7 @@ class ApWorkOrder extends Model
     'advisor_id',
     'invoice_to',
     'sede_id',
+    'num_doc_contact',
     'full_contact_name',
     'phone_contact',
     'opening_date',
@@ -62,10 +63,12 @@ class ApWorkOrder extends Model
     'description_recall',
     'type_recall',
     'has_invoice_generated',
+    'output_generation_warehouse',
     'allow_remove_associated_quote',
     'allow_editing_inspection',
     'created_by',
     'post_service_follow_up',
+    'signature_delivery_url',
   ];
 
   protected $casts = [
@@ -79,6 +82,7 @@ class ApWorkOrder extends Model
     'is_guarantee' => 'boolean',
     'is_recall' => 'boolean',
     'has_invoice_generated' => 'boolean',
+    'output_generation_warehouse' => 'boolean',
     'total_labor_cost' => 'decimal:2',
     'total_parts_cost' => 'decimal:2',
     'subtotal' => 'decimal:2',
@@ -108,6 +112,8 @@ class ApWorkOrder extends Model
     'diagnosis_date' => 'between',
     'is_invoiced' => '=',
     'created_by' => '=',
+    'items.typePlanning.id' => '=',
+    'items.typePlanning.type_document' => '='
   ];
 
   const sorts = [

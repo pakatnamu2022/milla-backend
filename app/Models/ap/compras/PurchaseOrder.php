@@ -108,7 +108,7 @@ class PurchaseOrder extends BaseModel
 
   // SUPPLY TYPE CONSTANTS
   const STOCK = 'STOCK';
-  const LIMA = 'LIMA';
+  const CENTRAL = 'CENTRAL';
   const IMPORTACION = 'IMPORTACION';
 
   // Relaciones

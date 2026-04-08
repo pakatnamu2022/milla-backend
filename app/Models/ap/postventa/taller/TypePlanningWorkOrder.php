@@ -25,6 +25,8 @@ class TypePlanningWorkOrder extends Model
     'validate_labor' => 'boolean',
     'status' => 'boolean'
   ];
+  // CONST ID
+  const int TYPE_PLANNING_PDI_ID = 6;
 
   // TYPES DOCUMENT
   const string INTERNA = 'INTERNA';

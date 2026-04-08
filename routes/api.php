@@ -1297,7 +1297,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
       Route::post('workOrderParts/store-bulk-from-quotation', [ApWorkOrderPartsController::class, 'storeBulkFromQuotation']);
-      Route::post('workOrderParts/{id}/warehouse-output', [ApWorkOrderPartsController::class, 'warehouseOutput']);
+      Route::post('workOrderParts/{id}/assign', [ApWorkOrderPartsController::class, 'assignToTechnician']);
+      Route::post('workOrderParts/confirm-receipt', [ApWorkOrderPartsController::class, 'confirmReceipt']);
+      Route::get('workOrderParts/{id}/deliveries', [ApWorkOrderPartsController::class, 'getDeliveries']);
+      Route::get('workOrderParts/work-order/{workOrderId}/assignments', [ApWorkOrderPartsController::class, 'getAssignmentsByWorkOrder']);
 
       // Work Order Labour - Mano de Obra de Órdenes de Trabajo
       Route::apiResource('workOrderLabour', WorkOrderLabourController::class)->only([
@@ -1372,6 +1375,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Supplier Orders - Órdenes de Proveedor
       Route::get('supplierOrders/{id}/pending-products', [ApSupplierOrderController::class, 'pendingProducts']);
+      Route::put('supplierOrders/{id}/approve', [ApSupplierOrderController::class, 'approve']);
+      Route::get('supplierOrders/{id}/pdf', [ApSupplierOrderController::class, 'generatePDF']);
       Route::put('supplierOrders/{id}/update-status', [ApSupplierOrderController::class, 'updateStatus']);
       Route::apiResource('supplierOrders', ApSupplierOrderController::class)->only([
         'index',

@@ -27,10 +27,7 @@ class ApVehicleInspectionController extends Controller
     try {
       return $this->service->list($request);
     } catch (Exception $e) {
-      return response()->json([
-        'message' => 'Error al listar las inspecciones vehiculares',
-        'error' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -67,14 +64,13 @@ class ApVehicleInspectionController extends Controller
         'photo_back' => $request->hasFile('photo_back') ? $request->file('photo_back') : null,
         'photo_left' => $request->hasFile('photo_left') ? $request->file('photo_left') : null,
         'photo_right' => $request->hasFile('photo_right') ? $request->file('photo_right') : null,
+        'photo_optional_1' => $request->hasFile('photo_optional_1') ? $request->file('photo_optional_1') : null,
+        'photo_optional_2' => $request->hasFile('photo_optional_2') ? $request->file('photo_optional_2') : null,
       ];
 
       return $this->service->store($data);
     } catch (Exception $e) {
-      return response()->json([
-        'message' => 'Error al crear la inspección vehicular',
-        'error' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -86,10 +82,7 @@ class ApVehicleInspectionController extends Controller
     try {
       return $this->service->show($id);
     } catch (Exception $e) {
-      return response()->json([
-        'message' => 'Error al obtener la inspección vehicular',
-        'error' => $e->getMessage()
-      ], 404);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -112,10 +105,7 @@ class ApVehicleInspectionController extends Controller
     try {
       return $this->service->destroy($id);
     } catch (Exception $e) {
-      return response()->json([
-        'message' => 'Error al eliminar la inspección vehicular',
-        'error' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -127,10 +117,7 @@ class ApVehicleInspectionController extends Controller
     try {
       return $this->service->generateReceptionReport($id);
     } catch (Exception $e) {
-      return response()->json([
-        'message' => 'Error al generar el reporte de recepción',
-        'error' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -139,10 +126,7 @@ class ApVehicleInspectionController extends Controller
     try {
       return $this->service->generateOrderReceipt($id);
     } catch (Exception $e) {
-      return response()->json([
-        'message' => 'Error al generar el reporte de recepción',
-        'error' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -155,10 +139,7 @@ class ApVehicleInspectionController extends Controller
 
       return $this->service->requestCancellation($id, $request->cancellation_reason);
     } catch (Exception $e) {
-      return response()->json([
-        'message' => 'Error al solicitar la anulación',
-        'error' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -167,10 +148,7 @@ class ApVehicleInspectionController extends Controller
     try {
       return $this->service->confirmCancellation($id);
     } catch (Exception $e) {
-      return response()->json([
-        'message' => 'Error al confirmar la anulación',
-        'error' => $e->getMessage()
-      ], 500);
+      return $this->error($e->getMessage());
     }
   }
 }

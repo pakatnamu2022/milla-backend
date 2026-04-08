@@ -17,6 +17,7 @@ class ApWorkOrderPartsResource extends JsonResource
       'product_id' => $this->product_id,
       'product_name' => $this->product ? $this->product->name : null,
       'product_code' => $this->product ? $this->product->code : null,
+      'product_dyn_code' => $this->product ? $this->product->dyn_code : null,
       'warehouse_id' => $this->warehouse_id,
       'warehouse_name' => $this->warehouse ? $this->warehouse->description : null,
       'quantity_used' => (float)$this->quantity_used,

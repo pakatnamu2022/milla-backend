@@ -63,12 +63,20 @@ class UpdateWorkOrderRequest extends StoreRequest
         'integer',
         'exists:config_sede,id',
       ],
+      'num_doc_contact' => [
+        'sometimes',
+        'required',
+        'integer',
+        'digits:8',
+      ],
       'full_contact_name' => [
-        'nullable',
+        'sometimes',
+        'required',
         'string',
       ],
       'phone_contact' => [
-        'nullable',
+        'sometimes',
+        'required',
         'string',
       ],
       'opening_date' => [
@@ -196,6 +204,16 @@ class UpdateWorkOrderRequest extends StoreRequest
       'sede_id.required' => 'La sede es obligatoria.',
       'sede_id.integer' => 'La sede debe ser un entero.',
       'sede_id.exists' => 'La sede seleccionada no es válida.',
+
+      'num_doc_contact.required' => 'El número de documento del contacto es obligatorio.',
+      'num_doc_contact.integer' => 'El número de documento del contacto debe ser un entero.',
+      'num_doc_contact.digits' => 'El número de documento del contacto debe tener exactamente 8 dígitos.',
+
+      'full_contact_name.required' => 'El nombre del contacto es obligatorio.',
+      'full_contact_name.string' => 'El nombre del contacto debe ser una cadena de texto.',
+
+      'phone_contact.required' => 'El teléfono de contacto es obligatorio.',
+      'phone_contact.string' => 'El teléfono de contacto debe ser una cadena de texto.',
 
       'opening_date.required' => 'La fecha de apertura es obligatoria.',
       'opening_date.date' => 'La fecha de apertura debe ser una fecha válida.',

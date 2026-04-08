@@ -120,19 +120,52 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
       return [$data];
     }
 
-    // Caso 2: Cruza almuerzo pero no excede horario laboral
-    if ($currentStart < $lunchStart && $end > $lunchStart && $end <= $workEnd) {
-      // Bloque 1: desde inicio hasta inicio de almuerzo
-      $block1End = $lunchStart->copy();
-      $blocks[] = $this->createBlock($data, $currentStart, $block1End);
+    // Caso 2: Cruza almuerzo
+    if ($currentStart < $lunchStart && $end > $lunchStart) {
+      // Calcular minutos totales solicitados
+      $totalMinutes = $currentStart->diffInMinutes($end);
 
-      // Bloque 2: desde fin de almuerzo hasta la hora fin original (respetando la hora que puso el usuario)
-      if ($end > $lunchEnd) {
-        $block2Start = $lunchEnd->copy();
-        $blocks[] = $this->createBlock($data, $block2Start, $end);
+      // Calcular minutos del primer bloque (antes del almuerzo)
+      $block1Minutes = $currentStart->diffInMinutes($lunchStart);
+
+      // Calcular minutos restantes después del primer bloque
+      $remainingMinutes = $totalMinutes - $block1Minutes;
+
+      // Calcular el verdadero end time después del almuerzo
+      $actualEnd = $lunchEnd->copy()->addMinutes($remainingMinutes);
+
+      // Verificar si el verdadero end time excede el horario laboral
+      if ($actualEnd <= $workEnd) {
+        // Caso 2a: Cruza almuerzo pero no excede horario laboral - dividir en 2 bloques
+        $blocks[] = $this->createBlock($data, $currentStart, $lunchStart);
+
+        if ($remainingMinutes > 0) {
+          $blocks[] = $this->createBlock($data, $lunchEnd, $actualEnd);
+        }
+
+        return $blocks;
+      } else {
+        // Caso 2b: Cruza almuerzo Y excede horario laboral - dividir en 3 bloques
+        // Bloque 1: desde inicio hasta inicio de almuerzo
+        $blocks[] = $this->createBlock($data, $currentStart, $lunchStart);
+
+        // Bloque 2: desde fin de almuerzo hasta fin de jornada (6pm)
+        $blocks[] = $this->createBlock($data, $lunchEnd, $workEnd);
+
+        // Calcular minutos del bloque 2
+        $block2Minutes = $lunchEnd->diffInMinutes($workEnd);
+
+        // Calcular minutos restantes para el día siguiente
+        $nextDayMinutes = $remainingMinutes - $block2Minutes;
+
+        // Bloque 3: las horas restantes van al día siguiente desde 8am
+        if ($nextDayMinutes > 0) {
+          $nextDayEnd = $nextDayWorkStart->copy()->addMinutes($nextDayMinutes);
+          $blocks[] = $this->createBlock($data, $nextDayWorkStart, $nextDayEnd);
+        }
+
+        return $blocks;
       }
-
-      return $blocks;
     }
 
     // Caso 3: No cruza almuerzo pero excede horario laboral
@@ -144,33 +177,6 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
       $remainingMinutes = $workEnd->diffInMinutes($end);
       $nextDayEnd = $nextDayWorkStart->copy()->addMinutes($remainingMinutes);
       $blocks[] = $this->createBlock($data, $nextDayWorkStart, $nextDayEnd);
-
-      return $blocks;
-    }
-
-    // Caso 4: Cruza almuerzo Y excede horario laboral
-    if ($currentStart < $lunchStart && $end > $workEnd) {
-      // Bloque 1: desde inicio hasta inicio de almuerzo
-      $blocks[] = $this->createBlock($data, $currentStart, $lunchStart);
-
-      // Bloque 2: desde fin de almuerzo hasta fin de jornada (6pm)
-      $blocks[] = $this->createBlock($data, $lunchEnd, $workEnd);
-
-      // Calcular minutos restantes
-      // Total de minutos solicitados
-      $totalMinutes = $currentStart->diffInMinutes($end);
-      // Minutos del bloque 1
-      $block1Minutes = $currentStart->diffInMinutes($lunchStart);
-      // Minutos del bloque 2
-      $block2Minutes = $lunchEnd->diffInMinutes($workEnd);
-      // Minutos restantes para el día siguiente
-      $remainingMinutes = $totalMinutes - $block1Minutes - $block2Minutes;
-
-      // Bloque 3: las horas restantes van al día siguiente desde 8am
-      if ($remainingMinutes > 0) {
-        $nextDayEnd = $nextDayWorkStart->copy()->addMinutes($remainingMinutes);
-        $blocks[] = $this->createBlock($data, $nextDayWorkStart, $nextDayEnd);
-      }
 
       return $blocks;
     }
@@ -413,18 +419,31 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
       $statuses = $items->pluck('status')->unique();
       $groupStatus = $this->determineGroupStatus($statuses);
 
-      // Obtener información de trabajadores
-      $workers = $items->map(function ($item) {
+      // Obtener información de trabajadores agrupados por worker_id (sin duplicados)
+      $workersByWorkerId = $items->groupBy('worker_id');
+
+      $workers = $workersByWorkerId->map(function ($workerItems, $workerId) {
+        // Sumar las horas del mismo trabajador
+        $totalWorkerEstimatedHours = $workerItems->sum('estimated_hours');
+        $totalWorkerActualHours = $workerItems->sum('actual_hours');
+
+        // Tomar el primer item para obtener datos generales
+        $firstItem = $workerItems->first();
+
+        // Determinar el estado del trabajador
+        $workerStatuses = $workerItems->pluck('status')->unique();
+        $workerStatus = $this->determineGroupStatus($workerStatuses);
+
         return [
-          'worker_id' => $item->worker_id,
-          'worker_name' => $item->worker ? $item->worker->nombre_completo : 'N/A',
-          'estimated_hours' => $item->estimated_hours,
-          'actual_hours' => $item->actual_hours,
-          'status' => $item->status,
-          'planned_start_datetime' => $item->planned_start_datetime,
-          'planned_end_datetime' => $item->planned_end_datetime,
-          'actual_start_datetime' => $item->actual_start_datetime,
-          'actual_end_datetime' => $item->actual_end_datetime,
+          'worker_id' => $workerId,
+          'worker_name' => $firstItem->worker ? $firstItem->worker->nombre_completo : 'N/A',
+          'estimated_hours' => round($totalWorkerEstimatedHours, 2),
+          'actual_hours' => round($totalWorkerActualHours, 2),
+          'status' => $workerStatus,
+          'planned_start_datetime' => $firstItem->planned_start_datetime,
+          'planned_end_datetime' => $workerItems->last()->planned_end_datetime,
+          'actual_start_datetime' => $firstItem->actual_start_datetime,
+          'actual_end_datetime' => $workerItems->last()->actual_end_datetime,
         ];
       })->values();
 
@@ -436,7 +455,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         'remaining_hours' => round($totalEstimatedHours - $totalActualHours, 2),
         'progress_percentage' => $progressPercentage,
         'status' => $groupStatus,
-        'workers_count' => $items->count(),
+        'workers_count' => $workersByWorkerId->count(),
         'workers' => $workers,
       ];
     }

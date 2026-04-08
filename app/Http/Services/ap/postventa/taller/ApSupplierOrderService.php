@@ -11,7 +11,9 @@ use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequests;
 use App\Models\ap\postventa\taller\ApSupplierOrder;
 use App\Models\ap\postventa\taller\ApSupplierOrderDetails;
+use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\ExchangeRate;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -107,6 +109,9 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
 
       // Calculate total_amount (net_amount + tax_amount)
       $data['total_amount'] = round($netAmount + $data['tax_amount'], 2);
+
+      // Generate automatic order_number
+      $data['order_number'] = ApSupplierOrder::generateOrderNumber();
 
       // Create supplier order
       $supplierOrder = ApSupplierOrder::create($data);
@@ -378,5 +383,154 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
     }
 
     return $pendingProducts;
+  }
+
+  /**
+   * Aprueba una cotización según el cargo del usuario autenticado:
+   * - Coordinadora de Post Venta (141) → coordinator_approval_by
+   * - Gerente de Post Venta (142) → manager_approval_by
+   */
+  public function approve(int $id)
+  {
+    return DB::transaction(function () use ($id) {
+      $apSupplierOrder = $this->find($id);
+      $user = auth()->user();
+
+      if ($apSupplierOrder->approved_by) {
+        throw new Exception('No se puede aprobar una orden de compra que ya ha sido aprobada.');
+      }
+
+      $positionId = $user->person?->position?->id;
+
+      // Validar aprobación de gerente o coordinador de post venta
+      if (!in_array($positionId, array_merge(Position::POSITION_GERENTE_PV_IDS, Position::AFTER_SALES_COORDINATOR))) {
+        throw new Exception('Solo puede ser aprobado por gerente o coordinador de post venta.');
+      }
+
+      $apSupplierOrder->update(['approved_by' => $user->id]);
+
+      return new ApSupplierOrderResource($apSupplierOrder);
+    });
+  }
+
+  public function generateSupplierOrderPDF($id)
+  {
+    $supplierOrder = ApSupplierOrder::with([
+      'supplier',
+      'sede.company',
+      'warehouse',
+      'typeCurrency',
+      'approvedBy.person',
+      'createdBy.person.position',
+      'details.product',
+      'details.unitMeasurement',
+      'requestDetails.orderPurchaseRequest'
+    ])->find($id);
+
+    if (!$supplierOrder) {
+      throw new Exception('Orden de compra no encontrada');
+    }
+
+    // Preparar datos para la vista
+    $data = [
+      'order_number' => $supplierOrder->order_number,
+      'order_number_external' => $supplierOrder->order_number_external ?? 'N/A',
+      'order_date' => $supplierOrder->order_date,
+      'supply_type' => $supplierOrder->supply_type ?? 'N/A',
+      'reception_type' => $supplierOrder->reception_type ?? 'N/A',
+      'status' => $supplierOrder->status ?? 'N/A',
+      'exchange_rate' => $supplierOrder->exchange_rate,
+      'sede' => $supplierOrder->sede ?? 'N/A',
+    ];
+
+    // Datos del proveedor
+    if ($supplierOrder->supplier) {
+      $data['supplier_name'] = $supplierOrder->supplier->full_name ?? 'N/A';
+      $data['supplier_document'] = $supplierOrder->supplier->num_doc ?? 'N/A';
+      $data['supplier_address'] = $supplierOrder->supplier->direction ?? 'N/A';
+      $data['supplier_phone'] = $supplierOrder->supplier->phone ?? 'N/A';
+      $data['supplier_email'] = $supplierOrder->supplier->email ?? 'N/A';
+    } else {
+      $data['supplier_name'] = 'N/A';
+      $data['supplier_document'] = 'N/A';
+      $data['supplier_address'] = 'N/A';
+      $data['supplier_phone'] = 'N/A';
+      $data['supplier_email'] = 'N/A';
+    }
+
+    // Datos de almacén
+    $data['warehouse_name'] = $supplierOrder->warehouse ? $supplierOrder->warehouse->description : 'N/A';
+
+    // Datos de moneda
+    $data['currency'] = $supplierOrder->typeCurrency ? $supplierOrder->typeCurrency->code : 'PEN';
+    $data['currency_symbol'] = $supplierOrder->typeCurrency ? $supplierOrder->typeCurrency->symbol : 'S/';
+
+    // Datos del usuario que creó la orden
+    if ($supplierOrder->createdBy && $supplierOrder->createdBy->person) {
+      $data['created_by_name'] = $supplierOrder->createdBy->person->nombre_completo ?? 'N/A';
+      $data['created_by_email'] = $supplierOrder->createdBy->person->email2 ?? 'N/A';
+      $data['created_by_phone'] = $supplierOrder->createdBy->person->celular ?? 'N/A';
+      $data['created_by_position'] = $supplierOrder->createdBy->person->position->name ?? 'N/A';
+    } else {
+      $data['created_by_name'] = 'N/A';
+      $data['created_by_email'] = 'N/A';
+      $data['created_by_phone'] = 'N/A';
+      $data['created_by_position'] = 'N/A';
+    }
+
+    // Datos del usuario que aprobó la orden
+    if ($supplierOrder->approvedBy && $supplierOrder->approvedBy->person) {
+      $data['approved_by_name'] = $supplierOrder->approvedBy->person->nombre_completo ?? 'N/A';
+    } else {
+      $data['approved_by_name'] = 'N/A';
+    }
+
+    // ID del proveedor
+    $data['supplier_id'] = $supplierOrder->supplier_id ?? 'N/A';
+
+    // Números de solicitudes de compra asociadas
+    $purchaseRequestNumbers = $supplierOrder->requestDetails
+      ->pluck('orderPurchaseRequest.request_number')
+      ->unique()
+      ->filter()
+      ->values()
+      ->toArray();
+    $data['purchase_request_numbers'] = !empty($purchaseRequestNumbers)
+      ? implode(', ', $purchaseRequestNumbers)
+      : 'N/A';
+
+    // Valores por defecto temporales
+    $data['payment_condition'] = 'CREDITO 30 DIAS';
+    $data['delivery_date'] = \Carbon\Carbon::parse($supplierOrder->order_date)->addDays(3)->format('d/m/Y');
+    $data['payment_method'] = 'AL CONTADO';
+
+    // Detalles de la orden
+    $data['details'] = $supplierOrder->details->map(function ($detail) {
+      return [
+        'code' => $detail->product ? $detail->product->code : 'N/A',
+        'description' => $detail->product ? $detail->product->name : 'N/A',
+        'note' => $detail->note ?? '',
+        'quantity' => $detail->quantity,
+        'unit_measure' => $detail->unitMeasurement ? $detail->unitMeasurement->description : 'N/A',
+        'unit_price' => $detail->unit_price,
+        'total' => $detail->total,
+      ];
+    });
+
+    // Totales
+    $data['net_amount'] = $supplierOrder->net_amount;
+    $data['tax_amount'] = $supplierOrder->tax_amount;
+    $data['total_amount'] = $supplierOrder->total_amount;
+
+    // Generar PDF
+    $pdf = Pdf::loadView('reports.ap.postventa.taller.supplier-order', [
+      'order' => $data
+    ]);
+
+    $pdf->setPaper('a4', 'portrait');
+
+    $fileName = 'OC_' . $supplierOrder->order_number . '.pdf';
+
+    return $pdf->download($fileName);
   }
 }

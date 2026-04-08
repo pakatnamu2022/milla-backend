@@ -193,41 +193,17 @@
     <div class="column-left">
       <div class="section-box" style="padding: 10px; min-height: 150px; box-sizing: border-box;">
         <div class="section-row">
-          <span class="section-label">CLIENTE</span>
-          <span class="section-value">: {{ strtoupper($client->full_name ?? 'N/A') }}</span>
+          <span class="section-label">Propietario</span>
+          <span class="section-value">: {{ strtoupper($workOrder->vehicle->customer->full_name ?? 'N/A') }}</span>
+        </div>
+        <div class="section-row">
+          <span class="section-label">Contacto</span>
+          <span class="section-value">: {{ strtoupper($workOrder->full_contact_name ?? 'N/A') }}</span>
         </div>
         <div class="section-row">
           <span class="section-label">Fec. Recepción</span>
           <span
-            class="section-value">: {{ $workOrder->opening_date ? \Carbon\Carbon::parse($workOrder->opening_date)->format('d/m/Y H:i') : 'N/A' }}</span>
-        </div>
-        <div class="section-row">
-          <span class="section-label">Fec. Entrega</span>
-          <span class="section-value">:</span>
-        </div>
-        <div class="section-row">
-          <span class="section-label">Fec. Final</span>
-          <span class="section-value"></span>
-        </div>
-
-        <div class="checkbox-group">
-          <div class="checkbox-item">
-            <span class="checkbox"></span> Espera Trabajo
-          </div>
-          <div class="checkbox-item">
-            <span class="checkbox"></span> Requiere Repuestos
-          </div>
-          <div class="checkbox-item">
-            <span class="checkbox"></span> Pide Repuestos
-          </div>
-          <div class="checkbox-item">
-            <span class="checkbox"></span> Vehículo con Campaña NRO:
-          </div>
-        </div>
-
-        <div class="section-row" style="margin-top: 10px;">
-          <span class="section-label">AUTORIZACIÓN ADICIONAL :</span>
-          <span class="section-value" style="margin-left: 100px;">$</span>
+            class="section-value">: {{ $workOrder->vehicleInspection ? \Carbon\Carbon::parse($workOrder->vehicleInspection->inspection_date)->format('d/m/Y H:i') : '- / - / -' }}</span>
         </div>
       </div>
     </div>
@@ -303,7 +279,7 @@
           </tr>
           <tr>
             <td class="info-label">VEHÍCULO</td>
-            <td colspan="3">: {{ $vehicle->model->name ?? 'N/A' }}</td>
+            <td colspan="3">: {{ $vehicle->model->version ?? 'N/A' }}</td>
           </tr>
           <tr>
             <td class="info-label">AÑO</td>
@@ -487,9 +463,6 @@
             </td>
           </tr>
         </table>
-        <div style="text-align: center; margin-top: 10px;">
-          {{ strtoupper($workOrder->advisor->nombre_completo ?? 'N/A') }}
-        </div>
       </div>
       <div style="display: table-cell; width: 35%; vertical-align: top; padding-left: 10px;">
         <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
@@ -535,26 +508,6 @@
               style="border: 1px solid #000; padding: 4px 6px; text-align: right; font-weight: bold; background-color: #e8eef7;">{{ formatNumber($totals['total_amount']) }}</td>
           </tr>
         </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- SEGUIMIENTO POST-SERVICIO -->
-  <div class="section-box" style="margin-top: 5px; padding-top: 20px; padding-bottom: 20px;">
-    <div style="display: table; width: 100%;">
-      <div
-        style="display: table-cell; width: 65%; vertical-align: top; padding-right: 10px;">
-        <div class="bold" style="margin-bottom: 5px;">SEGUIMIENTO POST-SERVICIO</div>
-        <div style="font-size: 9px;">
-          <span class="bold">LLAMAR</span>
-        </div>
-        <div style="font-size: 9px;">
-          <span class="bold">FECHA HORA :</span>
-        </div>
-      </div>
-      <div style="display: table-cell; width: 35%; vertical-align: bottom; padding-left: 10px; padding-bottom: 5px;">
-        <div style="border-bottom: 1px solid #000; width: 100%; margin-bottom: 4px;"></div>
-        <div style="font-size: 9px; text-align: center;">{{ strtoupper($client->full_name ?? 'N/A') }}</div>
       </div>
     </div>
   </div>

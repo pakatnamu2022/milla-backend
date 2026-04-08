@@ -24,9 +24,11 @@ class ApSupplierOrder extends Model
     'sede_id',
     'warehouse_id',
     'type_currency_id',
+    'approved_by',
     'created_by',
     'order_date',
     'order_number',
+    'order_number_external',
     'supply_type',
     'net_amount',
     'tax_amount',
@@ -37,7 +39,7 @@ class ApSupplierOrder extends Model
   ];
 
   const filters = [
-    'search' => ['order_number', 'supplier.num_doc', 'supplier.full_name'],
+    'search' => ['order_number', 'order_number_external', 'supplier.num_doc', 'supplier.full_name'],
     'supplier_id' => '=',
     'sede_id' => '=',
     'warehouse_id' => '=',
@@ -60,7 +62,7 @@ class ApSupplierOrder extends Model
   // SUPPLY TYPE CONSTANTS
   const STOCK = 'STOCK';
   const LOCAL = 'LOCAL';
-  const LIMA = 'LIMA';
+  const CENTRAL = 'CENTRAL';
   const IMPORTACION = 'IMPORTACION';
 
   // RECEPTION TYPE CONSTANTS
@@ -96,6 +98,11 @@ class ApSupplierOrder extends Model
   public function typeCurrency(): BelongsTo
   {
     return $this->belongsTo(TypeCurrency::class, 'type_currency_id');
+  }
+
+  public function approvedBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'approved_by');
   }
 
   public function createdBy(): BelongsTo
@@ -163,4 +170,32 @@ class ApSupplierOrder extends Model
       ->values();
   }
 
+  /**
+   * Generar el siguiente número de orden de compra automáticamente
+   * Formato: OC-YYYY-0001
+   * Se reinicia cada año
+   */
+  public static function generateOrderNumber(): string
+  {
+    $year = date('Y');
+    $prefix = "OC-{$year}-";
+
+    // Buscar la última orden del año actual
+    $lastOrder = self::withTrashed()
+      ->where('order_number', 'LIKE', "{$prefix}%")
+      ->orderBy('order_number', 'desc')
+      ->first();
+
+    if ($lastOrder) {
+      // Extraer el número correlativo y sumar 1
+      $lastNumber = (int)substr($lastOrder->order_number, -4);
+      $newNumber = $lastNumber + 1;
+    } else {
+      // Si no hay órdenes del año actual, empezar en 1
+      $newNumber = 1;
+    }
+
+    // Formatear con 4 dígitos: OC-2026-0001
+    return sprintf('%s%04d', $prefix, $newNumber);
+  }
 }

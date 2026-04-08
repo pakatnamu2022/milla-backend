@@ -11,6 +11,7 @@ use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\maestroGeneral\Sede;
@@ -60,16 +61,19 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   public function listForPurchaseRequest(Request $request)
   {
     // Query base con las condiciones requeridas para solicitudes de compra
+    // Envolver en un where para agrupar correctamente las condiciones con los filtros posteriores
     $query = ApOrderQuotations::query()
       ->where(function ($query) {
-        // Condición 1: Cotizaciones aprobadas por jefe y gerente en área taller
-        $query->where('area_id', ApMasters::AREA_TALLER)
-          ->whereNotNull('chief_approval_by')
-          ->whereNotNull('manager_approval_by');
-      })
-      ->orWhereHas('workOrders', function ($query) {
-        // Condición 2: Cotizaciones asociadas a OT con factura generada
-        $query->where('has_invoice_generated', true);
+        $query->where(function ($q) {
+          // Condición 1: Cotizaciones aprobadas por jefe y gerente en área taller
+          $q->where('area_id', ApMasters::AREA_TALLER)
+            ->whereNotNull('chief_approval_by')
+            ->whereNotNull('manager_approval_by');
+        })
+          ->orWhereHas('workOrders', function ($q) {
+            // Condición 2: Cotizaciones asociadas a OT con factura generada
+            $q->where('has_invoice_generated', true);
+          });
       });
 
     return $this->getFilteredResults(
@@ -115,7 +119,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $data['created_by'] = auth()->user()->id;
       }
 
-      $data['quotation_number'] = $this->generateNextQuotationNumber($data['sede_id']);
+      $data['quotation_number'] = ApOrderQuotations::generateNextQuotationNumber($data['sede_id']);
       $data['subtotal'] = 0;
       $data['discount_amount'] = 0;
       $data['tax_amount'] = 0;
@@ -160,6 +164,25 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $data['created_by'] = auth()->user()->id;
       }
 
+      // Validar precios de venta al público para cada producto en details
+      foreach ($data['details'] as $index => $detail) {
+        $productId = $detail['product_id'];
+        $unitPrice = $detail['unit_price'];
+        $sedeId = $data['sede_id'];
+
+        $validation = ProductWarehouseStock::validatePublicSalePrice(
+          $productId,
+          $sedeId,
+          $unitPrice
+        );
+
+        if (!$validation['valid']) {
+          throw new Exception(
+            "Producto ({$detail['description']}): {$validation['message']}"
+          );
+        }
+      }
+
       // Calculate validity days
       $quotation_date = Carbon::parse($data['quotation_date']);
       $expiration_date = Carbon::parse($data['expiration_date']);
@@ -175,7 +198,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'expiration_date' => $data['expiration_date'],
         'observations' => $data['observations'] ?? null,
         'created_by' => $data['created_by'],
-        'quotation_number' => $this->generateNextQuotationNumber($data['sede_id']),
+        'quotation_number' => ApOrderQuotations::generateNextQuotationNumber($data['sede_id']),
         'subtotal' => 0,
         'discount_percentage' => 0,
         'discount_amount' => 0,
@@ -325,6 +348,25 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede cambiar el tipo de moneda porque ya existen pagos registrados para esta cotización.');
       }
 
+      // Validar precios de venta al público para cada producto en details
+      foreach ($data['details'] as $index => $detail) {
+        $productId = $detail['product_id'];
+        $unitPrice = $detail['unit_price'];
+        $sedeId = $data['sede_id'];
+
+        $validation = ProductWarehouseStock::validatePublicSalePrice(
+          $productId,
+          $sedeId,
+          $unitPrice
+        );
+
+        if (!$validation['valid']) {
+          throw new Exception(
+            "Producto #{$productId} ({$detail['description']}): {$validation['message']}"
+          );
+        }
+      }
+
       // Calculate validity days
       $quotation_date = Carbon::parse($data['quotation_date']);
       $expiration_date = Carbon::parse($data['expiration_date']);
@@ -463,39 +505,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     });
   }
 
-  /**
-   * Genera el siguiente número de cotización en formato COT-{dyn_code}-{YYYYMM}{XXXX}
-   *
-   * @param int $sedeId
-   * @return string
-   */
-  public function generateNextQuotationNumber(int $sedeId): string
-  {
-    $sede = Sede::find($sedeId);
-    if (!$sede) {
-      throw new Exception('Sede no encontrada');
-    }
-
-    $dynCode = $sede->dyn_code;
-    $year = date('Y');
-    $month = date('m');
-    $prefix = "COT-{$dynCode}-{$year}{$month}";
-
-    $lastQuotation = ApOrderQuotations::withTrashed()
-      ->where('quotation_number', 'like', "{$prefix}%")
-      ->orderBy('quotation_number', 'desc')
-      ->first();
-
-    if ($lastQuotation) {
-      $lastNumber = (int)substr($lastQuotation->quotation_number, -4);
-      $newNumber = str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
-    } else {
-      $newNumber = '0001';
-    }
-
-    return "{$prefix}{$newNumber}";
-  }
-
   public function generateQuotationPDF($id, $showCodes = true)
   {
     $quotation = ApOrderQuotations::with([
@@ -518,11 +527,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'observations' => $quotation->observations ?? '',
       'validity_days' => $quotation->validity_days,
       'show_codes' => $showCodes,
+      'sede' => $quotation->sede,
     ];
 
     // Datos del cliente
-    if ($quotation->vehicle && $quotation->vehicle->customer) {
-      $customer = $quotation->vehicle->customer;
+    if ($quotation->client) {
+      $customer = $quotation->client;
       $data['customer_name'] = $customer->full_name;
       $data['customer_document'] = $customer->num_doc ?? 'N/A';
       $data['customer_address'] = $customer->direction ?? 'N/A';
@@ -671,8 +681,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'observations' => $quotation->observations ?? '',
       'validity_days' => $quotation->validity_days,
       'show_codes' => $showCodes,
-      'sede_name' => $quotation->sede ? $quotation->sede->abreviatura : 'N/A',
+      'sede' => $quotation->sede,
       'type_currency' => $quotation->typeCurrency,
+      'supply_type' => $quotation->supply_type,
+      'status' => $quotation->status,
     ];
 
     // Datos del cliente
@@ -682,6 +694,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $data['customer_district'] = $quotation->client->district ? $quotation->client->district->name : 'N/A';
     $data['customer_email'] = $quotation->client->email ?? 'N/A';
     $data['customer_phone'] = $quotation->client->phone ?? 'N/A';
+    $data['customer_activity'] = $quotation->client->activityEconomic->description ?? 'N/A';
 
     // Datos del asesor
     if ($quotation->createdBy) {
@@ -722,11 +735,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       return [
         'code' => $showCodes && $detail->product ? $detail->product->code : '',
         'description' => $detail->description,
+        'unit_measure' => $detail->unit_measure,
         'observations' => $detail->observations ?? '',
         'quantity' => $detail->quantity,
         'unit_price' => $detail->unit_price,
         'discount' => $detail->discount_percentage,
         'total_amount' => $detail->total_amount,
+        'total_amount_with_tax' => round($detail->total_amount * (1 + Constants::VAT_TAX / 100), 2),
         'item_type' => $detail->item_type,
       ];
     });
@@ -835,7 +850,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Validar aprobación de jefe
       if (isset($data['chief_approval_by'])) {
-        if (!in_array($positionId, Position::POSITION_JEFE_PV_IDS)) {
+        if (!in_array($positionId, Position::POSITION_JEFE_PVT_IDS)) {
           throw new Exception('Solo los Jefes de Taller pueden aprobar.');
         }
         if ($quotation->chief_approval_by) {
@@ -913,7 +928,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Obtener usuarios con cargo de Jefe de Taller (143) y Gerente de Taller (142)
       $chiefUsers = User::whereHas('person', function ($query) {
-        $query->whereIn('cargo_id', Position::POSITION_JEFE_PV_IDS)
+        $query->whereIn('cargo_id', Position::POSITION_JEFE_PVT_IDS)
           ->where('status_deleted', 1)
           ->where('status_id', 22);
       })->get();
@@ -979,7 +994,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'button_url' => config('app.frontend_url') . '/ap/post-venta/taller/cotizacion-taller/aprobar/' . $quotation->id,
       ];
 
-      $subject = 'Nueva Cotización Solicitada por Gerencia - ' . $quotation->quotation_number;
+      $subject = 'Nueva Cotización solicitada por Gerencia - ' . $quotation->quotation_number;
       $emailsSentCount = 0;
 
       // Enviar correo a los Jefes de Taller

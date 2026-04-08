@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\WorkOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Utils\Helpers;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
@@ -12,10 +13,10 @@ use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\AppointmentPlanning;
-use App\Models\ap\postventa\taller\ApVehicleInspection;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderItem;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
+use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
 use App\Models\GeneralMaster;
 use App\Models\gp\gestionhumana\personal\WorkerSignature;
@@ -28,10 +29,15 @@ use Illuminate\Support\Facades\DB;
 class WorkOrderService extends BaseService implements BaseServiceInterface
 {
   protected WorkOrderLabourService $labourService;
+  protected DigitalFileService $digitalFileService;
 
-  public function __construct(WorkOrderLabourService $labourService)
+  // Configuración de rutas para archivos
+  private const FILE_PATH_DELIVERY_SIGNATURE = '/ap/postventa/taller/entregas/firmas/';
+
+  public function __construct(WorkOrderLabourService $labourService, DigitalFileService $digitalFileService)
   {
     $this->labourService = $labourService;
+    $this->digitalFileService = $digitalFileService;
   }
 
   public function list(Request $request)
@@ -95,11 +101,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $data['correlative'] = $this->generateCorrelative();
       $data['status_id'] = ApMasters::OPENING_WORK_ORDER_ID;
       $vehicle = Vehicles::find($data['vehicle_id']);
-
-      if ($vehicle->customer_id === null) {
-        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
-      }
-
+      
       //Plate, vin del vehiculo
       $vehicle = Vehicles::find($data['vehicle_id']);
       if ($vehicle) {
@@ -373,7 +375,11 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'typeCurrency'
     ]);
 
-    $client = $workOrder->vehicle->customer;
+    if ($workOrder->invoice_to === null) {
+      throw new Exception('La orden de trabajo no tiene un destinatario de factura asignado.');
+    }
+
+    $client = $workOrder->invoiceTo;
     $vehicle = $workOrder->vehicle;
     $currencySymbol = $workOrder->typeCurrency->symbol ?? 'S/';
 
@@ -581,21 +587,26 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede generar entrega para una que no ha sido facturada');
       }
 
+      // Extraer firma en base64 del array
+      $deliverySignature = $data['signature_delivery'] ?? null;
+
       // Procesar los seguimientos: convertir días y horas a fechas absolutas
       $actualDeliveryDate = Carbon::parse($data['actual_delivery_date']);
       $followUps = [];
 
       foreach ($data['follow_ups'] as $followUp) {
+        $days = (int)$followUp['days'];
+
         $followUpDateTimeStart = $actualDeliveryDate->copy()
-          ->addDays($followUp['days'])
+          ->addDays($days)
           ->setTimeFromTimeString($followUp['time_start']);
 
         $followUpDateTimeEnd = $actualDeliveryDate->copy()
-          ->addDays($followUp['days'])
+          ->addDays($days)
           ->setTimeFromTimeString($followUp['time_end']);
 
         $followUps[] = [
-          'days' => $followUp['days'],
+          'days' => $days,
           'time_start' => $followUp['time_start'],
           'time_end' => $followUp['time_end'],
           'scheduled_datetime_start' => $followUpDateTimeStart->format('Y-m-d H:i:s'),
@@ -611,6 +622,11 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'delivery_by' => auth()->check() ? auth()->user()->id : null,
         'post_service_follow_up' => json_encode($followUps),
       ]);
+
+      // Procesar y guardar firma si existe
+      if ($deliverySignature) {
+        $this->processDeliverySignature($workOrder, $deliverySignature);
+      }
 
       $workOrder->load([
         'appointmentPlanning',
@@ -628,17 +644,29 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
   public function generateDeliveryReport($id)
   {
-    // Obtener la inspección con todas las relaciones necesarias
+    // Obtener la orden de trabajo con todas las relaciones necesarias
     $workOrder = $this->find($id);
-    $workOrder->load('plannings.worker');
+    $workOrder->load([
+      'plannings.worker',
+      'vehicle.model.family.brand',
+      'vehicle.customer',
+      'appointmentPlanning.advisor',
+      'deliveryBy',
+      'items.typePlanning',
+      'items.typeOperation'
+    ]);
+
     $inspection = $workOrder->vehicleInspection;
+
+    if (!$inspection) {
+      throw new Exception('No se encontró la inspección del vehículo');
+    }
 
     $vehicle = $workOrder->vehicle;
     $customer = $vehicle->customer;
-    $advisor = $workOrder->advisor; // Worker extiende de Person directamente
+    $advisor = $workOrder->advisor;
 
     // Obtener firma del asesor desde WorkerSignature
-    // El asesor es Worker que extiende de Person directamente
     $advisorSignature = null;
     if ($advisor) {
       $workerSignature = WorkerSignature::where('worker_id', $advisor->id)->first();
@@ -647,10 +675,16 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       }
     }
 
-    // Convertir firma del cliente a base64 si existe
-    $customerSignature = null;
+    // Convertir firma de recepción del cliente a base64 si existe
+    $customerSignatureReception = null;
     if ($inspection->customer_signature_url) {
-      $customerSignature = Helpers::convertUrlToBase64($inspection->customer_signature_url);
+      $customerSignatureReception = Helpers::convertUrlToBase64($inspection->customer_signature_url);
+    }
+
+    // Convertir firma de entrega del cliente a base64 si existe
+    $customerSignatureDelivery = null;
+    if ($workOrder->signature_delivery_url) {
+      $customerSignatureDelivery = Helpers::convertUrlToBase64($workOrder->signature_delivery_url);
     }
 
     // Convertir fotos de daños a base64
@@ -693,17 +727,18 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'workOrder' => $workOrder,
       'vehicle' => $vehicle,
       'customer' => $customer,
-      'advisor' => $advisor, // Worker ya es Person directamente
+      'advisor' => $advisor,
       'advisorPhone' => $advisor ? $advisor->cel_personal : '',
       'sede' => $workOrder->sede,
       'status' => $workOrder->status,
       'items' => $workOrder->items,
       'damages' => $damagesWithPhotos,
       'inventoryChecks' => $inventoryChecks,
-      'customerSignature' => $customerSignature,
+      'customerSignatureReception' => $customerSignatureReception,
+      'customerSignatureDelivery' => $customerSignatureDelivery,
       'advisorSignature' => $advisorSignature,
       'appointmentPlanning' => $workOrder->appointmentPlanning ?? null,
-      'plannings' => $workOrder->plannings ?? null,
+      'plannings' => $workOrder->plannings ?? collect(),
       'isGuarantee' => $workOrder->is_guarantee ?? false,
       'isRecall' => $workOrder->is_recall ?? false,
       'descriptionRecall' => $workOrder->description_recall ?? '',
@@ -790,6 +825,11 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
     try {
       $workOrder = $this->find($id);
+      $validateDocument = $workOrder->items->first()?->typePlanning->type_document;
+
+      if ($validateDocument !== TypePlanningWorkOrder::INTERNA) {
+        throw new Exception('Solo se pueden generar notas internas para órdenes de trabajo con planificación de tipo "INTERNA"');
+      }
 
       if ($workOrder->invoice_to === null) {
         throw new Exception('La orden de trabajo no tiene un destinatario de factura asignado.');
@@ -856,7 +896,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       ApWorkOrderItem::create([
         'group_number' => 1,
         'work_order_id' => $apWorkOrder->id,
-        'type_planning_id' => ApMasters::TIPO_PLANIFICACION_PDI_ID,
+        'type_planning_id' => TypePlanningWorkOrder::TYPE_PLANNING_PDI_ID,
         'type_operation_id' => ApMasters::TIPO_OPERACION_CITA_PDI_ID,
         'description' => 'SERVICIO DE PDI',
       ]);
@@ -904,5 +944,26 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       ->get();
 
     return WorkOrderResource::collection($workOrders);
+  }
+
+  /**
+   * Procesa una firma de entrega en base64 y la guarda en Digital Ocean
+   */
+  private function processDeliverySignature(ApWorkOrder $workOrder, string $base64Signature): void
+  {
+    // Convertir base64 a UploadedFile con recorte automático
+    $signatureFile = Helpers::base64ToUploadedFile($base64Signature, 'delivery_signature.png', true);
+
+    // Subir archivo usando DigitalFileService
+    $digitalFile = $this->digitalFileService->store(
+      $signatureFile,
+      self::FILE_PATH_DELIVERY_SIGNATURE,
+      'public',
+      $workOrder->getTable()
+    );
+
+    // Actualizar la orden de trabajo con la URL de la firma
+    $workOrder->signature_delivery_url = $digitalFile->url;
+    $workOrder->save();
   }
 }

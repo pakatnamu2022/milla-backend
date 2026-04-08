@@ -46,7 +46,7 @@ class StoreApOrderPurchaseRequestsRequest extends StoreRequest
         ])),
         'nullable',
         'string',
-        'in:STOCK,LOCAL,LIMA,IMPORTACION',
+        'in:STOCK,LOCAL,CENTRAL,IMPORTACION',
       ],
 
       // Details validation
@@ -97,7 +97,7 @@ class StoreApOrderPurchaseRequestsRequest extends StoreRequest
       'status.required' => 'El estado es obligatorio.',
       'status.in' => 'El estado debe ser: pending, approved o rejected.',
       'supply_type' => 'El tipo de suministro es obligatorio.',
-      'supply_type.in' => 'El tipo de suministro debe ser: STOCK,LOCAL, LIMA o IMPORTACION.',
+      'supply_type.in' => 'El tipo de suministro debe ser: STOCK,LOCAL, CENTRAL o IMPORTACION.',
 
       // Details messages
       'details.required' => 'Los detalles de la solicitud son obligatorios.',

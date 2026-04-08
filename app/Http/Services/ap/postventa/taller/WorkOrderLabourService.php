@@ -47,6 +47,7 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
 
       // obtenemos la OT y validamos que exista
       $workOrder = ApWorkOrder::find($data['work_order_id']);
+      $validateReceipt = $workOrder->items->first()?->typePlanning->validate_receipt;
 
       if (!$workOrder) {
         throw new Exception('Orden de trabajo no encontrada');
@@ -56,9 +57,9 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede agregar mano de obra a una orden de trabajo cerrada');
       }
 
-//      if ($workOrder->vehicleInspection === null) {
-//        throw new Exception('No se puede agregar mano de obra a una orden de trabajo sin inspección de vehículo');
-//      }
+      if ($workOrder->vehicleInspection === null && $validateReceipt) {
+        throw new Exception('No se puede agregar mano de obra a una orden de trabajo sin inspección de vehículo');
+      }
 
       // Validar que no existan avances de factura
       if ($workOrder->advancesWorkOrder()->exists()) {

@@ -12,6 +12,7 @@ use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\facturacion\ElectronicDocument;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
@@ -346,12 +347,13 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       'apOrderQuotation.createdBy.person',
       'apOrderQuotation.vehicle.model.family.brand',
       'warehouse',
+      'warehouse.sede',
       'requestedBy.person',
       'details.product'
     ])->find($id);
 
     if (!$purchaseRequest) {
-      throw new Exception('Solicitud de compra no encontrada');
+      throw new Exception('solicitud de compra no encontrada');
     }
 
     $quotation = $purchaseRequest->apOrderQuotation;
@@ -364,7 +366,10 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       'delivery_date' => '-',
       'work_order_number' => '-',
       'has_quotation' => $hasQuotation,
+      'sede' => $purchaseRequest->warehouse->sede,
     ];
+
+    \Log::info(json_encode($data));
 
     // Datos del proveedor/cliente
     if ($hasQuotation && $quotation->client) {
@@ -482,6 +487,31 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       $data['total'] = '-';
     }
 
+    // Obtener anticipos y facturas si existe cotización
+    $electronicDocuments = [];
+    if ($hasQuotation) {
+      $documents = ElectronicDocument::where('order_quotation_id', $quotation->id)
+        ->where('anulado', false)
+        ->whereIn('status', [
+          ElectronicDocument::STATUS_SENT,
+          ElectronicDocument::STATUS_ACCEPTED
+        ])
+        ->orderBy('fecha_de_emision', 'asc')
+        ->get();
+
+      foreach ($documents as $doc) {
+        $electronicDocuments[] = [
+          'number' => $doc->full_number,
+          'date' => $doc->fecha_de_emision ? $doc->fecha_de_emision->format('d/m/Y') : '-',
+          'amount' => number_format($doc->total, 2),
+          'status' => $this->getStatusLabel($doc->status),
+          'is_advance' => $doc->is_advance_payment ? 'Sí' : 'No',
+          'type' => $doc->is_advance_payment ? 'Anticipo' : 'Factura'
+        ];
+      }
+    }
+    $data['electronic_documents'] = $electronicDocuments;
+
     // Generar PDF
     $pdf = Pdf::loadView('reports.ap.postventa.taller.order-purchase-request', [
       'purchaseRequest' => $data
@@ -492,5 +522,22 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
     $fileName = 'Solicitud_Compra_' . $purchaseRequest->request_number . '.pdf';
 
     return $pdf->download($fileName);
+  }
+
+  /**
+   * Obtener etiqueta del estado del documento electrónico
+   * @param string $status
+   * @return string
+   */
+  private function getStatusLabel(string $status): string
+  {
+    return match ($status) {
+      ElectronicDocument::STATUS_DRAFT => 'Borrador',
+      ElectronicDocument::STATUS_SENT => 'Enviado',
+      ElectronicDocument::STATUS_ACCEPTED => 'Aceptado',
+      ElectronicDocument::STATUS_REJECTED => 'Rechazado',
+      ElectronicDocument::STATUS_CANCELLED => 'Anulado',
+      default => $status,
+    };
   }
 }

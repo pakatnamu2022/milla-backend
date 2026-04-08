@@ -18,6 +18,7 @@ use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
 use Illuminate\Support\Facades\Auth;
@@ -303,14 +304,6 @@ class InventoryMovementService extends BaseService
     }
   }
 
-  /**
-   * Valida el stock de un producto en el sistema dynamics usando el stored procedure PaStockArticulo
-   *
-   * @param string $productCode Código del producto (dyn_code)
-   * @param string $warehouseCode Código del almacén (dyn_code)
-   * @return array Resultado del stored procedure con información de stock
-   * @throws Exception Si no se encuentra stock o hay error en la consulta
-   */
   public function validateStockInExternalSystem(string $productCode, string $warehouseCode): array
   {
     try {
@@ -1058,59 +1051,6 @@ class InventoryMovementService extends BaseService
     return InventoryMovementResource::collection($movements);
   }
 
-  public function createWorkOrderPartOutbound($workOrderPart): InventoryMovement
-  {
-    DB::beginTransaction();
-    try {
-      // Validar que hay stock disponible
-      $stock = $this->stockService->getStock($workOrderPart->product_id, $workOrderPart->warehouse_id);
-
-      if (!$stock) {
-        throw new Exception('No se encontró registro de stock para el producto en el almacén especificado');
-      }
-
-      if ($stock->available_quantity < $workOrderPart->quantity_used) {
-        throw new Exception(
-          "Stock insuficiente. Disponible: {$stock->available_quantity}, Requerido: {$workOrderPart->quantity_used}"
-        );
-      }
-
-      // Crear movimiento de inventario de salida
-      $movement = InventoryMovement::create([
-        'movement_number' => InventoryMovement::generateMovementNumber(),
-        'movement_type' => InventoryMovement::TYPE_ADJUSTMENT_OUT,
-        'movement_date' => now(),
-        'warehouse_id' => $workOrderPart->warehouse_id,
-        'reference_type' => get_class($workOrderPart),
-        'reference_id' => $workOrderPart->id,
-        'user_id' => Auth::id(),
-        'status' => InventoryMovement::STATUS_APPROVED,
-        'notes' => "Salida por uso en Orden de Trabajo #{$workOrderPart->workOrder->correlative} - {$workOrderPart->product->name}",
-        'total_items' => 1,
-        'total_quantity' => $workOrderPart->quantity_used,
-      ]);
-
-      // Crear detalle del movimiento
-      InventoryMovementDetail::create([
-        'inventory_movement_id' => $movement->id,
-        'product_id' => $workOrderPart->product_id,
-        'quantity' => $workOrderPart->quantity_used,
-        'unit_cost' => $workOrderPart->unit_cost,
-        'total_cost' => $workOrderPart->quantity_used * $workOrderPart->unit_cost,
-        'notes' => "Repuesto usado en OT #{$workOrderPart->workOrder->correlative}",
-      ]);
-
-      // Actualizar el stock (restar la cantidad usada)
-      $this->stockService->updateStockFromMovement($movement->fresh('details'));
-
-      DB::commit();
-      return $movement;
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
-  }
-
   public function createSaleFromQuotation(int $quotationId): InventoryMovement
   {
     DB::beginTransaction();
@@ -1203,6 +1143,110 @@ class InventoryMovementService extends BaseService
 
       // Update ApOrderQuotations output_generation_warehouse
       $quotation->update(['output_generation_warehouse' => true]);
+
+      // Update stock automatically
+      $this->stockService->updateStockFromMovement($movement->fresh('details'));
+
+      DB::commit();
+      return $movement->load(['warehouse', 'user', 'details.product', 'reference']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  public function createSaleFromWorkOrder(int $workOrderId): InventoryMovement
+  {
+    DB::beginTransaction();
+    try {
+      // Find work order with parts
+      $workOrder = ApWorkOrder::with(['parts.product', 'sede'])->find($workOrderId);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      // Validamos que la orden de trabajo no haya generado ya una salida de almacén
+      if ($workOrder->output_generation_warehouse) {
+        throw new Exception('La orden de trabajo ya ha generado una salida de almacén previamente');
+      }
+
+      // Get warehouse from sede
+      $warehouse = Warehouse::where('sede_id', $workOrder->sede_id)
+        ->where('is_physical_warehouse', true)
+        ->where('status', true)
+        ->first();
+
+      if (!$warehouse) {
+        throw new Exception('No se encontró almacén asociado a la sede de la orden de trabajo');
+      }
+
+      // Filter only product items (exclude services/labor)
+      $productParts = $workOrder->parts->where('product_id', '!=', null);
+
+      if ($productParts->isEmpty()) {
+        throw new Exception('La orden de trabajo no contiene repuestos para generar salida de inventario');
+      }
+
+      // Validate stock availability for all products
+      foreach ($productParts as $part) {
+        $stock = $this->stockService->getStock($part->product_id, $warehouse->id);
+
+        if (!$stock) {
+          throw new Exception(
+            "No se encontró registro de stock para el producto '{$part->product->name}' en el almacén"
+          );
+        }
+
+        if ($stock->available_quantity < $part->quantity) {
+          throw new Exception(
+            "Stock insuficiente para producto '{$part->product->name}'. " .
+            "Disponible: {$stock->available_quantity}, Requerido: {$part->quantity}"
+          );
+        }
+      }
+
+      // Create movement header
+      $movement = InventoryMovement::create([
+        'movement_number' => InventoryMovement::generateMovementNumber(),
+        'movement_type' => InventoryMovement::TYPE_SALE,
+        'movement_date' => now(),
+        'warehouse_id' => $warehouse->id,
+        'reference_type' => ApWorkOrder::class,
+        'reference_id' => $workOrder->id,
+        'user_id' => Auth::id(),
+        'status' => InventoryMovement::STATUS_APPROVED,
+        'notes' => "Salida por venta - Orden de Trabajo {$workOrder->correlative}",
+        'total_items' => 0,
+        'total_quantity' => 0,
+      ]);
+
+      // Create movement details
+      $totalItems = 0;
+      $totalQuantity = 0;
+
+      foreach ($productParts as $part) {
+        InventoryMovementDetail::create([
+          'inventory_movement_id' => $movement->id,
+          'product_id' => $part->product_id,
+          'quantity' => $part->quantity,
+          'unit_cost' => $part->unit_price,
+          'total_cost' => $part->total_amount,
+          'notes' => "Venta orden de trabajo {$workOrder->correlative} - {$part->product->name}",
+        ]);
+
+        $totalItems++;
+        $totalQuantity += $part->quantity;
+      }
+
+      // Update movement totals
+      $movement->update([
+        'total_items' => $totalItems,
+        'total_quantity' => $totalQuantity,
+      ]);
+
+      // Update ApWorkOrder output_generation_warehouse
+      $workOrder->update(['output_generation_warehouse' => true]);
 
       // Update stock automatically
       $this->stockService->updateStockFromMovement($movement->fresh('details'));
@@ -1567,14 +1611,6 @@ class InventoryMovementService extends BaseService
     return Excel::download($export, $filename);
   }
 
-  /**
-   * Crea un movimiento de inventario de salida por devolución de nota de crédito
-   * Esto resta el stock que ingresó por la recepción original
-   *
-   * @param \App\Models\ap\compras\SupplierCreditNote $creditNote
-   * @return InventoryMovement
-   * @throws Exception
-   */
   public function createReturnOutFromCreditNote($creditNote): InventoryMovement
   {
     DB::beginTransaction();

@@ -26,6 +26,7 @@
       font-family: Arial, sans-serif;
       font-size: 9px;
       padding: 15px;
+      padding-bottom: 100px;
     }
 
     .red-line {
@@ -77,8 +78,8 @@
     }
 
     .company-logo img {
-      max-width: 60px;
-      max-height: 45px;
+      max-width: 200px;
+      max-height: 185px;
       height: auto;
       display: block;
     }
@@ -86,20 +87,6 @@
     .company-text {
       display: table-cell;
       vertical-align: middle;
-    }
-
-    .company-name {
-      font-size: 14px;
-      color: #ff0000;
-      font-weight: bold;
-      line-height: 1.2;
-    }
-
-    .company-website {
-      font-size: 7px;
-      color: #000;
-      display: inline;
-      margin-left: 5px;
     }
 
     .company-addresses {
@@ -695,6 +682,19 @@
       min-height: 40px;
       line-height: 1.4;
     }
+
+    .footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      padding: 10px 15px;
+      border-top: 1px solid #000;
+      font-size: 8px;
+      text-align: center;
+      background-color: white;
+    }
   </style>
 </head>
 <body>
@@ -710,14 +710,7 @@
       <td class="header-left">
         <div class="company-info-container">
           <div class="company-logo">
-            <img src="{{ getBase64Image('images/ap/ap.png') }}" alt="Logo AP">
-          </div>
-          <div class="company-text">
-            <div class="company-name">
-              AUTOMOTORES<br>
-              PAKATNAMU SAC
-              <span class="company-website">www.automotorespakatnamu.com</span>
-            </div>
+            <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="Logo AP">
           </div>
         </div>
         <div class="company-addresses">
@@ -746,6 +739,8 @@
               <div class="guarantee-option">NO</div>
             </div>
           </div>
+          <br>
+          <strong style="font-size: 14px">{{$workOrder->correlative}}</strong>
         </div>
       </td>
     </tr>
@@ -766,18 +761,18 @@
       <tbody>
       <tr>
         <td class="label-col">Recepción Programada</td>
-        <td>{{$appointmentPlanning->date_appointment?->format('d/m/Y') ?? '- / - / -'}}</td>
-        <td>{{$appointmentPlanning->time_appointment ?? '-'}}</td>
+        <td>{{ $appointmentPlanning?->date_appointment?->format('d/m/Y') ?? '- / - / -' }}</td>
+        <td>{{ $appointmentPlanning?->time_appointment ?? '-' }}</td>
       </tr>
       <tr>
         <td class="label-col">Recepción Real</td>
-        <td>{{$inspection->inspection_date->format('d/m/Y') ?? '- / - / -'}}</td>
-        <td>{{$inspection->inspection_date->format('H:i') ?? '-'}}</td>
+        <td>{{$inspection->created_at ? $inspection->created_at->format('d/m/Y') : '- / - / -'}}</td>
+        <td>{{$inspection->inspection_date ?? '-'}}</td>
       </tr>
       <tr>
         <td class="label-col">Entrega Programada</td>
-        <td>{{$workOrder->estimated_delivery_date->format('d/m/Y') ?? '- / - / -'}}</td>
-        <td>{{$workOrder->estimated_delivery_time->format('H:i') ?? '-'}}</td>
+        <td>{{$workOrder->estimated_delivery_date ? $workOrder->estimated_delivery_date->format('d/m/Y') : '- / - / -'}}</td>
+        <td>{{$workOrder->estimated_delivery_time ?? '-'}}</td>
       </tr>
       <tr>
         <td class="label-col">Entrega Real</td>
@@ -799,12 +794,12 @@
       <tbody>
       <tr>
         <td class="label-col">Confirmación de Cita</td>
-        <td class="info-col">{{$appointmentPlanning->date_appointment?->format('d/m/Y') ?? '- / - / -'}}
-          - {{$appointmentPlanning->time_appointment ?? '-'}}</td>
+        <td class="info-col">{{ $appointmentPlanning?->date_appointment?->format('d/m/Y') ?? '- / - / -' }}
+          - {{ $appointmentPlanning?->time_appointment ?? '-' }}</td>
         <td class="responsible-col" rowspan="3">
           <div style="writing-mode: vertical-rl; white-space: nowrap;">
             RESPONSABLE CITAS<br><br>
-            {{$appointmentPlanning->advisor->nombre_completo ?? '-'}}
+            {{ $appointmentPlanning?->advisor?->nombre_completo ?? '-' }}
           </div>
         </td>
       </tr>
@@ -866,8 +861,8 @@
         <td class="label-row">Cita hora y fecha</td>
       </tr>
       <tr>
-        <td class="value-row">{{$appointmentPlanning->date_appointment?->format('d/m/Y') ?? '- / - / -'}}
-          - {{$appointmentPlanning->time_appointment ?? '-'}}</td>
+        <td class="value-row">{{ $appointmentPlanning?->date_appointment?->format('d/m/Y') ?? '- / - / -' }}
+          - {{ $appointmentPlanning?->time_appointment ?? '-' }}</td>
       </tr>
     </table>
 
@@ -995,9 +990,10 @@
       </tr>
       <tr>
         <td colspan="2" class="value-row activities-content">
-          @forelse($items as $index => $item)
-            {{ $index + 1 }}. {{ $item->description }}. TIPO: {{$item->typePlanning->description}}.
-            OPERACIÓN: {{$item->typeOperation->description}}<br>
+          @forelse(collect($items ?? []) as $index => $item)
+            {{ $index + 1 }}. {{ $item->description ?? 'Sin descripción' }}.
+            TIPO: {{ $item->typePlanning?->description ?? 'N/A' }}.
+            OPERACIÓN: {{ $item->typeOperation?->description ?? 'N/A' }}<br>
           @empty
             No hay actividades registradas
           @endforelse
@@ -1188,15 +1184,19 @@
                   <tr>
                     <td width="50%" style="vertical-align: middle;">
                       <span style="font-weight: bold; font-size: 7px;">DE:</span>
-                      <span style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px; margin-left: 3px;">{{ $displayHourStart }}</span>
+                      <span
+                        style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px; margin-left: 3px;">{{ $displayHourStart }}</span>
                       <span style="margin: 0 1px;">:</span>
-                      <span style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px;">{{ $displayMinStart }}</span>
+                      <span
+                        style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px;">{{ $displayMinStart }}</span>
                     </td>
                     <td width="50%" style="text-align: right; vertical-align: middle;">
                       <span style="font-weight: bold; font-size: 7px;">A:</span>
-                      <span style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px; margin-left: 3px;">{{ $displayHourEnd }}</span>
+                      <span
+                        style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px; margin-left: 3px;">{{ $displayHourEnd }}</span>
                       <span style="margin: 0 1px;">:</span>
-                      <span style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px;">{{ $displayMinEnd }}</span>
+                      <span
+                        style="display: inline-block; width: 20px; height: 16px; border: 1px solid #000; text-align: center; line-height: 16px; background: white; font-size: 9px;">{{ $displayMinEnd }}</span>
                     </td>
                   </tr>
                 </table>
@@ -1513,25 +1513,67 @@
   <table>
     <tr>
       <td>
-        @if($advisorSignature)
-          <img src="{{ $advisorSignature }}" alt="Firma Asesor" class="signature-img">
+        @if($customerSignatureReception)
+          <img src="{{ $customerSignatureReception }}" alt="Firma Conformidad Recepción" class="signature-img">
         @endif
         <div class="signature-box">
-          FIRMA DEL ASESOR<br>
-          {{ $advisor ? $advisor->nombre_completo : 'N/A' }}
+          FIRMA DE CONFORMIDAD DE RECEPCIÓN<br>
+          @php
+            $receptionSignerType = $inspection->signer_type ?? '';
+            $receptionName = 'N/A';
+            $receptionNumDoc = '';
+
+            if ($receptionSignerType === 'OWNER') {
+              $receptionName = $workOrder->vehicle?->customer?->full_name ?? 'N/A';
+              $receptionNumDoc = $workOrder->vehicle?->customer?->num_doc ?? '';
+            } elseif ($receptionSignerType === 'CONTACT') {
+              $receptionName = $workOrder->full_contact_name ?? 'N/A';
+              $receptionNumDoc = $workOrder->num_doc_contact ?? '';
+            }
+          @endphp
+          {{ $receptionName }}<br>
+          @if($receptionNumDoc)
+            <span
+              style="font-size: 8px;">Doc: {{ $receptionNumDoc }}</span>
+          @endif
         </div>
       </td>
       <td>
-        @if($customerSignature)
-          <img src="{{ $customerSignature }}" alt="Firma Cliente" class="signature-img">
+        @if($customerSignatureDelivery)
+          <img src="{{ $customerSignatureDelivery }}" alt="Firma Conformidad Entrega" class="signature-img">
         @endif
         <div class="signature-box">
-          FIRMA DEL CLIENTE<br>
-          {{ $customer ? $customer->full_name : 'N/A' }}
+          FIRMA DE CONFORMIDAD DE ENTREGA<br>
+          @php
+            $deliveryName = $workOrder->full_contact_name ?? 'N/A';
+            $deliveryNumDoc = $workOrder->num_doc_contact ?? '';
+          @endphp
+          {{ $deliveryName }}<br>
+          @if($deliveryNumDoc)
+            <span style="font-size: 8px;">Doc: {{ $deliveryNumDoc }}</span>
+          @endif
         </div>
       </td>
     </tr>
   </table>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <strong>www.automotorespakatnamu.com</strong>
+  <div style="margin-top: 10px;">
+    <img src="{{ getBase64Image('images/ap/brands/suzuki.png') }}" alt="Suzuki" style="height: 12px; margin: 0 5px;">
+    <img src="{{ getBase64Image('images/ap/brands/subaru.png') }}" alt="Subaru" style="height: 12px; margin: 0 5px;">
+    <img src="{{ getBase64Image('images/ap/brands/dfsk.png') }}" alt="DFSK" style="height: 12px; margin: 0 5px;">
+    <img src="{{ getBase64Image('images/ap/brands/mazda.png') }}" alt="Mazda" style="height: 12px; margin: 0 5px;">
+    <img src="{{ getBase64Image('images/ap/brands/citroen.jpg') }}" alt="Citroën" style="height: 12px; margin: 0 5px;">
+    <img src="{{ getBase64Image('images/ap/brands/renault.png') }}" alt="Renault" style="height: 12px; margin: 0 5px;">
+    <img src="{{ getBase64Image('images/ap/brands/haval.png') }}" alt="Haval" style="height: 12px; margin: 0 5px;">
+    <img src="{{ getBase64Image('images/ap/brands/great-wall.png') }}" alt="Great Wall"
+         style="height: 12px; margin: 0 5px;">
+    <img src="{{ getBase64Image('images/ap/brands/changan.png') }}" alt="Changan" style="height: 12px; margin: 0 5px;">
+    <img src="{{ getBase64Image('images/ap/brands/jac.png') }}" alt="JAC" style="height: 12px; margin: 0 5px;">
+  </div>
 </div>
 
 </body>

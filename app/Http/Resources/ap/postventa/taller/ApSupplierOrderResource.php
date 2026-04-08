@@ -30,6 +30,7 @@ class ApSupplierOrderResource extends JsonResource
       'created_by_name' => $this->createdBy->name ?? '',
       'order_date' => $this->order_date,
       'order_number' => $this->order_number,
+      'order_number_external' => $this->order_number_external,
       'supply_type' => $this->supply_type,
       'net_amount' => $this->net_amount,
       'tax_amount' => $this->tax_amount,
