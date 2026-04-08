@@ -28,10 +28,6 @@
       padding: 15px;
     }
 
-    .header {
-      margin-bottom: 15px;
-    }
-
     .header table {
       width: 100%;
       border: none;
@@ -47,7 +43,7 @@
     }
 
     .logo img {
-      max-width: 80px;
+      max-width: 200px;
       height: auto;
     }
 
@@ -59,15 +55,14 @@
     }
 
     .section-title {
-      background-color: #172e66;
-      color: white;
+      background-color: #8b8b8b;
+      color: black;
       font-weight: bold;
       font-size: 10px;
       padding: 5px;
       text-align: left;
       border: 1px solid #000;
       margin-top: 10px;
-      margin-bottom: 5px;
     }
 
     table.data-table {
@@ -79,8 +74,16 @@
 
     table.data-table td {
       padding: 4px;
-      border: 1px solid #000;
       vertical-align: top;
+    }
+
+    table.data-table.work-order-info-table {
+      border: 1px solid #000;
+      border-top: none;
+    }
+
+    table.data-table.work-order-info-table td {
+      border: none;
     }
 
     .label-cell {
@@ -89,26 +92,22 @@
       background-color: #f0f0f0;
     }
 
-    table.items-table {
-      width: 100%;
-      border-collapse: collapse;
+    .work-items-list {
+      border: 1px solid #000;
+      border-top: none;
+      padding: 8px;
       margin-bottom: 10px;
       font-size: 8px;
+      line-height: 1.5;
     }
 
-    table.items-table th {
-      background-color: #172e66;
-      color: white;
-      font-weight: bold;
-      padding: 5px;
-      text-align: center;
-      border: 1px solid #000;
+    .work-item {
+      margin-bottom: 6px;
+      word-break: break-word;
     }
 
-    table.items-table td {
-      padding: 4px;
-      border: 1px solid #000;
-      vertical-align: middle;
+    .work-item:last-child {
+      margin-bottom: 0;
     }
 
     .vehicle-inspection-container {
@@ -198,6 +197,7 @@
       width: 100%;
       height: 100%;
       object-fit: contain;
+      transform: rotate(180deg);
     }
 
     .damage-marker {
@@ -240,149 +240,77 @@
       border: 1px solid #000;
     }
 
-    .important-section {
-      border: 1px solid #000;
-      padding: 8px;
-      margin-top: 10px;
-      margin-bottom: 10px;
-      min-height: 80px;
-    }
-
-    .important-title {
-      font-weight: bold;
-      font-size: 10px;
-      margin-bottom: 5px;
-      text-decoration: underline;
-    }
-
-    .signatures {
-      margin-top: 20px;
-    }
-
-    .signatures table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .signatures td {
-      width: 50%;
-      text-align: center;
-      vertical-align: bottom;
-      padding: 10px;
-    }
-
-    .signature-box {
-      border-top: 2px solid #000;
-      margin-top: 0px;
-      padding-top: 5px;
-      font-size: 9px;
-      font-weight: bold;
-    }
-
-    .signature-img {
-      max-width: 200px;
-      max-height: 80px;
-      margin-bottom: 0px;
-      display: block;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
     .text-center {
       text-align: center;
     }
 
-    .text-right {
-      text-align: right;
-    }
-
     .guarantee-recall-container {
-      display: table;
       width: 100%;
+      text-align: right;
       margin-bottom: 5px;
     }
 
     .recall-box {
-      display: table-cell;
-      width: 50%;
-      padding-right: 5px;
+      display: inline-block;
       vertical-align: top;
+      margin-right: 10px;
+      border-bottom: 1px solid #000;
+      padding-bottom: 0;
     }
 
     .guarantee-box {
-      display: table-cell;
-      width: 50%;
-      padding-left: 5px;
+      display: inline-block;
       vertical-align: top;
+      border-bottom: 1px solid #000;
+      padding-bottom: 0;
     }
 
-    .recall-info-table {
-      width: 100%;
-      border-collapse: collapse;
+    .guarantee-check-box {
+      display: inline-block;
+      border: 1px solid #000;
+      vertical-align: middle;
+      width: 120px;
+      height: 42px;
+    }
+
+    .guarantee-check-title {
       font-size: 8px;
-      margin-top: 5px;
-    }
-
-    .recall-info-table th {
-      background-color: #172e66;
-      color: white;
       font-weight: bold;
       padding: 5px;
-      text-align: left;
-      border: 1px solid #000;
-      font-size: 9px;
-    }
-
-    .recall-info-table td {
-      padding: 5px;
-      border: 1px solid #000;
-      vertical-align: top;
-    }
-
-    .recall-info-table .label-cell {
-      font-weight: bold;
-      width: 30%;
-      background-color: #f0f0f0;
-    }
-
-    .status-box {
-      border: 2px solid #172e66;
-      padding: 8px;
-      background-color: #f9f9f9;
-    }
-
-    .status-box-title {
-      font-weight: bold;
-      font-size: 9px;
       text-align: center;
-      margin-bottom: 5px;
-      color: #172e66;
+      border-bottom: 1px solid #000;
     }
 
-    .status-options {
+    .guarantee-check-options {
       display: table;
       width: 100%;
       border-collapse: collapse;
     }
 
-    .status-option {
+    .guarantee-option {
       display: table-cell;
       width: 50%;
-      text-align: center;
-      padding: 5px;
-      border: 1.5px solid #000;
       font-size: 9px;
       font-weight: bold;
+      text-align: center;
+      padding: 5px;
+      border-right: 1px solid #000;
+      background-color: white;
     }
 
-    .status-option.checked {
+    .guarantee-option:last-child {
+      border-right: none;
+    }
+
+    .guarantee-option.checked {
       background-color: #d0d0d0;
     }
 
-    .status-option.checked::after {
+    .guarantee-option.checked::after {
       content: " X";
       color: #000;
-      font-size: 11px;
+      font-size: 10px;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -392,49 +320,47 @@
 <div class="header">
   <table>
     <tr>
-      <td class="logo" style="width: 25%;">
+      <td class="logo" style="width: 20%;">
         <img src="{{ getBase64Image('images/ap/derco.jpg') }}" alt="Derco Logo">
       </td>
-      <td class="center-title" style="width: 50%;">
+      <td class="center-title" style="width: 60%;">
         ORDEN DE RECEPCIÓN<br>
         AUTOMOTORES PAKATNAMU S.A.C.
       </td>
-      <td class="logo" style="width: 25%;">
+      <td class="logo" style="width: 20%;">
         <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="Automotores Logo">
       </td>
     </tr>
   </table>
 </div>
 
-<!-- Sección: Información de la Orden de Trabajo -->
-<div class="section-title">INFORMACIÓN DE LA ORDEN DE TRABAJO</div>
-
 <!-- Cuadros de Estado: Recall y Garantía -->
 <div class="guarantee-recall-container">
-  <!-- Lado Izquierdo: Estado de Recall -->
   <div class="recall-box">
-    <div class="status-box">
-      <div class="status-box-title">VEHÍCULO EN RECALL</div>
-      <div class="status-options">
-        <div class="status-option {{ $isRecall ? 'checked' : '' }}">SI</div>
-        <div class="status-option {{ !$isRecall ? 'checked' : '' }}">NO</div>
+    <div class="guarantee-check-box">
+      <div class="guarantee-check-title">VEHÍCULO EN RECALL</div>
+      <div class="guarantee-check-options">
+        <div class="guarantee-option {{ $isRecall ? 'checked' : '' }}">SI</div>
+        <div class="guarantee-option {{ !$isRecall ? 'checked' : '' }}">NO</div>
       </div>
     </div>
   </div>
 
-  <!-- Lado Derecho: Estado de Garantía -->
   <div class="guarantee-box">
-    <div class="status-box">
-      <div class="status-box-title">VEHÍCULO EN GARANTÍA</div>
-      <div class="status-options">
-        <div class="status-option {{ $isGuarantee ? 'checked' : '' }}">SI</div>
-        <div class="status-option {{ !$isGuarantee ? 'checked' : '' }}">NO</div>
+    <div class="guarantee-check-box">
+      <div class="guarantee-check-title">VEHÍCULO EN GARANTÍA</div>
+      <div class="guarantee-check-options">
+        <div class="guarantee-option {{ $isGuarantee ? 'checked' : '' }}">SI</div>
+        <div class="guarantee-option {{ !$isGuarantee ? 'checked' : '' }}">NO</div>
       </div>
     </div>
   </div>
 </div>
 
-<table class="data-table">
+<!-- Sección: Información de la Orden de Trabajo -->
+<div class="section-title">INFORMACIÓN DE LA ORDEN DE TRABAJO</div>
+
+<table class="data-table work-order-info-table">
   <tr>
     <td class="label-cell">Número OT:</td>
     <td>{{ $workOrder->correlative }}</td>
@@ -483,7 +409,7 @@
 
 <!-- Sección: Información del Vehículo -->
 <div class="section-title">INFORMACIÓN DEL VEHÍCULO</div>
-<table class="data-table">
+<table class="data-table work-order-info-table">
   <tr>
     <td class="label-cell">Marca:</td>
     <td>{{ $vehicle->model->family->brand->name ?? 'N/A' }}</td>
@@ -517,54 +443,45 @@
 </table>
 
 <!-- Sección: Datos del Cliente -->
-<div class="section-title">DATOS DEL CLIENTE</div>
-<table class="data-table">
-  <tr>
-    <td class="label-cell">Cliente:</td>
-    <td colspan="3">{{ $customer ? $customer->full_name : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">DNI/RUC:</td>
-    <td>{{ $customer ? $customer->num_doc : 'N/A' }}</td>
-    <td class="label-cell">Teléfono:</td>
-    <td>{{ $customer ? $customer->phone : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Dirección:</td>
-    <td colspan="3">{{ $customer ? $customer->direction : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">E-mail:</td>
-    <td>{{ $customer ? $customer->email : 'N/A' }}</td>
-    <td class="label-cell">Celular:</td>
-    <td>{{ $customer ? $customer->phone : 'N/A' }}</td>
-  </tr>
-</table>
+@if($customer)
+  <div class="section-title">DATOS DEL CLIENTE</div>
+  <table class="data-table work-order-info-table">
+    <tr>
+      <td class="label-cell">Cliente:</td>
+      <td colspan="3">{{ $customer ? $customer->full_name : 'N/A' }}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">DNI/RUC:</td>
+      <td>{{ $customer ? $customer->num_doc : 'N/A' }}</td>
+      <td class="label-cell">Teléfono:</td>
+      <td>{{ $customer ? $customer->phone : 'N/A' }}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">Dirección:</td>
+      <td colspan="3">{{ $customer ? $customer->direction : 'N/A' }}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">E-mail:</td>
+      <td>{{ $customer ? $customer->email : 'N/A' }}</td>
+      <td class="label-cell">Celular:</td>
+      <td>{{ $customer ? $customer->phone : 'N/A' }}</td>
+    </tr>
+  </table>
+@endif
 
 <!-- Sección: Items de Trabajo -->
 <div class="section-title">ITEMS DE TRABAJO</div>
-<table class="items-table">
-  <thead>
-  <tr>
-    <th style="width: 10%;">N°</th>
-    <th style="width: 20%;">Tipo</th>
-    <th style="width: 70%;">Descripción</th>
-  </tr>
-  </thead>
-  <tbody>
+<div class="work-items-list">
   @forelse($items as $index => $item)
-    <tr>
-      <td class="text-center">{{ $index + 1 }}</td>
-      <td>{{ $item->typePlanning ? $item->typePlanning->description : 'N/A' }}</td>
-      <td>{{ $item->description }}</td>
-    </tr>
+    <div class="work-item">
+      <strong>{{ $index + 1 }}.</strong>
+      <strong>Tipo:</strong> {{ $item->typePlanning ? $item->typePlanning->description : 'N/A' }} |
+      <strong>Descripción:</strong> {{ $item->description ?: 'Sin descripción' }}
+    </div>
   @empty
-    <tr>
-      <td colspan="3" class="text-center">No hay items de trabajo registrados</td>
-    </tr>
+    <div class="work-item text-center">No hay items de trabajo registrados</div>
   @endforelse
-  </tbody>
-</table>
+</div>
 
 <!-- Sección: Inspección del Vehículo (Inventario + Estado) -->
 <div class="section-title">INSPECCIÓN DEL VEHÍCULO</div>
