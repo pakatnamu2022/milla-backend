@@ -366,6 +366,7 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       'delivery_date' => '-',
       'work_order_number' => '-',
       'has_quotation' => $hasQuotation,
+      'quotation_number' => $hasQuotation ? $quotation->quotation_number : null,
       'sede' => $purchaseRequest->warehouse->sede,
     ];
 
@@ -392,10 +393,8 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
     }
 
     // Datos del vendedor/asesor
-    if ($hasQuotation && $quotation->createdBy && $quotation->createdBy->person) {
-      $data['advisor_name'] = $quotation->createdBy->id . ' - ' . ($quotation->createdBy->person->nombre_completo ?? '-');
-    } elseif ($purchaseRequest->requestedBy && $purchaseRequest->requestedBy->person) {
-      $data['advisor_name'] = $purchaseRequest->requestedBy->id . ' - ' . ($purchaseRequest->requestedBy->person->nombre_completo ?? '-');
+    if ($purchaseRequest->requestedBy && $purchaseRequest->requestedBy->person) {
+      $data['advisor_name'] = ($purchaseRequest->requestedBy->person->nombre_completo ?? '-');
     } else {
       $data['advisor_name'] = '-';
     }
@@ -431,12 +430,13 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       $code = $product ? $product->code : '-';
       $description = $product ? $product->name : '-';
       $quantity = $detail->quantity;
+      $supply_type = $detail->supply_type;
+      $notes = $detail->notes ?? '-';
 
       // Buscar precio en la cotización si existe
       $price = '-';
       $discount = '-';
       $lineTotal = '-';
-      $procedure = 'CENTRAL';
 
       if ($hasQuotation) {
         $quotationDetail = $quotation->details
@@ -454,7 +454,8 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       $details[] = [
         'code' => $code,
         'description' => $description,
-        'procedure' => $procedure,
+        'supply_type' => $supply_type,
+        'notes' => $notes,
         'quantity' => number_format($quantity, 2),
         'price' => is_numeric($price) ? number_format($price, 2) : $price,
         'discount' => is_numeric($discount) ? number_format($discount, 2) : $discount,

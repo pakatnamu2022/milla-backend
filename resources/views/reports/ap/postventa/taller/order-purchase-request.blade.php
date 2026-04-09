@@ -346,6 +346,11 @@
         <div><strong>Fecha
             Documento:</strong> {{ \Carbon\Carbon::parse($purchaseRequest['requested_date'])->format('d/m/Y') }}
         </div>
+        @if($purchaseRequest['quotation_number'])
+        <div style="margin-top: 5px;">
+          <strong>N° Cotización:</strong> {{ $purchaseRequest['quotation_number'] }}
+        </div>
+        @endif
       </td>
     </tr>
   </table>
@@ -394,7 +399,7 @@
         <td class="label">E-mail</td>
         <td class="value">: {{ $purchaseRequest['supplier_email'] }}</td>
         <td class="label">Solicitado por</td>
-        <td class="value">:</td>
+        <td class="value">: {{$purchaseRequest['advisor_name']}}</td>
       </tr>
     </table>
   </div>
@@ -418,7 +423,7 @@
     <tr>
       <td class="text-left">{{ $detail['code'] }}</td>
       <td class="text-left">{{ $detail['description'] }}</td>
-      <td class="text-center">{{ $detail['procedure'] }}</td>
+      <td class="text-center">{{ $detail['supply_type'] }} <br> {{ $detail['notes'] }}</td>
       <td class="text-center">{{ $detail['quantity'] }}</td>
       <td class="text-right">{{ $detail['price'] }}</td>
       <td class="text-right">{{ $detail['discount'] }}</td>

@@ -3,6 +3,8 @@
 namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\ApMasters;
+use Illuminate\Validation\Rule;
 
 class UpdateApOrderPurchaseRequestsRequest extends StoreRequest
 {
@@ -61,11 +63,6 @@ class UpdateApOrderPurchaseRequestsRequest extends StoreRequest
         'required',
         'in:pending,approved,rejected',
       ],
-      'supply_type' => [
-        'required',
-        'string',
-        'in:STOCK,LOCAL,CENTRAL,IMPORTACION',
-      ],
 
       // Details validation (optional on update)
       'details' => [
@@ -91,6 +88,11 @@ class UpdateApOrderPurchaseRequestsRequest extends StoreRequest
         'nullable',
         'date',
       ],
+      'details.*.supply_type' => [
+        'required',
+        'string',
+        'in:LOCAL,CENTRAL,IMPORTACION', //no se toma en cuenta stock porque se considera que si una solicitud de compra no tiene cotizacion es por stock
+      ]
     ];
   }
 

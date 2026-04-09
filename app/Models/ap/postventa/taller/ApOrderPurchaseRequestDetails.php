@@ -21,6 +21,7 @@ class ApOrderPurchaseRequestDetails extends Model
     'quantity',
     'notes',
     'requested_delivery_date',
+    'supply_type',
     'status',
   ];
 
@@ -48,6 +49,11 @@ class ApOrderPurchaseRequestDetails extends Model
   const STATUS_ORDERED = 'ordered';
   const STATUS_RECEIVED = 'received';
   const STATUS_REJECTED = 'rejected';
+
+  public function setNotesAttribute($value)
+  {
+    $this->attributes['notes'] = strtolower($value);
+  }
 
   public function orderPurchaseRequest(): BelongsTo
   {

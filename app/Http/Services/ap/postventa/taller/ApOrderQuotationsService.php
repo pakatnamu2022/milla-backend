@@ -207,7 +207,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'validity_days' => $validation_days,
         'exchange_rate' => $exchangeRate->rate,
         'currency_id' => $data['currency_id'],
-        'supply_type' => $data['supply_type'] ?? null,
         'collection_date' => $data['collection_date'] ?? null,
       ];
 
@@ -229,6 +228,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'retail_price_external' => $detail['retail_price_external'] ?? null,
           'exchange_rate' => $detail['exchange_rate'] ?? null,
           'freight_commission' => $detail['freight_commission'] ?? null,
+          'supply_type' => $detail['supply_type'] ?? null,
         ]);
       }
 
@@ -405,6 +405,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'retail_price_external' => $detail['retail_price_external'] ?? null,
           'exchange_rate' => $detail['exchange_rate'] ?? null,
           'freight_commission' => $detail['freight_commission'] ?? null,
+          'supply_type' => $detail['supply_type'] ?? null,
         ]);
       }
 
@@ -683,7 +684,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'show_codes' => $showCodes,
       'sede' => $quotation->sede,
       'type_currency' => $quotation->typeCurrency,
-      'supply_type' => $quotation->supply_type,
       'status' => $quotation->status,
     ];
 
@@ -743,6 +743,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'total_amount' => $detail->total_amount,
         'total_amount_with_tax' => round($detail->total_amount * (1 + Constants::VAT_TAX / 100), 2),
         'item_type' => $detail->item_type,
+        'supply_type' => $detail->supply_type,
       ];
     });
 

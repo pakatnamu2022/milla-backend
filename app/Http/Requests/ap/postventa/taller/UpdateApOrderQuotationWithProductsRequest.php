@@ -27,7 +27,6 @@ class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
       'expiration_date' => ['nullable', 'date', 'after_or_equal:quotation_date'],
       'collection_date' => ['nullable', 'date'],
       'observations' => ['nullable', 'string'],
-      'supply_type' => ['required', 'string', 'in:STOCK,CENTRAL,IMPORTACION'],
 
       // Details array
       'details' => ['required', 'array', 'min:1'],
@@ -86,6 +85,11 @@ class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
         'numeric',
         'min:0',
         'max:100',
+      ],
+      'details.*.supply_type' => [
+        'required',
+        'string',
+        'in:STOCK,CENTRAL,IMPORTACION',
       ],
     ];
   }
@@ -151,6 +155,10 @@ class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
       'details.*.freight_commission.numeric' => 'La comisión de flete debe ser un número.',
       'details.*.freight_commission.min' => 'La comisión de flete no puede ser negativa.',
       'details.*.freight_commission.max' => 'La comisión de flete no puede ser mayor a 100.',
+
+      'details.*.supply_type.required' => 'El tipo de suministro es obligatorio en todos los detalles.',
+      'details.*.supply_type.string' => 'El tipo de suministro debe ser una cadena de texto.',
+      'details.*.supply_type.in' => 'El tipo de suministro debe ser STOCK, CENTRAL o IMPORTACION.',
     ];
   }
 
@@ -180,46 +188,28 @@ class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
         );
       }
 
-      // Validar stock según supply_type
-      $supplyType = $this->input('supply_type');
+      // Validar stock según supply_type de cada detalle
+      foreach ($details as $index => $detail) {
+        $productId = $detail['product_id'] ?? null;
+        $supplyType = $detail['supply_type'] ?? null;
 
-      if ($supplyType === 'STOCK') {
-        // Validar que los productos tengan stock disponible en cualquier sede
-        foreach ($details as $index => $detail) {
-          $productId = $detail['product_id'] ?? null;
-
-          if (!$productId) {
-            continue;
-          }
-
-          $totalStock = ProductWarehouseStock::where('product_id', $productId)
-            ->sum('quantity');
-
-          if ($totalStock <= 0) {
-            $validator->errors()->add(
-              "details.{$index}.product_id",
-              "El producto seleccionado no tiene stock disponible en ninguna sede. Para tipo de suministro STOCK, el producto debe tener stock disponible."
-            );
-          }
+        if (!$productId || !$supplyType) {
+          continue;
         }
-      } elseif (in_array($supplyType, ['CENTRAL', 'IMPORTACION'])) {
-        // Validar que los productos NO tengan stock (debe ser 0)
-        foreach ($details as $index => $detail) {
-          $productId = $detail['product_id'] ?? null;
 
-          if (!$productId) {
-            continue;
-          }
+        $totalStock = ProductWarehouseStock::where('product_id', $productId)
+          ->sum('quantity');
 
-          $totalStock = ProductWarehouseStock::where('product_id', $productId)
-            ->sum('quantity');
-
-          if ($totalStock > 0) {
-            $validator->errors()->add(
-              "details.{$index}.product_id",
-              "El producto seleccionado tiene stock disponible ({$totalStock} unidades). Para tipo de suministro {$supplyType}, el producto no debe tener stock en ninguna sede."
-            );
-          }
+        if ($supplyType === 'STOCK' && $totalStock <= 0) {
+          $validator->errors()->add(
+            "details.{$index}.product_id",
+            "El producto seleccionado no tiene stock disponible en ninguna sede. Para tipo de suministro STOCK, el producto debe tener stock disponible."
+          );
+        } elseif (in_array($supplyType, ['CENTRAL', 'IMPORTACION']) && $totalStock > 0) {
+          $validator->errors()->add(
+            "details.{$index}.product_id",
+            "El producto seleccionado tiene stock disponible ({$totalStock} unidades). Para tipo de suministro {$supplyType}, el producto no debe tener stock en ninguna sede."
+          );
         }
       }
     });
