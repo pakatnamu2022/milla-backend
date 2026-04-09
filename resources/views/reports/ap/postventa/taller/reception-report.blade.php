@@ -28,10 +28,6 @@
       padding: 15px;
     }
 
-    .header {
-      margin-bottom: 15px;
-    }
-
     .header table {
       width: 100%;
       border: none;
@@ -47,7 +43,7 @@
     }
 
     .logo img {
-      max-width: 80px;
+      max-width: 200px;
       height: auto;
     }
 
@@ -58,16 +54,37 @@
       padding: 5px;
     }
 
+    .company-info table {
+      width: 100%;
+      border: none;
+    }
+
+    .company-info td {
+      border: none;
+      vertical-align: top;
+      padding: 5px;
+      font-size: 11px;
+    }
+
+    .company-left {
+      width: 50%;
+      text-align: left;
+    }
+
+    .company-right {
+      width: 50%;
+      text-align: left;
+    }
+
     .section-title {
-      background-color: #172e66;
-      color: white;
+      background-color: #8b8b8b;
+      color: black;
       font-weight: bold;
       font-size: 10px;
       padding: 5px;
       text-align: left;
       border: 1px solid #000;
       margin-top: 10px;
-      margin-bottom: 5px;
     }
 
     table.data-table {
@@ -79,8 +96,17 @@
 
     table.data-table td {
       padding: 4px;
-      border: 1px solid #000;
       vertical-align: top;
+    }
+
+    /* Tablas de OT, vehiculo y cliente: sin bordes internos */
+    table.data-table.work-order-info-table {
+      border: 1px solid #000;
+      border-top: none;
+    }
+
+    table.data-table.work-order-info-table td {
+      border: none;
     }
 
     .label-cell {
@@ -97,8 +123,8 @@
     }
 
     table.items-table th {
-      background-color: #172e66;
-      color: white;
+      background-color: #8b8b8b;
+      color: black;
       font-weight: bold;
       padding: 5px;
       text-align: center;
@@ -109,6 +135,24 @@
       padding: 4px;
       border: 1px solid #000;
       vertical-align: middle;
+    }
+
+    .work-items-list {
+      border: 1px solid #000;
+      border-top: none;
+      padding: 8px;
+      margin-bottom: 10px;
+      font-size: 8px;
+      line-height: 1.5;
+    }
+
+    .work-item {
+      margin-bottom: 6px;
+      word-break: break-word;
+    }
+
+    .work-item:last-child {
+      margin-bottom: 0;
     }
 
     .vehicle-inspection-container {
@@ -198,6 +242,7 @@
       width: 100%;
       height: 100%;
       object-fit: contain;
+      transform: rotate(180deg);
     }
 
     .damage-marker {
@@ -297,23 +342,24 @@
     }
 
     .guarantee-recall-container {
-      display: table;
       width: 100%;
+      text-align: right;
       margin-bottom: 5px;
     }
 
     .recall-box {
-      display: table-cell;
-      width: 50%;
-      padding-right: 5px;
+      display: inline-block;
       vertical-align: top;
+      margin-right: 10px;
+      border-bottom: 1px solid #000;
+      padding-bottom: 0;
     }
 
     .guarantee-box {
-      display: table-cell;
-      width: 50%;
-      padding-left: 5px;
+      display: inline-block;
       vertical-align: top;
+      border-bottom: 1px solid #000;
+      padding-bottom: 0;
     }
 
     .recall-info-table {
@@ -324,8 +370,8 @@
     }
 
     .recall-info-table th {
-      background-color: #172e66;
-      color: white;
+      background-color: #8b8b8b;
+      color: black;
       font-weight: bold;
       padding: 5px;
       text-align: left;
@@ -345,44 +391,52 @@
       background-color: #f0f0f0;
     }
 
-    .status-box {
-      border: 2px solid #172e66;
-      padding: 8px;
-      background-color: #f9f9f9;
+    .guarantee-check-box {
+      display: inline-block;
+      border: 1px solid #000;
+      vertical-align: middle;
+      width: 120px;
+      height: 42px;
     }
 
-    .status-box-title {
+    .guarantee-check-title {
+      font-size: 8px;
       font-weight: bold;
-      font-size: 9px;
+      padding: 5px;
       text-align: center;
-      margin-bottom: 5px;
-      color: #172e66;
+      border-bottom: 1px solid #000;
     }
 
-    .status-options {
+    .guarantee-check-options {
       display: table;
       width: 100%;
       border-collapse: collapse;
     }
 
-    .status-option {
+    .guarantee-option {
       display: table-cell;
       width: 50%;
-      text-align: center;
-      padding: 5px;
-      border: 1.5px solid #000;
       font-size: 9px;
       font-weight: bold;
+      text-align: center;
+      padding: 5px;
+      border-right: 1px solid #000;
+      background-color: white;
     }
 
-    .status-option.checked {
+    .guarantee-option:last-child {
+      border-right: none;
+    }
+
+    .guarantee-option.checked {
       background-color: #d0d0d0;
     }
 
-    .status-option.checked::after {
+    .guarantee-option.checked::after {
       content: " X";
       color: #000;
-      font-size: 11px;
+      font-size: 10px;
+      font-weight: bold;
     }
 
     .damage-evidence-table {
@@ -414,7 +468,7 @@
       font-size: 8px;
       font-weight: bold;
       margin-bottom: 5px;
-      color: #172e66;
+      color: #8b8b8b;
     }
 
     .damage-evidence-description {
@@ -422,6 +476,19 @@
       margin-top: 5px;
       color: #333;
       text-align: center;
+    }
+
+    .observations-section {
+      border: 1px solid #000;
+      border-top: none;
+      background-color: #f9f9f9;
+      padding: 4px;
+      margin-bottom: 10px;
+      font-size: 8px;
+      line-height: 1.4;
+      min-height: 45px;
+      white-space: pre-line;
+      word-break: break-word;
     }
   </style>
 </head>
@@ -431,15 +498,55 @@
 <div class="header">
   <table>
     <tr>
-      <td class="logo" style="width: 25%;">
+      <td class="logo" style="width: 20%;">
         <img src="{{ getBase64Image('images/ap/derco.jpg') }}" alt="Derco Logo">
       </td>
-      <td class="center-title" style="width: 50%;">
+      <td class="center-title" style="width: 60%;">
         ORDEN DE RECEPCIÓN<br>
         AUTOMOTORES PAKATNAMU S.A.C.
       </td>
-      <td class="logo" style="width: 25%;">
+      <td class="logo" style="width: 20%;">
         <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="Automotores Logo">
+      </td>
+    </tr>
+  </table>
+</div>
+
+<!-- Información de la empresa y cliente -->
+<div class="company-info">
+  <table>
+    <tr>
+      <td class="company-left" style="text-align: left">
+        <div>{{$sede->direccion}}</div>
+        <div>{{$sede->province->name}}
+          - {{$sede->district->name}} {{$sede->district->ubigeo}}</div>
+        <div>RUC: {{$sede->company->num_doc}}</div>
+      </td>
+      <td class="company-right" style="text-align: right;">
+        <!-- Cuadros de Estado: Recall y Garantía -->
+        <div class="guarantee-recall-container">
+          <!-- Lado Izquierdo: Estado de Recall -->
+          <div class="recall-box">
+            <div class="guarantee-check-box">
+              <div class="guarantee-check-title">VEHÍCULO EN RECALL</div>
+              <div class="guarantee-check-options">
+                <div class="guarantee-option {{ $isRecall ? 'checked' : '' }}">SI</div>
+                <div class="guarantee-option {{ !$isRecall ? 'checked' : '' }}">NO</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lado Derecho: Estado de Garantía -->
+          <div class="guarantee-box">
+            <div class="guarantee-check-box">
+              <div class="guarantee-check-title">VEHÍCULO EN GARANTÍA</div>
+              <div class="guarantee-check-options">
+                <div class="guarantee-option {{ $isGuarantee ? 'checked' : '' }}">SI</div>
+                <div class="guarantee-option {{ !$isGuarantee ? 'checked' : '' }}">NO</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </td>
     </tr>
   </table>
@@ -448,32 +555,7 @@
 <!-- Sección: Información de la Orden de Trabajo -->
 <div class="section-title">INFORMACIÓN DE LA ORDEN DE TRABAJO</div>
 
-<!-- Cuadros de Estado: Recall y Garantía -->
-<div class="guarantee-recall-container">
-  <!-- Lado Izquierdo: Estado de Recall -->
-  <div class="recall-box">
-    <div class="status-box">
-      <div class="status-box-title">VEHÍCULO EN RECALL</div>
-      <div class="status-options">
-        <div class="status-option {{ $isRecall ? 'checked' : '' }}">SI</div>
-        <div class="status-option {{ !$isRecall ? 'checked' : '' }}">NO</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Lado Derecho: Estado de Garantía -->
-  <div class="guarantee-box">
-    <div class="status-box">
-      <div class="status-box-title">VEHÍCULO EN GARANTÍA</div>
-      <div class="status-options">
-        <div class="status-option {{ $isGuarantee ? 'checked' : '' }}">SI</div>
-        <div class="status-option {{ !$isGuarantee ? 'checked' : '' }}">NO</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<table class="data-table">
+<table class="data-table work-order-info-table">
   <tr>
     <td class="label-cell">Número OT:</td>
     <td>{{ $workOrder->correlative }}</td>
@@ -522,7 +604,7 @@
 
 <!-- Sección: Información del Vehículo -->
 <div class="section-title">INFORMACIÓN DEL VEHÍCULO</div>
-<table class="data-table">
+<table class="data-table work-order-info-table">
   <tr>
     <td class="label-cell">Marca:</td>
     <td>{{ $vehicle->model->family->brand->name ?? 'N/A' }}</td>
@@ -555,55 +637,52 @@
   </tr>
 </table>
 
-<!-- Sección: Datos del Cliente -->
-<div class="section-title">DATOS DEL CLIENTE</div>
-<table class="data-table">
-  <tr>
-    <td class="label-cell">Cliente:</td>
-    <td colspan="3">{{ $customer ? $customer->full_name : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">DNI/RUC:</td>
-    <td>{{ $customer ? $customer->num_doc : 'N/A' }}</td>
-    <td class="label-cell">Teléfono:</td>
-    <td>{{ $customer ? $customer->phone : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Dirección:</td>
-    <td colspan="3">{{ $customer ? $customer->direction : 'N/A' }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">E-mail:</td>
-    <td>{{ $customer ? $customer->email : 'N/A' }}</td>
-    <td class="label-cell">Celular:</td>
-    <td>{{ $customer ? $customer->phone : 'N/A' }}</td>
-  </tr>
-</table>
+@if($customer)
+  <!-- Sección: Datos del Cliente -->
+  <div class="section-title">DATOS DEL CLIENTE</div>
+  <table class="data-table work-order-info-table">
+    <tr>
+      <td class="label-cell">Cliente:</td>
+      <td colspan="3">{{ $customer->full_name }}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">DNI/RUC:</td>
+      <td>{{ $customer->num_doc }}</td>
+      <td class="label-cell">Teléfono:</td>
+      <td>{{ $customer->phone }}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">Dirección:</td>
+      <td colspan="3">{{ $customer->direction }}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">E-mail:</td>
+      <td>{{ $customer->email }}</td>
+      <td class="label-cell">Celular:</td>
+      <td>{{ $customer->phone }}</td>
+    </tr>
+  </table>
+@endif
 
 <!-- Sección: Items de Trabajo -->
-<div class="section-title">ITEMS DE TRABAJO</div>
-<table class="items-table">
-  <thead>
-  <tr>
-    <th style="width: 10%;">N°</th>
-    <th style="width: 20%;">Tipo</th>
-    <th style="width: 70%;">Descripción</th>
-  </tr>
-  </thead>
-  <tbody>
+<div class="section-title">DETALLES DE TRABAJO</div>
+<div class="work-items-list">
   @forelse($items as $index => $item)
-    <tr>
-      <td class="text-center">{{ $index + 1 }}</td>
-      <td>{{ $item->typePlanning ? $item->typePlanning->description : 'N/A' }}</td>
-      <td>{{ $item->description }}</td>
-    </tr>
+    <div class="work-item">
+      <strong>{{ $index + 1 }}.</strong>
+      <strong>Tipo:</strong> {{ $item->typePlanning?->description ?? 'N/A' }} |
+      <strong>Operación:</strong> {{ $item->typeOperation?->description ?? 'N/A' }} |
+      <strong>Descripción:</strong> {{ $item->description ?: 'Sin descripción' }}
+    </div>
   @empty
-    <tr>
-      <td colspan="3" class="text-center">No hay items de trabajo registrados</td>
-    </tr>
+    <div class="work-item text-center">No hay items de trabajo registrados</div>
   @endforelse
-  </tbody>
-</table>
+</div>
+
+<div class="section-title">OBSERVACIONES</div>
+<div class="observations-section">
+  {{$workOrder->observations}}
+</div>
 
 <!-- Sección: Inspección del Vehículo (Inventario + Estado) -->
 <div class="section-title">INSPECCIÓN DEL VEHÍCULO</div>
@@ -745,7 +824,6 @@
 @endif
 
 <!-- Sección: Información Importante -->
-<div class="section-title">INFORMACIÓN IMPORTANTE</div>
 <div class="important-section">
   <div class="important-title">ESTIMADO CLIENTE:</div>
   <div style="font-size: 8px; line-height: 1.4;">

@@ -229,7 +229,7 @@ class ApVehicleInspectionService extends BaseService
   private function processPhotosInspection($inspection, array $photosInspection, string $type): void
   {
     $pendingImages = [];
-    $photoTypes = ['photo_front', 'photo_back', 'photo_left', 'photo_right', 'photo_optional_1', 'photo_optional_2'];
+    $photoTypes = ['photo_front', 'photo_back', 'photo_left', 'photo_right', 'photo_optional_1', 'photo_optional_2', 'photo_optional_3', 'photo_optional_4', 'photo_optional_5', 'photo_optional_6'];
 
     foreach ($photoTypes as $photoType) {
       if (isset($photosInspection[$photoType]) && $photosInspection[$photoType] instanceof UploadedFile) {
@@ -344,6 +344,7 @@ class ApVehicleInspectionService extends BaseService
       'createdByWorkOrder.sede',
       'createdByWorkOrder.status',
       'createdByWorkOrder.items.typePlanning',
+      'createdByWorkOrder.items.typeOperation',
       'createdByWorkOrder.appointmentPlanning',
       'inspectionBy.person' // User sí tiene relación person
     ])->findOrFail($id);
@@ -447,6 +448,7 @@ class ApVehicleInspectionService extends BaseService
       'createdByWorkOrder.sede',
       'createdByWorkOrder.status',
       'createdByWorkOrder.items.typePlanning',
+      'createdByWorkOrder.items.typeOperation',
       'createdByWorkOrder.appointmentPlanning',
       'inspectionBy.person' // User sí tiene relación person
     ])->findOrFail($id);

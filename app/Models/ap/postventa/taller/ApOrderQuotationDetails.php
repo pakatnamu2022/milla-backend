@@ -63,6 +63,13 @@ class ApOrderQuotationDetails extends Model
     }
   }
 
+  public function setObservationsAttribute($value): void
+  {
+    if ($value) {
+      $this->attributes['observations'] = strtoupper($value);
+    }
+  }
+
   public function orderQuotation(): BelongsTo
   {
     return $this->belongsTo(ApOrderQuotations::class, 'order_quotation_id');

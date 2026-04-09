@@ -39,15 +39,6 @@ class StoreApOrderPurchaseRequestsRequest extends StoreRequest
         'required',
         'in:pending,approved,rejected',
       ],
-      'supply_type' => [
-        Rule::requiredIf(fn() => in_array($this->input('area_id'), [
-          ApMasters::AREA_MESON,
-          ApMasters::AREA_POSVENTA
-        ])),
-        'nullable',
-        'string',
-        'in:STOCK,LOCAL,CENTRAL,IMPORTACION',
-      ],
 
       // Details validation
       'details' => [
@@ -73,6 +64,11 @@ class StoreApOrderPurchaseRequestsRequest extends StoreRequest
         'nullable',
         'date',
       ],
+      'details.*.supply_type' => [
+        'required',
+        'string',
+        'in:LOCAL,CENTRAL,IMPORTACION', //no se toma en cuenta stock porque se considera que si una solicitud de compra no tiene cotizacion es por stock
+      ]
     ];
   }
 
