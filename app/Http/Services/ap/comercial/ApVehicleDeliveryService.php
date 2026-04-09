@@ -7,6 +7,7 @@ use App\Http\Resources\ap\comercial\ShippingGuidesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
+use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ApDeliveryChecklist;
 use App\Models\ap\comercial\ApVehicleDelivery;
@@ -42,7 +43,15 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
   public function list(Request $request)
   {
-    $query = ApVehicleDelivery::with(['ShippingGuide', 'deliveryChecklist']);
+    $user = $request->user();
+
+    if ($user->role->id === Constants::TICS_ROL_ID) {
+      $query = ApVehicleDelivery::with(['ShippingGuide', 'deliveryChecklist']);
+    } else {
+      $sedes = $user->sedes()->pluck('config_sede.id')->toArray();
+      $query = ApVehicleDelivery::with(['ShippingGuide', 'deliveryChecklist'])
+        ->whereIn('sede_id', $sedes);
+    }
 
     return $this->getFilteredResults(
       $query,

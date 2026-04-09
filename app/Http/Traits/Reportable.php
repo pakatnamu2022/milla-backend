@@ -18,6 +18,11 @@ trait Reportable
     return $this->reportRelations ?? [];
   }
 
+  public function getReportColorRules()
+  {
+    return $this->reportColorRules ?? [];
+  }
+
   public function applyReportFilter($query, $filter)
   {
     $column = $filter['column'];
