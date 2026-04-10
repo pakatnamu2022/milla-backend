@@ -409,17 +409,52 @@
   </tr>
   </thead>
   <tbody>
-  @foreach($quotation['details'] as $detail)
-    <tr>
-      <td class="text-center">{{ $quotation['show_codes'] ?? true ? $detail['code'] : '' }}</td>
-      <td class="text-left">{{ $detail['description'] }}</td>
-      <td class="text-left">{{ $detail['supply_type'] === 'M.O' ? '' : $detail['supply_type'] }}</td>
-      <td class="text-center">{{ number_format($detail['quantity'], 2) }}</td>
-      <td class="text-right">{{ number_format($detail['unit_price'], 2) }}</td>
-      <td class="text-right">{{ number_format($detail['discount'], 2) }}</td>
-      <td class="text-right">{{ number_format($detail['total_amount'], 2) }}</td>
+  @php
+    $laborDetails = collect($quotation['details'])->where('item_type', 'LABOR');
+    $productDetails = collect($quotation['details'])->where('item_type', 'PRODUCT');
+    $laborSubtotal = 0;
+    $productSubtotal = 0;
+  @endphp
+
+  {{-- MANO DE OBRA --}}
+  @if($laborDetails->count() > 0)
+    @foreach($laborDetails as $detail)
+      <tr>
+        <td class="text-center">{{ $quotation['show_codes'] ?? true ? $detail['code'] : '' }}</td>
+        <td class="text-left">{{ $detail['description'] }}</td>
+        <td class="text-left">{{ $detail['supply_type'] === 'M.O' ? '' : $detail['supply_type'] }}</td>
+        <td class="text-center">{{ number_format($detail['quantity'], 2) }}</td>
+        <td class="text-right">{{ number_format($detail['unit_price'], 2) }}</td>
+        <td class="text-right">{{ number_format($detail['discount'], 2) }}</td>
+        <td class="text-right">{{ number_format($detail['total_amount'], 2) }}</td>
+      </tr>
+      @php $laborSubtotal += $detail['total_amount']; @endphp
+    @endforeach
+    <tr style="background-color: #f0f0f0;">
+      <td colspan="6" class="text-right" style="font-weight: bold; padding-right: 10px;">Subtotal Mano de Obra:</td>
+      <td class="text-right" style="font-weight: bold;">{{ number_format($laborSubtotal, 2) }}</td>
     </tr>
-  @endforeach
+  @endif
+
+  {{-- REPUESTOS --}}
+  @if($productDetails->count() > 0)
+    @foreach($productDetails as $detail)
+      <tr>
+        <td class="text-center">{{ $quotation['show_codes'] ?? true ? $detail['code'] : '' }}</td>
+        <td class="text-left">{{ $detail['description'] }}</td>
+        <td class="text-left">{{ $detail['supply_type'] === 'M.O' ? '' : $detail['supply_type'] }}</td>
+        <td class="text-center">{{ number_format($detail['quantity'], 2) }}</td>
+        <td class="text-right">{{ number_format($detail['unit_price'], 2) }}</td>
+        <td class="text-right">{{ number_format($detail['discount'], 2) }}</td>
+        <td class="text-right">{{ number_format($detail['total_amount'], 2) }}</td>
+      </tr>
+      @php $productSubtotal += $detail['total_amount']; @endphp
+    @endforeach
+    <tr style="background-color: #f0f0f0;">
+      <td colspan="6" class="text-right" style="font-weight: bold; padding-right: 10px;">Subtotal Repuestos:</td>
+      <td class="text-right" style="font-weight: bold;">{{ number_format($productSubtotal, 2) }}</td>
+    </tr>
+  @endif
   </tbody>
 </table>
 

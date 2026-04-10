@@ -30,6 +30,7 @@ class ApOrderPurchaseRequestDetails extends Model
     'order_purchase_request_id' => '=',
     'product_id' => '=',
     'requested_delivery_date' => 'between',
+    'supply_type' => '=',
   ];
 
   const sorts = [
