@@ -279,33 +279,54 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
       );
     }
 
-    // 2. Verificar que no tenga ya un trabajo "external" ese día (solo 1 por día)
-    $hasExternalWork = $workerPlannings->where('type', 'external')->count() > 0;
-    if ($hasExternalWork) {
-      throw new Exception(
-        'El trabajador ya tiene un trabajo excepcional asignado para este día. ' .
-        'Solo se permite 1 trabajo externo por día.'
-      );
-    }
+    // 2. Obtener trabajos "external" existentes ese día
+    $externalWorks = $workerPlannings->where('type', 'external');
 
-    // 3. Obtener el último trabajo "internal" del día
-    $lastInternalWork = $workerPlannings->where('type', 'internal')->first(); // Ya está ordenado por planned_end_datetime desc
+    if ($externalWorks->count() > 0) {
+      // Si ya hay trabajos excepcionales, validar que el nuevo comience después del último
+      $lastExternalWork = $externalWorks->first(); // Ya está ordenado por planned_end_datetime desc
 
-    if ($lastInternalWork) {
-      $lastEndTime = Carbon::parse($lastInternalWork->planned_end_datetime);
-      $endOfWorkDay = Carbon::parse($plannedStart->format('Y-m-d') . ' ' . ApWorkOrderPlanning::WORK_END_TIME);
-
-      // 4. Verificar si aún le falta tiempo hasta el fin de jornada
-      if ($lastEndTime->lt($endOfWorkDay)) {
-        $remainingMinutes = $lastEndTime->diffInMinutes($endOfWorkDay);
-        $remainingHours = round($remainingMinutes / 60, 2);
-
+      // Validar que el último trabajo excepcional esté completado
+      if ($lastExternalWork->status !== 'completed') {
         throw new Exception(
-          "El trabajador terminó su último trabajo a las {$lastEndTime->format('H:i')}. " .
-          "Aún tiene {$remainingHours} horas disponibles hasta las " . ApWorkOrderPlanning::WORK_END_TIME . " (fin de jornada). " .
-          "Debe asignarle trabajos con normalidad en el rango de {$lastEndTime->format('H:i')} a " . ApWorkOrderPlanning::WORK_END_TIME . " " .
-          "antes de poder asignar trabajo de tipo excepcional."
+          "No se puede asignar un nuevo trabajo excepcional. " .
+          "El último trabajo excepcional (desde las {$lastExternalWork->planned_start_datetime->format('H:i')} " .
+          "hasta las {$lastExternalWork->planned_end_datetime->format('H:i')}) aún no ha sido completado. " .
+          "Debe completar el trabajo excepcional actual antes de asignar uno nuevo."
         );
+      }
+
+      $lastExternalEndTime = Carbon::parse($lastExternalWork->planned_end_datetime);
+
+      // El nuevo trabajo excepcional debe comenzar desde la hora fin del último trabajo excepcional en adelante
+      if ($plannedStart->lt($lastExternalEndTime)) {
+        throw new Exception(
+          "El nuevo trabajo excepcional debe comenzar a partir de las {$lastExternalEndTime->format('H:i')} " .
+          "(hora fin del último trabajo excepcional). " .
+          "El horario asignado comienza a las {$plannedStart->format('H:i')}."
+        );
+      }
+    } else {
+      // Si no hay trabajos excepcionales previos, validar con el último trabajo "internal"
+      // 3. Obtener el último trabajo "internal" del día
+      $lastInternalWork = $workerPlannings->where('type', 'internal')->first(); // Ya está ordenado por planned_end_datetime desc
+
+      if ($lastInternalWork) {
+        $lastEndTime = Carbon::parse($lastInternalWork->planned_end_datetime);
+        $endOfWorkDay = Carbon::parse($plannedStart->format('Y-m-d') . ' ' . ApWorkOrderPlanning::WORK_END_TIME);
+
+        // 4. Verificar que el último trabajo termine exactamente a las 6pm
+        if (!$lastEndTime->equalTo($endOfWorkDay)) {
+          $remainingMinutes = $lastEndTime->diffInMinutes($endOfWorkDay);
+          $remainingHours = round($remainingMinutes / 60, 2);
+
+          throw new Exception(
+            "El trabajador terminó su último trabajo a las {$lastEndTime->format('H:i')}. " .
+            "Para asignar trabajo excepcional, el último trabajo del día debe terminar exactamente a las " . ApWorkOrderPlanning::WORK_END_TIME . " (fin de jornada). " .
+            "Actualmente hay una diferencia de {$remainingHours} horas. " .
+            "Debe asignarle trabajos con normalidad hasta completar la jornada antes de poder asignar trabajo de tipo excepcional."
+          );
+        }
       }
     }
   }
