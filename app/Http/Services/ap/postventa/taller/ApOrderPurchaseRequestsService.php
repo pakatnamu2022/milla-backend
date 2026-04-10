@@ -278,6 +278,11 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       $query->where('product_id', $request->product_id);
     }
 
+    // Filtro opcional por tipo de suministro
+    if ($request->has('supply_type')) {
+      $query->where('supply_type', $request->supply_type);
+    }
+
     $details = $query->get();
 
     return response()->json([

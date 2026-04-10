@@ -508,7 +508,7 @@ class InventoryMovementService extends BaseService
         'document_series_id' => $transferData['document_series_id'],
         'series' => $assignedSeries->series,
         'correlative' => $correlative,
-        'issue_date' => $transferData['movement_date'] ?? now(),
+        'issue_date' => $transferData['issue_date'] ?? now(),
         'requires_sunat' => true,
         'is_sunat_registered' => false, // NOT sent yet
         'sede_transmitter_id' => $transmitter->sede->id,
@@ -649,7 +649,7 @@ class InventoryMovementService extends BaseService
       $shippingGuideData = [];
 
       if (isset($transferData['movement_date'])) {
-        $shippingGuideData['issue_date'] = $transferData['movement_date'];
+        $shippingGuideData['issue_date'] = $transferData['issue_date'];
       }
 
       if (isset($transferData['driver_name'])) {

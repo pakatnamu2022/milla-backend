@@ -402,6 +402,15 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
   public function destroy($id)
   {
     $planning = $this->find($id);
+
+    // Validar que el trabajo no haya sido iniciado
+    if ($planning->status !== 'pending') {
+      throw new Exception(
+        'No se puede eliminar esta planificación porque el técnico ya ha iniciado el trabajo. ' .
+        'Solo se pueden eliminar planificaciones que aún no han comenzado.'
+      );
+    }
+
     $planning->delete();
     return response()->json(['message' => 'Planificación eliminada correctamente']);
   }

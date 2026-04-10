@@ -11,6 +11,7 @@ class UpdateTransferInventoryRequest extends StoreRequest
     return [
       // Datos básicos de la transferencia
       'movement_date' => 'nullable|date',
+      'issue_date' => 'nullable|date',
       'notes' => 'nullable|string|max:1000',
 
       // Datos de la Guía de Remisión (solo metadata, NO productos)
