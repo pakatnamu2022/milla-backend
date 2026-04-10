@@ -284,10 +284,6 @@
     </tr>
     <tr>
       <td class="order-left"><strong>Moneda:</strong> {{ $order['currency'] }}</td>
-      <td class="order-right"><strong>Cond. Pago:</strong> {{ $order['payment_condition'] }}</td>
-    </tr>
-    <tr>
-      <td class="order-left"><strong>Fecha Entrega:</strong> {{ $order['delivery_date'] }}</td>
       <td class="order-right"><strong>Lugar Entrega:</strong> {{ $order['sede']->direccion }}</td>
     </tr>
   </table>
@@ -306,7 +302,6 @@
     </tr>
     <tr>
       <td class="order-left"><strong>Nº Solicitud de Compra:</strong> {{ $order['purchase_request_numbers'] }}</td>
-      <td class="order-right"><strong>Forma de Pago:</strong> {{ $order['payment_method'] }}</td>
     </tr>
   </table>
 </div>
