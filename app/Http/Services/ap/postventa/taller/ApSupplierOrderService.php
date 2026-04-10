@@ -499,11 +499,6 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
       ? implode(', ', $purchaseRequestNumbers)
       : 'N/A';
 
-    // Valores por defecto temporales
-    $data['payment_condition'] = 'CREDITO 30 DIAS';
-    $data['delivery_date'] = \Carbon\Carbon::parse($supplierOrder->order_date)->addDays(3)->format('d/m/Y');
-    $data['payment_method'] = 'AL CONTADO';
-
     // Detalles de la orden
     $data['details'] = $supplierOrder->details->map(function ($detail) {
       return [
