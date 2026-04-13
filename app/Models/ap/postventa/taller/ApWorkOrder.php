@@ -39,6 +39,8 @@ class ApWorkOrder extends Model
     'advisor_id',
     'invoice_to',
     'sede_id',
+    'exchange_rate_id',
+    'exchange_rate',
     'num_doc_contact',
     'full_contact_name',
     'phone_contact',

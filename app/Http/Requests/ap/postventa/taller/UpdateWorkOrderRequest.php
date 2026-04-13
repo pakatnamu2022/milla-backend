@@ -9,6 +9,8 @@ class UpdateWorkOrderRequest extends StoreRequest
 {
   public function rules(): array
   {
+    $workOrderId = $this->route('workOrder');
+
     return [
       'vehicle_inspection_id' => [
         'nullable',
@@ -172,6 +174,39 @@ class UpdateWorkOrderRequest extends StoreRequest
         'string',
         'max:100',
       ],
+
+      // Items
+      'items' => [
+        'nullable',
+        'array',
+        function ($attribute, $value, $fail) use ($workOrderId) {
+          // Verificar si la orden ya está recepcionada
+          $workOrder = \App\Models\ap\postventa\taller\ApWorkOrder::find($workOrderId);
+          if ($workOrder && $workOrder->vehicle_inspection_id) {
+            $fail('No se pueden actualizar los items de una orden de trabajo que ya ha sido recepcionada.');
+          }
+        },
+      ],
+      'items.*.group_number' => [
+        'required_with:items',
+        'integer',
+        'min:1',
+      ],
+      'items.*.type_planning_id' => [
+        'required_with:items',
+        'integer',
+        Rule::exists('type_planning_work_order', 'id'),
+      ],
+      'items.*.type_operation_id' => [
+        'required_with:items',
+        'integer',
+        Rule::exists('ap_masters', 'id')
+          ->where('type', 'TIPO_OPERACION_CITA'),
+      ],
+      'items.*.description' => [
+        'required_with:items',
+        'string',
+      ],
     ];
   }
 
@@ -255,6 +290,20 @@ class UpdateWorkOrderRequest extends StoreRequest
       'description_recall.max' => 'La descripción del recall no debe exceder los 500 caracteres.',
       'type_recall.string' => 'El tipo de recall debe ser una cadena de texto.',
       'type_recall.max' => 'El tipo de recall no debe exceder los 100 caracteres.',
+
+      // Items validation messages
+      'items.array' => 'Los items deben ser un arreglo.',
+      'items.*.group_number.required_with' => 'El número de grupo es obligatorio cuando se envían items.',
+      'items.*.group_number.integer' => 'El número de grupo debe ser un entero.',
+      'items.*.group_number.min' => 'El número de grupo debe ser al menos 1.',
+      'items.*.type_planning_id.required_with' => 'El tipo de planificación es obligatorio cuando se envían items.',
+      'items.*.type_planning_id.integer' => 'El tipo de planificación debe ser un entero.',
+      'items.*.type_planning_id.exists' => 'El tipo de planificación seleccionado no es válido.',
+      'items.*.type_operation_id.required_with' => 'El tipo de operación es obligatorio cuando se envían items.',
+      'items.*.type_operation_id.integer' => 'El tipo de operación debe ser un entero.',
+      'items.*.type_operation_id.exists' => 'El tipo de operación seleccionado no es válido.',
+      'items.*.description.required_with' => 'La descripción es obligatoria cuando se envían items.',
+      'items.*.description.string' => 'La descripción debe ser una cadena de texto.',
     ];
   }
 }
