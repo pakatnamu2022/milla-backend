@@ -887,7 +887,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'vehicle_plate' => $vehicle->plate,
         'vehicle_vin' => $vehicle->vin,
         'status_id' => ApMasters::OPENING_WORK_ORDER_ID,
-        'advisor_id' => auth()->id(),
+        'advisor_id' => auth()->user()->person->id,
         'invoice_to' => null,
         'sede_id' => $vehicle->warehouse ? $vehicle->warehouse->sede_id : null,
         'opening_date' => now()->format('Y-m-d'),
