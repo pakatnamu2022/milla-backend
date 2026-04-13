@@ -939,7 +939,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $shippingGuide = $vehicle->shippingGuideReceiving;
 
       //validamos que exista la recepcion
-      if ($shippingGuide->receivingInspection) {
+      if (!$shippingGuide?->receivingInspection) {
         throw new Exception('El vehículo no tiene una guía de remisión de recepción asociada');
       }
 
@@ -981,10 +981,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       $apWorkOrder->update([
         'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID,
-      ]);
-
-      $vehicle->update([
-        'generated_pdi' => true,
       ]);
 
       DB::commit();
