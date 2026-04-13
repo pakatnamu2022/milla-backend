@@ -22,6 +22,7 @@ class UpdateVehiclesRequest extends StoreRequest
           ->whereNull('deleted_at')
       ],
       'year' => 'sometimes|required|integer|min:1900|max:' . ((int)date('Y') + 2),
+      'year_delivery' => 'sometimes|required|integer|min:1900|max:' . ((int)date('Y') + 3),
       'engine_number' => [
         'sometimes',
         'required',
@@ -60,6 +61,10 @@ class UpdateVehiclesRequest extends StoreRequest
       'year.integer' => 'El año debe ser un número entero',
       'year.min' => 'El año debe ser mayor a 1900',
       'year.max' => 'El año no puede ser mayor a ' . ((int)date('Y') + 2),
+      'year_delivery.required' => 'El año de entrega es requerido',
+      'year_delivery.integer' => 'El año de entrega debe ser un número entero',
+      'year_delivery.min' => 'El año de entrega debe ser mayor a 1900',
+      'year_delivery.max' => 'El año de entrega no puede ser mayor a ' . ((int)date('Y') + 3),
       'engine_number.required' => 'El número de motor es requerido',
       'engine_number.unique' => 'El número de motor ya existe en el sistema',
       'ap_models_vn_id.required' => 'El modelo es requerido',

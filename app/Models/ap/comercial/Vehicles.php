@@ -28,6 +28,7 @@ class Vehicles extends BaseModel
     'vin',
     'plate',
     'year',
+    'year_delivery',
     'engine_number',
     'ap_models_vn_id',
     'warehouse_id',
@@ -40,12 +41,15 @@ class Vehicles extends BaseModel
     'warehouse_physical_id',
     'customer_id',
     'has_pdi',
+    'generated_pdi',
   ];
 
   protected $casts = [
     'year' => 'integer',
+    'year_delivery' => 'integer',
     'has_pdi' => 'boolean',
     'is_heavy' => 'boolean',
+    'generated_pdi' => 'boolean',
   ];
 
   const array filters = [

@@ -54,6 +54,7 @@ class GeneralMaster extends Model
   const int COST_PER_MAN_HOUR_VP_ID = 10;
   const int PROFIT_MARGIN_ID = 11;
   const int FREIGHT_COMMISSION_ID = 12;
+  const int COST_PER_MAN_HOUR_PDI_DERCO_ID = 16;
 
   public function setCodeAttribute($value)
   {
