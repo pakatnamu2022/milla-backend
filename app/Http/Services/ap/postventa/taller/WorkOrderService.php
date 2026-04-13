@@ -934,7 +934,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $shippingGuide = $vehicle->shippingGuideReceiving;
 
       //validamos que exista la recepcion
-      if ($shippingGuide) {
+      if ($shippingGuide->receivingInspection) {
         throw new Exception('El vehículo no tiene una guía de remisión de recepción asociada');
       }
 
