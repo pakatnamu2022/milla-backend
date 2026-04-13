@@ -923,7 +923,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'time_spent' => 1.0, // 1 hora por defecto
         'hourly_rate' => (float)$hourly_rate,
         'work_order_id' => $apWorkOrder->id,
-        'worker_id' => auth()->id(),
+        'worker_id' => auth()->user()->person->id,
         'group_number' => 1,
       ];
 
