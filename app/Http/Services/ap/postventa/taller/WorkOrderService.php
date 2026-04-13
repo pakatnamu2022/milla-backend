@@ -6,6 +6,7 @@ use App\Http\Resources\ap\postventa\taller\WorkOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
+use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Http\Utils\Helpers;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
@@ -103,13 +104,21 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Generate correlative
       $data['correlative'] = $this->generateCorrelative();
       $data['status_id'] = ApMasters::OPENING_WORK_ORDER_ID;
-      $vehicle = Vehicles::find($data['vehicle_id']);
 
       //Plate, vin del vehiculo
       $vehicle = Vehicles::find($data['vehicle_id']);
       if ($vehicle) {
         $data['vehicle_plate'] = $vehicle->plate;
         $data['vehicle_vin'] = $vehicle->vin;
+      }
+
+      // Obtener tipo de cambio actual para USD
+      $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
+      if (!$exchangeRate) {
+        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      } else {
+        $data['exchange_rate'] = $exchangeRate->rate;
+        $data['exchange_rate_id'] = $exchangeRate->id;
       }
 
       // Extract date from estimated_delivery_time and set to estimated_delivery_date
@@ -205,12 +214,19 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $newCurrencyId = $data['currency_id'] ?? $oldCurrencyId;
       $currencyChanged = $oldCurrencyId !== null && $newCurrencyId !== null && $oldCurrencyId != $newCurrencyId;
 
+      // Extract items si están presentes
+      $items = null;
+      if (isset($data['items'])) {
+        $items = $data['items'];
+        unset($data['items']);
+      }
+
       // Update work order
       $workOrder->update($data);
 
       // Si cambió el tipo de moneda, recalcular labours y parts
       if ($currencyChanged) {
-        $this->recalculateCurrencyChange($workOrder, $oldCurrencyId, $newCurrencyId);
+        $this->handleCurrencyChange($workOrder, $oldCurrencyId, $newCurrencyId);
       }
 
       // Si existe $data['order_quotation_id']
@@ -245,6 +261,20 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         $workOrder->update([
           'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
         ]);
+      }
+
+      // Actualizar items si se enviaron y la orden no está recepcionada
+      if ($items !== null) {
+        // Eliminar items existentes
+        ApWorkOrderItem::where('work_order_id', $workOrder->id)->delete();
+
+        // Crear nuevos items
+        if (!empty($items)) {
+          foreach ($items as $item) {
+            $item['work_order_id'] = $workOrder->id;
+            ApWorkOrderItem::create($item);
+          }
+        }
       }
 
       // Reload relations
@@ -419,7 +449,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     return $pdf->stream("pre-liquidacion-{$workOrder->correlative}.pdf");
   }
 
-  private function recalculateCurrencyChange(ApWorkOrder $workOrder, int $oldCurrencyId, int $newCurrencyId): void
+  /**
+   * Maneja el cambio de moneda recalculando labours y parts
+   */
+  private function handleCurrencyChange(ApWorkOrder $workOrder, int $oldCurrencyId, int $newCurrencyId): void
   {
     // Obtener el factor de conversión
     $factor = $this->getConversionFactor($workOrder, $oldCurrencyId, $newCurrencyId);
@@ -922,8 +955,145 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'group_number' => 1,
         'work_order_id' => $apWorkOrder->id,
         'type_planning_id' => TypePlanningWorkOrder::TYPE_PLANNING_PDI_ID,
-        'type_operation_id' => ApMasters::TIPO_OPERACION_CITA_PDI_ID,
+        'type_operation_id' => ApMasters::OP_TYPE_APPT_PDI_ID,
         'description' => 'SERVICIO DE PDI',
+      ]);
+
+      // Calculamos la tarifa
+      if ($hasVehiclePdi) {
+        if ($vehicle->is_heavy) {
+          $hourly_rate = GeneralMaster::findOrFail(GeneralMaster::COST_PER_MAN_HOUR_VP_ID)->value;
+        } else {
+          $hourly_rate = GeneralMaster::findOrFail(GeneralMaster::COST_PER_MAN_HOUR_VL_ID)->value;
+        }
+      } else {
+        $hourly_rate = GeneralMaster::findOrFail(GeneralMaster::COST_PER_MAN_HOUR_PDI_DERCO_ID)->value;
+      }
+
+      // 5. Generamos la mano de obra de la OT
+      $labourData = [
+        'description' => 'SERVICIO DE MANO DE OBRA PDI',
+        'time_spent' => 1.0, // 1 hora por defecto
+        'hourly_rate' => (float)$hourly_rate,
+        'work_order_id' => $apWorkOrder->id,
+        'worker_id' => auth()->user()->person->id,
+        'group_number' => 1,
+      ];
+
+      // 6. Guardamos la mano de obra usando el servicio para que se actualicen los totales correctamente
+      $this->labourService->store($labourData);
+
+      if ($shippingGuide && $shippingGuide->receivingInspection) {
+        $receivingInspection = $shippingGuide->receivingInspection;
+
+        // Crear ApVehicleInspection copiando datos de ApReceivingInspection
+        $vehicleInspection = ApVehicleInspection::create([
+          'ap_work_order_id' => $apWorkOrder->id,
+          'photo_front_url' => $receivingInspection->photo_front_url,
+          'photo_back_url' => $receivingInspection->photo_back_url,
+          'photo_left_url' => $receivingInspection->photo_left_url,
+          'photo_right_url' => $receivingInspection->photo_right_url,
+          'general_observations' => $receivingInspection->general_observations,
+          'inspected_by' => $receivingInspection->inspected_by,
+          'inspection_date' => now(),
+          'mileage' => 0,
+          'fuel_level' => '0',
+          'oil_level' => '0',
+        ]);
+
+        // Copiar los damages de ApReceivingInspectionDamage a ApVehicleInspectionDamages
+        foreach ($receivingInspection->damages as $damage) {
+          ApVehicleInspectionDamages::create([
+            'vehicle_inspection_id' => $vehicleInspection->id,
+            'damage_type' => $damage->damage_type,
+            'x_coordinate' => $damage->x_coordinate,
+            'y_coordinate' => $damage->y_coordinate,
+            'description' => $damage->description,
+            'photo_url' => $damage->photo_url,
+          ]);
+        }
+
+        // Actualizar la OT con el vehicle_inspection_id
+        $apWorkOrder->update([
+          'vehicle_inspection_id' => $vehicleInspection->id,
+        ]);
+      }
+
+      $apWorkOrder->update([
+        'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID,
+      ]);
+
+      DB::commit();
+
+      return response()->json([
+        'message' => 'Orden de trabajo PDI generada correctamente',
+        'vehicle_id' => $vehicle->id,
+      ]);
+    } catch (\Throwable $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  public function generateInstallationAccessories($id)
+  {
+    DB::beginTransaction();
+
+    try {
+      $vehicle = Vehicles::find($id);
+
+      //1. Verificamos que exista el vehiculo
+      if (!$vehicle) {
+        throw new Exception('Vehículo no encontrado');
+      }
+
+      //2. Verificamos si ya existe un registro de PDI para este vehículo
+      $existingPDI = ApWorkOrder::where('vehicle_id', $id)
+        ->whereHas('items', function ($query) {
+          $query->where('type_planning_id', TypePlanningWorkOrder::TYPE_PLANNING_INST_ACCESORIOS_ID);
+        })
+        ->exists();
+
+      if ($existingPDI) {
+        throw new Exception('Ya existe un registro de instalación de accesorios para este vehículo');
+      }
+
+      $hasVehiclePdi = $vehicle->has_pdi;
+      $typeCurrency = $hasVehiclePdi ? TypeCurrency::PEN_ID : TypeCurrency::USD_ID;
+
+      // 2. Copiamos la inspección de recepción a la inspección del vehículo
+      $shippingGuide = $vehicle->shippingGuideReceiving;
+
+      //validamos que exista la recepcion
+      if (!$shippingGuide?->receivingInspection) {
+        throw new Exception('El vehículo no tiene una guía de remisión de recepción asociada');
+      }
+
+      //3. Creamos la cabecera de la OT
+      $apWorkOrder = ApWorkOrder::create([
+        'correlative' => $this->generateCorrelative(),
+        'vehicle_id' => $vehicle->id,
+        'currency_id' => $typeCurrency,
+        'vehicle_plate' => $vehicle->plate,
+        'vehicle_vin' => $vehicle->vin,
+        'status_id' => ApMasters::OPENING_WORK_ORDER_ID,
+        'advisor_id' => auth()->user()->person->id,
+        'invoice_to' => $hasVehiclePdi ? BusinessPartners::AUTOMOTORES_PAKATNAMU_ID : $shippingGuide->transmitter_id,
+        'sede_id' => $vehicle->warehouse ? $vehicle->warehouse->sede_id : null,
+        'opening_date' => now()->format('Y-m-d'),
+        'diagnosis_date' => now()->format('Y-m-d'),
+        'is_delivery' => true,
+        'delivery_by' => auth()->id(),
+        'created_by' => auth()->id(),
+      ]);
+
+      //4. Generamos el detalle de la OT
+      ApWorkOrderItem::create([
+        'group_number' => 1,
+        'work_order_id' => $apWorkOrder->id,
+        'type_planning_id' => TypePlanningWorkOrder::TYPE_PLANNING_INST_ACCESORIOS_ID,
+        'type_operation_id' => ApMasters::OP_TYPE_APPT_ACC_INSTALL_ID,
+        'description' => 'SERVICIO DE INSTALACIÓN DE ACCESORIOS',
       ]);
 
       // Calculamos la tarifa
@@ -1009,6 +1179,73 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       ->get();
 
     return WorkOrderResource::collection($workOrders);
+  }
+
+  /**
+   * Cambiar el tipo de moneda de una orden de trabajo
+   */
+  public function changeCurrency(mixed $data): WorkOrderResource
+  {
+    return DB::transaction(function () use ($data) {
+      $workOrder = ApWorkOrder::with(['internalNote', 'advancesWorkOrder'])->find($data['id']);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      // Validar que no esté cerrada
+      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+        throw new Exception('No se puede cambiar la moneda de una orden de trabajo cerrada');
+      }
+
+      // Validar que no tenga cotización asociada
+      if ($workOrder->order_quotation_id !== null) {
+        throw new Exception('No se puede cambiar la moneda de una orden de trabajo que tiene cotización asociada');
+      }
+
+      // Validar que no tenga nota interna generada
+      if ($workOrder->internalNote) {
+        throw new Exception('No se puede cambiar la moneda de una orden de trabajo que tiene nota interna generada');
+      }
+
+      // Validar que no tenga factura generada
+      if ($workOrder->has_invoice_generated) {
+        throw new Exception('No se puede cambiar la moneda de una orden de trabajo que tiene factura generada');
+      }
+
+      // Validar que no tenga avances de pago
+      if ($workOrder->advancesWorkOrder && $workOrder->advancesWorkOrder->count() > 0) {
+        throw new Exception('No se puede cambiar la moneda de una orden de trabajo que tiene avances de pago');
+      }
+
+      // Verificar que la moneda sea diferente
+      $oldCurrencyId = $workOrder->currency_id;
+      $newCurrencyId = $data['currency_id'];
+
+      if ($oldCurrencyId == $newCurrencyId) {
+        throw new Exception('La moneda seleccionada es la misma que la actual');
+      }
+
+      // Actualizar la moneda
+      $workOrder->update(['currency_id' => $newCurrencyId]);
+
+      // Recalcular labours y parts con el nuevo tipo de cambio
+      $this->handleCurrencyChange($workOrder, $oldCurrencyId, $newCurrencyId);
+
+      // Recargar relaciones
+      $workOrder->load([
+        'appointmentPlanning',
+        'vehicle',
+        'status',
+        'advisor',
+        'sede',
+        'creator',
+        'items.typePlanning',
+        'typeCurrency'
+      ]);
+
+      return new WorkOrderResource($workOrder);
+    });
   }
 
   /**

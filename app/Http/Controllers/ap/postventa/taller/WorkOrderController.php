@@ -192,7 +192,16 @@ class WorkOrderController extends Controller
   {
     try {
       return $this->service->generatePDIForVehicle($id);
-    } catch (Exception $e) {
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function generateInstallationAccessories($id)
+  {
+    try {
+      return $this->service->generateInstallationAccessories($id);
+    } catch (\Throwable $e) {
       return $this->error($e->getMessage());
     }
   }
@@ -206,6 +215,19 @@ class WorkOrderController extends Controller
       ]);
 
       return $this->success($this->service->getByIds($ids['ids']));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function changeCurrency(Request $request, $id)
+  {
+    try {
+      $data = $request->validate([
+        'currency_id' => 'required|integer|exists:type_currency,id'
+      ]);
+      $data['id'] = $id;
+      return $this->success($this->service->changeCurrency($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

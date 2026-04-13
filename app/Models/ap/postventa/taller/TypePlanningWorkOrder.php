@@ -27,6 +27,7 @@ class TypePlanningWorkOrder extends Model
   ];
   // CONST ID
   const int TYPE_PLANNING_PDI_ID = 6;
+  const int TYPE_PLANNING_INST_ACCESORIOS_ID = 10;
 
   // TYPES DOCUMENT
   const string INTERNA = 'INTERNA';

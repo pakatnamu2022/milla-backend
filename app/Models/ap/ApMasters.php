@@ -74,7 +74,8 @@ class ApMasters extends Model
   const int CANCELED_WORK_ORDER_ID = 893;
 
   // IDS de TIPO DE OPERACION CITA
-  const int TIPO_OPERACION_CITA_PDI_ID = 965;
+  const int OP_TYPE_APPT_PDI_ID = 965;
+  const int OP_TYPE_APPT_ACC_INSTALL_ID = 983;
 
   /**
    * AREAS
