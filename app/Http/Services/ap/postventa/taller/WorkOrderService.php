@@ -876,6 +876,11 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Vehículo no encontrado');
       }
 
+      //Verificamos si ya se genero el servicio de PDI
+      if ($vehicle->generated_pdi) {
+        throw new Exception('Ya se ha generado una orden de trabajo de PDI para este vehículo');
+      }
+
       $hasVehiclePdi = $vehicle->has_pdi;
       $typeCurrency = $hasVehiclePdi ? TypeCurrency::USD_ID : TypeCurrency::PEN_ID;
 
