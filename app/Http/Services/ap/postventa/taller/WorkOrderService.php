@@ -8,6 +8,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Utils\Helpers;
 use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -882,9 +883,17 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       }
 
       $hasVehiclePdi = $vehicle->has_pdi;
-      $typeCurrency = $hasVehiclePdi ? TypeCurrency::USD_ID : TypeCurrency::PEN_ID;
+      $typeCurrency = $hasVehiclePdi ? TypeCurrency::PEN_ID : TypeCurrency::USD_ID;
 
-      //2. Creamos la cabecera de la OT
+      // 2. Copiamos la inspección de recepción a la inspección del vehículo
+      $shippingGuide = $vehicle->shippingGuideReceiving;
+
+      //validamos que exista la recepcion
+      if (!$shippingGuide?->receivingInspection) {
+        throw new Exception('El vehículo no tiene una guía de remisión de recepción asociada');
+      }
+
+      //3. Creamos la cabecera de la OT
       $apWorkOrder = ApWorkOrder::create([
         'correlative' => $this->generateCorrelative(),
         'vehicle_id' => $vehicle->id,
@@ -893,7 +902,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'vehicle_vin' => $vehicle->vin,
         'status_id' => ApMasters::OPENING_WORK_ORDER_ID,
         'advisor_id' => auth()->user()->person->id,
-        'invoice_to' => null,
+        'invoice_to' => $hasVehiclePdi ? BusinessPartners::AUTOMOTORES_PAKATNAMU_ID : $shippingGuide->transmitter_id,
         'sede_id' => $vehicle->warehouse ? $vehicle->warehouse->sede_id : null,
         'opening_date' => now()->format('Y-m-d'),
         'diagnosis_date' => now()->format('Y-m-d'),
@@ -902,7 +911,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'created_by' => auth()->id(),
       ]);
 
-      //3. Generamos el detalle de la OT
+      //4. Generamos el detalle de la OT
       ApWorkOrderItem::create([
         'group_number' => 1,
         'work_order_id' => $apWorkOrder->id,
@@ -913,16 +922,16 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       // Calculamos la tarifa
       if ($hasVehiclePdi) {
-        $hourly_rate = GeneralMaster::findOrFail(GeneralMaster::COST_PER_MAN_HOUR_PDI_DERCO_ID)->value;
-      } else {
         if ($vehicle->is_heavy) {
           $hourly_rate = GeneralMaster::findOrFail(GeneralMaster::COST_PER_MAN_HOUR_VP_ID)->value;
         } else {
           $hourly_rate = GeneralMaster::findOrFail(GeneralMaster::COST_PER_MAN_HOUR_VL_ID)->value;
         }
+      } else {
+        $hourly_rate = GeneralMaster::findOrFail(GeneralMaster::COST_PER_MAN_HOUR_PDI_DERCO_ID)->value;
       }
 
-      // 4. Generamos la mano de obra de la OT
+      // 5. Generamos la mano de obra de la OT
       $labourData = [
         'description' => 'SERVICIO DE MANO DE OBRA PDI',
         'time_spent' => 1.0, // 1 hora por defecto
@@ -932,16 +941,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'group_number' => 1,
       ];
 
-      // 5. Guardamos la mano de obra usando el servicio para que se actualicen los totales correctamente
+      // 6. Guardamos la mano de obra usando el servicio para que se actualicen los totales correctamente
       $this->labourService->store($labourData);
-
-      // 6. Copiamos la inspección de recepción a la inspección del vehículo
-      $shippingGuide = $vehicle->shippingGuideReceiving;
-
-      //validamos que exista la recepcion
-      if (!$shippingGuide?->receivingInspection) {
-        throw new Exception('El vehículo no tiene una guía de remisión de recepción asociada');
-      }
 
       if ($shippingGuide && $shippingGuide->receivingInspection) {
         $receivingInspection = $shippingGuide->receivingInspection;
