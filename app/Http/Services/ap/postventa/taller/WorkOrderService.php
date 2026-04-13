@@ -978,6 +978,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID,
       ]);
 
+      $vehicle->update([
+        'generated_pdi' => true,
+      ]);
+
       DB::commit();
 
       return response()->json([
