@@ -877,9 +877,15 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Vehículo no encontrado');
       }
 
-      //Verificamos si ya se genero el servicio de PDI
-      if ($vehicle->generated_pdi) {
-        throw new Exception('Ya se ha generado una orden de trabajo de PDI para este vehículo');
+      //2. Verificamos si ya existe un registro de PDI para este vehículo
+      $existingPDI = ApWorkOrder::where('vehicle_id', $id)
+        ->whereHas('items', function ($query) {
+          $query->where('type_planning_id', TypePlanningWorkOrder::TYPE_PLANNING_PDI_ID);
+        })
+        ->exists();
+
+      if ($existingPDI) {
+        throw new Exception('Ya existe un registro de PDI para este vehículo');
       }
 
       $hasVehiclePdi = $vehicle->has_pdi;
