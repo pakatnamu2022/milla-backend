@@ -35,6 +35,7 @@ class ApOrderQuotationsResource extends JsonResource
       'expiration_date' => $this->expiration_date,
       'collection_date' => $this->collection_date,
       'observations' => $this->observations,
+      'notes' => $this->notes,
       'currency_id' => $this->currency_id,
       'type_currency' => $this->typeCurrency,
       'exchange_rate' => (float)$this->exchange_rate,

@@ -807,6 +807,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Cambiar el estado a "Por Facturar"
       $quotation->update([
+        'notes' => $data['notes'],
         'status' => ApOrderQuotations::STATUS_POR_FACTURAR,
       ]);
 
