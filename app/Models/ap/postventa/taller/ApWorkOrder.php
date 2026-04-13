@@ -11,6 +11,7 @@ use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -248,6 +249,11 @@ class ApWorkOrder extends Model
   public function createdVehicleInspection(): HasOne
   {
     return $this->hasOne(ApVehicleInspection::class, 'ap_work_order_id');
+  }
+
+  public function exchangeRate(): BelongsTo
+  {
+    return $this->belongsTo(ExchangeRate::class, 'exchange_rate_id');
   }
 
   // Helper methods

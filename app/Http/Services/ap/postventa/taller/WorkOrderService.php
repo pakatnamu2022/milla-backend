@@ -112,6 +112,15 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         $data['vehicle_vin'] = $vehicle->vin;
       }
 
+      // Obtener tipo de cambio actual para USD
+      $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
+      if (!$exchangeRate) {
+        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      } else {
+        $data['exchange_rate'] = $exchangeRate->rate;
+        $data['exchange_rate_id'] = $exchangeRate->id;
+      }
+
       // Extract date from estimated_delivery_time and set to estimated_delivery_date
       if (isset($data['estimated_delivery_time'])) {
         $estimatedDeliveryTime = Carbon::parse($data['estimated_delivery_time']);
