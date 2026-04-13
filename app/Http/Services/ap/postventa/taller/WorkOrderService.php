@@ -13,6 +13,8 @@ use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\AppointmentPlanning;
+use App\Models\ap\postventa\taller\ApVehicleInspection;
+use App\Models\ap\postventa\taller\ApVehicleInspectionDamages;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderItem;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
@@ -101,7 +103,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $data['correlative'] = $this->generateCorrelative();
       $data['status_id'] = ApMasters::OPENING_WORK_ORDER_ID;
       $vehicle = Vehicles::find($data['vehicle_id']);
-      
+
       //Plate, vin del vehiculo
       $vehicle = Vehicles::find($data['vehicle_id']);
       if ($vehicle) {
@@ -874,11 +876,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Vehículo no encontrado');
       }
 
+      $hasVehiclePdi = $vehicle->has_pdi;
+      $typeCurrency = $hasVehiclePdi ? TypeCurrency::USD_ID : TypeCurrency::PEN_ID;
+
       //2. Creamos la cabecera de la OT
       $apWorkOrder = ApWorkOrder::create([
         'correlative' => $this->generateCorrelative(),
         'vehicle_id' => $vehicle->id,
-        'currency_id' => TypeCurrency::PEN_ID,
+        'currency_id' => $typeCurrency,
         'vehicle_plate' => $vehicle->plate,
         'vehicle_vin' => $vehicle->vin,
         'status_id' => ApMasters::OPENING_WORK_ORDER_ID,
@@ -902,10 +907,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       ]);
 
       // Calculamos la tarifa
-      if ($vehicle->is_heavy) {
-        $hourly_rate = GeneralMaster::findOrFail(GeneralMaster::COST_PER_MAN_HOUR_VP_ID)->value;
+      if ($hasVehiclePdi) {
+        $hourly_rate = GeneralMaster::findOrFail(GeneralMaster::COST_PER_MAN_HOUR_PDI_DERCO_ID)->value;
       } else {
-        $hourly_rate = GeneralMaster::findOrFail(GeneralMaster::COST_PER_MAN_HOUR_VL_ID)->value;
+        if ($vehicle->is_heavy) {
+          $hourly_rate = GeneralMaster::findOrFail(GeneralMaster::COST_PER_MAN_HOUR_VP_ID)->value;
+        } else {
+          $hourly_rate = GeneralMaster::findOrFail(GeneralMaster::COST_PER_MAN_HOUR_VL_ID)->value;
+        }
       }
 
       // 4. Generamos la mano de obra de la OT
@@ -921,8 +930,56 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // 5. Guardamos la mano de obra usando el servicio para que se actualicen los totales correctamente
       $this->labourService->store($labourData);
 
+      // 6. Copiamos la inspección de recepción a la inspección del vehículo
+      $shippingGuide = $vehicle->shippingGuideReceiving;
+
+      //validamos que exista la recepcion
+      if ($shippingGuide) {
+        throw new Exception('El vehículo no tiene una guía de remisión de recepción asociada');
+      }
+
+      if ($shippingGuide && $shippingGuide->receivingInspection) {
+        $receivingInspection = $shippingGuide->receivingInspection;
+
+        // Crear ApVehicleInspection copiando datos de ApReceivingInspection
+        $vehicleInspection = ApVehicleInspection::create([
+          'ap_work_order_id' => $apWorkOrder->id,
+          'photo_front_url' => $receivingInspection->photo_front_url,
+          'photo_back_url' => $receivingInspection->photo_back_url,
+          'photo_left_url' => $receivingInspection->photo_left_url,
+          'photo_right_url' => $receivingInspection->photo_right_url,
+          'general_observations' => $receivingInspection->general_observations,
+          'inspected_by' => $receivingInspection->inspected_by,
+          'inspection_date' => now(),
+          'mileage' => 0,
+          'fuel_level' => '0',
+          'oil_level' => '0',
+        ]);
+
+        // Copiar los damages de ApReceivingInspectionDamage a ApVehicleInspectionDamages
+        foreach ($receivingInspection->damages as $damage) {
+          ApVehicleInspectionDamages::create([
+            'vehicle_inspection_id' => $vehicleInspection->id,
+            'damage_type' => $damage->damage_type,
+            'x_coordinate' => $damage->x_coordinate,
+            'y_coordinate' => $damage->y_coordinate,
+            'description' => $damage->description,
+            'photo_url' => $damage->photo_url,
+          ]);
+        }
+
+        // Actualizar la OT con el vehicle_inspection_id
+        $apWorkOrder->update([
+          'vehicle_inspection_id' => $vehicleInspection->id,
+        ]);
+      }
+
       $apWorkOrder->update([
-        'status_id' => ApMasters::CLOSED_WORK_ORDER_ID,
+        'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID,
+      ]);
+
+      $vehicle->update([
+        'generated_pdi' => true,
       ]);
 
       DB::commit();
