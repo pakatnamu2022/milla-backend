@@ -54,6 +54,8 @@ return [
 
   'url' => env('APP_URL', 'http://localhost'),
 
+  'external_api_key' => env('EXTERNAL_API_KEY'),
+
   /*
   |--------------------------------------------------------------------------
   | Frontend Application URL

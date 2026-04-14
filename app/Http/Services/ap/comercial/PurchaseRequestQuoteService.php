@@ -143,6 +143,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'base_selling_price' => $data['base_selling_price'],
         'sale_price' => $data['sale_price'],
         'doc_sale_price' => $data['doc_sale_price'],
+        'down_payment' => $data['down_payment'] ?? null,
         'sede_id' => $data['sede_id'] ?? null,
         'quote_deadline' => $data['quote_deadline'] ?? null,
       ];
@@ -438,9 +439,14 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $dataArray['phone'] = $purchaseRequestQuote->opportunity->client->phone ?? null;
     $dataArray['class'] = $purchaseRequestQuote->apModelsVn->classArticle->description ?? null;
     $dataArray['brand'] = $purchaseRequestQuote->apModelsVn->family->brand->name ?? null;
+    $dataArray['ap_model_vn'] = $purchaseRequestQuote->apModelsVn->version ?? null;
     $dataArray['engine_number'] = $purchaseRequestQuote->vehiclePurchaseOrders->engine_number ?? null;
     $dataArray['vin'] = $purchaseRequestQuote->vehiclePurchaseOrders->vin ?? null;
-    $dataArray['model_year'] = $purchaseRequestQuote->apModelsVn->model_year ?? null;
+    $vehicle = $purchaseRequestQuote->vehicle;
+    $dataArray['model_year'] = ($vehicle && $vehicle->year)
+      ? $vehicle->year
+      : ($purchaseRequestQuote->apModelsVn->model_year ?? null);
+    $dataArray['down_payment'] = $purchaseRequestQuote->down_payment ?? null;
     $dataArray['selling_price_soles'] = round($purchaseRequestQuote->sale_price * ($purchaseRequestQuote->exchangeRate->rate ?? 1), 2);
 
     // Definir el título según el type_document
