@@ -59,7 +59,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   public function listWithInternalNotes(Request $request)
   {
     $query = ApWorkOrder::with(['items', 'internalNote'])
-      ->whereHas('internalNote');
+      ->whereHas('internalNote')
+      ->where('final_amount', '>', 0);
 
     // Filtrar por estado de nota interna si se proporciona
     if ($request->has('internal_note_status')) {
