@@ -112,6 +112,17 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         $data['vehicle_vin'] = $vehicle->vin;
       }
 
+      if (isset($data['vehicle_inspection_id']) && isset($data['appointment_planning_id'])) {
+        $vehicleIdInspection = ApVehicleInspection::find($data['vehicle_inspection_id'])->createdByWorkOrder->vehicle_id ?? null;
+        $vehicleIdAppintment = AppointmentPlanning::find($data['appointment_planning_id'])->ap_vehicle_id ?? null;
+
+        if ($vehicleIdInspection && $vehicleIdAppintment) {
+          if ($vehicleIdInspection !== $vehicleIdAppintment) {
+            throw new Exception('El vehículo de la inspección no coincide con el vehículo de la cita');
+          }
+        }
+      }
+
       // Obtener tipo de cambio actual para USD
       $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
       if (!$exchangeRate) {

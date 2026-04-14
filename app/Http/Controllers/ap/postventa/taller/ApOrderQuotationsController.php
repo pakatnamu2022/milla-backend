@@ -191,4 +191,13 @@ class ApOrderQuotationsController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function duplicate($id)
+  {
+    try {
+      return $this->success($this->service->duplicate($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
