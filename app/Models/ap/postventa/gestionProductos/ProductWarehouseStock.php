@@ -3,6 +3,7 @@
 namespace App\Models\ap\postventa\gestionProductos;
 
 use App\Models\ap\ApMasters;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,6 +25,7 @@ class ProductWarehouseStock extends Model
     'cost_price',
     'average_cost',
     'sale_price',
+    'currency_id',
     'tax_rate',
     'is_taxable',
     'last_movement_date',
@@ -68,6 +70,11 @@ class ProductWarehouseStock extends Model
   public function warehouse(): BelongsTo
   {
     return $this->belongsTo(Warehouse::class, 'warehouse_id');
+  }
+
+  public function currency(): BelongsTo
+  {
+    return $this->belongsTo(TypeCurrency::class, 'currency_id');
   }
 
   // Accessors
