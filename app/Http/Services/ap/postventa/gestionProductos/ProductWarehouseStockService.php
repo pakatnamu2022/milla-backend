@@ -790,7 +790,7 @@ class ProductWarehouseStockService extends BaseService
         // Calculate days without movement
         $daysWithoutMovement = null;
         if ($stock->last_movement_date) {
-          $daysWithoutMovement = (int)now()->diffInDays($stock->last_movement_date);
+          $daysWithoutMovement = (int)now()->diffInDays($stock->last_movement_date, true);
         }
 
         $warehouses[] = [
