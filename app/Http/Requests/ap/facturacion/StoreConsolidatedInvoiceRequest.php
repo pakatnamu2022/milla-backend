@@ -23,6 +23,18 @@ class StoreConsolidatedInvoiceRequest extends FormRequest
       'fecha_de_emision' => 'required|date',
       'fecha_de_vencimiento' => 'nullable|date|after_or_equal:fecha_de_emision',
       'observaciones' => 'nullable|string|max:1000',
+      'items' => 'required|array|min:1',
+      'items.*.unidad_de_medida' => 'required|string|max:10',
+      'items.*.codigo' => 'required|string|max:255',
+      'items.*.descripcion' => 'required|string',
+      'items.*.cantidad' => 'required|numeric|min:0.01',
+      'items.*.valor_unitario' => 'required|numeric|min:0',
+      'items.*.precio_unitario' => 'required|numeric|min:0',
+      'items.*.subtotal' => 'required|numeric|min:0',
+      'items.*.sunat_concept_igv_type_id' => 'required|integer|exists:sunat_concepts,id',
+      'items.*.igv' => 'required|numeric|min:0',
+      'items.*.total' => 'required|numeric|min:0',
+      'items.*.account_plan_id' => 'nullable|integer|exists:ap_accounting_account_plan,id',
     ];
   }
 
@@ -45,6 +57,22 @@ class StoreConsolidatedInvoiceRequest extends FormRequest
       'sunat_concept_currency_id.required' => 'La moneda es requerida',
       'fecha_de_emision.required' => 'La fecha de emisión es requerida',
       'fecha_de_vencimiento.after_or_equal' => 'La fecha de vencimiento debe ser igual o posterior a la fecha de emisión',
+      'items.required' => 'Debe incluir al menos un item',
+      'items.array' => 'Los items deben ser un arreglo',
+      'items.min' => 'Debe incluir al menos un item',
+      'items.*.unidad_de_medida.required' => 'La unidad de medida es requerida',
+      'items.*.codigo.required' => 'El código del item es requerido',
+      'items.*.descripcion.required' => 'La descripción del item es requerida',
+      'items.*.cantidad.required' => 'La cantidad es requerida',
+      'items.*.cantidad.min' => 'La cantidad debe ser mayor a 0',
+      'items.*.valor_unitario.required' => 'El valor unitario es requerido',
+      'items.*.precio_unitario.required' => 'El precio unitario es requerido',
+      'items.*.subtotal.required' => 'El subtotal es requerido',
+      'items.*.sunat_concept_igv_type_id.required' => 'El tipo de IGV es requerido',
+      'items.*.sunat_concept_igv_type_id.exists' => 'El tipo de IGV no existe',
+      'items.*.igv.required' => 'El IGV es requerido',
+      'items.*.total.required' => 'El total es requerido',
+      'items.*.account_plan_id.exists' => 'El plan de cuenta no existe',
     ];
   }
 }
