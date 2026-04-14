@@ -708,6 +708,12 @@ class ProductWarehouseStockService extends BaseService
         $publicSalePrice = (float)($stock->sale_price ?? 0);        // Public sale price (already calculated)
         $minimumSalePrice = $this->calculateMinimumSalePrice($publicSalePrice);
 
+        // Calculate days without movement
+        $daysWithoutMovement = null;
+        if ($stock->last_movement_date) {
+          $daysWithoutMovement = (int)now()->diffInDays($stock->last_movement_date);
+        }
+
         $warehouses[] = [
           'warehouse_id' => $stock->warehouse_id,
           'warehouse_name' => $stock->warehouse?->description,
@@ -721,6 +727,7 @@ class ProductWarehouseStockService extends BaseService
           'is_low_stock' => $stock->is_low_stock,
           'is_out_of_stock' => $stock->is_out_of_stock,
           'last_movement_date' => $stock->last_movement_date?->format('Y-m-d H:i:s'),
+          'days_without_movement' => $daysWithoutMovement,
           'last_purchase_price' => $lastPurchasePrice,
           'average_cost' => $averageCost,
           'public_sale_price' => $publicSalePrice,

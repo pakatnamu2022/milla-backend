@@ -1325,6 +1325,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Work Order Quotations - Cotizaciones de Órdenes de Trabajo
+      Route::post('orderQuotations/{id}/duplicate', [ApOrderQuotationsController::class, 'duplicate']);
       Route::get('orderQuotations/{id}/pdf', [ApOrderQuotationsController::class, 'downloadPDF']);
       Route::get('orderQuotations/{id}/pdf-repuesto', [ApOrderQuotationsController::class, 'downloadRepuestoPDF']);
       Route::post('orderQuotations/with-products', [ApOrderQuotationsController::class, 'storeWithProducts']);
