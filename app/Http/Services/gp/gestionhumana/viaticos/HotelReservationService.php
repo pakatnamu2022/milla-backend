@@ -420,7 +420,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/' . $request->id,
       ];
 
-      $this->emailService->send([
+      $this->emailService->queue([
         'to' => [$request->employee->email2],
         'subject' => 'Reserva de Hotel Confirmada - ' . $request->code,
         'template' => 'emails.per-diem-hotel-reserved',
