@@ -103,10 +103,26 @@ class PerDiemExpenseService extends BaseService
         }
       }
 
-      if (in_array($data['expense_type_id'], [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
-        $budget = RequestBudget::where('expense_type_id', ExpenseType::MEALS_ID)
+      // Determine if breakfast has separate budget (hotel without breakfast included)
+      $breakfastBudget = null;
+      $hotelReservation = $request->hotelReservation()->with('hotelAgreement')->first();
+      if ($hotelReservation?->hotelAgreement && !$hotelReservation->hotelAgreement->includes_breakfast) {
+        $breakfastBudget = RequestBudget::where('expense_type_id', ExpenseType::BREAKFAST_ID)
           ->where('per_diem_request_id', $requestId)
           ->first();
+      }
+
+      // Check if budget exists for this expense type
+      if (in_array($data['expense_type_id'], [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
+        // If breakfast has separate budget, validate it
+        if ($data['expense_type_id'] === ExpenseType::BREAKFAST_ID && $breakfastBudget) {
+          $budget = $breakfastBudget;
+        } else {
+          // Otherwise, use shared MEALS budget
+          $budget = RequestBudget::where('expense_type_id', ExpenseType::MEALS_ID)
+            ->where('per_diem_request_id', $requestId)
+            ->first();
+        }
 
         if (!$budget) {
           throw new Exception('No se encontró presupuesto para alimentación en esta solicitud. Asegúrese de que la solicitud esté confirmada y tenga presupuestos asignados.');
@@ -121,10 +137,36 @@ class PerDiemExpenseService extends BaseService
         }
       }
 
-      if (in_array($data['expense_type_id'], [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
-        // Meals (BREAKFAST, LUNCH, DINNER) share the same budget
+      // Calculate company_amount and employee_amount
+      if ($data['expense_type_id'] === ExpenseType::BREAKFAST_ID && $breakfastBudget) {
+        // Breakfast with its own budget (hotel without breakfast included)
         $expensesByType = PerDiemExpense::where('per_diem_request_id', $requestId)
-          ->whereIn('expense_type_id', [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])
+          ->where('expense_type_id', ExpenseType::BREAKFAST_ID)
+          ->whereDate('expense_date', $data['expense_date'])
+          ->where('rejected', false)
+          ->sum('company_amount');
+
+        $available = $budget->daily_amount - $expensesByType;
+
+        if ($data['receipt_amount'] > $available) {
+          $companyAmount = $available;
+          $employeeAmount = $data['receipt_amount'] - $available;
+        } else {
+          $companyAmount = $data['receipt_amount'];
+          $employeeAmount = 0;
+        }
+
+      } else if (in_array($data['expense_type_id'], [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
+        // Meals (BREAKFAST, LUNCH, DINNER) share the same MEALS budget
+        // BUT: if breakfast has separate budget, exclude it from MEALS calculation
+        $mealTypes = [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID];
+        if ($breakfastBudget) {
+          // Breakfast has its own budget, so only LUNCH and DINNER share MEALS budget
+          $mealTypes = [ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID];
+        }
+
+        $expensesByType = PerDiemExpense::where('per_diem_request_id', $requestId)
+          ->whereIn('expense_type_id', $mealTypes)
           ->whereDate('expense_date', $data['expense_date'])
           ->where('rejected', false)
           ->sum('company_amount');
@@ -280,11 +322,26 @@ class PerDiemExpenseService extends BaseService
       $shouldRecalculateAmounts = isset($data['receipt_amount']) || isset($data['expense_type_id']) || isset($data['expense_date']);
 
       if ($shouldRecalculateAmounts) {
-        // Check if budget exists for this expense type
-        if (in_array($newExpenseTypeId, [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
-          $budget = RequestBudget::where('expense_type_id', ExpenseType::MEALS_ID)
+        // Determine if breakfast has separate budget (hotel without breakfast included)
+        $breakfastBudget = null;
+        $hotelReservation = $request->hotelReservation()->with('hotelAgreement')->first();
+        if ($hotelReservation?->hotelAgreement && !$hotelReservation->hotelAgreement->includes_breakfast) {
+          $breakfastBudget = RequestBudget::where('expense_type_id', ExpenseType::BREAKFAST_ID)
             ->where('per_diem_request_id', $expense->per_diem_request_id)
             ->first();
+        }
+
+        // Check if budget exists for this expense type
+        if (in_array($newExpenseTypeId, [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
+          // If breakfast has separate budget, validate it
+          if ($newExpenseTypeId === ExpenseType::BREAKFAST_ID && $breakfastBudget) {
+            $budget = $breakfastBudget;
+          } else {
+            // Otherwise, use shared MEALS budget
+            $budget = RequestBudget::where('expense_type_id', ExpenseType::MEALS_ID)
+              ->where('per_diem_request_id', $expense->per_diem_request_id)
+              ->first();
+          }
 
           if (!$budget) {
             throw new Exception('No se encontró presupuesto para alimentación en esta solicitud. Asegúrese de que la solicitud esté confirmada y tenga presupuestos asignados.');
@@ -300,11 +357,37 @@ class PerDiemExpenseService extends BaseService
         }
 
         // Recalculate company_amount and employee_amount
-        if (in_array($newExpenseTypeId, [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
-          // Meals (BREAKFAST, LUNCH, DINNER) share the same budget
+        if ($newExpenseTypeId === ExpenseType::BREAKFAST_ID && $breakfastBudget) {
+          // Breakfast with its own budget (hotel without breakfast included)
           $expensesByType = PerDiemExpense::where('per_diem_request_id', $expense->per_diem_request_id)
             ->where('id', '!=', $expense->id) // Exclude current expense
-            ->whereIn('expense_type_id', [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])
+            ->where('expense_type_id', ExpenseType::BREAKFAST_ID)
+            ->whereDate('expense_date', $newExpenseDate)
+            ->where('rejected', false)
+            ->sum('company_amount');
+
+          $available = $budget->daily_amount - $expensesByType;
+
+          if ($newReceiptAmount > $available) {
+            $data['company_amount'] = $available;
+            $data['employee_amount'] = $newReceiptAmount - $available;
+          } else {
+            $data['company_amount'] = $newReceiptAmount;
+            $data['employee_amount'] = 0;
+          }
+
+        } else if (in_array($newExpenseTypeId, [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
+          // Meals (BREAKFAST, LUNCH, DINNER) share the same MEALS budget
+          // BUT: if breakfast has separate budget, exclude it from MEALS calculation
+          $mealTypes = [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID];
+          if ($breakfastBudget) {
+            // Breakfast has its own budget, so only LUNCH and DINNER share MEALS budget
+            $mealTypes = [ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID];
+          }
+
+          $expensesByType = PerDiemExpense::where('per_diem_request_id', $expense->per_diem_request_id)
+            ->where('id', '!=', $expense->id) // Exclude current expense
+            ->whereIn('expense_type_id', $mealTypes)
             ->whereDate('expense_date', $newExpenseDate)
             ->where('rejected', false)
             ->sum('company_amount');
