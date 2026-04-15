@@ -1063,27 +1063,23 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Vehículo no encontrado');
       }
 
-      //2. Verificamos si ya existe un registro de PDI para este vehículo
-      $existingPDI = ApWorkOrder::where('vehicle_id', $id)
+      //2. Verificamos si ya existe una OT de instalación de accesorios ABIERTA para este vehículo
+      $existingOpenWO = ApWorkOrder::where('vehicle_id', $id)
         ->whereHas('items', function ($query) {
           $query->where('type_planning_id', TypePlanningWorkOrder::TYPE_PLANNING_INST_ACCESORIOS_ID);
         })
+        ->where('status_id', '!=', ApMasters::CLOSED_WORK_ORDER_ID)
         ->exists();
 
-      if ($existingPDI) {
-        throw new Exception('Ya existe un registro de instalación de accesorios para este vehículo');
+      if ($existingOpenWO) {
+        throw new Exception('Ya existe una orden de trabajo de instalación de accesorios abierta para este vehículo');
       }
 
       $hasVehiclePdi = $vehicle->has_pdi;
       $typeCurrency = $hasVehiclePdi ? TypeCurrency::PEN_ID : TypeCurrency::USD_ID;
 
-      // 2. Copiamos la inspección de recepción a la inspección del vehículo
+      // Obtenemos la guía de recepción del vehículo (puede no existir para accesorios de posventa)
       $shippingGuide = $vehicle->shippingGuideReceiving;
-
-      //validamos que exista la recepcion
-      if (!$shippingGuide?->receivingInspection) {
-        throw new Exception('El vehículo no tiene una guía de remisión de recepción asociada');
-      }
 
       //3. Creamos la cabecera de la OT
       $apWorkOrder = ApWorkOrder::create([
@@ -1094,7 +1090,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'vehicle_vin' => $vehicle->vin,
         'status_id' => ApMasters::OPENING_WORK_ORDER_ID,
         'advisor_id' => auth()->user()->person->id,
-        'invoice_to' => $hasVehiclePdi ? BusinessPartners::AUTOMOTORES_PAKATNAMU_ID : $shippingGuide->transmitter_id,
+        'invoice_to' => $hasVehiclePdi
+          ? BusinessPartners::AUTOMOTORES_PAKATNAMU_ID
+          : ($shippingGuide?->transmitter_id ?? BusinessPartners::AUTOMOTORES_PAKATNAMU_ID),
         'sede_id' => $vehicle->warehouse ? $vehicle->warehouse->sede_id : null,
         'opening_date' => now()->format('Y-m-d'),
         'diagnosis_date' => now()->format('Y-m-d'),
@@ -1136,6 +1134,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // 6. Guardamos la mano de obra usando el servicio para que se actualicen los totales correctamente
       $this->labourService->store($labourData);
 
+      // Copiar inspección de recepción si existe (opcional para el caso de accesorios de posventa)
       if ($shippingGuide && $shippingGuide->receivingInspection) {
         $receivingInspection = $shippingGuide->receivingInspection;
 
@@ -1179,8 +1178,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       DB::commit();
 
       return response()->json([
-        'message' => 'Orden de trabajo PDI generada correctamente',
+        'message' => 'Orden de trabajo de instalación de accesorios generada correctamente',
         'vehicle_id' => $vehicle->id,
+        'work_order_id' => $apWorkOrder->id,
       ]);
     } catch (\Throwable $e) {
       DB::rollBack();

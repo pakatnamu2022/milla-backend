@@ -26,6 +26,11 @@ class UpdateApReceivingChecklistRequest extends StoreRequest
       'damages.*.description' => 'nullable|string',
       'damages.*.photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
       'has_pdi' => 'required|boolean',
+      'accessories' => 'nullable|array',
+      'accessories.*.purchase_order_item_id' => 'nullable|integer|exists:ap_purchase_order_item,id',
+      'accessories.*.description' => 'required_with:accessories|string|max:500',
+      'accessories.*.quantity' => 'nullable|numeric|min:0',
+      'accessories.*.received' => 'required_with:accessories|boolean',
     ];
   }
 
@@ -48,6 +53,9 @@ class UpdateApReceivingChecklistRequest extends StoreRequest
       'damages.*.description' => 'descripción del daño',
       'damages.*.photo' => 'foto del daño',
       'has_pdi' => 'PDI',
+      'accessories' => 'accesorios',
+      'accessories.*.description' => 'descripción del accesorio',
+      'accessories.*.received' => 'estado de recepción del accesorio',
     ];
   }
 }

@@ -10,12 +10,17 @@ use App\Http\Services\common\EmailService;
 use App\Http\Utils\Constants;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
+use App\Http\Services\ap\postventa\taller\WorkOrderService;
+use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\ApReceivingAccessoryStatus;
 use App\Models\ap\comercial\ApReceivingChecklist;
 use App\Models\ap\comercial\ApReceivingInspection;
 use App\Models\ap\comercial\ApReceivingInspectionDamage;
 use App\Models\ap\comercial\ShippingGuideAccessory;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklist;
+use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -127,10 +132,53 @@ class ApReceivingChecklistService extends BaseService
 
       $inspection = ApReceivingInspection::with('damages')->where('shipping_guide_id', $shippingGuideId)->first();
 
+      // Obtener estados de accesorios ya guardados para esta guía
+      $accessoryStatuses = ApReceivingAccessoryStatus::where('shipping_guide_id', $shippingGuideId)
+        ->get()
+        ->keyBy('purchase_order_item_id');
+
+      // Enriquecer accesorios con estado de recepción
+      $accessories = array_map(function ($acc) use ($accessoryStatuses) {
+        $status = isset($acc['id']) ? $accessoryStatuses->get($acc['id']) : null;
+        $acc['received'] = $status ? (bool) $status->received : null;
+        $acc['work_order_id'] = $status?->work_order_id;
+        $acc['is_installed'] = $status?->is_installed ?? null;
+        return $acc;
+      }, $accessories);
+
+      // Accesorios de posventa de la cotización de venta (no vienen en OC, pero necesitan instalación)
+      $posventaAccessories = [];
+      $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+      if ($vehicle) {
+        $vehicle->load(['purchaseRequestQuote.accessories.approvedAccessory']);
+        $quote = $vehicle->purchaseRequestQuote;
+        if ($quote) {
+          foreach ($quote->accessories as $detail) {
+            if ($detail->approvedAccessory?->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA) {
+              $posventaAccessories[] = [
+                'id' => $detail->id,
+                'approved_accessory_id' => $detail->approved_accessory_id,
+                'description' => $detail->approvedAccessory->description ?? 'N/A',
+                'quantity' => $detail->quantity,
+                'price' => $detail->price,
+              ];
+            }
+          }
+        }
+      }
+
+      // Verificar si ya existe OT de instalación de accesorios abierta para este vehículo
+      $hasOpenInstWorkOrder = $vehicle ? ApWorkOrder::where('vehicle_id', $vehicle->id)
+        ->whereHas('items', fn($q) => $q->where('type_planning_id', TypePlanningWorkOrder::TYPE_PLANNING_INST_ACCESORIOS_ID))
+        ->where('status_id', '!=', ApMasters::CLOSED_WORK_ORDER_ID)
+        ->exists() : false;
+
       return response()->json([
         'data' => ApReceivingChecklistResource::collection($checklists),
         'note_received' => $shippingGuide->note_received,
         'accessories' => $accessories,
+        'posventa_accessories' => $posventaAccessories,
+        'has_open_inst_work_order' => $hasOpenInstWorkOrder,
         'inspection' => $inspection ? new ApReceivingInspectionResource($inspection) : null,
       ]);
     } catch (Exception $e) {
@@ -249,6 +297,71 @@ class ApReceivingChecklistService extends BaseService
         }
       }
 
+      // Guardar estado de recepción por accesorio y determinar si se necesita OT de instalación
+      $needsInstallationWO = false;
+
+      if (!empty($data['accessories'])) {
+        // Eliminar registros previos para reemplazarlos
+        ApReceivingAccessoryStatus::where('shipping_guide_id', $data['shipping_guide_id'])->delete();
+
+        foreach ($data['accessories'] as $accessory) {
+          ApReceivingAccessoryStatus::create([
+            'shipping_guide_id' => $data['shipping_guide_id'],
+            'purchase_order_item_id' => $accessory['purchase_order_item_id'] ?? null,
+            'description' => $accessory['description'],
+            'quantity' => $accessory['quantity'] ?? 1,
+            'received' => (bool) $accessory['received'],
+          ]);
+
+          if (!(bool) $accessory['received']) {
+            $needsInstallationWO = true;
+          }
+        }
+      }
+
+      // Verificar si el vehículo tiene accesorios de posventa (no vienen en OC)
+      $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+      if (!$needsInstallationWO && $vehicle) {
+        $vehicle->load(['purchaseRequestQuote.accessories.approvedAccessory']);
+        $hasPosventaAccessories = $vehicle->purchaseRequestQuote?->accessories
+          ->contains(fn($a) => $a->approvedAccessory?->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA);
+
+        if ($hasPosventaAccessories) {
+          $needsInstallationWO = true;
+        }
+      }
+
+      // Generar OT de instalación si hay accesorios pendientes y no existe ya una abierta
+      $generatedWorkOrderId = null;
+      if ($needsInstallationWO && $vehicle) {
+        $hasOpenInstWO = ApWorkOrder::where('vehicle_id', $vehicle->id)
+          ->whereHas('items', fn($q) => $q->where('type_planning_id', TypePlanningWorkOrder::TYPE_PLANNING_INST_ACCESORIOS_ID))
+          ->where('status_id', '!=', ApMasters::CLOSED_WORK_ORDER_ID)
+          ->exists();
+
+        if (!$hasOpenInstWO) {
+          try {
+            $workOrderService = app(WorkOrderService::class);
+            $woResponse = $workOrderService->generateInstallationAccessories($vehicle->id);
+            $woData = json_decode($woResponse->getContent(), true);
+            $generatedWorkOrderId = $woData['work_order_id'] ?? null;
+
+            // Asociar la OT generada a los accesorios que no llegaron
+            if ($generatedWorkOrderId) {
+              ApReceivingAccessoryStatus::where('shipping_guide_id', $data['shipping_guide_id'])
+                ->where('received', false)
+                ->update(['work_order_id' => $generatedWorkOrderId]);
+            }
+          } catch (Exception $e) {
+            Log::warning('No se pudo generar OT de instalación de accesorios', [
+              'vehicle_id' => $vehicle->id,
+              'shipping_guide_id' => $shippingGuide->id,
+              'error' => $e->getMessage(),
+            ]);
+          }
+        }
+      }
+
       // Get updated records
       $updatedRecords = ApReceivingChecklist::where('shipping_guide_id', $data['shipping_guide_id'])
         ->with('receiving')
@@ -272,6 +385,7 @@ class ApReceivingChecklistService extends BaseService
       return response()->json([
         'data' => $updatedRecords,
         'note_received' => $shippingGuide->note_received,
+        'installation_work_order_id' => $generatedWorkOrderId,
       ]);
     } catch (Exception $e) {
       DB::rollBack();

@@ -91,6 +91,21 @@ class HotelReservationController extends Controller
   }
 
   /**
+   * Release a hotel reservation from its per diem request.
+   * Removes the reservation and its linked company expense so the
+   * request is no longer blocked from cancellation.
+   */
+  public function release(int $reservationId)
+  {
+    try {
+      $this->service->release($reservationId);
+      return $this->success(['message' => 'Reserva de hotel liberada correctamente. La solicitud ya puede ser cancelada.']);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
    * Mark reservation as attended
    */
   public function markAttended(int $reservationId, MarkAttendedHotelReservationRequest $request)

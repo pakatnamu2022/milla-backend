@@ -19,6 +19,7 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'base_selling_price' => ['sometimes', 'numeric'],
       'sale_price' => ['sometimes', 'numeric', 'min:0'],
       'doc_sale_price' => ['sometimes', 'numeric', 'min:0'],
+      'down_payment' => ['nullable', 'numeric', 'min:0'],
       'comment' => ['nullable', 'string', 'max:255'],
       'warranty_years' => ['sometimes', 'integer', 'min:1'],
       'warranty_km' => ['sometimes', 'integer', 'min:1'],
@@ -64,6 +65,9 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
 
       'doc_sale_price.numeric' => 'El campo precio de venta en documento debe ser un número.',
       'doc_sale_price.min' => 'El campo precio de venta en documento debe ser mayor o igual a 0.',
+
+      'down_payment.numeric' => 'El campo a cuenta debe ser un número.',
+      'down_payment.min' => 'El campo a cuenta debe ser mayor o igual a 0.',
 
       'comment.string' => 'El campo comentario debe ser una cadena de texto.',
       'comment.max' => 'El campo comentario no debe exceder los 255 caracteres.',

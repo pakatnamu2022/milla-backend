@@ -21,10 +21,10 @@
 
     body {
       font-family: Arial, sans-serif;
-      font-size: 12px;
+      font-size: 11px;
       color: #22293a;
       background: #fff;
-      padding: 0 0 50px;
+      padding: 0 0 140px;
     }
 
     /* ─── WATERMARK ──────────────────────────────── */
@@ -42,82 +42,83 @@
 
     /* ─── HEADER ─────────────────────────────────── */
     .page-header {
-      padding: 8px 10px 8px;
-      margin-bottom: 8px;
+      padding: 5px 10px 5px;
+      margin-bottom: 6px;
     }
 
     .header-inner {
       display: table;
       width: 100%;
+      border-radius: 6px;
+      overflow: hidden;
     }
 
     .h-logo {
       display: table-cell;
-      width: 190px;
+      width: 140px;
+      text-align: center;
       vertical-align: middle;
-      padding-right: 14px;
+      padding: 4px 8px;
     }
 
     .h-logo img {
-      max-width: 180px;
-      height: auto;
+      max-height: 28px;
+      width: auto;
       display: block;
+      margin: 0 auto;
     }
 
-    .h-right {
+    .h-title {
       display: table-cell;
       vertical-align: middle;
+      text-align: center;
+      padding: 4px 10px;
     }
 
-    .h-box {
-      display: table;
-      width: 100%;
-      border: 1.5px solid #e0e0e0;
-      border-radius: 5px;
-      overflow: hidden;
-    }
-
-    .h-box-title {
-      display: table-cell;
-      vertical-align: middle;
-      padding: 6px 14px;
-      background: #fff;
-    }
-
-    .h-box-title-main {
-      font-size: 13px;
+    .h-title-main {
+      font-size: 12px;
       font-weight: bold;
       color: #22293a;
       letter-spacing: 0.3px;
+      line-height: 1.3;
     }
 
-    .h-box-title-sub {
-      font-size: 9px;
+    .h-title-sub {
+      font-size: 8px;
       color: #888888;
-      margin-top: 2px;
+      margin-top: 1px;
     }
 
-    .h-box-num {
+    .h-meta {
       display: table-cell;
+      width: 130px;
       vertical-align: middle;
-      width: 145px;
-      color: #22293a;
       background: #e0e0e0;
       text-align: center;
-      padding: 6px 14px;
+      padding: 4px 8px;
+      border-radius: 6px;
     }
 
-    .h-box-num-lbl {
-      font-size: 8px;
+    .h-meta-lbl {
+      font-size: 7px;
       font-weight: bold;
       letter-spacing: 0.6px;
+      color: #22293a;
+      text-transform: uppercase;
     }
 
-    .h-box-num-val {
-      font-size: 20px;
+    .h-meta-val {
+      font-size: 15px;
       font-weight: bold;
+      color: #22293a;
       white-space: nowrap;
-      margin-top: 4px;
+      margin-top: 1px;
+    }
+
+    .h-meta-date {
+      font-size: 7px;
+      color: #555555;
+      margin-top: 2px;
     }
 
     /* Content wrapper */
@@ -128,17 +129,17 @@
     /* ─── CARD ───────────────────────────────────── */
     .card {
       border: 1px solid #d2d2d2;
-      border-radius: 7px;
+      border-radius: 5px;
       overflow: hidden;
-      margin-bottom: 11px;
+      margin-bottom: 6px;
     }
 
     .card-title {
       background-color: #e0e0e0;
       color: #22293a;
       font-weight: bold;
-      font-size: 10.5px;
-      padding: 4px 12px;
+      font-size: 10px;
+      padding: 3px 10px;
       letter-spacing: 0.3px;
     }
 
@@ -149,7 +150,7 @@
     }
 
     table.dt td {
-      padding: 5px 10px;
+      padding: 3px 8px;
       border-bottom: 1px solid #ebebeb;
       border-right: 1px solid #ebebeb;
       font-size: 11px;
@@ -178,7 +179,7 @@
     }
 
     table.pt td {
-      padding: 5px 10px;
+      padding: 3px 8px;
       border-bottom: 1px solid #ebebeb;
       border-right: 1px solid #ebebeb;
       font-size: 11px;
@@ -234,11 +235,11 @@
     /* ─── SIGNATURES ─────────────────────────────── */
     .sig-wrap {
       border: 1px solid #d2d2d2;
-      border-radius: 6px;
+      border-radius: 5px;
       overflow: hidden;
       display: table;
       width: 100%;
-      margin-bottom: 11px;
+      margin-bottom: 6px;
     }
 
     .sig-col {
@@ -256,55 +257,61 @@
       background: #e0e0e0;
       color: #000000;
       font-weight: bold;
-      font-size: 10.5px;
+      font-size: 10px;
       text-align: center;
-      padding: 5px 8px;
+      padding: 3px 8px;
     }
 
     .sig-body {
-      padding: 10px 14px;
+      padding: 6px 12px;
     }
 
     .sig-line {
-      height: 70px;
+      height: 63px;
     }
 
     .sig-sub {
-      font-size: 10px;
+      font-size: 9px;
       color: #777777;
-      margin-top: 4px;
+      margin-top: 3px;
       text-align: center;
     }
 
     /* ─── NOTES ──────────────────────────────────── */
     .notes {
+      position: fixed;
+      bottom: 22px;
+      left: 10px;
+      right: 10px;
       border: 1px solid #d2d2d2;
-      border-left: 3px solid #e0e0e0;
       border-radius: 5px;
-      padding: 9px 13px;
-      font-size: 9.5px;
+      padding: 5px 10px;
+      font-size: 8px;
       color: #4a5568;
       background: #fafafa;
-      margin-bottom: 11px;
     }
 
     .notes ol {
-      margin-left: 16px;
-      line-height: 1.6;
+      margin-left: 14px;
+      line-height: 1.5;
     }
 
     /* ─── FOOTER BRANDS ──────────────────────────── */
     .foot {
+      position: fixed;
+      bottom: 0;
+      left: 10px;
+      right: 10px;
       border-top: 1px solid #d2d2d2;
-      padding: 8px 0 4px;
+      padding: 4px 0 2px;
       text-align: center;
-      margin-top: 4px;
+      background: #fff;
     }
 
     .foot img {
-      height: 13px;
+      height: 11px;
       width: auto;
-      margin: 0 5px;
+      margin: 0 4px;
     }
 
     /* ─── BANKS TABLE ────────────────────────────── */
@@ -317,8 +324,8 @@
       background: #f5f5f5;
       color: #22293a;
       font-weight: bold;
-      font-size: 10.5px;
-      padding: 6px 10px;
+      font-size: 10px;
+      padding: 4px 8px;
       text-align: center;
       border-right: 1px solid #d2d2d2;
       border-bottom: 1px solid #d2d2d2;
@@ -329,8 +336,8 @@
     }
 
     table.bt td {
-      padding: 5px 10px;
-      font-size: 11px;
+      padding: 3px 8px;
+      font-size: 10px;
       border-bottom: 1px solid #ebebeb;
       border-right: 1px solid #ebebeb;
     }
@@ -354,17 +361,14 @@
     <div class="h-logo">
       <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="AP Logo">
     </div>
-    <div class="h-right">
-      <div class="h-box">
-        <div class="h-box-title">
-          <div class="h-box-title-main">{{ strtoupper($quote['document_title'] ?? 'SOLICITUD DE COMPRA') }}</div>
-          <div class="h-box-title-sub">Solicitud formal de adquisición de vehículo</div>
-        </div>
-        <div class="h-box-num">
-          <div class="h-box-num-lbl">N° DOCUMENTO</div>
-          <div class="h-box-num-val">{{ $quote['correlative'] }}</div>
-        </div>
-      </div>
+    <div class="h-title">
+      <div class="h-title-main">{{ strtoupper($quote['document_title'] ?? 'SOLICITUD DE COMPRA') }}</div>
+      <div class="h-title-sub">Solicitud formal de adquisición de vehículo</div>
+    </div>
+    <div class="h-meta">
+      <div class="h-meta-lbl">N° DOCUMENTO</div>
+      <div class="h-meta-val">{{ $quote['correlative'] }}</div>
+      <div class="h-meta-date">{{ \Carbon\Carbon::parse($quote['created_at'])->format('d/m/Y') }}</div>
     </div>
   </div>
 </div>
@@ -495,7 +499,7 @@
         </td>
         <td style="width:4%; text-align:center; color:#000000; font-weight:bold;">1</td>
         <td class="lbl" style="width:16%;">A cuenta</td>
-        <td>{{ $quote['type_currency_symbol'] }}</td>
+        <td>{{ $quote['type_currency_symbol'] }} {{ !empty($quote['down_payment']) ? number_format($quote['down_payment'], 2) : '' }}</td>
         <td style="width:4%; text-align:center; color:#000000; font-weight:bold;">4</td>
       </tr>
       {{-- Accesorios adicionales --}}
@@ -640,6 +644,7 @@
   <div class="notes">
     <strong style="color:#000000;">IMPORTANTE:</strong>
     <ol>
+      <li>Cualquier Devolución estará afecta a la penalidad del 7%.</li>
       <li>Esta solicitud está sujeta a la aprobación de Automotores Pakatnamu SAC.</li>
       <li>Cualquier pedido de equipamiento adicional a las características de la presente solicitud será por cuenta y
         costo del cliente.
@@ -683,17 +688,14 @@
       <div class="h-logo">
         <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="AP Logo">
       </div>
-      <div class="h-right">
-        <div class="h-box">
-          <div class="h-box-title">
-            <div class="h-box-title-main">CUENTAS BANCARIAS PARA DEPÓSITOS</div>
-            <div class="h-box-title-sub">Datos para transferencia o depósito bancario</div>
-          </div>
-          <div class="h-box-num">
-            <div class="h-box-num-lbl">N° DOCUMENTO</div>
-            <div class="h-box-num-val">{{ $quote['correlative'] }}</div>
-          </div>
-        </div>
+      <div class="h-title">
+        <div class="h-title-main">CUENTAS BANCARIAS PARA DEPÓSITOS</div>
+        <div class="h-title-sub">Datos para transferencia o depósito bancario</div>
+      </div>
+      <div class="h-meta">
+        <div class="h-meta-lbl">N° DOCUMENTO</div>
+        <div class="h-meta-val">{{ $quote['correlative'] }}</div>
+        <div class="h-meta-date">{{ \Carbon\Carbon::parse($quote['created_at'])->format('d/m/Y') }}</div>
       </div>
     </div>
   </div>
