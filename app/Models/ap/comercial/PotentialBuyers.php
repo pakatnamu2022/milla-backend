@@ -492,7 +492,8 @@ class PotentialBuyers extends Model
   private function getAdvisorsByBrandGroup($managerId, $periods)
   {
     // Paso 1: Obtener brand_group_ids del gerente comercial
-    $brandGroupIds = ApCommercialManagerBrandGroup::where('commercial_manager_id', $managerId)
+    $brandGroupIds = \DB::table('ap_commercial_manager_brand_group_periods')
+      ->where('commercial_manager_id', $managerId)
       ->where('status', 1)
       ->where(function ($q) use ($periods) {
         foreach ($periods as $period) {
@@ -510,28 +511,20 @@ class PotentialBuyers extends Model
       return [];
     }
 
-    // Paso 2: Obtener jefes asignados a esos grupos de marcas
-    $bossIds = ApCommercialManagerBrandGroup::whereIn('brand_group_id', $brandGroupIds)
-      ->where('commercial_manager_id', '!=', $managerId)
+    // Paso 2: Obtener brand_ids de esos grupos
+    $brandIds = \DB::table('ap_vehicle_brand')
+      ->whereIn('group_id', $brandGroupIds)
       ->where('status', 1)
-      ->where(function ($q) use ($periods) {
-        foreach ($periods as $period) {
-          $q->orWhere(function ($subQuery) use ($period) {
-            $subQuery->where('year', $period['year'])
-              ->where('month', $period['month']);
-          });
-        }
-      })
-      ->distinct()
-      ->pluck('commercial_manager_id')
+      ->pluck('id')
       ->toArray();
 
-    if (empty($bossIds)) {
+    if (empty($brandIds)) {
       return [];
     }
 
-    // Paso 3: Obtener asesores de cada jefe
-    $advisorIds = ApAssignmentLeadership::whereIn('boss_id', $bossIds)
+    // Paso 3: Obtener worker_ids asignados a esas marcas en el período
+    $workerIds = \DB::table('ap_assign_brand_consultant')
+      ->whereIn('brand_id', $brandIds)
       ->where('status', 1)
       ->where(function ($q) use ($periods) {
         foreach ($periods as $period) {
@@ -545,7 +538,7 @@ class PotentialBuyers extends Model
       ->pluck('worker_id')
       ->toArray();
 
-    return $advisorIds;
+    return $workerIds;
   }
 
   /**
