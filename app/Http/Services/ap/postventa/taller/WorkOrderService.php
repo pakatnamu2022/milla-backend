@@ -59,7 +59,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   public function listWithInternalNotes(Request $request)
   {
     $query = ApWorkOrder::with(['items', 'internalNote'])
-      ->whereHas('internalNote');
+      ->whereHas('internalNote')
+      ->where('final_amount', '>', 0);
 
     // Filtrar por estado de nota interna si se proporciona
     if ($request->has('internal_note_status')) {
@@ -110,6 +111,17 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       if ($vehicle) {
         $data['vehicle_plate'] = $vehicle->plate;
         $data['vehicle_vin'] = $vehicle->vin;
+      }
+
+      if (isset($data['vehicle_inspection_id']) && isset($data['appointment_planning_id'])) {
+        $vehicleIdInspection = ApVehicleInspection::find($data['vehicle_inspection_id'])->createdByWorkOrder->vehicle_id ?? null;
+        $vehicleIdAppintment = AppointmentPlanning::find($data['appointment_planning_id'])->ap_vehicle_id ?? null;
+
+        if ($vehicleIdInspection && $vehicleIdAppintment) {
+          if ($vehicleIdInspection !== $vehicleIdAppintment) {
+            throw new Exception('El vehículo de la inspección no coincide con el vehículo de la cita');
+          }
+        }
       }
 
       // Obtener tipo de cambio actual para USD
@@ -549,6 +561,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       if ($workOrder->order_quotation_id === null) {
         throw new Exception('La orden de trabajo no tiene cotización asociada');
+      }
+
+      if ($workOrder->advancesWorkOrder->count() > 0) {
+        throw new Exception("Esta cotización no puede ser desasociada. La orden de trabajo {$workOrder->correlative} al que se encuentra asociada ya tiene avances registrados.");
       }
 
       // Obtener la cotización antes de desasociar

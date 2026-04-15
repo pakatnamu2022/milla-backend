@@ -13,6 +13,7 @@ use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
@@ -105,12 +106,24 @@ class InventoryMovementService extends BaseService
   {
     DB::beginTransaction();
     try {
+      // Get currency and exchange rate from Purchase Order
+      $purchaseOrder = $reception->purchaseOrder;
+      $currencyId = $purchaseOrder->currency_id ?? TypeCurrency::PEN_ID;  // Default to PEN if not set
+
+      // Get exchange rate value (the numeric value, not the ID)
+      $exchangeRateValue = 1.0;  // Default for PEN
+      if ($purchaseOrder->exchangeRate) {
+        $exchangeRateValue = $purchaseOrder->exchangeRate->rate ?? 1.0;
+      }
+
       // Create movement header
       $movement = InventoryMovement::create([
         'movement_number' => InventoryMovement::generateMovementNumber(),
         'movement_type' => InventoryMovement::TYPE_PURCHASE_RECEPTION,
         'movement_date' => $reception->reception_date,
         'warehouse_id' => $reception->warehouse_id,
+        'currency_id' => $currencyId,              // Currency from purchase order
+        'exchange_rate' => $exchangeRateValue,      // Exchange rate value for conversion
         'reference_type' => PurchaseReception::class,
         'reference_id' => $reception->id,
         'user_id' => $reception->received_by,

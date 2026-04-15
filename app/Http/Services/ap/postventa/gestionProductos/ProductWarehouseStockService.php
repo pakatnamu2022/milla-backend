@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 
 use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseStockResource;
 use App\Http\Services\BaseService;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\GeneralMaster;
 use Illuminate\Http\Request;
@@ -13,6 +14,11 @@ use Illuminate\Support\Facades\DB;
 
 class ProductWarehouseStockService extends BaseService
 {
+  // Método de cálculo de precio de venta:
+  // 1: PVP = Costo / (1 - margen) * (1 + impuesto)
+  // 2: PVP = Costo / (1 - (margen + impuesto))
+  private const PRICE_CALCULATION_METHOD = 2;
+
   private ?float $freightCommission = null;
   private ?float $profitMargin = null;
   private ?float $minimunDiscount = null;
@@ -62,7 +68,26 @@ class ProductWarehouseStockService extends BaseService
     );
   }
 
-  public function addStock(int $productId, int $warehouseId, float $quantity, float $unitCost = 0): ProductWarehouseStock
+  /**
+   * Add stock to warehouse with automatic currency conversion to PEN (base currency)
+   *
+   * @param int $productId Product ID
+   * @param int $warehouseId Warehouse ID
+   * @param float $quantity Quantity to add
+   * @param float $unitCost Unit cost in original currency
+   * @param int|null $currencyId Currency ID of the unit cost (default: PEN = 3)
+   * @param float|null $exchangeRate Exchange rate to convert to PEN (only for non-PEN currencies)
+   * @return ProductWarehouseStock Updated stock record
+   * @throws Exception
+   */
+  public function addStock(
+    int    $productId,
+    int    $warehouseId,
+    float  $quantity,
+    float  $unitCost = 0,
+    ?int   $currencyId = null,
+    ?float $exchangeRate = null
+  ): ProductWarehouseStock
   {
     DB::beginTransaction();
     try {
@@ -81,30 +106,47 @@ class ProductWarehouseStockService extends BaseService
           'minimum_stock' => 0,
           'maximum_stock' => 0,
           'average_cost' => 0,
+          'currency_id' => TypeCurrency::PEN_ID, // Always PEN (base currency)
         ]
       );
 
-      // Calculate weighted average cost if unit cost is provided
+      // Calcule el costo promedio ponderado si se proporciona el costo unitario.
       if ($unitCost > 0) {
+        // Convertir el costo unitario a PEN (moneda base) si es necesario.
+        $unitCostInPEN = $this->convertToBaseCurrency($unitCost, $currencyId, $exchangeRate);
+
         $currentStock = $stock->quantity;
         $currentAverageCost = $stock->average_cost ?? 0;
 
-        // Weighted Average Cost Formula:
-        // new_average_cost = (current_stock × current_average_cost + new_quantity × unit_cost) / (current_stock + new_quantity)
+        // Fórmula del costo promedio ponderado (todo en PEN):
+        // nuevo_costo_promedio = (current_stock × current_average_cost + new_quantity × unit_cost_in_PEN) / (current_stock + new_quantity)
         if ($currentStock + $quantity > 0) {
-          $newAverageCost = (($currentStock * $currentAverageCost) + ($quantity * $unitCost)) / ($currentStock + $quantity);
+          $newAverageCost = (($currentStock * $currentAverageCost) + ($quantity * $unitCostInPEN)) / ($currentStock + $quantity);
           $stock->average_cost = round($newAverageCost, 2);
         } else {
-          $stock->average_cost = $unitCost;
+          $stock->average_cost = $unitCostInPEN;
         }
 
-        // Update cost_price to the last purchase unit cost
-        $stock->cost_price = $unitCost;
+        // Actualizar cost_price al último costo unitario de compra (en PEN)
+        $stock->cost_price = $unitCostInPEN;
 
         // Update sale_price based on average cost with freight commission and profit margin
-        $amountWithFreight = $stock->average_cost * (1 + $this->getFreightCommission());
-        $amountWithMargin = $amountWithFreight * (1 + $this->getProfitMargin());
-        $stock->sale_price = round($amountWithMargin, 2);
+        $profitMargin = $this->getProfitMargin();
+        $freightCommission = $this->getFreightCommission();
+
+        if (self::PRICE_CALCULATION_METHOD === 1) {
+          // Método 1: PVP = Costo / (1 - margen) * (1 + impuesto)
+          $stock->sale_price = round(
+            ($stock->average_cost / (1 - $profitMargin)) * (1 + $freightCommission),
+            2
+          );
+        } else {
+          // Método 2 (por defecto): PVP = Costo / (1 - (margen + impuesto))
+          $stock->sale_price = round(
+            $stock->average_cost / (1 - ($profitMargin + $freightCommission)),
+            2
+          );
+        }
       }
 
       // Add quantity (physical stock that actually arrived in good condition)
@@ -120,6 +162,35 @@ class ProductWarehouseStockService extends BaseService
       DB::rollBack();
       throw $e;
     }
+  }
+
+  /**
+   * Convertir importe de la moneda original a la moneda base (PEN)
+   *
+   * @param float $amount Importe en moneda original
+   * @param int|null $currencyId Currency ID (null or PEN_ID means already in PEN)
+   * @param float|null $exchangeRate ID de la moneda (nulo o PEN_ID significa que ya está en PEN)
+   * @return float Cantidad convertida a PEN
+   */
+  private function convertToBaseCurrency(float $amount, ?int $currencyId, ?float $exchangeRate): float
+  {
+    // If no currency specified or already in PEN, return as is
+    if ($currencyId === null || $currencyId === TypeCurrency::PEN_ID) {
+      return $amount;
+    }
+
+    // If currency is USD and exchange rate is provided, convert to PEN
+    if ($currencyId === TypeCurrency::USD_ID && $exchangeRate && $exchangeRate > 0) {
+      return round($amount * $exchangeRate, 2);
+    }
+
+    // For other currencies with exchange rate, apply conversion
+    if ($exchangeRate && $exchangeRate > 0) {
+      return round($amount * $exchangeRate, 2);
+    }
+
+    // If no valid exchange rate, return amount as is (assume already in PEN)
+    return $amount;
   }
 
   /**
@@ -373,7 +444,15 @@ class ProductWarehouseStockService extends BaseService
             $unitCost = $detail->unit_cost ?? 0;
           }
 
-          $stock = $this->addStock($productId, $movement->warehouse_id, abs($quantity), $unitCost);
+          // Pass currency and exchange rate from movement for proper conversion to PEN
+          $stock = $this->addStock(
+            $productId,
+            $movement->warehouse_id,
+            abs($quantity),
+            $unitCost,
+            $movement->currency_id,
+            $movement->exchange_rate
+          );
           $updatedStocks[] = $stock;
         } else {
           // OUTBOUND: Remove stock from warehouse
@@ -669,7 +748,7 @@ class ProductWarehouseStockService extends BaseService
   {
     // Get all stocks for the given product IDs
     $stocks = ProductWarehouseStock::whereIn('product_id', $productIds)
-      ->with(['product', 'warehouse'])
+      ->with(['product', 'warehouse', 'currency'])
       ->get();
 
     // Group by product_id
@@ -708,6 +787,12 @@ class ProductWarehouseStockService extends BaseService
         $publicSalePrice = (float)($stock->sale_price ?? 0);        // Public sale price (already calculated)
         $minimumSalePrice = $this->calculateMinimumSalePrice($publicSalePrice);
 
+        // Calculate days without movement
+        $daysWithoutMovement = null;
+        if ($stock->last_movement_date) {
+          $daysWithoutMovement = (int)now()->diffInDays($stock->last_movement_date, true);
+        }
+
         $warehouses[] = [
           'warehouse_id' => $stock->warehouse_id,
           'warehouse_name' => $stock->warehouse?->description,
@@ -721,10 +806,12 @@ class ProductWarehouseStockService extends BaseService
           'is_low_stock' => $stock->is_low_stock,
           'is_out_of_stock' => $stock->is_out_of_stock,
           'last_movement_date' => $stock->last_movement_date?->format('Y-m-d H:i:s'),
+          'days_without_movement' => $daysWithoutMovement,
           'last_purchase_price' => $lastPurchasePrice,
           'average_cost' => $averageCost,
           'public_sale_price' => $publicSalePrice,
           'minimum_sale_price' => $minimumSalePrice,
+          'currency' => $stock->currency,
         ];
       }
 

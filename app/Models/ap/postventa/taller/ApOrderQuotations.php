@@ -43,6 +43,7 @@ class ApOrderQuotations extends Model
     'expiration_date',
     'collection_date',
     'observations',
+    'notes',
     'created_by',
     'is_take',
     'is_requested_by_management',
@@ -130,6 +131,11 @@ class ApOrderQuotations extends Model
   public function setObservationsAttribute($value)
   {
     $this->attributes['observations'] = strtoupper($value);
+  }
+
+  public function setNotesAttribute($value)
+  {
+    $this->attributes['notes'] = strtoupper($value);
   }
 
   public function vehicle(): BelongsTo

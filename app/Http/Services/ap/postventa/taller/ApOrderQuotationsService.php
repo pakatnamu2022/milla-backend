@@ -807,6 +807,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Cambiar el estado a "Por Facturar"
       $quotation->update([
+        'notes' => $data['notes'],
         'status' => ApOrderQuotations::STATUS_POR_FACTURAR,
       ]);
 
@@ -1083,5 +1084,79 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     // Actualizar la cotización con la URL de la firma
     $quotation->customer_signature_url = $digitalFile->url;
     $quotation->save();
+  }
+
+  /**
+   * Duplica una cotización existente con todos sus detalles
+   * Genera un nuevo correlativo y resetea campos específicos
+   */
+  public function duplicate($id)
+  {
+    return DB::transaction(function () use ($id) {
+      // 1. Obtener la cotización original con sus detalles
+      $originalQuotation = $this->find($id);
+
+      if ($originalQuotation->area_id !== ApMasters::AREA_TALLER) {
+        throw new Exception('Solo se pueden duplicar cotizaciones del área de Taller.');
+      }
+
+      // 2. Convertir a array y preparar datos para la nueva cotización
+      $newQuotationData = $originalQuotation->toArray();
+
+      // 3. Remover campos que no se deben copiar (auto-generados)
+      unset($newQuotationData['id']);
+      unset($newQuotationData['quotation_number']);
+      unset($newQuotationData['created_at']);
+      unset($newQuotationData['updated_at']);
+      unset($newQuotationData['deleted_at']);
+
+      // 4. Generar nuevo número de cotización
+      $newQuotationData['quotation_number'] = ApOrderQuotations::generateNextQuotationNumber($originalQuotation->sede_id);
+
+      // 5. Resetear campos específicos según tus requerimientos
+      $newQuotationData['quotation_date'] = Carbon::now()->toDateString();
+      $newQuotationData['expiration_date'] = Carbon::now()->addDays(7)->toDateString();
+      $newQuotationData['status'] = ApOrderQuotations::STATUS_APERTURADO;
+      $newQuotationData['created_by'] = auth()->check() ? auth()->user()->id : null;
+      $newQuotationData['chief_approval_by'] = null;
+      $newQuotationData['manager_approval_by'] = null;
+      $newQuotationData['has_invoice_generated'] = false;
+      $newQuotationData['is_take'] = false;
+      $newQuotationData['customer_signature_url'] = null;
+      $newQuotationData['customer_signature_delivery_url'] = null;
+      $newQuotationData['delivery_document_number'] = null;
+      $newQuotationData['discard_reason_id'] = null;
+      $newQuotationData['discarded_note'] = null;
+      $newQuotationData['discarded_by'] = null;
+      $newQuotationData['discarded_at'] = null;
+      $newQuotationData['is_fully_paid'] = false;
+      $newQuotationData['emails_sent_count'] = 0;
+
+      // 6. Crear la nueva cotización
+      $newQuotation = ApOrderQuotations::create($newQuotationData);
+
+      // 7. Duplicar todos los detalles
+      foreach ($originalQuotation->details as $detail) {
+        $newDetailData = $detail->toArray();
+
+        // Remover campos auto-generados del detalle
+        unset($newDetailData['id']);
+        unset($newDetailData['order_quotation_id']);
+        unset($newDetailData['created_at']);
+        unset($newDetailData['updated_at']);
+        unset($newDetailData['deleted_at']);
+
+        // Crear el nuevo detalle asociado a la nueva cotización
+        $newQuotation->details()->create($newDetailData);
+      }
+
+      // 8. Retornar la nueva cotización con sus relaciones cargadas
+      return new
+      ApOrderQuotationsResource($newQuotation->load([
+        'vehicle',
+        'createdBy',
+        'details.product'
+      ]));
+    });
   }
 }

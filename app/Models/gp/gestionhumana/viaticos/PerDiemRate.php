@@ -29,6 +29,7 @@ class PerDiemRate extends BaseModel
   ];
 
   const filters = [
+    'search' => ['district.name'],
     'per_diem_policy_id' => '=',
     'district_id' => '=',
     'per_diem_category_id' => '=',

@@ -186,6 +186,15 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('Este producto ya ha sido agregado a la orden de trabajo');
       }
 
+      //validamos el precio de venta al público no este por debajo de lo establecido
+      $sale_price = ProductWarehouseStock::where('product_id', $data['product_id'])
+        ->where('warehouse_id', $data['warehouse_id'])
+        ->value('sale_price');
+
+      if ($sale_price && $data['unit_price'] < $sale_price) {
+        throw new Exception("El precio unitario no puede ser menor al precio de venta registrado ({$sale_price}) para este producto en el almacén seleccionado");
+      }
+
       // Set registered_by
       if (auth()->check()) {
         $data['registered_by'] = auth()->user()->id;
@@ -259,6 +268,15 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         if ($existingPart) {
           throw new Exception('Este producto ya ha sido agregado a la orden de trabajo');
         }
+      }
+
+      //validamos el precio de venta al público no este por debajo de lo establecido
+      $sale_price = ProductWarehouseStock::where('product_id', $data['product_id'] ?? $oldProductId)
+        ->where('warehouse_id', $data['warehouse_id'] ?? $oldWarehouseId)
+        ->value('sale_price');
+
+      if ($sale_price && $data['unit_price'] < $sale_price) {
+        throw new Exception("El precio unitario no puede ser menor al precio de venta registrado ({$sale_price}) para este producto en el almacén seleccionado");
       }
 
       // Determinar los valores finales
