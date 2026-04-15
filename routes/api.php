@@ -1365,6 +1365,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Order Purchase Requests - Solicitudes de Compra de Órdenes
+      Route::put('orderPurchaseRequests/{id}/approve', [ApOrderPurchaseRequestsController::class, 'approve']);
+      Route::put('orderPurchaseRequests/{id}/cancel', [ApOrderPurchaseRequestsController::class, 'cancel']);
+      Route::post('orderPurchaseRequests/{id}/notify-managers', [ApOrderPurchaseRequestsController::class, 'notifyManagers']);
       Route::get('orderPurchaseRequests/pending-details', [ApOrderPurchaseRequestsController::class, 'getPendingDetails']);
       Route::get('orderPurchaseRequests/{id}/pdf', [ApOrderPurchaseRequestsController::class, 'downloadPDF']);
       Route::patch('orderPurchaseRequests/details/{id}/reject', [ApOrderPurchaseRequestsController::class, 'rejectDetail']);

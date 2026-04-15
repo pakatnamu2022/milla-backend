@@ -24,6 +24,9 @@ class ApOrderPurchaseRequests extends Model
     'ap_order_quotation_id',
     'purchase_order_id',
     'warehouse_id',
+    'reviewed_by',
+    'reviewed_at',
+    'approved',
     'requested_date',
     'ordered_date',
     'received_date',
@@ -59,6 +62,8 @@ class ApOrderPurchaseRequests extends Model
     'ordered_date' => 'datetime',
     'received_date' => 'datetime',
     'notified_at' => 'datetime',
+    'reviewed_at' => 'datetime',
+    'approved' => 'boolean',
   ];
 
   // Boot method
@@ -96,6 +101,11 @@ class ApOrderPurchaseRequests extends Model
   public function warehouse(): BelongsTo
   {
     return $this->belongsTo(Warehouse::class, 'warehouse_id');
+  }
+
+  public function reviewedBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'reviewed_by');
   }
 
   public function requestedBy(): BelongsTo

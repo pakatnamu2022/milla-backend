@@ -67,8 +67,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $query->where(function ($q) {
           // Condición 1: Cotizaciones aprobadas por jefe y gerente en área taller
           $q->where('area_id', ApMasters::AREA_TALLER)
-            ->whereNotNull('chief_approval_by')
-            ->whereNotNull('manager_approval_by');
+            ->where(function ($q2) {
+              $q2->whereNotNull('chief_approval_by')
+                ->orWhereNotNull('manager_approval_by');
+            });
         })
           ->orWhereHas('workOrders', function ($q) {
             // Condición 2: Cotizaciones asociadas a OT con factura generada

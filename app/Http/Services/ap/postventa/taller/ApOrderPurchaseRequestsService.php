@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\postventa\taller;
 
 use App\Http\Resources\ap\postventa\taller\ApOrderPurchaseRequestsResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\common\EmailService;
 use App\Http\Utils\Constants;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
@@ -13,6 +14,9 @@ use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\gp\gestionsistema\Position;
+use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
@@ -20,6 +24,12 @@ use Illuminate\Support\Facades\DB;
 
 class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceInterface
 {
+  protected EmailService $emailService;
+
+  public function __construct(EmailService $emailService)
+  {
+    $this->emailService = $emailService;
+  }
 
   public function list(Request $request)
   {
@@ -84,6 +94,13 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
         }
       }
 
+      // Enviar notificación al encargado de almacén
+      try {
+        $this->sendPurchaseRequestNotificationEmail($purchaseRequest->id);
+      } catch (Exception $e) {
+        \Log::error('Error al enviar notificación de solicitud de compra: ' . $e->getMessage());
+      }
+
       return new ApOrderPurchaseRequestsResource($purchaseRequest->load([
         'purchaseOrder',
         'warehouse',
@@ -110,6 +127,22 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
       if ($purchaseRequest->ap_order_quotation_id) {
         throw new Exception("No se puede modificar una solicitud de compra asociada a una cotización.");
+      }
+
+      if ($purchaseRequest->approved) {
+        throw new Exception("No se puede modificar una solicitud de compra que ha sido aprobada.");
+      }
+
+      if ($purchaseRequest->status === ApOrderPurchaseRequests::CANCELLED) {
+        throw new Exception("No se puede modificar una solicitud de compra que ha sido cancelada.");
+      }
+
+      if ($purchaseRequest->status === ApOrderPurchaseRequests::ORDERED) {
+        throw new Exception("No se puede modificar una solicitud de compra que ha sido ordenada.");
+      }
+
+      if ($purchaseRequest->status === ApOrderPurchaseRequests::RECEIVED) {
+        throw new Exception("No se puede modificar una solicitud de compra que ha sido recibida.");
       }
 
       // Extract details from data
@@ -153,6 +186,22 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
   public function destroy($id)
   {
     $purchaseRequest = $this->find($id);
+
+    if ($purchaseRequest->approved) {
+      throw new Exception("No se puede eliminar una solicitud de compra que ha sido aprobada.");
+    }
+
+    if ($purchaseRequest->status === ApOrderPurchaseRequests::CANCELLED) {
+      throw new Exception("No se puede eliminar una solicitud de compra que ha sido cancelada.");
+    }
+
+    if ($purchaseRequest->status === ApOrderPurchaseRequests::ORDERED) {
+      throw new Exception("No se puede eliminar una solicitud de compra que ya ha sido ordenada.");
+    }
+
+    if ($purchaseRequest->status === ApOrderPurchaseRequests::RECEIVED) {
+      throw new Exception("No se puede eliminar una solicitud de compra que ya ha sido recibida.");
+    }
 
     // Verificar si tiene pedidos de proveedor asociados
     $supplierOrderNumbers = $purchaseRequest->details()
@@ -263,7 +312,7 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       'orderPurchaseRequest.warehouse',
       'product'
     ])
-      ->where('status', 'pending')
+      ->whereIn('status', ['pending', 'approved'])
       ->orderBy('created_at', 'desc');
 
     // Filtro opcional por warehouse_id
@@ -335,14 +384,6 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
     ]);
   }
 
-  /**
-   * Genera el PDF de la solicitud de compra
-   * Si está asociada a una cotización, toma los precios de ella
-   * Si no, muestra guiones "-"
-   * @param int $id
-   * @return \Illuminate\Http\Response
-   * @throws Exception
-   */
   public function generatePurchaseRequestPDF(int $id)
   {
     $purchaseRequest = ApOrderPurchaseRequests::with([
@@ -530,11 +571,6 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
     return $pdf->download($fileName);
   }
 
-  /**
-   * Obtener etiqueta del estado del documento electrónico
-   * @param string $status
-   * @return string
-   */
   private function getStatusLabel(string $status): string
   {
     return match ($status) {
@@ -545,5 +581,297 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       ElectronicDocument::STATUS_CANCELLED => 'Anulado',
       default => $status,
     };
+  }
+
+  /**
+   * Aprueba una cotización según el cargo del usuario autenticado:
+   * - Jefe de Taller (143) → chief_approval_by
+   * - Gerente de Taller (142) → manager_approval_by
+   */
+  public function approve($data)
+  {
+    return DB::transaction(function () use ($data) {
+      $id = $data['id'];
+      $quotation = $this->find($id);
+      $user = auth()->user();
+
+      if ($quotation->status === ApOrderPurchaseRequests::CANCELLED) {
+        throw new Exception('No se puede aprobar una solicitud de compra que ha sido cancelada.');
+      }
+
+      $positionId = (int)($user->person?->position?->id ?? 0);
+
+      $isJefe = in_array($positionId, Position::POSITION_JEFE_PVT_IDS, true);
+      $isGerente = in_array($positionId, Position::POSITION_GERENTE_PV_IDS, true);
+
+      if (!($isJefe || $isGerente)) {
+        throw new Exception('Solo Jefe o Gerente de Postventa pueden aprobar esta solicitud de compra.');
+      }
+
+      $quotation->update([
+        'reviewed_by' => $user->id,
+        'reviewed_at' => now(),
+        'approved' => true
+      ]);
+
+      return new ApOrderPurchaseRequestsResource($quotation);
+    });
+  }
+
+  /**
+   * Envía notificación por correo al encargado o jefe de almacén sobre una nueva solicitud de compra
+   * @param int $id
+   * @return void
+   * @throws Exception
+   */
+  private function sendPurchaseRequestNotificationEmail(int $id): void
+  {
+    $purchaseRequest = ApOrderPurchaseRequests::with([
+      'warehouse.sede',
+      'requestedBy.person',
+      'details.product'
+    ])->find($id);
+
+    if (!$purchaseRequest) {
+      throw new Exception('Solicitud de compra no encontrada');
+    }
+
+    // Obtener la sede del almacén
+    $warehouse = $purchaseRequest->warehouse;
+    if (!$warehouse || !$warehouse->sede_id) {
+      \Log::warning("Solicitud de compra {$purchaseRequest->request_number}: No se pudo obtener la sede del almacén.");
+      return;
+    }
+
+    $sedeId = $warehouse->sede_id;
+
+    // Combinar los IDs de cargos de almacén (asistente y jefe)
+    $warehousePositionIds = array_merge(
+      Position::WAREHOUSE_ASSISTANT,
+      Position::WAREHOUSE_MANAGER
+    );
+
+    // Obtener los usuarios con cargo de almacén asignados a la sede
+    $warehouseUsers = User::whereHas('person', function ($query) use ($warehousePositionIds) {
+      $query->whereIn('cargo_id', $warehousePositionIds)
+        ->where('status_deleted', 1)
+        ->where('status_id', 22);
+    })
+      ->whereHas('sedes', function ($query) use ($sedeId) {
+        $query->where('config_sede.id', $sedeId)
+          ->where('assigment_user_sede.status', true);
+      })
+      ->with('person')
+      ->get();
+
+    if ($warehouseUsers->isEmpty()) {
+      \Log::warning("Solicitud de compra {$purchaseRequest->request_number}: No se encontraron encargados de almacén para la sede {$sedeId}.");
+      return;
+    }
+
+    // Preparar datos para el correo
+    $emailData = [
+      'request_number' => $purchaseRequest->request_number,
+      'requested_date' => $purchaseRequest->requested_date
+        ? $purchaseRequest->requested_date->format('d/m/Y')
+        : $purchaseRequest->created_at->format('d/m/Y'),
+      'observations' => $purchaseRequest->observations ?? '',
+
+      // Almacén y Sede
+      'warehouse_name' => $warehouse->description ?? 'N/A',
+      'sede_name' => $warehouse->sede?->abreviatura ?? 'N/A',
+
+      // Solicitante
+      'requested_by_name' => $purchaseRequest->requestedBy?->person?->nombre_completo ?? $purchaseRequest->requestedBy?->name ?? 'N/A',
+      'requested_by_email' => $purchaseRequest->requestedBy?->person?->email2 ?? 'N/A',
+
+      // Detalles de productos
+      'details' => $purchaseRequest->details->map(function ($detail) {
+        return [
+          'product_code' => $detail->product?->code ?? 'N/A',
+          'product_name' => $detail->product?->name ?? 'N/A',
+          'quantity' => $detail->quantity,
+          'supply_type' => $detail->supply_type ?? 'N/A',
+          'notes' => $detail->notes ?? '',
+        ];
+      }),
+
+      // URL del frontend
+      'button_url' => config('app.frontend_url') . '/ap/post-venta/gestion-de-almacen/solicitud-compra-almacen',
+    ];
+
+    $subject = 'Nueva Solicitud de Compra - ' . $purchaseRequest->request_number;
+
+    // Enviar correo a los encargados de almacén
+    foreach ($warehouseUsers as $user) {
+      $workerEmail = $user->person?->email2;
+
+      if ($workerEmail) {
+        try {
+          $this->emailService->queue([
+            'to' => 'wsuclupef2001@gmail.com',//$workerEmail,
+            'subject' => $subject,
+            'template' => 'emails.purchase-request-notification',
+            'data' => array_merge($emailData, [
+              'recipient_name' => $user->person->nombre_completo ?? 'Encargado de Almacén',
+              'recipient_role' => in_array($user->person->cargo_id, Position::WAREHOUSE_MANAGER)
+                ? 'Jefe de Almacén'
+                : 'Asistente de Almacén',
+            ]),
+          ]);
+        } catch (Exception $e) {
+          \Log::error("Error al enviar correo al encargado de almacén (User ID: {$user->id}): " . $e->getMessage());
+        }
+      }
+    }
+  }
+
+  /**
+   * Cancela una solicitud de compra
+   */
+  public function cancel($data)
+  {
+    return DB::transaction(function () use ($data) {
+      $id = $data['id'];
+      $purchaseRequest = $this->find($id);
+      $user = auth()->user();
+
+      if ($purchaseRequest->status === ApOrderPurchaseRequests::CANCELLED) {
+        throw new Exception('La solicitud de compra ya ha sido cancelada.');
+      }
+
+      if ($purchaseRequest->approved) {
+        throw new Exception('No se puede cancelar una solicitud de compra que ya ha sido aprobada.');
+      }
+
+      $positionId = (int)($user->person?->position?->id ?? 0);
+
+      $isJefe = in_array($positionId, Position::POSITION_JEFE_PVT_IDS, true);
+      $isGerente = in_array($positionId, Position::POSITION_GERENTE_PV_IDS, true);
+
+      if (!($isJefe || $isGerente)) {
+        throw new Exception('Solo Jefe o Gerente de Postventa pueden cancelar esta solicitud de compra.');
+      }
+
+      $purchaseRequest->update([
+        'reviewed_by' => $user->id,
+        'status' => ApOrderPurchaseRequests::CANCELLED,
+        'reviewed_at' => now(),
+      ]);
+
+      $purchaseRequest->load([
+        'vehicle',
+        'createdBy',
+        'details',
+        'chiefApprovalBy',
+        'managerApprovalBy',
+      ]);
+
+      return new ApOrderPurchaseRequestsResource($purchaseRequest);
+    });
+  }
+
+  public function notifyManagersForApproval(int $id)
+  {
+    return DB::transaction(function () use ($id) {
+      $purchaseRequest = ApOrderPurchaseRequests::with([
+        'warehouse.sede',
+        'requestedBy.person',
+        'details.product'
+      ])->find($id);
+
+      if (!$purchaseRequest) {
+        throw new Exception('Solicitud de compra no encontrada');
+      }
+
+      if ($purchaseRequest->notified_at) {
+        throw new Exception('Ya se ha enviado la notificación de aprobación para esta solicitud.');
+      }
+
+      // Obtener usuarios con cargo de Jefe y Gerente de Postventa
+      $managerPositionIds = array_merge(
+        Position::POSITION_JEFE_PVT_IDS,
+        Position::POSITION_GERENTE_PV_IDS
+      );
+
+      $managers = User::whereHas('person', function ($query) use ($managerPositionIds) {
+        $query->whereIn('cargo_id', $managerPositionIds)
+          ->where('status_deleted', 1)
+          ->where('status_id', 22);
+      })
+        ->with('person.position')
+        ->get();
+
+      if ($managers->isEmpty()) {
+        throw new Exception('No se encontraron jefes o gerentes de postventa para enviar la notificación.');
+      }
+
+      // Preparar datos para el correo
+      $emailData = [
+        'request_number' => $purchaseRequest->request_number,
+        'requested_date' => $purchaseRequest->requested_date
+          ? $purchaseRequest->requested_date->format('d/m/Y')
+          : $purchaseRequest->created_at->format('d/m/Y'),
+        'observations' => $purchaseRequest->observations ?? '',
+
+        // Almacén y Sede
+        'warehouse_name' => $purchaseRequest->warehouse->description ?? 'N/A',
+        'sede_name' => $purchaseRequest->warehouse->sede?->abreviatura ?? 'N/A',
+
+        // Solicitante
+        'requested_by_name' => $purchaseRequest->requestedBy?->person?->nombre_completo ?? $purchaseRequest->requestedBy?->name ?? 'N/A',
+        'requested_by_email' => $purchaseRequest->requestedBy?->person?->email2 ?? 'N/A',
+
+        // Detalles de productos
+        'details' => $purchaseRequest->details->map(function ($detail) {
+          return [
+            'product_code' => $detail->product?->code ?? 'N/A',
+            'product_name' => $detail->product?->name ?? 'N/A',
+            'quantity' => $detail->quantity,
+            'supply_type' => $detail->supply_type ?? 'N/A',
+            'notes' => $detail->notes ?? '',
+          ];
+        }),
+
+        // URL del frontend
+        'button_url' => config('app.frontend_url') . '/ap/post-venta/gestion-de-almacen/solicitud-compra-almacen',
+      ];
+
+      $subject = 'Solicitud de Aprobación de Compra - ' . $purchaseRequest->request_number;
+
+      // Enviar correo a cada jefe y gerente
+      foreach ($managers as $manager) {
+        $managerEmail = $manager->person?->email2;
+
+        if ($managerEmail) {
+          try {
+            $positionName = $manager->person?->position?->name ?? 'Jefatura';
+            $isGerente = in_array($manager->person->cargo_id, Position::POSITION_GERENTE_PV_IDS);
+
+            $this->emailService->queue([
+              'to' => 'wsuclupef2001@gmail.com', //$managerEmail,
+              'subject' => $subject,
+              'template' => 'emails.purchase-request-notification',
+              'data' => array_merge($emailData, [
+                'recipient_name' => $manager->person->nombre_completo ?? 'Jefatura',
+                'recipient_role' => $isGerente ? 'Gerente de Postventa' : 'Jefe de Postventa',
+              ]),
+            ]);
+          } catch (Exception $e) {
+            \Log::error("Error al enviar correo al manager (User ID: {$manager->id}): " . $e->getMessage());
+          }
+        }
+      }
+
+      // Actualizar el campo notified_at con la fecha actual
+      $purchaseRequest->update([
+        'notified_at' => now(),
+      ]);
+
+      return response()->json([
+        'message' => 'Notificación enviada correctamente a jefatura y gerencia.',
+        'notified_at' => $purchaseRequest->notified_at,
+      ]);
+    });
   }
 }
