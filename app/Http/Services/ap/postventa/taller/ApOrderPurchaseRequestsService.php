@@ -312,8 +312,15 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       'orderPurchaseRequest.warehouse',
       'product'
     ])
-      ->whereIn('status', ['pending', 'approved'])
+      ->where('status', 'pending')
+      ->whereHas('orderPurchaseRequest', function ($q) {
+        $q->where(function ($q2) {
+          $q2->where('approved', true)
+            ->orWhereNotNull('ap_order_quotation_id');
+        });
+      })
       ->orderBy('created_at', 'desc');
+
 
     // Filtro opcional por warehouse_id
     if ($request->has('warehouse_id')) {
