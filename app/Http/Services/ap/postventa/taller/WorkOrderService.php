@@ -563,6 +563,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('La orden de trabajo no tiene cotización asociada');
       }
 
+      if ($workOrder->advancesWorkOrder->count() > 0) {
+        throw new Exception("Esta cotización no puede ser desasociada. La orden de trabajo {$workOrder->correlative} al que se encuentra asociada ya tiene avances registrados.");
+      }
+
       // Obtener la cotización antes de desasociar
       $quotation = ApOrderQuotations::find($workOrder->order_quotation_id);
 
