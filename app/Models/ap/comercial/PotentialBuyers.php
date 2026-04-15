@@ -492,7 +492,7 @@ class PotentialBuyers extends Model
   private function getAdvisorsByBrandGroup($managerId, $periods)
   {
     // Paso 1: Obtener brand_group_ids del gerente comercial
-    $brandGroupIds = ApCommercialManagerBrandGroup::where('worker_id', $managerId)
+    $brandGroupIds = ApCommercialManagerBrandGroup::where('commercial_manager_id', $managerId)
       ->where('status', 1)
       ->where(function ($q) use ($periods) {
         foreach ($periods as $period) {
@@ -512,7 +512,7 @@ class PotentialBuyers extends Model
 
     // Paso 2: Obtener jefes asignados a esos grupos de marcas
     $bossIds = ApCommercialManagerBrandGroup::whereIn('brand_group_id', $brandGroupIds)
-      ->where('worker_id', '!=', $managerId)
+      ->where('commercial_manager_id', '!=', $managerId)
       ->where('status', 1)
       ->where(function ($q) use ($periods) {
         foreach ($periods as $period) {
@@ -523,7 +523,7 @@ class PotentialBuyers extends Model
         }
       })
       ->distinct()
-      ->pluck('worker_id')
+      ->pluck('commercial_manager_id')
       ->toArray();
 
     if (empty($bossIds)) {
