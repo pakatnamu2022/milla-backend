@@ -1161,4 +1161,123 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       ]));
     });
   }
+
+  /**
+   * Genera el token de confirmación virtual y envía el link por correo al cliente
+   */
+  public function sendVirtualConfirmationLink($id)
+  {
+    return DB::transaction(function () use ($id) {
+      $quotation = ApOrderQuotations::with([
+        'vehicle.model.family.brand',
+        'client',
+        'createdBy.person',
+        'sede',
+        'typeCurrency',
+        'details.product'
+      ])->find($id);
+
+      if (!$quotation) {
+        throw new Exception('Cotización no encontrada');
+      }
+
+      // Validar que la cotización esté en estado válido
+      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+        throw new Exception('No se puede enviar link de confirmación a una cotización descartada.');
+      }
+
+      if ($quotation->has_invoice_generated) {
+        throw new Exception('Esta cotización ya tiene una factura generada.');
+      }
+
+      if ($quotation->isConfirmed()) {
+        throw new Exception('Esta cotización ya fue confirmada anteriormente.');
+      }
+
+      // Validar que haya un email del cliente
+      if (!$quotation->client || !$quotation->client->email) {
+        throw new Exception('El cliente no tiene un correo electrónico registrado.');
+      }
+
+      // Generar o regenerar el token
+      $confirmationLink = $quotation->getConfirmationLink();
+
+      // Preparar datos para el correo
+      $emailData = [
+        'quotation_number' => $quotation->quotation_number,
+        'quotation_date' => $quotation->quotation_date ? $quotation->quotation_date->format('d/m/Y') : 'N/A',
+        'expiration_date' => $quotation->expiration_date ? $quotation->expiration_date->format('d/m/Y') : 'N/A',
+        'total_amount' => $quotation->total_amount,
+        'currency' => $quotation->typeCurrency?->code ?? 'PEN',
+
+        // Cliente
+        'customer_name' => $quotation->client->full_name,
+        'customer_email' => $quotation->client->email,
+
+        // Vehículo
+        'vehicle_plate' => $quotation->vehicle?->plate ?? 'N/A',
+        'vehicle_brand' => $quotation->vehicle?->model?->family?->brand?->name ?? 'N/A',
+        'vehicle_model' => $quotation->vehicle?->model?->version ?? 'N/A',
+
+        // Asesor
+        'advisor_name' => $quotation->createdBy?->person?->nombre_completo ?? 'N/A',
+        'advisor_email' => $quotation->createdBy?->person?->email2 ?? 'N/A',
+        'advisor_phone' => $quotation->createdBy?->person?->cel_personal ?? 'N/A',
+
+        // Sede
+        'sede_name' => $quotation->sede?->razon_social ?? 'N/A',
+
+        // Link de confirmación
+        'confirmation_link' => $confirmationLink,
+        'token_expires_at' => $quotation->confirmation_token_expires_at?->format('d/m/Y H:i'),
+      ];
+
+      // Enviar correo al cliente
+      $this->emailService->queue([
+        'to' => $quotation->client->email,
+        'subject' => 'Confirmación de Cotización - ' . $quotation->quotation_number,
+        'template' => 'emails.quotation-virtual-confirmation',
+        'data' => $emailData,
+      ]);
+
+      // Incrementar contador de emails enviados
+      $quotation->increment('emails_sent_count');
+
+      return [
+        'message' => 'Link de confirmación enviado exitosamente al correo del cliente.',
+        'confirmation_link' => $confirmationLink,
+        'sent_to' => $quotation->client->email,
+        'expires_at' => $quotation->confirmation_token_expires_at,
+        'quotation' => new ApOrderQuotationsResource($quotation->fresh())
+      ];
+    });
+  }
+
+  /**
+   * Regenera el token de confirmación si ha expirado
+   */
+  public function regenerateConfirmationToken($id)
+  {
+    return DB::transaction(function () use ($id) {
+      $quotation = $this->find($id);
+
+      if ($quotation->isConfirmed()) {
+        throw new Exception('No se puede regenerar el token de una cotización ya confirmada.');
+      }
+
+      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+        throw new Exception('No se puede regenerar el token de una cotización descartada.');
+      }
+
+      // Generar nuevo token
+      $quotation->generateConfirmationToken();
+
+      return [
+        'message' => 'Token regenerado exitosamente.',
+        'confirmation_link' => $quotation->getConfirmationLink(),
+        'expires_at' => $quotation->confirmation_token_expires_at,
+        'quotation' => new ApOrderQuotationsResource($quotation)
+      ];
+    });
+  }
 }

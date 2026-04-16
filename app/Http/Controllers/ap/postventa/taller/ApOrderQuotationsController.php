@@ -200,4 +200,22 @@ class ApOrderQuotationsController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function sendVirtualConfirmationLink($id)
+  {
+    try {
+      return $this->success($this->service->sendVirtualConfirmationLink($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function regenerateConfirmationToken($id)
+  {
+    try {
+      return $this->success($this->service->regenerateConfirmationToken($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

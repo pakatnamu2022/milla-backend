@@ -766,14 +766,6 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
         'reviewed_at' => now(),
       ]);
 
-      $purchaseRequest->load([
-        'vehicle',
-        'createdBy',
-        'details',
-        'chiefApprovalBy',
-        'managerApprovalBy',
-      ]);
-
       return new ApOrderPurchaseRequestsResource($purchaseRequest);
     });
   }

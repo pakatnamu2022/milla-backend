@@ -53,6 +53,7 @@ use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationDetailsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationsController;
+use App\Http\Controllers\ap\postventa\taller\PublicQuotationConfirmationController;
 use App\Http\Controllers\ap\postventa\taller\DiscountRequestsOrderQuotationController;
 use App\Http\Controllers\ap\postventa\taller\DiscountRequestsWorkOrderController;
 use App\Http\Controllers\ap\postventa\taller\ApSupplierOrderController;
@@ -1334,6 +1335,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::put('orderQuotations/{id}/confirm', [ApOrderQuotationsController::class, 'confirm']);
       Route::put('orderQuotations/{id}/approve', [ApOrderQuotationsController::class, 'approve']);
       Route::post('orderQuotations/{id}/send-notification', [ApOrderQuotationsController::class, 'sendNotificationEmail']);
+      Route::post('orderQuotations/{id}/send-virtual-confirmation', [ApOrderQuotationsController::class, 'sendVirtualConfirmationLink']);
+      Route::post('orderQuotations/{id}/regenerate-token', [ApOrderQuotationsController::class, 'regenerateConfirmationToken']);
       Route::put('orderQuotations/{id}/delivery-info', [ApOrderQuotationsController::class, 'updateDeliveryInfo']);
       Route::get('orderQuotations/for-purchase-request/list', [ApOrderQuotationsController::class, 'listForPurchaseRequest']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
@@ -1680,4 +1683,11 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::patch('/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::delete('/{id}', [NotificationController::class, 'destroy']);
   });
+});
+
+// PUBLIC ROUTES - No authentication required
+Route::group(['prefix' => 'public'], function () {
+  // Confirmación Virtual de Cotizaciones (sin autenticación)
+  Route::get('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'show']);
+  Route::post('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'confirm']);
 });
