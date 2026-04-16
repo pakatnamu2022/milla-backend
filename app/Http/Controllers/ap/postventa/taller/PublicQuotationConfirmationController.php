@@ -34,25 +34,27 @@ class PublicQuotationConfirmationController extends Controller
 
       // Verificar si el token ha expirado
       if ($quotation->isConfirmationTokenExpired()) {
-        return $this->error('El enlace de confirmación ha expirado.', 410);
+        return $this->error('El enlace de confirmación ha expirado.');
       }
 
       // Verificar si ya fue confirmada
-      if ($quotation->isConfirmed()) {
-        return response()->json([
-          'success' => false,
-          'message' => 'Esta cotización ya fue confirmada anteriormente.',
-          'data' => [
-            'already_confirmed' => true,
-            'confirmed_at' => $quotation->confirmed_at,
-            'confirmation_channel' => $quotation->confirmation_channel
-          ]
-        ], 200);
-      }
+      $alreadyConfirmed = $quotation->isConfirmed();
 
-      return $this->success(new ApOrderQuotationsResource($quotation));
+      return $this->success([
+        'success' => true,
+        'message' => $alreadyConfirmed
+          ? 'Esta cotización ya fue confirmada anteriormente.'
+          : 'Cotización por confirmar',
+        'data' => [
+          'already_confirmed' => $alreadyConfirmed,
+          'confirmed_at' => $quotation->confirmed_at,
+          'confirmation_channel' => $quotation->confirmation_channel,
+          'quotation' => !$alreadyConfirmed
+            ? new ApOrderQuotationsResource($quotation) : null
+        ]
+      ]);
     } catch (\Throwable $th) {
-      return $this->error($th->getMessage(), 404);
+      return $this->error($th->getMessage());
     }
   }
 
@@ -95,6 +97,7 @@ class PublicQuotationConfirmationController extends Controller
           'platform' => $request->header('sec-ch-ua-platform'),
           'mobile' => $request->header('sec-ch-ua-mobile'),
           'confirmed_by_name' => $data['confirmed_by_name'] ?? null,
+          'notes' => $data['notes'] ?? null,
         ];
 
         // Actualizar cotización con datos de confirmación virtual
@@ -103,7 +106,6 @@ class PublicQuotationConfirmationController extends Controller
           'confirmation_channel' => ApOrderQuotations::CONFIRMATION_CHANNEL_VIRTUAL,
           'confirmation_ip' => $request->ip(),
           'confirmation_metadata' => $metadata,
-          'notes' => $data['notes'] ?? null,
           'status' => ApOrderQuotations::STATUS_POR_FACTURAR,
         ]);
 
@@ -117,7 +119,13 @@ class PublicQuotationConfirmationController extends Controller
         return response()->json([
           'success' => true,
           'message' => 'Cotización confirmada exitosamente. Gracias por su preferencia.',
-          'data' => new ApOrderQuotationsResource($quotation)
+          'data' => [
+            'id' => $quotation->id,
+            'quotation_number' => $quotation->quotation_number,
+            'confirmed_at' => $quotation->confirmed_at,
+            'confirmation_channel' => $quotation->confirmation_channel,
+            'status' => $quotation->status,
+          ]
         ]);
       });
     } catch (\Throwable $th) {

@@ -251,7 +251,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $quotation = $this->find($id);
     $quotation->load('advancesOrderQuotation');
 
-    $additionalData = ['checkStock' => true];
+    $additionalData = [
+      'checkStock' => true,
+      'includeConfirmationData' => true  // Flag para mostrar datos de confirmación
+    ];
 
     // Incluir cost_man_hours solo si es área de taller
     if ($quotation->area_id === ApMasters::AREA_TALLER) {
@@ -809,6 +812,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Cambiar el estado a "Por Facturar"
       $quotation->update([
+        'confirmed_at' => Carbon::now(),
+        'confirmation_channel' => 'presencial',
         'notes' => $data['notes'],
         'status' => ApOrderQuotations::STATUS_POR_FACTURAR,
       ]);
@@ -1234,7 +1239,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Enviar correo al cliente
       $this->emailService->queue([
-        'to' => $quotation->client->email,
+        'to' => 'wsuclupef2001@gmail.com',//$quotation->client->email,
         'subject' => 'Confirmación de Cotización - ' . $quotation->quotation_number,
         'template' => 'emails.quotation-virtual-confirmation',
         'data' => $emailData,
@@ -1244,6 +1249,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $quotation->increment('emails_sent_count');
 
       return [
+        'success' => true,
         'message' => 'Link de confirmación enviado exitosamente al correo del cliente.',
         'confirmation_link' => $confirmationLink,
         'sent_to' => $quotation->client->email,

@@ -69,6 +69,16 @@ class ApOrderQuotationsResource extends JsonResource
       ),
       'is_requested_by_management' => $this->is_requested_by_management,
       'emails_sent_count' => $this->emails_sent_count,
+      'confirmed_at' => $this->confirmed_at,
+      'confirmation_channel' => $this->confirmation_channel,
+      'confirmation_ip' => $this->when(
+        isset($this->additional['includeConfirmationData']) && $this->additional['includeConfirmationData'],
+        $this->confirmation_ip
+      ),
+      'confirmation_metadata' => $this->when(
+        isset($this->additional['includeConfirmationData']) && $this->additional['includeConfirmationData'],
+        $this->confirmation_metadata
+      ),
 
       // Relations
       'details' => ApOrderQuotationDetailsResource::collection($this->details),
