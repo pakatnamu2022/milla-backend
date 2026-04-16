@@ -29,7 +29,7 @@ class Opportunity extends Model
   ];
 
   const filters = [
-    'search' => ['client.full_name', 'client.num_doc', 'family.description'],
+    'search' => ['client.full_name', 'client.num_doc', 'family.description', 'client.phone'],
     'worker_id' => '=',
     'client_id' => '=',
     'family_id' => '=',
