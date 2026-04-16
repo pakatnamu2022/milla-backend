@@ -11,6 +11,8 @@ use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ApDeliveryChecklist;
 use App\Models\ap\comercial\ApVehicleDelivery;
+use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
@@ -143,8 +145,17 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       $data['real_wash_date'] = now();
     }
 
-    // Si status_delivery cambia a completed, setear real_delivery_date
+    // Si status_delivery cambia a completed, verificar accesorios pendientes y setear real_delivery_date
     if (isset($data['status_delivery']) && $data['status_delivery'] === 'completed') {
+      $pendingInstWO = ApWorkOrder::where('vehicle_id', $vehicleDelivery->vehicle_id)
+        ->whereHas('items', fn($q) => $q->where('type_planning_id', TypePlanningWorkOrder::TYPE_PLANNING_INST_ACCESORIOS_ID))
+        ->where('status_id', '!=', ApMasters::CLOSED_WORK_ORDER_ID)
+        ->exists();
+
+      if ($pendingInstWO) {
+        throw new Exception('No se puede completar la entrega: existen órdenes de trabajo de instalación de accesorios pendientes de cierre.');
+      }
+
       $data['real_delivery_date'] = now();
     }
 

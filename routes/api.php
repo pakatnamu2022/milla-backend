@@ -1264,7 +1264,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('workOrders/{id}/delivery-report', [WorkOrderController::class, 'generateDeliveryReport']);
       Route::post('workOrders/{id}/generate-internal-note', [WorkOrderController::class, 'generateInternalNote']);
       Route::post('workOrders/generate-pdi/{vehicleId}', [WorkOrderController::class, 'generatePDIForVehicle']);
-      Route::post('workOrders/generate-inst-accessories/{vehicleId}', [WorkOrderController::class, 'generatePDIForVehicle']);
+      Route::post('workOrders/generate-inst-accessories/{vehicleId}', [WorkOrderController::class, 'generateInstallationAccessories']);
       Route::apiResource('workOrders', WorkOrderController::class)->only([
         'index',
         'show',
@@ -1572,6 +1572,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('hotel-reservations/{reservationId}', [HotelReservationController::class, 'update']);
     Route::delete('hotel-reservations/{reservationId}', [HotelReservationController::class, 'destroy']);
     Route::post('hotel-reservations/{reservationId}/mark-attended', [HotelReservationController::class, 'markAttended']);
+    Route::post('hotel-reservations/{reservationId}/release', [HotelReservationController::class, 'release']);
 
     // Policies
     Route::apiResource('perDiemPolicy', PerDiemPolicyController::class)->only([
@@ -1690,4 +1691,8 @@ Route::group(['prefix' => 'public'], function () {
   // Confirmación Virtual de Cotizaciones (sin autenticación)
   Route::get('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'show']);
   Route::post('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'confirm']);
+// External API routes — authenticated via static API Key (Authorization: ApiKey <key>)
+Route::middleware(['api.key'])->prefix('external')->group(function () {
+  Route::post('/document-validation/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
+  Route::post('/document-validation/validate/dni', [DocumentValidationController::class, 'validateDni']);
 });

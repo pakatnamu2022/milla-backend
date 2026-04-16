@@ -33,6 +33,7 @@ class PurchaseRequestQuote extends Model
     'base_selling_price',
     'sale_price',
     'doc_sale_price',
+    'down_payment',
     'comment',
     'is_invoiced',
     'is_approved',

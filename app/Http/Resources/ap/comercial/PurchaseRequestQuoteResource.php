@@ -31,6 +31,7 @@ class PurchaseRequestQuoteResource extends JsonResource
       'base_selling_price' => round($this->base_selling_price, 2),
       'sale_price' => round($this->sale_price, 2),
       'doc_sale_price' => round($this->doc_sale_price, 2),
+      'down_payment' => $this->down_payment ? round($this->down_payment, 2) : null,
       'type_currency_id' => $this->type_currency_id,
       'type_currency' => $this->typeCurrency->code ?? null,
       'type_currency_symbol' => $this->typeCurrency->code . ' ' . $this->typeCurrency->symbol ?? null,
