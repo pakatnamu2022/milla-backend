@@ -1691,8 +1691,10 @@ Route::group(['prefix' => 'public'], function () {
   // Confirmación Virtual de Cotizaciones (sin autenticación)
   Route::get('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'show']);
   Route::post('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'confirm']);
-// External API routes — authenticated via static API Key (Authorization: ApiKey <key>)
-Route::middleware(['api.key'])->prefix('external')->group(function () {
-  Route::post('/document-validation/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
-  Route::post('/document-validation/validate/dni', [DocumentValidationController::class, 'validateDni']);
+
+  // External API routes — authenticated via static API Key (Authorization: ApiKey <key>)
+  Route::middleware(['api.key'])->prefix('external')->group(function () {
+    Route::post('/document-validation/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
+    Route::post('/document-validation/validate/dni', [DocumentValidationController::class, 'validateDni']);
+  });
 });
