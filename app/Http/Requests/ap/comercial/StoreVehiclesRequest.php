@@ -12,7 +12,7 @@ class StoreVehiclesRequest extends StoreRequest
       'plate' => 'sometimes|nullable|string|max:10|unique:ap_vehicles,plate',
       'vin' => 'required|string|max:17|min:17|unique:ap_vehicles,vin',
       'year' => 'required|integer|min:1900|max:' . ((int)date('Y') + 2),
-      'year_delivery' => 'required|integer|min:1900|max:' . ((int)date('Y') + 3),
+      'year_delivery' => 'nullable|integer|min:1900|max:' . ((int)date('Y') + 3),
       'engine_number' => 'required|string|max:50|unique:ap_vehicles,engine_number',
       'ap_models_vn_id' => 'required|integer|exists:ap_models_vn,id',
       'vehicle_color_id' => 'required|integer|exists:ap_masters,id',
