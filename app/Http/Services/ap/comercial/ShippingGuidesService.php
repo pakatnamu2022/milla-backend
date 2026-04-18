@@ -248,14 +248,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       $origin = BusinessPartnersEstablishment::find($data['transmitter_id']) ?? null;
       $destination = BusinessPartnersEstablishment::find($data['receiver_id']) ?? null;
-      // Crear el movimiento de vehículo de consignación
-      $vehicleMovement = $this->vehicleMovementService->storeShippingGuideConsignmentVehicleMovement(
-        $data['ap_vehicle_id'],
-        $origin->address ?? '-',
-        $destination->address ?? '-',
-        $data['notes'] ?? null,
-        $data['issue_date']
-      );
 
       // Manejar la carga del archivo si existe
       $file = null;
@@ -319,6 +311,15 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           $companyNameTransport = $transportCompany->full_name;
         }
       }
+
+      // Crear el movimiento de vehículo de consignación
+      $vehicleMovement = $this->vehicleMovementService->storeShippingGuideConsignmentVehicleMovement(
+        $data['ap_vehicle_id'],
+        $origin->address ?? '-',
+        $destination->address ?? '-',
+        $data['notes'] ?? "Vehículo en consignación - {$documentNumber}",
+        $data['issue_date']
+      );
 
       $documentData = [
         'document_type' => $data['document_type'],
@@ -929,7 +930,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
     return [
       'header' => $header->toArray(request()),
-      'lines'  => $lines,
+      'lines' => $lines,
     ];
   }
 
