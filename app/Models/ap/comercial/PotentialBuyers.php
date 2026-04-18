@@ -6,18 +6,17 @@ use App\Http\Traits\Reportable;
 use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
-use App\Models\ap\configuracionComercial\venta\ApCommercialManagerBrandGroup;
+use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class PotentialBuyers extends Model
+class PotentialBuyers extends BaseModel
 {
   use SoftDeletes, Reportable;
 

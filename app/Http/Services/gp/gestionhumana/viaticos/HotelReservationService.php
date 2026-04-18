@@ -88,23 +88,23 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
       }
 
       // Check for overlapping reservations in the same hotel agreement
-      if (!empty($data['hotel_agreement_id'])) {
-        $overlap = HotelReservation::where('hotel_agreement_id', $data['hotel_agreement_id'])
-          ->where('per_diem_request_id', '!=', $data['per_diem_request_id'])
-          ->where(function ($q) use ($data) {
-            $q->whereBetween('checkin_date', [$data['checkin_date'], $data['checkout_date']])
-              ->orWhereBetween('checkout_date', [$data['checkin_date'], $data['checkout_date']])
-              ->orWhere(function ($q2) use ($data) {
-                $q2->where('checkin_date', '<=', $data['checkin_date'])
-                  ->where('checkout_date', '>=', $data['checkout_date']);
-              });
-          })
-          ->exists();
-
-        if ($overlap) {
-          throw new Exception('Este hotel ya tiene una reserva activa para las fechas indicadas en otra solicitud. Verifique que no se esté registrando un duplicado.');
-        }
-      }
+//      if (!empty($data['hotel_agreement_id'])) {
+//        $overlap = HotelReservation::where('hotel_agreement_id', $data['hotel_agreement_id'])
+//          ->where('per_diem_request_id', '!=', $data['per_diem_request_id'])
+//          ->where(function ($q) use ($data) {
+//            $q->whereBetween('checkin_date', [$data['checkin_date'], $data['checkout_date']])
+//              ->orWhereBetween('checkout_date', [$data['checkin_date'], $data['checkout_date']])
+//              ->orWhere(function ($q2) use ($data) {
+//                $q2->where('checkin_date', '<=', $data['checkin_date'])
+//                  ->where('checkout_date', '>=', $data['checkout_date']);
+//              });
+//          })
+//          ->exists();
+//
+//        if ($overlap) {
+//          throw new Exception('Este hotel ya tiene una reserva activa para las fechas indicadas en otra solicitud. Verifique que no se esté registrando un duplicado.');
+//        }
+//      }
 
       // Extraer archivo del array de datos
       $files = $this->extractFiles($data);
@@ -406,7 +406,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
   /**
    * Create or update the company expense linked to a hotel reservation.
    *
-   * @param bool $validate  Pass true only when the hotel has been attended and
+   * @param bool $validate Pass true only when the hotel has been attended and
    *                        a real receipt exists (called from markAsAttended).
    *                        At booking time there is no invoice yet, so the
    *                        expense stays unvalidated until checkout.

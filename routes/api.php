@@ -53,6 +53,7 @@ use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationDetailsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationsController;
+use App\Http\Controllers\ap\postventa\taller\PublicQuotationConfirmationController;
 use App\Http\Controllers\ap\postventa\taller\DiscountRequestsOrderQuotationController;
 use App\Http\Controllers\ap\postventa\taller\DiscountRequestsWorkOrderController;
 use App\Http\Controllers\ap\postventa\taller\ApSupplierOrderController;
@@ -1334,6 +1335,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::put('orderQuotations/{id}/confirm', [ApOrderQuotationsController::class, 'confirm']);
       Route::put('orderQuotations/{id}/approve', [ApOrderQuotationsController::class, 'approve']);
       Route::post('orderQuotations/{id}/send-notification', [ApOrderQuotationsController::class, 'sendNotificationEmail']);
+      Route::post('orderQuotations/{id}/send-virtual-confirmation', [ApOrderQuotationsController::class, 'sendVirtualConfirmationLink']);
+      Route::post('orderQuotations/{id}/regenerate-token', [ApOrderQuotationsController::class, 'regenerateConfirmationToken']);
       Route::put('orderQuotations/{id}/delivery-info', [ApOrderQuotationsController::class, 'updateDeliveryInfo']);
       Route::get('orderQuotations/for-purchase-request/list', [ApOrderQuotationsController::class, 'listForPurchaseRequest']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
@@ -1365,6 +1368,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Order Purchase Requests - Solicitudes de Compra de Órdenes
+      Route::put('orderPurchaseRequests/{id}/approve', [ApOrderPurchaseRequestsController::class, 'approve']);
+      Route::put('orderPurchaseRequests/{id}/cancel', [ApOrderPurchaseRequestsController::class, 'cancel']);
+      Route::post('orderPurchaseRequests/{id}/notify-managers', [ApOrderPurchaseRequestsController::class, 'notifyManagers']);
       Route::get('orderPurchaseRequests/pending-details', [ApOrderPurchaseRequestsController::class, 'getPendingDetails']);
       Route::get('orderPurchaseRequests/{id}/pdf', [ApOrderPurchaseRequestsController::class, 'downloadPDF']);
       Route::patch('orderPurchaseRequests/details/{id}/reject', [ApOrderPurchaseRequestsController::class, 'rejectDetail']);
@@ -1680,8 +1686,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   });
 });
 
-// External API routes — authenticated via static API Key (Authorization: ApiKey <key>)
-Route::middleware(['api.key'])->prefix('external')->group(function () {
-  Route::post('/document-validation/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
-  Route::post('/document-validation/validate/dni', [DocumentValidationController::class, 'validateDni']);
+// PUBLIC ROUTES - No authentication required
+Route::group(['prefix' => 'public'], function () {
+  // Confirmación Virtual de Cotizaciones (sin autenticación)
+  Route::get('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'show']);
+  Route::post('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'confirm']);
+
+  // External API routes — authenticated via static API Key (Authorization: ApiKey <key>)
+  Route::middleware(['api.key'])->prefix('external')->group(function () {
+    Route::post('/document-validation/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
+    Route::post('/document-validation/validate/dni', [DocumentValidationController::class, 'validateDni']);
+  });
 });

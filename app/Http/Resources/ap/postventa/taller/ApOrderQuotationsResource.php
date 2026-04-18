@@ -54,7 +54,7 @@ class ApOrderQuotationsResource extends JsonResource
       'discard_reason' => $this->discardReason->description ?? null,
       'discarded_note' => $this->discarded_note,
       'discarded_by_name' => $this->discardedBy->name ?? null,
-      'discarded_at' => $this->discarded_at ? $this->discarded_at->format('Y-m-d') : null,
+      'discarded_at' => $this->discarded_at,
       'supply_type' => $this->supply_type,
       'customer_signature_delivery_url' => $this->customer_signature_delivery_url,
       'delivery_document_number' => $this->delivery_document_number,
@@ -69,6 +69,16 @@ class ApOrderQuotationsResource extends JsonResource
       ),
       'is_requested_by_management' => $this->is_requested_by_management,
       'emails_sent_count' => $this->emails_sent_count,
+      'confirmed_at' => $this->confirmed_at,
+      'confirmation_channel' => $this->confirmation_channel,
+      'confirmation_ip' => $this->when(
+        isset($this->additional['includeConfirmationData']) && $this->additional['includeConfirmationData'],
+        $this->confirmation_ip
+      ),
+      'confirmation_metadata' => $this->when(
+        isset($this->additional['includeConfirmationData']) && $this->additional['includeConfirmationData'],
+        $this->confirmation_metadata
+      ),
 
       // Relations
       'details' => ApOrderQuotationDetailsResource::collection($this->details),
