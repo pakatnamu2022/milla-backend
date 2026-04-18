@@ -105,9 +105,9 @@ Schedule::command('app:check-pending-electronic-documents')
 
 // Redistribuir leads pendientes (use=0, >24h) entre asesores del mismo grupo shop+marca
 // Ejecuta diariamente a medianoche (hora Lima)
-Schedule::command('ap:redistribute-potential-buyers')
-  ->dailyAt('00:00')
-  ->timezone('America/Lima')
-  ->withoutOverlapping()
-  ->runInBackground();
+//Schedule::command('ap:redistribute-potential-buyers')
+//  ->dailyAt('00:00')
+//  ->timezone('America/Lima')
+//  ->withoutOverlapping()
+//  ->runInBackground();
 

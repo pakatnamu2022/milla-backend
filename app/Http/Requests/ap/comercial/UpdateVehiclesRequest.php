@@ -22,7 +22,7 @@ class UpdateVehiclesRequest extends StoreRequest
           ->whereNull('deleted_at')
       ],
       'year' => 'sometimes|required|integer|min:1900|max:' . ((int)date('Y') + 2),
-      'year_delivery' => 'sometimes|required|integer|min:1900|max:' . ((int)date('Y') + 3),
+      'year_delivery' => 'sometimes|integer|min:1900|max:' . ((int)date('Y') + 3),
       'engine_number' => [
         'sometimes',
         'required',
