@@ -10,7 +10,7 @@ class StoreVehiclesRequest extends StoreRequest
   {
     return [
       'plate' => 'sometimes|nullable|string|max:10|unique:ap_vehicles,plate',
-      'vin' => 'required|string|max:17|min:17|unique:ap_vehicles,vin',
+      'vin' => 'required|string|max:20|min:17|unique:ap_vehicles,vin',
       'year' => 'required|integer|min:1900|max:' . ((int)date('Y') + 2),
       'year_delivery' => 'nullable|integer|min:1900|max:' . ((int)date('Y') + 3),
       'engine_number' => 'required|string|max:50|unique:ap_vehicles,engine_number',
@@ -27,36 +27,23 @@ class StoreVehiclesRequest extends StoreRequest
     ];
   }
 
-  public function messages(): array
+  public function attributes()
   {
     return [
-      'plate.max' => 'La placa no debe exceder los 10 caracteres',
-      'plate.unique' => 'La placa ya se encuentra registrada',
-      'vin.required' => 'El VIN es requerido',
-      'vin.unique' => 'El VIN ya existe en el sistema',
-      'vin.min' => 'El VIN debe tener exactamente 17 caracteres',
-      'vin.max' => 'El VIN debe tener exactamente 17 caracteres',
-      'year.required' => 'El año es requerido',
-      'year.integer' => 'El año debe ser un número entero',
-      'year.min' => 'El año debe ser mayor a 1900',
-      'year.max' => 'El año no puede ser mayor a ' . ((int)date('Y') + 2),
-      'year_delivery.required' => 'El año de entrega es requerido',
-      'year_delivery.integer' => 'El año de entrega debe ser un número entero',
-      'year_delivery.min' => 'El año de entrega debe ser mayor a 1900',
-      'year_delivery.max' => 'El año de entrega no puede ser mayor a ' . ((int)date('Y') + 3),
-      'engine_number.required' => 'El número de motor es requerido',
-      'engine_number.unique' => 'El número de motor ya existe en el sistema',
-      'ap_models_vn_id.required' => 'El modelo es requerido',
-      'ap_models_vn_id.exists' => 'El modelo seleccionado no existe',
-      'vehicle_color_id.required' => 'El color es requerido',
-      'vehicle_color_id.exists' => 'El color seleccionado no existe',
-      'engine_type_id.required' => 'El tipo de motor es requerido',
-      'engine_type_id.exists' => 'El tipo de motor seleccionado no existe',
-      'sede_id.required' => 'La sede es requerida',
-      'sede_id.exists' => 'La sede seleccionada no existe',
-      'warehouse_physical_id.exists' => 'El almacén seleccionado no existe',
-      'type_operation_id.exists' => 'El tipo de operación seleccionado no existe',
-      'customer_id.exists' => 'El cliente seleccionado no existe',
+      'plate' => 'placa',
+      'vin' => 'vin',
+      'year' => 'año',
+      'year_delivery' => 'año delivery',
+      'engine_number' => 'número de motor',
+      'ap_models_vn_id' => 'modelo',
+      'vehicle_color_id' => 'color',
+      'supplier_order_type_id' => 'tipo de orden',
+      'ap_vehicle_status_id' => 'estado del vehiculo',
+      'sede_id' => 'sede',
+      'warehouse_physical_id' => 'placa',
+      'type_operation_id' => 'tipo de operacion',
+      'customer_id' => 'cliente',
+      'is_heavy' => 'es pesado',
     ];
   }
 }
