@@ -7,6 +7,7 @@ use App\Http\Resources\ap\postventa\taller\ApSupplierOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Utils\Constants;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequests;
 use App\Models\ap\postventa\taller\ApSupplierOrder;
@@ -65,12 +66,14 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
     return DB::transaction(function () use ($data) {
       // Get exchange rate for order date
       $date = Carbon::parse($data['order_date'])->format('Y-m-d');
+      $warehouse = Warehouse::find($data['warehouse_id']);
 
       $exchangeRate = ExchangeRate::where('date', $date)->first();
       if (!$exchangeRate) {
         throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
       }
       $data['exchange_rate'] = $exchangeRate->rate;
+      $data['sede_id'] = $warehouse->sede_id;
 
       // Set created_by
       if (auth()->check()) {
@@ -161,10 +164,12 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
   {
     return DB::transaction(function () use ($data) {
       $supplierOrder = $this->find($data['id']);
+      $warehouse = Warehouse::find($data['warehouse_id']);
 
       if (!is_null($supplierOrder->ap_purchase_order_id)) {
         throw new Exception('No se puede editar una orden al proveedor que ya se le ha registrado una factura.');
       }
+      $data['sede_id'] = $warehouse->sede_id;
 
       // Extract details from data
       $details = $data['details'] ?? null;

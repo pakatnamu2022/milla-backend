@@ -23,12 +23,6 @@ class UpdateApSupplierOrderRequest extends StoreRequest
         'integer',
         'exists:business_partners,id',
       ],
-      'sede_id' => [
-        'sometimes',
-        'required',
-        'integer',
-        'exists:config_sede,id',
-      ],
       'warehouse_id' => [
         'sometimes',
         'required',
@@ -102,10 +96,6 @@ class UpdateApSupplierOrderRequest extends StoreRequest
       'supplier_id.required' => 'El proveedor es obligatorio.',
       'supplier_id.integer' => 'El proveedor debe ser un entero.',
       'supplier_id.exists' => 'El proveedor seleccionado no es válido.',
-
-      'sede_id.required' => 'La sede es obligatoria.',
-      'sede_id.integer' => 'La sede debe ser un entero.',
-      'sede_id.exists' => 'La sede seleccionada no es válida.',
 
       'warehouse_id.required' => 'El almacén es obligatorio.',
       'warehouse_id.integer' => 'El almacén debe ser un entero.',
