@@ -7,6 +7,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\common\EmailService;
 use App\Http\Utils\Constants;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequests;
 use App\Models\ap\maestroGeneral\Warehouse;
@@ -16,8 +17,10 @@ use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -62,11 +65,18 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
     return DB::transaction(function () use ($data) {
       // Generate unique request number
       $data['request_number'] = $this->generateRequestNumber();
+      $date = Carbon::parse($data['requested_date'])->format('Y-m-d');
+
+      $exchangeRate = ExchangeRate::where('date', $date)->first();
+      if (!$exchangeRate) {
+        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      }
 
       // Set requested_by
       if (auth()->check()) {
         $data['requested_by'] = auth()->user()->id;
       }
+      $data['exchange_rate'] = $exchangeRate->rate;
 
       // Extract details from data
       $details = $data['details'] ?? [];
@@ -124,6 +134,12 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
   {
     return DB::transaction(function () use ($data) {
       $purchaseRequest = $this->find($data['id']);
+      $date = Carbon::parse($data['requested_date'])->format('Y-m-d');
+
+      $exchangeRate = ExchangeRate::where('date', $date)->first();
+      if (!$exchangeRate) {
+        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      }
 
       if ($purchaseRequest->ap_order_quotation_id) {
         throw new Exception("No se puede modificar una solicitud de compra asociada a una cotización.");
@@ -144,6 +160,8 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       if ($purchaseRequest->status === ApOrderPurchaseRequests::RECEIVED) {
         throw new Exception("No se puede modificar una solicitud de compra que ha sido recibida.");
       }
+
+      $data['exchange_rate'] = $exchangeRate->rate;
 
       // Extract details from data
       $details = $data['details'] ?? null;
@@ -300,12 +318,6 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
     return $prefix . str_pad($newSequence, 4, '0', STR_PAD_LEFT);
   }
 
-  /**
-   * Obtener detalles de solicitudes pendientes para crear órdenes de compra
-   * Solo devuelve detalles con status 'pending'
-   * @param Request $request
-   * @return \Illuminate\Http\JsonResponse
-   */
   public function getPendingDetails(Request $request)
   {
     $query = ApOrderPurchaseRequestDetails::with([
@@ -347,11 +359,15 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
           'id' => $detail->id,
           'ap_purchase_request_id' => $detail->order_purchase_request_id,
           'request_number' => $detail->orderPurchaseRequest->request_number,
+          'currency_symbol' => $detail->orderPurchaseRequest->typeCurrency->symbol ?? null,
           'product_id' => $detail->product_id,
           'product_name' => $detail->product->name ?? null,
           'product_code' => $detail->product->code ?? null,
           'unit_measurement_id' => $detail->product->unit_measurement_id ?? null,
           'quantity' => $detail->quantity,
+          'unit_price' => $detail->unit_price,
+          'discount_percentage' => $detail->discount_percentage,
+          'total_amount' => $detail->total_amount,
           'notes' => $detail->notes,
           'requested_delivery_date' => $detail->requested_delivery_date,
           'warehouse_id' => $detail->orderPurchaseRequest->warehouse_id,
@@ -402,7 +418,8 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       'warehouse',
       'warehouse.sede',
       'requestedBy.person',
-      'details.product'
+      'details.product',
+      'typeCurrency'
     ])->find($id);
 
     if (!$purchaseRequest) {
@@ -423,27 +440,20 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       'sede' => $purchaseRequest->warehouse->sede,
     ];
 
-    \Log::info(json_encode($data));
-
     // Datos del proveedor/cliente
     if ($hasQuotation && $quotation->client) {
       $client = $quotation->client;
-      $data['supplier_name'] = $client->full_name ?? '-';
-      $data['supplier_ruc'] = $client->num_doc ?? '-';
-      $data['supplier_address'] = $client->direction ?? '-';
-      $data['supplier_ubigeo'] = $client->ubigeo ?? '-';
-      $data['supplier_city'] = $client->district ? $client->district->name . ' - ' . ($client->district->province->name ?? '') : '-';
-      $data['supplier_phone'] = $client->phone ?? '-';
-      $data['supplier_email'] = $client->email ?? '-';
     } else {
-      $data['supplier_name'] = '-';
-      $data['supplier_ruc'] = '-';
-      $data['supplier_address'] = '-';
-      $data['supplier_ubigeo'] = '-';
-      $data['supplier_city'] = '-';
-      $data['supplier_phone'] = '-';
-      $data['supplier_email'] = '-';
+      $client = BusinessPartners::find(BusinessPartners::AUTOMOTORES_PAKATNAMU_ID);
     }
+
+    $data['supplier_name'] = $client->full_name ?? '-';
+    $data['supplier_ruc'] = $client->num_doc ?? '-';
+    $data['supplier_address'] = $client->direction ?? '-';
+    $data['supplier_ubigeo'] = $client->ubigeo ?? '-';
+    $data['supplier_city'] = $client->district ? $client->district->name . ' - ' . ($client->district->province->name ?? '') : '-';
+    $data['supplier_phone'] = $client->phone ?? '-';
+    $data['supplier_email'] = $client->email ?? '-';
 
     // Datos del vendedor/asesor
     if ($purchaseRequest->requestedBy && $purchaseRequest->requestedBy->person) {
@@ -486,22 +496,13 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       $supply_type = $detail->supply_type;
       $notes = $detail->notes ?? '-';
 
-      // Buscar precio en la cotización si existe
-      $price = '-';
-      $discount = '-';
-      $lineTotal = '-';
+      // Obtener precios directamente del detalle de la solicitud de compra
+      $price = $detail->unit_price ?? '-';
+      $discount = ($detail->discount_percentage ?? 0) > 0 ? $detail->discount_percentage : '0';
+      $lineTotal = $detail->total_amount ?? '-';
 
-      if ($hasQuotation) {
-        $quotationDetail = $quotation->details
-          ->where('product_id', $detail->product_id)
-          ->first();
-
-        if ($quotationDetail) {
-          $price = $quotationDetail->unit_price;
-          $discount = $quotationDetail->discount_percentage > 0 ? $quotationDetail->discount_percentage : '';
-          $lineTotal = $quotationDetail->total_amount;
-          $total += $lineTotal;
-        }
+      if (is_numeric($lineTotal)) {
+        $total += $lineTotal;
       }
 
       $details[] = [
@@ -519,15 +520,15 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
     $data['details'] = $details;
     $data['observations'] = $purchaseRequest->observations ?? '';
 
-    // Obtener símbolo de moneda
+    // Obtener símbolo de moneda directamente de la solicitud de compra
     $currencySymbol = '';
-    if ($hasQuotation && $quotation->typeCurrency) {
-      $currencySymbol = $quotation->typeCurrency->symbol ?? '';
+    if ($purchaseRequest->typeCurrency) {
+      $currencySymbol = $purchaseRequest->typeCurrency->symbol ?? '';
     }
     $data['currency_symbol'] = $currencySymbol;
 
     // Calcular subtotal, IGV y total
-    if ($hasQuotation && $total > 0) {
+    if ($total > 0) {
       $igvRate = Constants::VAT_TAX / 100;
       $igv = $total * $igvRate;
       $totalWithIgv = $total + $igv;
@@ -716,7 +717,7 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       if ($workerEmail) {
         try {
           $this->emailService->queue([
-            'to' => 'wsuclupef2001@gmail.com',//$workerEmail,
+            'to' => $workerEmail,
             'subject' => $subject,
             'template' => 'emails.purchase-request-notification',
             'data' => array_merge($emailData, [
@@ -844,11 +845,10 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
         if ($managerEmail) {
           try {
-            $positionName = $manager->person?->position?->name ?? 'Jefatura';
             $isGerente = in_array($manager->person->cargo_id, Position::POSITION_GERENTE_PV_IDS);
 
             $this->emailService->queue([
-              'to' => 'wsuclupef2001@gmail.com', //$managerEmail,
+              'to' => $managerEmail,
               'subject' => $subject,
               'template' => 'emails.purchase-request-notification',
               'data' => array_merge($emailData, [

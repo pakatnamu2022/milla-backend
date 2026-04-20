@@ -22,6 +22,7 @@ class ApOrderPurchaseRequestsResource extends JsonResource
       'ap_order_quotation_id' => $this->ap_order_quotation_id,
       'purchase_order_id' => $this->purchase_order_id,
       'warehouse_id' => $this->warehouse_id,
+      'currency_id' => $this->currency_id,
       'warehouse_dyn_code' => $this->warehouse ? $this->warehouse->dyn_code : "-",
       'requested_date' => $this->requested_date,
       'ordered_date' => $this->ordered_date,
@@ -43,6 +44,7 @@ class ApOrderPurchaseRequestsResource extends JsonResource
       'ap_order_quotation' => new ApOrderQuotationsResource($this->apOrderQuotation),
       'purchase_order' => new PurchaseOrderResource($this->whenLoaded('purchaseOrder')),
       'warehouse' => new WarehouseResource($this->whenLoaded('warehouse')),
+      'currency' => $this->typeCurrency,
       'details' => ApOrderPurchaseRequestDetailsResource::collection($this->whenLoaded('details')),
     ];
   }
