@@ -44,6 +44,7 @@ class ApOrderPurchaseRequestsResource extends JsonResource
       'ap_order_quotation' => new ApOrderQuotationsResource($this->apOrderQuotation),
       'purchase_order' => new PurchaseOrderResource($this->whenLoaded('purchaseOrder')),
       'warehouse' => new WarehouseResource($this->whenLoaded('warehouse')),
+      'currency' => $this->typeCurrency,
       'details' => ApOrderPurchaseRequestDetailsResource::collection($this->whenLoaded('details')),
     ];
   }

@@ -318,12 +318,6 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
     return $prefix . str_pad($newSequence, 4, '0', STR_PAD_LEFT);
   }
 
-  /**
-   * Obtener detalles de solicitudes pendientes para crear órdenes de compra
-   * Solo devuelve detalles con status 'pending'
-   * @param Request $request
-   * @return \Illuminate\Http\JsonResponse
-   */
   public function getPendingDetails(Request $request)
   {
     $query = ApOrderPurchaseRequestDetails::with([
@@ -365,11 +359,15 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
           'id' => $detail->id,
           'ap_purchase_request_id' => $detail->order_purchase_request_id,
           'request_number' => $detail->orderPurchaseRequest->request_number,
+          'currency_symbol' => $detail->orderPurchaseRequest->typeCurrency->symbol ?? null,
           'product_id' => $detail->product_id,
           'product_name' => $detail->product->name ?? null,
           'product_code' => $detail->product->code ?? null,
           'unit_measurement_id' => $detail->product->unit_measurement_id ?? null,
           'quantity' => $detail->quantity,
+          'unit_price' => $detail->unit_price,
+          'discount_percentage' => $detail->discount_percentage,
+          'total_amount' => $detail->total_amount,
           'notes' => $detail->notes,
           'requested_delivery_date' => $detail->requested_delivery_date,
           'warehouse_id' => $detail->orderPurchaseRequest->warehouse_id,
@@ -420,7 +418,8 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       'warehouse',
       'warehouse.sede',
       'requestedBy.person',
-      'details.product'
+      'details.product',
+      'typeCurrency'
     ])->find($id);
 
     if (!$purchaseRequest) {
@@ -497,22 +496,13 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       $supply_type = $detail->supply_type;
       $notes = $detail->notes ?? '-';
 
-      // Buscar precio en la cotización si existe
-      $price = '-';
-      $discount = '-';
-      $lineTotal = '-';
+      // Obtener precios directamente del detalle de la solicitud de compra
+      $price = $detail->unit_price ?? '-';
+      $discount = ($detail->discount_percentage ?? 0) > 0 ? $detail->discount_percentage : '0';
+      $lineTotal = $detail->total_amount ?? '-';
 
-      if ($hasQuotation) {
-        $quotationDetail = $quotation->details
-          ->where('product_id', $detail->product_id)
-          ->first();
-
-        if ($quotationDetail) {
-          $price = $quotationDetail->unit_price;
-          $discount = $quotationDetail->discount_percentage > 0 ? $quotationDetail->discount_percentage : '0';
-          $lineTotal = $quotationDetail->total_amount;
-          $total += $lineTotal;
-        }
+      if (is_numeric($lineTotal)) {
+        $total += $lineTotal;
       }
 
       $details[] = [
@@ -530,15 +520,15 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
     $data['details'] = $details;
     $data['observations'] = $purchaseRequest->observations ?? '';
 
-    // Obtener símbolo de moneda
+    // Obtener símbolo de moneda directamente de la solicitud de compra
     $currencySymbol = '';
-    if ($hasQuotation && $quotation->typeCurrency) {
-      $currencySymbol = $quotation->typeCurrency->symbol ?? '';
+    if ($purchaseRequest->typeCurrency) {
+      $currencySymbol = $purchaseRequest->typeCurrency->symbol ?? '';
     }
     $data['currency_symbol'] = $currencySymbol;
 
     // Calcular subtotal, IGV y total
-    if ($hasQuotation && $total > 0) {
+    if ($total > 0) {
       $igvRate = Constants::VAT_TAX / 100;
       $igv = $total * $igvRate;
       $totalWithIgv = $total + $igv;
