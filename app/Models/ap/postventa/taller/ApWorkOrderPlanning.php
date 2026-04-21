@@ -49,7 +49,7 @@ class ApWorkOrderPlanning extends Model
     'search' => ['description', 'workOrder.correlative'],
     'worker_id' => '=',
     'work_order_id' => '=',
-    'planned_start_datetime' => 'between',
+    'planned_start_datetime' => 'date_between',
     'planned_end_datetime' => 'between',
     'status' => '=',
     'workOrder.sede_id' => '=',
