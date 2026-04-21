@@ -828,20 +828,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         // Actualizar estado de cotización si el documento tiene order_quotation_id
         if ($document->order_quotation_id) {
           $this->updateQuotationInvoiceStatus($document->order_quotation_id);
-
-          // Verificar si esta es la última factura que finaliza el pago total de la cotización
-          // y crear salida de inventario automáticamente
-          $this->createInventoryMovementIfQuotationFullyPaid($document->order_quotation_id);
         }
 
         // Actualizar estado de orden de trabajo si el documento tiene work_order_id
         if ($document->work_order_id) {
           $this->updateWorkOrderInvoiceStatus($document->work_order_id, $document->is_advance_payment);
-
-          // Verificar si esta es la última factura que finaliza el pago total de la orden de trabajo
-          // y crear salida de inventario automáticamente
-          $this->createInventoryMovementIfWorkOrderFullyPaid($document->work_order_id);
         }
+
+        // NOTA: La creación del movimiento de inventario se realiza en SyncAccountingStatusJob
+        // después de confirmar que la factura fue contabilizada en Dynamics (is_accounted = true)
       }
       // Verificar si el documento fue anulado en Nubefact
       if (isset($nubefactData['anulado']) && $nubefactData['anulado'] === true) {
@@ -2478,90 +2473,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'work_order_id' => $workOrderId,
         'error' => $e->getMessage(),
       ]);
-    }
-  }
-
-  /**
-   * Crear movimiento de inventario si la cotización está totalmente pagada
-   * Este método se llama desde queryFromNubefact cuando una factura es aceptada por SUNAT
-   * Verifica si es la última factura que completa el pago total de la cotización
-   * y automáticamente crea la salida de inventario
-   *
-   * @param int $quotationId
-   * @return void
-   */
-  private function createInventoryMovementIfQuotationFullyPaid(int $quotationId): void
-  {
-    try {
-      $quotation = ApOrderQuotations::find($quotationId);
-
-      if (!$quotation) {
-        return;
-      }
-
-      // Verificar si la cotización está totalmente pagada Y aún no se ha generado la salida de inventario
-      if ($quotation->is_fully_paid && !$quotation->output_generation_warehouse) {
-        // Crear la salida de inventario automáticamente
-        $inventoryMovementService = app(InventoryMovementService::class);
-
-        try {
-          $inventoryMovementService->createSaleFromQuotation($quotationId);
-        } catch (Exception $e) {
-          Log::error('Error creating inventory movement for fully paid quotation', [
-            'quotation_id' => $quotationId,
-            'quotation_number' => $quotation->quotation_number,
-            'error' => $e->getMessage(),
-          ]);
-        }
-      }
-    } catch (Exception $e) {
-      Log::error('Error in createInventoryMovementIfQuotationFullyPaid', [
-        'quotation_id' => $quotationId,
-        'error' => $e->getMessage(),
-      ]);
-      // No lanzar excepción para evitar que falle la consulta de Nubefact
-    }
-  }
-
-  /**
-   * Crear movimiento de inventario si la orden de trabajo está totalmente facturada
-   * Este método se llama desde queryFromNubefact cuando una factura es aceptada por SUNAT
-   * Verifica si es la última factura que completa el pago total de la orden de trabajo
-   * y automáticamente crea la salida de inventario
-   *
-   * @param int $workOrderId
-   * @return void
-   */
-  private function createInventoryMovementIfWorkOrderFullyPaid(int $workOrderId): void
-  {
-    try {
-      $workOrder = ApWorkOrder::find($workOrderId);
-
-      if (!$workOrder) {
-        return;
-      }
-
-      // Verificar si la orden de trabajo está totalmente facturada Y aún no se ha generado la salida de inventario
-      if ($workOrder->is_invoiced && !$workOrder->output_generation_warehouse) {
-        // Crear la salida de inventario automáticamente
-        $inventoryMovementService = app(InventoryMovementService::class);
-
-        try {
-          $inventoryMovementService->createSaleFromWorkOrder($workOrderId);
-        } catch (Exception $e) {
-          Log::error('Error creating inventory movement for fully invoiced work order', [
-            'work_order_id' => $workOrderId,
-            'work_order_correlative' => $workOrder->correlative,
-            'error' => $e->getMessage(),
-          ]);
-        }
-      }
-    } catch (Exception $e) {
-      Log::error('Error in createInventoryMovementIfWorkOrderFullyPaid', [
-        'work_order_id' => $workOrderId,
-        'error' => $e->getMessage(),
-      ]);
-      // No lanzar excepción para evitar que falle la consulta de Nubefact
     }
   }
 
