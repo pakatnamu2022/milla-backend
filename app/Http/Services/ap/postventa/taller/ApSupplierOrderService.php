@@ -6,6 +6,7 @@ use App\Http\Resources\ap\postventa\gestionProductos\ProductsResource;
 use App\Http\Resources\ap\postventa\taller\ApSupplierOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\EmailService;
 use App\Http\Utils\Constants;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
@@ -14,6 +15,7 @@ use App\Models\ap\postventa\taller\ApSupplierOrder;
 use App\Models\ap\postventa\taller\ApSupplierOrderDetails;
 use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\ExchangeRate;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Exception;
@@ -22,6 +24,12 @@ use Illuminate\Support\Facades\DB;
 
 class ApSupplierOrderService extends BaseService implements BaseServiceInterface
 {
+  protected EmailService $emailService;
+
+  public function __construct(EmailService $emailService)
+  {
+    $this->emailService = $emailService;
+  }
 
   public function list(Request $request)
   {
@@ -131,6 +139,9 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
           ApSupplierOrderDetails::create($detail);
         }
       }
+
+      //Enviamos notificación a gerencia
+      $this->notifyManagersForApproval($supplierOrder->id);
 
       return new ApSupplierOrderResource($supplierOrder->load([
         'supplier',
@@ -271,12 +282,6 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
     return response()->json(['message' => 'Orden de proveedor eliminada correctamente.']);
   }
 
-  /**
-   * Update supplier order status
-   * @param int $id
-   * @param string $status
-   * @return \Illuminate\Http\JsonResponse
-   */
   public function updateStatus(int $id, string $status)
   {
     $supplierOrder = $this->find($id);
@@ -303,13 +308,6 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
     ]);
   }
 
-  /**
-   * OPCIONAL: Vincular solicitudes de compra a la orden de compra
-   * @param PurchaseOrder $apSupplierOrder
-   * @param array $requestDetailIds IDs de ap_order_purchase_request_details
-   * @return void
-   * @throws Exception
-   */
   protected function linkPurchaseRequests(ApSupplierOrder $apSupplierOrder, array $requestDetailIds): void
   {
     // Vincular los detalles de solicitud a la orden de compra
@@ -335,13 +333,6 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
     }
   }
 
-  /**
-   * Obtener productos pendientes por recibir de una orden de proveedor
-   * Calcula la diferencia entre lo pedido y lo recibido (sin contar observados)
-   *
-   * @param int $id ID de la orden de proveedor
-   * @return array Lista de productos pendientes con id, product_id, product, unit_measurement_id y quantity
-   */
   public function getPendingProducts($id)
   {
     $supplierOrder = $this->find($id);
@@ -390,11 +381,6 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
     return $pendingProducts;
   }
 
-  /**
-   * Aprueba una cotización según el cargo del usuario autenticado:
-   * - Coordinadora de Post Venta (141) → coordinator_approval_by
-   * - Gerente de Post Venta (142) → manager_approval_by
-   */
   public function approve(int $id)
   {
     return DB::transaction(function () use ($id) {
@@ -532,5 +518,114 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
     $fileName = 'OC_' . $supplierOrder->order_number . '.pdf';
 
     return $pdf->download($fileName);
+  }
+
+  public function notifyManagersForApproval(int $id)
+  {
+    return DB::transaction(function () use ($id) {
+      $supplierOrder = ApSupplierOrder::with([
+        'supplier',
+        'warehouse.sede',
+        'createdBy.person',
+        'details.product',
+        'typeCurrency'
+      ])->find($id);
+
+      if (!$supplierOrder) {
+        throw new Exception('Pedido a proveedor no encontrado');
+      }
+
+      if ($supplierOrder->approved_by) {
+        throw new Exception('Este pedido ya ha sido aprobado.');
+      }
+
+      // Obtener usuarios con cargo de Jefe y Gerente de Postventa
+      $managerPositionIds = array_merge(
+        Position::AFTER_SALES_COORDINATOR,
+        Position::POSITION_GERENTE_PV_IDS
+      );
+
+      $managers = User::whereHas('person', function ($query) use ($managerPositionIds) {
+        $query->whereIn('cargo_id', $managerPositionIds)
+          ->where('status_deleted', 1)
+          ->where('status_id', 22);
+      })
+        ->with('person.position')
+        ->get();
+
+      if ($managers->isEmpty()) {
+        throw new Exception('No se encontraron jefes o gerentes de postventa para enviar la notificación.');
+      }
+
+      // Preparar datos para el correo
+      $emailData = [
+        'order_number' => $supplierOrder->order_number,
+        'order_date' => $supplierOrder->order_date
+          ? Carbon::parse($supplierOrder->order_date)->format('d/m/Y')
+          : $supplierOrder->created_at->format('d/m/Y'),
+
+        // Proveedor
+        'supplier_name' => $supplierOrder->supplier->full_name ?? 'N/A',
+        'supplier_document' => $supplierOrder->supplier->num_doc ?? 'N/A',
+
+        // Almacén y Sede
+        'warehouse_name' => $supplierOrder->warehouse->description ?? 'N/A',
+        'sede_name' => $supplierOrder->warehouse->sede?->abreviatura ?? 'N/A',
+
+        // Moneda y montos
+        'currency_symbol' => $supplierOrder->typeCurrency->symbol ?? 'S/',
+        'net_amount' => number_format($supplierOrder->net_amount, 2),
+        'tax_amount' => number_format($supplierOrder->tax_amount, 2),
+        'total_amount' => number_format($supplierOrder->total_amount, 2),
+
+        // Creador
+        'created_by_name' => $supplierOrder->createdBy?->person?->nombre_completo ?? $supplierOrder->createdBy?->name ?? 'N/A',
+        'created_by_email' => $supplierOrder->createdBy?->person?->email2 ?? 'N/A',
+
+        // Detalles de productos
+        'details' => $supplierOrder->details->map(function ($detail) {
+          return [
+            'product_code' => $detail->product?->code ?? 'N/A',
+            'product_name' => $detail->product?->name ?? 'N/A',
+            'quantity' => $detail->quantity,
+            'unit_price' => $detail->unit_price,
+            'total' => $detail->total,
+            'note' => $detail->note ?? '',
+          ];
+        }),
+
+        // URL del frontend
+        'button_url' => config('app.frontend_url') . '/ap/post-venta/gestion-de-almacen/compra-proveedor',
+      ];
+
+      $subject = 'Solicitud de Aprobación de Orden de Compra - ' . $supplierOrder->order_number;
+
+      // Enviar correo a cada jefe y gerente
+      foreach ($managers as $manager) {
+        $managerEmail = $manager->person?->email2;
+
+        if ($managerEmail) {
+          try {
+            $isGerente = in_array($manager->person->cargo_id, Position::POSITION_GERENTE_PV_IDS);
+
+            $this->emailService->queue([
+              'to' => $managerEmail,
+              'subject' => $subject,
+              'template' => 'emails.supplier-order-approval-notification',
+              'data' => array_merge($emailData, [
+                'recipient_name' => $manager->person->nombre_completo ?? 'Jefatura',
+                'recipient_role' => $isGerente ? 'Gerente de Postventa' : 'Jefe de Postventa',
+              ]),
+            ]);
+          } catch (Exception $e) {
+            \Log::error("Error al enviar correo al manager (User ID: {$manager->id}): " . $e->getMessage());
+          }
+        }
+      }
+
+      return response()->json([
+        'message' => 'Notificación enviada correctamente a jefatura y gerencia para aprobación del pedido.',
+      ]);
+    });
   }
 }
