@@ -21,6 +21,7 @@ class ElectronicDocumentItem extends BaseModel
     'line_number',
     'unidad_de_medida',
     'codigo',
+    'dyn_code',
     'codigo_producto_sunat',
     'descripcion',
     'cantidad',

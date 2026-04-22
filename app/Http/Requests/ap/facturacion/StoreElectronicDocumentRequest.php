@@ -105,6 +105,15 @@ class StoreElectronicDocumentRequest extends StoreRequest
         if (isset($item['sunat_concept_igv_type_id'])) {
           $items[$index]['sunat_concept_igv_type_id'] = (int)$item['sunat_concept_igv_type_id'];
         }
+        // Convertir producto_id: si está vacío (""), convertirlo a null para que no se valide
+        if (isset($item['producto_id'])) {
+          if ($item['producto_id'] === '') {
+            $items[$index]['producto_id'] = null;
+          } else {
+            $items[$index]['producto_id'] = (int)$item['producto_id'];
+          }
+        }
+        
         $numericItemFields = ['cantidad', 'valor_unitario', 'precio_unitario', 'descuento', 'subtotal', 'igv', 'total'];
         foreach ($numericItemFields as $field) {
           if (isset($item[$field])) {
@@ -328,6 +337,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
       ],
       'items.*.unidad_de_medida' => 'required|string|max:3',
       'items.*.codigo' => 'nullable|string|max:30',
+      'items.*.product_id' => 'nullable|integer|exists:products,id',
       'items.*.codigo_producto_sunat' => 'nullable|string|max:8',
       'items.*.descripcion' => 'required|string',
       'items.*.cantidad' => 'required|numeric|min:0.0000000001',
@@ -388,6 +398,8 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'items.*.reference_document_id.required_if' => 'Debe seleccionar el documento de anticipo que se está regularizando',
       'items.*.reference_document_id.exists' => 'El documento de anticipo seleccionado no es válido. Verifique que el documento exista, esté aceptado por SUNAT y no esté anulado',
       'items.*.reference_document_id.integer' => 'El documento de referencia debe ser un ID válido',
+      'items.*.product_id.integer' => 'El producto seleccionado no es válido',
+      'items.*.product_id.exists' => 'El producto seleccionado no existe',
     ];
   }
 

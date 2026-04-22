@@ -56,11 +56,11 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     } else if ($hasSpecialOrigin) {
       // Si tiene origen especial (OT o cotización), verificar por item:
       // - Si anticipo_regularizacion == 1: usar code_dynamics (cuenta contable)
-      // - Si anticipo_regularizacion == 0: usar codigo (código del artículo)
+      // - Si anticipo_regularizacion == 0: usar dyn_code (código del artículo)
       if ($this->anticipo_regularizacion === true) {
         $articuloId = $this->accountPlan->code_dynamics ?? throw new Exception('El ítem de regularización de anticipo no tiene una cuenta contable asociada con código Dynamics.');
       } else {
-        $articuloId = $this->codigo ?? throw new Exception('El ítem no tiene código Dynamics (codigo) definido para OT/cotización.');
+        $articuloId = $this->dyn_code ?? throw new Exception('El ítem no tiene código Dynamics (dyn_code) definido para OT/cotización.');
       }
     } else {
       $articuloId = $this->accountPlan->code_dynamics ?? throw new Exception('El ítem no tiene una cuenta contable asociada con código Dynamics.');
