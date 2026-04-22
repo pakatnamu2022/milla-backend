@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -70,8 +71,11 @@ class SyncAccountingStatusJob implements ShouldQueue
           ]);
 
           if (!$wasAccounted && !$isAnnulled) {
-            $this->restoreVehicleToInventoryIfApplicable($document);
-            $this->createInventoryMovementIfApplicable($document);
+            if ($document->area_id === ApMasters::AREA_COMERCIAL) {
+              $this->restoreVehicleToInventoryIfApplicable($document);
+            } else {
+              $this->createInventoryMovementIfApplicable($document);
+            }
           }
         } else {
           $document->update([
