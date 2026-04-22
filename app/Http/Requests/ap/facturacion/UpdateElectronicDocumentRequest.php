@@ -137,6 +137,15 @@ class UpdateElectronicDocumentRequest extends StoreRequest
         if (isset($item['reference_document_id'])) {
           $items[$index]['reference_document_id'] = (int)$item['reference_document_id'];
         }
+        // Convertir producto_id: si está vacío (""), convertirlo a null para que no se valide
+        if (isset($item['producto_id'])) {
+          if ($item['producto_id'] === '') {
+            $items[$index]['producto_id'] = null;
+          } else {
+            $items[$index]['producto_id'] = (int)$item['producto_id'];
+          }
+        }
+        
         $numericItemFields = ['cantidad', 'valor_unitario', 'precio_unitario', 'descuento', 'subtotal', 'igv', 'total'];
         foreach ($numericItemFields as $field) {
           if (isset($item[$field])) {
@@ -348,6 +357,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       ],
       'items.*.unidad_de_medida' => 'required_with:items|string|max:3',
       'items.*.codigo' => 'nullable|string|max:30',
+      'items.*.producto_id' => 'nullable|integer|exists:products,id',
       'items.*.codigo_producto_sunat' => 'nullable|string|max:8',
       'items.*.descripcion' => 'required_with:items|string',
       'items.*.cantidad' => 'required_with:items|numeric|min:0.0000000001',

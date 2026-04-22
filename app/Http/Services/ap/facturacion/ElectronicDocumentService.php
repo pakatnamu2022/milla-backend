@@ -3,11 +3,7 @@
 namespace App\Http\Services\ap\facturacion;
 
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
-use App\Http\Resources\Dynamics\SalesDocumentDetailDynamicsResource;
-use App\Http\Resources\Dynamics\SalesDocumentDynamicsResource;
-use App\Http\Resources\Dynamics\SalesDocumentSerialDynamicsResource;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
-use App\Http\Services\ap\postventa\taller\WorkOrderService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
@@ -27,8 +23,8 @@ use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\ApMasters;
-use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\GeneralMaster;
@@ -2477,37 +2473,64 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
-   * Enriquece el campo `codigo` de cada item desde los detalles de una cotización.
-   * El frontend envía `order_quotation_detail_id` como campo transitorio en cada item.
-   * Solo aplica a detalles con item_type = PRODUCT y product_id definido.
+   * Enriquece los campos `codigo` y `dyn_code` de cada item desde el producto.
+   * El frontend envía `product_id` (opcional) en cada item.
+   * No aplica a items de anticipo (anticipo_regularizacion = true).
    */
   private function enrichItemsCodigoFromQuotation(array &$items, int $quotationId): void
   {
-    $details = ApOrderQuotationDetails::with('product')
-      ->where('order_quotation_id', $quotationId)
-      ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
-      ->whereNotNull('product_id')
-      ->get()
-      ->keyBy('id');
-
-    foreach ($items as &$item) {
-      if (empty($item['order_quotation_detail_id'])) {
+    // Recopilar todos los product_ids de items que no son anticipos
+    $productIds = [];
+    foreach ($items as $item) {
+      // Saltar items de anticipo
+      if (!empty($item['anticipo_regularizacion'])) {
         continue;
       }
 
-      $detail = $details->get($item['order_quotation_detail_id']);
+      // Recopilar product_id si existe
+      if (!empty($item['product_id'])) {
+        $productIds[] = $item['product_id'];
+      }
+    }
 
-      if ($detail && $detail->product && $detail->product->dyn_code) {
-        $item['codigo'] = $detail->product->dyn_code;
+    // Si no hay product_ids, no hay nada que mapear
+    if (empty($productIds)) {
+      return;
+    }
+
+    // Cargar todos los productos de una vez
+    $products = Products::whereIn('id', array_unique($productIds))
+      ->get()
+      ->keyBy('id');
+
+    // Mapear codigo y dyn_code para cada item
+    foreach ($items as &$item) {
+      // Saltar items de anticipo
+      if (!empty($item['anticipo_regularizacion'])) {
+        continue;
+      }
+
+      // Si tiene product_id, mapear desde el producto
+      if (!empty($item['product_id'])) {
+        $product = $products->get($item['product_id']);
+
+        if ($product) {
+          if ($product->code) {
+            $item['codigo'] = $product->code;
+          }
+          if ($product->dyn_code) {
+            $item['dyn_code'] = $product->dyn_code;
+          }
+        }
       }
     }
   }
 
   /**
-   * Enriquece el campo `codigo` de cada item desde una orden de trabajo.
+   * Enriquece los campos `codigo` y `dyn_code` de cada item desde una orden de trabajo.
    * Usa el campo `codigo` del item (enviado por el frontend) como ID de part o labour.
-   * - Repuestos (parts con product_id): usa el dyn_code del producto.
-   * - Mano de obra (labours sin product_id): valor fijo 'V0000011'.
+   * - Repuestos (parts con product_id): mapea codigo y dyn_code del producto.
+   * - Mano de obra (labours sin product_id): valor fijo 'V0000011' o 'V0000012'.
    */
   private function enrichItemsCodigoFromWorkOrder(array &$items, int $workOrderId): void
   {
@@ -2529,6 +2552,20 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         continue;
       }
 
+      // Si el item tiene product_id, buscar el producto directamente para mapear código y dyn_code
+      if (!empty($item['product_id'])) {
+        $product = Products::find($item['product_id']);
+        if ($product) {
+          if ($product->code) {
+            $item['codigo'] = $product->code;
+          }
+          if ($product->dyn_code) {
+            $item['dyn_code'] = $product->dyn_code;
+          }
+        }
+        continue;
+      }
+
       $itemId = $item['codigo'] ?? null;
 
       if (!$itemId) {
@@ -2537,8 +2574,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Intentar buscar como part
       $part = $parts->get($itemId);
-      if ($part && $part->product && $part->product->dyn_code) {
-        $item['codigo'] = $part->product->dyn_code;
+      if ($part && $part->product) {
+        if ($part->product->code) {
+          $item['codigo'] = $part->product->code;
+        }
+        if ($part->product->dyn_code) {
+          $item['dyn_code'] = $part->product->dyn_code;
+        }
         continue;
       }
 
