@@ -1091,7 +1091,7 @@ class InventoryMovementService extends BaseService
       }
 
       // Filter only product items (exclude labor)
-      $productDetails = $quotation->details->where('item_type', '!=', 'labor')->where('product_id', '!=', null);
+      $productDetails = $quotation->details->where('item_type', '!=', 'LABOR')->where('product_id', '!=', null);
 
       if ($productDetails->isEmpty()) {
         throw new Exception('La cotización no contiene productos para generar salida de inventario');
@@ -1123,7 +1123,7 @@ class InventoryMovementService extends BaseService
         'warehouse_id' => $warehouse->id,
         'reference_type' => ApOrderQuotations::class,
         'reference_id' => $quotation->id,
-        'user_id' => Auth::id(),
+        'user_id' => $quotation->created_by ?? Auth::id(),
         'status' => InventoryMovement::STATUS_APPROVED,
         'notes' => "Salida por venta - Cotización {$quotation->quotation_number}",
         'total_items' => 0,
@@ -1227,7 +1227,7 @@ class InventoryMovementService extends BaseService
         'warehouse_id' => $warehouse->id,
         'reference_type' => ApWorkOrder::class,
         'reference_id' => $workOrder->id,
-        'user_id' => Auth::id(),
+        'user_id' => $workOrder->created_by ?? Auth::id(),
         'status' => InventoryMovement::STATUS_APPROVED,
         'notes' => "Salida por venta - Orden de Trabajo {$workOrder->correlative}",
         'total_items' => 0,
