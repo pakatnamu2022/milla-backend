@@ -1239,7 +1239,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Enviar correo al cliente
       $this->emailService->queue([
-        'to' => 'wsuclupef2001@gmail.com',//$quotation->client->email,
+        'to' => 'wsuclupef@automotorespakatnamu.com',//$quotation->client->email,
         'subject' => 'Confirmación de Cotización - ' . $quotation->quotation_number,
         'template' => 'emails.quotation-virtual-confirmation',
         'data' => $emailData,
