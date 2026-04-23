@@ -879,6 +879,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $workOrder = $this->find($id);
       $validateDocument = $workOrder->items->first()?->typePlanning->type_document;
 
+      if ($workOrder->status_id === ApMasters::FINISHED_WORK_ORDER_ID) {
+        throw new Exception('El técnico debe finalizar su trabajo en esta OT para generar una nota interna');
+      }
+
       if ($validateDocument !== TypePlanningWorkOrder::INTERNA) {
         throw new Exception('Solo se pueden generar notas internas para órdenes de trabajo con planificación de tipo "INTERNA"');
       }

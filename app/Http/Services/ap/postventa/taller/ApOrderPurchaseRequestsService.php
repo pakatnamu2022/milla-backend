@@ -7,9 +7,11 @@ use App\Http\Services\BaseService;
 use App\Http\Services\common\EmailService;
 use App\Http\Utils\Constants;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequests;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
@@ -62,6 +64,7 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
   public function store(mixed $data)
   {
+    dd();
     return DB::transaction(function () use ($data) {
       // Generate unique request number
       $data['request_number'] = $this->generateRequestNumber();
@@ -545,14 +548,34 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
     // Obtener anticipos y facturas si existe cotización
     $electronicDocuments = [];
     if ($hasQuotation) {
-      $documents = ElectronicDocument::where('order_quotation_id', $quotation->id)
-        ->where('anulado', false)
-        ->whereIn('status', [
-          ElectronicDocument::STATUS_SENT,
-          ElectronicDocument::STATUS_ACCEPTED
-        ])
-        ->orderBy('fecha_de_emision', 'asc')
-        ->get();
+      $documents = collect();
+
+      // Diferenciar búsqueda según area_id
+      if ($purchaseRequest->area_id == ApMasters::AREA_MESON) {
+        // Para MESON: buscar por order_quotation_id (lógica actual)
+        $documents = ElectronicDocument::where('order_quotation_id', $quotation->id)
+          ->where('anulado', false)
+          ->whereIn('status', [
+            ElectronicDocument::STATUS_SENT,
+            ElectronicDocument::STATUS_ACCEPTED
+          ])
+          ->orderBy('fecha_de_emision', 'asc')
+          ->get();
+      } elseif ($purchaseRequest->area_id == ApMasters::AREA_TALLER) {
+        // Para TALLER: buscar work_order_id usando order_quotation_id
+        $workOrder = ApWorkOrder::where('order_quotation_id', $quotation->id)->first();
+
+        if ($workOrder) {
+          $documents = ElectronicDocument::where('work_order_id', $workOrder->id)
+            ->where('anulado', false)
+            ->whereIn('status', [
+              ElectronicDocument::STATUS_SENT,
+              ElectronicDocument::STATUS_ACCEPTED
+            ])
+            ->orderBy('fecha_de_emision', 'asc')
+            ->get();
+        }
+      }
 
       foreach ($documents as $doc) {
         $electronicDocuments[] = [

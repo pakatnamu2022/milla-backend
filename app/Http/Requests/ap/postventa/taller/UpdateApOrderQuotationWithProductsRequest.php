@@ -192,6 +192,7 @@ class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
       foreach ($details as $index => $detail) {
         $productId = $detail['product_id'] ?? null;
         $supplyType = $detail['supply_type'] ?? null;
+        $quantity = $detail['quantity'] ?? 0;
 
         if (!$productId || !$supplyType) {
           continue;
@@ -205,10 +206,10 @@ class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
             "details.{$index}.product_id",
             "El producto seleccionado no tiene stock disponible en ninguna sede. Para tipo de suministro STOCK, el producto debe tener stock disponible."
           );
-        } elseif (in_array($supplyType, ['CENTRAL', 'IMPORTACION']) && $totalStock > 0) {
+        } elseif (in_array($supplyType, ['CENTRAL', 'IMPORTACION']) && $totalStock >= $quantity) {
           $validator->errors()->add(
             "details.{$index}.product_id",
-            "El producto seleccionado tiene stock disponible ({$totalStock} unidades). Para tipo de suministro {$supplyType}, el producto no debe tener stock en ninguna sede."
+            "El producto tiene stock suficiente ({$totalStock} unidades disponibles para {$quantity} solicitadas). Debe usar tipo de suministro STOCK en lugar de {$supplyType}."
           );
         }
       }

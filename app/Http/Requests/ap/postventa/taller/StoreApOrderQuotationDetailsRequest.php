@@ -177,14 +177,16 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
           );
         }
       } elseif (in_array($supplyType, ['CENTRAL', 'IMPORTACION'])) {
-        // Validar que el producto NO tenga stock (debe ser 0)
+        // Validar que el stock disponible sea insuficiente para la cantidad solicitada
+        $quantity = $this->input('quantity');
         $totalStock = ProductWarehouseStock::where('product_id', $productId)
           ->sum('quantity');
 
-        if ($totalStock > 0) {
+        // Solo permitir CENTRAL o IMPORTACION si el stock es insuficiente para la demanda
+        if ($totalStock >= $quantity) {
           $validator->errors()->add(
             'product_id',
-            "El producto seleccionado tiene stock disponible ({$totalStock} unidades). Para tipo de suministro {$supplyType}, el producto no debe tener stock en ninguna sede."
+            "El producto tiene stock suficiente ({$totalStock} unidades disponibles para {$quantity} solicitadas). Debe usar tipo de suministro STOCK o LOCAL en lugar de {$supplyType}."
           );
         }
       }
