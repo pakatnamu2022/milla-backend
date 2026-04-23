@@ -76,6 +76,12 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       // Crear el vehículo
       $vehicle = Vehicles::create($data);
 
+      // Si es tipo de operación comercial, crear movimiento en consignación
+      if (($data['type_operation_id'] ?? null) == ApMasters::TIPO_OPERACION_COMERCIAL) {
+        $movementService = new VehicleMovementService();
+        $movementService->storeConsignmentVehicleMovement($vehicle->id);
+      }
+
       DB::commit();
       return VehiclesResource::make($vehicle);
     } catch (Exception $e) {

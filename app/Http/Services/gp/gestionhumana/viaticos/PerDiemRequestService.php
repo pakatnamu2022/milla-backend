@@ -901,14 +901,12 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $budgets = $request->budgets->keyBy('expense_type_id');
     $mealsBudget = $budgets->get(ExpenseType::MEALS_ID);
 
-    // If the request has a hotel reservation without breakfast included,
-    // breakfast was budgeted separately (BREAKFAST_ID) and must be tracked
-    // outside of the shared MEALS daily limit.
-    $breakfastBudget = null;
-    $hotelReservation = $request->hotelReservation?->hotelAgreement;
-    if ($hotelReservation && !$hotelReservation->includes_breakfast) {
-      $breakfastBudget = $budgets->get(ExpenseType::BREAKFAST_ID);
-    }
+    // If there is a dedicated BREAKFAST budget (e.g. hotel without breakfast
+    // included, or a separate breakfast rate), track it outside of the shared
+    // MEALS daily limit.  We simply check whether the budget entry exists —
+    // if it does, breakfast must be tracked independently; if not, it falls
+    // through to the shared MEALS limit as before.
+    $breakfastBudget = $budgets->get(ExpenseType::BREAKFAST_ID);
 
     // Chronological order to respect daily accumulation correctly
     $expenses = PerDiemExpense::where('per_diem_request_id', $request->id)

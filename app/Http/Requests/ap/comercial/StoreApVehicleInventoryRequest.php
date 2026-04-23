@@ -11,11 +11,11 @@ class StoreApVehicleInventoryRequest extends StoreRequest
     return [
       'ap_vehicle_id' => 'sometimes|nullable|integer|exists:ap_vehicles,id',
       'inventory_warehouse_id' => 'sometimes|nullable|integer|exists:warehouse,id',
-      'vin' => 'required|string|max:17',
+      'vin' => 'required|string|max:20',
       'vehicle_color_id' => 'sometimes|nullable|integer|exists:ap_masters,id',
       'brand_id' => 'sometimes|nullable|integer|exists:ap_vehicle_brand,id',
       'model_id' => 'sometimes|nullable|integer|exists:ap_models_vn,id',
-      'year' => 'sometimes|nullable|integer|min:1900|max:' . ((int) date('Y') + 2),
+      'year' => 'sometimes|nullable|integer|min:1900|max:' . ((int)date('Y') + 2),
       'fuel_type_id' => 'sometimes|nullable|integer|exists:ap_fuel_type,id',
       'adjudication_date' => 'sometimes|nullable|date',
       'days' => 'sometimes|nullable|integer|min:0',
@@ -27,17 +27,24 @@ class StoreApVehicleInventoryRequest extends StoreRequest
     ];
   }
 
-  public function messages(): array
+  public function attributes(): array
   {
     return [
-      'vin.required' => 'El VIN es requerido',
-      'vin.max' => 'El VIN no puede superar 17 caracteres',
-      'ap_vehicle_id.exists' => 'El vehículo seleccionado no existe',
-      'inventory_warehouse_id.exists' => 'El almacén seleccionado no existe',
-      'brand_id.exists' => 'La marca seleccionada no existe',
-      'model_id.exists' => 'El modelo seleccionado no existe',
-      'fuel_type_id.exists' => 'El tipo de combustible seleccionado no existe',
-      'year.min' => 'El año debe ser mayor a 1900',
+      'ap_vehicle_id' => 'vehículo',
+      'inventory_warehouse_id' => 'almacenamiento',
+      'vin' => 'vin',
+      'vehicle_color_id' => 'color',
+      'brand_id' => 'marca',
+      'model_id' => 'modelo',
+      'year' => 'anio',
+      'fuel_type_id' => 'combustible',
+      'adjudication_date' => 'fecha',
+      'days' => 'dias',
+      'limit_date' => 'limite',
+      'reception_date' => 'fecha',
+      'is_location_confirmed' => 'estado',
+      'is_evaluated' => 'estado',
+      'status' => 'estado',
     ];
   }
 }
