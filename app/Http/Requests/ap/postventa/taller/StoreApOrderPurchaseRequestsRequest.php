@@ -31,6 +31,11 @@ class StoreApOrderPurchaseRequestsRequest extends StoreRequest
         'integer',
         'exists:type_currency,id',
       ],
+      'area_id' => [
+        'required',
+        'integer',
+        'exists:ap_masters,id',
+      ],
       'requested_date' => [
         'required',
         'date',
@@ -107,6 +112,10 @@ class StoreApOrderPurchaseRequestsRequest extends StoreRequest
       'currency_id.required' => 'La moneda es obligatoria.',
       'currency_id.integer' => 'La moneda debe ser un entero.',
       'currency_id.exists' => 'La moneda seleccionada no es válida.',
+
+      'area_id.required' => 'El área es obligatoria.',
+      'area_id.integer' => 'El área debe ser un entero.',
+      'area_id.exists' => 'El área seleccionada no es válida.',
 
       'requested_date.required' => 'La fecha de solicitud es obligatoria.',
       'requested_date.date' => 'La fecha de solicitud debe ser una fecha válida.',
