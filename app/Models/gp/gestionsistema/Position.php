@@ -85,6 +85,8 @@ class Position extends BaseModel
   const array AFTER_SALES_COORDINATOR = [141];
   const array ZONAL_ACCOUNTING_ANALYST = [301, 302];
   const array HEAD_ACCOUNTING = [44, 288];
+  const array WAREHOUSE_ASSISTANT = [57, 87, 129, 233, 251, 309];
+  const array WAREHOUSE_MANAGER = [56, 86, 248];
 
   public function setNameAttribute($value)
   {

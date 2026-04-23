@@ -29,6 +29,12 @@ class UpdateApOrderPurchaseRequestsRequest extends StoreRequest
         'integer',
         'exists:warehouse,id',
       ],
+      'currency_id' => [
+        'sometimes',
+        'required',
+        'integer',
+        'exists:type_currency,id',
+      ],
       'requested_date' => [
         'sometimes',
         'required',
@@ -80,6 +86,20 @@ class UpdateApOrderPurchaseRequestsRequest extends StoreRequest
         'numeric',
         'min:0.01',
       ],
+      'details.*.unit_price' => [
+        'required',
+        'numeric',
+        'min:0.01',
+      ],
+      'details.*.discount_percentage' => [
+        'required',
+        'numeric',
+      ],
+      'details.*.total_amount' => [
+        'required',
+        'numeric',
+        'min:0.01',
+      ],
       'details.*.notes' => [
         'nullable',
         'string',
@@ -108,6 +128,10 @@ class UpdateApOrderPurchaseRequestsRequest extends StoreRequest
       'warehouse_id.required' => 'El almacén es obligatorio.',
       'warehouse_id.integer' => 'El almacén debe ser un entero.',
       'warehouse_id.exists' => 'El almacén seleccionado no es válido.',
+
+      'currency_id.required' => 'La moneda es obligatoria.',
+      'currency_id.integer' => 'La moneda debe ser un entero.',
+      'currency_id.exists' => 'La moneda seleccionada no es válida.',
 
       'requested_date.required' => 'La fecha de solicitud es obligatoria.',
       'requested_date.date' => 'La fecha de solicitud debe ser una fecha válida.',
@@ -138,6 +162,17 @@ class UpdateApOrderPurchaseRequestsRequest extends StoreRequest
       'details.*.quantity.required' => 'La cantidad es obligatoria en cada detalle.',
       'details.*.quantity.numeric' => 'La cantidad debe ser un número.',
       'details.*.quantity.min' => 'La cantidad debe ser mayor a 0.',
+
+      'details.*.unit_price.required' => 'El precio unitario es obligatorio en cada detalle.',
+      'details.*.unit_price.numeric' => 'El precio unitario debe ser un número.',
+      'details.*.unit_price.min' => 'El precio unitario debe ser mayor a 0.',
+
+      'details.*.discount_percentage.required' => 'El porcentaje de descuento es obligatorio en cada detalle.',
+      'details.*.discount_percentage.numeric' => 'El porcentaje de descuento debe ser un número.',
+
+      'details.*.total_amount.required' => 'El monto total es obligatorio en cada detalle.',
+      'details.*.total_amount.numeric' => 'El monto total debe ser un número.',
+      'details.*.total_amount.min' => 'El monto total debe ser mayor a 0.',
 
       'details.*.notes.string' => 'Las notas deben ser una cadena de texto.',
 

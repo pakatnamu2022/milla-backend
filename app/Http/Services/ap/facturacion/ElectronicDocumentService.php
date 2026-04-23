@@ -3,11 +3,7 @@
 namespace App\Http\Services\ap\facturacion;
 
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
-use App\Http\Resources\Dynamics\SalesDocumentDetailDynamicsResource;
-use App\Http\Resources\Dynamics\SalesDocumentDynamicsResource;
-use App\Http\Resources\Dynamics\SalesDocumentSerialDynamicsResource;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
-use App\Http\Services\ap\postventa\taller\WorkOrderService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
@@ -27,8 +23,8 @@ use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\ApMasters;
-use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\GeneralMaster;
@@ -828,20 +824,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         // Actualizar estado de cotización si el documento tiene order_quotation_id
         if ($document->order_quotation_id) {
           $this->updateQuotationInvoiceStatus($document->order_quotation_id);
-
-          // Verificar si esta es la última factura que finaliza el pago total de la cotización
-          // y crear salida de inventario automáticamente
-          $this->createInventoryMovementIfQuotationFullyPaid($document->order_quotation_id);
         }
 
         // Actualizar estado de orden de trabajo si el documento tiene work_order_id
         if ($document->work_order_id) {
           $this->updateWorkOrderInvoiceStatus($document->work_order_id, $document->is_advance_payment);
-
-          // Verificar si esta es la última factura que finaliza el pago total de la orden de trabajo
-          // y crear salida de inventario automáticamente
-          $this->createInventoryMovementIfWorkOrderFullyPaid($document->work_order_id);
         }
+
+        // NOTA: La creación del movimiento de inventario se realiza en SyncAccountingStatusJob
+        // después de confirmar que la factura fue contabilizada en Dynamics (is_accounted = true)
       }
       // Verificar si el documento fue anulado en Nubefact
       if (isset($nubefactData['anulado']) && $nubefactData['anulado'] === true) {
@@ -2482,121 +2473,64 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
-   * Crear movimiento de inventario si la cotización está totalmente pagada
-   * Este método se llama desde queryFromNubefact cuando una factura es aceptada por SUNAT
-   * Verifica si es la última factura que completa el pago total de la cotización
-   * y automáticamente crea la salida de inventario
-   *
-   * @param int $quotationId
-   * @return void
-   */
-  private function createInventoryMovementIfQuotationFullyPaid(int $quotationId): void
-  {
-    try {
-      $quotation = ApOrderQuotations::find($quotationId);
-
-      if (!$quotation) {
-        return;
-      }
-
-      // Verificar si la cotización está totalmente pagada Y aún no se ha generado la salida de inventario
-      if ($quotation->is_fully_paid && !$quotation->output_generation_warehouse) {
-        // Crear la salida de inventario automáticamente
-        $inventoryMovementService = app(InventoryMovementService::class);
-
-        try {
-          $inventoryMovementService->createSaleFromQuotation($quotationId);
-        } catch (Exception $e) {
-          Log::error('Error creating inventory movement for fully paid quotation', [
-            'quotation_id' => $quotationId,
-            'quotation_number' => $quotation->quotation_number,
-            'error' => $e->getMessage(),
-          ]);
-        }
-      }
-    } catch (Exception $e) {
-      Log::error('Error in createInventoryMovementIfQuotationFullyPaid', [
-        'quotation_id' => $quotationId,
-        'error' => $e->getMessage(),
-      ]);
-      // No lanzar excepción para evitar que falle la consulta de Nubefact
-    }
-  }
-
-  /**
-   * Crear movimiento de inventario si la orden de trabajo está totalmente facturada
-   * Este método se llama desde queryFromNubefact cuando una factura es aceptada por SUNAT
-   * Verifica si es la última factura que completa el pago total de la orden de trabajo
-   * y automáticamente crea la salida de inventario
-   *
-   * @param int $workOrderId
-   * @return void
-   */
-  private function createInventoryMovementIfWorkOrderFullyPaid(int $workOrderId): void
-  {
-    try {
-      $workOrder = ApWorkOrder::find($workOrderId);
-
-      if (!$workOrder) {
-        return;
-      }
-
-      // Verificar si la orden de trabajo está totalmente facturada Y aún no se ha generado la salida de inventario
-      if ($workOrder->is_invoiced && !$workOrder->output_generation_warehouse) {
-        // Crear la salida de inventario automáticamente
-        $inventoryMovementService = app(InventoryMovementService::class);
-
-        try {
-          $inventoryMovementService->createSaleFromWorkOrder($workOrderId);
-        } catch (Exception $e) {
-          Log::error('Error creating inventory movement for fully invoiced work order', [
-            'work_order_id' => $workOrderId,
-            'work_order_correlative' => $workOrder->correlative,
-            'error' => $e->getMessage(),
-          ]);
-        }
-      }
-    } catch (Exception $e) {
-      Log::error('Error in createInventoryMovementIfWorkOrderFullyPaid', [
-        'work_order_id' => $workOrderId,
-        'error' => $e->getMessage(),
-      ]);
-      // No lanzar excepción para evitar que falle la consulta de Nubefact
-    }
-  }
-
-  /**
-   * Enriquece el campo `codigo` de cada item desde los detalles de una cotización.
-   * El frontend envía `order_quotation_detail_id` como campo transitorio en cada item.
-   * Solo aplica a detalles con item_type = PRODUCT y product_id definido.
+   * Enriquece los campos `codigo` y `dyn_code` de cada item desde el producto.
+   * El frontend envía `product_id` (opcional) en cada item.
+   * No aplica a items de anticipo (anticipo_regularizacion = true).
    */
   private function enrichItemsCodigoFromQuotation(array &$items, int $quotationId): void
   {
-    $details = ApOrderQuotationDetails::with('product')
-      ->where('order_quotation_id', $quotationId)
-      ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
-      ->whereNotNull('product_id')
-      ->get()
-      ->keyBy('id');
-
-    foreach ($items as &$item) {
-      if (empty($item['order_quotation_detail_id'])) {
+    // Recopilar todos los product_ids de items que no son anticipos
+    $productIds = [];
+    foreach ($items as $item) {
+      // Saltar items de anticipo
+      if (!empty($item['anticipo_regularizacion'])) {
         continue;
       }
 
-      $detail = $details->get($item['order_quotation_detail_id']);
+      // Recopilar product_id si existe
+      if (!empty($item['product_id'])) {
+        $productIds[] = $item['product_id'];
+      }
+    }
 
-      if ($detail && $detail->product && $detail->product->dyn_code) {
-        $item['codigo'] = $detail->product->dyn_code;
+    // Si no hay product_ids, no hay nada que mapear
+    if (empty($productIds)) {
+      return;
+    }
+
+    // Cargar todos los productos de una vez
+    $products = Products::whereIn('id', array_unique($productIds))
+      ->get()
+      ->keyBy('id');
+
+    // Mapear codigo y dyn_code para cada item
+    foreach ($items as &$item) {
+      // Saltar items de anticipo
+      if (!empty($item['anticipo_regularizacion'])) {
+        continue;
+      }
+
+      // Si tiene product_id, mapear desde el producto
+      if (!empty($item['product_id'])) {
+        $product = $products->get($item['product_id']);
+
+        if ($product) {
+          if ($product->code) {
+            $item['codigo'] = $product->code;
+          }
+          if ($product->dyn_code) {
+            $item['dyn_code'] = $product->dyn_code;
+          }
+        }
       }
     }
   }
 
   /**
-   * Enriquece el campo `codigo` de cada item desde una orden de trabajo.
+   * Enriquece los campos `codigo` y `dyn_code` de cada item desde una orden de trabajo.
    * Usa el campo `codigo` del item (enviado por el frontend) como ID de part o labour.
-   * - Repuestos (parts con product_id): usa el dyn_code del producto.
-   * - Mano de obra (labours sin product_id): valor fijo 'V0000011'.
+   * - Repuestos (parts con product_id): mapea codigo y dyn_code del producto.
+   * - Mano de obra (labours sin product_id): valor fijo 'V0000011' o 'V0000012'.
    */
   private function enrichItemsCodigoFromWorkOrder(array &$items, int $workOrderId): void
   {
@@ -2618,6 +2552,20 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         continue;
       }
 
+      // Si el item tiene product_id, buscar el producto directamente para mapear código y dyn_code
+      if (!empty($item['product_id'])) {
+        $product = Products::find($item['product_id']);
+        if ($product) {
+          if ($product->code) {
+            $item['codigo'] = $product->code;
+          }
+          if ($product->dyn_code) {
+            $item['dyn_code'] = $product->dyn_code;
+          }
+        }
+        continue;
+      }
+
       $itemId = $item['codigo'] ?? null;
 
       if (!$itemId) {
@@ -2626,8 +2574,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Intentar buscar como part
       $part = $parts->get($itemId);
-      if ($part && $part->product && $part->product->dyn_code) {
-        $item['codigo'] = $part->product->dyn_code;
+      if ($part && $part->product) {
+        if ($part->product->code) {
+          $item['codigo'] = $part->product->code;
+        }
+        if ($part->product->dyn_code) {
+          $item['dyn_code'] = $part->product->dyn_code;
+        }
         continue;
       }
 

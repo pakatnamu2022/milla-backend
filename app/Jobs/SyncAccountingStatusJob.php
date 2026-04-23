@@ -2,10 +2,15 @@
 
 namespace App\Jobs;
 
+use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\maestroGeneral\SunatConcepts;
+use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +35,10 @@ class SyncAccountingStatusJob implements ShouldQueue
   public function handle(): void
   {
     $documents = ElectronicDocument::where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
+      ->where(function ($query) {
+        $query->where('is_accounted', false)
+          ->orWhereNull('is_accounted');
+      })
       ->get();
 
     foreach ($documents as $document) {
@@ -62,7 +71,11 @@ class SyncAccountingStatusJob implements ShouldQueue
           ]);
 
           if (!$wasAccounted && !$isAnnulled) {
-            $this->restoreVehicleToInventoryIfApplicable($document);
+            if ($document->area_id === ApMasters::AREA_COMERCIAL) {
+              $this->restoreVehicleToInventoryIfApplicable($document);
+            } else {
+              $this->createInventoryMovementIfApplicable($document);
+            }
           }
         } else {
           $document->update([
@@ -110,12 +123,94 @@ class SyncAccountingStatusJob implements ShouldQueue
     $vehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN]);
 
     Log::info('Vehículo devuelto al inventario por NC contabilizada', [
-      'credit_note_id'       => $document->id,
-      'credit_note_number'   => $document->full_number,
+      'credit_note_id' => $document->id,
+      'credit_note_number' => $document->full_number,
       'original_document_id' => $originalDocument->id,
-      'vehicle_id'           => $vehicle->id,
-      'vehicle_vin'          => $vehicle->vin,
+      'vehicle_id' => $vehicle->id,
+      'vehicle_vin' => $vehicle->vin,
     ]);
+  }
+
+  /**
+   * Crear movimiento de inventario para cotizaciones u órdenes de trabajo
+   * solo después de que la última factura haya sido contabilizada en Dynamics
+   *
+   * @param ElectronicDocument $document
+   * @return void
+   */
+  private function createInventoryMovementIfApplicable(ElectronicDocument $document): void
+  {
+    // Procesar cotizaciones
+    if ($document->order_quotation_id) {
+      $this->createInventoryMovementForQuotation($document->order_quotation_id);
+    }
+
+    // Procesar órdenes de trabajo
+    if ($document->work_order_id) {
+      $this->createInventoryMovementForWorkOrder($document->work_order_id);
+    }
+  }
+
+  /**
+   * Crear movimiento de inventario para cotización totalmente pagada
+   *
+   * @param int $quotationId
+   * @return void
+   */
+  private function createInventoryMovementForQuotation(int $quotationId): void
+  {
+    try {
+      $quotation = ApOrderQuotations::find($quotationId);
+
+      if (!$quotation) {
+        return;
+      }
+
+      // Verificar que la cotización esté totalmente pagada Y no tenga salida de inventario generada
+      if (!$quotation->is_fully_paid || $quotation->output_generation_warehouse) {
+        return;
+      }
+
+      // Crear la salida de inventario
+      $inventoryMovementService = app(InventoryMovementService::class);
+      $inventoryMovementService->createSaleFromQuotation($quotationId);
+    } catch (Exception $e) {
+      Log::error('Error al crear movimiento de inventario para cotización', [
+        'quotation_id' => $quotationId,
+        'error' => $e->getMessage(),
+      ]);
+    }
+  }
+
+  /**
+   * Crear movimiento de inventario para orden de trabajo totalmente facturada
+   *
+   * @param int $workOrderId
+   * @return void
+   */
+  private function createInventoryMovementForWorkOrder(int $workOrderId): void
+  {
+    try {
+      $workOrder = ApWorkOrder::find($workOrderId);
+
+      if (!$workOrder) {
+        return;
+      }
+
+      // Verificar que la orden de trabajo esté totalmente facturada Y no tenga salida de inventario generada
+      if (!$workOrder->is_invoiced || $workOrder->output_generation_warehouse) {
+        return;
+      }
+
+      // Crear la salida de inventario
+      $inventoryMovementService = app(InventoryMovementService::class);
+      $inventoryMovementService->createSaleFromWorkOrder($workOrderId);
+    } catch (Exception $e) {
+      Log::error('Error al crear movimiento de inventario para orden de trabajo', [
+        'work_order_id' => $workOrderId,
+        'error' => $e->getMessage(),
+      ]);
+    }
   }
 
   public function failed(Throwable $exception): void

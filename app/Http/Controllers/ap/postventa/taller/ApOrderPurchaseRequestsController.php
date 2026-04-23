@@ -30,7 +30,8 @@ class ApOrderPurchaseRequestsController extends Controller
   public function store(StoreApOrderPurchaseRequestsRequest $request)
   {
     try {
-      return $this->success($this->service->store($request->all()));
+      $data = $request->validated();
+      return $this->success($this->service->store($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -99,6 +100,37 @@ class ApOrderPurchaseRequestsController extends Controller
   {
     try {
       return $this->service->generatePurchaseRequestPDF($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function approve(Request $request, $id)
+  {
+    try {
+      $data = $request->all();
+      $data['id'] = $id;
+      return $this->success($this->service->approve($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function cancel(Request $request, $id)
+  {
+    try {
+      $data = $request->all();
+      $data['id'] = $id;
+      return $this->success($this->service->cancel($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function notifyManagers($id)
+  {
+    try {
+      return $this->service->notifyManagersForApproval($id);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
