@@ -9,6 +9,7 @@ use App\Http\Services\ap\facturacion\ElectronicDocumentService;
 use App\Http\Services\ap\facturacion\NubefactApiService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\EmailService;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\gestionhumana\personal\WorkerService;
 use App\Http\Utils\Constants;
@@ -162,6 +163,13 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       if (isset($data['accessories']) && is_array($data['accessories'])) {
         $this->saveAccessories($purchaseRequestQuote->id, $data['accessories']);
       }
+
+      // Enviar correo de notificación
+      $this->sendQuoteCreatedEmail($purchaseRequestQuote->fresh()->load([
+        'holder', 'opportunity.worker', 'apModelsVn.family.brand',
+        'vehicleColor', 'typeCurrency', 'docTypeCurrency',
+        'discountCoupons', 'accessories.approvedAccessory', 'sede', 'vehicle',
+      ]));
 
       return new PurchaseRequestQuoteResource($purchaseRequestQuote);
     });
@@ -581,6 +589,119 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $newSalePrice = $purchaseRequestQuote->sale_price - $totalDiscount;
 
     $purchaseRequestQuote->update(['sale_price' => $newSalePrice]);
+  }
+
+  /**
+   * Método público para enviar el correo de una cotización existente (útil para pruebas)
+   */
+  public function sendQuoteEmail(int $id): array
+  {
+    $quote = $this->find($id);
+    $quote->load([
+      'holder', 'opportunity.worker', 'apModelsVn.family.brand',
+      'vehicleColor', 'typeCurrency', 'docTypeCurrency',
+      'discountCoupons', 'accessories.approvedAccessory', 'sede', 'vehicle',
+    ]);
+
+    $this->sendQuoteCreatedEmail($quote);
+
+//    $recipients = array_filter([
+//      $quote->holder?->email,
+//      $quote->opportunity?->worker?->user?->email,
+//    ]);
+
+    $recipients = ['hvaldiviezos@automotorespakatnamu.com'];
+    
+    return [
+      'message' => 'Correo enviado a la cola correctamente.',
+      'recipients' => array_values(array_unique($recipients)),
+    ];
+  }
+
+  /**
+   * Envía correo de notificación al guardar una cotización/solicitud de compra
+   */
+  private function sendQuoteCreatedEmail($quote): void
+  {
+    try {
+//      $recipients = ['adolfo.ramirez@inchcape.com', 'john.timana@derco.pe'];
+      $recipients = ['hvaldiviezos@automotorespakatnamu.com'];
+
+      if (empty($recipients)) {
+        return;
+      }
+
+      $vehicle = $quote->vehicle;
+      $modelYear = ($vehicle && $vehicle->year)
+        ? $vehicle->year
+        : ($quote->apModelsVn->model_year ?? null);
+
+      $documentType = $quote->type_document === 'COTIZACION' ? 'COTIZACIÓN' : 'SOLICITUD DE COMPRA';
+
+      $emailData = [
+        // Layout base
+        'title' => ($quote->type_document === 'COTIZACION' ? 'Nueva Cotización' : 'Nueva Solicitud de Compra') . ' — N° ' . $quote->correlative,
+        'subtitle' => ($quote->sede?->abreviatura ?? '') . ' · ' . $quote->created_at->format('d/m/Y H:i'),
+        'company_name' => 'Grupo Pakatnamu',
+        // Template
+        'document_type' => $quote->type_document,
+        'quote_number' => $quote->correlative,
+        'quote_date' => $quote->created_at->format('d/m/Y H:i'),
+        'quote_deadline' => $quote->quote_deadline
+          ? \Carbon\Carbon::parse($quote->quote_deadline)->format('d/m/Y')
+          : null,
+        // Titular
+        'holder_name' => $quote->holder->full_name ?? '-',
+        'holder_doc' => $quote->holder->num_doc ?? null,
+        'holder_phone' => $quote->holder->phone ?? null,
+        'holder_email' => $quote->holder->email ?? null,
+        // Asesor
+        'advisor_name' => $quote->opportunity?->worker?->nombre_completo ?? '-',
+        'sede' => $quote->sede?->abreviatura ?? null,
+        // Vehículo
+        'brand' => $quote->apModelsVn?->family?->brand?->name ?? '-',
+        'model' => $quote->apModelsVn?->code ?? '-',
+        'color' => $quote->vehicleColor?->description ?? null,
+        'model_year' => $modelYear,
+        'warranty_years' => $quote->warranty_years,
+        'warranty_km' => $quote->warranty_km,
+        // Precios
+        'currency' => $quote->typeCurrency?->code ?? 'PEN',
+        'base_selling_price' => $quote->base_selling_price,
+        'sale_price' => $quote->sale_price,
+        'down_payment' => $quote->down_payment,
+        'doc_currency' => $quote->docTypeCurrency?->code ?? null,
+        'doc_sale_price' => $quote->doc_sale_price,
+        // Descuentos y accesorios
+        'discounts' => $quote->discountCoupons->map(function ($d) {
+          return [
+            'description' => $d->description,
+            'type' => $d->type,
+            'precio_unitario' => $d->precio_unitario,
+            'is_negative' => $d->is_negative,
+          ];
+        })->toArray(),
+        'accessories' => $quote->accessories->map(function ($a) {
+          return [
+            'description' => $a->approvedAccessory ? $a->approvedAccessory->description : '-',
+            'quantity' => $a->quantity,
+            'total' => $a->total,
+            'type_currency_code' => $a->typeCurrency ? $a->typeCurrency->code : 'PEN',
+          ];
+        })->toArray(),
+        // Comentario
+        'comment' => $quote->comment,
+      ];
+
+      (new EmailService())->queue([
+        'to' => array_unique($recipients),
+        'subject' => $documentType . ' N° ' . $quote->correlative . ' — ' . ($quote->holder->full_name ?? ''),
+        'template' => 'emails.purchase-request-quote-created',
+        'data' => $emailData,
+      ]);
+    } catch (\Exception $e) {
+      \Log::error('Error al enviar correo de cotización: ' . $e->getMessage());
+    }
   }
 
   /**

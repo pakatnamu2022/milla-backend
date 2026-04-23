@@ -137,4 +137,18 @@ class PurchaseRequestQuoteController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Send email with quote details and attached PDF report
+   * @param int $id
+   * @return JsonResponse
+   */
+  public function sendEmail(int $id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->sendQuoteEmail($id));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
