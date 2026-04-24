@@ -810,10 +810,18 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
         throw new Exception('Ya se ha enviado la notificación de aprobación para esta solicitud.');
       }
 
-      // Obtener usuarios con cargo de Jefe y Gerente de Postventa
+      // Obtener la sede del almacén
+      $warehouse = $purchaseRequest->warehouse;
+      if (!$warehouse || !$warehouse->sede_id) {
+        throw new Exception('No se pudo obtener la sede del almacén.');
+      }
+
+      $sedeId = $warehouse->sede_id;
+
+      // Obtener usuarios con cargo de Gerente de Postventa y Jefe de Almacén
       $managerPositionIds = array_merge(
-        Position::POSITION_JEFE_PVT_IDS,
-        Position::POSITION_GERENTE_PV_IDS
+        Position::POSITION_GERENTE_PV_IDS,
+        Position::WAREHOUSE_MANAGER
       );
 
       $managers = User::whereHas('person', function ($query) use ($managerPositionIds) {
@@ -821,11 +829,15 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
           ->where('status_deleted', 1)
           ->where('status_id', 22);
       })
+        ->whereHas('sedes', function ($query) use ($sedeId) {
+          $query->where('config_sede.id', $sedeId)
+            ->where('assigment_user_sede.status', true);
+        })
         ->with('person.position')
         ->get();
 
       if ($managers->isEmpty()) {
-        throw new Exception('No se encontraron jefes o gerentes de postventa para enviar la notificación.');
+        throw new Exception('No se encontraron gerentes de postventa o jefes de almacén para enviar la notificación.');
       }
 
       // Preparar datos para el correo
@@ -861,13 +873,21 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
       $subject = 'Solicitud de Aprobación de Compra - ' . $purchaseRequest->request_number;
 
-      // Enviar correo a cada jefe y gerente
+      // Enviar correo a cada gerente y jefe de almacén
       foreach ($managers as $manager) {
         $managerEmail = $manager->person?->email2;
 
         if ($managerEmail) {
           try {
             $isGerente = in_array($manager->person->cargo_id, Position::POSITION_GERENTE_PV_IDS);
+            $isJefeAlmacen = in_array($manager->person->cargo_id, Position::WAREHOUSE_MANAGER);
+
+            $role = 'Jefatura';
+            if ($isGerente) {
+              $role = 'Gerente de Postventa';
+            } elseif ($isJefeAlmacen) {
+              $role = 'Jefe de Almacén';
+            }
 
             $this->emailService->queue([
               'to' => $managerEmail,
@@ -875,7 +895,7 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
               'template' => 'emails.purchase-request-notification',
               'data' => array_merge($emailData, [
                 'recipient_name' => $manager->person->nombre_completo ?? 'Jefatura',
-                'recipient_role' => $isGerente ? 'Gerente de Postventa' : 'Jefe de Postventa',
+                'recipient_role' => $role,
               ]),
             ]);
           } catch (Exception $e) {
