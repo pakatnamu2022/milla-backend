@@ -2538,17 +2538,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       // Get accountant emails for this district
       $accountantEmails = $this->getAccountantEmailsByDistrict($request->district_id);
 
-      // Calcular total que asume la empresa (gastos de empresa)
-      $gastosEmpresa = $request->expenses->filter(function ($expense) {
-        return $expense->is_company_expense === true && !$expense->rejected;
-      });
-      $totalAsumeEmpresa = $gastosEmpresa->sum('company_amount');
-
-      // Calcular total que asume el colaborador (gastos del colaborador)
-      $gastosColaborador = $request->expenses->filter(function ($expense) {
-        return $expense->is_company_expense === false && !$expense->rejected;
-      });
-      $totalAsumeColaborador = $gastosColaborador->sum('company_amount');
+      // Calcular totales sobre todos los gastos no rechazados
+      $gastosActivos = $request->expenses->filter(fn($e) => !$e->rejected);
+      $totalAsumeEmpresa = (float)$gastosActivos->sum('company_amount');
+      $totalAsumeColaborador = (float)$gastosActivos->sum('employee_amount');
 
       // Calcular el total a reembolsar (importe otorgado - lo que asume el colaborador)
       $importeOtorgado = $request->cash_amount ?? 0;
