@@ -535,7 +535,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
    */
   protected function updateSupplierOrderReceptionType(ApSupplierOrder $supplierOrder): void
   {
-    $supplierOrderService = new ApSupplierOrderService();
+    $supplierOrderService = new ApSupplierOrderService(new EmailService());
     $pendingProducts = $supplierOrderService->getPendingProducts($supplierOrder->id);
 
     // Si no hay productos pendientes → COMPLETE
