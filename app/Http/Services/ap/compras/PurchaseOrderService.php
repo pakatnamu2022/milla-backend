@@ -465,7 +465,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
    */
   public function show($id)
   {
-    return new PurchaseOrderResource($this->find($id));
+    return (new PurchaseOrderResource($this->find($id)))->showExtra();
   }
 
   /**
