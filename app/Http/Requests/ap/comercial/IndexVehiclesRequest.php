@@ -30,6 +30,7 @@ class IndexVehiclesRequest extends IndexRequest
 //      ],
       'is_received' => 'nullable|boolean|in:0,1',
       'has_purchase_request_quote' => 'nullable|boolean|in:0,1',
+      'has_delivery_guide' => 'nullable|boolean|in:0,1',
       'ap_models_vn_id' => [
         'integer',
         Rule::in(ApModelsVn::all()->pluck('id')->toArray()),
