@@ -891,10 +891,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('La OT se encuentra en trabajo, debe esperar a que el técnico finalice su trabajo para generar una nota interna');
       }
 
-      if ($workOrder->status_id === ApMasters::FINISHED_WORK_ORDER_ID) {
-        throw new Exception('El técnico debe finalizar su trabajo en esta OT para generar una nota interna');
-      }
-
       if ($validateDocument !== TypePlanningWorkOrder::INTERNA) {
         throw new Exception('Solo se pueden generar notas internas para órdenes de trabajo con planificación de tipo "INTERNA"');
       }
