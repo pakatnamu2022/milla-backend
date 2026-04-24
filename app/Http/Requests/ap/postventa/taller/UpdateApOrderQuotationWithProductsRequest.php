@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 
 class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
@@ -89,7 +90,7 @@ class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
       'details.*.supply_type' => [
         'required',
         'string',
-        'in:STOCK,CENTRAL,IMPORTACION',
+        'in:STOCK,TRASLADO,LOCAL,CENTRAL,IMPORTACION',
       ],
     ];
   }
@@ -158,7 +159,7 @@ class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
 
       'details.*.supply_type.required' => 'El tipo de suministro es obligatorio en todos los detalles.',
       'details.*.supply_type.string' => 'El tipo de suministro debe ser una cadena de texto.',
-      'details.*.supply_type.in' => 'El tipo de suministro debe ser STOCK, CENTRAL o IMPORTACION.',
+      'details.*.supply_type.in' => 'El tipo de suministro debe ser STOCK, TRASLADO, LOCAL, CENTRAL o IMPORTACION.',
     ];
   }
 
@@ -189,28 +190,80 @@ class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
       }
 
       // Validar stock según supply_type de cada detalle
+      $sedeId = $this->input('sede_id');
+      $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($sedeId)?->id;
+
+      if (!$warehouseId) {
+        $validator->errors()->add(
+          'sede_id',
+          'No se encontró un almacén físico asociado a esta sede para postventa. No se puede validar el stock de los productos.'
+        );
+        return;
+      }
+
       foreach ($details as $index => $detail) {
         $productId = $detail['product_id'] ?? null;
         $supplyType = $detail['supply_type'] ?? null;
         $quantity = $detail['quantity'] ?? 0;
 
-        if (!$productId || !$supplyType) {
+        if (!$productId || !$supplyType || !$sedeId) {
           continue;
         }
 
-        $totalStock = ProductWarehouseStock::where('product_id', $productId)
-          ->sum('quantity');
+        // Stock en la sede actual
+        $stockInCurrentSede = ProductWarehouseStock::where('product_id', $productId)
+          ->where('warehouse_id', $warehouseId)
+          ->sum('available_quantity');
 
-        if ($supplyType === 'STOCK' && $totalStock <= 0) {
-          $validator->errors()->add(
-            "details.{$index}.product_id",
-            "El producto seleccionado no tiene stock disponible en ninguna sede. Para tipo de suministro STOCK, el producto debe tener stock disponible."
-          );
-        } elseif (in_array($supplyType, ['CENTRAL', 'IMPORTACION']) && $totalStock >= $quantity) {
-          $validator->errors()->add(
-            "details.{$index}.product_id",
-            "El producto tiene stock suficiente ({$totalStock} unidades disponibles para {$quantity} solicitadas). Debe usar tipo de suministro STOCK en lugar de {$supplyType}."
-          );
+        // Stock en otras sedes
+        $stockInOtherSedes = ProductWarehouseStock::where('product_id', $productId)
+          ->where('warehouse_id', '!=', $warehouseId)
+          ->sum('available_quantity');
+
+        // Validación para STOCK: solo si hay suficiente stock en la sede actual
+        if ($supplyType === 'STOCK') {
+          if ($stockInCurrentSede < $quantity) {
+            $validator->errors()->add(
+              "details.{$index}.supply_type",
+              "No puede usar tipo STOCK. El producto solo tiene {$stockInCurrentSede} unidades disponibles en esta sede pero solicita {$quantity}. Debe usar TRASLADO, LOCAL, CENTRAL o IMPORTACION."
+            );
+          }
+        }
+
+        // Validación para TRASLADO: solo si NO hay suficiente en sede actual PERO sí en otras sedes
+        if ($supplyType === 'TRASLADO') {
+          if ($stockInCurrentSede >= $quantity) {
+            $validator->errors()->add(
+              "details.{$index}.supply_type",
+              "No puede usar tipo TRASLADO porque dispone de {$stockInCurrentSede} unidades en stock de su sede, lo cual es suficiente para las {$quantity} solicitadas. Por favor, use tipo STOCK en su lugar."
+            );
+          } elseif ($stockInCurrentSede > 0 && $stockInCurrentSede < $quantity) {
+            $quantityNeeded = $quantity - $stockInCurrentSede;
+            $validator->errors()->add(
+              "details.{$index}.supply_type",
+              "No puede solicitar {$quantity} unidades con TRASLADO porque tiene {$stockInCurrentSede} unidades disponibles en stock de su sede. Por favor, genere dos cotizaciones separadas: una con {$stockInCurrentSede} unidades usando tipo STOCK y otra con {$quantityNeeded} unidades usando tipo TRASLADO."
+            );
+          } elseif ($stockInOtherSedes <= 0) {
+            $validator->errors()->add(
+              "details.{$index}.supply_type",
+              "No puede usar tipo TRASLADO porque no hay stock disponible en otras sedes. Debe usar LOCAL, CENTRAL o IMPORTACION."
+            );
+          } elseif ($stockInOtherSedes < $quantity) {
+            $validator->errors()->add(
+              "details.{$index}.supply_type",
+              "No puede usar tipo TRASLADO para {$quantity} unidades porque solo hay {$stockInOtherSedes} unidades disponibles en otras sedes. Debe usar LOCAL, CENTRAL o IMPORTACION para las unidades faltantes."
+            );
+          }
+        }
+
+        // Validación para LOCAL, CENTRAL, IMPORTACION: solo si la cantidad excede el stock de la sede actual
+        if (in_array($supplyType, ['LOCAL', 'CENTRAL', 'IMPORTACION'])) {
+          if ($stockInCurrentSede >= $quantity) {
+            $validator->errors()->add(
+              "details.{$index}.supply_type",
+              "No puede usar tipo {$supplyType}. El producto tiene {$stockInCurrentSede} unidades en esta sede, suficientes para las {$quantity} solicitadas. Debe usar tipo STOCK."
+            );
+          }
         }
       }
     });
