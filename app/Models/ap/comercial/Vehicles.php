@@ -73,6 +73,7 @@ class Vehicles extends BaseModel
     'customer_id' => '=',
     'type_operation_id' => '=',
     'is_received' => 'accessor_bool',
+    'has_delivery_guide' => 'accessor_bool',
   ];
 
   const array sorts = [
@@ -89,6 +90,15 @@ class Vehicles extends BaseModel
   public function getIsReceivedAttribute()
   {
     return $this->shippingGuides()->exists();
+  }
+
+  /**
+   * Accesor para determinar si el vehículo ya tiene una guía de entrega: 'has_delivery_guide'
+   * @return bool
+   */
+  public function getHasDeliveryGuideAttribute(): bool
+  {
+    return $this->vehicleDelivery()->exists();
   }
 
   public function setPlateAttribute($value)

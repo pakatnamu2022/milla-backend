@@ -6,7 +6,6 @@ use App\Http\Resources\ap\comercial\PurchaseRequestQuoteResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Services\ap\facturacion\ElectronicDocumentService;
-use App\Http\Services\ap\facturacion\NubefactApiService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
@@ -32,10 +31,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
-use PHPUnit\TextUI\Configuration\Constant;
 use Throwable;
-use function dd;
-use function json_encode;
 
 class PurchaseRequestQuoteService extends BaseService implements BaseServiceInterface
 {
@@ -592,7 +588,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   }
 
   /**
-   * Método público para enviar el correo de una cotización existente (útil para pruebas)
+   * Metodo público para enviar el correo de una cotización existente (útil para pruebas)
    */
   public function sendQuoteEmail(int $id): array
   {
@@ -605,13 +601,8 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
     $this->sendQuoteCreatedEmail($quote);
 
-//    $recipients = array_filter([
-//      $quote->holder?->email,
-//      $quote->opportunity?->worker?->user?->email,
-//    ]);
+    $recipients = config('mail.recipients.purchase_quote');
 
-    $recipients = ['hvaldiviezos@automotorespakatnamu.com'];
-    
     return [
       'message' => 'Correo enviado a la cola correctamente.',
       'recipients' => array_values(array_unique($recipients)),
@@ -624,8 +615,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   private function sendQuoteCreatedEmail($quote): void
   {
     try {
-//      $recipients = ['adolfo.ramirez@inchcape.com', 'john.timana@derco.pe'];
-      $recipients = ['hvaldiviezos@automotorespakatnamu.com'];
+      $recipients = config('mail.recipients.purchase_quote');
 
       if (empty($recipients)) {
         return;
@@ -660,7 +650,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'sede' => $quote->sede?->abreviatura ?? null,
         // Vehículo
         'brand' => $quote->apModelsVn?->family?->brand?->name ?? '-',
-        'model' => $quote->apModelsVn?->code ?? '-',
+        'model' => $quote->apModelsVn?->version ?? '-',
         'color' => $quote->vehicleColor?->description ?? null,
         'model_year' => $modelYear,
         'warranty_years' => $quote->warranty_years,
