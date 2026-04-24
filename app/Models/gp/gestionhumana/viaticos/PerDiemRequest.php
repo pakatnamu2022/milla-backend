@@ -309,6 +309,84 @@ class PerDiemRequest extends BaseModel
   }
 
   /**
+   * Cuánto se ha gastado de lo presupuestado.
+   * Suma receipt_amount de gastos no rechazados, no de empresa,
+   * cuyo tipo de gasto (o su parent) coincide con algún presupuesto asignado.
+   */
+  public function getBudgetSpentAttribute(): float
+  {
+    if (!$this->budgets || !$this->expenses) {
+      return 0.0;
+    }
+
+    $budgetTypeIds = $this->budgets->pluck('expense_type_id')->toArray();
+
+    return (float)$this->expenses
+      ->filter(fn($e) => !$e->rejected && !$e->is_company_expense)
+      ->filter(function ($e) use ($budgetTypeIds) {
+        if (in_array($e->expense_type_id, $budgetTypeIds)) {
+          return true;
+        }
+        if ($e->expenseType) {
+          return in_array($e->expenseType->parent_id, $budgetTypeIds);
+        }
+        return false;
+      })
+      ->sum('receipt_amount');
+  }
+
+  /**
+   * Total gastado en todos los gastos no rechazados (incluye hotel registrado por empresa).
+   */
+  public function getTotalSpentAllAttribute(): float
+  {
+    if (!$this->expenses) {
+      return 0.0;
+    }
+
+    return (float)$this->expenses
+      ->filter(fn($e) => !$e->rejected)
+      ->sum('receipt_amount');
+  }
+
+  /**
+   * Cuánto se ha gastado fuera del presupuesto:
+   * hotel de empresa, pasajes sin tarifa, y cualquier tipo no presupuestado.
+   */
+  public function getExtraSpentAttribute(): float
+  {
+    return round($this->total_spent_all - $this->budget_spent, 2);
+  }
+
+  /**
+   * Total que asume la empresa (company_amount de gastos no rechazados).
+   */
+  public function getTotalCompanyAttribute(): float
+  {
+    if (!$this->expenses) {
+      return 0.0;
+    }
+
+    return (float)$this->expenses
+      ->filter(fn($e) => !$e->rejected)
+      ->sum('company_amount');
+  }
+
+  /**
+   * Total que asume el colaborador (employee_amount de gastos no rechazados).
+   */
+  public function getTotalEmployeeAttribute(): float
+  {
+    if (!$this->expenses) {
+      return 0.0;
+    }
+
+    return (float)$this->expenses
+      ->filter(fn($e) => !$e->rejected)
+      ->sum('employee_amount');
+  }
+
+  /**
    * Check if expenses can be recorded for this request
    */
   public function canRecordExpenses(): bool
