@@ -172,6 +172,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $unitPrice = $detail['unit_price'];
         $sedeId = $data['sede_id'];
 
+        // Validar precio de venta al público
         $validation = ProductWarehouseStock::validatePublicSalePrice(
           $productId,
           $sedeId,
@@ -359,6 +360,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $unitPrice = $detail['unit_price'];
         $sedeId = $data['sede_id'];
 
+        // Validar precio de venta al público
         $validation = ProductWarehouseStock::validatePublicSalePrice(
           $productId,
           $sedeId,

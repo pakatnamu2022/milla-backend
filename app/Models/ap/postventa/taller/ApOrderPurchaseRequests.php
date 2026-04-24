@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\postventa\taller;
 
+use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
@@ -26,6 +27,7 @@ class ApOrderPurchaseRequests extends Model
     'purchase_order_id',
     'warehouse_id',
     'currency_id',
+    'area_id',
     'exchange_rate',
     'reviewed_by',
     'reviewed_at',
@@ -110,6 +112,11 @@ class ApOrderPurchaseRequests extends Model
   public function typeCurrency(): BelongsTo
   {
     return $this->belongsTo(TypeCurrency::class, 'currency_id');
+  }
+
+  public function area(): BelongsTo
+  {
+    return $this->belongsTo(ApMasters::class, 'area_id');
   }
 
   public function reviewedBy(): BelongsTo
