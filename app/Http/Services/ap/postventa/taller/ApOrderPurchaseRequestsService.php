@@ -64,7 +64,6 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
   public function store(mixed $data)
   {
-    dd();
     return DB::transaction(function () use ($data) {
       // Generate unique request number
       $data['request_number'] = $this->generateRequestNumber();
