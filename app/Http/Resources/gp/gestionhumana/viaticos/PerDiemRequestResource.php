@@ -40,6 +40,8 @@ class PerDiemRequestResource extends JsonResource
       'settlement_date' => $this->settlement_date,
       'total_spent' => (float)$this->total_spent,
       'balance_to_return' => (float)$this->balance_to_return,
+      'total_company' => $this->expenses->filter(fn($e) => !$e->rejected)->sum('company_amount'),
+      'total_employee' => $this->expenses->filter(fn($e) => !$e->rejected)->sum('employee_amount'),
       'notes' => $this->notes,
       'days_without_settlement' => $daysWithoutSettlement,
       'with_active' => (bool)$this->with_active,
