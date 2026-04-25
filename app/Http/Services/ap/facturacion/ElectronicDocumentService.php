@@ -3047,10 +3047,32 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'area_id' => ApMasters::AREA_POSVENTA,
       ];
 
-      // 11. Create invoice
+      // 11. Apply detraction logic for consolidated work orders
+      $company = Company::find(Company::COMPANY_AP_ID);
+      if ($company && isset($invoiceData['total'])) {
+        $detractionAmount = (float)($company->detraction_amount ?? 0);
+
+        // Verificar si el total de la factura consolidada supera o iguala el monto de detracción
+        if ($total >= $detractionAmount && $detractionAmount > 0) {
+          $invoiceData['detraccion'] = true;
+          $invoiceData['sunat_concept_detraction_type_id'] = SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION;
+          $invoiceData['sunat_concept_transaction_type_id'] = SunatConcepts::ID_SUJETA_DETRACCION;
+
+          // Obtener el porcentaje de detracción desde GeneralMaster
+          $detractionPercentage = GeneralMaster::find(GeneralMaster::SUNAT_DETRACTION_PERCENTAGE_ID);
+          if ($detractionPercentage) {
+            $porcentaje = (float)$detractionPercentage->value;
+            $invoiceData['detraccion_porcentaje'] = $porcentaje;
+            // La detracción se calcula sobre el total del documento
+            $invoiceData['detraccion_total'] = (float)$invoiceData['total'] * ($porcentaje / 100);
+          }
+        }
+      }
+
+      // 12. Create invoice
       $invoice = ElectronicDocument::create($invoiceData);
 
-      // 12. Create invoice items from frontend data
+      // 13. Create invoice items from frontend data
       $lineNumber = 1;
       foreach ($data['items'] as $item) {
         $invoice->items()->create([
@@ -3069,10 +3091,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         ]);
       }
 
-      // 13. Attach internal notes to invoice
+      // 14. Attach internal notes to invoice
       $invoice->internalNotes()->attach($data['internal_note_ids']);
 
-      // 14. Mark internal notes as invoiced
+      // 15. Mark internal notes as invoiced
       foreach ($internalNotes as $note) {
         $note->markAsInvoiced($emissionDate);
       }
