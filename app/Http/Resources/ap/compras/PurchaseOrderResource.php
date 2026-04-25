@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\compras;
 
+use App\Http\Resources\ap\comercial\PurchaseRequestQuoteResource;
 use App\Http\Resources\ap\comercial\VehicleMovementResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use Illuminate\Http\Request;
@@ -9,6 +10,14 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class PurchaseOrderResource extends JsonResource
 {
+  protected bool $showExtra = false;
+
+  public function showExtra(bool $show = true): static
+  {
+    $this->showExtra = $show;
+    return $this;
+  }
+
   /**
    * Transform the resource into an array.
    *
@@ -16,7 +25,7 @@ class PurchaseOrderResource extends JsonResource
    */
   public function toArray(Request $request): array
   {
-    return [
+    $response = [
       'id' => $this->id,
       'number' => $this->number,
       'number_guide' => $this->number_guide,
@@ -86,5 +95,13 @@ class PurchaseOrderResource extends JsonResource
       'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
       'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
     ];
+
+    if ($this->showExtra) {
+      $response['quotation'] = $this->quotation
+        ? PurchaseRequestQuoteResource::make($this->quotation)
+        : null;
+    }
+
+    return $response;
   }
 }
