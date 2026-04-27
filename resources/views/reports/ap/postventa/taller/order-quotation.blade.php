@@ -422,7 +422,13 @@
       <tr>
         <td class="text-center">{{ $quotation['show_codes'] ?? true ? $detail['code'] : '' }}</td>
         <td class="text-left">{{ $detail['description'] }}</td>
-        <td class="text-left">{{ $detail['supply_type'] === 'M.O' ? '' : $detail['supply_type'] }}</td>
+        <td class="text-left">
+          {{ $detail['supply_type'] === 'M.O' ? '' : $detail['supply_type'] }}
+          @if(!empty($detail['observations']))
+            <br>
+            <span style="font-size: 8px;">{{ $detail['observations'] }}</span>
+          @endif
+        </td>
         <td class="text-center">{{ number_format($detail['quantity'], 2) }}</td>
         <td class="text-right">{{ number_format($detail['unit_price'], 2) }}</td>
         <td class="text-right">{{ number_format($detail['discount'], 2) }}</td>
@@ -442,7 +448,13 @@
       <tr>
         <td class="text-center">{{ $quotation['show_codes'] ?? true ? $detail['code'] : '' }}</td>
         <td class="text-left">{{ $detail['description'] }}</td>
-        <td class="text-left">{{ $detail['supply_type'] === 'M.O' ? '' : $detail['supply_type'] }}</td>
+        <td class="text-left">
+          {{ $detail['supply_type'] === 'M.O' ? '' : $detail['supply_type'] }}
+          @if(!empty($detail['observations']))
+            <br>
+            <span style="font-size: 8px;">{{ $detail['observations'] }}</span>
+          @endif
+        </td>
         <td class="text-center">{{ number_format($detail['quantity'], 2) }}</td>
         <td class="text-right">{{ number_format($detail['unit_price'], 2) }}</td>
         <td class="text-right">{{ number_format($detail['discount'], 2) }}</td>

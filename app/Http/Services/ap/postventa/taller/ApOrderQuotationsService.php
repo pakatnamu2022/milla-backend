@@ -90,6 +90,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   public function find($id)
   {
     $quotation = ApOrderQuotations::with([
+      'invoiceTo',
       'vehicle',
       'createdBy',
       'details'
@@ -1286,6 +1287,25 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'expires_at' => $quotation->confirmation_token_expires_at,
         'quotation' => new ApOrderQuotationsResource($quotation)
       ];
+    });
+  }
+
+  public function invoiceTo(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $apOrderQuotations = $this->find($data['id']);
+
+      if (!$apOrderQuotations) {
+        throw new Exception('Cotización no encontrada');
+      }
+
+      if ($apOrderQuotations->has_invoice_generated) {
+        throw new Exception('No se puede generar una orden de trabajo a partir de una cotización que ya tiene una factura generada.');
+      }
+      // Update work order
+      $apOrderQuotations->update($data);
+
+      return new ApOrderQuotationsResource($apOrderQuotations);
     });
   }
 }
