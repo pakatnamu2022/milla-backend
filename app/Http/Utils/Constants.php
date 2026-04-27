@@ -24,6 +24,9 @@ class Constants
 
   public const int SALE_COORDINATOR_CATEGORY_ID = 14; // Categoría Coordinador de Ventas
 
+  public const int NON_ASSIGN_STATUS = 28;
+  public const int ASSIGN_STATUS = 29;
+
   public const array AP_TICS_MAIL = [
     'wsuclupef@automotorespakatnamu.com',
     'dordinolac@grupopakatnamu.com',
