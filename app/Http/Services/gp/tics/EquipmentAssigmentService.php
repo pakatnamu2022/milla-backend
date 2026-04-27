@@ -5,6 +5,7 @@ namespace App\Http\Services\gp\tics;
 use App\Http\Resources\gp\tics\EquipmentAssigmentResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Constants;
 use App\Models\gp\tics\EquipmentAssigment;
 use App\Models\gp\tics\EquipmentItemAssigment;
 use App\Models\gp\tics\PhoneLineWorker;
@@ -97,6 +98,8 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
         'observacion_unassign' => $data['observacion_unassign'],
         'phone_line_id' => null,
       ]);
+
+      $assignment->items()->update(['status_id' => Constants::NON_ASSIGN_STATUS]);
 
       return new EquipmentAssigmentResource(
         EquipmentAssigment::with(['worker', 'items.equipment.equipmentType'])->find($assignment->id)
