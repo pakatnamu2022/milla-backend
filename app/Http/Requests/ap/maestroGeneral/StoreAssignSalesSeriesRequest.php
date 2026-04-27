@@ -23,8 +23,7 @@ class StoreAssignSalesSeriesRequest extends StoreRequest
       'type_receipt_id' => ['required', 'exists:ap_masters,id'],
       'type_operation_id' => ['required', 'exists:ap_masters,id'],
       'sede_id' => ['required', 'exists:config_sede,id'],
-      'type' => ['required', 'in:PURCHASE,SALE,OTHERS'],
-      'is_advance' => ['required', 'boolean'],
+      'type' => ['required', 'in:PURCHASE,SALE,GUIDES,OTHERS'],
     ];
   }
 
@@ -51,9 +50,6 @@ class StoreAssignSalesSeriesRequest extends StoreRequest
 
       'type.required' => 'El tipo es obligatorio.',
       'type.in' => 'El tipo seleccionado no es válido.',
-
-      'is_advance.required' => 'El campo es anticipo es obligatorio.',
-      'is_advance.boolean' => 'El campo es anticipo debe ser verdadero o falso.',
     ];
   }
 
