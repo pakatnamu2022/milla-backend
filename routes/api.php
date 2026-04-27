@@ -1709,7 +1709,9 @@ Route::group(['prefix' => 'public'], function () {
 
   // External API routes — authenticated via static API Key (Authorization: ApiKey <key>)
   Route::middleware(['api.key'])->prefix('external')->group(function () {
-    Route::post('/document-validation/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
-    Route::post('/document-validation/validate/dni', [DocumentValidationController::class, 'validateDni']);
+
   });
 });
+
+Route::post('/document-validation/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
+Route::post('/document-validation/validate/dni', [DocumentValidationController::class, 'validateDni']);
