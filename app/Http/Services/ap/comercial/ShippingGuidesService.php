@@ -61,7 +61,12 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     );
   }
 
-  public function find($id)
+  /**
+   * @param $id
+   * @return ShippingGuides
+   * @throws Exception
+   */
+  public function find($id): ShippingGuides
   {
     $document = ShippingGuides::find($id);
 
@@ -969,50 +974,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
         continue;
       }
-
-      // Cabecera de transferencia de inventario
-//      if (in_array($log->step, [
-//          VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
-//          VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL,
-//        ]) && !empty($guide->dyn_series)) {
-//        $existsInGpin = DB::connection('dbtp')
-//          ->table('neInTbTransferenciaInventario')
-//          ->where('EmpresaId', Company::AP_DYNAMICS)
-//          ->where('TransferenciaId', $guide->dyn_series)
-//          ->exists();
-//
-//        if ($existsInGpin) {
-//          DB::connection('dbtp')
-//            ->table('neInTbTransferenciaInventario')
-//            ->where('EmpresaId', Company::AP_DYNAMICS)
-//            ->where('TransferenciaId', $guide->dyn_series)
-//            ->update(['Procesar' => 1, 'ProcesoEstado' => 0, 'ProcesoError' => '']);
-//
-//          $resetActions[] = "Cabecera transferencia reseteada en GPIN: {$guide->dyn_series}";
-//        }
-//      }
-
-      // Cabecera de transacción de inventario (venta)
-//      if (in_array($log->step, [
-//          VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE,
-//          VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_REVERSAL,
-//        ]) && !empty($guide->dyn_series)) {
-//        $existsInGpin = DB::connection('dbtp')
-//          ->table('neInTbTransaccionInventario')
-//          ->where('EmpresaId', Company::AP_DYNAMICS)
-//          ->where('TransaccionId', $guide->dyn_series)
-//          ->exists();
-//
-//        if ($existsInGpin) {
-//          DB::connection('dbtp')
-//            ->table('neInTbTransaccionInventario')
-//            ->where('EmpresaId', Company::AP_DYNAMICS)
-//            ->where('TransaccionId', $guide->dyn_series)
-//            ->update(['Procesar' => 1, 'ProcesoEstado' => 0, 'ProcesoError' => '']);
-//
-//          $resetActions[] = "Cabecera transacción reseteada en GPIN: {$guide->dyn_series}";
-//        }
-//      }
 
       // Resetear el log a pending para que el job lo reintente limpiamente
       $log->update([

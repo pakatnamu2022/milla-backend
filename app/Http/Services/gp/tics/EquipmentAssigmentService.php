@@ -87,16 +87,15 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
           ->where('worker_id', $assignment->persona_id)
           ->where('active', true)
           ->update([
-            'active'        => false,
+            'active' => false,
             'unassigned_at' => $data['fecha'],
           ]);
       }
 
       $assignment->update([
-        'status_deleted'       => true,
-        'unassigned_at'        => $data['fecha'],
+        'unassigned_at' => $data['fecha'],
         'observacion_unassign' => $data['observacion_unassign'],
-        'phone_line_id'        => null,
+        'phone_line_id' => null,
       ]);
 
       return new EquipmentAssigmentResource(
@@ -191,10 +190,10 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
 
           PhoneLineWorker::create([
             'phone_line_id' => $phoneLineId,
-            'worker_id'     => $assignment->persona_id,
-            'equipo_id'     => $celularEquipoId,
-            'active'        => true,
-            'assigned_at'   => now(),
+            'worker_id' => $assignment->persona_id,
+            'equipo_id' => $celularEquipoId,
+            'active' => true,
+            'assigned_at' => now(),
           ]);
         }
 
@@ -206,7 +205,7 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
             ->where('worker_id', $assignment->persona_id)
             ->where('active', true)
             ->update([
-              'active'        => false,
+              'active' => false,
               'unassigned_at' => now(),
             ]);
         }
