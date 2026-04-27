@@ -68,6 +68,7 @@ use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningSessionController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Dashboard\AdoptionDashboardController;
 use App\Http\Controllers\Dashboard\ap\comercial\DashboardComercialController;
 use App\Http\Controllers\DocumentValidationController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\DetailedDevelopmentPlanController;
@@ -1513,6 +1514,18 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('/export', [AuditLogsController::class, 'export']);
     Route::get('/system-logs', [AuditLogsController::class, 'logs']);
     Route::delete('/clean', [AuditLogsController::class, 'clean']);
+  });
+
+  // Adoption Dashboard Routes (Marcha Blanca / ERP Adoption Analytics)
+  Route::group(['prefix' => 'adoption-dashboard'], function () {
+    Route::get('/summary', [AdoptionDashboardController::class, 'summary']);
+    Route::get('/users', [AdoptionDashboardController::class, 'users']);
+    Route::get('/sedes', [AdoptionDashboardController::class, 'sedes']);
+    Route::get('/modules', [AdoptionDashboardController::class, 'modules']);
+    Route::get('/compliance', [AdoptionDashboardController::class, 'compliance']);
+    Route::get('/champions', [AdoptionDashboardController::class, 'champions']);
+    Route::get('/alerts', [AdoptionDashboardController::class, 'alerts']);
+    Route::get('/trend', [AdoptionDashboardController::class, 'trend']);
   });
 
   // GP - Gestión Humana - Viáticos Routes
