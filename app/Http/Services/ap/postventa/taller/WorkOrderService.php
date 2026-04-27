@@ -879,8 +879,16 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $workOrder = $this->find($id);
       $validateDocument = $workOrder->items->first()?->typePlanning->type_document;
 
-      if ($workOrder->status_id === ApMasters::FINISHED_WORK_ORDER_ID) {
-        throw new Exception('El técnico debe finalizar su trabajo en esta OT para generar una nota interna');
+      if ($workOrder->status_id === ApMasters::OPENING_WORK_ORDER_ID) {
+        throw new Exception('La OT se encuentra en estado abierto, debe recepcionar la orden de trabajo para iniciar el trabajo y luego generar la nota interna');
+      }
+
+      if ($workOrder->status_id === ApMasters::RECEIVED_WORK_ORDER_ID) {
+        throw new Exception('La OT se encuentra en estado recepcionado, debe asignar un técnico para iniciar el trabajo y luego generar la nota interna');
+      }
+
+      if ($workOrder->status_id === ApMasters::AT_WORK_WORK_ORDER_ID) {
+        throw new Exception('La OT se encuentra en trabajo, debe esperar a que el técnico finalice su trabajo para generar una nota interna');
       }
 
       if ($validateDocument !== TypePlanningWorkOrder::INTERNA) {
