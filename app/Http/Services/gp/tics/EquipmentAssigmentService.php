@@ -5,6 +5,7 @@ namespace App\Http\Services\gp\tics;
 use App\Http\Resources\gp\tics\EquipmentAssigmentResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Constants;
 use App\Models\gp\tics\EquipmentAssigment;
 use App\Models\gp\tics\EquipmentItemAssigment;
 use App\Models\gp\tics\PhoneLineWorker;
@@ -87,17 +88,18 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
           ->where('worker_id', $assignment->persona_id)
           ->where('active', true)
           ->update([
-            'active'        => false,
+            'active' => false,
             'unassigned_at' => $data['fecha'],
           ]);
       }
 
       $assignment->update([
-        'status_deleted'       => true,
-        'unassigned_at'        => $data['fecha'],
+        'unassigned_at' => $data['fecha'],
         'observacion_unassign' => $data['observacion_unassign'],
-        'phone_line_id'        => null,
+        'phone_line_id' => null,
       ]);
+
+      $assignment->items()->update(['status_id' => Constants::NON_ASSIGN_STATUS]);
 
       return new EquipmentAssigmentResource(
         EquipmentAssigment::with(['worker', 'items.equipment.equipmentType'])->find($assignment->id)
@@ -191,10 +193,10 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
 
           PhoneLineWorker::create([
             'phone_line_id' => $phoneLineId,
-            'worker_id'     => $assignment->persona_id,
-            'equipo_id'     => $celularEquipoId,
-            'active'        => true,
-            'assigned_at'   => now(),
+            'worker_id' => $assignment->persona_id,
+            'equipo_id' => $celularEquipoId,
+            'active' => true,
+            'assigned_at' => now(),
           ]);
         }
 
@@ -206,7 +208,7 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
             ->where('worker_id', $assignment->persona_id)
             ->where('active', true)
             ->update([
-              'active'        => false,
+              'active' => false,
               'unassigned_at' => now(),
             ]);
         }
