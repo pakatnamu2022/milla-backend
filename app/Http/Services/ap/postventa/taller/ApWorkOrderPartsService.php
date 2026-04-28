@@ -5,13 +5,11 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\ApWorkOrderPartsResource;
 use App\Http\Resources\ap\postventa\taller\ApWorkOrderPartDeliveryResource;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
-use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
-use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
@@ -195,6 +193,25 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
       if (!$stock) {
         throw new Exception('No se encontró registro de stock para el producto en el almacén seleccionado');
+      }
+
+      $inventoryMovementService = app(InventoryMovementService::class);
+
+      $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+        $stock->product->dyn_code,
+        $stock->warehouse->dyn_code,
+      );
+
+      // El SP retorna ArticuloStock como string, convertir a float para comparar
+      $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+        ? (float)trim($externalStock['ArticuloStock'])
+        : 0;
+
+      if ($availableQuantityExternal < $data['quantity_used']) {
+        throw new Exception(
+          "Stock insuficiente en sistema dynamics para el repuesto: {$stock->product->description}. " .
+          "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$data['quantity_used']}"
+        );
       }
 
       if ($stock->available_quantity < $data['quantity_used']) {
@@ -438,6 +455,8 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('No se encontraron productos seleccionados');
       }
 
+      $inventoryMovementService = app(InventoryMovementService::class);
+
       // Validar que no existan productos duplicados en la orden de trabajo
       $existingProductIds = ApWorkOrderParts::where('work_order_id', $workOrderId)
         ->pluck('product_id')
@@ -483,6 +502,23 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         if (!$stock) {
           $productInfo = $detail->product ? "{$detail->product->code} - {$detail->product->name}" : "ID {$detail->product_id}";
           throw new Exception("No se encontró registro de stock para el producto {$productInfo} en el almacén seleccionado");
+        }
+
+        $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+          $stock->product->dyn_code,
+          $stock->warehouse->dyn_code
+        );
+
+        // El SP retorna ArticuloStock como string, convertir a float para comparar
+        $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+          ? (float)trim($externalStock['ArticuloStock'])
+          : 0;
+
+        if ($availableQuantityExternal < $detail->quantity) {
+          throw new Exception(
+            "Stock insuficiente en sistema externo para el producto: {$detail->product->description}. " .
+            "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$detail->quantity}"
+          );
         }
 
         if ($stock->available_quantity < $detail->quantity) {

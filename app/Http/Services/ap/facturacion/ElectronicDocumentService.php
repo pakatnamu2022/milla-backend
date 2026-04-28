@@ -601,11 +601,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $validationData['work_order_id'] = $effectiveWorkOrderId;
 
         $this->validateWorkOrderInvoice($validationData);
-
-        // Setear códigos de productos para items de work order si se están actualizando items
-        if (isset($data['items']) && is_array($data['items'])) {
-          $data['items'] = $this->setWorkOrderItemCodes($effectiveWorkOrderId, $data['items']);
-        }
       }
 
       // Validar venta interna para order_quotation_id o work_order_id
@@ -672,6 +667,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Actualizar items si se proporcionan
       if (isset($data['items']) && is_array($data['items'])) {
+        // Enriquecer el campo `codigo` de cada item antes de crearlos
+        if (!empty($effectiveQuotationId)) {
+          $this->enrichItemsCodigoFromQuotation($data['items'], (int)$effectiveQuotationId);
+        } elseif (!empty($effectiveWorkOrderId)) {
+          $this->enrichItemsCodigoFromWorkOrder($data['items'], (int)$effectiveWorkOrderId);
+        }
+
         // Eliminar items existentes
         $document->items()->delete();
 
@@ -2192,7 +2194,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
           if ($availableQuantityExternal < $part->quantity_used) {
             throw new Exception(
-              "Stock insuficiente en sistema externo para el repuesto: {$part->product->description}. " .
+              "Stock insuficiente en sistema dynamics para el repuesto: {$part->product->description}. " .
               "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$part->quantity_used}"
             );
           }
@@ -2521,6 +2523,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           if ($product->dyn_code) {
             $item['dyn_code'] = $product->dyn_code;
           }
+          if ($product->unitMeasurement) {
+            $item['unidad_medida_dyn'] = $product->unitMeasurement->dyn_code;
+          }
         }
       }
     }
@@ -2562,6 +2567,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           if ($product->dyn_code) {
             $item['dyn_code'] = $product->dyn_code;
           }
+          if ($product->unitMeasurement) {
+            $item['unidad_medida_dyn'] = $product->unitMeasurement->dyn_code;
+          }
         }
         continue;
       }
@@ -2580,6 +2588,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
         if ($part->product->dyn_code) {
           $item['dyn_code'] = $part->product->dyn_code;
+        }
+        if ($part->product->unitMeasurement) {
+          $item['unidad_medida_dyn'] = $part->product->unitMeasurement->dyn_code;
         }
         continue;
       }
@@ -3023,7 +3034,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'series_id' => $data['series_id'],
         'numero' => $nextNumberData['number'],
         'full_number' => "{$data['serie']}-{$nextNumberData['number']}",
-        'consolidation_type' => ElectronicDocument::CONSOLIDATION_WORK_ORDERS,
+        'consolidation_type' => ElectronicDocument::CONSOLIDATION_MASSIVE,
         'client_id' => $clientId,
         'sunat_concept_identity_document_type_id' => $documentType->id,
         'cliente_numero_de_documento' => $client->num_doc,
@@ -3078,7 +3089,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $invoice->items()->create([
           'line_number' => $lineNumber++,
           'unidad_de_medida' => $item['unidad_de_medida'],
-          'codigo' => $item['codigo'],
+          'codigo' => ApAccountingAccountPlan::find(ApAccountingAccountPlan::AFTER_SALES_MAINTENANCE_SERVICE_ID)->code_dynamics ?? 'V0000018',
           'descripcion' => $item['descripcion'],
           'cantidad' => $item['cantidad'],
           'valor_unitario' => round((float)$item['valor_unitario'], 2),

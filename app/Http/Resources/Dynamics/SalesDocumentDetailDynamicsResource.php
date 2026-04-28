@@ -69,8 +69,8 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     // Sitio (almacén) - puede venir del contexto // TODO: Verificar almacen
     $sitioId = $this->document->warehouse() ?? throw new Exception('El documento no tiene un almacén asociado.');
 
-    // Unidad de medida
-    $unidadMedidaId = 'UND'; // TODO: Mapear desde el item si tiene información de unidad
+    // Unidad de medida - Si el item tiene unidad de medida (repuesto/producto), usarla; sino usar 'UND' por defecto
+    $unidadMedidaId = !empty($this->unidad_medida_dyn) ? $this->unidad_medida_dyn : 'UND';
 
     // Cantidad
     $cantidad = $this->cantidad > 0 ? $this->cantidad : throw new Exception('El ítem no tiene cantidad definida.');
