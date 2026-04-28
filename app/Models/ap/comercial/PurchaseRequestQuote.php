@@ -81,6 +81,12 @@ class PurchaseRequestQuote extends Model
     'updated_at',
   ];
 
+
+  public function getFullCorrelativeAttribute(): string
+  {
+    return 'COT-' . $this['correlative'];
+  }
+
   public function getIsInvoicedAttribute(): bool
   {
     return $this->electronicDocuments()
