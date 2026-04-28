@@ -96,38 +96,6 @@
       margin-top: 1px;
     }
 
-    .h-meta {
-      display: table-cell;
-      width: 130px;
-      vertical-align: middle;
-      background: #e0e0e0;
-      text-align: center;
-      padding: 4px 8px;
-      border-radius: 6px;
-    }
-
-    .h-meta-lbl {
-      font-size: 7px;
-      font-weight: bold;
-      letter-spacing: 0.6px;
-      color: #22293a;
-      text-transform: uppercase;
-    }
-
-    .h-meta-val {
-      font-size: 14px;
-      font-weight: bold;
-      color: #22293a;
-      white-space: nowrap;
-      margin-top: 1px;
-    }
-
-    .h-meta-date {
-      font-size: 7px;
-      color: #555555;
-      margin-top: 2px;
-    }
-
     /* Content wrapper */
     .content {
       padding: 0 10px;
@@ -199,11 +167,15 @@
       vertical-align: middle;
       margin-left: 4px;
       background: #fff;
+      font-size: 10px;
+      font-weight: bold;
+      text-align: center;
+      line-height: 13px;
+      color: #ffffff;
     }
 
     .chk.on {
-      background: #e0e0e0;
-      border-color: #e0e0e0;
+      color: #000000;
     }
 
     /* ─── TABLA PARIENTES ────────────────────────── */
@@ -257,6 +229,14 @@
       border-right: none;
     }
 
+    .sig-date-row {
+      text-align: center;
+      font-size: 10px;
+      font-weight: bold;
+      margin-bottom: 4px;
+      color: #22293a;
+    }
+
     .sig-hdr {
       background: #e0e0e0;
       color: #000000;
@@ -272,6 +252,10 @@
 
     .sig-line {
       height: 50px;
+    }
+
+    .sig-line-tall {
+      height: 80px;
     }
 
     .sig-sub {
@@ -329,11 +313,6 @@
       <div class="h-title-main">RÉGIMEN GENERAL – PERSONA NATURAL</div>
       <div class="h-title-sub">Conforme al D.Leg. N° 1372 y normativa SBS/UIF-Perú</div>
     </div>
-    <div class="h-meta">
-      <div class="h-meta-lbl">N° Declaración</div>
-      <div class="h-meta-val">DJ-{{ str_pad($declaration->id, 6, '0', STR_PAD_LEFT) }}</div>
-      <div class="h-meta-date">{{ $declaration->declaration_date->format('d/m/Y') }}</div>
-    </div>
   </div>
 </div>
 
@@ -360,11 +339,11 @@
       <tr>
         <td class="lbl">2. Tipo y N° de documento</td>
         <td colspan="3">
-          DNI <span class="chk {{ $docDesc === 'DNI' ? 'on' : '' }}"></span>
+          DNI <span class="chk {{ $docDesc === 'DNI' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          Pasaporte <span class="chk {{ $docDesc === 'PASAPORTE' ? 'on' : '' }}"></span>
+          Pasaporte <span class="chk {{ $docDesc === 'PASAPORTE' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          Carné de Extranjería <span class="chk {{ $docDesc === 'CARNÉ DE EXTRANJERÍA' ? 'on' : '' }}"></span>
+          Carné de Extranjería <span class="chk {{ $docDesc === 'CARNÉ DE EXTRANJERÍA' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
           Otro: ___________
           &nbsp;&nbsp;&nbsp;
@@ -372,17 +351,17 @@
         </td>
       </tr>
       <tr>
-        <td class="lbl">3. Nacionalidad (extranjero)</td>
-        <td>{{ $partner?->nationality === 'EXTRANJERO' ? ($partner?->nationality ?? '—') : '—' }}</td>
+        <td class="lbl">3. Nacionalidad</td>
+        <td>{{ $partner?->nationality ?? 'PERUANO' }}</td>
         <td class="lbl">4. Estado Civil</td>
         <td>
-          Soltero/a <span class="chk {{ in_array($marital, ['SOLTERO','SOLTERA']) ? 'on' : '' }}"></span>
+          Soltero/a <span class="chk {{ (empty($marital) || in_array($marital, ['SOLTERO','SOLTERA'])) ? 'on' : '' }}">X</span>
           &nbsp;
-          Casado/a <span class="chk {{ in_array($marital, ['CASADO','CASADA']) ? 'on' : '' }}"></span>
+          Casado/a <span class="chk {{ in_array($marital, ['CASADO','CASADA']) ? 'on' : '' }}">X</span>
           &nbsp;
-          Viudo/a <span class="chk {{ in_array($marital, ['VIUDO','VIUDA']) ? 'on' : '' }}"></span>
+          Viudo/a <span class="chk {{ in_array($marital, ['VIUDO','VIUDA']) ? 'on' : '' }}">X</span>
           &nbsp;
-          Divorciado/a <span class="chk {{ in_array($marital, ['DIVORCIADO','DIVORCIADA']) ? 'on' : '' }}"></span>
+          Divorciado/a <span class="chk {{ in_array($marital, ['DIVORCIADO','DIVORCIADA']) ? 'on' : '' }}">X</span>
         </td>
       </tr>
       <tr>
@@ -401,14 +380,8 @@
         <td colspan="3">{{ $partner?->direction ?? '—' }}</td>
       </tr>
       <tr>
-        <td class="lbl">Distrito</td>
-        <td>{{ $partner?->district?->name ?? '—' }}</td>
-        <td class="lbl">Provincia</td>
-        <td>{{ $partner?->district?->province?->name ?? '—' }}</td>
-      </tr>
-      <tr>
-        <td class="lbl">Departamento</td>
-        <td colspan="3">{{ $partner?->district?->province?->department?->name ?? '—' }}</td>
+        <td class="lbl" style="width:18%;">Dist. / Prov. / Depto.</td>
+        <td colspan="3">{{ implode(' / ', array_filter([$partner?->district?->name ?? '', $partner?->district?->province?->name ?? '', $partner?->district?->province?->department?->name ?? ''])) ?: '—' }}</td>
       </tr>
     </table>
   </div>
@@ -447,13 +420,13 @@
       </tr>
       <tr>
         <td colspan="4">
-          SI SOY <span class="chk {{ $declaration->pep_status === 'SI_SOY' ? 'on' : '' }}"></span>
+          SI SOY <span class="chk {{ $declaration->pep_status === 'SI_SOY' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          SI HE SIDO <span class="chk {{ $declaration->pep_status === 'SI_HE_SIDO' ? 'on' : '' }}"></span>
+          SI HE SIDO <span class="chk {{ $declaration->pep_status === 'SI_HE_SIDO' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          NO SOY <span class="chk {{ $declaration->pep_status === 'NO_SOY' ? 'on' : '' }}"></span>
+          NO SOY <span class="chk {{ $declaration->pep_status === 'NO_SOY' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          NO HE SIDO <span class="chk {{ $declaration->pep_status === 'NO_HE_SIDO' ? 'on' : '' }}"></span>
+          NO HE SIDO <span class="chk {{ $declaration->pep_status === 'NO_HE_SIDO' ? 'on' : '' }}">X</span>
         </td>
       </tr>
       <tr>
@@ -463,13 +436,13 @@
       </tr>
       <tr>
         <td colspan="4">
-          SI SOY <span class="chk {{ $declaration->pep_collaborator_status === 'SI_SOY' ? 'on' : '' }}"></span>
+          SI SOY <span class="chk {{ $declaration->pep_collaborator_status === 'SI_SOY' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          SI HE SIDO <span class="chk {{ $declaration->pep_collaborator_status === 'SI_HE_SIDO' ? 'on' : '' }}"></span>
+          SI HE SIDO <span class="chk {{ $declaration->pep_collaborator_status === 'SI_HE_SIDO' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          NO SOY <span class="chk {{ $declaration->pep_collaborator_status === 'NO_SOY' ? 'on' : '' }}"></span>
+          NO SOY <span class="chk {{ $declaration->pep_collaborator_status === 'NO_SOY' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          NO HE SIDO <span class="chk {{ $declaration->pep_collaborator_status === 'NO_HE_SIDO' ? 'on' : '' }}"></span>
+          NO HE SIDO <span class="chk {{ $declaration->pep_collaborator_status === 'NO_HE_SIDO' ? 'on' : '' }}">X</span>
         </td>
       </tr>
 
@@ -519,9 +492,9 @@
       </tr>
       <tr>
         <td colspan="4">
-          SI SOY <span class="chk {{ $declaration->is_pep_relative === 'SI_SOY' ? 'on' : '' }}"></span>
+          SI SOY <span class="chk {{ $declaration->is_pep_relative === 'SI_SOY' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          NO SOY <span class="chk {{ $declaration->is_pep_relative === 'NO_SOY' ? 'on' : '' }}"></span>
+          NO SOY <span class="chk {{ $declaration->is_pep_relative === 'NO_SOY' ? 'on' : '' }}">X</span>
         </td>
       </tr>
 
@@ -555,13 +528,13 @@
       <tr>
         <td colspan="4">
           Realizo esta operación a favor de: &nbsp;
-          1. De mí mismo <span class="chk {{ $declaration->beneficiary_type === 'PROPIO' ? 'on' : '' }}"></span>
+          1. De mí mismo <span class="chk {{ $declaration->beneficiary_type === 'PROPIO' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          2. Tercero persona natural <span class="chk {{ $declaration->beneficiary_type === 'TERCERO_NATURAL' ? 'on' : '' }}"></span>
+          2. Tercero persona natural <span class="chk {{ $declaration->beneficiary_type === 'TERCERO_NATURAL' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          3. Persona jurídica <span class="chk {{ $declaration->beneficiary_type === 'PERSONA_JURIDICA' ? 'on' : '' }}"></span>
+          3. Persona jurídica <span class="chk {{ $declaration->beneficiary_type === 'PERSONA_JURIDICA' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          4. Ente jurídico <span class="chk {{ $declaration->beneficiary_type === 'ENTE_JURIDICO' ? 'on' : '' }}"></span>
+          4. Ente jurídico <span class="chk {{ $declaration->beneficiary_type === 'ENTE_JURIDICO' ? 'on' : '' }}">X</span>
         </td>
       </tr>
 
@@ -594,25 +567,25 @@
       <tr>
         <td class="lbl">iii) Datos de la representación</td>
         <td colspan="3">
-          Poder por Escritura Pública <span class="chk {{ $declaration->third_representation_type === 'ESCRITURA_PUBLICA' ? 'on' : '' }}"></span>
+          Poder por Escritura Pública <span class="chk {{ $declaration->third_representation_type === 'ESCRITURA_PUBLICA' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          Mandato <span class="chk {{ $declaration->third_representation_type === 'MANDATO' ? 'on' : '' }}"></span>
+          Mandato <span class="chk {{ $declaration->third_representation_type === 'MANDATO' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          Poder <span class="chk {{ $declaration->third_representation_type === 'PODER' ? 'on' : '' }}"></span>
+          Poder <span class="chk {{ $declaration->third_representation_type === 'PODER' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          Otros <span class="chk {{ $declaration->third_representation_type === 'OTROS' ? 'on' : '' }}"></span>
+          Otros <span class="chk {{ $declaration->third_representation_type === 'OTROS' ? 'on' : '' }}">X</span>
         </td>
       </tr>
       <tr>
         <td class="lbl">iv) ¿El tercero es o ha sido PEP?</td>
         <td colspan="3">
-          SI ES <span class="chk {{ $declaration->third_pep_status === 'SI_ES' ? 'on' : '' }}"></span>
+          SI ES <span class="chk {{ $declaration->third_pep_status === 'SI_ES' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          SI HA SIDO <span class="chk {{ $declaration->third_pep_status === 'SI_HA_SIDO' ? 'on' : '' }}"></span>
+          SI HA SIDO <span class="chk {{ $declaration->third_pep_status === 'SI_HA_SIDO' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          NO ES <span class="chk {{ $declaration->third_pep_status === 'NO_ES' ? 'on' : '' }}"></span>
+          NO ES <span class="chk {{ $declaration->third_pep_status === 'NO_ES' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          NO HA SIDO <span class="chk {{ $declaration->third_pep_status === 'NO_HA_SIDO' ? 'on' : '' }}"></span>
+          NO HA SIDO <span class="chk {{ $declaration->third_pep_status === 'NO_HA_SIDO' ? 'on' : '' }}">X</span>
         </td>
       </tr>
       @if(in_array($declaration->third_pep_status, ['SI_ES', 'SI_HA_SIDO']))
@@ -643,11 +616,11 @@
       <tr>
         <td class="lbl">iii) Datos de la representación</td>
         <td colspan="3">
-          Poder por Acta <span class="chk {{ $declaration->entity_representation_type === 'PODER_POR_ACTA' ? 'on' : '' }}"></span>
+          Poder por Acta <span class="chk {{ $declaration->entity_representation_type === 'PODER_POR_ACTA' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          Poder por Escritura Pública <span class="chk {{ $declaration->entity_representation_type === 'ESCRITURA_PUBLICA' ? 'on' : '' }}"></span>
+          Poder por Escritura Pública <span class="chk {{ $declaration->entity_representation_type === 'ESCRITURA_PUBLICA' ? 'on' : '' }}">X</span>
           &nbsp;&nbsp;
-          Mandato <span class="chk {{ $declaration->entity_representation_type === 'MANDATO' ? 'on' : '' }}"></span>
+          Mandato <span class="chk {{ $declaration->entity_representation_type === 'MANDATO' ? 'on' : '' }}">X</span>
         </td>
       </tr>
       <tr>
@@ -663,14 +636,14 @@
   </div>
 
   {{-- ── FIRMA ────────────────────────────────────── --}}
+  <div class="sig-date-row">
+    Fecha de Declaración: {{ $declaration->declaration_date->format('d') }} / {{ $declaration->declaration_date->format('m') }} / {{ $declaration->declaration_date->format('Y') }}
+  </div>
   <div class="sig-wrap">
     <div class="sig-col">
-      <div class="sig-hdr">FECHA DE DECLARACIÓN</div>
+      <div class="sig-hdr">HUELLA</div>
       <div class="sig-body">
-        <div class="sig-line"></div>
-        <div class="sig-sub">
-          {{ $declaration->declaration_date->format('d') }} / {{ $declaration->declaration_date->format('m') }} / {{ $declaration->declaration_date->format('Y') }}
-        </div>
+        <div class="sig-line sig-line-tall"></div>
       </div>
     </div>
     <div class="sig-col">
