@@ -7,595 +7,703 @@
     return "data:{$mimeType};base64,{$imageData}";
   }
 
-  $partner    = $declaration->businessPartner;
-  $isPep      = in_array($declaration->pep_status, ['SI_SOY', 'SI_HE_SIDO']);
-  $isPepRel   = $declaration->is_pep_relative === 'SI_SOY';
+  $partner  = $declaration->businessPartner;
+  $isPep    = in_array($declaration->pep_status, ['SI_SOY', 'SI_HE_SIDO']);
+  $isPepRel = $declaration->is_pep_relative === 'SI_SOY';
 
-  $checkmark = function(bool $val): string {
-    return $val ? 'X' : '&nbsp;';
-  };
+  $docDesc = strtoupper($partner?->documentType?->description ?? '');
+  $marital = strtoupper($partner?->maritalStatus?->description ?? '');
 @endphp
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Declaración Jurada – Conocimiento del Cliente</title>
+  <title>Declaración Jurada KYC</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
     body {
       font-family: Arial, sans-serif;
-      font-size: 8.5px;
-      color: #1a1a2e;
+      font-size: 11px;
+      color: #22293a;
       background: #fff;
-      padding: 10px 14px 30px;
+      padding: 0 0 100px;
     }
 
-    /* ── ENCABEZADO ── */
-    .header-table {
-      width: 100%;
-      border-collapse: collapse;
-      border: 1.5px solid #c0c0c0;
-      border-radius: 4px;
-      margin-bottom: 8px;
-    }
-    .header-table td { vertical-align: middle; padding: 0; }
-    .h-logo {
-      width: 120px;
-      text-align: center;
-      padding: 6px 10px;
-      border-right: 1px solid #c0c0c0;
-    }
-    .h-logo img { max-height: 34px; width: auto; }
-    .h-title {
-      text-align: center;
-      padding: 6px 12px;
-      border-right: 1px solid #c0c0c0;
-    }
-    .h-title-main {
-      font-size: 10px;
+    /* ─── WATERMARK ──────────────────────────────── */
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 120px;
+      color: rgba(200, 200, 200, 0.12);
       font-weight: bold;
-      letter-spacing: 0.4px;
-      line-height: 1.4;
+      z-index: -1;
+      white-space: nowrap;
     }
-    .h-title-sub {
-      font-size: 7.5px;
-      color: #666;
-      margin-top: 2px;
-    }
-    .h-meta {
-      width: 130px;
-      text-align: center;
-      background: #e8e8e8;
-      padding: 6px 10px;
-    }
-    .h-meta-lbl { font-size: 7px; font-weight: bold; letter-spacing: 0.5px; text-transform: uppercase; color: #444; }
-    .h-meta-val { font-size: 12px; font-weight: bold; color: #1a1a2e; margin-top: 2px; }
-    .h-meta-date { font-size: 7px; color: #666; margin-top: 2px; }
 
-    /* ── SECCIONES ── */
-    .section {
-      border: 1px solid #ccc;
-      border-radius: 3px;
+    /* ─── HEADER ─────────────────────────────────── */
+    .page-header {
+      padding: 5px 10px 5px;
       margin-bottom: 6px;
-      overflow: hidden;
-    }
-    .section-title {
-      background: #d8d8d8;
-      font-weight: bold;
-      font-size: 8px;
-      letter-spacing: 0.4px;
-      text-transform: uppercase;
-      padding: 3px 10px;
-      border-bottom: 1px solid #ccc;
-    }
-    .section-body { padding: 6px 10px; }
-
-    /* ── FILAS DE DATOS ── */
-    .data-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    .data-table td {
-      padding: 3px 6px;
-      vertical-align: top;
-      border-right: 1px solid #e5e5e5;
-      border-bottom: 1px solid #e5e5e5;
-    }
-    .data-table td:last-child { border-right: none; }
-    .data-table tr:last-child td { border-bottom: none; }
-
-    .lbl {
-      font-size: 7px;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      color: #777;
-      display: block;
-      margin-bottom: 2px;
-    }
-    .val {
-      font-size: 8.5px;
-      font-weight: bold;
-      color: #1a1a2e;
     }
 
-    /* ── CHECKS INLINE ── */
-    .check-row { font-size: 8px; margin-bottom: 4px; line-height: 1.8; }
-    .check-box {
-      display: inline-block;
-      border: 1px solid #555;
-      width: 11px;
-      height: 11px;
-      text-align: center;
-      line-height: 11px;
-      font-size: 9px;
-      font-weight: bold;
-      margin: 0 3px;
-      vertical-align: middle;
-    }
-
-    /* ── SUBSECCIÓN PEP ── */
-    .sub-title {
-      font-weight: bold;
-      font-size: 8px;
-      margin-bottom: 4px;
-      color: #333;
-    }
-    .pep-detail {
-      background: #f7f7f7;
-      border: 1px solid #ddd;
-      border-radius: 3px;
-      padding: 5px 8px;
-      margin-top: 4px;
-      font-size: 8px;
-    }
-
-    /* ── TABLA PARIENTES ── */
-    .relatives-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 4px;
-      font-size: 8px;
-    }
-    .relatives-table th {
-      background: #e0e0e0;
-      padding: 3px 6px;
-      text-align: left;
-      font-size: 7.5px;
-      border: 1px solid #ccc;
-    }
-    .relatives-table td {
-      border: 1px solid #ddd;
-      padding: 3px 6px;
-      vertical-align: top;
-    }
-
-    /* ── FIRMA ── */
-    .signature-section {
-      margin-top: 10px;
-      border: 1px solid #ccc;
-      border-radius: 3px;
-      padding: 10px 14px;
-    }
-    .sig-row {
+    .header-inner {
       display: table;
       width: 100%;
+      border-radius: 6px;
+      overflow: hidden;
     }
-    .sig-cell {
+
+    .h-logo {
       display: table-cell;
-      width: 50%;
-      vertical-align: bottom;
+      width: 140px;
+      text-align: center;
+      vertical-align: middle;
+      padding: 4px 8px;
+    }
+
+    .h-logo img {
+      max-height: 34px;
+      width: auto;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .h-title {
+      display: table-cell;
+      vertical-align: middle;
+      text-align: center;
       padding: 4px 10px;
     }
-    .sig-line {
-      border-top: 1.5px solid #333;
-      margin-top: 30px;
-      padding-top: 3px;
+
+    .h-title-main {
+      font-size: 12px;
+      font-weight: bold;
+      color: #22293a;
+      letter-spacing: 0.3px;
+      line-height: 1.3;
+    }
+
+    .h-title-sub {
+      font-size: 8px;
+      color: #888888;
+      margin-top: 1px;
+    }
+
+    .h-meta {
+      display: table-cell;
+      width: 130px;
+      vertical-align: middle;
+      background: #e0e0e0;
       text-align: center;
-      font-size: 7.5px;
-      color: #444;
+      padding: 4px 8px;
+      border-radius: 6px;
     }
 
-    /* ── NOTA AL PIE ── */
-    .footer-note {
-      margin-top: 8px;
+    .h-meta-lbl {
       font-size: 7px;
-      color: #777;
-      font-style: italic;
-      border-top: 1px solid #ddd;
-      padding-top: 5px;
+      font-weight: bold;
+      letter-spacing: 0.6px;
+      color: #22293a;
+      text-transform: uppercase;
     }
 
-    .text-bold { font-weight: bold; }
-    .text-center { text-align: center; }
-    .mt4 { margin-top: 4px; }
-    .mt6 { margin-top: 6px; }
+    .h-meta-val {
+      font-size: 14px;
+      font-weight: bold;
+      color: #22293a;
+      white-space: nowrap;
+      margin-top: 1px;
+    }
+
+    .h-meta-date {
+      font-size: 7px;
+      color: #555555;
+      margin-top: 2px;
+    }
+
+    /* Content wrapper */
+    .content {
+      padding: 0 10px;
+    }
+
+    /* ─── CARD ───────────────────────────────────── */
+    .card {
+      border: 1px solid #d2d2d2;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+
+    .card-title {
+      background-color: #e0e0e0;
+      color: #22293a;
+      font-weight: bold;
+      font-size: 10px;
+      padding: 3px 10px;
+      letter-spacing: 0.3px;
+    }
+
+    /* ─── DATA TABLE ─────────────────────────────── */
+    table.dt {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    table.dt td {
+      padding: 3px 8px;
+      border-bottom: 1px solid #ebebeb;
+      border-right: 1px solid #ebebeb;
+      font-size: 11px;
+      vertical-align: top;
+    }
+
+    table.dt td:last-child {
+      border-right: none;
+    }
+
+    table.dt tr:last-child td {
+      border-bottom: none;
+    }
+
+    .lbl {
+      font-weight: bold;
+      color: #22293a;
+      background: #f5f5f5;
+      white-space: nowrap;
+    }
+
+    /* Sub-header dentro de card (para preguntas PEP/beneficiario) */
+    .sub-lbl {
+      background: #f5f5f5;
+      font-weight: bold;
+      color: #22293a;
+      font-size: 10px;
+      padding: 4px 8px;
+      border-bottom: 1px solid #ebebeb;
+    }
+
+    /* ─── CHECKBOX ───────────────────────────────── */
+    .chk {
+      display: inline-block;
+      width: 13px;
+      height: 13px;
+      border: 1.5px solid #aaaaaa;
+      border-radius: 2px;
+      vertical-align: middle;
+      margin-left: 4px;
+      background: #fff;
+    }
+
+    .chk.on {
+      background: #e0e0e0;
+      border-color: #e0e0e0;
+    }
+
+    /* ─── TABLA PARIENTES ────────────────────────── */
+    table.rt {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 4px;
+    }
+
+    table.rt th {
+      background: #f5f5f5;
+      color: #22293a;
+      font-weight: bold;
+      font-size: 10px;
+      padding: 3px 8px;
+      text-align: left;
+      border-right: 1px solid #d2d2d2;
+      border-bottom: 1px solid #d2d2d2;
+    }
+
+    table.rt th:last-child { border-right: none; }
+
+    table.rt td {
+      padding: 3px 8px;
+      font-size: 10px;
+      border-bottom: 1px solid #ebebeb;
+      border-right: 1px solid #ebebeb;
+    }
+
+    table.rt td:last-child { border-right: none; }
+    table.rt tr:last-child td { border-bottom: none; }
+
+    /* ─── SIGNATURES ─────────────────────────────── */
+    .sig-wrap {
+      border: 1px solid #d2d2d2;
+      border-radius: 5px;
+      overflow: hidden;
+      display: table;
+      width: 100%;
+      margin-bottom: 6px;
+    }
+
+    .sig-col {
+      display: table-cell;
+      width: 50%;
+      vertical-align: top;
+      border-right: 1px solid #d2d2d2;
+    }
+
+    .sig-col:last-child {
+      border-right: none;
+    }
+
+    .sig-hdr {
+      background: #e0e0e0;
+      color: #000000;
+      font-weight: bold;
+      font-size: 10px;
+      text-align: center;
+      padding: 3px 8px;
+    }
+
+    .sig-body {
+      padding: 6px 12px;
+    }
+
+    .sig-line {
+      height: 50px;
+    }
+
+    .sig-sub {
+      font-size: 9px;
+      color: #777777;
+      margin-top: 3px;
+      text-align: center;
+    }
+
+    /* ─── NOTES ──────────────────────────────────── */
+    .notes {
+      position: fixed;
+      bottom: 20px;
+      left: 10px;
+      right: 10px;
+      border: 1px solid #d2d2d2;
+      border-radius: 5px;
+      padding: 5px 10px;
+      font-size: 8px;
+      color: #4a5568;
+      background: #fafafa;
+    }
+
+    /* ─── FOOTER BRANDS ──────────────────────────── */
+    .foot {
+      position: fixed;
+      bottom: 0;
+      left: 10px;
+      right: 10px;
+      border-top: 1px solid #d2d2d2;
+      padding: 4px 0 2px;
+      text-align: center;
+      background: #fff;
+    }
+
+    .foot img {
+      height: 11px;
+      width: auto;
+      margin: 0 4px;
+    }
   </style>
 </head>
 <body>
 
-{{-- ══════════════════════════ ENCABEZADO ══════════════════════════ --}}
-<table class="header-table">
-  <tr>
-    <td class="h-logo">
+<div class="watermark">PAKATNAMU</div>
+
+{{-- ── ENCABEZADO ──────────────────────────────── --}}
+<div class="page-header">
+  <div class="header-inner">
+    <div class="h-logo">
       <img src="{{ kycBase64Image('img/logo-milla.png') }}" alt="Logo">
-    </td>
-    <td class="h-title">
+    </div>
+    <div class="h-title">
       <div class="h-title-main">DECLARACIÓN JURADA DE CONOCIMIENTO DEL CLIENTE</div>
       <div class="h-title-main">RÉGIMEN GENERAL – PERSONA NATURAL</div>
       <div class="h-title-sub">Conforme al D.Leg. N° 1372 y normativa SBS/UIF-Perú</div>
-    </td>
-    <td class="h-meta">
+    </div>
+    <div class="h-meta">
       <div class="h-meta-lbl">N° Declaración</div>
       <div class="h-meta-val">DJ-{{ str_pad($declaration->id, 6, '0', STR_PAD_LEFT) }}</div>
       <div class="h-meta-date">{{ $declaration->declaration_date->format('d/m/Y') }}</div>
-    </td>
-  </tr>
-</table>
+    </div>
+  </div>
+</div>
 
-<p style="font-size:8px; margin-bottom:6px;">
-  Por el presente documento, declaro bajo juramento, lo siguiente:
+<p style="padding: 0 10px; font-size:9px; margin-bottom:5px; color:#555;">
+  Por el presente documento, declaro bajo juramento lo siguiente:
 </p>
 
-{{-- ══════════════════════════ 1-2 DATOS PERSONALES ══════════════════════════ --}}
-<div class="section">
-  <div class="section-title">1. Datos Personales</div>
-  <div class="section-body">
-    <table class="data-table">
+<div class="content">
+
+  {{-- ── 1. DATOS PERSONALES ──────────────────────── --}}
+  <div class="card">
+    <div class="card-title">1. DATOS PERSONALES</div>
+    <table class="dt">
       <tr>
-        <td width="40%">
-          <span class="lbl">1. Nombres y Apellidos</span>
-          <span class="val">{{ $partner?->full_name ?? '—' }}</span>
-        </td>
-        <td width="30%">
-          <span class="lbl">Apellido Paterno</span>
-          <span class="val">{{ $partner?->paternal_surname ?? '—' }}</span>
-        </td>
-        <td width="30%">
-          <span class="lbl">Apellido Materno</span>
-          <span class="val">{{ $partner?->maternal_surname ?? '—' }}</span>
-        </td>
+        <td class="lbl" style="width:18%;">Apellido Paterno</td>
+        <td style="width:28%;">{{ $partner?->paternal_surname ?? '—' }}</td>
+        <td class="lbl" style="width:18%;">Apellido Materno</td>
+        <td>{{ $partner?->maternal_surname ?? '—' }}</td>
       </tr>
       <tr>
+        <td class="lbl">Nombres</td>
+        <td colspan="3">{{ $partner?->first_name ?? '—' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">2. Tipo y N° de documento</td>
         <td colspan="3">
-          <span class="lbl">2. Tipo y N° de documento de identidad</span>
-          <div class="check-row">
-            <span class="check-box">{{ ($partner?->document_type_id && strtoupper($partner?->documentType?->description ?? '') === 'DNI') ? 'X' : '&nbsp;' }}</span> DNI &nbsp;&nbsp;
-            <span class="check-box">{{ (strtoupper($partner?->documentType?->description ?? '') === 'PASAPORTE') ? 'X' : '&nbsp;' }}</span> Pasaporte &nbsp;&nbsp;
-            <span class="check-box">{{ (strtoupper($partner?->documentType?->description ?? '') === 'CARNÉ DE EXTRANJERÍA') ? 'X' : '&nbsp;' }}</span> Carné de Extranjería &nbsp;&nbsp;
-            <span class="check-box">&nbsp;</span> Otro: ______________
-            &nbsp;&nbsp; <span class="lbl" style="display:inline;">N°:</span>
-            <span class="val">{{ $partner?->num_doc ?? '—' }}</span>
-          </div>
+          DNI <span class="chk {{ $docDesc === 'DNI' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          Pasaporte <span class="chk {{ $docDesc === 'PASAPORTE' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          Carné de Extranjería <span class="chk {{ $docDesc === 'CARNÉ DE EXTRANJERÍA' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          Otro: ___________
+          &nbsp;&nbsp;&nbsp;
+          <strong>N°: {{ $partner?->num_doc ?? '—' }}</strong>
         </td>
       </tr>
       <tr>
+        <td class="lbl">3. Nacionalidad (extranjero)</td>
+        <td>{{ $partner?->nationality === 'EXTRANJERO' ? ($partner?->nationality ?? '—') : '—' }}</td>
+        <td class="lbl">4. Estado Civil</td>
         <td>
-          <span class="lbl">3. Nacionalidad (extranjero)</span>
-          <span class="val">{{ $partner?->nationality === 'EXTRANJERO' ? ($partner?->nationality ?? '—') : '—' }}</span>
-        </td>
-        <td colspan="2">
-          <span class="lbl">4. Estado Civil</span>
-          <div class="check-row">
-            <span class="check-box">{{ strtoupper($partner?->maritalStatus?->description ?? '') === 'SOLTERO' || strtoupper($partner?->maritalStatus?->description ?? '') === 'SOLTERA' ? 'X' : '&nbsp;' }}</span> Soltero/a &nbsp;
-            <span class="check-box">{{ strtoupper($partner?->maritalStatus?->description ?? '') === 'CASADO' || strtoupper($partner?->maritalStatus?->description ?? '') === 'CASADA' ? 'X' : '&nbsp;' }}</span> Casado/a &nbsp;
-            <span class="check-box">{{ strtoupper($partner?->maritalStatus?->description ?? '') === 'VIUDO' || strtoupper($partner?->maritalStatus?->description ?? '') === 'VIUDA' ? 'X' : '&nbsp;' }}</span> Viudo/a &nbsp;
-            <span class="check-box">{{ strtoupper($partner?->maritalStatus?->description ?? '') === 'DIVORCIADO' || strtoupper($partner?->maritalStatus?->description ?? '') === 'DIVORCIADA' ? 'X' : '&nbsp;' }}</span> Divorciado/a
-          </div>
+          Soltero/a <span class="chk {{ in_array($marital, ['SOLTERO','SOLTERA']) ? 'on' : '' }}"></span>
+          &nbsp;
+          Casado/a <span class="chk {{ in_array($marital, ['CASADO','CASADA']) ? 'on' : '' }}"></span>
+          &nbsp;
+          Viudo/a <span class="chk {{ in_array($marital, ['VIUDO','VIUDA']) ? 'on' : '' }}"></span>
+          &nbsp;
+          Divorciado/a <span class="chk {{ in_array($marital, ['DIVORCIADO','DIVORCIADA']) ? 'on' : '' }}"></span>
         </td>
       </tr>
       <tr>
-        <td colspan="3">
-          <span class="lbl">5. Nombres y apellidos del cónyuge o conviviente</span>
-          <span class="val">{{ $partner?->spouse_full_name ?? '—' }}</span>
-        </td>
+        <td class="lbl">5. Cónyuge / Conviviente</td>
+        <td colspan="3">{{ $partner?->spouse_full_name ?? '—' }}</td>
       </tr>
     </table>
   </div>
-</div>
 
-{{-- ══════════════════════════ DOMICILIO ══════════════════════════ --}}
-<div class="section">
-  <div class="section-title">6. Domicilio</div>
-  <div class="section-body">
-    <table class="data-table">
+  {{-- ── 6. DOMICILIO ─────────────────────────────── --}}
+  <div class="card">
+    <div class="card-title">6. DOMICILIO</div>
+    <table class="dt">
       <tr>
-        <td colspan="3">
-          <span class="lbl">Jr. / Av. / Calle / Pasaje / Óvalo – N° – Dpto./Int.</span>
-          <span class="val">{{ $partner?->direction ?? '—' }}</span>
-        </td>
+        <td class="lbl" style="width:18%;">Jr. / Av. / Calle / N° / Dpto.</td>
+        <td colspan="3">{{ $partner?->direction ?? '—' }}</td>
       </tr>
       <tr>
-        <td>
-          <span class="lbl">Distrito</span>
-          <span class="val">{{ $partner?->district?->name ?? '—' }}</span>
-        </td>
-        <td>
-          <span class="lbl">Provincia</span>
-          <span class="val">{{ $partner?->district?->province?->name ?? '—' }}</span>
-        </td>
-        <td>
-          <span class="lbl">Departamento</span>
-          <span class="val">{{ $partner?->district?->province?->department?->name ?? '—' }}</span>
-        </td>
+        <td class="lbl">Distrito</td>
+        <td>{{ $partner?->district?->name ?? '—' }}</td>
+        <td class="lbl">Provincia</td>
+        <td>{{ $partner?->district?->province?->name ?? '—' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Departamento</td>
+        <td colspan="3">{{ $partner?->district?->province?->department?->name ?? '—' }}</td>
       </tr>
     </table>
   </div>
-</div>
 
-{{-- ══════════════════════════ OCUPACIÓN / CONTACTO ══════════════════════════ --}}
-<div class="section">
-  <div class="section-title">7–9. Ocupación, Contacto y Propósito</div>
-  <div class="section-body">
-    <table class="data-table">
+  {{-- ── 7–9. OCUPACIÓN, CONTACTO Y PROPÓSITO ───── --}}
+  <div class="card">
+    <div class="card-title">7–9. OCUPACIÓN, CONTACTO Y PROPÓSITO</div>
+    <table class="dt">
       <tr>
-        <td width="33%">
-          <span class="lbl">7. Ocupación / Cargo</span>
-          <span class="val">{{ $declaration->occupation ?? '—' }}</span>
-        </td>
-        <td width="22%">
-          <span class="lbl">8. Teléfono Fijo (cód. ciudad)</span>
-          <span class="val">{{ $declaration->fixed_phone ?? '—' }}</span>
-        </td>
-        <td width="22%">
-          <span class="lbl">Celular</span>
-          <span class="val">{{ $partner?->phone ?? '—' }}</span>
-        </td>
-        <td width="23%">
-          <span class="lbl">Correo Electrónico</span>
-          <span class="val">{{ $partner?->email ?? '—' }}</span>
+        <td class="lbl" style="width:18%;">7. Ocupación / Cargo</td>
+        <td style="width:28%;">{{ $declaration->occupation ?? '—' }}</td>
+        <td class="lbl" style="width:18%;">8. Teléfono Fijo (cód. ciudad)</td>
+        <td>{{ $declaration->fixed_phone ?? '—' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Celular</td>
+        <td>{{ $partner?->phone ?? '—' }}</td>
+        <td class="lbl">Correo Electrónico</td>
+        <td>{{ $partner?->email ?? '—' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">9. Propósito de la relación con el sujeto obligado</td>
+        <td colspan="3">{{ $declaration->purpose_relationship ?? '—' }}</td>
+      </tr>
+    </table>
+  </div>
+
+  {{-- ── 10. PEP ──────────────────────────────────── --}}
+  <div class="card">
+    <div class="card-title">10. PERSONA EXPUESTA POLÍTICAMENTE (PEP)</div>
+    <table class="dt">
+      <tr>
+        <td class="sub-lbl" colspan="4">
+          10.1 ¿Ha cumplido en los últimos 5 años funciones públicas en organismo público u organización internacional?
         </td>
       </tr>
       <tr>
         <td colspan="4">
-          <span class="lbl">9. Propósito de la relación con el sujeto obligado</span>
-          <span class="val">{{ $declaration->purpose_relationship ?? '—' }}</span>
-        </td>
-      </tr>
-    </table>
-  </div>
-</div>
-
-{{-- ══════════════════════════ PEP 10.1 ══════════════════════════ --}}
-<div class="section">
-  <div class="section-title">10. Persona Expuesta Políticamente (PEP)</div>
-  <div class="section-body">
-
-    <div class="sub-title">10.1 ¿Ha cumplido en los últimos 5 años funciones públicas en organismo público u organización internacional?</div>
-    <div class="check-row">
-      <span class="check-box">{{ $declaration->pep_status === 'SI_SOY' ? 'X' : '&nbsp;' }}</span> SI SOY &nbsp;&nbsp;
-      <span class="check-box">{{ $declaration->pep_status === 'SI_HE_SIDO' ? 'X' : '&nbsp;' }}</span> SI HE SIDO &nbsp;&nbsp;
-      <span class="check-box">{{ $declaration->pep_status === 'NO_SOY' ? 'X' : '&nbsp;' }}</span> NO SOY &nbsp;&nbsp;
-      <span class="check-box">{{ $declaration->pep_status === 'NO_HE_SIDO' ? 'X' : '&nbsp;' }}</span> NO HE SIDO
-    </div>
-
-    <div class="sub-title mt6">¿Ha sido colaborador directo de la máxima autoridad en dichas instituciones?</div>
-    <div class="check-row">
-      <span class="check-box">{{ $declaration->pep_collaborator_status === 'SI_SOY' ? 'X' : '&nbsp;' }}</span> SI SOY &nbsp;&nbsp;
-      <span class="check-box">{{ $declaration->pep_collaborator_status === 'SI_HE_SIDO' ? 'X' : '&nbsp;' }}</span> SI HE SIDO &nbsp;&nbsp;
-      <span class="check-box">{{ $declaration->pep_collaborator_status === 'NO_SOY' ? 'X' : '&nbsp;' }}</span> NO SOY &nbsp;&nbsp;
-      <span class="check-box">{{ $declaration->pep_collaborator_status === 'NO_HE_SIDO' ? 'X' : '&nbsp;' }}</span> NO HE SIDO
-    </div>
-
-    @if($isPep)
-    <div class="pep-detail mt4">
-      <span class="lbl">Si marcó "SI SOY" o "SI HE SIDO", complete la siguiente información:</span>
-      <table class="data-table mt4">
-        <tr>
-          <td width="40%">
-            <span class="lbl">Cargo</span>
-            <span class="val">{{ $declaration->pep_position ?? '—' }}</span>
-          </td>
-          <td width="60%">
-            <span class="lbl">Nombre de la institución (organismo público u organización internacional)</span>
-            <span class="val">{{ $declaration->pep_institution ?? '—' }}</span>
-          </td>
-        </tr>
-      </table>
-    </div>
-
-    {{-- 10.2 Familiares del PEP --}}
-    <div class="sub-title mt6">10.2 Nombres y apellidos de parientes (hasta 2° grado consanguinidad y 2° afinidad) y cónyuge/conviviente:</div>
-    @if(!empty($declaration->pep_relatives))
-    <table class="relatives-table">
-      <tr>
-        <th>#</th>
-        <th>Nombres y Apellidos del Pariente</th>
-      </tr>
-      @foreach($declaration->pep_relatives as $i => $relative)
-      <tr>
-        <td width="8%" class="text-center">{{ $i + 1 }}</td>
-        <td>{{ $relative ?? '—' }}</td>
-      </tr>
-      @endforeach
-    </table>
-    @else
-    <div class="pep-detail">No se registraron parientes.</div>
-    @endif
-
-    @if($declaration->pep_spouse_name)
-    <div class="mt4"><span class="lbl">Cónyuge o conviviente:</span> <span class="val">{{ $declaration->pep_spouse_name }}</span></div>
-    @endif
-    @endif
-
-    {{-- 10.3 Pariente de PEP --}}
-    <div class="sub-title mt6">10.3 ¿Es pariente de PEP hasta el 2° grado de consanguinidad o afinidad, o cónyuge/conviviente?</div>
-    <div class="check-row">
-      <span class="check-box">{{ $declaration->is_pep_relative === 'SI_SOY' ? 'X' : '&nbsp;' }}</span> SI SOY &nbsp;&nbsp;
-      <span class="check-box">{{ $declaration->is_pep_relative === 'NO_SOY' ? 'X' : '&nbsp;' }}</span> NO SOY
-    </div>
-
-    @if($isPepRel && !empty($declaration->pep_relative_data))
-    <table class="relatives-table mt4">
-      <tr>
-        <th>#</th>
-        <th>Nombres y Apellidos del PEP</th>
-        <th>Parentesco</th>
-      </tr>
-      @foreach($declaration->pep_relative_data as $i => $rel)
-      <tr>
-        <td width="6%" class="text-center">{{ $i + 1 }}</td>
-        <td>{{ $rel['pep_full_name'] ?? '—' }}</td>
-        <td>{{ $rel['relationship'] ?? '—' }}</td>
-      </tr>
-      @endforeach
-    </table>
-    @endif
-  </div>
-</div>
-
-{{-- ══════════════════════════ BENEFICIARIO 11 ══════════════════════════ --}}
-<div class="section">
-  <div class="section-title">11. Identidad del Beneficiario de la Operación</div>
-  <div class="section-body">
-
-    <div class="check-row">
-      Realizo esta operación a favor de: &nbsp;
-      <span class="check-box">{{ $declaration->beneficiary_type === 'PROPIO' ? 'X' : '&nbsp;' }}</span> 1. De mí mismo &nbsp;&nbsp;
-      <span class="check-box">{{ $declaration->beneficiary_type === 'TERCERO_NATURAL' ? 'X' : '&nbsp;' }}</span> 2. Tercero persona natural &nbsp;&nbsp;
-      <span class="check-box">{{ $declaration->beneficiary_type === 'PERSONA_JURIDICA' ? 'X' : '&nbsp;' }}</span> 3. Persona jurídica &nbsp;&nbsp;
-      <span class="check-box">{{ $declaration->beneficiary_type === 'ENTE_JURIDICO' ? 'X' : '&nbsp;' }}</span> 4. Ente jurídico
-    </div>
-
-    {{-- 11.1 Propio --}}
-    @if($declaration->beneficiary_type === 'PROPIO')
-    <div class="sub-title mt6">11.1 Operación a favor de sí mismo</div>
-    <table class="data-table">
-      <tr>
-        <td>
-          <span class="lbl">i) Origen de los fondos/activos</span>
-          <span class="val">{{ $declaration->own_funds_origin ?? '—' }}</span>
-        </td>
-      </tr>
-    </table>
-    @endif
-
-    {{-- 11.2 Tercero Persona Natural --}}
-    @if($declaration->beneficiary_type === 'TERCERO_NATURAL')
-    <div class="sub-title mt6">11.2 Operación a favor de tercero persona natural</div>
-    <table class="data-table">
-      <tr>
-        <td width="50%">
-          <span class="lbl">i) Nombres y apellidos del tercero</span>
-          <span class="val">{{ $declaration->third_full_name ?? '—' }}</span>
-        </td>
-        <td width="25%">
-          <span class="lbl">ii) Tipo de documento</span>
-          <span class="val">{{ $declaration->third_doc_type ?? '—' }}</span>
-        </td>
-        <td width="25%">
-          <span class="lbl">N° de documento</span>
-          <span class="val">{{ $declaration->third_doc_number ?? '—' }}</span>
+          SI SOY <span class="chk {{ $declaration->pep_status === 'SI_SOY' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          SI HE SIDO <span class="chk {{ $declaration->pep_status === 'SI_HE_SIDO' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          NO SOY <span class="chk {{ $declaration->pep_status === 'NO_SOY' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          NO HE SIDO <span class="chk {{ $declaration->pep_status === 'NO_HE_SIDO' ? 'on' : '' }}"></span>
         </td>
       </tr>
       <tr>
-        <td colspan="3">
-          <span class="lbl">iii) Datos de la representación</span>
-          <div class="check-row">
-            <span class="check-box">{{ $declaration->third_representation_type === 'ESCRITURA_PUBLICA' ? 'X' : '&nbsp;' }}</span> Poder por Escritura Pública &nbsp;
-            <span class="check-box">{{ $declaration->third_representation_type === 'MANDATO' ? 'X' : '&nbsp;' }}</span> Mandato &nbsp;
-            <span class="check-box">{{ $declaration->third_representation_type === 'PODER' ? 'X' : '&nbsp;' }}</span> Poder &nbsp;
-            <span class="check-box">{{ $declaration->third_representation_type === 'OTROS' ? 'X' : '&nbsp;' }}</span> Otros
-          </div>
+        <td class="sub-lbl" colspan="4">
+          ¿Ha sido colaborador directo de la máxima autoridad en dichas instituciones?
         </td>
       </tr>
       <tr>
-        <td colspan="3">
-          <span class="lbl">iv) ¿El tercero es o ha sido PEP?</span>
-          <div class="check-row">
-            <span class="check-box">{{ $declaration->third_pep_status === 'SI_ES' ? 'X' : '&nbsp;' }}</span> SI ES &nbsp;
-            <span class="check-box">{{ $declaration->third_pep_status === 'SI_HA_SIDO' ? 'X' : '&nbsp;' }}</span> SI HA SIDO &nbsp;
-            <span class="check-box">{{ $declaration->third_pep_status === 'NO_ES' ? 'X' : '&nbsp;' }}</span> NO ES &nbsp;
-            <span class="check-box">{{ $declaration->third_pep_status === 'NO_HA_SIDO' ? 'X' : '&nbsp;' }}</span> NO HA SIDO
-          </div>
-          @if(in_array($declaration->third_pep_status, ['SI_ES', 'SI_HA_SIDO']))
-          <div class="pep-detail mt4">
-            <table class="data-table">
+        <td colspan="4">
+          SI SOY <span class="chk {{ $declaration->pep_collaborator_status === 'SI_SOY' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          SI HE SIDO <span class="chk {{ $declaration->pep_collaborator_status === 'SI_HE_SIDO' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          NO SOY <span class="chk {{ $declaration->pep_collaborator_status === 'NO_SOY' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          NO HE SIDO <span class="chk {{ $declaration->pep_collaborator_status === 'NO_HE_SIDO' ? 'on' : '' }}"></span>
+        </td>
+      </tr>
+
+      @if($isPep)
+      <tr>
+        <td class="lbl" style="width:18%;">Cargo / Función</td>
+        <td style="width:28%;">{{ $declaration->pep_position ?? '—' }}</td>
+        <td class="lbl" style="width:18%;">Nombre de la institución</td>
+        <td>{{ $declaration->pep_institution ?? '—' }}</td>
+      </tr>
+
+      <tr>
+        <td class="sub-lbl" colspan="4">
+          10.2 Nombres y apellidos de parientes (hasta 2° grado consanguinidad y 2° afinidad) y cónyuge/conviviente:
+        </td>
+      </tr>
+      <tr>
+        <td colspan="4" style="padding: 4px 8px;">
+          @if(!empty($declaration->pep_relatives))
+            <table class="rt">
               <tr>
-                <td width="40%"><span class="lbl">Cargo</span><span class="val">{{ $declaration->third_pep_position ?? '—' }}</span></td>
-                <td><span class="lbl">Institución</span><span class="val">{{ $declaration->third_pep_institution ?? '—' }}</span></td>
+                <th style="width:8%;">#</th>
+                <th>Nombres y Apellidos del Pariente</th>
               </tr>
+              @foreach($declaration->pep_relatives as $i => $relative)
+              <tr>
+                <td style="text-align:center;">{{ $i + 1 }}</td>
+                <td>{{ $relative ?? '—' }}</td>
+              </tr>
+              @endforeach
             </table>
-          </div>
+          @else
+            <span style="color:#888;">No se registraron parientes.</span>
           @endif
         </td>
       </tr>
       <tr>
-        <td colspan="3">
-          <span class="lbl">v) Origen de los fondos/activos involucrados en la operación</span>
-          <span class="val">{{ $declaration->third_funds_origin ?? '—' }}</span>
-        </td>
+        <td class="lbl">Cónyuge / Conviviente del PEP</td>
+        <td colspan="3">{{ $declaration->pep_spouse_name ?? '—' }}</td>
       </tr>
-    </table>
-    @endif
+      @endif
 
-    {{-- 11.3 Persona Jurídica / Ente Jurídico --}}
-    @if(in_array($declaration->beneficiary_type, ['PERSONA_JURIDICA', 'ENTE_JURIDICO']))
-    <div class="sub-title mt6">11.3 Operación a favor de persona jurídica o ente jurídico</div>
-    <table class="data-table">
       <tr>
-        <td width="60%">
-          <span class="lbl">i) Denominación o Razón Social</span>
-          <span class="val">{{ $declaration->entity_name ?? '—' }}</span>
-        </td>
-        <td width="40%">
-          <span class="lbl">ii) N° de RUC</span>
-          <span class="val">{{ $declaration->entity_ruc ?? '—' }}</span>
+        <td class="sub-lbl" colspan="4">
+          10.3 ¿Es pariente de PEP hasta el 2° grado de consanguinidad o afinidad, o cónyuge/conviviente?
         </td>
       </tr>
       <tr>
-        <td colspan="2">
-          <span class="lbl">iii) Datos de la representación</span>
-          <div class="check-row">
-            <span class="check-box">{{ $declaration->entity_representation_type === 'PODER_POR_ACTA' ? 'X' : '&nbsp;' }}</span> Poder por Acta &nbsp;
-            <span class="check-box">{{ $declaration->entity_representation_type === 'ESCRITURA_PUBLICA' ? 'X' : '&nbsp;' }}</span> Poder por Escritura Pública &nbsp;
-            <span class="check-box">{{ $declaration->entity_representation_type === 'MANDATO' ? 'X' : '&nbsp;' }}</span> Mandato
-          </div>
+        <td colspan="4">
+          SI SOY <span class="chk {{ $declaration->is_pep_relative === 'SI_SOY' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          NO SOY <span class="chk {{ $declaration->is_pep_relative === 'NO_SOY' ? 'on' : '' }}"></span>
         </td>
       </tr>
-      <tr>
-        <td colspan="2">
-          <span class="lbl">iv) Origen de los fondos/activos involucrados en la operación</span>
-          <span class="val">{{ $declaration->entity_funds_origin ?? '—' }}</span>
-        </td>
-      </tr>
-      <tr>
-        <td colspan="2">
-          <span class="lbl">v) Identificación del Beneficiario Final (conforme al D.Leg. N° 1372 y modificatorias)</span>
-          <span class="val">{{ $declaration->entity_final_beneficiary ?? '—' }}</span>
-        </td>
-      </tr>
-    </table>
-    @endif
 
+      @if($isPepRel && !empty($declaration->pep_relative_data))
+      <tr>
+        <td colspan="4" style="padding: 4px 8px;">
+          <table class="rt">
+            <tr>
+              <th style="width:6%;">#</th>
+              <th>Nombres y Apellidos del PEP</th>
+              <th style="width:30%;">Parentesco</th>
+            </tr>
+            @foreach($declaration->pep_relative_data as $i => $rel)
+            <tr>
+              <td style="text-align:center;">{{ $i + 1 }}</td>
+              <td>{{ $rel['pep_full_name'] ?? '—' }}</td>
+              <td>{{ $rel['relationship'] ?? '—' }}</td>
+            </tr>
+            @endforeach
+          </table>
+        </td>
+      </tr>
+      @endif
+    </table>
   </div>
-</div>
 
-{{-- ══════════════════════════ FIRMA ══════════════════════════ --}}
-<div class="signature-section">
-  <p style="font-size:8px; margin-bottom:8px;">
-    Afirmo y ratifico todo lo manifestado en la presente declaración jurada:
-  </p>
-  <div class="sig-row">
-    <div class="sig-cell">
-      <div class="sig-line">
-        FECHA: {{ $declaration->declaration_date->format('d') }} /
-               {{ $declaration->declaration_date->format('m') }} /
-               {{ $declaration->declaration_date->format('Y') }}
+  {{-- ── 11. IDENTIDAD DEL BENEFICIARIO ─────────── --}}
+  <div class="card">
+    <div class="card-title">11. IDENTIDAD DEL BENEFICIARIO DE LA OPERACIÓN</div>
+    <table class="dt">
+      <tr>
+        <td colspan="4">
+          Realizo esta operación a favor de: &nbsp;
+          1. De mí mismo <span class="chk {{ $declaration->beneficiary_type === 'PROPIO' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          2. Tercero persona natural <span class="chk {{ $declaration->beneficiary_type === 'TERCERO_NATURAL' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          3. Persona jurídica <span class="chk {{ $declaration->beneficiary_type === 'PERSONA_JURIDICA' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          4. Ente jurídico <span class="chk {{ $declaration->beneficiary_type === 'ENTE_JURIDICO' ? 'on' : '' }}"></span>
+        </td>
+      </tr>
+
+      {{-- 11.1 Propio --}}
+      @if($declaration->beneficiary_type === 'PROPIO')
+      <tr>
+        <td class="sub-lbl" colspan="4">11.1 Operación a favor de sí mismo</td>
+      </tr>
+      <tr>
+        <td class="lbl" style="width:22%;">i) Origen de los fondos/activos</td>
+        <td colspan="3">{{ $declaration->own_funds_origin ?? '—' }}</td>
+      </tr>
+      @endif
+
+      {{-- 11.2 Tercero Natural --}}
+      @if($declaration->beneficiary_type === 'TERCERO_NATURAL')
+      <tr>
+        <td class="sub-lbl" colspan="4">11.2 Operación a favor de tercero persona natural</td>
+      </tr>
+      <tr>
+        <td class="lbl" style="width:22%;">i) Nombres y apellidos del tercero</td>
+        <td style="width:28%;">{{ $declaration->third_full_name ?? '—' }}</td>
+        <td class="lbl" style="width:18%;">ii) Tipo de documento</td>
+        <td>{{ $declaration->third_doc_type ?? '—' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">N° de documento</td>
+        <td colspan="3">{{ $declaration->third_doc_number ?? '—' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">iii) Datos de la representación</td>
+        <td colspan="3">
+          Poder por Escritura Pública <span class="chk {{ $declaration->third_representation_type === 'ESCRITURA_PUBLICA' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          Mandato <span class="chk {{ $declaration->third_representation_type === 'MANDATO' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          Poder <span class="chk {{ $declaration->third_representation_type === 'PODER' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          Otros <span class="chk {{ $declaration->third_representation_type === 'OTROS' ? 'on' : '' }}"></span>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl">iv) ¿El tercero es o ha sido PEP?</td>
+        <td colspan="3">
+          SI ES <span class="chk {{ $declaration->third_pep_status === 'SI_ES' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          SI HA SIDO <span class="chk {{ $declaration->third_pep_status === 'SI_HA_SIDO' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          NO ES <span class="chk {{ $declaration->third_pep_status === 'NO_ES' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          NO HA SIDO <span class="chk {{ $declaration->third_pep_status === 'NO_HA_SIDO' ? 'on' : '' }}"></span>
+        </td>
+      </tr>
+      @if(in_array($declaration->third_pep_status, ['SI_ES', 'SI_HA_SIDO']))
+      <tr>
+        <td class="lbl">Cargo</td>
+        <td>{{ $declaration->third_pep_position ?? '—' }}</td>
+        <td class="lbl">Institución</td>
+        <td>{{ $declaration->third_pep_institution ?? '—' }}</td>
+      </tr>
+      @endif
+      <tr>
+        <td class="lbl">v) Origen de los fondos/activos</td>
+        <td colspan="3">{{ $declaration->third_funds_origin ?? '—' }}</td>
+      </tr>
+      @endif
+
+      {{-- 11.3 Persona Jurídica / Ente Jurídico --}}
+      @if(in_array($declaration->beneficiary_type, ['PERSONA_JURIDICA', 'ENTE_JURIDICO']))
+      <tr>
+        <td class="sub-lbl" colspan="4">11.3 Operación a favor de persona jurídica o ente jurídico</td>
+      </tr>
+      <tr>
+        <td class="lbl" style="width:22%;">i) Denominación / Razón Social</td>
+        <td style="width:28%;">{{ $declaration->entity_name ?? '—' }}</td>
+        <td class="lbl" style="width:18%;">ii) N° de RUC</td>
+        <td>{{ $declaration->entity_ruc ?? '—' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">iii) Datos de la representación</td>
+        <td colspan="3">
+          Poder por Acta <span class="chk {{ $declaration->entity_representation_type === 'PODER_POR_ACTA' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          Poder por Escritura Pública <span class="chk {{ $declaration->entity_representation_type === 'ESCRITURA_PUBLICA' ? 'on' : '' }}"></span>
+          &nbsp;&nbsp;
+          Mandato <span class="chk {{ $declaration->entity_representation_type === 'MANDATO' ? 'on' : '' }}"></span>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl">iv) Origen de los fondos/activos</td>
+        <td colspan="3">{{ $declaration->entity_funds_origin ?? '—' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">v) Identificación del Beneficiario Final (D.Leg. N° 1372)</td>
+        <td colspan="3">{{ $declaration->entity_final_beneficiary ?? '—' }}</td>
+      </tr>
+      @endif
+    </table>
+  </div>
+
+  {{-- ── FIRMA ────────────────────────────────────── --}}
+  <div class="sig-wrap">
+    <div class="sig-col">
+      <div class="sig-hdr">FECHA DE DECLARACIÓN</div>
+      <div class="sig-body">
+        <div class="sig-line"></div>
+        <div class="sig-sub">
+          {{ $declaration->declaration_date->format('d') }} / {{ $declaration->declaration_date->format('m') }} / {{ $declaration->declaration_date->format('Y') }}
+        </div>
       </div>
     </div>
-    <div class="sig-cell">
-      <div class="sig-line">FIRMA DEL DECLARANTE</div>
+    <div class="sig-col">
+      <div class="sig-hdr">FIRMA DEL DECLARANTE</div>
+      <div class="sig-body">
+        <div class="sig-line"></div>
+        <div class="sig-sub">{{ $partner?->full_name ?? '' }}</div>
+      </div>
     </div>
   </div>
-</div>
 
-{{-- NOTA AL PIE --}}
-<div class="footer-note">
-  Nota: Para ser conservada por el sujeto obligado y, en su caso, exhibida a solicitud de la UIF-Perú en actividades de supervisión.
-  No se envía a la UIF-Perú, salvo solicitud expresa.
-</div>
+  {{-- ── NOTA AL PIE ──────────────────────────────── --}}
+  <div class="notes">
+    <strong style="color:#000000;">NOTA:</strong>
+    Para ser conservada por el sujeto obligado y, en su caso, exhibida a solicitud de la UIF-Perú en actividades de supervisión.
+    No se envía a la UIF-Perú, salvo solicitud expresa. Manifiesto que los datos consignados son exactos y se ajustan fielmente a la realidad.
+  </div>
+
+  {{-- ── FOOTER MARCAS ────────────────────────────── --}}
+  <div class="foot">
+    <img src="{{ kycBase64Image('images/ap/brands/suzuki.png') }}" alt="Suzuki">
+    <img src="{{ kycBase64Image('images/ap/brands/subaru.png') }}" alt="Subaru">
+    <img src="{{ kycBase64Image('images/ap/brands/dfsk.png') }}" alt="DFSK">
+    <img src="{{ kycBase64Image('images/ap/brands/mazda.png') }}" alt="Mazda">
+    <img src="{{ kycBase64Image('images/ap/brands/citroen.jpg') }}" alt="Citroën">
+    <img src="{{ kycBase64Image('images/ap/brands/renault.png') }}" alt="Renault">
+    <img src="{{ kycBase64Image('images/ap/brands/haval.png') }}" alt="Haval">
+    <img src="{{ kycBase64Image('images/ap/brands/great-wall.png') }}" alt="Great Wall">
+    <img src="{{ kycBase64Image('images/ap/brands/changan.png') }}" alt="Changan">
+    <img src="{{ kycBase64Image('images/ap/brands/jac.png') }}" alt="JAC">
+  </div>
+
+</div>{{-- /content --}}
 
 </body>
 </html>

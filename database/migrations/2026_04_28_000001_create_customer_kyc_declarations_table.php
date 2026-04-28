@@ -11,7 +11,8 @@ return new class extends Migration {
       $table->id();
       $table->foreignId('purchase_request_quote_id')->nullable()->constrained('purchase_request_quote')->nullOnDelete();
       $table->foreignId('business_partner_id')->constrained('business_partners')->cascadeOnDelete();
-      $table->foreignId('company_id')->constrained('companies');
+      $table->integer('sede_id')->nullable();
+      $table->foreign('sede_id')->references('id')->on('config_sede')->nullOnDelete();
 
       // Campo 7 - Ocupación / Cargo
       $table->string('occupation')->nullable();

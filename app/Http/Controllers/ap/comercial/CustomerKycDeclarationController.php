@@ -12,79 +12,78 @@ use Throwable;
 
 class CustomerKycDeclarationController extends Controller
 {
-    protected CustomerKycDeclarationService $service;
+  protected CustomerKycDeclarationService $service;
 
-    public function __construct(CustomerKycDeclarationService $service)
-    {
-        $this->service = $service;
-    }
+  public function __construct(CustomerKycDeclarationService $service)
+  {
+    $this->service = $service;
+  }
 
-    public function index(IndexCustomerKycDeclarationRequest $request)
-    {
-        try {
-            return $this->service->list($request);
-        } catch (Throwable $e) {
-            return $this->error($e->getMessage());
-        }
+  public function index(IndexCustomerKycDeclarationRequest $request)
+  {
+    try {
+      return $this->service->list($request);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    public function store(StoreCustomerKycDeclarationRequest $request)
-    {
-        try {
-            return $this->success($this->service->store($request->validated()));
-        } catch (Throwable $e) {
-            return $this->error($e->getMessage());
-        }
+  public function store(StoreCustomerKycDeclarationRequest $request)
+  {
+    try {
+      return $this->success($this->service->store($request->all()));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    public function show($id)
-    {
-        try {
-            return $this->success($this->service->show($id));
-        } catch (Throwable $e) {
-            return $this->error($e->getMessage());
-        }
+  public function show($id)
+  {
+    try {
+      return $this->success($this->service->show($id));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    public function update(UpdateCustomerKycDeclarationRequest $request, $id)
-    {
-        try {
-            $data = $request->validated();
-            $data['id'] = $id;
-            return $this->success($this->service->update($data));
-        } catch (Throwable $e) {
-            return $this->error($e->getMessage());
-        }
+  public function update(UpdateCustomerKycDeclarationRequest $request, $id)
+  {
+    try {
+      $data = $request->all();
+      $data['id'] = $id;
+      return $this->success($this->service->update($data));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    public function destroy($id)
-    {
-        try {
-            $this->service->destroy($id);
-            return $this->success(null, 'Declaración eliminada correctamente.');
-        } catch (Throwable $e) {
-            return $this->error($e->getMessage());
-        }
+  public function destroy($id)
+  {
+    try {
+      return $this->service->destroy($id);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 
-    public function downloadPdf($id)
-    {
-        try {
-            return $this->service->downloadPdf($id);
-        } catch (Throwable $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
+  public function downloadPdf($id)
+  {
+    try {
+      return $this->service->downloadPdf($id);
+    } catch (Throwable $th) {
+      return response()->json(['error' => $th->getMessage()], 500);
     }
+  }
 
-    public function uploadSignedDocument(UploadSignedKycDeclarationRequest $request, $id)
-    {
-        try {
-            return $this->success(
-                $this->service->uploadSignedDocument($id, $request->file('signed_file')),
-                'Documento firmado registrado correctamente.'
-            );
-        } catch (Throwable $e) {
-            return $this->error($e->getMessage());
-        }
+  public function uploadSignedDocument(UploadSignedKycDeclarationRequest $request, $id)
+  {
+    try {
+      return $this->success(
+        $this->service->uploadSignedDocument($id, $request->file('signed_file')),
+        'Documento firmado registrado correctamente.'
+      );
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
     }
+  }
 }
