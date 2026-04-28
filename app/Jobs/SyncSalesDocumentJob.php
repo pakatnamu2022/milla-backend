@@ -5,15 +5,16 @@ namespace App\Jobs;
 use App\Http\Resources\Dynamics\SalesDocumentDynamicsResource;
 use App\Http\Services\DatabaseSyncService;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
+use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\gestionsistema\Company;
 use App\Services\Dynamics\SalesDynamicsBuilder;
-use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use function json_encode;
+use Illuminate\Support\Str;
 
 class SyncSalesDocumentJob implements ShouldQueue
 {
@@ -296,14 +297,248 @@ class SyncSalesDocumentJob implements ShouldQueue
     }
   }
 
+  /**
+   * Sincroniza los items del documento electrónico a Dynamics
+   * Maneja dos tipos de consolidación:
+   * - simple: usa los items directamente de ap_billing_electronic_document_items
+   * - massive: obtiene los items desde las órdenes de trabajo vinculadas a través de notas internas
+   */
   private function syncDocumentItems(ElectronicDocument $document, DatabaseSyncService $syncService): void
   {
+    // Determinar el tipo de consolidación del documento
+    $consolidationType = $document->consolidation_type;
+
+    // Para tipo 'massive', procesar items desde las notas internas y sus órdenes de trabajo
+    if ($consolidationType === ElectronicDocument::CONSOLIDATION_MASSIVE) {
+      $this->syncDocumentItemsForMassiveConsolidation($document, $syncService);
+      return;
+    }
+
+    // Para tipo 'simple' o sin consolidación, usar la lógica estándar
+    $this->syncDocumentItemsForSimpleConsolidation($document, $syncService);
+  }
+
+  /**
+   * Sincroniza items para consolidación simple (lógica original)
+   * Usa los items directamente desde ap_billing_electronic_document_items
+   */
+  private function syncDocumentItemsForSimpleConsolidation(ElectronicDocument $document, DatabaseSyncService $syncService): void
+  {
+    // Construir los items usando el builder estándar
     $builder = new SalesDynamicsBuilder();
 
+    // Sincronizar cada item construido
     foreach ($builder->buildItems($document) as $item) {
       $data = is_array($item) ? $item : $item->toArray(request());
       $syncService->sync('sales_document_detail', $data);
     }
+  }
+
+  /**
+   * Sincroniza items para consolidación masiva
+   * Obtiene los items desde las órdenes de trabajo asociadas a través de notas internas
+   * Procesa cada OT individualmente y construye los items correspondientes
+   */
+  private function syncDocumentItemsForMassiveConsolidation(ElectronicDocument $document, DatabaseSyncService $syncService): void
+  {
+    // Obtener las notas internas asociadas al documento electrónico con sus relaciones necesarias
+    // Incluye: orden de trabajo, repuestos con producto y unidad de medida, y mano de obra
+    $internalNotes = $document->internalNotes()->with([
+      'workOrder.parts.product.unitMeasurement',
+      'workOrder.labours'
+    ])->get();
+
+    // Validar que existan notas internas
+    if ($internalNotes->isEmpty()) {
+      Log::warning('No se encontraron notas internas para consolidación masiva', [
+        'document_id' => $document->id,
+        'consolidation_type' => $document->consolidation_type
+      ]);
+      return;
+    }
+
+    // Número de línea inicial para los items del documento
+    $lineNumber = 1;
+
+    // Procesar cada nota interna y su orden de trabajo asociada
+    foreach ($internalNotes as $internalNote) {
+      // Obtener la orden de trabajo relacionada con la nota interna
+      $workOrder = $internalNote->workOrder;
+
+      // Validar que la nota interna tenga una orden de trabajo asociada
+      if (!$workOrder) {
+        Log::warning('Nota interna sin orden de trabajo asociada', [
+          'internal_note_id' => $internalNote->id,
+          'document_id' => $document->id
+        ]);
+        continue;
+      }
+
+      // Procesar los items de la orden de trabajo actual
+      $lineNumber = $this->processWorkOrderItems($workOrder, $document, $syncService, $lineNumber);
+    }
+  }
+
+  /**
+   * Procesa los items (parts y labours) de una orden de trabajo
+   * Construye los items en formato Dynamics y los sincroniza
+   *
+   * @param ApWorkOrder $workOrder Orden de trabajo a procesar
+   * @param ElectronicDocument $document Documento electrónico padre
+   * @param DatabaseSyncService $syncService Servicio de sincronización
+   * @param int $lineNumber Número de línea inicial para los items
+   * @return int Siguiente número de línea disponible después de procesar todos los items
+   */
+  private function processWorkOrderItems(
+    ApWorkOrder $workOrder,
+    ElectronicDocument $document,
+    DatabaseSyncService $syncService,
+    int $lineNumber
+  ): int {
+    // Obtener el código de cuenta contable para mano de obra (labour)
+    $labourCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_ID)?->code_dynamics ?? 'V0000011';
+
+    // Obtener el código de cuenta contable para materiales
+    $materialsCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_MATERIAL_ID)?->code_dynamics ?? 'V0000012';
+
+    // Calcular el divisor de IGV (por ejemplo, 1.18 para 18% de IGV)
+    $igvDivisor = 1 + ($document->porcentaje_de_igv / 100);
+
+    // Obtener el almacén del documento
+    $warehouse = $document->warehouse();
+
+    // ============================================================
+    // PROCESAR PARTS (REPUESTOS/PRODUCTOS) DE LA ORDEN DE TRABAJO
+    // ============================================================
+
+    foreach ($workOrder->parts as $part) {
+      // Validar que el part tenga un producto asociado
+      if (!$part->product) {
+        Log::warning('Part sin producto asociado', [
+          'part_id' => $part->id,
+          'work_order_id' => $workOrder->id,
+          'document_id' => $document->id
+        ]);
+        continue;
+      }
+
+      // Validar que el producto tenga código de Dynamics
+      if (!$part->product->dyn_code) {
+        Log::warning('Producto sin código de Dynamics', [
+          'product_id' => $part->product->id,
+          'part_id' => $part->id,
+          'work_order_id' => $workOrder->id,
+          'document_id' => $document->id
+        ]);
+        continue;
+      }
+
+      // Calcular precio unitario sin IGV
+      $unitPriceWithTax = (float) $part->unit_price;
+      $unitPricePreTax = round($unitPriceWithTax / $igvDivisor, 2);
+
+      // Calcular cantidad (usar quantity_used si está disponible, sino assigned_quantity)
+      $quantity = (float) ($part->quantity_used ?? $part->assigned_quantity ?? 0);
+
+      // Validar que haya cantidad
+      if ($quantity <= 0) {
+        Log::warning('Part sin cantidad válida', [
+          'part_id' => $part->id,
+          'work_order_id' => $workOrder->id,
+          'document_id' => $document->id
+        ]);
+        continue;
+      }
+
+      // Calcular precio total sin IGV
+      $totalPricePreTax = round($quantity * $unitPricePreTax, 2);
+
+      // Obtener descripción del producto
+      $description = Str::upper($part->product->description ?? $part->product->name ?? 'PRODUCTO');
+
+      // Obtener unidad de medida del producto - Si el producto tiene unidad de medida, usarla; sino usar 'UND'
+      $unitMeasurementCode = $part->product->unitMeasurement->dyn_code ?? 'UND';
+
+      // Construir el item en formato Dynamics
+      $itemData = [
+        'EmpresaId' => Company::AP_DYNAMICS,
+        'DocumentoId' => $document->full_number,
+        'Linea' => $lineNumber,
+        'ArticuloId' => $part->product->dyn_code,
+        'ArticuloDescripcionCorta' => Str::upper(Str::limit($description, 60, '')),
+        'ArticuloDescripcionLarga' => $description,
+        'SitioId' => $warehouse,
+        'UnidadMedidaId' => $unitMeasurementCode,
+        'Cantidad' => $quantity,
+        'PrecioUnitario' => $unitPricePreTax,
+        'DescuentoUnitario' => 0,
+        'PrecioTotal' => $totalPricePreTax,
+      ];
+
+      // Sincronizar el item de part
+      $syncService->sync('sales_document_detail', $itemData);
+
+      // Incrementar número de línea para el siguiente item
+      $lineNumber++;
+    }
+
+    // ============================================================
+    // PROCESAR LABOURS (MANO DE OBRA) DE LA ORDEN DE TRABAJO
+    // ============================================================
+
+    foreach ($workOrder->labours as $labour) {
+      // Calcular precio unitario sin IGV
+      $unitPriceWithTax = (float) $labour->hourly_rate;
+      $unitPricePreTax = round($unitPriceWithTax / $igvDivisor, 2);
+
+      // Calcular tiempo en horas decimales
+      $timeSpentHours = $labour->time_spent_decimal ?? 0;
+
+      // Validar que haya tiempo registrado
+      if ($timeSpentHours <= 0) {
+        Log::warning('Labour sin tiempo registrado', [
+          'labour_id' => $labour->id,
+          'work_order_id' => $workOrder->id,
+          'document_id' => $document->id
+        ]);
+        continue;
+      }
+
+      // Calcular precio total sin IGV
+      $totalPricePreTax = round($timeSpentHours * $unitPricePreTax, 2);
+
+      // Obtener descripción del labour
+      $description = Str::upper($labour->description ?? 'MANO DE OBRA');
+
+      // Determinar el código de artículo según el tipo de labour
+      $descripcionNormalizada = trim(strtolower($labour->description ?? ''));
+      $articuloId = ($descripcionNormalizada === 'materiales') ? $materialsCode : $labourCode;
+
+      // Construir el item en formato Dynamics
+      $itemData = [
+        'EmpresaId' => Company::AP_DYNAMICS,
+        'DocumentoId' => $document->full_number,
+        'Linea' => $lineNumber,
+        'ArticuloId' => $articuloId,
+        'ArticuloDescripcionCorta' => Str::upper(Str::limit($description, 60, '')),
+        'ArticuloDescripcionLarga' => $description,
+        'SitioId' => $warehouse,
+        'UnidadMedidaId' => 'UND',
+        'Cantidad' => $timeSpentHours,
+        'PrecioUnitario' => $unitPricePreTax,
+        'DescuentoUnitario' => 0,
+        'PrecioTotal' => $totalPricePreTax,
+      ];
+
+      // Sincronizar el item de labour
+      $syncService->sync('sales_document_detail', $itemData);
+
+      // Incrementar número de línea para el siguiente item
+      $lineNumber++;
+    }
+
+    // Retornar el siguiente número de línea disponible
+    return $lineNumber;
   }
 
   /**

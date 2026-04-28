@@ -20,6 +20,7 @@ class ElectronicDocumentItem extends BaseModel
     'account_plan_id',
     'line_number',
     'unidad_de_medida',
+    'unidad_medida_dyn',
     'codigo',
     'dyn_code',
     'codigo_producto_sunat',

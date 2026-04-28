@@ -601,11 +601,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $validationData['work_order_id'] = $effectiveWorkOrderId;
 
         $this->validateWorkOrderInvoice($validationData);
-
-        // Setear códigos de productos para items de work order si se están actualizando items
-        if (isset($data['items']) && is_array($data['items'])) {
-          $data['items'] = $this->setWorkOrderItemCodes($effectiveWorkOrderId, $data['items']);
-        }
       }
 
       // Validar venta interna para order_quotation_id o work_order_id
@@ -672,6 +667,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Actualizar items si se proporcionan
       if (isset($data['items']) && is_array($data['items'])) {
+        // Enriquecer el campo `codigo` de cada item antes de crearlos
+        if (!empty($effectiveQuotationId)) {
+          $this->enrichItemsCodigoFromQuotation($data['items'], (int)$effectiveQuotationId);
+        } elseif (!empty($effectiveWorkOrderId)) {
+          $this->enrichItemsCodigoFromWorkOrder($data['items'], (int)$effectiveWorkOrderId);
+        }
+
         // Eliminar items existentes
         $document->items()->delete();
 
@@ -2521,6 +2523,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           if ($product->dyn_code) {
             $item['dyn_code'] = $product->dyn_code;
           }
+          if ($product->unitMeasurement) {
+            $item['unidad_medida_dyn'] = $product->unitMeasurement->dyn_code;
+          }
         }
       }
     }
@@ -2562,6 +2567,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           if ($product->dyn_code) {
             $item['dyn_code'] = $product->dyn_code;
           }
+          if ($product->unitMeasurement) {
+            $item['unidad_medida_dyn'] = $product->unitMeasurement->dyn_code;
+          }
         }
         continue;
       }
@@ -2580,6 +2588,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
         if ($part->product->dyn_code) {
           $item['dyn_code'] = $part->product->dyn_code;
+        }
+        if ($part->product->unitMeasurement) {
+          $item['unidad_medida_dyn'] = $part->product->unitMeasurement->dyn_code;
         }
         continue;
       }
