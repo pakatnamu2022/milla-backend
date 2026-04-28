@@ -1712,6 +1712,3 @@ Route::group(['prefix' => 'public'], function () {
     Route::post('/document-validation/validate/dni', [DocumentValidationController::class, 'validateDni']);
   });
 });
-
-Route::post('/document-validation/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
-Route::post('/document-validation/validate/dni', [DocumentValidationController::class, 'validateDni']);
