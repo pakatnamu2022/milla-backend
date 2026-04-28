@@ -7,6 +7,7 @@ use App\Http\Requests\ap\comercial\IndexCustomerKycDeclarationRequest;
 use App\Http\Requests\ap\comercial\StoreCustomerKycDeclarationRequest;
 use App\Http\Requests\ap\comercial\UpdateCustomerKycDeclarationRequest;
 use App\Http\Requests\ap\comercial\UploadSignedKycDeclarationRequest;
+use App\Http\Requests\ap\comercial\LegalReviewRejectKycDeclarationRequest;
 use App\Http\Services\ap\comercial\CustomerKycDeclarationService;
 use Throwable;
 
@@ -81,6 +82,32 @@ class CustomerKycDeclarationController extends Controller
       return $this->success(
         $this->service->uploadSignedDocument($id, $request->file('signed_file')),
         'Documento firmado registrado correctamente.'
+      );
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function confirmLegalReview($id)
+  {
+    try {
+      $userId = auth()->id();
+      return $this->success(
+        $this->service->confirmLegalReview($id, $userId),
+        'Declaración KYC confirmada correctamente.'
+      );
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function rejectLegalReview(LegalReviewRejectKycDeclarationRequest $request, $id)
+  {
+    try {
+      $userId = auth()->id();
+      return $this->success(
+        $this->service->rejectLegalReview($id, $userId, $request->comments),
+        'Declaración KYC rechazada correctamente.'
       );
     } catch (Throwable $th) {
       return $this->error($th->getMessage());

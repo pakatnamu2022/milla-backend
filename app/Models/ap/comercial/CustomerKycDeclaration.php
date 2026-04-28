@@ -5,8 +5,8 @@ namespace App\Models\ap\comercial;
 use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-  /**
-   * @property int $id
+/**
+ * @property int $id
    * @property int|null $purchase_request_quote_id
    * @property int|null $business_partner_id
    * @property int|null $sede_id
@@ -43,9 +43,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
    * @property string|null $legal_review_comments
    * @property int|null $reviewed_by
    * @property \Illuminate\Support\Carbon|null $legal_review_at
-   * @property int|null $created_by
-   * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\ap\comercial\CustomerKycDeclaration whereStatus($value)
-   */
+ * @property int|null $created_by
+ * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\ap\comercial\CustomerKycDeclaration whereStatus($value)
+ */
 class CustomerKycDeclaration extends BaseModel
 {
   use SoftDeletes;
@@ -85,6 +85,10 @@ class CustomerKycDeclaration extends BaseModel
     'declaration_date',
     'status',
     'signed_file_path',
+    'legal_review_status',
+    'legal_review_comments',
+    'reviewed_by',
+    'legal_review_at',
     'created_by',
   ];
 
@@ -92,6 +96,7 @@ class CustomerKycDeclaration extends BaseModel
 
   protected $casts = [
     'declaration_date' => 'date',
+    'legal_review_at' => 'datetime',
     'pep_relatives' => 'array',
     'pep_relative_data' => 'array',
   ];
@@ -100,6 +105,10 @@ class CustomerKycDeclaration extends BaseModel
   const STATUS_GENERADO = 'GENERADO';
   const STATUS_FIRMADO = 'FIRMADO';
   const STATUSES = ['PENDIENTE', 'GENERADO', 'FIRMADO'];
+
+  const LEGAL_REVIEW_STATUS_CONFIRMADO = 'CONFIRMADO';
+  const LEGAL_REVIEW_STATUS_RECHAZADO = 'RECHAZADO';
+  const LEGAL_REVIEW_STATUSES = ['CONFIRMADO', 'RECHAZADO'];
 
   const PEP_STATUSES = ['SI_SOY', 'SI_HE_SIDO', 'NO_SOY', 'NO_HE_SIDO'];
   const PEP_COLLABORATOR_STATUSES = ['SI_SOY', 'SI_HE_SIDO', 'NO_SOY', 'NO_HE_SIDO'];
@@ -115,11 +124,13 @@ class CustomerKycDeclaration extends BaseModel
     'sede_id' => '=',
     'beneficiary_type' => '=',
     'status' => '=',
+    'legal_review_status' => '=',
     'declaration_date' => '=',
   ];
 
   const sorts = [
     'declaration_date',
+    'legal_review_at',
     'created_at',
   ];
 
@@ -131,5 +142,10 @@ class CustomerKycDeclaration extends BaseModel
   public function purchaseRequestQuote()
   {
     return $this->belongsTo(PurchaseRequestQuote::class, 'purchase_request_quote_id');
+  }
+
+  public function reviewedBy()
+  {
+    return $this->belongsTo(\App\Models\User::class, 'reviewed_by');
   }
 }

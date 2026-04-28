@@ -75,6 +75,11 @@ class CustomerKycDeclarationResource extends JsonResource
 
       'declaration_date' => $this->declaration_date?->format('Y-m-d'),
       'signed_file_path' => $this->signed_file_path,
+      'legal_review_status' => $this->legal_review_status,
+      'legal_review_comments' => $this->legal_review_comments,
+      'reviewed_by' => $this->reviewed_by,
+      'reviewed_by_name' => $this->reviewedBy?->name,
+      'legal_review_at' => $this->legal_review_at?->format('Y-m-d H:i:s'),
       'created_by' => $this->created_by,
       'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
       'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),

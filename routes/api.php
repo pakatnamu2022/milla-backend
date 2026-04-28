@@ -975,6 +975,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Declaración Jurada Conocimiento del Cliente (KYC)
       Route::get('customerKycDeclarations/{id}/pdf', [CustomerKycDeclarationController::class, 'downloadPdf']);
       Route::post('customerKycDeclarations/{id}/upload-signed', [CustomerKycDeclarationController::class, 'uploadSignedDocument']);
+      Route::post('customerKycDeclarations/{id}/confirm-legal-review', [CustomerKycDeclarationController::class, 'confirmLegalReview']);
+      Route::post('customerKycDeclarations/{id}/reject-legal-review', [CustomerKycDeclarationController::class, 'rejectLegalReview']);
       Route::apiResource('customerKycDeclarations', CustomerKycDeclarationController::class)->only([
         'index',
         'show',
