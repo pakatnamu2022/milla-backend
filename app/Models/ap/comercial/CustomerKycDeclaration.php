@@ -134,6 +134,14 @@ class CustomerKycDeclaration extends BaseModel
     'created_at',
   ];
 
+  public function setAttribute($key, $value)
+  {
+    if (is_string($value) && $key !== 'signed_file_path') {
+      $value = strtoupper($value);
+    }
+    return parent::setAttribute($key, $value);
+  }
+
   public function businessPartner()
   {
     return $this->belongsTo(BusinessPartners::class, 'business_partner_id');
