@@ -58,7 +58,7 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
       }
 
       if ($workOrder->vehicleInspection === null && $validateReceipt) {
-        throw new Exception('No se puede agregar mano de obra a una orden de trabajo sin inspección de vehículo');
+        throw new Exception('No se puede agregar mano de obra a una orden de trabajo sin recepción de vehículo');
       }
 
       // Validar que no existan avances de factura

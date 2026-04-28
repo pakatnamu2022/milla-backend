@@ -2,9 +2,11 @@
 
 namespace App\Http\Resources\ap\postventa\taller;
 
+use App\Http\Resources\ap\comercial\BusinessPartnersResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Resources\gp\maestroGeneral\SedeResource;
+use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
@@ -46,6 +48,8 @@ class ApOrderQuotationsResource extends JsonResource
       'area_id' => $this->area_id,
       'has_invoice_generated' => (bool)$this->has_invoice_generated,
       'is_fully_paid' => (bool)$this->is_fully_paid,
+      'invoice_to' => $this->invoice_to,
+      'invoice_to_client' => $this->whenLoaded('invoiceTo', fn() => BusinessPartnersResource::make($this->invoiceTo)),
       'has_sufficient_stock' => $this->when(
         isset($this->additional['checkStock']) && $this->additional['checkStock'],
         fn() => $this->checkSufficientStock()
@@ -98,10 +102,7 @@ class ApOrderQuotationsResource extends JsonResource
   private function checkSufficientStock(): bool
   {
     // Get warehouse from sede
-    $warehouse = Warehouse::where('sede_id', $this->sede_id)
-      ->where('is_physical_warehouse', 1)
-      ->where('status', 1)
-      ->first();
+    $warehouse = Warehouse::getPhysicalWarehouseForPostsale($this->sede_id);
 
     // If no warehouse found, return false
     if (!$warehouse) {

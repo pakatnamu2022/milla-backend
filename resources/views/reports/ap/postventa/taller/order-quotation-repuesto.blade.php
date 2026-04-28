@@ -433,7 +433,13 @@
       <td class="text-center">{{ number_format($detail['quantity'], 2) }}</td>
       <td
         class="text-center">{{ $detail['supply_type'] === \App\Models\ap\postventa\taller\ApOrderQuotations::STOCK ? 'SI':'NO' }}</td>
-      <td class="text-left">{{ $detail['supply_type'] }} {{ $detail['observations'] }}</td>
+      <td class="text-left">
+        {{ $detail['supply_type'] }}
+        @if(!empty($detail['observations']))
+          <br>
+          <span style="font-size: 7px;">{{ $detail['observations'] }}</span>
+        @endif
+      </td>
       <td class="text-right">{{ number_format($detail['unit_price'], 2) }}</td>
       <td class="text-right">{{ number_format($detail['discount'], 2) }}</td>
       <td class="text-right">{{ number_format($detail['total_amount'], 2) }}</td>

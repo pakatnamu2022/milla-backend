@@ -110,7 +110,7 @@ class PotentialBuyersSocialNetworksImport implements ToModel, WithHeadingRow, Wi
       'version' => strtoupper($row[2] ?? $row['version'] ?? null),
       'num_doc' => $row[4] ?? $row['documento_cliente'] ?? null,
       'full_name' => $fullName,
-      'phone' => $row[6] ?? $row['celular'] ?? null,
+      'phone' => $this->cleanPhoneNumber($row[6] ?? $row['celular'] ?? null),
       'email' => strtolower($row[7] ?? $row['email'] ?? null),
       'campaign' => $campana, // Campaña como string
       'sede_id' => $sedeData['id'],
@@ -355,5 +355,38 @@ class PotentialBuyersSocialNetworksImport implements ToModel, WithHeadingRow, Wi
     } catch (Exception $e) {
       return now()->format('Y-m-d');
     }
+  }
+
+  /**
+   * Limpia y normaliza el número de teléfono
+   * Elimina prefijos como "p:+51" y otros caracteres no numéricos
+   *
+   * @param string|null $phone
+   * @return string|null
+   */
+  private function cleanPhoneNumber($phone)
+  {
+    if (empty($phone)) {
+      return null;
+    }
+
+    // Convertir a string y eliminar espacios
+    $phone = trim((string) $phone);
+
+    // Eliminar el prefijo "p:+51" si existe (case insensitive)
+    $phone = preg_replace('/^p:\+51/i', '', $phone);
+
+    // Eliminar el prefijo "+51" si existe
+    $phone = preg_replace('/^\+51/', '', $phone);
+
+    // Eliminar todos los caracteres que no sean dígitos
+    $phone = preg_replace('/[^0-9]/', '', $phone);
+
+    // Si quedó vacío después de la limpieza, retornar null
+    if (empty($phone)) {
+      return null;
+    }
+
+    return $phone;
   }
 }

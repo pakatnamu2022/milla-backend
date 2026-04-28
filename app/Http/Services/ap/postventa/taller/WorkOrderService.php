@@ -878,17 +878,21 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     try {
       $workOrder = $this->find($id);
       $validateDocument = $workOrder->items->first()?->typePlanning->type_document;
+      $validateReception = $workOrder->items->first()?->typePlanning->validate_receipt;
+      $validateLabor = $workOrder->items->first()?->typePlanning->validate_labor;
 
-      if ($workOrder->status_id === ApMasters::OPENING_WORK_ORDER_ID) {
+      if ($validateReception && $workOrder->status_id === ApMasters::OPENING_WORK_ORDER_ID) {
         throw new Exception('La OT se encuentra en estado abierto, debe recepcionar la orden de trabajo para iniciar el trabajo y luego generar la nota interna');
       }
 
-      if ($workOrder->status_id === ApMasters::RECEIVED_WORK_ORDER_ID) {
-        throw new Exception('La OT se encuentra en estado recepcionado, debe asignar un técnico para iniciar el trabajo y luego generar la nota interna');
-      }
+      if ($validateLabor) {
+        if ($workOrder->status_id === ApMasters::RECEIVED_WORK_ORDER_ID) {
+          throw new Exception('Debe asignar un técnico para iniciar el trabajo y luego generar la nota interna');
+        }
 
-      if ($workOrder->status_id === ApMasters::AT_WORK_WORK_ORDER_ID) {
-        throw new Exception('La OT se encuentra en trabajo, debe esperar a que el técnico finalice su trabajo para generar una nota interna');
+        if ($workOrder->status_id === ApMasters::AT_WORK_WORK_ORDER_ID) {
+          throw new Exception('La OT se encuentra en trabajo, debe esperar a que el técnico finalice su trabajo para generar una nota interna');
+        }
       }
 
       if ($validateDocument !== TypePlanningWorkOrder::INTERNA) {
@@ -1205,6 +1209,12 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $workOrders = ApWorkOrder::with(['internalNote', 'items', 'labours', 'parts'])
       ->whereIn('id', $ids)
       ->get();
+
+    $uniqueCurrencies = $workOrders->pluck('currency_id')->unique();
+
+    if ($uniqueCurrencies->count() > 1) {
+      throw new \Exception('Todas las órdenes deben tener la misma moneda');
+    }
 
     return WorkOrderResource::collection($workOrders);
   }

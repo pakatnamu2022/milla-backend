@@ -8,6 +8,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
 use App\Http\Utils\Constants;
+use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequests;
@@ -115,8 +116,19 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
 
       $data['net_amount'] = $netAmount;
 
-      // Calculate tax_amount based on net_amount using VAT_TAX (18%)
-      $data['tax_amount'] = round($netAmount * (Constants::VAT_TAX / 100), 2);
+      // Calculate tax_amount based on supplier's tax class IGV
+      $supplier = BusinessPartners::with('supplierTaxClassType')->find($data['supplier_id']);
+
+      if (!$supplier) {
+        throw new Exception('Proveedor no encontrado.');
+      }
+
+      $igvRate = 0;
+      if ($supplier->supplierTaxClassType && $supplier->supplierTaxClassType->igv != 0) {
+        $igvRate = $supplier->supplierTaxClassType->igv;
+      }
+
+      $data['tax_amount'] = $igvRate > 0 ? round($netAmount * ($igvRate / 100), 2) : 0;
 
       // Calculate total_amount (net_amount + tax_amount)
       $data['total_amount'] = round($netAmount + $data['tax_amount'], 2);
@@ -202,8 +214,20 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
         }
         $data['net_amount'] = $netAmount;
 
-        // Calculate tax_amount based on net_amount using VAT_TAX (18%)
-        $data['tax_amount'] = round($netAmount * (Constants::VAT_TAX / 100), 2);
+        // Calculate tax_amount based on supplier's tax class IGV
+        $supplierId = $data['supplier_id'] ?? $supplierOrder->supplier_id;
+        $supplier = BusinessPartners::with('supplierTaxClassType')->find($supplierId);
+
+        if (!$supplier) {
+          throw new Exception('Proveedor no encontrado.');
+        }
+
+        $igvRate = 0;
+        if ($supplier->supplierTaxClassType && $supplier->supplierTaxClassType->igv != 0) {
+          $igvRate = $supplier->supplierTaxClassType->igv;
+        }
+
+        $data['tax_amount'] = $igvRate > 0 ? round($netAmount * ($igvRate / 100), 2) : 0;
 
         // Calculate total_amount (net_amount + tax_amount)
         $data['total_amount'] = round($netAmount + $data['tax_amount'], 2);

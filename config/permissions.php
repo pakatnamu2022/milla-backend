@@ -211,6 +211,12 @@ return [
       'description' => 'Permite agregar repuestos a una orden de trabajo',
       'icon' => 'Plus',
       'policy_method' => 'addSparePartsOT',
+    ],
+    'notify' => [
+      'label' => 'Notificar',
+      'description' => 'Permite enviar notificaciones a usuarios o grupos',
+      'icon' => 'Bell',
+      'policy_method' => 'notify',
     ]
   ],
 

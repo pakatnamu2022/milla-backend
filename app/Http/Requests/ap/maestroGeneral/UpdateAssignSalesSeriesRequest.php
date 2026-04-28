@@ -20,13 +20,12 @@ class UpdateAssignSalesSeriesRequest extends StoreRequest
           ->where('status', 1)
           ->ignore($this->route('assignSalesSeries')),
       ],
-      'type' => ['nullable', 'in:PURCHASE,SALE,OTHERS'],
+      'type' => ['nullable', 'in:PURCHASE,SALE,GUIDES,OTHERS'],
       'correlative_start' => ['nullable', 'integer', 'min:0'],
       'type_receipt_id' => ['nullable', 'exists:ap_masters,id'],
       'type_operation_id' => ['nullable', 'exists:ap_masters,id'],
       'sede_id' => ['nullable', 'exists:config_sede,id'],
       'status' => ['nullable', 'boolean'],
-      'is_advance' => ['nullable', 'boolean'],
     ];
   }
 
@@ -49,8 +48,6 @@ class UpdateAssignSalesSeriesRequest extends StoreRequest
       'sede_id.exists' => 'La sede seleccionada no es válida.',
 
       'status.boolean' => 'El estado debe ser verdadero o falso.',
-
-      'is_advance.boolean' => 'El campo es anticipo debe ser verdadero o falso.',
     ];
   }
 

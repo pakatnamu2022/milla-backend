@@ -101,6 +101,7 @@ class ApWorkOrder extends Model
   const filters = [
     'search' => ['correlative', 'vehicle_plate', 'vehicle_vin', 'observations'],
     'correlative' => '=',
+    'currency_id' => '=',
     'appointment_planning_id' => '=',
     'order_quotation_id' => '=',
     'vehicle_id' => '=',

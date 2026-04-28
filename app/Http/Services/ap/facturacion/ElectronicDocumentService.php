@@ -601,11 +601,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $validationData['work_order_id'] = $effectiveWorkOrderId;
 
         $this->validateWorkOrderInvoice($validationData);
-
-        // Setear códigos de productos para items de work order si se están actualizando items
-        if (isset($data['items']) && is_array($data['items'])) {
-          $data['items'] = $this->setWorkOrderItemCodes($effectiveWorkOrderId, $data['items']);
-        }
       }
 
       // Validar venta interna para order_quotation_id o work_order_id
@@ -672,6 +667,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Actualizar items si se proporcionan
       if (isset($data['items']) && is_array($data['items'])) {
+        // Enriquecer el campo `codigo` de cada item antes de crearlos
+        if (!empty($effectiveQuotationId)) {
+          $this->enrichItemsCodigoFromQuotation($data['items'], (int)$effectiveQuotationId);
+        } elseif (!empty($effectiveWorkOrderId)) {
+          $this->enrichItemsCodigoFromWorkOrder($data['items'], (int)$effectiveWorkOrderId);
+        }
+
         // Eliminar items existentes
         $document->items()->delete();
 
@@ -2192,7 +2194,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
           if ($availableQuantityExternal < $part->quantity_used) {
             throw new Exception(
-              "Stock insuficiente en sistema externo para el repuesto: {$part->product->description}. " .
+              "Stock insuficiente en sistema dynamics para el repuesto: {$part->product->description}. " .
               "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$part->quantity_used}"
             );
           }
@@ -2521,6 +2523,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           if ($product->dyn_code) {
             $item['dyn_code'] = $product->dyn_code;
           }
+          if ($product->unitMeasurement) {
+            $item['unidad_medida_dyn'] = $product->unitMeasurement->dyn_code;
+          }
         }
       }
     }
@@ -2562,6 +2567,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           if ($product->dyn_code) {
             $item['dyn_code'] = $product->dyn_code;
           }
+          if ($product->unitMeasurement) {
+            $item['unidad_medida_dyn'] = $product->unitMeasurement->dyn_code;
+          }
         }
         continue;
       }
@@ -2581,6 +2589,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         if ($part->product->dyn_code) {
           $item['dyn_code'] = $part->product->dyn_code;
         }
+        if ($part->product->unitMeasurement) {
+          $item['unidad_medida_dyn'] = $part->product->unitMeasurement->dyn_code;
+        }
         continue;
       }
 
@@ -2592,8 +2603,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         if ($descripcionNormalizada === 'materiales') {
           $materialsCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_MATERIAL_ID)?->code ?? 'V0000012';
           $item['codigo'] = $materialsCode;
+          $item['dyn_code'] = $materialsCode;
         } else {
           $item['codigo'] = $labourCode;
+          $item['dyn_code'] = $labourCode;
         }
       }
     }
@@ -3023,7 +3036,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'series_id' => $data['series_id'],
         'numero' => $nextNumberData['number'],
         'full_number' => "{$data['serie']}-{$nextNumberData['number']}",
-        'consolidation_type' => ElectronicDocument::CONSOLIDATION_WORK_ORDERS,
+        'consolidation_type' => ElectronicDocument::CONSOLIDATION_MASSIVE,
         'client_id' => $clientId,
         'sunat_concept_identity_document_type_id' => $documentType->id,
         'cliente_numero_de_documento' => $client->num_doc,
@@ -3047,16 +3060,38 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'area_id' => ApMasters::AREA_POSVENTA,
       ];
 
-      // 11. Create invoice
+      // 11. Apply detraction logic for consolidated work orders
+      $company = Company::find(Company::COMPANY_AP_ID);
+      if ($company && isset($invoiceData['total'])) {
+        $detractionAmount = (float)($company->detraction_amount ?? 0);
+
+        // Verificar si el total de la factura consolidada supera o iguala el monto de detracción
+        if ($total >= $detractionAmount && $detractionAmount > 0) {
+          $invoiceData['detraccion'] = true;
+          $invoiceData['sunat_concept_detraction_type_id'] = SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION;
+          $invoiceData['sunat_concept_transaction_type_id'] = SunatConcepts::ID_SUJETA_DETRACCION;
+
+          // Obtener el porcentaje de detracción desde GeneralMaster
+          $detractionPercentage = GeneralMaster::find(GeneralMaster::SUNAT_DETRACTION_PERCENTAGE_ID);
+          if ($detractionPercentage) {
+            $porcentaje = (float)$detractionPercentage->value;
+            $invoiceData['detraccion_porcentaje'] = $porcentaje;
+            // La detracción se calcula sobre el total del documento
+            $invoiceData['detraccion_total'] = (float)$invoiceData['total'] * ($porcentaje / 100);
+          }
+        }
+      }
+
+      // 12. Create invoice
       $invoice = ElectronicDocument::create($invoiceData);
 
-      // 12. Create invoice items from frontend data
+      // 13. Create invoice items from frontend data
       $lineNumber = 1;
       foreach ($data['items'] as $item) {
         $invoice->items()->create([
           'line_number' => $lineNumber++,
           'unidad_de_medida' => $item['unidad_de_medida'],
-          'codigo' => $item['codigo'],
+          'codigo' => ApAccountingAccountPlan::find(ApAccountingAccountPlan::AFTER_SALES_MAINTENANCE_SERVICE_ID)->code_dynamics ?? 'V0000018',
           'descripcion' => $item['descripcion'],
           'cantidad' => $item['cantidad'],
           'valor_unitario' => round((float)$item['valor_unitario'], 2),
@@ -3069,10 +3104,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         ]);
       }
 
-      // 13. Attach internal notes to invoice
+      // 14. Attach internal notes to invoice
       $invoice->internalNotes()->attach($data['internal_note_ids']);
 
-      // 14. Mark internal notes as invoiced
+      // 15. Mark internal notes as invoiced
       foreach ($internalNotes as $note) {
         $note->markAsInvoiced($emissionDate);
       }

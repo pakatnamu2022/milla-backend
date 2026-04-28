@@ -5,13 +5,11 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\ApWorkOrderPartsResource;
 use App\Http\Resources\ap\postventa\taller\ApWorkOrderPartDeliveryResource;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
-use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
-use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
@@ -51,10 +49,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     return $workOrderPart;
   }
 
-  /**
-   * Calcular precios y totales automáticamente basándose en el último movimiento del producto
-   * Aplica factor de tipo de cambio si la OT tiene cotización con moneda diferente
-   */
   private function calculatePricesAndTotals(array &$data): void
   {
     $productId = $data['product_id'];
@@ -94,14 +88,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     $data['tax_amount'] = 0;
   }
 
-  /**
-   * Calcular el factor de tipo de cambio basándose en la OT y su cotización
-   * Si la OT tiene cotización con moneda diferente, aplicar el tipo de cambio
-   *
-   * @param int $workOrderId
-   * @return float
-   * @throws Exception
-   */
   private function calculateExchangeRateFactor(int $workOrderId): float
   {
     $workOrder = ApWorkOrder::find($workOrderId);
@@ -140,9 +126,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     return 1;
   }
 
-  /**
-   * Traducir estado de solicitud de descuento
-   */
   private function translateDiscountStatus(string $status): string
   {
     $translations = [
@@ -210,6 +193,25 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
       if (!$stock) {
         throw new Exception('No se encontró registro de stock para el producto en el almacén seleccionado');
+      }
+
+      $inventoryMovementService = app(InventoryMovementService::class);
+
+      $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+        $stock->product->dyn_code,
+        $stock->warehouse->dyn_code,
+      );
+
+      // El SP retorna ArticuloStock como string, convertir a float para comparar
+      $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+        ? (float)trim($externalStock['ArticuloStock'])
+        : 0;
+
+      if ($availableQuantityExternal < $data['quantity_used']) {
+        throw new Exception(
+          "Stock insuficiente en sistema dynamics para el repuesto: {$stock->product->description}. " .
+          "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$data['quantity_used']}"
+        );
       }
 
       if ($stock->available_quantity < $data['quantity_used']) {
@@ -418,14 +420,16 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     });
   }
 
-  /**
-   * Guardar masivamente repuestos desde una cotización
-   * Marca solo los detalles seleccionados como 'taken'
-   * Reserva stock automáticamente
-   */
   public function storeBulkFromQuotation(mixed $data)
   {
     return DB::transaction(function () use ($data) {
+      $workOrder = ApWorkOrder::find($data['work_order_id']);
+      $validateReceipt = $workOrder->items->first()?->typePlanning->validate_receipt;
+
+      if ($workOrder->vehicleInspection === null && $validateReceipt) {
+        throw new Exception('No se puede agregar repuestos a una orden de trabajo sin recepción vehicular');
+      }
+
       $quotationId = $data['quotation_id'];
       $workOrderId = $data['work_order_id'];
       $warehouseId = $data['warehouse_id'];
@@ -450,6 +454,8 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       if ($quotationDetails->isEmpty()) {
         throw new Exception('No se encontraron productos seleccionados');
       }
+
+      $inventoryMovementService = app(InventoryMovementService::class);
 
       // Validar que no existan productos duplicados en la orden de trabajo
       $existingProductIds = ApWorkOrderParts::where('work_order_id', $workOrderId)
@@ -498,6 +504,23 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
           throw new Exception("No se encontró registro de stock para el producto {$productInfo} en el almacén seleccionado");
         }
 
+        $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+          $stock->product->dyn_code,
+          $stock->warehouse->dyn_code
+        );
+
+        // El SP retorna ArticuloStock como string, convertir a float para comparar
+        $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+          ? (float)trim($externalStock['ArticuloStock'])
+          : 0;
+
+        if ($availableQuantityExternal < $detail->quantity) {
+          throw new Exception(
+            "Stock insuficiente en sistema externo para el producto: {$detail->product->description}. " .
+            "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$detail->quantity}"
+          );
+        }
+
         if ($stock->available_quantity < $detail->quantity) {
           $productInfo = $detail->product ? "{$detail->product->code} - {$detail->product->name}" : "ID {$detail->product_id}";
           throw new Exception(
@@ -536,11 +559,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     });
   }
 
-  /**
-   * Asignar repuesto a técnico
-   * Crea un registro de entrega con la cantidad especificada
-   * Valida que no se exceda la cantidad disponible
-   */
   public function assignToTechnician(int $workOrderPartId, array $data)
   {
     return DB::transaction(function () use ($workOrderPartId, $data) {
@@ -583,11 +601,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     });
   }
 
-  /**
-   * Confirmar recepción de repuestos
-   * El técnico confirma que recibió los repuestos
-   * Puede incluir firma digital del que recibe y la firma del worker del usuario logueado
-   */
   public function confirmReceipt(array $data)
   {
     return DB::transaction(function () use ($data) {
@@ -655,10 +668,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     });
   }
 
-  /**
-   * Obtener todas las asignaciones de repuestos de una orden de trabajo
-   * Lista los técnicos a los que se han asignado repuestos
-   */
   public function getAssignmentsByWorkOrder(int $workOrderId, array $data)
   {
     // Validar que la orden de trabajo existe
@@ -737,9 +746,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     ];
   }
 
-  /**
-   * Obtener las entregas de un repuesto de orden de trabajo
-   */
   public function getDeliveriesByWorkOrderPart(int $workOrderPartId)
   {
     $workOrderPart = $this->find($workOrderPartId);

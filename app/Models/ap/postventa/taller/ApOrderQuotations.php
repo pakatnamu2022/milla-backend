@@ -51,6 +51,7 @@ class ApOrderQuotations extends Model
     'is_requested_by_management',
     'emails_sent_count',
     'area_id',
+    'invoice_to',
     'currency_id',
     'exchange_rate',
     'has_invoice_generated',
@@ -186,6 +187,11 @@ class ApOrderQuotations extends Model
     return $this->belongsTo(ApMasters::class, 'area_id');
   }
 
+  public function invoiceTo(): BelongsTo
+  {
+    return $this->belongsTo(BusinessPartners::class, 'invoice_to');
+  }
+  
   public function typeCurrency(): BelongsTo
   {
     return $this->belongsTo(TypeCurrency::class, 'currency_id');
