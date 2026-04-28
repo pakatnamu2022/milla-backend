@@ -500,14 +500,17 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $request = $this->find($id);
       $approverId = auth()->user()->person->id ?? $data['approver_id'];
 
-      // Find the approval record for this approver
-      $approval = $request->approvals()
+      // Find any existing approval record for this approver (not just pending)
+      $existingApproval = $request->approvals()
         ->where('approver_id', $approverId)
-        ->where('status', PerDiemApproval::PENDING)
         ->first();
 
-      if (!$approval) {
-        // If no approval exists, create one
+      if ($existingApproval && $existingApproval->status !== PerDiemApproval::PENDING) {
+        throw new Exception('Esta aprobación ya ha sido procesada');
+      }
+
+      if (!$existingApproval) {
+        // No approval record exists yet for this approver — create one
         $approval = PerDiemApproval::create([
           'per_diem_request_id' => $request->id,
           'approver_id' => $approverId,
@@ -516,7 +519,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'approved_at' => now(),
         ]);
       } else {
-        // Update the existing approval
+        $approval = $existingApproval;
+        // Update the existing pending approval
         $approval->update([
           'status' => $data['status'],
           'comments' => $data['comments'] ?? null,
