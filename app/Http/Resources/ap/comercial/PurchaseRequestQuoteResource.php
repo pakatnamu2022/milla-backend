@@ -94,6 +94,8 @@ class PurchaseRequestQuoteResource extends JsonResource
       }),
       'sede_id' => $this->sede_id ?? null,
       'sede' => $this->sede->abreviatura ?? null,
+      'kyc_declaration_id' => $this->relationLoaded('kycDeclaration') ? $this->kycDeclaration?->id : null,
+      'kyc_status' => $this->relationLoaded('kycDeclaration') ? ($this->kycDeclaration?->status ?? 'PENDIENTE') : null,
       'created_at' => $this->created_at,
       'updated_at' => $this->updated_at,
     ];

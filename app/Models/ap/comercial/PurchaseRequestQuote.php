@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use App\Models\ap\comercial\CustomerKycDeclaration;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -312,5 +313,10 @@ class PurchaseRequestQuote extends Model
   public function electronicDocuments(): HasMany
   {
     return $this->hasMany(ElectronicDocument::class, 'purchase_request_quote_id');
+  }
+
+  public function kycDeclaration(): HasOne
+  {
+    return $this->hasOne(CustomerKycDeclaration::class, 'purchase_request_quote_id');
   }
 }

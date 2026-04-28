@@ -11,6 +11,7 @@ use App\Http\Controllers\ap\comercial\ApDeliveryChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersEstablishmentController;
+use App\Http\Controllers\ap\comercial\CustomerKycDeclarationController;
 use App\Http\Controllers\ap\comercial\OpportunityActionController;
 use App\Http\Controllers\ap\comercial\OpportunityController;
 use App\Http\Controllers\ap\comercial\PotentialBuyersController;
@@ -970,6 +971,17 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::patch('businessPartners/{id}/remove-type', [BusinessPartnersController::class, 'removeType']);
       Route::get('businessPartners/{id}/validateOpportunity', [BusinessPartnersController::class, 'validateOpportunity']);
       Route::post('businessPartners/{id}/reprocess-establishments', [BusinessPartnersController::class, 'reprocessEstablishments']);
+
+      // Declaración Jurada Conocimiento del Cliente (KYC)
+      Route::get('customerKycDeclarations/{id}/pdf', [CustomerKycDeclarationController::class, 'downloadPdf']);
+      Route::post('customerKycDeclarations/{id}/upload-signed', [CustomerKycDeclarationController::class, 'uploadSignedDocument']);
+      Route::apiResource('customerKycDeclarations', CustomerKycDeclarationController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy',
+      ]);
 
       Route::apiResource('businessPartnersEstablishments', BusinessPartnersEstablishmentController::class)->only([
         'index',
