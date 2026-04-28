@@ -215,7 +215,8 @@ class ElectronicDocument extends BaseModel
   const TYPE_NOTA_DEBITO = SunatConcepts::ID_NOTA_DEBITO_ELECTRONICA;      // 32
 
   // Consolidation types
-  const CONSOLIDATION_WORK_ORDERS = 'work_orders';
+  const string CONSOLIDATION_SIMPLE = 'simple';
+  const string CONSOLIDATION_MASSIVE = 'massive';
 
   /**
    * Booted
@@ -497,7 +498,7 @@ class ElectronicDocument extends BaseModel
 
   public function scopeConsolidatedWorkOrders($query)
   {
-    return $query->where('consolidation_type', self::CONSOLIDATION_WORK_ORDERS);
+    return $query->where('consolidation_type', self::CONSOLIDATION_MASSIVE);
   }
 
   /**
@@ -707,7 +708,7 @@ class ElectronicDocument extends BaseModel
 
   public function isWorkOrdersConsolidation(): bool
   {
-    return $this->consolidation_type === self::CONSOLIDATION_WORK_ORDERS;
+    return $this->consolidation_type === self::CONSOLIDATION_MASSIVE;
   }
 
   public function purchaseRequestQuote(): HasOne

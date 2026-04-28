@@ -2192,7 +2192,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
           if ($availableQuantityExternal < $part->quantity_used) {
             throw new Exception(
-              "Stock insuficiente en sistema externo para el repuesto: {$part->product->description}. " .
+              "Stock insuficiente en sistema dynamics para el repuesto: {$part->product->description}. " .
               "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$part->quantity_used}"
             );
           }
@@ -3023,7 +3023,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'series_id' => $data['series_id'],
         'numero' => $nextNumberData['number'],
         'full_number' => "{$data['serie']}-{$nextNumberData['number']}",
-        'consolidation_type' => ElectronicDocument::CONSOLIDATION_WORK_ORDERS,
+        'consolidation_type' => ElectronicDocument::CONSOLIDATION_MASSIVE,
         'client_id' => $clientId,
         'sunat_concept_identity_document_type_id' => $documentType->id,
         'cliente_numero_de_documento' => $client->num_doc,
@@ -3078,7 +3078,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $invoice->items()->create([
           'line_number' => $lineNumber++,
           'unidad_de_medida' => $item['unidad_de_medida'],
-          'codigo' => $item['codigo'],
+          'codigo' => ApAccountingAccountPlan::find(ApAccountingAccountPlan::AFTER_SALES_MAINTENANCE_SERVICE_ID)->code_dynamics ?? 'V0000018',
           'descripcion' => $item['descripcion'],
           'cantidad' => $item['cantidad'],
           'valor_unitario' => round((float)$item['valor_unitario'], 2),
