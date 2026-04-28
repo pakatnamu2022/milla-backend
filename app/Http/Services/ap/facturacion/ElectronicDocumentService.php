@@ -2603,8 +2603,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         if ($descripcionNormalizada === 'materiales') {
           $materialsCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_MATERIAL_ID)?->code ?? 'V0000012';
           $item['codigo'] = $materialsCode;
+          $item['dyn_code'] = $materialsCode;
         } else {
           $item['codigo'] = $labourCode;
+          $item['dyn_code'] = $labourCode;
         }
       }
     }
