@@ -228,18 +228,25 @@ class EvaluationNotificationController extends Controller
     try {
       $evaluationId = $request->input('evaluation_id');
 
-      $results = $this->notificationService->sendEvaluationClosed($evaluationId);
+      $closedResults = $this->notificationService->sendEvaluationClosed($evaluationId);
+      $resultsAvailable = $this->notificationService->sendResultsAvailable($evaluationId);
 
       return response()->json([
-        'success' => $results['success'],
-        'message' => $results['success']
-          ? "Se enviaron {$results['total_sent']} resúmenes de cierre"
-          : "Error al enviar resúmenes: {$results['error']}",
+        'success' => $closedResults['success'],
+        'message' => $closedResults['success']
+          ? "Se enviaron {$closedResults['total_sent']} resúmenes de cierre"
+          : "Error al enviar resúmenes: {$closedResults['error']}",
         'data' => [
-          'summaries_sent' => $results['total_sent'],
-          'results' => $results['results']
+          'leaders' => [
+            'sent' => $closedResults['total_sent'],
+            'results' => $closedResults['results'],
+          ],
+          'persons' => [
+            'sent' => $resultsAvailable['total_sent'],
+            'results' => $resultsAvailable['results'],
+          ],
         ]
-      ], $results['success'] ? 200 : 500);
+      ], $closedResults['success'] ? 200 : 500);
 
     } catch (\Exception $e) {
       return response()->json([

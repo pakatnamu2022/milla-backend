@@ -103,6 +103,14 @@ Schedule::command('app:check-pending-electronic-documents')
   ->withoutOverlapping()
   ->runInBackground();
 
+// Cerrar evaluaciones cuyo end_date ya venció
+// Ejecuta diariamente a las 23:00 hora Lima
+Schedule::command('evaluation:close-expired')
+  ->dailyAt('23:00')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
 // Redistribuir leads pendientes (use=0, >24h) entre asesores del mismo grupo shop+marca
 // Ejecuta diariamente a medianoche (hora Lima)
 //Schedule::command('ap:redistribute-potential-buyers')

@@ -426,7 +426,8 @@ class EvaluationNotificationService
   }
 
   /**
-   * Envía resumen final cuando se cierra una evaluación
+   * Envía resumen final cuando se cierra una evaluación (líderes).
+   * No valida si ya fue enviado para permitir reenvíos desde el endpoint.
    */
   public function sendEvaluationClosed(int $evaluationId): array
   {
@@ -442,18 +443,9 @@ class EvaluationNotificationService
         ];
       }
 
-      if ($evaluation->send_closed_email) {
-        return [
-          'success' => false,
-          'error' => 'El correo de cierre ya fue enviado para esta evaluación',
-          'total_sent' => 0,
-          'results' => []
-        ];
-      }
-
       $leaders = $this->getLeadersForEvaluation($evaluation);
       $results = [];
-      $allSuccessful = true; // Bandera para verificar si todos se enviaron
+      $allSuccessful = true;
 
       if (empty($leaders)) {
         return [
@@ -467,7 +459,7 @@ class EvaluationNotificationService
       foreach ($leaders as $leaderId => $leaderData) {
         $leader = Worker::find($leaderId);
 
-        if (!$leader || !$leader->email) {
+        if (!$leader || !$leader->email2) {
           continue;
         }
 
@@ -475,13 +467,12 @@ class EvaluationNotificationService
         $emailResult = $this->sendClosedEmailToLeader($evaluation, $leader, $leaderData, $teamSummary);
         $results[] = $emailResult;
 
-        // Verificar si este correo falló
         if (!$emailResult['sent']) {
           $allSuccessful = false;
         }
+        break; // TODO: eliminar, solo para pruebas
       }
 
-      // Solo actualizar si TODOS los correos se enviaron exitosamente
       if ($allSuccessful && count($results) > 0) {
         $evaluation->update(['send_closed_email' => true]);
       }
@@ -499,6 +490,118 @@ class EvaluationNotificationService
         'error' => $e->getMessage(),
         'total_sent' => 0,
         'results' => []
+      ];
+    }
+  }
+
+  /**
+   * Notifica a cada evaluado que su resultado ya está disponible para consulta.
+   */
+  public function sendResultsAvailable(int $evaluationId): array
+  {
+    try {
+      $evaluation = Evaluation::find($evaluationId);
+
+      if (!$evaluation) {
+        return [
+          'success' => false,
+          'error' => 'Evaluación no encontrada',
+          'total_sent' => 0,
+          'results' => []
+        ];
+      }
+
+      $personResults = EvaluationPersonResult::where('evaluation_id', $evaluationId)
+        ->with('person')
+        ->get();
+
+      if ($personResults->isEmpty()) {
+        return [
+          'success' => false,
+          'error' => 'No hay participantes en esta evaluación',
+          'total_sent' => 0,
+          'results' => []
+        ];
+      }
+
+      $results = [];
+      $allSuccessful = true;
+
+      foreach ($personResults as $personResult) {
+        $person = $personResult->person;
+
+        if (!$person || !$person->email2) {
+          continue;
+        }
+
+        $emailResult = $this->sendResultsAvailableToPerson($evaluation, $person);
+        $results[] = $emailResult;
+
+        if (!$emailResult['sent']) {
+          $allSuccessful = false;
+        }
+        break; // TODO: eliminar, solo para pruebas
+      }
+
+      return [
+        'success' => $allSuccessful,
+        'total_sent' => count(array_filter($results, fn($r) => $r['sent'])),
+        'total_failed' => count(array_filter($results, fn($r) => !$r['sent'])),
+        'results' => $results
+      ];
+
+    } catch (\Exception $e) {
+      return [
+        'success' => false,
+        'error' => $e->getMessage(),
+        'total_sent' => 0,
+        'results' => []
+      ];
+    }
+  }
+
+  private function sendResultsAvailableToPerson(Evaluation $evaluation, Worker $person): array
+  {
+    try {
+      $cycle = $evaluation->cycle;
+
+      $emailConfig = [
+        'to' => 'hvaldiviezos@automotorespakatnamu.com', // TODO: reemplazar por $person->email2
+        'subject' => '¡Tu resultado de desempeño ya está disponible!',
+        'template' => 'emails.evaluation-results-available',
+        'data' => [
+          'badge' => 'Resultado disponible',
+          'person_name' => $person->nombre_completo,
+          'evaluation_name' => $evaluation->name,
+          'start_date' => Carbon::parse($cycle?->start_date ?? $evaluation->start_date)->format('d/m/Y'),
+          'end_date' => Carbon::parse($cycle?->end_date ?? $evaluation->end_date)->format('d/m/Y'),
+          'results_url' => 'https://sian.grupopakatnamu.com/perfil/mi-desempeno',
+          'date' => now()->format('d/m/Y H:i'),
+          'company_name' => 'Grupo Pakatnamu',
+          'contact_info' => 'rrhh@grupopakatnamu.com',
+        ]
+      ];
+
+      $sent = $this->emailService->queue($emailConfig);
+
+      return [
+        'person_id' => $person->id,
+        'person_name' => $person->nombre_completo,
+        'person_email' => $person->email2,
+        'sent' => $sent,
+        'evaluation_id' => $evaluation->id,
+        'evaluation_name' => $evaluation->name,
+      ];
+
+    } catch (\Exception $e) {
+      return [
+        'person_id' => $person->id,
+        'person_name' => $person->nombre_completo,
+        'person_email' => $person->email2,
+        'sent' => false,
+        'error' => $e->getMessage(),
+        'evaluation_id' => $evaluation->id,
+        'evaluation_name' => $evaluation->name,
       ];
     }
   }
@@ -647,8 +750,8 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
-//        'to' => "hvaldiviezos@automotorespakatnamu.com",
+//        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
+        'to' => "hvaldiviezos@automotorespakatnamu.com",
         'subject' => 'Evaluación de Desempeño Finalizada - Resumen de Resultados',
         'template' => 'emails.evaluation-closed',
         'data' => [
