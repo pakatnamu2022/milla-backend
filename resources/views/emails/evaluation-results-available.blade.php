@@ -1,13 +1,22 @@
 {{-- resources/views/emails/evaluation-results-available.blade.php --}}
 @extends('emails.layouts.base')
 
+@push('styles')
+<style>
+@media only screen and (max-width: 600px) {
+  .col3 { display: block !important; width: 100% !important; padding: 12px 0 !important; }
+  .col3-spacer { display: none !important; }
+}
+</style>
+@endpush
+
 @section('content')
   {{-- Hero --}}
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
          style="margin:-24px 0 0 0;">
     <tr>
       <td align="center" bgcolor="#01237e"
-          style="padding:40px 32px 36px;background:#01237e;">
+          style="padding:40px 32px 36px;background:#01237e;border-radius: 12px">
         <div style="font:700 28px/1.2 Inter,Arial,Helvetica,sans-serif;color:#ffffff;margin-bottom:10px;">
           ¡Tu resultado ya está disponible!
         </div>
@@ -22,7 +31,7 @@
   <div style="padding:8px 0 0 0;font:400 15px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
 
     <p style="margin:24px 0 20px 0;">
-      Hola <strong>{{ explode(' ', trim($person_name))[0] }}</strong>,
+      Hola <strong>{{ $person_name }}</strong>,
     </p>
 
     <p style="margin:0 0 20px 0;color:#374151;">
@@ -55,7 +64,7 @@
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
            style="margin:0 0 24px 0;">
       <tr>
-        <td width="32%" align="center" valign="top"
+        <td class="col3" width="32%" align="center" valign="top"
             style="padding:20px 8px;background:#f2f4f8;border-radius:12px;">
           <div style="font:700 22px/1 Inter,Arial,Helvetica,sans-serif;color:#01237e;margin-bottom:6px;">
             &#128200;
@@ -67,8 +76,8 @@
             Resultado final del período
           </div>
         </td>
-        <td width="4%"></td>
-        <td width="32%" align="center" valign="top"
+        <td class="col3-spacer" width="4%"></td>
+        <td class="col3" width="32%" align="center" valign="top"
             style="padding:20px 8px;background:#f2f4f8;border-radius:12px;">
           <div style="font:700 22px/1 Inter,Arial,Helvetica,sans-serif;color:#01237e;margin-bottom:6px;">
             &#128172;
@@ -80,8 +89,8 @@
             Comentarios de tu evaluador
           </div>
         </td>
-        <td width="4%"></td>
-        <td width="32%" align="center" valign="top"
+        <td class="col3-spacer" width="4%"></td>
+        <td class="col3" width="32%" align="center" valign="top"
             style="padding:20px 8px;background:#f2f4f8;border-radius:12px;">
           <div style="font:700 22px/1 Inter,Arial,Helvetica,sans-serif;color:#01237e;margin-bottom:6px;">
             &#127919;

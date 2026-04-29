@@ -470,6 +470,7 @@ class EvaluationNotificationService
         if (!$emailResult['sent']) {
           $allSuccessful = false;
         }
+        break; // TODO: eliminar, solo para pruebas
       }
 
       if ($allSuccessful && count($results) > 0) {
@@ -539,6 +540,7 @@ class EvaluationNotificationService
         if (!$emailResult['sent']) {
           $allSuccessful = false;
         }
+        break; // TODO: eliminar, solo para pruebas
       }
 
       return [
@@ -561,6 +563,8 @@ class EvaluationNotificationService
   private function sendResultsAvailableToPerson(Evaluation $evaluation, Worker $person): array
   {
     try {
+      $cycle = $evaluation->cycle;
+
       $emailConfig = [
         'to' => 'hvaldiviezos@automotorespakatnamu.com', // TODO: reemplazar por $person->email2
         'subject' => '¡Tu resultado de desempeño ya está disponible!',
@@ -569,8 +573,8 @@ class EvaluationNotificationService
           'badge' => 'Resultado disponible',
           'person_name' => $person->nombre_completo,
           'evaluation_name' => $evaluation->name,
-          'start_date' => Carbon::parse($evaluation->start_date)->format('d/m/Y'),
-          'end_date' => Carbon::parse($evaluation->end_date)->format('d/m/Y'),
+          'start_date' => Carbon::parse($cycle?->start_date ?? $evaluation->start_date)->format('d/m/Y'),
+          'end_date' => Carbon::parse($cycle?->end_date ?? $evaluation->end_date)->format('d/m/Y'),
           'results_url' => 'https://sian.grupopakatnamu.com/perfil/mi-desempeno',
           'date' => now()->format('d/m/Y H:i'),
           'company_name' => 'Grupo Pakatnamu',
