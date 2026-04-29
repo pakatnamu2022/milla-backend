@@ -115,7 +115,72 @@ class GeneralExport implements
 
   public function styles(Worksheet $sheet)
   {
+    // If styles is in custom format (from model), convert to PhpSpreadsheet format
+    if (isset($this->styles['headerBackgroundColor']) || isset($this->styles['headerFontColor'])) {
+      return $this->convertCustomStylesToPhpSpreadsheet($this->styles);
+    }
+
     return $this->styles;
+  }
+
+  protected function convertCustomStylesToPhpSpreadsheet(array $customStyles): array
+  {
+    $styles = [];
+
+    // Header row styles (row 1)
+    $headerStyle = [];
+
+    if (isset($customStyles['headerBold']) && $customStyles['headerBold']) {
+      $headerStyle['font']['bold'] = true;
+    }
+
+    if (isset($customStyles['headerFontSize'])) {
+      $headerStyle['font']['size'] = $customStyles['headerFontSize'];
+    }
+
+    if (isset($customStyles['headerFontColor'])) {
+      $headerStyle['font']['color'] = ['rgb' => $customStyles['headerFontColor']];
+    }
+
+    if (isset($customStyles['headerBackgroundColor'])) {
+      $headerStyle['fill'] = [
+        'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+        'startColor' => ['rgb' => $customStyles['headerBackgroundColor']]
+      ];
+    }
+
+    $headerStyle['alignment'] = [
+      'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+      'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER
+    ];
+
+    if (!empty($headerStyle)) {
+      $styles[1] = $headerStyle;
+    }
+
+    // Body styles (from row 2 onwards)
+    $bodyStyle = [];
+
+    if (isset($customStyles['bodyFontSize'])) {
+      $bodyStyle['font']['size'] = $customStyles['bodyFontSize'];
+    }
+
+    $bodyStyle['alignment'] = [
+      'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER
+    ];
+
+    $bodyStyle['borders'] = [
+      'allBorders' => [
+        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+        'color' => ['rgb' => 'D4D4D4']
+      ]
+    ];
+
+    if (!empty($bodyStyle)) {
+      $styles['A2:Z1000'] = $bodyStyle;
+    }
+
+    return $styles;
   }
 
   public function title(): string
@@ -154,6 +219,9 @@ class GeneralExport implements
 
         // Aplicar colores condicionales por columna
         if (!empty($this->cellColorRules)) {
+          // Convert color rules to normalized format if needed
+          $normalizedRules = $this->normalizeColorRules($this->cellColorRules);
+
           $columnKeys = array_keys($this->columns);
           $columnIndices = [];
           foreach ($columnKeys as $idx => $key) {
@@ -165,15 +233,15 @@ class GeneralExport implements
             $rowData = $this->data->get($dataRowIndex);
             if ($rowData === null) continue;
 
-            foreach ($this->cellColorRules as $rule) {
-              $colKey = $rule['column'];
-              if (!isset($columnIndices[$colKey])) continue;
+            foreach ($normalizedRules as $columnName => $valueColorMap) {
+              if (!isset($columnIndices[$columnName])) continue;
 
-              $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($columnIndices[$colKey] + 1);
-              $cellValue = is_array($rowData) ? ($rowData[$colKey] ?? null) : data_get($rowData, $colKey);
-              $color = $this->resolveColor($cellValue, $rule['ranges']);
+              $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($columnIndices[$columnName] + 1);
+              $cellValue = is_array($rowData) ? ($rowData[$columnName] ?? null) : data_get($rowData, $columnName);
 
-              if ($color) {
+              // Check if the cell value matches any of the color rules
+              if (isset($valueColorMap[$cellValue])) {
+                $color = $valueColorMap[$cellValue];
                 $sheet->getStyle("{$colLetter}{$rowIndex}")->getFill()
                   ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
                   ->getStartColor()->setRGB($color);
@@ -183,6 +251,19 @@ class GeneralExport implements
         }
       },
     ];
+  }
+
+  /**
+   * Normalize color rules from model format to internal format
+   * Expected input format from model: ['column_name' => ['VALUE' => 'COLOR_HEX', ...], ...]
+   * Output format: ['column_name' => ['VALUE' => 'COLOR_HEX', ...], ...]
+   */
+  protected function normalizeColorRules(array $colorRules): array
+  {
+    // If already in the expected format (column => [value => color]), return as is
+    // The format from ProductWarehouseStock.getReportColorRules() is already correct:
+    // ['estado_stock' => ['OUT_OF_STOCK' => 'FF0000', ...]]
+    return $colorRules;
   }
 
   protected function resolveColor($value, array $ranges): ?string

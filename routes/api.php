@@ -1231,6 +1231,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'index',
       ]);
       Route::post('productWarehouseStock/by-product-ids', [ProductWarehouseStockController::class, 'getStockByProductIds']);
+      Route::get('productWarehouseStock/export/inventory', [ProductWarehouseStockController::class, 'exportInventory']);
       // Transfer Receptions - Recepciones de Transferencias
       Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
         'index',
