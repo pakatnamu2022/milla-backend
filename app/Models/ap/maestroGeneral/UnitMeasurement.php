@@ -30,6 +30,8 @@ class UnitMeasurement extends Model
     'description',
   ];
 
+  const string SERVICE_UOM_ABBR = 'UNS';
+
   public function setDynCodeAttribute($value)
   {
     $this->attributes['dyn_code'] = Str::upper(Str::ascii($value));

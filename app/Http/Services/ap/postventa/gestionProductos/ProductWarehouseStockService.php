@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 
 use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseStockResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\common\ExportService;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\GeneralMaster;
@@ -22,6 +23,13 @@ class ProductWarehouseStockService extends BaseService
   private ?float $freightCommission = null;
   private ?float $profitMargin = null;
   private ?float $minimunDiscount = null;
+
+  protected ExportService $exportService;
+
+  public function __construct(ExportService $exportService)
+  {
+    $this->exportService = $exportService;
+  }
 
   /**
    * Get freight commission percentage from GeneralMaster (cached)
@@ -842,5 +850,52 @@ class ProductWarehouseStockService extends BaseService
     }
 
     return round($publicSalePrice * (1 - $this->getMinimunDiscount()), 2);
+  }
+
+  /**
+   * Export inventory to Excel
+   *
+   * @param Request $request
+   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
+   */
+  public function exportInventory(Request $request)
+  {
+    $filters = [];
+
+    // Filter by warehouse
+    if ($request->filled('warehouse_id')) {
+      $filters[] = [
+        'column' => 'warehouse_id',
+        'operator' => '=',
+        'value' => $request->warehouse_id
+      ];
+    }
+
+    // Filter by stock status
+    if ($request->filled('stock_type')) {
+      if ($request->stock_type === 'with_stock') {
+        $filters[] = [
+          'column' => 'with_stock',
+          'operator' => '=',
+          'value' => true
+        ];
+      } elseif ($request->stock_type === 'without_stock') {
+        $filters[] = [
+          'column' => 'without_stock',
+          'operator' => '=',
+          'value' => true
+        ];
+      }
+    }
+
+    $title = $request->get('title', 'Reporte de Inventario');
+
+    $options = [
+      'title' => $title,
+      'filters' => $filters,
+      'format' => $request->get('format', 'excel'),
+    ];
+
+    return $this->exportService->exportToExcel(ProductWarehouseStock::class, $options);
   }
 }

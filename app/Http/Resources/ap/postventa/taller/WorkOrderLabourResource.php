@@ -14,6 +14,7 @@ class WorkOrderLabourResource extends JsonResource
       'group_number' => $this->group_number,
       'description' => $this->description,
       'time_spent' => $this->time_spent,
+      'time_spent_decimal' => $this->time_spent_decimal,
       'hourly_rate' => $this->hourly_rate,
       'discount_percentage' => $this->discount_percentage,
       'total_cost' => $this->total_cost,

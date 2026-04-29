@@ -260,4 +260,124 @@ class ProductWarehouseStock extends Model
 
     return ['valid' => true, 'message' => null, 'sale_price' => $minSalePrice];
   }
+
+  // Report methods for Excel Export
+  public function getReportData($filters = [])
+  {
+    $query = self::with([
+      'product',
+      'warehouse',
+      'currency'
+    ]);
+
+    // Apply filters
+    foreach ($filters as $filter) {
+      $column = $filter['column'];
+      $operator = $filter['operator'];
+      $value = $filter['value'];
+
+      if ($column === 'warehouse_id' && $operator === '=') {
+        $query->where('warehouse_id', $value);
+      } elseif ($column === 'with_stock' && $operator === '=' && $value) {
+        $query->where('quantity', '>', 0);
+      } elseif ($column === 'without_stock' && $operator === '=' && $value) {
+        $query->where('quantity', '<=', 0);
+      }
+    }
+
+    $stocks = $query->get();
+
+    // Get last movement for each stock
+    return $stocks->map(function ($stock) {
+      $lastMovement = InventoryMovement::whereHas('details', function ($q) use ($stock) {
+        $q->where('product_id', $stock->product_id);
+      })
+        ->where(function ($q) use ($stock) {
+          $q->where('warehouse_id', $stock->warehouse_id)
+            ->orWhere('warehouse_destination_id', $stock->warehouse_id);
+        })
+        ->where('status', InventoryMovement::STATUS_APPROVED)
+        ->orderBy('movement_date', 'desc')
+        ->first();
+
+      // Translate stock status to Spanish
+      $statusTranslations = [
+        'OUT_OF_STOCK' => 'Sin Stock',
+        'LOW_STOCK' => 'Stock Bajo',
+        'OVER_STOCK' => 'Sobre Stock',
+        'NORMAL' => 'Normal',
+      ];
+      $translatedStatus = $statusTranslations[$stock->stock_status] ?? $stock->stock_status;
+
+      return [
+        'codigo_producto' => $stock->product?->code ?? 'N/A',
+        'nombre_producto' => $stock->product?->name ?? 'N/A',
+        'almacen' => $stock->warehouse?->description ?? 'N/A',
+        'cantidad' => number_format($stock->quantity, 2),
+        'cantidad_en_transito' => number_format($stock->quantity_in_transit, 2),
+        'cantidad_reservada' => number_format($stock->reserved_quantity, 2),
+        'cantidad_disponible' => number_format($stock->available_quantity, 2),
+        'stock_minimo' => number_format($stock->minimum_stock, 2),
+        'stock_maximo' => number_format($stock->maximum_stock, 2),
+        'estado_stock' => $translatedStatus,
+        'costo_promedio' => number_format($stock->average_cost, 2),
+        'precio_venta' => number_format($stock->sale_price, 2),
+        'moneda' => $stock->currency?->code ?? 'N/A',
+        'ultimo_movimiento_fecha' => $lastMovement ? $lastMovement->movement_date->format('d/m/Y') : 'N/A',
+        'ultimo_movimiento_tipo' => $lastMovement ? InventoryMovement::getMovementTypeLabel($lastMovement->movement_type) : 'N/A',
+        'ultimo_movimiento_numero' => $lastMovement ? $lastMovement->movement_number : 'N/A',
+        'ultimo_movimiento_usuario' => $lastMovement ? $lastMovement->user?->name : 'N/A',
+        'fecha_ultimo_movimiento_stock' => $stock->last_movement_date ? $stock->last_movement_date->format('d/m/Y H:i:s') : 'N/A',
+      ];
+    });
+  }
+
+  public function getReportableColumns()
+  {
+    return [
+      'codigo_producto' => 'Código Producto',
+      'nombre_producto' => 'Nombre Producto',
+      'almacen' => 'Almacén',
+      'cantidad' => 'Cantidad',
+      'cantidad_en_transito' => 'En Tránsito',
+      'cantidad_reservada' => 'Reservada',
+      'cantidad_disponible' => 'Disponible',
+      'stock_minimo' => 'Stock Mínimo',
+      'stock_maximo' => 'Stock Máximo',
+      'estado_stock' => 'Estado Stock',
+      'costo_promedio' => 'Costo Promedio',
+      'precio_venta' => 'Precio Venta',
+      'moneda' => 'Moneda',
+      'ultimo_movimiento_fecha' => 'Fecha Últ. Movimiento',
+      'ultimo_movimiento_tipo' => 'Tipo Últ. Movimiento',
+      'ultimo_movimiento_numero' => 'Núm. Últ. Movimiento',
+      'ultimo_movimiento_usuario' => 'Usuario Últ. Movimiento',
+      'fecha_ultimo_movimiento_stock' => 'Fecha Últ. Actualización Stock',
+    ];
+  }
+
+  public function getReportStyles()
+  {
+    return [
+      'headerBackgroundColor' => '4472C4',
+      'headerFontColor' => 'FFFFFF',
+      'headerFontSize' => 11,
+      'headerBold' => true,
+      'bodyFontSize' => 10,
+      'freezePane' => 'A2',
+      'autoFilter' => true,
+    ];
+  }
+
+  public function getReportColorRules()
+  {
+    return [
+      'estado_stock' => [
+        'Sin Stock' => 'FF0000',      // Rojo
+        'Stock Bajo' => 'FFA500',     // Naranja
+        'Sobre Stock' => 'FFFF00',    // Amarillo
+        'Normal' => '90EE90',          // Verde claro
+      ],
+    ];
+  }
 }

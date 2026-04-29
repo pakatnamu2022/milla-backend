@@ -7,6 +7,7 @@ use App\Http\Services\DatabaseSyncService;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\maestroGeneral\UnitMeasurement;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\gestionsistema\Company;
 use App\Services\Dynamics\SalesDynamicsBuilder;
@@ -390,19 +391,17 @@ class SyncSalesDocumentJob implements ShouldQueue
    * @return int Siguiente número de línea disponible después de procesar todos los items
    */
   private function processWorkOrderItems(
-    ApWorkOrder $workOrder,
-    ElectronicDocument $document,
+    ApWorkOrder         $workOrder,
+    ElectronicDocument  $document,
     DatabaseSyncService $syncService,
-    int $lineNumber
-  ): int {
+    int                 $lineNumber
+  ): int
+  {
     // Obtener el código de cuenta contable para mano de obra (labour)
     $labourCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_ID)?->code_dynamics ?? 'V0000011';
 
     // Obtener el código de cuenta contable para materiales
     $materialsCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_MATERIAL_ID)?->code_dynamics ?? 'V0000012';
-
-    // Calcular el divisor de IGV (por ejemplo, 1.18 para 18% de IGV)
-    $igvDivisor = 1 + ($document->porcentaje_de_igv / 100);
 
     // Obtener el almacén del documento
     $warehouse = $document->warehouse();
@@ -433,12 +432,8 @@ class SyncSalesDocumentJob implements ShouldQueue
         continue;
       }
 
-      // Calcular precio unitario sin IGV
-      $unitPriceWithTax = (float) $part->unit_price;
-      $unitPricePreTax = round($unitPriceWithTax / $igvDivisor, 2);
-
-      // Calcular cantidad (usar quantity_used si está disponible, sino assigned_quantity)
-      $quantity = (float) ($part->quantity_used ?? $part->assigned_quantity ?? 0);
+      // Obtener cantidad (usar quantity_used si está disponible, sino assigned_quantity)
+      $quantity = (float)($part->quantity_used ?? $part->assigned_quantity ?? 0);
 
       // Validar que haya cantidad
       if ($quantity <= 0) {
@@ -450,11 +445,18 @@ class SyncSalesDocumentJob implements ShouldQueue
         continue;
       }
 
-      // Calcular precio total sin IGV
-      $totalPricePreTax = round($quantity * $unitPricePreTax, 2);
+      // Obtener precio unitario (sin IGV, tal como está en el sistema)
+      $unitPrice = (float)$part->unit_price;
+
+      // Obtener descuento porcentual
+      $discountPercentage = (float)($part->discount_percentage ?? 0);
+
+      // Obtener total neto (con descuento aplicado)
+      // Si no hay descuento, net_amount será igual a total_cost
+      $totalPrice = (float)($part->net_amount ?? $part->total_cost ?? 0);
 
       // Obtener descripción del producto
-      $description = Str::upper($part->product->description ?? $part->product->name ?? 'PRODUCTO');
+      $description = Str::upper($part->product->name ?? $part->product->description ?? 'PRODUCTO');
 
       // Obtener unidad de medida del producto - Si el producto tiene unidad de medida, usarla; sino usar 'UND'
       $unitMeasurementCode = $part->product->unitMeasurement->dyn_code ?? 'UND';
@@ -470,9 +472,9 @@ class SyncSalesDocumentJob implements ShouldQueue
         'SitioId' => $warehouse,
         'UnidadMedidaId' => $unitMeasurementCode,
         'Cantidad' => $quantity,
-        'PrecioUnitario' => $unitPricePreTax,
-        'DescuentoUnitario' => 0,
-        'PrecioTotal' => $totalPricePreTax,
+        'PrecioUnitario' => $unitPrice,
+        'DescuentoUnitario' => $discountPercentage,
+        'PrecioTotal' => $totalPrice,
       ];
 
       // Sincronizar el item de part
@@ -487,12 +489,10 @@ class SyncSalesDocumentJob implements ShouldQueue
     // ============================================================
 
     foreach ($workOrder->labours as $labour) {
-      // Calcular precio unitario sin IGV
-      $unitPriceWithTax = (float) $labour->hourly_rate;
-      $unitPricePreTax = round($unitPriceWithTax / $igvDivisor, 2);
-
-      // Calcular tiempo en horas decimales
-      $timeSpentHours = $labour->time_spent_decimal ?? 0;
+      // Obtener tiempo en horas decimales y redondear a 2 decimales
+      // time_spent es tipo TIME (HH:MM:SS), time_spent_decimal lo convierte a decimal
+      // Ejemplos: 01:00:00 = 1.00, 01:30:00 = 1.50, 02:15:00 = 2.25
+      $timeSpentHours = round($labour->time_spent_decimal ?? 0, 2);
 
       // Validar que haya tiempo registrado
       if ($timeSpentHours <= 0) {
@@ -504,8 +504,15 @@ class SyncSalesDocumentJob implements ShouldQueue
         continue;
       }
 
-      // Calcular precio total sin IGV
-      $totalPricePreTax = round($timeSpentHours * $unitPricePreTax, 2);
+      // Obtener precio unitario por hora (sin IGV, tal como está en el sistema)
+      $unitPrice = (float)$labour->hourly_rate;
+
+      // Obtener descuento porcentual
+      $discountPercentage = (float)($labour->discount_percentage ?? 0);
+
+      // Obtener total neto (con descuento aplicado)
+      // Si no hay descuento, net_amount será igual a total_cost
+      $totalPrice = (float)($labour->net_amount ?? $labour->total_cost ?? 0);
 
       // Obtener descripción del labour
       $description = Str::upper($labour->description ?? 'MANO DE OBRA');
@@ -523,11 +530,11 @@ class SyncSalesDocumentJob implements ShouldQueue
         'ArticuloDescripcionCorta' => Str::upper(Str::limit($description, 60, '')),
         'ArticuloDescripcionLarga' => $description,
         'SitioId' => $warehouse,
-        'UnidadMedidaId' => 'UND',
+        'UnidadMedidaId' => UnitMeasurement::SERVICE_UOM_ABBR,
         'Cantidad' => $timeSpentHours,
-        'PrecioUnitario' => $unitPricePreTax,
-        'DescuentoUnitario' => 0,
-        'PrecioTotal' => $totalPricePreTax,
+        'PrecioUnitario' => $unitPrice,
+        'DescuentoUnitario' => $discountPercentage,
+        'PrecioTotal' => $totalPrice,
       ];
 
       // Sincronizar el item de labour

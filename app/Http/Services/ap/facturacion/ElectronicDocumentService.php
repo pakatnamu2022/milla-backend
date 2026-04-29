@@ -21,6 +21,7 @@ use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\maestroGeneral\UnitMeasurement;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
@@ -2604,9 +2605,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $materialsCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_MATERIAL_ID)?->code ?? 'V0000012';
           $item['codigo'] = $materialsCode;
           $item['dyn_code'] = $materialsCode;
+          $item['unidad_medida_dyn'] = UnitMeasurement::SERVICE_UOM_ABBR;
         } else {
           $item['codigo'] = $labourCode;
           $item['dyn_code'] = $labourCode;
+          $item['unidad_medida_dyn'] = UnitMeasurement::SERVICE_UOM_ABBR;
         }
       }
     }
@@ -3029,7 +3032,31 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         throw new Exception('La serie no es válida para el tipo de documento seleccionado');
       }
 
-      // 10. Prepare invoice data
+
+      // ================================================================
+      // 10. PROCESAR ARCHIVO DE ORDEN DE COMPRA SERVICIO (OPCIONAL)
+      // ================================================================
+
+      /**
+       * Si el frontend envía un archivo para orden de compra de servicio,
+       * subirlo a Digital Ocean y guardar la URL
+       */
+      if (isset($data['orden_compra_servicio_file']) && $data['orden_compra_servicio_file'] instanceof UploadedFile) {
+        $file = $data['orden_compra_servicio_file'];
+        $path = '/ap/facturacion/orden-compra-servicio/';
+        $model = 'ap_billing_electronic_documents';
+
+        // Subir archivo usando DigitalFileService
+        $digitalFile = $this->digitalFileService->store($file, $path, 'public', $model);
+
+        // Guardar la URL en el campo correspondiente
+        $data['orden_compra_servicio_url'] = $digitalFile->url;
+
+        // Remover el archivo del array para no guardarlo en la BD
+        unset($data['orden_compra_servicio_file']);
+      }
+
+      // 11. Prepare invoice data
       $invoiceData = [
         'sunat_concept_document_type_id' => $data['sunat_concept_document_type_id'],
         'serie' => $data['serie'],
@@ -3052,12 +3079,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'total_gravada' => round($subtotal, 2),
         'total_igv' => round($taxAmount, 2),
         'total' => round($total, 2),
-        'observaciones' => $data['observaciones'] ?? "Factura consolidada de " . $internalNotes->count() . " órdenes de trabajo",
+        'internal_note' => $data['internal_note'] ?? '',
+        'observaciones' => $data['observaciones'] ?? '',
         'enviar_automaticamente_a_la_sunat' => false,
         'enviar_automaticamente_al_cliente' => false,
         'created_by' => auth()->id(),
         'sunat_concept_transaction_type_id' => $data['sunat_concept_transaction_type_id'] ?? null,
         'area_id' => ApMasters::AREA_POSVENTA,
+        'orden_compra_servicio_url' => $data['orden_compra_servicio_url'] ?? null,
+        'orden_compra_servicio' => $data['orden_compra_servicio'] ?? null,
       ];
 
       // 11. Apply detraction logic for consolidated work orders
