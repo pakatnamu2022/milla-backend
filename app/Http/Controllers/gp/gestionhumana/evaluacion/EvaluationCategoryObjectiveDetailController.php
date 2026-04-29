@@ -35,7 +35,6 @@ class EvaluationCategoryObjectiveDetailController extends Controller
   /**
    * Display the workers associated with the given evaluation category objective detail.
    * @param int $id
-   * @return \Illuminate\Http\JsonResponse
    */
   public function workers(int $id)
   {

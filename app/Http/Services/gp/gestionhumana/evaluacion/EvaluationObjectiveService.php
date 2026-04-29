@@ -4,6 +4,8 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationObjectiveResource;
 use App\Http\Services\BaseService;
+use App\Models\gp\gestionhumana\evaluacion\Evaluation;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationObjective;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use Exception;
@@ -57,9 +59,14 @@ class EvaluationObjectiveService extends BaseService
      * of the active evaluations that have this objective
      */
     DB::transaction(function () use ($objective) {
-      $evaluationService = new EvaluationService();
+      EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
+        ->whereNull('deleted_at')
+        ->update(['goal' => $objective->goalReference]);
+
       $evaluationPersonService = new EvaluationPersonService();
-      $evaluation = $evaluationService->active();
+      $evaluation = Evaluation::where('status', 1)->first();
+      if (!$evaluation) return;
+
       $cycle = $evaluation->cycle;
       $personCycleDetails = EvaluationPersonCycleDetail::where('cycle_id', $cycle->id)
         ->where('objective_id', $objective->id)
