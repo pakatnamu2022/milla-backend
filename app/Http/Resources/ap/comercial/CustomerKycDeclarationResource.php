@@ -14,6 +14,7 @@ class CustomerKycDeclarationResource extends JsonResource
     return [
       'id' => $this->id,
       'purchase_request_quote_id' => $this->purchase_request_quote_id,
+      'purchase_request_quote' => $this->purchaseRequestQuote->fullCorrelative,
       'business_partner_id' => $this->business_partner_id,
       'sede_id' => $this->sede_id,
       'status' => $this->status,
