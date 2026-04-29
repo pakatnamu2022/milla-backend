@@ -9,10 +9,10 @@ class UpdateEvaluationObjectiveRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'name' => 'nullable|string|max:255',
-      'description' => 'nullable|string|max:1000',
+      'name' => 'nullable|string',
+      'description' => 'nullable|string|max_digits:1000',
       'metric_id' => 'nullable|exists:gh_evaluation_metric,id',
-      'goalReference' => 'nullable|numeric|max:255',
+      'goalReference' => 'nullable|numeric',
       'fixedWeight' => 'nullable|numeric|min:0',
       'isAscending' => 'nullable|boolean',
     ];
