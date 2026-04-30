@@ -30,9 +30,9 @@ class InventoryMovementService extends BaseService
 {
   protected $stockService;
 
-  public function __construct()
+  public function __construct(ProductWarehouseStockService $stockService)
   {
-    $this->stockService = new ProductWarehouseStockService();
+    $this->stockService = $stockService;
   }
 
   public function list(Request $request)
