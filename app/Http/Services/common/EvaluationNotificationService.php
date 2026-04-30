@@ -470,7 +470,6 @@ class EvaluationNotificationService
         if (!$emailResult['sent']) {
           $allSuccessful = false;
         }
-        break; // TODO: eliminar, solo para pruebas
       }
 
       if ($allSuccessful && count($results) > 0) {
@@ -540,7 +539,6 @@ class EvaluationNotificationService
         if (!$emailResult['sent']) {
           $allSuccessful = false;
         }
-        break; // TODO: eliminar, solo para pruebas
       }
 
       return [
@@ -566,7 +564,7 @@ class EvaluationNotificationService
       $cycle = $evaluation->cycle;
 
       $emailConfig = [
-        'to' => 'hvaldiviezos@automotorespakatnamu.com', // TODO: reemplazar por $person->email2
+        'to' => [$person->email2, "ymontalvop@grupopakatnamu.com"],
         'subject' => '¡Tu resultado de desempeño ya está disponible!',
         'template' => 'emails.evaluation-results-available',
         'data' => [
@@ -750,8 +748,8 @@ class EvaluationNotificationService
   {
     try {
       $emailConfig = [
-//        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
-        'to' => "hvaldiviezos@automotorespakatnamu.com",
+        'to' => [$leader->email2, "ymontalvop@grupopakatnamu.com"],
+//        'to' => "hvaldiviezos@automotorespakatnamu.com",
         'subject' => 'Evaluación de Desempeño Finalizada - Resumen de Resultados',
         'template' => 'emails.evaluation-closed',
         'data' => [
