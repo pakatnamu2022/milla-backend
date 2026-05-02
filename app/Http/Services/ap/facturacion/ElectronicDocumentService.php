@@ -2800,9 +2800,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $data['sunat_concept_transaction_type_id'] = SunatConcepts::ID_SUJETA_DETRACCION;
     }
 
-    if (isset($data['detraccion'])) {
+    if (isset($data['detraccion']) && $data['detraccion'] === true && (int)$data['area_id'] === ApMasters::AREA_COMERCIAL) {
       // Para el área comercial, solo marcar como sujeta a detracción sin importar el monto
-      $data['detraccion'] = true;
       $data['sunat_concept_detraction_type_id'] = SunatConcepts::ID_DETRACTION_SERVICIOS;
 
       // Obtener el porcentaje de detracción desde GeneralMaster
