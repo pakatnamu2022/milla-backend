@@ -38,10 +38,13 @@ class SnapshotAssignCompanyBranchPeriods extends Command
 
     // Obtener registros del mes ANTERIOR
     $assignments = DB::table('ap_assign_company_branch_period')
-      ->where('year', $previousYear)
-      ->where('month', $previousMonthNumber)
-      ->where('status', true)
-      ->whereNull('deleted_at')
+      ->join('rrhh_persona', 'ap_assign_company_branch_period.worker_id', '=', 'rrhh_persona.id')
+      ->where('ap_assign_company_branch_period.year', $previousYear)
+      ->where('ap_assign_company_branch_period.month', $previousMonthNumber)
+      ->where('ap_assign_company_branch_period.status', true)
+      ->where('rrhh_persona.status_id', 22)
+      ->whereNull('ap_assign_company_branch_period.deleted_at')
+      ->select('ap_assign_company_branch_period.*')
       ->get();
 
     if ($assignments->isEmpty()) {

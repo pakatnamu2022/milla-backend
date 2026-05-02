@@ -37,6 +37,7 @@ class Worker extends BaseModel
     'tel_referencia_3',
     'sueldo',
     'horas_jornada',
+    'status_id',
   ];
 
   const filters = [

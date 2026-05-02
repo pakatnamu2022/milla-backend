@@ -37,11 +37,17 @@ class SnapshotAssignmentLeadershipPeriods extends Command
     $currentMonth = now()->month;
 
     // Obtener registros del mes ANTERIOR
+    // Validar que tanto el jefe (boss_id) como el asesor (worker_id) estén activos (status_id = 22)
     $assignments = DB::table('ap_assignment_leadership_periods')
-      ->where('year', $previousYear)
-      ->where('month', $previousMonthNumber)
-      ->where('status', true)
-      ->whereNull('deleted_at')
+      ->join('rrhh_persona as boss', 'ap_assignment_leadership_periods.boss_id', '=', 'boss.id')
+      ->join('rrhh_persona as worker', 'ap_assignment_leadership_periods.worker_id', '=', 'worker.id')
+      ->where('ap_assignment_leadership_periods.year', $previousYear)
+      ->where('ap_assignment_leadership_periods.month', $previousMonthNumber)
+      ->where('ap_assignment_leadership_periods.status', true)
+      ->where('boss.status_id', 22)
+      ->where('worker.status_id', 22)
+      ->whereNull('ap_assignment_leadership_periods.deleted_at')
+      ->select('ap_assignment_leadership_periods.*')
       ->get();
 
     if ($assignments->isEmpty()) {
