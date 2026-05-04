@@ -22,6 +22,7 @@ class ElectronicDocumentResource extends JsonResource
       'sunat_concept_document_type_id' => $this->sunat_concept_document_type_id,
       'serie' => $this->serie,
       'series_id' => $this->series_id,
+      'sede_id' => $this->seriesModel->sede_id,
       'sede' => $this->seriesModel->sede->abreviatura,
       'numero' => $this->numero,
       'full_number' => $this->full_number,

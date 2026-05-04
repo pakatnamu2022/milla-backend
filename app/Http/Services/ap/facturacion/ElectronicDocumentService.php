@@ -1216,6 +1216,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'origin_entity_type' => $originalDocument->origin_entity_type,
         'origin_entity_id' => $originalDocument->origin_entity_id,
         'purchase_request_quote_id' => $originalDocument->purchase_request_quote_id ?? null,
+        'order_quotation_id' => $originalDocument->order_quotation_id ?? null,
+        'work_order_id' => $originalDocument->work_order_id ?? null,
+        'consolidation_type' => $originalDocument->consolidation_type,
       ]);
 
       // Crear la nota de crédito
@@ -3085,7 +3088,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'enviar_automaticamente_al_cliente' => false,
         'created_by' => auth()->id(),
         'sunat_concept_transaction_type_id' => $data['sunat_concept_transaction_type_id'] ?? null,
-        'area_id' => ApMasters::AREA_POSVENTA,
+        'area_id' => ApMasters::AREA_TALLER,
         'orden_compra_servicio_url' => $data['orden_compra_servicio_url'] ?? null,
         'orden_compra_servicio' => $data['orden_compra_servicio'] ?? null,
       ];
