@@ -339,21 +339,48 @@ class SyncSalesDocumentJob implements ShouldQueue
    * Sincroniza items para consolidación masiva
    * Obtiene los items desde las órdenes de trabajo asociadas a través de notas internas
    * Procesa cada OT individualmente y construye los items correspondientes
+   *
+   * Para notas de crédito massive: obtiene los items del documento original para hacer match
    */
   private function syncDocumentItemsForMassiveConsolidation(ElectronicDocument $document, DatabaseSyncService $syncService): void
   {
-    // Obtener las notas internas asociadas al documento electrónico con sus relaciones necesarias
-    // Incluye: orden de trabajo, repuestos con producto y unidad de medida, y mano de obra
-    $internalNotes = $document->internalNotes()->with([
-      'workOrder.parts.product.unitMeasurement',
-      'workOrder.labours'
-    ])->get();
+    // Detectar si es una nota de crédito massive
+    // En este caso, debemos obtener las notas internas del documento original
+    // para que los items coincidan con la factura/boleta original
+    if ($document->sunat_concept_credit_note_type_id !== null && $document->original_document_id) {
+
+      // Obtener el documento original con sus notas internas
+      $originalDocument = ElectronicDocument::with([
+        'internalNotes.workOrder.parts.product.unitMeasurement',
+        'internalNotes.workOrder.labours'
+      ])->find($document->original_document_id);
+
+      if (!$originalDocument) {
+        Log::error('Documento original no encontrado para generar items de nota de crédito massive', [
+          'document_id' => $document->id,
+          'original_document_id' => $document->original_document_id
+        ]);
+
+        return;
+      } else {
+
+        // Usar las notas internas del documento ORIGINAL
+        $internalNotes = $originalDocument->internalNotes;
+      }
+    } else {
+      // Flujo normal: obtener las notas internas del documento actual
+      $internalNotes = $document->internalNotes()->with([
+        'workOrder.parts.product.unitMeasurement',
+        'workOrder.labours'
+      ])->get();
+    }
 
     // Validar que existan notas internas
     if ($internalNotes->isEmpty()) {
       Log::warning('No se encontraron notas internas para consolidación masiva', [
         'document_id' => $document->id,
-        'consolidation_type' => $document->consolidation_type
+        'consolidation_type' => $document->consolidation_type,
+        'is_credit_note' => $document->sunat_concept_credit_note_type_id !== null
       ]);
       return;
     }
