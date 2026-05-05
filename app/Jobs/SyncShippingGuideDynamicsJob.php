@@ -130,7 +130,6 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       $isAccounted = ($result->Estado === 'CONTABILIZADO');
 
       $shippingGuide->update([
-//        'dyn_series' => $dynSeriesFromDynamics,
         'is_accounted' => $isAccounted,
       ]);
 
@@ -162,7 +161,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         return;
       }
 
-      $transferReceptionService = new TransferReceptionService();
+      $transferReceptionService = app(TransferReceptionService::class);
       $transferReceptionService->generateInventoryMovement($transferReception, $transferOutMovement);
     } catch (\Exception $e) {
       Log::error('Error procesando guía de remisión en Dynamics', [

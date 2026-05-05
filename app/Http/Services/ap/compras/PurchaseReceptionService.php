@@ -420,7 +420,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
   public function processReceptionStock(PurchaseOrder $purchaseOrder): void
   {
-    $stockService = new ProductWarehouseStockService();
+    $stockService = app(ProductWarehouseStockService::class);
     $reception = $purchaseOrder->reception; // Relación ya vinculada
 
     // 1. Validar que la recepción exista
@@ -471,7 +471,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     }
 
     // 8. Crear movimiento de inventario y actualizar stock físico
-    $inventoryMovementService = new InventoryMovementService();
+    $inventoryMovementService = app(InventoryMovementService::class);
     try {
       $inventoryMovementService->createFromPurchaseReception($reception);
     } catch (Exception $e) {

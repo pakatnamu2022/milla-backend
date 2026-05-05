@@ -3205,6 +3205,28 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           'tax_amount' => $note->workOrder->tax_amount,
           'final_amount' => $note->workOrder->final_amount,
           'status' => $note->workOrder->status,
+          'labours' => $note->workOrder->labours->map(function ($labour) {
+            return [
+              'id' => $labour->id,
+              'description' => $labour->description,
+              'time_spent_decimal' => $labour->time_spent_decimal,
+              'hourly_rate' => $labour->hourly_rate,
+              'discount_percentage' => $labour->discount_percentage,
+              'total_cost' => $labour->total_cost,
+              'net_amount' => $labour->net_amount,
+            ];
+          }),
+          'parts' => $note->workOrder->parts->map(function ($labour) {
+            return [
+              'id' => $labour->id,
+              'product_name' => $labour->product->name,
+              'quantity_used' => $labour->quantity_used,
+              'unit_price' => $labour->unit_price,
+              'discount_percentage' => $labour->discount_percentage,
+              'total_cost' => $labour->total_cost,
+              'net_amount' => $labour->net_amount,
+            ];
+          })
         ] : null,
       ];
     });

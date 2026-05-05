@@ -686,7 +686,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
    */
   protected function updateInTransitStockOnCreate(PurchaseOrder $purchaseOrder): void
   {
-    $stockService = new ProductWarehouseStockService();
+    $stockService = app(ProductWarehouseStockService::class);
 
     foreach ($purchaseOrder->items as $item) {
       // Only process items with product_id
@@ -710,7 +710,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
    */
   protected function updateInTransitStockOnUpdate(PurchaseOrder $purchaseOrder, array $oldItems, array $newItems): void
   {
-    $stockService = new ProductWarehouseStockService();
+    $stockService = app(ProductWarehouseStockService::class);
 
     // Create a map of old items by product_id
     $oldItemsMap = [];
@@ -754,7 +754,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
    */
   protected function removeInTransitStockOnDestroy(PurchaseOrder $purchaseOrder): void
   {
-    $stockService = new ProductWarehouseStockService();
+    $stockService = app(ProductWarehouseStockService::class);
 
     foreach ($purchaseOrder->items as $item) {
       // Only process items with product_id
@@ -778,7 +778,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
    */
   protected function validateProductsInWarehouse(array $items, int $warehouseId): void
   {
-    $stockService = new ProductWarehouseStockService();
+    $stockService = app(ProductWarehouseStockService::class);
     $missingProducts = [];
     $warehouse = Warehouse::find($warehouseId);
     $warehouseName = $warehouse ? $warehouse->description : "ID: {$warehouseId}";

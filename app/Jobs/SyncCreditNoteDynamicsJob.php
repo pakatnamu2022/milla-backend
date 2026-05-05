@@ -163,7 +163,7 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
 
       if ($purchaseOrder->vehicle_movement_id) {
         // Crear movimiento usando el servicio
-        $movementService = new VehicleMovementService();
+        $movementService = app(VehicleMovementService::class);
         $movementService->storeReturnedVehicleMovement($purchaseOrder->id, $creditNoteNumber);
       }
 
@@ -261,7 +261,7 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
 
       // Generar movimiento de inventario de salida por devolución
       // Esto resta del stock las cantidades que se están devolviendo al proveedor
-      $inventoryService = new InventoryMovementService();
+      $inventoryService = app(InventoryMovementService::class);
       $movement = $inventoryService->createReturnOutFromCreditNote($supplierCreditNote);
 
       \Log::info("Movimiento de inventario creado para NC {$creditNoteNumber}: {$movement->movement_number}");
