@@ -49,17 +49,17 @@ return [
         'ProcesoError' => 0,
 
         'Cliente' => fn($data) => $data['num_doc'] ?? '',
-        'Nombre' => fn($data) => $data['full_name'] ?? '',
-        'NombreCorto' => fn($data) => substr($data['full_name'] ?? '', 0, 50),
+        'Nombre' => fn($data) => substr($data['full_name'] ?? '', 0, 200),
+        'NombreCorto' => fn($data) => substr($data['full_name'] ?? '', 0, 100),
         'full_name' => 'RazonSocial',
         'TipoDocumento' => fn($data) => ApMasters::find($data['document_type_id'])?->description ?? '',
         'ClaseCliente' => fn($data) => TaxClassTypes::find($data['tax_class_type_id'])?->dyn_code ?? '',
         'num_doc' => 'NumeroDocumento',
         'Contribuyente' => fn($data) => ApMasters::find($data['type_person_id'])?->code ?? '01',
-        'ApellidoPaterno' => fn($data) => $data['paternal_surname'] ?? '',
-        'ApellidoMaterno' => fn($data) => $data['maternal_surname'] ?: '',
-        'PrimerNombre' => fn($data) => $data['first_name'] ?? '',
-        'SegundoNombre' => fn($data) => $data['middle_name'] ?? '',
+        'ApellidoPaterno' => fn($data) => substr($data['paternal_surname'] ?? '', 0, 50),
+        'ApellidoMaterno' => fn($data) => substr($data['maternal_surname'] ?? '', 0, 50),
+        'PrimerNombre' => fn($data) => substr($data['first_name'] ?? '', 0, 50),
+        'SegundoNombre' => fn($data) => substr($data['middle_name'] ?? '', 0, 50),
       ],
 
       // Columnas opcionales: solo se sincronizan si existen en los datos
