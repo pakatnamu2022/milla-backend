@@ -1,5 +1,5 @@
 {{-- resources/views/emails/layouts/per-diem.blade.php --}}
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8"/>
@@ -7,7 +7,12 @@
   <title>@yield('email_subject', 'Notificación — Sian')</title>
   <style>
     @media only screen and (max-width: 600px) {
-      .pd-half { display: block !important; width: 100% !important; padding-left: 0 !important; padding-right: 0 !important; }
+      .pd-half {
+        display: block !important;
+        width: 100% !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+      }
     }
   </style>
 </head>
@@ -29,7 +34,8 @@
         {{-- Título --}}
         <tr>
           <td align="left" style="padding-bottom:10px;">
-            <h1 style="margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:45px;font-weight:600;line-height:1.1;color:#111111;letter-spacing:-1px;">
+            <h1
+              style="margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:45px;font-weight:600;line-height:1.1;color:#111111;letter-spacing:-1px;">
               @yield('title')
             </h1>
           </td>
@@ -37,8 +43,9 @@
 
         {{-- Subtítulo --}}
         <tr>
-          <td align="left" style="padding-bottom:40px;">
-            <p style="margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#6b7280;">
+          <td align="left" style="padding-bottom:10px;margin-bottom:40px;border-bottom:1px solid #f0f0f0;">
+            <p
+              style="margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#6b7280;">
               @yield('subtitle')
             </p>
           </td>
@@ -58,8 +65,10 @@
                        style="display:block;border:0;outline:none;text-decoration:none;">
                 </td>
                 <td style="vertical-align:middle;">
-                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;line-height:1.6;color:#9ca3af;">
-                    Correo automático — no responder &nbsp;·&nbsp; &copy; {{ date('Y') }} Sian. Todos los derechos reservados.
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;line-height:1.6;color:#9ca3af;">
+                    Correo automático — no responder &nbsp;·&nbsp; &copy; {{ date('Y') }} Sian. Todos los derechos
+                    reservados.
                   </p>
                 </td>
               </tr>

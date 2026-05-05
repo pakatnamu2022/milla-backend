@@ -28,54 +28,135 @@
   <tr>
     <td>
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+
+        {{-- Código --}}
         <tr>
-          <td colspan="2" style="padding:16px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;">
-            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $request_code }}</p>
-            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Código</p>
+          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/hash.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $request_code }}</p>
+                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Código</p>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
+
+        {{-- Total gastado --}}
         <tr>
-          <td class="pd-half" style="padding:16px 20px 16px 0;border-bottom:1px solid #f3f4f6;width:50%;vertical-align:top;">
-            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_spent, 2) }}</p>
-            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Total gastado</p>
-          </td>
-          <td class="pd-half" style="padding:16px 0 16px 20px;border-bottom:1px solid #f3f4f6;width:50%;vertical-align:top;">
-            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_asume_empresa, 2) }}</p>
-            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Empresa asume</p>
+          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/receipt.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_spent, 2) }}</p>
+                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Total gastado</p>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
+
+        {{-- Empresa asume --}}
         <tr>
-          <td class="pd-half" style="padding:16px 20px 16px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;">
-            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_asume_colaborador, 2) }}</p>
-            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Colaborador asume</p>
-          </td>
-          <td class="pd-half" style="padding:16px 0 16px 20px;border-bottom:1px solid #f3f4f6;vertical-align:top;">
-            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_reembolsar, 2) }}</p>
-            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">A reembolsar</p>
+          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/building-2.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_asume_empresa, 2) }}</p>
+                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Empresa asume</p>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
+
+        {{-- Colaborador asume --}}
+        <tr>
+          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/wallet.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_asume_colaborador, 2) }}</p>
+                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Colaborador asume</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {{-- A reembolsar --}}
+        <tr>
+          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/undo-2.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_reembolsar, 2) }}</p>
+                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">A reembolsar</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {{-- Presupuesto asignado --}}
+        <tr>
+          <td style="padding:14px 0;@if(isset($balance_to_return) && $balance_to_return > 0)border-bottom:1px solid #f3f4f6;@endif">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/banknote.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_budget, 2) }}</p>
+                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Presupuesto asignado</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {{-- Saldo a devolver (opcional) --}}
         @if(isset($balance_to_return) && $balance_to_return > 0)
           <tr>
-            <td class="pd-half" style="padding:16px 20px 16px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;">
-              <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_budget, 2) }}</p>
-              <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Presupuesto asignado</p>
-            </td>
-            <td class="pd-half" style="padding:16px 0 16px 20px;border-bottom:1px solid #f3f4f6;vertical-align:top;">
-              <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($balance_to_return, 2) }}</p>
-              <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Saldo a devolver</p>
-            </td>
-          </tr>
-          <tr>
-            <td colspan="2" style="padding:16px 0;vertical-align:top;font-size:0;line-height:0;">&nbsp;</td>
-          </tr>
-        @else
-          <tr>
-            <td colspan="2" style="padding:16px 0;vertical-align:top;">
-              <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_budget, 2) }}</p>
-              <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Presupuesto asignado</p>
+            <td style="padding:14px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                    <img src="https://api.iconify.design/lucide/refresh-cw.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                         style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                  </td>
+                  <td style="vertical-align:top;">
+                    <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($balance_to_return, 2) }}</p>
+                    <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Saldo a devolver</p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
         @endif
+
       </table>
     </td>
   </tr>
@@ -83,7 +164,7 @@
   {{-- Mensaje (solo si hay saldo a devolver) --}}
   @if(isset($balance_to_return) && $balance_to_return > 0)
     <tr>
-      <td style="padding:0 0 32px 0;">
+      <td style="padding:20px 0 32px 0;">
         <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.7;color:#6b7280;">
           @if($recipient_type === 'employee')
             Tienes un saldo de S/ {{ number_format($balance_to_return, 2) }} para devolver. Coordina con el área correspondiente.

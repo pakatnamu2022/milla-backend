@@ -25,71 +25,195 @@
     </td>
   </tr>
 
-  {{-- Campos: datos del viaje --}}
+  {{-- Campos --}}
   <tr>
     <td>
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+
+        {{-- Código --}}
         <tr>
-          <td class="pd-half" style="padding:16px 20px 16px 0;border-bottom:1px solid #f3f4f6;width:50%;vertical-align:top;">
-            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $request_code }}</p>
-            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Código</p>
-          </td>
-          <td class="pd-half" style="padding:16px 0 16px 20px;border-bottom:1px solid #f3f4f6;width:50%;vertical-align:top;">
-            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $employee_name }}</p>
-            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Colaborador</p>
+          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/hash.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $request_code }}</p>
+                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Código</p>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
+
+        {{-- Colaborador --}}
         <tr>
-          <td class="pd-half" style="padding:16px 20px 16px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;">
-            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $sede_service }}</p>
-            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Sede de servicio</p>
-          </td>
-          <td class="pd-half" style="padding:16px 0 16px 20px;border-bottom:1px solid #f3f4f6;vertical-align:top;">
-            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $district }}</p>
-            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Distrito</p>
+          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/user.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $employee_name }}</p>
+                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Colaborador</p>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
+
+        {{-- Sede de servicio --}}
         <tr>
-          <td class="pd-half" style="padding:16px 20px 16px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;">
-            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $start_date }} — {{ $end_date }}</p>
-            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Fechas</p>
-          </td>
-          <td class="pd-half" style="padding:16px 0 16px 20px;border-bottom:1px solid #f3f4f6;vertical-align:top;">
-            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $days_count }} días</p>
-            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Duración</p>
+          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/map-pin.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $sede_service }}</p>
+                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Sede de servicio</p>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
-        {{-- Resumen financiero --}}
+
+        {{-- Distrito --}}
         <tr>
-          <td class="pd-half" style="padding:16px 20px 16px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;">
-            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ $total_spent }}</p>
-            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Total gastado</p>
+          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/map.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $district }}</p>
+                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Distrito</p>
+                </td>
+              </tr>
+            </table>
           </td>
-          @if(isset($total_company_amount) || isset($total_employee_amount))
-            <td class="pd-half" style="padding:16px 0 16px 20px;border-bottom:1px solid #f3f4f6;vertical-align:top;">
-              @isset($total_company_amount)
-                <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ $total_company_amount }}</p>
-                <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Empresa asume</p>
-              @endisset
-            </td>
-          @else
-            <td class="pd-half" style="padding:16px 0 16px 20px;border-bottom:1px solid #f3f4f6;"></td>
-          @endif
         </tr>
-        @isset($total_employee_amount)
+
+        {{-- Fechas --}}
+        <tr>
+          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/calendar.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $start_date }} — {{ $end_date }}</p>
+                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Fechas</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {{-- Duración --}}
+        <tr>
+          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/clock.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $days_count }} días</p>
+                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Duración</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {{-- Total gastado --}}
+        <tr>
+          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/receipt.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ $total_spent }}</p>
+                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Total gastado</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {{-- Empresa asume (opcional) --}}
+        @isset($total_company_amount)
           <tr>
-            <td colspan="2" style="padding:16px 0;vertical-align:top;">
-              <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ $total_employee_amount }}</p>
-              <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Colaborador asume</p>
+            <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                    <img src="https://api.iconify.design/lucide/building-2.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                         style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                  </td>
+                  <td style="vertical-align:top;">
+                    <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ $total_company_amount }}</p>
+                    <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Empresa asume</p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
         @endisset
+
+        {{-- Colaborador asume (opcional) --}}
+        @isset($total_employee_amount)
+          <tr>
+            <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                    <img src="https://api.iconify.design/lucide/wallet.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                         style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                  </td>
+                  <td style="vertical-align:top;">
+                    <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ $total_employee_amount }}</p>
+                    <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Colaborador asume</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        @endisset
+
+        {{-- Motivo --}}
         <tr>
-          <td colspan="2" style="padding:16px 0;vertical-align:top;">
-            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.3;">{{ $purpose }}</p>
-            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Motivo</p>
+          <td style="padding:14px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/file-text.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.3;">{{ $purpose }}</p>
+                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Motivo</p>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
+
       </table>
     </td>
   </tr>
