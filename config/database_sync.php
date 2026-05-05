@@ -47,7 +47,6 @@ return [
         'DireccionCliente' => fn($data) => 'FISCAL',
         'ProcesoEstado' => 0,
         'ProcesoError' => 0,
-
         'Cliente' => fn($data) => $data['num_doc'] ?? '',
         'Nombre' => fn($data) => substr($data['full_name'] ?? '', 0, 200),
         'NombreCorto' => fn($data) => substr($data['full_name'] ?? '', 0, 100),
