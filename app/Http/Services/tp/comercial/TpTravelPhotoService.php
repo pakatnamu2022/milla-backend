@@ -471,7 +471,7 @@ class TpTravelPhotoService extends BaseService
                 ]);
 
         }catch(Throwable $th){
-            Log::error("Error en estadisticas de las fotos: ".$e->getMessage());
+            Log::error("Error en estadisticas de las fotos: ".$th->getMessage());
             throw new Exception("Error al obtener estadisticas" . $th->getMessage());
         }
     }
