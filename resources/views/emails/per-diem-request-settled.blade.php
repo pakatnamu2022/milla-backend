@@ -1,174 +1,113 @@
-@extends('emails.layouts.base')
+@extends('emails.layouts.per-diem')
+
+@section('title', 'Liquidación completada.')
+
+@section('subtitle')
+  @if($recipient_type === 'employee')
+    Tu liquidación de viáticos fue procesada.
+  @else
+    Liquidación de {{ $employee_name }} procesada.
+  @endif
+@endsection
 
 @section('content')
-  <!-- Wrapper -->
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+  {{-- Saludo --}}
+  <tr>
+    <td style="padding:0 0 20px 0;">
+      <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7;color:#111111;">
+        @if($recipient_type === 'employee')
+          Hola <strong style="font-weight:600;">{{ $employee_name }}</strong>,
+        @else
+          Estimado/a,
+        @endif
+      </p>
+    </td>
+  </tr>
+
+  {{-- Campos --}}
+  <tr>
+    <td>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+        <tr>
+          <td colspan="2" style="padding:16px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;">
+            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $request_code }}</p>
+            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Código</p>
+          </td>
+        </tr>
+        <tr>
+          <td class="pd-half" style="padding:16px 20px 16px 0;border-bottom:1px solid #f3f4f6;width:50%;vertical-align:top;">
+            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_spent, 2) }}</p>
+            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Total gastado</p>
+          </td>
+          <td class="pd-half" style="padding:16px 0 16px 20px;border-bottom:1px solid #f3f4f6;width:50%;vertical-align:top;">
+            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_asume_empresa, 2) }}</p>
+            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Empresa asume</p>
+          </td>
+        </tr>
+        <tr>
+          <td class="pd-half" style="padding:16px 20px 16px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;">
+            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_asume_colaborador, 2) }}</p>
+            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Colaborador asume</p>
+          </td>
+          <td class="pd-half" style="padding:16px 0 16px 20px;border-bottom:1px solid #f3f4f6;vertical-align:top;">
+            <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_reembolsar, 2) }}</p>
+            <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">A reembolsar</p>
+          </td>
+        </tr>
+        @if(isset($balance_to_return) && $balance_to_return > 0)
+          <tr>
+            <td class="pd-half" style="padding:16px 20px 16px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;">
+              <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_budget, 2) }}</p>
+              <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Presupuesto asignado</p>
+            </td>
+            <td class="pd-half" style="padding:16px 0 16px 20px;border-bottom:1px solid #f3f4f6;vertical-align:top;">
+              <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($balance_to_return, 2) }}</p>
+              <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Saldo a devolver</p>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2" style="padding:16px 0;vertical-align:top;font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+        @else
+          <tr>
+            <td colspan="2" style="padding:16px 0;vertical-align:top;">
+              <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_budget, 2) }}</p>
+              <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Presupuesto asignado</p>
+            </td>
+          </tr>
+        @endif
+      </table>
+    </td>
+  </tr>
+
+  {{-- Mensaje (solo si hay saldo a devolver) --}}
+  @if(isset($balance_to_return) && $balance_to_return > 0)
     <tr>
-      <td align="center">
-        <!-- Container -->
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-               style="max-width:640px;background:#ffffff;border:1px solid #e6e8ee;border-radius:16px;overflow:hidden;">
-          <!-- Header -->
-          <tr>
-            <td style="padding:24px 24px 16px 24px;background:#f9fafc;border-bottom:1px solid #eef0f5;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td align="left" style="vertical-align:middle;">
-                    @if(isset($logo))
-                      <img src="{{ $logo }}" alt="Logo" width="120"
-                           style="display:block;height:auto;border:0;outline:none;text-decoration:none;max-width:160px;">
-                    @endif
-                  </td>
-                  <td align="right" style="vertical-align:middle;">
-                  <span
-                    style="display:inline-block;padding:6px 10px;border:1px solid #10b981;border-radius:999px;font:600 12px/1.2 Inter,Arial,Helvetica,sans-serif;color:#065f46;background:#d1fae5;">
-                    Completada
-                  </span>
-                  </td>
-                </tr>
-              </table>
-
-              <h1 style="margin:16px 0 4px 0;font:700 20px/1.25 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                Liquidación de Viáticos Completada
-              </h1>
-              <p style="margin:0;font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#4b5563;">
-                @if($recipient_type === 'employee')
-                  Tu liquidación ha sido procesada exitosamente
-                @else
-                  Liquidación procesada exitosamente
-                @endif
-              </p>
-            </td>
-          </tr>
-
-          <!-- Body -->
-          <tr>
-            <td style="padding:24px;">
-              <p style="margin:0 0 12px 0;font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                @if($recipient_type === 'employee')
-                  Hola <strong style="font-weight:600;color:#111827;">{{ $employee_name }}</strong>,
-                @else
-                  Estimado/a,
-                @endif
-              </p>
-
-              <div
-                style="margin:0 0 16px 0;padding:16px;border:1px solid #eef0f5;border-radius:12px;background:#fbfbfe;">
-                <p style="margin:0;font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                  @if($recipient_type === 'employee')
-                    La liquidación de tu solicitud de viáticos <strong>{{ $request_code }}</strong> ha sido completada
-                    exitosamente.
-                  @else
-                    La liquidación de la solicitud de viáticos <strong>{{ $request_code }}</strong> del colaborador <strong>{{ $employee_name }}</strong> ha sido completada
-                    exitosamente.
-                  @endif
-                </p>
-              </div>
-
-              <div
-                style="margin:0 0 16px 0;padding:12px 14px;border-left:4px solid #10b981;background:#ecfdf5;border-radius:10px;">
-                <div
-                  style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#065f46;margin-bottom:4px;">
-                  Resumen de Liquidación
-                </div>
-                <div style="font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                  <strong>Código:</strong> {{ $request_code }}<br>
-                  <strong>Total gastado:</strong> S/ {{ number_format($total_spent, 2) }}<br>
-                  <strong>Total que asume la empresa:</strong> S/ {{ number_format($total_asume_empresa, 2) }}<br>
-                  <strong>Total que asume el colaborador:</strong> S/ {{ number_format($total_asume_colaborador, 2) }}
-                  <br>
-                  <strong>Total a reembolsar:</strong> S/ {{ number_format($total_reembolsar, 2) }}<br>
-                  <br>
-                  <strong>Presupuesto asignado:</strong> S/ {{ number_format($total_budget, 2) }}<br>
-                  @if($balance_to_return > 0)
-                    <strong>Saldo a devolver:</strong> S/ {{ number_format($balance_to_return, 2) }}
-                  @endif
-                </div>
-              </div>
-
-              @if(isset($balance_to_return) && $balance_to_return > 0)
-                <div
-                  style="margin:0 0 16px 0;padding:12px 14px;border:1px dashed #dfe3ec;border-radius:12px;background:#fcfdfd;">
-                  <strong
-                    style="display:block;margin-bottom:6px;font:600 14px/1.5 Inter,Arial,Helvetica,sans-serif;color:#01237E;">
-                    Acción requerida
-                  </strong>
-                  <div style="font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                    @if($recipient_type === 'employee')
-                      Tienes un saldo de S/ {{ number_format($balance_to_return, 2) }} para devolver. Por favor, coordina
-                      con el área correspondiente.
-                    @else
-                      El colaborador tiene un saldo de S/ {{ number_format($balance_to_return, 2) }} para devolver.
-                    @endif
-                  </div>
-                </div>
-              @endif
-
-              @if(isset($button_url))
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"
-                       style="margin:20px auto;">
-                  <tr>
-                    <td align="center" bgcolor="#01237E" style="border-radius:10px;">
-                      <a href="{{ $button_url }}"
-                         style="display:inline-block;padding:12px 20px;font:600 14px/1 Inter,Arial,Helvetica,sans-serif;text-decoration:none;color:#ffffff;background:#01237E;border-radius:10px;border:1px solid #011a5b;">
-                        Ver Liquidación
-                      </a>
-                    </td>
-                  </tr>
-                </table>
-              @endif
-            </td>
-          </tr>
-        </table>
-        <!-- /Container -->
+      <td style="padding:0 0 32px 0;">
+        <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.7;color:#6b7280;">
+          @if($recipient_type === 'employee')
+            Tienes un saldo de S/ {{ number_format($balance_to_return, 2) }} para devolver. Coordina con el área correspondiente.
+          @else
+            El colaborador tiene un saldo de S/ {{ number_format($balance_to_return, 2) }} para devolver.
+          @endif
+        </p>
       </td>
     </tr>
-  </table>
+  @else
+    <tr>
+      <td style="padding-bottom:32px;font-size:0;line-height:0;">&nbsp;</td>
+    </tr>
+  @endif
 
-  <!-- Dark mode support -->
-  <style>
-    @media (prefers-color-scheme: dark) {
-      table, td {
-        background-color: #0b0f1a !important;
-      }
-
-      .invert-bg {
-        background-color: #0b0f1a !important;
-      }
-
-      h1, h2, h3, p, div, span, strong {
-        color: #e5e7eb !important;
-      }
-    }
-
-    /* Mobile responsive */
-    @media (max-width: 480px) {
-      table[style*="padding:24px"] > tr > td {
-        padding: 15px !important;
-      }
-
-      span[style*="padding:6px 10px"] {
-        font-size: 11px !important;
-        padding: 4px 10px !important;
-      }
-
-      h1 {
-        font-size: 20px !important;
-        line-height: 1.3 !important;
-      }
-
-      p, td, div {
-        font-size: 13px !important;
-      }
-
-      a[style*="padding:12px"] {
-        padding: 10px 16px !important;
-        font-size: 13px !important;
-      }
-
-      table[style*="margin:20px"] {
-        margin: 15px auto !important;
-      }
-    }
-  </style>
+  {{-- Botón --}}
+  @isset($button_url)
+    <tr>
+      <td align="center" style="padding-bottom:40px;">
+        <a href="{{ $button_url }}"
+           style="display:inline-block;padding:13px 28px;background:#01237e;color:#ffffff;font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:600;line-height:1;text-decoration:none;border-radius:8px;">
+          Ver liquidación
+        </a>
+      </td>
+    </tr>
+  @endisset
 @endsection
