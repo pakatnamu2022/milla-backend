@@ -601,7 +601,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
     $this->sendQuoteCreatedEmail($quote);
 
-    $recipients = config('mail.recipients.purchase_quote');
+    $recipients = $this->getQuoteRecipients($quote);
 
     return [
       'message' => 'Correo enviado a la cola correctamente.',
@@ -610,12 +610,35 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   }
 
   /**
+   * Devuelve los destinatarios según la ciudad de la sede de la cotización.
+   * Piura/Jaén → John Timaná; Cajamarca/Chiclayo → Adolfo Ramírez.
+   */
+  private function getQuoteRecipients($quote): array
+  {
+    $ciudad = strtolower(trim($quote->sede?->ciudad ?? ''));
+
+    if (str_contains($ciudad, 'piura') || str_contains($ciudad, 'jaen') || str_contains($ciudad, 'jaén')) {
+      return (array) config('mail.recipients.purchase_quote.piura_jaen', []);
+    }
+
+    if (str_contains($ciudad, 'cajamarca') || str_contains($ciudad, 'chiclayo')) {
+      return (array) config('mail.recipients.purchase_quote.cajamarca_chiclayo', []);
+    }
+
+    // Si la ciudad no coincide, enviar a todos
+    return array_merge(
+      (array) config('mail.recipients.purchase_quote.piura_jaen', []),
+      (array) config('mail.recipients.purchase_quote.cajamarca_chiclayo', [])
+    );
+  }
+
+  /**
    * Envía correo de notificación al guardar una cotización/solicitud de compra
    */
   private function sendQuoteCreatedEmail($quote): void
   {
     try {
-      $recipients = config('mail.recipients.purchase_quote');
+      $recipients = $this->getQuoteRecipients($quote);
 
       if (empty($recipients)) {
         return;

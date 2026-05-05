@@ -121,8 +121,8 @@ return [
 
   'recipients' => [
     'purchase_quote' => [
-      'adolfo.ramirez@inchcape.com',
-      'john.timana@derco.pe'
+      'piura_jaen'        => ['john.timana@derco.pe'],
+      'cajamarca_chiclayo' => ['adolfo.ramirez@inchcape.com'],
     ],
   ],
 

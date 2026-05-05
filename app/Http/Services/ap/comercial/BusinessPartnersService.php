@@ -294,26 +294,11 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
         }
       }
 
-      // Recargar oportunidades abiertas tras el cierre automático
-      $opportunities = Opportunity::where('client_id', $businessPartner->id)
-        ->whereIn('opportunity_status_id', $statusIds)
-        ->with('family.brand')
-        ->get();
     }
 
-    // Obtener la marca del lead para todas las validaciones siguientes
+    // Obtener la marca del lead para validaciones de partes relacionadas
     $lead = PotentialBuyers::findOrFail($leadId);
     $newBrandId = $lead->vehicle_brand_id;
-
-    if ($opportunities->count() > 0) {
-      // Obtener las marcas de todas las oportunidades existentes
-      $existingBrandIds = $opportunities->pluck('family.brand_id')->filter()->unique();
-
-      // Si la nueva oportunidad es de la misma marca que alguna existente, lanzar excepción
-      if ($existingBrandIds->contains($newBrandId)) {
-        throw new Exception('El cliente ya tiene una oportunidad abierta de la misma marca');
-      }
-    }
 
     // Validar partes relacionadas (misma marca): representante legal y cónyuge/copropietario
     $clientIdsWithOpenOpps = Opportunity::whereIn('opportunity_status_id', $statusIds)
