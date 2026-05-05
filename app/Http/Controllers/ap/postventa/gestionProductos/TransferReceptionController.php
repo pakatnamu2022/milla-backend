@@ -59,7 +59,8 @@ class TransferReceptionController extends Controller
   {
     $request->validated();
     try {
-      $reception = $this->service->createReception($request->all());
+      $data = $request->validated();
+      $reception = $this->service->createReception($data);
 
       return $this->success([
         'message' => 'Recepción de transferencia creada exitosamente',

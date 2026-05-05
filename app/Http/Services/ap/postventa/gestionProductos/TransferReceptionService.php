@@ -21,10 +21,13 @@ class TransferReceptionService extends BaseService
   protected $stockService;
   protected $inventoryMovementService;
 
-  public function __construct()
+  public function __construct(
+    ProductWarehouseStockService $stockService,
+    InventoryMovementService $inventoryMovementService
+  )
   {
-    $this->stockService = new ProductWarehouseStockService();
-    $this->inventoryMovementService = new InventoryMovementService();
+    $this->stockService = $stockService;
+    $this->inventoryMovementService = $inventoryMovementService;
   }
 
   public function list(Request $request)
