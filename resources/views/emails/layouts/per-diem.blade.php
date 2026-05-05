@@ -35,7 +35,7 @@
         <tr>
           <td align="left" style="padding-bottom:10px;">
             <h1
-              style="margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:45px;font-weight:600;line-height:1.1;color:#111111;letter-spacing:-1px;">
+              style="margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:40px;font-weight:500;line-height:1.1;color:#111111;letter-spacing:-1px;">
               @yield('title')
             </h1>
           </td>
